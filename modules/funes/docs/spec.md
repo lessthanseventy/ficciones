@@ -1,4 +1,4 @@
-# Workbench 2.0 — specification
+# funes — specification
 
 Written 2026-08-14, after two weeks of daily use of version one and two fresh-context adversarial
 reviews of it. Version one is committed at `workbench-env 3ac8506` and keeps running until this
@@ -11,6 +11,25 @@ much as the spirit of it... here's what a weaker version of you and I got to, br
 Everything below that reads like a rule was paid for by a specific failure. The failures are named,
 because a constraint without its incident gets optimised away by the next person who finds it
 inconvenient.
+
+**Amended 2026-08-14, on migration to the clean-room machine.** This specification rode over to a second
+machine (§8c) and, on landing, three things changed and are recorded here rather than silently:
+
+- **The name is `funes`**, after Borges' *Funes the Memorious* — the man who could not forget and was
+  useless for it. A specification whose §4 is a war on total recall earns the joke; "Workbench" was a
+  placeholder that travelled with the file. The identifiers `workbench_ledger`, `workbench_mode` and the
+  `workbench-env` repo are v1 proper nouns and keep their names.
+- **This is now a module, not a repository.** It lives at `modules/funes/` inside a `machine-v2` monorepo
+  that is the owner's whole computer — dotfiles, installer, desktop, and this. So every "repository" in
+  §8b and §8c — *"a clean repository"*, *"nothing travels except this repository"*, *"THE REPOSITORY MUST
+  BE SELF-SUFFICIENT"* — now reads **"the `funes` module"**: the boundary those sections drew at the repo
+  edge moves inward to the module edge, and the unit that crosses to another machine is `modules/funes/`
+  (a `git subtree` split, or the flake enabling only this module on that host). The self-sufficiency rule
+  is not weakened — it is precisely what lets the boundary move without leaking.
+- **`AGENTS.md` is now `modules/funes/AGENTS.md`.** §7's "what makes 'knows nothing' safe" is that file
+  in its new home; the machine repo has its own root `AGENTS.md` for the layer above.
+
+The reasoning is in `../../docs/plans/2026-08-14-machine-v2-and-funes-design.md`.
 
 ---
 
@@ -80,7 +99,7 @@ Corollaries, each with its incident:
 Banked as a constraint during the spec work, from the owner directly: *"i would honestly like to
 expose as many of the actual herdr commands to this whole pi stack"*.
 
-So the workbench does not wrap a chosen subset of Herdr and hide the rest. It exposes Herdr's own
+So funes does not wrap a chosen subset of Herdr and hide the rest. It exposes Herdr's own
 commands and vocabulary, and it uses Herdr's authoritative channels rather than cosmetic imitations:
 
 - **Blocked state is published through Herdr's lifecycle channel**, not drawn as a status string. When

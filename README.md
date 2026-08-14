@@ -1,39 +1,44 @@
-# workbench
+# machine
 
-One person's workbench: the machine-side layer between [Herdr](https://herdr.dev) (terminal),
-[pi](https://github.com/earendil-works/pi-coding-agent) (agent), and the work itself.
+One person's computer, as a repository. Dotfiles, installer, desktop, and the AI stack — the whole
+machine declared in one place so it can be rebuilt on any box, or a throwaway VM, and be the same
+machine when it comes back up.
 
-**Read `docs/spec.md` first.** This repository's first commit is a specification rather than code,
-which is the point: version one was arrived at by two weeks of daily use and iteration, and it worked
-well enough to be *described* instead of discovered. Version one keeps running until this replaces it
-piece by piece.
+This started life as the `funes` specification (the AI stack) and grew outward: if the goal is a
+computing life you can trust and rebuild, the repository has to be the machine, not one program on it.
 
-## What is here
+## Layout
 
-| File | What it is |
-|---|---|
-| `docs/spec.md` | The specification. Every rule in it names the failure that paid for it. |
-| `docs/spec-review.md` | An adversarial review of that specification by a fresh session, which found seven defects in it. Kept because the arguments are the reasoning. |
-| `docs/v1-review.md` | An adversarial review of **version one**, which is what made a version two worth specifying. |
-| `docs/issues.md` | The bootstrap issue list, until the `issue` table exists to replace it. |
+```
+machine/
+  flake.nix            # the installer — Nix, adopted gradually (see below)
+  hosts/               # per-machine composition: which modules a host turns on
+  modules/
+    funes/             # the AI stack — its own spec, its own boundary; the first module built
+    desktop/           # hyprland + its stack        (harvested from the current env, later)
+    theme/             # colours, UI prefs, theming    (harvested, later)
+    shell/             # shell, ghostty, dotfiles        (harvested, later)
+  docs/plans/          # design records, most recent first
+```
 
-## The one architectural decision
+Only `modules/funes/` exists as a real module today. The env modules are a separate, incremental track —
+Nix makes pulling them over gradual, so there is no big bang, and empty directories are not created to
+pretend otherwise: a module is born when it has content.
 
-Three owners, no overlap:
+## The installer
 
-- **SQLite** holds the machine's truth — facts, events, issues, signals, the channel.
-- **Markdown under `~/notes`** holds what a human reads, generated as a draft rather than authored.
-- **Herdr** holds the terminal's truth — workspaces, tabs, panes, focus, agent lifecycle.
+Nix, on the existing Arch install, adopted the low-blast-radius way: **Nix + home-manager as a flake**
+manages home declaratively while Arch and `mise` stay exactly where they are. A **disposable NixOS VM**
+(`nixos-rebuild build-vm`) is the testbed where full NixOS gets tried before it ever touches metal.
+The reasoning — and why the old "Arch/AUR + mise beats NixOS" verdict was correct until the AI world
+changed one term of it — is in `docs/plans/2026-08-14-machine-v2-and-funes-design.md`.
 
-Everything else follows from that, so if the split is wrong, most of this is wrong.
+Nix commands are run by the human, not by an agent in this repo: on this machine the tool sandbox
+segfaults the `nix` binary, and building a machine is a system change the human owns anyway.
 
-## Deliberately not built
+## Where to start reading
 
-A meta-orchestrator session. Mode-switch keybindings. A second log or a dual write. Mirrored Herdr
-state. Metrics that never changed a decision. Hand-authored machine documentation. A taxonomy on what
-may be posted to the channel. See `docs/spec.md` §10 for why each one is out, with the measurement.
-
-## Not yet a program
-
-There is no code here yet, on purpose. `docs/spec.md` §9 says what day one is, in five steps, and the
-first is the database plus a repair tool — because nothing should ship that cannot be fixed at 2am.
+- `docs/plans/2026-08-14-machine-v2-and-funes-design.md` — the machine-level design and every decision behind it.
+- `modules/funes/README.md` — the AI stack, and where its name comes from.
+- `modules/funes/docs/spec.md` — the specification that is the reason any of this exists. Read it before
+  writing anything in that module.
