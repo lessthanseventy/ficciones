@@ -40,39 +40,81 @@ from; the workspace hangs off the thread as a handle, not the other way around.
 
 ---
 
-## 3 · Coworkers — persistent named identities with capability profiles
+## 3 · Coworkers, sessions, and the five axes
 
-A coworker is **persistent** (handles many threads over time, not spun per-thread — this was the open
-question) and it is a **named identity bound to a capability profile.** "Sandra, our Support agent, wired
-to the APM and the MCPs and trusted with more power" versus "Robert, who is dumb and sandboxed hard" is
-not flavour — it is a different profile. Five parts:
+**Coworker vs session, settled.** A **coworker** is the *durable* identity + profile — a row in the DB
+(Sandra, Robert), outliving everything. A **session** ("the agent") is an *ephemeral* running instance of
+a coworker: in a pane, on an engine, working one thread — it compacts, forgets, and dies. That ephemeral
+thing is §10's "session"; the coworker is the employee, the session is the employee-at-their-desk-right-
+now. Coworker persists; sessions come and go.
 
-1. **Identity + mandate** — a name, so `Sandra reviewed it` outlives the workspace (§5b), plus a one-line
-   mandate.
-2. **Capability requirement, not a product (§8)** — the model tier it *needs*, as a requirement: "cheap
-   per turn", "long context", "not the weights under review". The mapping to an actual endpoint is local
-   config; the design never names a model.
-3. **Grants** — opaque references to what it may reach: MCP servers, data sources (an APM, a tracker),
-   repos, tools — each read-only or read/write. The design holds the *reference and the read/write bit*;
-   local config resolves "the support MCP" or "the APM" to a real endpoint and secret. Robert's grants
-   are empty; Sandra's are broad.
-4. **Autonomy** — how much it may do without a proposal gate (§8, "the human presses Enter"). Robert:
-   everything gated. Sandra: acts within her grants, escalates writes.
-5. **Execution posture** — where its commands run: hard sandbox / disposable-exec (prior doc §4b) for
-   Robert; local-with-grants for Sandra.
+A coworker is a named identity **powered by an engine** and shaped by **five orthogonal axes.**
 
-This is just §8 applied to a coworker — capability requirements plus local grants, no product in the
-design — and it composes cleanly with the proposal gate (autonomy), disposable-exec (posture), and the
-channel (a coworker posts to threads *as* its identity). The v1 "Dashboard", "Reviews", and "Support
-Desk" sessions were each an early, profile-less version of this.
+**The engine — what powers a session.** Harness (pi | claude-code | codex | aider) and model are coupled
+in reality (some harnesses lock to a provider; each model has *strengths* — opus for the deep single
+thing, codex for planning), so local config defines named **engines**: valid harness+model combos with
+declared strengths. The design never names claude/codex/ollama — a coworker states a **strength
+requirement** ("planning", "deep reasoning", "cheap per turn", "long context", "not the weights under
+review") and the local **engine registry** resolves it. On the home box that registry is roughly
+`{ deep: claude-code+opus, planner: codex, cheap: ollama.com }`; on the work box, something else — all
+config, none in the design (§8). A workflow may route *phases* to different strengths (plan on the
+planner, execute on the deep engine) — the ex_cortex pipeline, a later extension, not day one.
 
-**Not over-built:** the profile lives inline on the coworker. No separate role/type hierarchy until there
-are enough coworkers sharing a profile to justify factoring one out — the spec's own "don't build it
-before the evidence." Schema: `coworker` = identity + mandate + capability requirement + grants +
-autonomy + posture; a thread has `0..1` assigned coworker; a coworker maps to many threads. The board
-groups by coworker or by thread — both queries, neither stored twice.
+**The five axes** — each grounded in something already in the spec:
+
+| Axis | The question | = | Grounded in |
+|---|---|---|---|
+| **Context** | what it *knows* at spawn | mandate + its scoped facts + the always-loaded constraints | §4 loading |
+| **Sight** | what it can *look at*, live | granted **read** sources — MCP, APM, repos, web | §8 grants (read) |
+| **Hands** | what it can *do* | granted **write** / actions / tools | §8 grants (write) |
+| **Leash** | what it does *without asking* | the trust line; above it, prompt | §8 proposal gate |
+| **Cell** | *where* it runs | disposable sandbox vs local-with-grants | §4b disposable-exec |
+
+Orthogonal on purpose, so the useful combinations are expressible: **wide Sight + no Hands** = a pure
+reviewer (sees the whole system, touches nothing — §5b's fresh eyes); **long Leash + disposable Cell** =
+trusted *and* blast-contained. Sandra: fat Context, wide Sight, real Hands, long Leash, open Cell.
+Robert: thin everything, no Hands, short Leash, locked Cell.
+
+"What needs prompting" and "what we trust it to do" are the *same line seen from both sides* — one axis
+(Leash), not two.
+
+**Not over-built:** the profile lives inline on the coworker; no role/type hierarchy until enough
+coworkers share a profile to justify one. Schema: `coworker` = identity + mandate + engine-requirement +
+the five axes; a `session` references a coworker and a thread; a thread has `0..1` coworker; a coworker
+maps to many threads. The board groups by coworker or by thread — both queries, neither stored twice.
 
 ---
+
+## 3b · The staff — presence, routing, and re-entry
+
+Three pieces fall out of "Jimmy's on a 5-hour break" (the noun for a worker is still provisional — §6b).
+
+**Presence.** A shift's availability is *derived from its engine*: credits spent, rate-limit window
+closed, host down = **clocked out**. The **roster** shows who's *on the clock*; you can't assign a thread
+to a hand who's out.
+
+**Routing and cover.** Assignment is skill × availability × cost: the deep engine (opus) isn't spent on
+filing; grunt drops to the intern (local, always-on); when a senior is out, a mid (ollama) covers. Pay
+grade = engine cost.
+
+**The night shift.** The intern — cheap, local, always-on — runs *preset checks on a loop* and
+**escalates**: alert the STAKEHOLDER out-of-band (the phone, over Tailscale) or **ping a senior when
+their window reopens.** "Ping Jimmy when he's back" is a scheduled job (Oban / OTP) keyed on presence:
+defer the work, wake it when the engine returns. ex_cortex's `Sense`/background-jobs layer, named like a
+person.
+
+**Re-entry is a briefing, never a replay — the load-bearing one.** You cannot hand a returning (or fresh,
+or cheap) shift the thread's raw transcript: it blows the context window (RUNWAY) or *costs its entire
+next window* to re-ingest. So a shift is **briefed from the thread's dossier** — `NORTH STAR`,
+`LEARNINGS`, `BLOCKERS`, `SHIPPED`, last `CHATTER` — never the transcript. This validates the design from
+a second direction: the `IN SCOPE` dossier was built for the human's eyes but is *also* exactly what
+catches a shift up cheaply — one artifact, two consumers (§2). It is §4's discipline ("32 rows, not
+277KB") made urgent, because re-ingestion now has a *price*. And it sharpens §6's "nothing lives only in
+the prose" into something with teeth: **if a thread's state lives only in a transcript, no returning
+shift can catch up affordably** — the structured rows are the *resume-token*, not bookkeeping. So
+**catch-up cost is a first-class budget**: the dossier is ranked and cut (§6) so briefing is cheap and
+predictable, and "rejoin the running thread" is usually the wrong instinct — sessions die (§10), you
+brief a new one.
 
 ## 4 · The board — panes and register
 
@@ -164,6 +206,31 @@ backend — the same §8 rule the spec applied to models and credentials, now ap
 spec violated it by naming Herdr throughout.
 
 ---
+
+## 6b · The capability spine, and one register per layer
+
+**§8 is the organizing principle, not a footnote about models.** The design names only two kinds of thing:
+the **DB** (the one truth), and **capabilities** — each behind a thin adapter with a *local* backend:
+
+- **terminal** (Herdr | tmux) · **harness/engine** (pi | claude-code | codex, resolved by strength) ·
+  **model** (§8) · **credentials** (env | keychain | file | human) · **sources** (MCP | APM | repos)
+
+Everything product-shaped is a swappable adapter; nothing in the design branches on which one. That is
+*why* the second machine works (§8c): home box = claude-code + ollama.com + tmux; work box = pi +
+frontier + Herdr — **same design, different config.** The harness was simply the adapter we hadn't named;
+it provides three verbs — *spawn a session, read its transcript* (§4's turn-derivation), *and be woken.*
+
+**One register per layer, so naming is four decisions and not a thousand (§1).** A name inherits its
+layer's register; you never start from scratch:
+
+| Layer | Read by / how often | Register | Examples |
+|---|---|---|---|
+| Module identities | learned once | Borges | `ficciones` `funes` `tlon` `aleph` |
+| Daily surface labels | a thousand times | corporate-deadpan | `ACTION REQUIRED` `LEARNINGS` `RUNWAY` |
+| Machine truth / data model | the machine + you at 2am | plain precise nouns | `thread` `coworker` `session` `fact` `event` |
+| Capability axes | you, configuring a coworker | clear-with-teeth | `Context / Sight / Hands / Leash / Cell` |
+
+`harness`, `arbiter`, `engine` are machine-truth → plain nouns, settled without debate.
 
 ## 7 · UI-agnostic domain — TUI now, GUI later for free
 
