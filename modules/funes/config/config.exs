@@ -7,6 +7,7 @@ config :funes, ecto_repos: [Funes.Repo]
 # foreign keys on so references are real. The database path is set per-env.
 config :funes, Funes.Repo,
   journal_mode: :wal,
-  busy_timeout: 100
+  busy_timeout: 100,
+  foreign_keys: :on
 
 import_config "#{config_env()}.exs"

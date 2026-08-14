@@ -6,8 +6,8 @@ defmodule Funes.DoctorTest do
     assert Doctor.integrity_check() == "ok"
   end
 
-  test "lists the collection table and excludes sqlite internals and the migration ledger" do
-    assert Doctor.tables() == ["collection"]
+  test "lists the domain tables and excludes sqlite internals and the migration ledger" do
+    assert Doctor.tables() == ["collection", "message", "thread"]
   end
 
   test "has no pending migrations once migrated" do
