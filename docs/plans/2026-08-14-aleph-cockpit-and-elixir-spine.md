@@ -28,7 +28,7 @@ Everything reduces to one object. **You open a thread on the board; the thread i
 thread is a subject (§5b's "a thread per subject", and the spec's `subject` tag) promoted to a
 first-class row. It carries:
 
-- an assigned **coworker** — a named agent/role (see §3), optional
+- an assigned **agent** — a named agent/role (see §3), optional
 - an attached **live session** — a Herdr/tmux pane, stored as an **opaque reference** and asked for
   liveness *live* (§3 verbatim — never a cached copy of its properties), so you can **jump into** it
 - its own accumulated **state**, and this is the point: **the `IN SCOPE` dossier *is* the thread.**
@@ -40,20 +40,20 @@ from; the workspace hangs off the thread as a handle, not the other way around.
 
 ---
 
-## 3 · Coworkers, sessions, and the five axes
+## 3 · Agents, sessions, and the five axes
 
-**Coworker vs session, settled.** A **coworker** is the *durable* identity + profile — a row in the DB
+**Agent vs session, settled.** A **agent** is the *durable* identity + profile — a row in the DB
 (Sandra, Robert), outliving everything. A **session** ("the agent") is an *ephemeral* running instance of
-a coworker: in a pane, on an engine, working one thread — it compacts, forgets, and dies. That ephemeral
-thing is §10's "session"; the coworker is the employee, the session is the employee-at-their-desk-right-
-now. Coworker persists; sessions come and go.
+an agent: in a pane, on an engine, working one thread — it compacts, forgets, and dies. That ephemeral
+thing is §10's "session"; the agent is the employee, the session is the employee-at-their-desk-right-
+now. Agent persists; sessions come and go.
 
-A coworker is a named identity **powered by an engine** and shaped by **five orthogonal axes.**
+An agent is a named identity **powered by an engine** and shaped by **five orthogonal axes.**
 
 **The engine — what powers a session.** Harness (pi | claude-code | codex | aider) and model are coupled
 in reality (some harnesses lock to a provider; each model has *strengths* — opus for the deep single
 thing, codex for planning), so local config defines named **engines**: valid harness+model combos with
-declared strengths. The design never names claude/codex/ollama — a coworker states a **strength
+declared strengths. The design never names claude/codex/ollama — an agent states a **strength
 requirement** ("planning", "deep reasoning", "cheap per turn", "long context", "not the weights under
 review") and the local **engine registry** resolves it. On the home box that registry is roughly
 `{ deep: claude-code+opus, planner: codex, cheap: ollama.com }`; on the work box, something else — all
@@ -67,31 +67,31 @@ planner, execute on the deep engine) — the ex_cortex pipeline, a later extensi
 | **Context** | what it *knows* at spawn | mandate + its scoped facts + the always-loaded constraints | §4 loading |
 | **Sight** | what it can *look at*, live | granted **read** sources — MCP, APM, repos, web | §8 grants (read) |
 | **Hands** | what it can *do* | granted **write** / actions / tools | §8 grants (write) |
-| **Leash** | what it does *without asking* | the trust line; above it, prompt | §8 proposal gate |
-| **Cell** | *where* it runs | disposable sandbox vs local-with-grants | §4b disposable-exec |
+| **Trust** | what it does *without asking* | the trust line; above it, prompt | §8 proposal gate |
+| **Sandbox** | *where* it runs | disposable sandbox vs local-with-grants | §4b disposable-exec |
 
 Orthogonal on purpose, so the useful combinations are expressible: **wide Sight + no Hands** = a pure
-reviewer (sees the whole system, touches nothing — §5b's fresh eyes); **long Leash + disposable Cell** =
-trusted *and* blast-contained. Sandra: fat Context, wide Sight, real Hands, long Leash, open Cell.
-Robert: thin everything, no Hands, short Leash, locked Cell.
+reviewer (sees the whole system, touches nothing — §5b's fresh eyes); **long Trust + disposable Sandbox** =
+trusted *and* blast-contained. Sandra: fat Context, wide Sight, real Hands, long Trust, open Sandbox.
+Robert: thin everything, no Hands, short Trust, locked Sandbox.
 
 "What needs prompting" and "what we trust it to do" are the *same line seen from both sides* — one axis
-(Leash), not two.
+(Trust), not two.
 
-**Not over-built:** the profile lives inline on the coworker; no role/type hierarchy until enough
-coworkers share a profile to justify one. Schema: `coworker` = identity + mandate + engine-requirement +
-the five axes; a `session` references a coworker and a thread; a thread has `0..1` coworker; a coworker
-maps to many threads. The board groups by coworker or by thread — both queries, neither stored twice.
+**Not over-built:** the profile lives inline on the agent; no role/type hierarchy until enough
+agents share a profile to justify one. Schema: `agent` = identity + mandate + engine-requirement +
+the five axes; a `session` references an agent and a thread; a thread has `0..1` agent; an agent
+maps to many threads. The board groups by agent or by thread — both queries, neither stored twice.
 
 ---
 
 ## 3b · The staff — presence, routing, and re-entry
 
-Three pieces fall out of "Jimmy's on a 5-hour break" (the noun for a worker is still provisional — §6b).
+Three pieces fall out of "Jimmy's on a 5-hour break."
 
-**Presence.** A shift's availability is *derived from its engine*: credits spent, rate-limit window
+**Presence.** A session's availability is *derived from its engine*: credits spent, rate-limit window
 closed, host down = **clocked out**. The **roster** shows who's *on the clock*; you can't assign a thread
-to a hand who's out.
+to an agent who's out.
 
 **Routing and cover.** Assignment is skill × availability × cost: the deep engine (opus) isn't spent on
 filing; grunt drops to the intern (local, always-on); when a senior is out, a mid (ollama) covers. Pay
@@ -104,14 +104,14 @@ defer the work, wake it when the engine returns. ex_cortex's `Sense`/background-
 person.
 
 **Re-entry is a briefing, never a replay — the load-bearing one.** You cannot hand a returning (or fresh,
-or cheap) shift the thread's raw transcript: it blows the context window (RUNWAY) or *costs its entire
-next window* to re-ingest. So a shift is **briefed from the thread's dossier** — `NORTH STAR`,
+or cheap) session the thread's raw transcript: it blows the context window (RUNWAY) or *costs its entire
+next window* to re-ingest. So a session is **briefed from the thread's dossier** — `NORTH STAR`,
 `LEARNINGS`, `BLOCKERS`, `SHIPPED`, last `CHATTER` — never the transcript. This validates the design from
 a second direction: the `IN SCOPE` dossier was built for the human's eyes but is *also* exactly what
-catches a shift up cheaply — one artifact, two consumers (§2). It is §4's discipline ("32 rows, not
+catches a session up cheaply — one artifact, two consumers (§2). It is §4's discipline ("32 rows, not
 277KB") made urgent, because re-ingestion now has a *price*. And it sharpens §6's "nothing lives only in
 the prose" into something with teeth: **if a thread's state lives only in a transcript, no returning
-shift can catch up affordably** — the structured rows are the *resume-token*, not bookkeeping. So
+session can catch up affordably** — the structured rows are the *resume-token*, not bookkeeping. So
 **catch-up cost is a first-class budget**: the dossier is ranked and cut (§6) so briefing is cheap and
 predictable, and "rejoin the running thread" is usually the wrong instinct — sessions die (§10), you
 brief a new one.
@@ -125,7 +125,7 @@ labels stay plain-corporate.
 
 ```
 ACTION REQUIRED            IN FLIGHT
- threads needing you        coworker · 9/11 · RUNWAY 67%
+ threads needing you        agent · 9/11 · RUNWAY 67%
 
 IN SCOPE  (the focused thread)
  NORTH STAR    ACTION ITEMS    SHIPPED
@@ -135,7 +135,7 @@ IN SCOPE  (the focused thread)
 | Label | Is | Table |
 |---|---|---|
 | ACTION REQUIRED | what needs the STAKEHOLDER now | blocked agents, approvals, PRs on my call, mentions |
-| IN FLIGHT | live coworkers × threads; **RUNWAY** = ctx% (how much before compaction) | sessions + `event`; §8 pressure |
+| IN FLIGHT | live agents × threads; **RUNWAY** = ctx% (how much before compaction) | sessions + `event`; §8 pressure |
 | NORTH STAR | the thread's goal/heading | `orient` |
 | ACTION ITEMS | what's next | queue |
 | SHIPPED | what landed | `event` |
@@ -227,8 +227,8 @@ layer's register; you never start from scratch:
 |---|---|---|---|
 | Module identities | learned once | Borges | `ficciones` `funes` `tlon` `aleph` |
 | Daily surface labels | a thousand times | corporate-deadpan | `ACTION REQUIRED` `LEARNINGS` `RUNWAY` |
-| Machine truth / data model | the machine + you at 2am | plain precise nouns | `thread` `coworker` `session` `fact` `event` |
-| Capability axes | you, configuring a coworker | clear-with-teeth | `Context / Sight / Hands / Leash / Cell` |
+| Machine truth / data model | the machine + you at 2am | plain precise nouns | `thread` `agent` `session` `fact` `event` |
+| Capability axes | you, configuring an agent | clear-with-teeth | `Context / Sight / Hands / Trust / Sandbox` |
 
 `harness`, `arbiter`, `engine` are machine-truth → plain nouns, settled without debate.
 
@@ -250,7 +250,7 @@ memory, a self-rewriting loop.
 - **Its patterns are confirmed and reused.** `Sense` = signal collectors (§9.3). `Proposal`
   (read-executes, write-requires-approval) = §8's "the human presses Enter" — and it appears in **all
   three** systems (ex_cortex, v1, the spec), so it is an invariant, not a preference. Named neurons =
-  named coworkers.
+  named agents.
 - **Its substrate is what the spec spent itself avoiding.** Postgres + Oban + OpenTelemetry + Grafana +
   neuroplasticity is a data-center. ficciones is the disciplined cut: SQLite, TUI-first, rank-and-cut,
   build-it-only-for-the-channel. Consensus-voting clusters and self-rewriting code are *earned by
@@ -267,7 +267,7 @@ now the spine**, so it moves up:
    Node work; re-verify the write contract on `exqlite`.
 2. **`thread` + `message` + delivery/wake** — the board's spine and §4's capture path (the SUGGESTION
    BOX writes here). `delivered` ≠ `read`. PubSub fan-out; arbiter wake.
-3. **`coworker`** — persistent named roles; assign to threads; jump-into-session.
+3. **`agent`** — persistent named roles; assign to threads; jump-into-session.
 4. **The dossier** — `fact`/`event`/`issue` scoped to threads → `LEARNINGS`/`SHIPPED`/`BLOCKERS`.
 5. **aleph** — the Drafter board rendering all of the above, ranked and cut.
 6. **Collectors** (`Sense`) — PR/calendar/etc., each honest about its `collection` row.

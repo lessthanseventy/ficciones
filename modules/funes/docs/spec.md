@@ -47,7 +47,7 @@ agents, the cockpit `aleph`, and the coalesced architecture supersedes two thing
   Elixir orchestrates; the arbiter actuates.
 - **The `thread` is first-class.** §5b's "a thread per subject" and the `subject` tag become a `thread`
   row that `fact`, `event`, `issue` and `message` reference; a workspace hangs off a thread as an opaque
-  handle, and a **coworker** (a persistent named identity with a §8 capability profile) is assigned to it.
+  handle, and a **agent** (a persistent named identity with a §8 capability profile) is assigned to it.
 
 Full architecture: `../../docs/plans/2026-08-14-aleph-cockpit-and-elixir-spine.md`.
 
