@@ -1,5 +1,5 @@
 {
-  description = "machine — one person's whole computer, as modules. funes is the first.";
+  description = "ficciones — one person's whole computer as modules, each a Borges story. funes is the first.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

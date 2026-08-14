@@ -1,4 +1,4 @@
-# machine
+# ficciones
 
 One person's computer, as a repository. Dotfiles, installer, desktop, and the AI stack — the whole
 machine declared in one place so it can be rebuilt on any box, or a throwaway VM, and be the same
@@ -7,10 +7,16 @@ machine when it comes back up.
 This started life as the `funes` specification (the AI stack) and grew outward: if the goal is a
 computing life you can trust and rebuild, the repository has to be the machine, not one program on it.
 
+**The name.** Borges' *Ficciones* is the 1944 collection that contains the story "Funes the Memorious."
+This repository contains the `funes` module exactly as that book contains that story — so the repo is
+*ficciones*, and each module is another story in it: `funes` is memory (the man who could not forget);
+a desktop module would be `tlon`, the invented world that overwrites the real one. A naming system, not
+just a name.
+
 ## Layout
 
 ```
-machine/
+ficciones/
   flake.nix            # the installer — Nix, adopted gradually (see below)
   hosts/               # per-machine composition: which modules a host turns on
   modules/

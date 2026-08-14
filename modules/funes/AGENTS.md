@@ -1,4 +1,4 @@
-# workbench
+# funes
 
 **Read `docs/spec.md` before writing anything.** It is the specification this repository exists to
 implement, every rule in it names the failure that paid for it, and it was reviewed adversarially twice
@@ -7,13 +7,14 @@ the spec is wrong, say so and change it in the same commit as the code that prov
 
 ## What to build, in order
 
-`docs/spec.md` §9 is day one, in five steps, and step one is the database plus `wb doctor`. **Nothing
+`docs/spec.md` §9 is day one, in order, and step one is the database plus `funes doctor`. **Nothing
 ships that cannot be repaired at 2am** — schema, migrations, `integrity_check`, JSONL export. Do not
-start at step 3 because it is more interesting.
+start at step 3 because it is more interesting. **Step 1 is built and green** (`db`, `migrate`, `doctor`,
+the `funes` CLI); step 2 is the `fact` table surfaced in `orient`.
 
-Version one is running and in daily use at `~/.config/ai-workbench`, `~/.config/ai-workspaces` and
-`~/.pi/agent/extensions`. It is **evidence, not a source**: read it to see what a failure looked like,
-never to copy a shape. Nothing here needs to be backwards compatible with it.
+Version one ran on the *work* machine and is **not on this clean-room box** (§8c). It is **evidence, not
+a source**: it exists to show what a failure looked like, never to copy a shape. Nothing here needs to be
+backwards compatible with it.
 
 ## The rules most likely to be broken by accident
 
@@ -39,8 +40,21 @@ never to copy a shape. Nothing here needs to be backwards compatible with it.
 - **In production, Andrew presses Enter.** Prefill the exact reviewed text in a visible pane and stop.
   Typing is only inert where `herdr pane process-info` proves a shell is in the foreground.
 
+## The dev loop
+
+Drive everything through the shared mise tasks (`mise tasks` lists them) — the human and any agent use
+the same commands, which is the one control loop §3 asks for:
+
+- `mise run funes:test` — the test suite (zero deps, instant); `funes:watch` re-runs on change.
+- `mise run funes:check` — the `tsc` type gate.
+- `mise run funes:doctor` — `doctor` against a repo-local scratch db, never the real one.
+- `mise run check` — tests + types, the green-before-commit gate.
+
+If a command belongs in the loop, it becomes a task in the root `mise.toml`. Do not invent a second way
+to run these.
+
 ## Verify
 
-There is nothing to run yet. When there is, it goes here, and a claim that something works without
-having run it is the one thing this project cannot afford — the spec exists because that happened
-repeatedly in version one.
+Built test-first (RED before GREEN), and a claim that something works is backed by having run it — the
+spec exists because "it works" without running it happened repeatedly in version one. `mise run check`
+is the gate; `funes doctor` against a real db, read back with `sqlite3`, is the 2am proof.

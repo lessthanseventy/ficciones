@@ -16,7 +16,7 @@ together, are this computer. The AI stack (`funes`) is the first and most-specif
 harvested out of the current Arch environment over time.
 
 ```
-machine/                     # this repo
+ficciones/                   # this repo — named for the Borges collection that contains the funes story
   flake.nix                  # the installer (see §4)
   hosts/                     # per-machine composition: which modules a host turns on
     personalbox/             #   this Arch box, via home-manager
