@@ -64,3 +64,17 @@ requirements each come from a measured failure on 2026-08-14:
 
 **Settles it:** the owner stops being the transport. He said it plainly — *"that other session is
 waiting on you, you guys need to work together"* — and he was right, twice in one afternoon.
+
+---
+
+## 4 · Decide whether the Linux machine is a build environment or a second workbench
+
+`docs/spec.md` §8c. Build-there-run-here costs nothing beyond treating each signal source as a plugin,
+which is right regardless. A second workbench changes §2's "SQLite holds the machine's truth", because
+that premise assumes one machine — and a SQLite file on a network or cloud-synced filesystem is a known
+corruption path, so the easy answer is not available.
+
+If it is a second workbench, the proposed shape is two databases with **`fact` authoritative on one**:
+facts are the only rows whose value is not local, and there are tens of them rather than thousands.
+
+**Settles it:** one sentence from him, and §8c loses its open question.

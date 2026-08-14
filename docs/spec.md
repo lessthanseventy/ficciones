@@ -602,6 +602,44 @@ Checked and cleared while writing this: `[update] manifest_check` in Herdr's con
 agent-detection manifest fetched from `herdr.dev/agent-detection/index.toml`, not the plugin registry,
 so the stale version feeds no update or compatibility check.
 
+## 8c · Two machines
+
+He intends to build this on a Linux machine. Measured against version one, that costs less than it
+sounds: the substrate is portable and only the SENSORS are Apple-shaped.
+
+| Portable today | macOS-bound today |
+|---|---|
+| the database, `fact`, `event`, `issue`, the channel, `orient` | the calendar collector — reads Apple's own `Calendar.sqlitedb` under `~/Library/Group Containers` |
+| `glance`, the day and week views, the coordination query | the focus sampler — `lsappinfo` for the front application |
+| Herdr and Pi themselves (`platforms = ["macos", "linux"]` is already declared) | the sampler's timer — `launchd`, where Linux means systemd |
+| every `ai-*` wrapper, and the three install pointers | one briefing call that shells to `osascript` |
+
+So the rule is: **a signal source is a plugin, and a missing one is an absent signal rather than a
+broken surface.** `collection` already holds `last_attempt`, `last_success` and `last_error` per source
+(§4), so a platform without a focus sampler produces a day with no screen track and says so — which is
+the behaviour §6 already demands of a collector that cannot collect. Nothing in the core may branch on
+platform; the sources register themselves and the surfaces read whatever registered.
+
+### The question this raises, and it is his to answer
+
+**Is the Linux machine a build environment, or a second workbench?**
+
+- **A build environment** changes nothing beyond the plugin rule above and not hardcoding `~/Library`
+  paths. Build there, run here.
+- **A second workbench** changes §2, and not trivially. "SQLite holds the machine's truth" assumes one
+  machine. Two workbenches means either two databases with no shared state, or a sync — and **a SQLite
+  file on a network or cloud-synced filesystem is a known corruption path**, so "put it in Dropbox" is
+  not an answer available to us.
+
+If it is the second, the honest shape is: **two databases, one authoritative for `fact`.** Facts are the
+only rows whose value is not local — an event about a workspace on this machine means nothing on the
+other, a signal is about the machine that observed it, and a channel thread is about work that has a
+location. Facts are the exception, and they are small: tens of rows in steady state (§4). So
+export-and-merge of `fact` alone, by hand or on demand, is tractable in a way that syncing the file is
+not.
+
+Until he answers, assume a build environment and keep the plugin rule, which is right either way.
+
 ## 9 · Day one
 
 The smallest thing worth using, because this gets re-dogfooded and a design that only pays off when
