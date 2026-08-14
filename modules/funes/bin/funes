@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# funes — the machine-side memory and coordination layer.
+# A pointer, per spec §8b: the install target repoints Herdr command= paths and
+# any wrappers at this file. node:sqlite is still experimental, so its warning is
+# silenced here rather than in every caller.
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec node --no-warnings=ExperimentalWarning "$here/../src/cli.ts" "$@"
