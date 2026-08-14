@@ -55,6 +55,10 @@ and the `workbench → funes` rename.
 
 ### Runtime
 
+> **Superseded 2026-08-14** by the Elixir spine — see `2026-08-14-aleph-cockpit-and-elixir-spine.md` §5.
+> The Node/TS reasoning below was correct for "a pile of short-lived CLIs"; the system became a
+> persistent, reactive one, where OTP wins and the boot tax vanishes. Kept for the record and the why.
+
 - **TypeScript, run natively on Node 24** (type-stripping — `node src/cli.ts`, no build step, no `dist/`).
   Verified on this machine: a `.ts` file with a type annotation ran unbuilt and printed the right number.
 - **`tsc --noEmit` is the only type gate**, run in `npm run check` and in tests. Types are checked, never

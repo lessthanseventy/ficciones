@@ -31,6 +31,26 @@ machine (§8c) and, on landing, three things changed and are recorded here rathe
 
 The reasoning is in `../../docs/plans/2026-08-14-machine-v2-and-funes-design.md`.
 
+**Amended 2026-08-14 again, when the shape coalesced.** funes is not a set of CLIs — it is a TUI Slack for
+agents, the cockpit `aleph`, and the coalesced architecture supersedes two things this document implied:
+
+- **Runtime is an Elixir spine, not per-invocation CLIs.** A persistent OTP application (supervision +
+  `Phoenix.PubSub`) hosts the collectors, the reactive board, and the switchboard; **SQLite stays the
+  truth** (Ecto / `ecto_sqlite3`, the same file, still 2am-repairable — *not* Postgres). Short-lived
+  agents and the terminal arbiter sit outside it and speak through the DB.
+- **§10, refined not broken.** "The database is the bus" stands exactly. The Elixir app is a **switchboard**
+  (delivery, wake, presence) *over* that bus, never the bus itself: kill the BEAM node and no message is
+  lost and every agent still reads and writes the DB directly. A supervised, DB-backed switchboard
+  *fulfils* §10's intent — §10 bans an *unreliable, ephemeral session* from the delivery path, which
+  OTP + SQLite-as-truth is the opposite of. And the terminal is a **capability, not a product**
+  (Herdr | tmux) — the §8 rule applied to the one place this document broke it by naming Herdr throughout.
+  Elixir orchestrates; the arbiter actuates.
+- **The `thread` is first-class.** §5b's "a thread per subject" and the `subject` tag become a `thread`
+  row that `fact`, `event`, `issue` and `message` reference; a workspace hangs off a thread as an opaque
+  handle, and a **coworker** (a persistent named identity with a §8 capability profile) is assigned to it.
+
+Full architecture: `../../docs/plans/2026-08-14-aleph-cockpit-and-elixir-spine.md`.
+
 ---
 
 ## 1 · Who this is for

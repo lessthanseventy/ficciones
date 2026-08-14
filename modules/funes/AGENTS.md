@@ -9,8 +9,11 @@ the spec is wrong, say so and change it in the same commit as the code that prov
 
 `docs/spec.md` §9 is day one, in order, and step one is the database plus `funes doctor`. **Nothing
 ships that cannot be repaired at 2am** — schema, migrations, `integrity_check`, JSONL export. Do not
-start at step 3 because it is more interesting. **Step 1 is built and green** (`db`, `migrate`, `doctor`,
-the `funes` CLI); step 2 is the `fact` table surfaced in `orient`.
+start at step 3 because it is more interesting. **Step 1 is built and green in Node** (`db`, `migrate`,
+`doctor`, the `funes` CLI) — but the architecture has since coalesced into an **Elixir spine + the `aleph`
+cockpit** (`../../docs/plans/2026-08-14-aleph-cockpit-and-elixir-spine.md`). The Node step-1 is
+**transitional**: the schema and write contract carry over language-neutrally; the port to Ecto + a `mix`
+doctor is the first step of the re-laid build. Don't extend the Node code as if it were the destination.
 
 Version one ran on the *work* machine and is **not on this clean-room box** (§8c). It is **evidence, not
 a source**: it exists to show what a failure looked like, never to copy a shape. Nothing here needs to be
