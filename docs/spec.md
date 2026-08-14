@@ -282,8 +282,9 @@ the same hole seen from the other side:
    broken" — because there was nowhere to ask.
 
 An issue is: what was found, where the evidence is, what would settle it, who found it, and its state.
-Deliberately Jira-ish and deliberately **local** — it is about this machine, never about product work,
-which has real Jira.
+Deliberately ticket-shaped and deliberately **local** — it is about this machine and its own defects,
+never about product work. Where a machine has a real tracker for product work, this does not compete
+with it; where it has none, this needs none to exist.
 
 **The acceptance test, and the feature is not built without it: a session reads open issues at start,
 unprompted.** If `orient` does not surface them, an issue table is a second Jira nobody reads and must
@@ -543,6 +544,28 @@ breath as `integrity_check ok` — on a corpus 2.0 grows itself, which is the on
   `HUP, HUP, TERM`, a shell trap got only its first line out, and a Pi `session_shutdown` handler
   doing a *synchronous* write never ran at all. So state must be consistent **before** a close, and
   the close path must be the one the human already presses.
+- **No provider, model or vendor is part of the design.** They are configuration, and the second machine
+  is the proof of why: at home he uses Claude and a local Ollama endpoint, and there is no Okta, no SSO,
+  no corporate secret manager and no ticketing system on it at all. Nothing in this document names a
+  model, and nothing built from it may branch on one.
+
+  So a role (§5b) states a **capability requirement**, never a product: *not the weights that wrote the
+  thing under review*, *long enough context for a whole file*, *cheap enough to run every turn*. The
+  mapping from a requirement to an actual endpoint lives in local configuration on the machine that has
+  those endpoints, and a machine with fewer of them runs the same design with fewer options.
+
+  **Local models are first-class, which has a consequence worth stating.** Anything that assumes
+  frontier capability must **degrade honestly rather than break**: a review by a small local model is
+  still a different reader with no sunk cost, which is most of where the value came from — and §4
+  already ranks its output correctly, because a derived fact without a check is a derived fact without a
+  check whoever produced it. What must not happen is a surface that silently does nothing when the
+  configured model cannot do the job. Say it could not, the way a collector that cannot collect says so.
+
+  **The same applies to credentials.** How a machine authenticates to anything is local configuration —
+  an environment variable, a keychain, a file, a human typing it — and no part of this design may know
+  which. Version one's boundaries about a specific identity provider, a specific secret manager and a
+  specific browser for staging describe **that machine's work**, not this architecture, and they stayed
+  behind with it (§8c).
 - **Never blank a transcript you cannot carry.** A planning session with 112 entries of analysis was
   replaced with an empty one reading "nothing was open to carry forward", because the check asked
   whether anything was *active* rather than whether anything had been *banked*. Those are opposite
