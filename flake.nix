@@ -15,56 +15,20 @@
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-
-      # funes runs its TypeScript natively on Node 24 (no build step). Packaging is
-      # therefore just: put the module in the store and wrap `node` around cli.ts.
-      # node_modules is git-ignored, so the flake source never includes it — funes
-      # has no runtime deps to bundle.
-      funes = pkgs.stdenv.mkDerivation {
-        pname = "funes";
-        version = "0.0.0";
-        src = ./modules/funes;
-        nativeBuildInputs = [ pkgs.makeWrapper ];
-        dontConfigure = true;
-        dontBuild = true;
-        installPhase = ''
-          runHook preInstall
-          mkdir -p $out/lib/funes
-          cp -r src $out/lib/funes/
-          makeWrapper ${pkgs.nodejs_24}/bin/node $out/bin/funes \
-            --add-flags "--no-warnings=ExperimentalWarning" \
-            --add-flags "$out/lib/funes/src/cli.ts"
-          runHook postInstall
-        '';
-        meta = {
-          description = "The machine-side memory and coordination layer.";
-          mainProgram = "funes";
-        };
-      };
     in
     {
-      packages.${system} = {
-        funes = funes;
-        default = funes;
-      };
-
-      apps.${system} = {
-        funes = {
-          type = "app";
-          program = "${funes}/bin/funes";
-        };
-        default = self.apps.${system}.funes;
-      };
-
-      # `nix develop` — the dev toolchain: Node 24, tsc for the type gate, sqlite3
-      # for the 2am repair path.
+      # funes is an Elixir/OTP app; day-to-day dev runs through mise (matching the
+      # box's toolchain). This shell is the reproducible equivalent: Elixir, plus
+      # sqlite3 for the 2am repair path. A `mix release` package is a later step —
+      # SQLite is the truth, so nothing is lost by packaging the runtime later.
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.nodejs_24 pkgs.typescript pkgs.sqlite ];
+        packages = [ pkgs.beamPackages.elixir_1_18 pkgs.sqlite ];
       };
 
       # The gradual-adoption path: home-manager on the existing Arch install.
-      # `home-manager switch --flake .#personalbox` installs funes into the user
-      # profile without touching the OS.
+      # `home-manager switch --flake .#personalbox` applies the profile without
+      # touching the OS. funes returns here as a mix-release package once it's
+      # packaged; for now the profile is minimal.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         modules = [
@@ -72,7 +36,6 @@
             home.username = "andrew";
             home.homeDirectory = "/home/andrew";
             home.stateVersion = "25.05";
-            home.packages = [ funes ];
             programs.home-manager.enable = true;
           }
         ];
