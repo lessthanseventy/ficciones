@@ -52,7 +52,7 @@ Independently recounted across all 137 session files in `~/.pi/agent/sessions`:
 
 The two counterexamples, both predating the spec:
 
-- `sessions/--Users-anmoore-projects-d365_gateway--/2026-08-13T19-41-42-690Z_019ffca5-…jsonl` —
+- `sessions/--Users-anmoore-projects-<project>--/2026-08-13T19-41-42-690Z_019ffca5-…jsonl` —
   session born 2026-08-13, switched to `development` at `2026-08-13T19:51:35.689Z`, in real project work.
 - `sessions/--Users-anmoore-.config--/2026-08-14T17-34-32-806Z_01a00156-…jsonl` — born into `planning`
   at 17:34:32, switched to `workbench` at `2026-08-14T17:34:39.762Z`, **seven seconds later**. That is
@@ -547,9 +547,9 @@ writes into has no table at all.
 The template (`work/templates`) is five empty headings: Focus, Done, Notes, Next, Waiting. What is actually
 in the file goes far past it:
 
-- **a lede paragraph before `## Focus`** that the template does not have — *"Two threads: ToppsPro ticket +
+- **a lede paragraph before `## Focus`** that the template does not have — *"Two threads: a work ticket +
   PR reviews, and a big pass on my own agent tooling."*
-- **sub-headings the template does not have** — `### ToppsPro`, `### Agent tooling`
+- **sub-headings the template does not have** — `### <project>`, `### Agent tooling`
 - hand-wrapped multi-line bullets with bold, backticks and cross-references into `projects/`
 - and judgement that exists in no event and no fact: *"Noted LiveView 1.1 colocated hooks as a possible
   cleanup"*, *"Verdict request changes, 2 required findings … Not posted yet"*, *"Fine as an advisor,
@@ -889,7 +889,7 @@ that expires is an `issue`** — it has a subject, a state, and a moment where i
 constraint` has been serving as a scratchpad for in-flight product work because v1 had nowhere else to put
 it, which is precisely the hole §5 identifies and the `issue` table fills. So the corpus does not argue for
 importing constraints; it argues that **two thirds of them were mis-filed for want of the table 2.0 is
-adding.** One of them, C32 (*"merging #329 without raising FTC-5577 leaves the same silent-give-up defect
+adding.** One of them, C32 (*"merging a PR without raising its follow-up ticket leaves the same silent-give-up defect
 class that #330 shipped with"*), is still live today — and it is an open issue, not a fact.
 
 ### Bucket 2 — already a rule, nothing to do: 4
@@ -907,9 +907,9 @@ class that #330 shipped with"*), is still live today — and it is an open issue
 request, as two new bullets beside the existing control-plane and staging lines (`git diff` against
 `workbench-env`: `.pi/agent/AGENTS.md`, ade3747 → 28856d5, 2 insertions). Uncommitted at time of writing:**
 
-1. **C33 — his review scope.** *"Andrew has no review responsibility for the launchpad (Roll Up) repo — that
-   is a different team … even though team review requests land on him. His scope is topps_pro,
-   fusion_gateway, d365_gateway, datalake_athena_gateway, documentation."* This is durable, it is about him
+1. **C33 — his review scope.** *"Andrew has no review responsibility for one repository his organisation owns — that
+   is a different team … even though team review requests land on him. His scope is the five
+   repositories named in the work machine's review-scope.json."* This is durable, it is about him
    rather than about any system, and it exists nowhere else. **It is also load-bearing for §1's first
    question:** without it, `glance` ranks another team's pull requests as his work, which is the exact
    "correct and useless" failure §1 opens with. Highest-value single row in the corpus. Belongs in
@@ -925,7 +925,7 @@ request, as two new bullets beside the existing control-plane and staging lines 
    `maybe_exit/2` treats any serious finding as blocking, that the reusable workflow sets up neither Elixir
    nor Playwright. Hours of discovery each. → `accessibility-review-with-excessibility`.
 4. **C23 — provider history is the monetary source of truth for partial credit-memo triage**, and
-   `orders.refunded_amount` is not cumulative after old-format callbacks. → a topps_pro project document.
+   `orders.refunded_amount` is not cumulative after old-format callbacks. → a work project document.
 5. **C19 — for production AWS investigation, hand over exact read-only commands to paste rather than
    running them.** `AGENTS.md` covers the SSO *handoff* but not this. One clause, same family as C27.
 

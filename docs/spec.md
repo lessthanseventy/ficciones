@@ -269,7 +269,7 @@ Those were never facts. **A constraint that expires is an issue**: it has a subj
 moment when it stops being true. `kind=constraint` had become a scratchpad for in-flight product work
 because version one had nowhere else to put it — so two thirds of what it banked as durable knowledge
 was **mis-filed for want of the table this section adds.** One of them, "merging #329 without raising
-FTC-5577 leaves the same silent-give-up defect class that #330 shipped with", is still live today and
+raising the follow-up ticket leaves the same silent-give-up defect class that the merged PR shipped with", is still live today and
 is an open issue rather than a fact.
 
 That is the case for `issue`, and it was measured rather than argued. The three near-losses below are
@@ -469,9 +469,8 @@ Once, before the old ledger is frozen, walk the 33 constraints and put each in e
 than either the owner or the reviewer argued:
 
 1. **His review scope**, and it is the highest-value single row in the corpus. *No review responsibility
-   for the launchpad (Roll Up) repo — that is a different team, even though team review requests land on
-   him. His scope is `topps_pro`, `fusion_gateway`, `d365_gateway`, `datalake_athena_gateway`,
-   `documentation`.* This is durable, it is about HIM rather than any system, and it is load-bearing for
+   for one repository his organisation owns — that is a different team, even though team review requests
+   land on him. His scope is the five repositories named in the work machine's `review-scope.json`.* This is durable, it is about HIM rather than any system, and it is load-bearing for
    §1's first question: without it the glance ranks another team's work as his. Measured in version one
    the day this was written — **four of the five pull requests it showed as "waiting on your call" were
    another team's** — so it is promoted into version one as well as specified here. It is a `stated`
@@ -602,43 +601,40 @@ Checked and cleared while writing this: `[update] manifest_check` in Herdr's con
 agent-detection manifest fetched from `herdr.dev/agent-detection/index.toml`, not the plugin registry,
 so the stale version feeds no update or compatibility check.
 
-## 8c · Two machines
+## 8c · The clean room
 
-He intends to build this on a Linux machine. Measured against version one, that costs less than it
-sounds: the substrate is portable and only the SENSORS are Apple-shaped.
+He is rebuilding this from scratch on a second machine — a personal Linux box, not the work laptop —
+and in his words: *"if I send this whole repo over to a clean room kind of environment on my personal
+machine then there's nothing to bring across. I am rebuilding the whole stack over there."*
 
-| Portable today | macOS-bound today |
-|---|---|
-| the database, `fact`, `event`, `issue`, the channel, `orient` | the calendar collector — reads Apple's own `Calendar.sqlitedb` under `~/Library/Group Containers` |
-| `glance`, the day and week views, the coordination query | the focus sampler — `lsappinfo` for the front application |
-| Herdr and Pi themselves (`platforms = ["macos", "linux"]` is already declared) | the sampler's timer — `launchd`, where Linux means systemd |
-| every `ai-*` wrapper, and the three install pointers | one briefing call that shells to `osascript` |
+That deletes a design rather than adding one. Earlier drafts of this section worked out how two
+workbenches would share state: two databases with `fact` authoritative on one, then a work-versus-
+personal partition once it became clear that **51% of version one's facts name work systems, tickets,
+orders or customers** and must never land on a personal machine. None of that is needed. **Nothing
+travels except this repository.** No sync, no merge, no partition, no export format, and no SQLite file
+on a shared filesystem — which was a known corruption path anyway.
 
-So the rule is: **a signal source is a plugin, and a missing one is an absent signal rather than a
-broken surface.** `collection` already holds `last_attempt`, `last_success` and `last_error` per source
-(§4), so a platform without a focus sampler produces a day with no screen track and says so — which is
-the behaviour §6 already demands of a collector that cannot collect. Nothing in the core may branch on
-platform; the sources register themselves and the surfaces read whatever registered.
+Two consequences, and the first is the reason this section still exists:
 
-### The question this raises, and it is his to answer
+**THE REPOSITORY MUST BE SELF-SUFFICIENT.** If it is the entire transfer, then anything a builder needs
+must be in it. That is a much sharper requirement than "portable", and it is what retired the work
+references this document used to carry: five internal repository names, a ticket key and two pull
+request numbers, which were evidence for claims a clean-room builder cannot check and has no use for.
+They are gone; the claims they supported are stated without them. `AGENTS.md` at the root of this repo
+carries the general boundaries — §7's "what makes knows nothing safe" is THAT file, not the work
+machine's, whose Okta, staging, ticketing and CLI prohibitions are about work that does not exist on the
+other side.
 
-**Is the Linux machine a build environment, or a second workbench?**
+**A signal source is still a plugin**, and now for a plainer reason than portability: the other machine
+has no work calendar, no work repositories and no reason to sample which application had the screen at
+14:05 on a Tuesday. It will grow its own sources. Nothing in the core may branch on platform, and a
+missing source is an absent signal rather than a broken surface — `collection` already records
+`last_attempt`, `last_success` and `last_error` per source (§4), so a day with no screen track says so.
 
-- **A build environment** changes nothing beyond the plugin rule above and not hardcoding `~/Library`
-  paths. Build there, run here.
-- **A second workbench** changes §2, and not trivially. "SQLite holds the machine's truth" assumes one
-  machine. Two workbenches means either two databases with no shared state, or a sync — and **a SQLite
-  file on a network or cloud-synced filesystem is a known corruption path**, so "put it in Dropbox" is
-  not an answer available to us.
-
-If it is the second, the honest shape is: **two databases, one authoritative for `fact`.** Facts are the
-only rows whose value is not local — an event about a workspace on this machine means nothing on the
-other, a signal is about the machine that observed it, and a channel thread is about work that has a
-location. Facts are the exception, and they are small: tens of rows in steady state (§4). So
-export-and-merge of `fact` alone, by hand or on demand, is tractable in a way that syncing the file is
-not.
-
-Until he answers, assume a build environment and keep the plugin rule, which is right either way.
+**What actually crosses**, in full: this specification, its two reviews, the issue list, `AGENTS.md`,
+and the README. Four commits and 59KB. Everything else the other machine will learn for itself, which
+is the point of §7 — and it starts with the advantage version one never had, which is that it knows
+what it is building before it starts.
 
 ## 9 · Day one
 
@@ -683,7 +679,7 @@ signal collectors.
   The number this originally cited was wrong, and the correction matters more than the conclusion. A
   recount of all 137 session files found 56 `anmoore-work-mode` entries in 40 sessions — 29%, not the
   claimed near-zero — and **45 of them mid-session** rather than at launch. "Zero in any session born
-  in the last three days" was false twice over: a d365_gateway session born 2026-08-13 switched at
+  in the last three days" was false twice over: a project session born 2026-08-13 switched at
   19:51:35Z, and the session born into planning at 2026-08-14T17:34:32Z switched to workbench **seven
   seconds later** — that was this specification's own drafting session, mutating its mode while the
   document asserted that a mode is not mutable state.

@@ -67,14 +67,13 @@ waiting on you, you guys need to work together"* — and he was right, twice in 
 
 ---
 
-## 4 · Decide whether the Linux machine is a build environment or a second workbench
+## 4 · CLOSED — the second machine is a clean room
 
-`docs/spec.md` §8c. Build-there-run-here costs nothing beyond treating each signal source as a plugin,
-which is right regardless. A second workbench changes §2's "SQLite holds the machine's truth", because
-that premise assumes one machine — and a SQLite file on a network or cloud-synced filesystem is a known
-corruption path, so the easy answer is not available.
+Answered by him: *"if I send this whole repo over to a clean room kind of environment on my personal
+machine then there's nothing to bring across. I am rebuilding the whole stack over there."*
 
-If it is a second workbench, the proposed shape is two databases with **`fact` authoritative on one**:
-facts are the only rows whose value is not local, and there are tens of them rather than thousands.
-
-**Settles it:** one sentence from him, and §8c loses its open question.
+So there is no sync, no merge and no fact partition to design — see `docs/spec.md` §8c, which now
+records what the question cost rather than leaving it open. The requirement it leaves behind is that
+**this repository is self-sufficient**, since it is the entire transfer. That is why the work
+identifiers were removed from the spec and its review: a clean-room builder cannot check them and has
+no use for them, and they were the only work traces that would have landed on a personal machine.
