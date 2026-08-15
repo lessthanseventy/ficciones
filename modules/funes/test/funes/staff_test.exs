@@ -11,13 +11,9 @@ defmodule Funes.StaffTest do
 
   # This suite shares one DB (no sandbox, like step 2), but unlike thread/message,
   # `agent.name` is UNIQUE — so a reused name across tests would collide. Isolate
-  # each test by clearing the domain rows first, children before parents so no FK
-  # is left dangling. (Runs before any describe-level setup.)
+  # each test by clearing the domain rows first (FK-safe, via the shared helper).
   setup do
-    Repo.delete_all(Session)
-    Repo.delete_all(Message)
-    Repo.delete_all(Thread)
-    Repo.delete_all(Agent)
+    Funes.TestDB.clean!()
     :ok
   end
 

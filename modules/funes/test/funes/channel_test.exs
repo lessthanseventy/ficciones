@@ -6,6 +6,11 @@ defmodule Funes.ChannelTest do
   use ExUnit.Case, async: false
   alias Funes.{Channel, Message, Repo, Thread}
 
+  setup do
+    Funes.TestDB.clean!()
+    :ok
+  end
+
   describe "open_thread/1" do
     test "opens a thread that reads back as a durable, open row" do
       {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
@@ -91,14 +96,9 @@ defmodule Funes.ChannelTest do
       assert Repo.get!(Message, message.id).delivered_at == nil
     end
 
-    test "only mark_delivered/1 sets delivered_at, and it means delivered — never read", %{
-      message: message
-    } do
-      {:ok, delivered} = Channel.mark_delivered(message)
-
-      assert %DateTime{} = delivered.delivered_at
-      assert %DateTime{} = Repo.get!(Message, message.id).delivered_at
-    end
+    # Delivery-stamping is the switchboard's atomic claim, tested in
+    # Funes.SwitchboardTest ("marks delivered once the addressee was woken"). The
+    # channel's own contract here is only that a sender cannot assert it.
 
     test "there is no `read` column — nothing can prove a read, so it does not exist" do
       # §5b.3: a column that could only ever lie must not exist. Assert the schema

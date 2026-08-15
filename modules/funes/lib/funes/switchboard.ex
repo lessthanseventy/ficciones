@@ -36,6 +36,7 @@ defmodule Funes.Switchboard do
      default `Inert` arbiter.
   """
   import Ecto.Query
+  require Logger
   alias Funes.{Agent, Arbiter, Mentions, Message, Repo, Session, Thread}
 
   # A session is warm — cheap to resume — only within the prompt cache's life (~1h);
@@ -46,8 +47,9 @@ defmodule Funes.Switchboard do
   Deliver one message (the live path): wake its addressed recipients (`recipients/1`),
   then stamp it delivered. A message no one live is addressed to stays undelivered
   (`:pending`) — it is not a delivery until someone is woken (§5b.3), and `drain/0`
-  picks it up when a recipient appears. Returns `{:delivered, message}` or
-  `{:pending, message}`.
+  picks it up when a recipient appears. Returns `{:delivered, message}`,
+  `{:pending, message}`, or `{:already_delivered, message}` when a concurrent drain
+  won the claim first.
   """
   def deliver(%Message{} = message) do
     # Authoring is activity: keep the author's session warm even when nobody is woken
@@ -84,18 +86,30 @@ defmodule Funes.Switchboard do
 
     # Claim each message before collecting its recipients, so a wake is scoped to
     # what THIS drain actually claimed — a message a concurrent deliver already took
-    # contributes nothing here. `waken/2` dedups, so each pane fires once.
-    undelivered
-    |> Enum.flat_map(fn message ->
-      touch_author(message)
+    # contributes nothing here.
+    reached = Enum.flat_map(undelivered, &claim_reached/1)
 
-      case recipients(message) do
-        [] -> []
-        sessions -> if claim([message.id]) > 0, do: sessions, else: []
-      end
+    # Coalesce per pane, keeping the COUNT §3b wants ("you have 50 unread") — one
+    # nudge per recipient, never one per message.
+    reached
+    |> Enum.group_by(& &1.workspace_ref)
+    |> Enum.each(fn {ref, sessions} ->
+      poke(ref, "you have #{length(sessions)} unread message(s) on your threads")
     end)
-    |> Enum.uniq_by(& &1.id)
-    |> waken("you have unread messages")
+
+    touch(reached |> Enum.map(& &1.id) |> Enum.uniq(), now())
+  end
+
+  # For drain: bump the author's warmth, then return the recipient sessions this call
+  # actually claimed — empty if the message is unaddressed or a concurrent deliver
+  # already won its claim.
+  defp claim_reached(message) do
+    touch_author(message)
+
+    case recipients(message) do
+      [] -> []
+      sessions -> if claim([message.id]) > 0, do: sessions, else: []
+    end
   end
 
   # Atomically flip delivered_at to now for the still-undelivered messages among
@@ -123,7 +137,10 @@ defmodule Funes.Switchboard do
   # lead stays informed without being cc'd because coworkers report back to the
   # thread (their top-level posts wake the lead).
   defp recipients(%Message{} = message) do
-    targets = target_names(message) -- [message.author]
+    # Match author↔agent case-INSENSITIVELY throughout (as @mentions already do), so
+    # a mis-cased author handle can't silently drop a reply or strand an agent cold.
+    author = String.downcase(message.author)
+    targets = target_names(message) |> Enum.reject(&(String.downcase(&1) == author))
 
     case targets do
       [] ->
@@ -132,6 +149,7 @@ defmodule Funes.Switchboard do
       names ->
         # Only WARM sessions: live, addressed, and active within the cache window.
         # A cold session is treated like an ended one — never poked (§3b).
+        wanted = Enum.map(names, &String.downcase/1)
         cutoff = warmth_cutoff()
 
         Repo.all(
@@ -140,7 +158,7 @@ defmodule Funes.Switchboard do
             on: a.id == s.agent_id,
             where:
               s.thread_id == ^message.thread_id and is_nil(s.ended_at) and
-                a.name in ^names and s.last_active_at > ^cutoff
+                fragment("lower(?)", a.name) in ^wanted and s.last_active_at > ^cutoff
         )
     end
   end
@@ -190,20 +208,38 @@ defmodule Funes.Switchboard do
   defp waken(sessions, prompt) do
     sessions
     |> Enum.uniq_by(& &1.workspace_ref)
-    |> Enum.each(&Arbiter.wake(&1.workspace_ref, prompt))
+    |> Enum.each(&poke(&1.workspace_ref, prompt))
 
     touch(Enum.map(sessions, & &1.id), now())
+  end
+
+  # Actuate one wake, and SURFACE a backend failure rather than silently dropping
+  # it. The Inert/Test backends never fail; a real Herdr/tmux one can, and a lost
+  # nudge should at least be visible. (At-most-once retry semantics for a fallible
+  # arbiter are settled when a real backend ships — see the moduledoc.)
+  defp poke(workspace_ref, prompt) do
+    case Arbiter.wake(workspace_ref, prompt) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("arbiter failed to wake #{inspect(workspace_ref)}: #{inspect(reason)}")
+    end
   end
 
   # Bump the author's live sessions on the thread to when they posted — authoring is
   # a turn. Forward-only (`touch/2`), so a backlog drain never moves warmth backward.
   defp touch_author(%Message{thread_id: thread_id, author: author, created_at: at}) do
+    down = String.downcase(author)
+
     ids =
       Repo.all(
         from s in Session,
           join: a in Agent,
           on: a.id == s.agent_id,
-          where: s.thread_id == ^thread_id and is_nil(s.ended_at) and a.name == ^author,
+          where:
+            s.thread_id == ^thread_id and is_nil(s.ended_at) and
+              fragment("lower(?)", a.name) == ^down,
           select: s.id
       )
 

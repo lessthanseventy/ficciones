@@ -13,11 +13,18 @@ defmodule Funes.Doctor do
     %{integrity: integrity_check(), tables: tables(), pending: length(pending())}
   end
 
-  @doc "`ok`, or the first problem PRAGMA integrity_check found."
+  @doc """
+  `ok`, or the problems PRAGMA integrity_check found. A healthy database returns a
+  single `ok` row; an unhealthy one returns up to 100 problem rows — so we fold them
+  rather than matching one, because the moment this must NOT crash is exactly when
+  the database is broken.
+  """
   @spec integrity_check() :: String.t()
   def integrity_check do
-    %{rows: [[result]]} = Repo.query!("PRAGMA integrity_check")
-    result
+    case Repo.query!("PRAGMA integrity_check").rows do
+      [["ok"]] -> "ok"
+      rows -> Enum.map_join(rows, "; ", fn [problem] -> problem end)
+    end
   end
 
   @doc "User tables present, sqlite internals and the migration ledger excluded."
@@ -53,8 +60,8 @@ defmodule Funes.Doctor do
 
     %{rows: rows, columns: columns} = Repo.query!(~s|SELECT * FROM "#{table}"|)
 
-    rows
-    |> Enum.map(fn row -> columns |> Enum.zip(row) |> Map.new() |> JSON.encode!() end)
-    |> Enum.join("\n")
+    Enum.map_join(rows, "\n", fn row ->
+      columns |> Enum.zip(row) |> Map.new() |> JSON.encode!()
+    end)
   end
 end

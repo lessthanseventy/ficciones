@@ -15,13 +15,7 @@ defmodule Funes.SwitchboardTest do
       Application.delete_env(:funes, :test_pid)
     end)
 
-    # A single delete_all over message is FK-safe despite the self-referential
-    # reply_to: SQLite checks immediate FKs at statement end, by which point parent
-    # and child are both gone.
-    Repo.delete_all(Message)
-    Repo.delete_all(Funes.Session)
-    Repo.delete_all(Funes.Thread)
-    Repo.delete_all(Funes.Agent)
+    Funes.TestDB.clean!()
     :ok
   end
 
@@ -116,6 +110,25 @@ defmodule Funes.SwitchboardTest do
 
       assert_received {:woke, "wRobert", _}
       refute_received {:woke, "wSandra", _}
+    end
+
+    test "a reply to a mis-cased author still reaches them (case-insensitive seam)" do
+      # Robert posts under a lowercase handle; a reply must still wake agent "Robert",
+      # not silently drop because author matching was case-sensitive.
+      %{thread: thread} = staffed_thread()
+      {:ok, parent} = Channel.post(%{thread_id: thread.id, author: "robert", body: "CI is red"})
+      flush()
+
+      {:ok, reply} =
+        Channel.post(%{
+          thread_id: thread.id,
+          author: "stakeholder",
+          body: "on it",
+          reply_to: parent.id
+        })
+
+      Switchboard.deliver(reply)
+      assert_received {:woke, "wRobert", _}
     end
 
     test "an @handle that names no agent falls back to the lead (never suppresses it)" do

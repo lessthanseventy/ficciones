@@ -83,10 +83,11 @@ Drive everything through the shared mise tasks (`mise tasks` lists them) — the
 the same commands, which is the one control loop §3 asks for:
 
 - `mise run funes:test` — the ExUnit suite (`mix test`).
-- `mise run funes:check` — compile warnings-as-errors + `mix format --check-formatted` (the gate).
+- `mise run funes:check` — the **precommit gate**: `mix precommit` = format-check + warnings-as-errors +
+  `credo --strict` + the suite (runs in `:test`). Same alias a git pre-commit hook would call.
 - `mise run funes:setup` — deps + create/migrate the repo-local scratch db (run once).
 - `mise run funes:doctor` — `mix funes.doctor` against the scratch db, never the real one.
-- `mise run check` — check + tests, the green-before-commit gate.
+- `mise run check` — the funes precommit gate, the green-before-commit gate.
 
 If a command belongs in the loop, it becomes a task in the root `mise.toml`. Do not invent a second way
 to run these.

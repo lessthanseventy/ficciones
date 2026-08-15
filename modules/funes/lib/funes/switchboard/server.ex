@@ -13,16 +13,30 @@ defmodule Funes.Switchboard.Server do
   one poke — actuate each wake in a supervised `Task` when the backend can block.
   """
   use GenServer
-  alias Funes.{Bus, Switchboard}
+  require Logger
+  alias Funes.{Bus, Doctor, Switchboard}
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @impl true
   def init(_opts) do
+    # Subscribe synchronously so no live message is missed, but defer the (blocking)
+    # drain out of init so it never stalls the supervisor's boot.
     Bus.subscribe()
-    # Durability first: deliver whatever piled up while we were gone (§10).
-    Switchboard.drain()
-    {:ok, %{}}
+    {:ok, %{}, {:continue, :drain}}
+  end
+
+  @impl true
+  def handle_continue(:drain, state) do
+    # Durability: deliver whatever piled up while we were gone (§10) — but degrade
+    # honestly (§8) if the schema is behind, or the message table may not exist and
+    # we would crash-loop the supervisor.
+    case Doctor.pending() do
+      [] -> Switchboard.drain()
+      pending -> Logger.warning("switchboard idle: #{length(pending)} pending migration(s)")
+    end
+
+    {:noreply, state}
   end
 
   @impl true
@@ -30,4 +44,8 @@ defmodule Funes.Switchboard.Server do
     Switchboard.deliver(message)
     {:noreply, state}
   end
+
+  # A long-lived subscriber must not crash on a stray message (a late monitor,
+  # a library info): ignore anything we do not handle.
+  def handle_info(_msg, state), do: {:noreply, state}
 end

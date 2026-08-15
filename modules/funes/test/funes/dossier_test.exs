@@ -5,17 +5,9 @@ defmodule Funes.DossierTest do
   use ExUnit.Case, async: false
   alias Funes.{Channel, Dossier, Event, Fact, Issue, Repo}
 
-  # Shared DB, no sandbox (like steps 2–3). Clear domain rows first, children
-  # before parents, so no FK dangles. fact/event reference thread + session; both
-  # go after them.
+  # Shared DB, no sandbox (like steps 2–3). Clear domain rows first, FK-safe.
   setup do
-    Repo.delete_all(Fact)
-    Repo.delete_all(Event)
-    Repo.delete_all(Issue)
-    Repo.delete_all(Funes.Session)
-    Repo.delete_all(Funes.Message)
-    Repo.delete_all(Funes.Thread)
-    Repo.delete_all(Funes.Agent)
+    Funes.TestDB.clean!()
     :ok
   end
 

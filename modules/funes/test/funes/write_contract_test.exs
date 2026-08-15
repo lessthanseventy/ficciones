@@ -5,8 +5,8 @@ defmodule Funes.WriteContractTest do
   # custom busy handler via a NIF (not `PRAGMA busy_timeout`), so the only honest
   # test is the behaviour the spec measured: bounded wait, then a retryable error.
   use ExUnit.Case, async: false
-  alias Funes.Repo
   alias Exqlite.Sqlite3
+  alias Funes.Repo
 
   test "WAL journal mode is in force" do
     assert %{rows: [["wal"]]} = Repo.query!("PRAGMA journal_mode")

@@ -32,15 +32,6 @@ defmodule Funes.Channel do
     end
   end
 
-  @doc """
-  Record that a message was delivered — the only path that may set `delivered_at`.
-  This is the DB primitive the switchboard (a later increment) calls when it wakes
-  a recipient; it means delivered, never read (§5b.3).
-  """
-  def mark_delivered(%Message{} = message) do
-    message |> Message.delivered_changeset() |> Repo.update()
-  end
-
   @doc "Close a thread. Its messages are untouched — history outlives the close."
   def close_thread(%Thread{} = thread) do
     thread |> Thread.state_changeset("closed") |> Repo.update()
