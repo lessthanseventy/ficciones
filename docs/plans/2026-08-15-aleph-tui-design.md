@@ -8,9 +8,18 @@ this only records what the session settled and, as loudly, the turns it *rejecte
 
 The architecture from the kickoff holds — **aleph = the face, an arbiter = the hands, funes = the
 memory** — but the session sharpened *how the face is composed*, and that changed which pieces we pull
-together. The headline: **aleph is one raxol_core app whose sidebars are components and whose middle
+together. The headline: **aleph is one raxol app whose sidebars are components and whose middle
 column is an embedded terminal view of a tmux client. tmux stays the multiplexer; nothing is
 reinvented.**
+
+**Spike addendum (2026-08-15, same day).** Standing up `modules/aleph/` corrected two package facts in
+the sections below. `raxol_core` is **infrastructure only** (events, config, focus, plugins) — the
+renderer is **`raxol_terminal`** (screen buffers + ANSI/VT + the bundled **termbox2 NIF**, which
+compiles clean on this box). And because `raxol_terminal` also ships a VT **Emulator**, the
+center-column embed likely stays in that one family, making **`ghostty_ex` a fallback rather than a
+required dependency** (confirm the child-embed at the step-2 spike). OTP was bumped to **28** (funes
+re-proven green, 92 tests); the read-only render path is green (3 headless tests, commit `000cb5c`).
+The architecture is unchanged — only the package names under it.
 
 ---
 
@@ -22,8 +31,8 @@ build is aleph.
 | Layer | Piece | Its one job | Reinvented? |
 |---|---|---|---|
 | Outer window | **ghostty** | the terminal we render into; top-level windowing/tabs of the app itself | no — it's the daily driver |
-| The cockpit | **aleph** (`modules/aleph/`) | one `raxol_core` app: the 25/50/25 canvas, sidebars-as-components, focus + keymap | **this is the only build** |
-| Center engine | **ghostty_ex** (libghostty-vt) | render the middle column: parse a session's bytes → cell grid; forward keys | no — a bounded VT library |
+| The cockpit | **aleph** (`modules/aleph/`) | one `raxol_core`+`raxol_terminal` app: the 25/50/25 canvas, sidebars-as-components, focus + keymap | **this is the only build** |
+| Center engine | **`raxol_terminal` Emulator** (`ghostty_ex` fallback) | render the middle column: parse a tmux client's bytes → cell grid; forward keys | no — bundled with the renderer |
 | Multiplexer | **tmux** | spawn / persist / send-keys / capture the real agent sessions | **no — it stays the substrate** |
 | Memory | **funes** | the truth: reads, typed events, opaque refs, liveness asked live | already built + green |
 | The seam | **`Funes.Arbiter` → tmux** | `wake` = `send-keys`, liveness = `list-panes` / `capture-pane` | tiny adapter, already stubbed |
@@ -65,11 +74,12 @@ not owning a terminal *substrate*.
 
 ## 3 · The TUI layer — raxol_core, panels as components, views as data
 
-**Framework: `raxol_core`** — the pure-Elixir, zero-runtime-dep buffer + TEA + event/focus primitive
-(Hex `raxol_core 2.6.0`, "zero external runtime dependencies"), the disciplined subset of the Raxol
-family. We **leave the full framework's weight uninstalled** — clustering, CRDTs, time-travel,
-"agentic commerce." That is the §8 ex_cortex cut ("take the patterns, leave the weight") applied to a
-dependency: take the buffer, leave the data-center. Terminal I/O behind it is the **termbox2 driver**.
+**Framework: `raxol_core` + `raxol_terminal`** — the disciplined subset of the Raxol family.
+`raxol_core` is **infrastructure** (events, config, focus, plugins — *no* renderer); **`raxol_terminal`
+is the renderer**: screen buffers, ANSI/VT parsing, input, a VT Emulator, and the bundled **termbox2
+NIF** driver. We **leave the full `raxol` umbrella uninstalled** — clustering, CRDTs, time-travel,
+payments/mcp/sensor. That is the §8 ex_cortex cut ("take the patterns, leave the weight") applied to a
+dependency: take the buffer + driver, leave the data-center.
 
 **A panel is a component; a view is a composition of panels; nothing is a prebaked full-screen
 template.** Banked as an owner instruction: *"liveview components, not huge template blocks we're
@@ -100,9 +110,19 @@ getting burned by (the owner asked about naming four separate times; it is load-
 
 ---
 
-## 4 · The center — ghostty_ex renders a tmux client
+## 4 · The center — raxol_terminal's Emulator renders a tmux client (ghostty_ex fallback)
 
-**`ghostty_ex`** wraps **libghostty-vt**, Ghostty's own VT engine, as a Zig NIF on the BEAM. It is the
+**Primary plan (from the spike): `raxol_terminal`'s own VT `Emulator`.** Since the renderer already
+bundles a full VT100 emulator + screen buffer, the center column can feed a tmux client's PTY bytes into
+a `raxol_terminal` emulator instance and read cells back for the middle region — no extra native
+dependency, one family. The two older payoffs survive the swap: the **web surface** comes via
+`raxol_liveview` (§3/§7), and **agent-briefing-from-screen** (aleph §3b) via the emulator's readable
+screen buffer / session serialization. The **step-2 spike** must confirm the emulator can be driven as
+an *embedded child* (arbitrary PTY stream in, sub-region cells out) rather than only emulating aleph's
+own terminal; if it cannot, fall back to `ghostty_ex`.
+
+**Fallback: `ghostty_ex`**, which wraps **libghostty-vt**, Ghostty's own VT engine, as a Zig NIF on the
+BEAM. It is the
 right embedding layer for two reasons the session verified: libghostty's *embedding GUI ABI* is
 explicitly unstable in 2026, but **libghostty-vt (the parse/state half) is the piece Ghostty stabilized
 first** — and that is exactly what this binds. And its API is the center-column contract with no
