@@ -11,7 +11,7 @@ defmodule Funes.Staff do
   will stand on — the recipient identity step 2's wake was waiting for.
   """
   import Ecto.Query
-  alias Funes.{Agent, Repo, Session, Thread}
+  alias Funes.{Agent, Presence, Repo, Session, Thread}
 
   @doc "Register a durable agent. `{:ok, agent}` or `{:error, changeset}` (e.g. a duplicate name)."
   def register_agent(attrs) do
@@ -21,6 +21,31 @@ defmodule Funes.Staff do
   @doc "The durable agent with this name, or nil. Names are unique (§5b)."
   def agent_by_name(name) do
     Repo.get_by(Agent, name: name)
+  end
+
+  @doc """
+  The IN FLIGHT roster (aleph §4): every live session across all threads with its
+  agent, thread, and a warm/cold flag (`Funes.Presence`). Ended sessions omitted,
+  newest first — the read the board renders as "who's on the clock."
+  """
+  def roster do
+    Repo.all(
+      from s in Session,
+        join: a in Agent,
+        on: a.id == s.agent_id,
+        join: t in Thread,
+        on: t.id == s.thread_id,
+        where: is_nil(s.ended_at),
+        order_by: [desc: s.id],
+        select: %{
+          agent: a.name,
+          thread_id: t.id,
+          thread_title: t.title,
+          workspace_ref: s.workspace_ref,
+          last_active_at: s.last_active_at
+        }
+    )
+    |> Enum.map(&Map.put(&1, :warm?, Presence.warm?(&1.last_active_at)))
   end
 
   @doc """

@@ -53,4 +53,14 @@ defmodule Funes.Channel do
   def thread_messages(%Thread{} = thread) do
     Repo.all(from m in Message, where: m.thread_id == ^thread.id, order_by: [asc: m.id])
   end
+
+  @doc """
+  A thread's most recent messages, capped, in chat order (oldest of the window
+  first) — CHATTER for the board (§4), which shows the tail, not the whole history.
+  """
+  def recent_messages(%Thread{} = thread, limit \\ 10) do
+    from(m in Message, where: m.thread_id == ^thread.id, order_by: [desc: m.id], limit: ^limit)
+    |> Repo.all()
+    |> Enum.reverse()
+  end
 end

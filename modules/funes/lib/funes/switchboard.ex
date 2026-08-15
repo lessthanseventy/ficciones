@@ -37,11 +37,7 @@ defmodule Funes.Switchboard do
   """
   import Ecto.Query
   require Logger
-  alias Funes.{Agent, Arbiter, Mentions, Message, Repo, Session, Thread}
-
-  # A session is warm — cheap to resume — only within the prompt cache's life (~1h);
-  # past that it is cold and must not be woken (§3b). Configurable.
-  @default_warmth_seconds 3600
+  alias Funes.{Agent, Arbiter, Mentions, Message, Presence, Repo, Session, Thread}
 
   @doc """
   Deliver one message (the live path): wake its addressed recipients (`recipients/1`),
@@ -150,7 +146,7 @@ defmodule Funes.Switchboard do
         # Only WARM sessions: live, addressed, and active within the cache window.
         # A cold session is treated like an ended one — never poked (§3b).
         wanted = Enum.map(names, &String.downcase/1)
-        cutoff = warmth_cutoff()
+        cutoff = Presence.warmth_cutoff()
 
         Repo.all(
           from s in Session,
@@ -257,11 +253,6 @@ defmodule Funes.Switchboard do
     )
 
     :ok
-  end
-
-  defp warmth_cutoff do
-    window = Application.get_env(:funes, :warmth_window_seconds, @default_warmth_seconds)
-    DateTime.add(now(), -window, :second)
   end
 
   defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
