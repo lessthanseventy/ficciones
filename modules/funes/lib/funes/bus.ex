@@ -67,4 +67,16 @@ defmodule Funes.Bus do
   defp publish(topics, event) do
     Enum.each(topics, &Phoenix.PubSub.broadcast(@pubsub, &1, event))
   end
+
+  @doc """
+  Announce a successful write: broadcast `{tag, row}` on an `{:ok, row}`, and pass
+  the result straight through untouched otherwise. Lets a context end a write with
+  `|> Bus.announce(:thread_opened)` — the row is durable before the nudge fires.
+  """
+  def announce({:ok, row} = result, tag) do
+    broadcast({tag, row})
+    result
+  end
+
+  def announce(result, _tag), do: result
 end

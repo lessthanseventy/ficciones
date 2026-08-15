@@ -14,7 +14,7 @@ defmodule Funes.Channel do
 
   @doc "Open a thread on the board. Returns `{:ok, thread}` or `{:error, changeset}`."
   def open_thread(attrs) do
-    attrs |> Thread.open_changeset() |> Repo.insert()
+    attrs |> Thread.open_changeset() |> Repo.insert() |> Funes.Bus.announce(:thread_opened)
   end
 
   @doc """
@@ -34,7 +34,10 @@ defmodule Funes.Channel do
 
   @doc "Close a thread. Its messages are untouched — history outlives the close."
   def close_thread(%Thread{} = thread) do
-    thread |> Thread.state_changeset("closed") |> Repo.update()
+    thread
+    |> Thread.state_changeset("closed")
+    |> Repo.update()
+    |> Funes.Bus.announce(:thread_closed)
   end
 
   @doc "Open threads only, newest first — closed threads are omitted."

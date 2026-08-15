@@ -12,7 +12,7 @@ defmodule Funes.Dossier do
   caps today, because §5 makes its capped read the acceptance test that must exist now.
   """
   import Ecto.Query
-  alias Funes.{Event, Fact, Issue, Repo, Thread}
+  alias Funes.{Bus, Event, Fact, Issue, Repo, Thread}
 
   # orient shows at most five open issues per thread; the rest is a number, never a
   # complete-and-useless list (§5 rank-and-cut, §1).
@@ -20,7 +20,7 @@ defmodule Funes.Dossier do
 
   @doc "Bank a durable fact. `{:ok, fact}` or `{:error, changeset}`."
   def bank_fact(attrs) do
-    attrs |> Fact.bank_changeset() |> Repo.insert()
+    attrs |> Fact.bank_changeset() |> Repo.insert() |> Bus.announce(:fact_banked)
   end
 
   @doc """
@@ -54,7 +54,7 @@ defmodule Funes.Dossier do
 
   @doc "Record an append-only event. `{:ok, event}` or `{:error, changeset}`."
   def record_event(attrs) do
-    attrs |> Event.record_changeset() |> Repo.insert()
+    attrs |> Event.record_changeset() |> Repo.insert() |> Bus.announce(:event_recorded)
   end
 
   @doc "A thread's events, scoped to it, newest first."
@@ -76,12 +76,12 @@ defmodule Funes.Dossier do
 
   @doc "Raise a durable issue. `{:ok, issue}` or `{:error, changeset}`."
   def raise_issue(attrs) do
-    attrs |> Issue.raise_changeset() |> Repo.insert()
+    attrs |> Issue.raise_changeset() |> Repo.insert() |> Bus.announce(:issue_raised)
   end
 
   @doc "Close an issue — a finding that has been settled."
   def resolve_issue(%Issue{} = issue) do
-    issue |> Issue.state_changeset("closed") |> Repo.update()
+    issue |> Issue.state_changeset("closed") |> Repo.update() |> Bus.announce(:issue_resolved)
   end
 
   @doc """

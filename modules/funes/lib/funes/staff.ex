@@ -33,6 +33,7 @@ defmodule Funes.Staff do
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.force_change(:agent_id, agent.id)
     |> Repo.update()
+    |> Funes.Bus.announce(:thread_assigned)
   end
 
   @doc "Clear a thread's agent back to unassigned."
@@ -57,12 +58,12 @@ defmodule Funes.Staff do
   thread is refused by SQLite's FK and raises (§10).
   """
   def start_session(attrs) do
-    attrs |> Session.start_changeset() |> Repo.insert()
+    attrs |> Session.start_changeset() |> Repo.insert() |> Funes.Bus.announce(:session_started)
   end
 
   @doc "End a session — stamp `ended_at`. Sessions die; you brief a new one (§3b)."
   def end_session(%Session{} = session) do
-    session |> Session.end_changeset() |> Repo.update()
+    session |> Session.end_changeset() |> Repo.update() |> Funes.Bus.announce(:session_ended)
   end
 
   @doc """
