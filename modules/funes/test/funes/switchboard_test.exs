@@ -35,13 +35,19 @@ defmodule Funes.SwitchboardTest do
     {:ok, robert} = Staff.register_agent(%{name: "Robert", mandate: "reviewer", engine: "fresh"})
     {:ok, _} = Staff.assign(thread, sandra)
 
-    {:ok, _} =
+    {:ok, ss} =
       Staff.start_session(%{agent_id: sandra.id, thread_id: thread.id, workspace_ref: "wSandra"})
 
-    {:ok, _} =
+    {:ok, rs} =
       Staff.start_session(%{agent_id: robert.id, thread_id: thread.id, workspace_ref: "wRobert"})
 
-    %{thread: thread, sandra: sandra, robert: robert}
+    %{thread: thread, sandra: sandra, robert: robert, sandra_session: ss, robert_session: rs}
+  end
+
+  defp set_last_active(session, seconds_ago) do
+    at = DateTime.utc_now() |> DateTime.add(-seconds_ago, :second) |> DateTime.truncate(:second)
+    {:ok, updated} = session |> Ecto.Changeset.change(last_active_at: at) |> Repo.update()
+    updated
   end
 
   describe "addressed delivery — who a message wakes (aleph §2)" do
@@ -136,6 +142,64 @@ defmodule Funes.SwitchboardTest do
       Switchboard.deliver(m)
 
       refute_received {:woke, "wRobert", _}
+    end
+  end
+
+  describe "warmth-gating the wake (§3b)" do
+    test "a session gone COLD is not woken — a poke would pay full re-ingestion" do
+      %{thread: thread, sandra_session: ss} = staffed_thread()
+      # Sandra's context went cold: last active two hours ago, past the ~1h window.
+      set_last_active(ss, 7200)
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "you there?"})
+      Switchboard.deliver(m)
+
+      refute_received {:woke, "wSandra", _}
+      # Nothing was woken, so it is not a delivery — it stays pending.
+      assert Repo.get!(Message, m.id).delivered_at == nil
+    end
+
+    test "a still-warm session is woken and its warmth is bumped forward" do
+      %{thread: thread, sandra_session: ss} = staffed_thread()
+      warm = set_last_active(ss, 1800).last_active_at
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "hi"})
+      Switchboard.deliver(m)
+
+      assert_received {:woke, "wSandra", _}
+      bumped = Repo.get!(Funes.Session, ss.id).last_active_at
+      assert DateTime.compare(bumped, warm) == :gt
+    end
+
+    test "draining an OLD backlog message never cools a warmer author (forward-only)" do
+      %{thread: thread, sandra_session: ss} = staffed_thread()
+      # Sandra is warm now, but authored a note whose timestamp is two hours old.
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "Sandra", body: "old note"})
+      old = DateTime.utc_now() |> DateTime.add(-7200, :second) |> DateTime.truncate(:second)
+      {:ok, _} = m |> Ecto.Changeset.change(created_at: old) |> Repo.update()
+
+      warm_before = Repo.get!(Funes.Session, ss.id).last_active_at
+      flush()
+
+      Switchboard.drain()
+
+      # touch_author is forward-only: the stale message must not drag Sandra's warmth
+      # back two hours and strand her as "cold."
+      assert Repo.get!(Funes.Session, ss.id).last_active_at == warm_before
+    end
+
+    test "a proactive post keeps its author warm even though no one is woken" do
+      # The lead posts a report (top-level, author = the lead): nobody is woken, but
+      # authoring is a turn, so the lead's own session stays warm.
+      %{thread: thread, sandra_session: ss} = staffed_thread()
+      warm = set_last_active(ss, 1800).last_active_at
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "Sandra", body: "shipped it"})
+      Switchboard.deliver(m)
+
+      refute_received {:woke, _, _}
+      bumped = Repo.get!(Funes.Session, ss.id).last_active_at
+      assert DateTime.compare(bumped, warm) == :gt
     end
   end
 

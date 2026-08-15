@@ -24,18 +24,23 @@ defmodule Funes.Switchboard do
   1. **Coalescing.** A backlog wakes each pane ONCE, never once per message — a
      resumed thread with fifty undelivered messages is one nudge, not fifty turns
      (`drain/0` dedups panes; also §5b's noise rule).
-  2. **Presence-gating is required before a real arbiter ships (§3b).** A session
-     that is *clocked out* MUST NOT be woken — and "clocked out" includes **cold**:
-     idle longer than the prompt cache stays warm (~1h), where a poke would pay a
-     full transcript re-ingestion instead of a cheap resume (§3b, the warmth
-     window). That is precisely the "resumed an old thread and burned my whole
-     allotment" footgun. This layer isn't built yet, which is exactly why the
-     default arbiter is `Inert` (pokes nothing): the mechanism is safe to run before
-     its governor exists. Do not wire an auto-poking Herdr/tmux backend until
-     `recipients/1` also filters clocked-out and cold sessions.
+  2. **Warmth-gating (built).** A session idle longer than the prompt cache stays
+     warm (~1h, `:warmth_window_seconds`) is **cold** — a poke would pay a full
+     transcript re-ingestion instead of a cheap resume, the "resumed an old thread
+     and burned my whole allotment" footgun. `recipients/1` excludes cold sessions
+     (treated like ended ones), and the switchboard bumps `last_active_at` as a
+     session acts — on being woken and on authoring (§3b, the warmth window).
+     The OTHER half of "clocked out" — an engine out of credits or past its
+     rate-limit window — is a pluggable presence signal not yet wired; combine it
+     into `recipients/1` before an auto-poking Herdr/tmux backend replaces the
+     default `Inert` arbiter.
   """
   import Ecto.Query
   alias Funes.{Agent, Arbiter, Mentions, Message, Repo, Session, Thread}
+
+  # A session is warm — cheap to resume — only within the prompt cache's life (~1h);
+  # past that it is cold and must not be woken (§3b). Configurable.
+  @default_warmth_seconds 3600
 
   @doc """
   Deliver one message (the live path): wake its addressed recipients (`recipients/1`),
@@ -45,6 +50,10 @@ defmodule Funes.Switchboard do
   `{:pending, message}`.
   """
   def deliver(%Message{} = message) do
+    # Authoring is activity: keep the author's session warm even when nobody is woken
+    # (a lead's report up to the human keeps the lead warm).
+    touch_author(message)
+
     case recipients(message) do
       [] ->
         {:pending, message}
@@ -54,7 +63,7 @@ defmodule Funes.Switchboard do
         # racing over the same message at startup can never both poke a paid pane.
         # Whoever flips delivered_at from NULL is the only one who wakes.
         if claim([message.id]) > 0 do
-          wake(Enum.map(sessions, & &1.workspace_ref), prompt(message))
+          waken(sessions, prompt(message))
           {:delivered, message}
         else
           {:already_delivered, message}
@@ -73,20 +82,20 @@ defmodule Funes.Switchboard do
     undelivered =
       Repo.all(from m in Message, where: is_nil(m.delivered_at), order_by: [asc: m.id])
 
-    # Claim each message before collecting its panes, so a wake is scoped to what
-    # THIS drain actually claimed — a message a concurrent deliver already took
-    # contributes no pane here. wake/2 then dedups, so each pane fires once.
+    # Claim each message before collecting its recipients, so a wake is scoped to
+    # what THIS drain actually claimed — a message a concurrent deliver already took
+    # contributes nothing here. `waken/2` dedups, so each pane fires once.
     undelivered
     |> Enum.flat_map(fn message ->
-      case recipients(message) do
-        [] ->
-          []
+      touch_author(message)
 
-        sessions ->
-          if claim([message.id]) > 0, do: Enum.map(sessions, & &1.workspace_ref), else: []
+      case recipients(message) do
+        [] -> []
+        sessions -> if claim([message.id]) > 0, do: sessions, else: []
       end
     end)
-    |> wake("you have unread messages")
+    |> Enum.uniq_by(& &1.id)
+    |> waken("you have unread messages")
   end
 
   # Atomically flip delivered_at to now for the still-undelivered messages among
@@ -121,11 +130,17 @@ defmodule Funes.Switchboard do
         []
 
       names ->
+        # Only WARM sessions: live, addressed, and active within the cache window.
+        # A cold session is treated like an ended one — never poked (§3b).
+        cutoff = warmth_cutoff()
+
         Repo.all(
           from s in Session,
             join: a in Agent,
             on: a.id == s.agent_id,
-            where: s.thread_id == ^message.thread_id and is_nil(s.ended_at) and a.name in ^names
+            where:
+              s.thread_id == ^message.thread_id and is_nil(s.ended_at) and
+                a.name in ^names and s.last_active_at > ^cutoff
         )
     end
   end
@@ -170,7 +185,50 @@ defmodule Funes.Switchboard do
     end
   end
 
-  defp wake(panes, prompt), do: panes |> Enum.uniq() |> Enum.each(&Arbiter.wake(&1, prompt))
+  # Poke each distinct pane once, and bump the woken sessions warm — being woken is
+  # a turn, so it refreshes their warmth.
+  defp waken(sessions, prompt) do
+    sessions
+    |> Enum.uniq_by(& &1.workspace_ref)
+    |> Enum.each(&Arbiter.wake(&1.workspace_ref, prompt))
+
+    touch(Enum.map(sessions, & &1.id), now())
+  end
+
+  # Bump the author's live sessions on the thread to when they posted — authoring is
+  # a turn. Forward-only (`touch/2`), so a backlog drain never moves warmth backward.
+  defp touch_author(%Message{thread_id: thread_id, author: author, created_at: at}) do
+    ids =
+      Repo.all(
+        from s in Session,
+          join: a in Agent,
+          on: a.id == s.agent_id,
+          where: s.thread_id == ^thread_id and is_nil(s.ended_at) and a.name == ^author,
+          select: s.id
+      )
+
+    touch(ids, at)
+  end
+
+  defp touch([], _at), do: :ok
+
+  defp touch(ids, at) do
+    Repo.update_all(
+      from(s in Session,
+        where: s.id in ^ids and (is_nil(s.last_active_at) or s.last_active_at < ^at)
+      ),
+      set: [last_active_at: at]
+    )
+
+    :ok
+  end
+
+  defp warmth_cutoff do
+    window = Application.get_env(:funes, :warmth_window_seconds, @default_warmth_seconds)
+    DateTime.add(now(), -window, :second)
+  end
+
+  defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
 
   defp prompt(%Message{author: author, body: body, thread_id: thread_id}) do
     "New message on thread #{thread_id} from #{author}: #{body}"

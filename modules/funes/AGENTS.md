@@ -30,20 +30,24 @@ plus `funes doctor`: **nothing ships that cannot be repaired at 2am** — schema
   append-only with a closed `kind` that includes the `work_landed` outcome; `issue` is a local,
   ticket-shaped finding read capped-and-counted by `open_issues_for_thread` (§5's acceptance test).
 
-- **The switchboard** (`Funes.Switchboard` + `Funes.Bus` + `Switchboard.Server`, `Funes.Arbiter`) — the
-  liveness layer step 2 deferred. Delivery WAKES the recipient (§5b.2): a posted message is broadcast over
-  `Phoenix.PubSub` and the switchboard pokes the live sessions on that thread through the **arbiter, a
-  capability not a product** (Herdr | tmux, §8) that defaults to `Inert`. §10 holds — the message is a
-  durable row before any wake, and `drain/0` re-delivers on restart, so killing the BEAM loses nothing.
-  Two guard-rails: the wake is **coalesced** (a backlog is one nudge, not N) and **must be presence-gated**
-  before a real poking backend ships — never wake a clocked-out or **cold** session (idle past the ~1h
-  prompt-cache warmth window), which is the "resumed a thread and burned my allotment" footgun (aleph §3b).
+- **The switchboard** (`Funes.Switchboard` + `Funes.Bus` + `Switchboard.Server`, `Funes.Arbiter`,
+  `Funes.Mentions`) — the liveness layer step 2 deferred. Delivery WAKES the recipient (§5b.2): a posted
+  message is broadcast over `Phoenix.PubSub` and the switchboard pokes **who the message is addressed to** —
+  the thread's **lead** for a plain post, an **@mentioned** coworker, or a **reply's** author — through the
+  **arbiter, a capability not a product** (Herdr | tmux, §8) that defaults to `Inert`. §10 holds: the message
+  is a durable row before any wake, and `drain/0` re-delivers on restart, so killing the BEAM loses nothing.
+  Three guard-rails against burning a five-hour window: the wake is **coalesced** (a backlog is one nudge,
+  not N); **warmth-gated** — a **cold** session (idle past the ~1h prompt-cache window, `last_active_at`) is
+  never poked, the "resumed a thread and burned my allotment" footgun; and the default arbiter is **inert**,
+  so nothing real is poked until a backend is deliberately wired.
 
 Change the build-order status line above as each step lands — do not leave it asserting a step that is
 already built (the trap the step-2 handoff caught here). Next is **step 5, the aleph board** — the
 Drafter TUI rendering all of the above, ranked and cut; the dossier tables feed it directly. Deferred
-still: **presence/warmth** (the wake's governor, aleph §3b — required before a real arbiter), the `Sense`
-collectors, and cross-thread **mentions**. SQLite is still the truth — a real db reads back under `sqlite3`.
+still: the **engine-credit half of presence** (clocked-out from spent credits/rate-limit — combine into
+`recipients/1` before an auto-poking backend replaces `Inert`), the human-notification path + re-deliver
+on session-join, cross-thread **mentions**, and the `Sense` collectors. SQLite is the truth — a real db
+reads back under `sqlite3`.
 
 Version one ran on the *work* machine and is **not on this clean-room box** (§8c). It is **evidence, not
 a source**: it exists to show what a failure looked like, never to copy a shape. Nothing here needs to be

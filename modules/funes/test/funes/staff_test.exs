@@ -202,9 +202,19 @@ defmodule Funes.StaffTest do
       # §2's one seam, stated so it cannot be widened: SQLite holds the workspace id
       # and never a label, pane list, or status. Asserted as an ALLOWLIST, not a
       # denylist of guessed names — the rule is positive ("only the opaque ref"), so
-      # ANY new column trips this, including one no one thought to forbid.
+      # ANY new column trips this, including one no one thought to forbid. Note:
+      # last_active_at is OUR OWN presence bookkeeping (§3b), not a cached Herdr
+      # workspace property, so it belongs here.
       assert Session.__schema__(:fields) ==
-               [:id, :workspace_ref, :started_at, :ended_at, :agent_id, :thread_id]
+               [
+                 :id,
+                 :workspace_ref,
+                 :started_at,
+                 :ended_at,
+                 :last_active_at,
+                 :agent_id,
+                 :thread_id
+               ]
     end
 
     test "session_for_thread/1 finds the live session to jump into, newest first", %{

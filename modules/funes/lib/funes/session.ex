@@ -14,6 +14,10 @@ defmodule Funes.Session do
     field :workspace_ref, :string
     field :started_at, :utc_datetime
     field :ended_at, :utc_datetime
+    # When the session last ran a turn (aleph §3b). Drives warmth: idle past the
+    # cache window (~1h) is cold, and the switchboard must not wake a cold session.
+    # The switchboard bumps this as the session acts; a fresh session starts warm.
+    field :last_active_at, :utc_datetime
     belongs_to :agent, Funes.Agent
     belongs_to :thread, Funes.Thread
   end
@@ -24,10 +28,13 @@ defmodule Funes.Session do
   raises rather than returning a changeset. `workspace_ref` is optional and opaque.
   """
   def start_changeset(attrs) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
     %__MODULE__{}
     |> cast(attrs, [:agent_id, :thread_id, :workspace_ref])
     |> validate_required([:agent_id, :thread_id])
-    |> put_change(:started_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    |> put_change(:started_at, now)
+    |> put_change(:last_active_at, now)
   end
 
   @doc "Stamp a session ended, now. Sessions die; you brief a new one (§3b)."
