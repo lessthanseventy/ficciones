@@ -22,7 +22,7 @@ defmodule Funes.Switchboard.Server do
   def init(_opts) do
     # Subscribe synchronously so no live message is missed, but defer the (blocking)
     # drain out of init so it never stalls the supervisor's boot.
-    Bus.subscribe()
+    Bus.subscribe_messages()
     {:ok, %{}, {:continue, :drain}}
   end
 
@@ -40,7 +40,7 @@ defmodule Funes.Switchboard.Server do
   end
 
   @impl true
-  def handle_info({:message, message}, state) do
+  def handle_info({:message_posted, message}, state) do
     Switchboard.deliver(message)
     {:noreply, state}
   end

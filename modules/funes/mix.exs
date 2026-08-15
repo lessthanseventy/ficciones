@@ -24,7 +24,7 @@ defmodule Funes.MixProject do
         "format --check-formatted",
         "compile --warnings-as-errors",
         "credo --strict",
-        "test"
+        "test --warnings-as-errors"
       ]
     ]
   end

@@ -7,7 +7,7 @@ defmodule Funes.StaffTest do
   # or the wake (all §3b/§10-deferred). The DB is the bus (§10): every assertion
   # reads back through SQLite, never through the struct we were handed.
   use ExUnit.Case, async: false
-  alias Funes.{Agent, Channel, Message, Repo, Session, Staff, Thread}
+  alias Funes.{Agent, Channel, Repo, Session, Staff, Thread}
 
   # This suite shares one DB (no sandbox, like step 2), but unlike thread/message,
   # `agent.name` is UNIQUE — so a reused name across tests would collide. Isolate
