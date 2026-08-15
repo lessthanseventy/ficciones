@@ -10,14 +10,20 @@ defmodule Funes.Switchboard do
   `delivered_at` in the DB is the durable truth of what was delivered; PubSub (the
   `Server`) is only the low-latency nudge.
 
+  ## Addressed delivery — a message wakes who it is addressed to, not the room
+
+  A plain top-level post wakes only the thread's **lead** (its assigned agent, the
+  orchestrator); an **@mention** wakes that coworker; a **reply** wakes the author of
+  the message it answers. Never the whole room — the lead stays informed because
+  coworkers report back to the thread. See `recipients/1`.
+
   ## Two guard-rails against burning a five-hour window
 
   Waking pokes a *real, paid* agent session, so the wake is deliberately restrained:
 
-  1. **Coalescing.** A backlog wakes a recipient ONCE, never once per message — a
-     resumed thread with fifty undelivered messages is one "you have 50 unread,"
-     not fifty turns. `drain/0` groups by thread and wakes each recipient a single
-     time. (This is also §5b's noise rule.)
+  1. **Coalescing.** A backlog wakes each pane ONCE, never once per message — a
+     resumed thread with fifty undelivered messages is one nudge, not fifty turns
+     (`drain/0` dedups panes; also §5b's noise rule).
   2. **Presence-gating is required before a real arbiter ships (§3b).** A session
      that is *clocked out* MUST NOT be woken — and "clocked out" includes **cold**:
      idle longer than the prompt cache stays warm (~1h), where a poke would pay a
@@ -26,20 +32,20 @@ defmodule Funes.Switchboard do
      allotment" footgun. This layer isn't built yet, which is exactly why the
      default arbiter is `Inert` (pokes nothing): the mechanism is safe to run before
      its governor exists. Do not wire an auto-poking Herdr/tmux backend until
-     `recipients/2` also filters clocked-out and cold sessions.
+     `recipients/1` also filters clocked-out and cold sessions.
   """
   import Ecto.Query
-  alias Funes.{Agent, Arbiter, Message, Repo, Session}
+  alias Funes.{Agent, Arbiter, Mentions, Message, Repo, Session, Thread}
 
   @doc """
-  Deliver one message (the live path): wake every *other* live session on its
-  thread, then stamp it delivered. A message with no live recipient stays
-  undelivered (`:pending`) — it is not a delivery until someone is woken (§5b.3),
-  and `drain/0` picks it up when a recipient appears. Returns `{:delivered, message}`
-  or `{:pending, message}`.
+  Deliver one message (the live path): wake its addressed recipients (`recipients/1`),
+  then stamp it delivered. A message no one live is addressed to stays undelivered
+  (`:pending`) — it is not a delivery until someone is woken (§5b.3), and `drain/0`
+  picks it up when a recipient appears. Returns `{:delivered, message}` or
+  `{:pending, message}`.
   """
   def deliver(%Message{} = message) do
-    case recipients(message.thread_id, [message.author]) do
+    case recipients(message) do
       [] ->
         {:pending, message}
 
@@ -48,7 +54,7 @@ defmodule Funes.Switchboard do
         # racing over the same message at startup can never both poke a paid pane.
         # Whoever flips delivered_at from NULL is the only one who wakes.
         if claim([message.id]) > 0 do
-          Enum.each(sessions, &Arbiter.wake(&1.workspace_ref, prompt(message)))
+          wake(Enum.map(sessions, & &1.workspace_ref), prompt(message))
           {:delivered, message}
         else
           {:already_delivered, message}
@@ -59,34 +65,28 @@ defmodule Funes.Switchboard do
   @doc """
   Deliver everything still undelivered, oldest first — the durability path (§10),
   run on switchboard start so messages posted while it was down are still woken.
-  COALESCED: each thread's backlog wakes its recipients ONE time (the burst guard),
-  then the whole batch is marked delivered.
+  COALESCED per recipient: each distinct pane is woken ONCE for the whole backlog
+  (the burst guard), and only the messages that actually reached someone are marked
+  delivered.
   """
   def drain do
-    Repo.all(from m in Message, where: is_nil(m.delivered_at), order_by: [asc: m.id])
-    |> Enum.group_by(& &1.thread_id)
-    |> Enum.each(fn {thread_id, msgs} -> drain_thread(thread_id, msgs) end)
-  end
+    undelivered =
+      Repo.all(from m in Message, where: is_nil(m.delivered_at), order_by: [asc: m.id])
 
-  defp drain_thread(thread_id, msgs) do
-    authors = msgs |> Enum.map(& &1.author) |> Enum.uniq()
+    # Claim each message before collecting its panes, so a wake is scoped to what
+    # THIS drain actually claimed — a message a concurrent deliver already took
+    # contributes no pane here. wake/2 then dedups, so each pane fires once.
+    undelivered
+    |> Enum.flat_map(fn message ->
+      case recipients(message) do
+        [] ->
+          []
 
-    # Wake a live session unless EVERY message in the backlog is its own — so a
-    # participant who also posted is still woken about others' messages, but nobody
-    # is woken about only their own words.
-    case recipients(thread_id, only_own(authors, msgs)) do
-      [] ->
-        :pending
-
-      sessions ->
-        # Same atomic claim as deliver/1: stamp the still-undelivered messages, and
-        # wake ONCE only if this drain actually claimed at least one — so a message
-        # the live handler already delivered is not poked again here.
-        if claim(Enum.map(msgs, & &1.id)) > 0 do
-          prompt = "#{length(msgs)} new message(s) on thread #{thread_id}"
-          Enum.each(sessions, &Arbiter.wake(&1.workspace_ref, prompt))
-        end
-    end
+        sessions ->
+          if claim([message.id]) > 0, do: Enum.map(sessions, & &1.workspace_ref), else: []
+      end
+    end)
+    |> wake("you have unread messages")
   end
 
   # Atomically flip delivered_at to now for the still-undelivered messages among
@@ -106,24 +106,71 @@ defmodule Funes.Switchboard do
     count
   end
 
-  # Live sessions on a thread whose agent is not in `exclude` (the authors we must
-  # not wake about their own words). The author↔agent link is by name — a message's
-  # author is a handle, not an agent FK.
-  defp recipients(thread_id, exclude) do
-    Repo.all(
-      from s in Session,
-        join: a in Agent,
-        on: a.id == s.agent_id,
-        where: s.thread_id == ^thread_id and is_nil(s.ended_at) and a.name not in ^exclude
-    )
+  # Who a message wakes (the addressed-delivery model, aleph §2):
+  #   * a REPLY  -> the author of the message it replies to
+  #   * @mentions -> the named coworkers
+  #   * neither (a plain top-level post) -> the thread's LEAD (its assigned agent)
+  # minus the message's own author — you are never woken by your own words. The
+  # lead stays informed without being cc'd because coworkers report back to the
+  # thread (their top-level posts wake the lead).
+  defp recipients(%Message{} = message) do
+    targets = target_names(message) -- [message.author]
+
+    case targets do
+      [] ->
+        []
+
+      names ->
+        Repo.all(
+          from s in Session,
+            join: a in Agent,
+            on: a.id == s.agent_id,
+            where: s.thread_id == ^message.thread_id and is_nil(s.ended_at) and a.name in ^names
+        )
+    end
   end
 
-  # For a coalesced batch: exclude an agent only if EVERY message in the backlog is
-  # their own (no one else spoke), so a participant is still woken about others'
-  # messages even if they also posted some.
-  defp only_own(authors, msgs) do
-    Enum.filter(authors, fn author -> Enum.all?(msgs, &(&1.author == author)) end)
+  defp target_names(%Message{} = message) do
+    case reply_author(message) ++ mentioned_agents(message) do
+      [] -> lead_name(message)
+      addressed -> Enum.uniq(addressed)
+    end
   end
+
+  defp reply_author(%Message{reply_to: nil}), do: []
+
+  defp reply_author(%Message{reply_to: parent_id}) do
+    case Repo.get(Message, parent_id) do
+      %Message{author: author} -> [author]
+      nil -> []
+    end
+  end
+
+  # The @-handles that name a real agent — an @here that matches no agent wakes no
+  # one, and (because it resolves to nothing) does not suppress the lead default.
+  # Matched case-INSENSITIVELY so a wrong-case @robert still reaches Robert rather
+  # than silently falling back to the lead; the agent's real name is returned.
+  defp mentioned_agents(%Message{body: body}) do
+    case Mentions.names(body) do
+      [] ->
+        []
+
+      handles ->
+        wanted = Enum.map(handles, &String.downcase/1)
+        Repo.all(from a in Agent, where: fragment("lower(?)", a.name) in ^wanted, select: a.name)
+    end
+  end
+
+  defp lead_name(%Message{thread_id: thread_id}) do
+    with %Thread{agent_id: agent_id} when not is_nil(agent_id) <- Repo.get(Thread, thread_id),
+         %Agent{name: name} <- Repo.get(Agent, agent_id) do
+      [name]
+    else
+      _ -> []
+    end
+  end
+
+  defp wake(panes, prompt), do: panes |> Enum.uniq() |> Enum.each(&Arbiter.wake(&1, prompt))
 
   defp prompt(%Message{author: author, body: body, thread_id: thread_id}) do
     "New message on thread #{thread_id} from #{author}: #{body}"

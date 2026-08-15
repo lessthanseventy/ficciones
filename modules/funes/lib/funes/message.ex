@@ -14,6 +14,9 @@ defmodule Funes.Message do
     field :body, :string
     field :created_at, :utc_datetime
     field :delivered_at, :utc_datetime
+    # Optional: the message this one replies to (aleph §2). A reply is addressed to
+    # the replied-to message's author — one of the three ways delivery is targeted.
+    field :reply_to, :id
     belongs_to :thread, Funes.Thread
   end
 
@@ -24,7 +27,7 @@ defmodule Funes.Message do
   """
   def post_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:thread_id, :author, :body])
+    |> cast(attrs, [:thread_id, :author, :body, :reply_to])
     |> validate_required([:thread_id, :author, :body])
     |> put_change(:created_at, DateTime.utc_now() |> DateTime.truncate(:second))
   end
