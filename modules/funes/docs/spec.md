@@ -262,13 +262,23 @@ event to fall back on. An attributed fact is judgement the system cannot derive,
   "his own notes stay authored by him"; he has since stated the opposite, and both are `stated`
   constraints. The always-loaded set is the one place a contradiction is guaranteed to be read, by every
   session, every time.
-- **`event`** — append-only, what happened: a session started, a handoff opened, a message was sent, a
-  check passed, a command was approved, work landed. Everything version one scattered across a handoff
-  log, a mail log, a worklog and three signal files is one table with a `kind`.
+- **`event`** — append-only, what happened, **for happenings that have no other home.** Its kinds are the
+  outcomes and judgements a surface cannot reconstruct from another table: **work landed, a command
+  approved, a check passed, a handoff opened.** Everything version one scattered across a handoff log, a
+  worklog and three signal files is one table with a `kind`.
 
-  Three decisions, made here because leaving them open is what turns one table into a dumping ground:
+  Four decisions, made here because leaving them open is what turns one table into a dumping ground:
   - **`kind` is a CLOSED set with a database CHECK.** An open string is the wide-discriminator failure
     this document rejects twice elsewhere; adding a kind should require a migration, which is the point.
+  - **No event for a happening that is already a row.** *Amended 2026-08-15, when the wiring was settled
+    in code.* An earlier draft of this list read "a session started, a message was sent" — but a message
+    already leaves a `message` row, and a session a `session` row, each with its own timestamp. A
+    `message_sent` event would be a **second source for "when it happened"** (§2) and a **dual write**
+    (§10) — the exact defect that retired the `turn` table, whose absence this list forgot. So the "what
+    happened" timeline is **DERIVED**: the message/session/issue rows are merged, by their own timestamps,
+    with the `event` table — never copied into it. `event` carries only what no other table records.
+    (One gap this exposed: `issue` has no `closed_at`, so a resolution is not yet timestamped for the
+    timeline — a deferred fix, recorded rather than lost.)
   - **Typed columns for what a surface queries; a JSON `detail` only for what a human reads.** If a
     query needs it, it is a column. Version one's mail file holds 111 messages and 102 acks of shape
     `{ack, at, by}` in one file, so an ack is a different KIND, not a message with fields missing.
@@ -716,8 +726,9 @@ complete will not survive contact:
    a source: **`event` must carry a kind that means "work landed"**, or nothing answers "what did I do
    yesterday" once the worklog is retired. That is the gap review found — every `event` kind proposed
    in §4 describes mechanism, not outcome.
-5. **`event`, written by the pieces that already exist.** Session start and end, handoff, message,
-   approval, verification result, work landed.
+5. **`event`, written by the pieces that already exist** — but only for happenings with no other home:
+   a handoff opened, an approval, a verification result, work landed. Session start/end and a message are
+   NOT events; they are their own rows, and the timeline derives them (§4, amended 2026-08-15).
 6. **The channel (§5b)**, at its smallest: a thread per subject, delivery that wakes the recipient, and
    `delivered` separate from `read`. It ships this early for one reason — it is also §4's capture path,
    so a message the owner writes becomes an attributed fact without him doing anything else.

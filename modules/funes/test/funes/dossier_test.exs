@@ -137,7 +137,7 @@ defmodule Funes.DossierTest do
 
   describe "event.detail — a JSON column (Funes.JSONColumn)" do
     test "an absent detail round-trips as nil, not an empty map" do
-      {:ok, event} = Dossier.record_event(%{kind: "session_started"})
+      {:ok, event} = Dossier.record_event(%{kind: "handoff_opened"})
       assert Repo.get!(Event, event.id).detail == nil
     end
 
@@ -279,7 +279,7 @@ defmodule Funes.DossierTest do
     end
 
     test "an event may be global — a lifecycle event need not be thread-scoped" do
-      {:ok, event} = Dossier.record_event(%{kind: "session_started"})
+      {:ok, event} = Dossier.record_event(%{kind: "handoff_opened"})
       assert Repo.get!(Event, event.id).thread_id == nil
     end
 
@@ -300,7 +300,7 @@ defmodule Funes.DossierTest do
   describe "shipped_for_thread/1 — the 'work landed' outcome (§9.4)" do
     test "returns only work_landed events, not the mechanism kinds around them" do
       {:ok, thread} = Channel.open_thread(%{title: "a subject"})
-      {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "session_started"})
+      {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "handoff_opened"})
       {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "check_passed"})
 
       {:ok, _} =
