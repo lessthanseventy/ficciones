@@ -24,9 +24,17 @@ plus `funes doctor`: **nothing ships that cannot be repaired at 2am** — schema
 - **Step 3** — `agent` + `session` and staffing (`Funes.Staff`): the durable named identity and its
   ephemeral instance (aleph §3), a thread's `agent_id`, and the opaque `workspace_ref` the arbiter jumps
   into. This is the recipient model step 2 deferred its PubSub wake to await.
+- **Step 4** — the dossier: `fact`/`event`/`issue` scoped to threads (`Funes.Dossier`) →
+  `LEARNINGS`/`SHIPPED`/`BLOCKERS`. `fact` is the ledger's successor with `provenance` (stated | derived,
+  the DB CHECKs it), a separate reproducibility axis `check_cmd`, and explicit `supersedes`; `event` is
+  append-only with a closed `kind` that includes the `work_landed` outcome; `issue` is a local,
+  ticket-shaped finding read capped-and-counted by `open_issues_for_thread` (§5's acceptance test).
 
-Next is **step 4, the dossier** — `fact`/`event`/`issue` scoped to threads (`LEARNINGS`/`SHIPPED`/
-`BLOCKERS`). SQLite is still the truth — a real db reads back under `sqlite3`.
+Change the build-order status line above as each step lands — do not leave it asserting a step that is
+already built (the trap the step-2 handoff caught here). Next is **step 5, the aleph board** — the
+Drafter TUI rendering all of the above, ranked and cut; the dossier tables feed it directly. Deferred
+still: the PubSub wake/fan-out (the switchboard's liveness over this bus) and the `Sense` collectors.
+SQLite is still the truth — a real db reads back under `sqlite3`.
 
 Version one ran on the *work* machine and is **not on this clean-room box** (§8c). It is **evidence, not
 a source**: it exists to show what a failure looked like, never to copy a shape. Nothing here needs to be
