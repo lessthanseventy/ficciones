@@ -4,11 +4,19 @@ defmodule Funes.Application do
 
   @impl true
   def start(_type, _args) do
-    # The test harness owns the repo lifecycle (a fresh, migrated DB per run), so
-    # the app does not start it under :test.
+    # PubSub is always up — it is the switchboard's nudge and cheap to run, and the
+    # test harness needs it so Channel.post can broadcast. The Repo is started
+    # except under :test (the harness owns its lifecycle). The switchboard Server is
+    # opt-in (off by default) until presence-gating exists — see Funes.Switchboard.
     children =
-      if Application.get_env(:funes, :start_repo, true), do: [Funes.Repo], else: []
+      [{Phoenix.PubSub, name: Funes.PubSub}] ++
+        maybe(:start_repo, true, Funes.Repo) ++
+        maybe(:start_switchboard, false, Funes.Switchboard.Server)
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Funes.Supervisor)
+  end
+
+  defp maybe(key, default, child) do
+    if Application.get_env(:funes, key, default), do: [child], else: []
   end
 end

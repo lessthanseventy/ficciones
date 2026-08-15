@@ -93,6 +93,24 @@ Three pieces fall out of "Jimmy's on a 5-hour break."
 closed, host down = **clocked out**. The **roster** shows who's *on the clock*; you can't assign a thread
 to an agent who's out.
 
+**The warmth window — presence has a clock, and it is the prompt cache's (added 2026-08-15).** A coworker
+who steps away stays cheap to resume only while their context is *warm*, and the vendor keeps a prompt
+cache warm for **about an hour**. So an hour is the **away-budget**: within it a session is warm and
+resuming is a poke; past it the cache is cold, the transcript costs a full window to re-ingest, and the
+right move is not to resume the dead session but to **brief a fresh one from the dossier** (the re-entry
+rule below). "Take notes before you go, and if you're gone over an hour, come back fresh." A cold, idle
+session is therefore treated as **clocked out** even if its engine still has credit — staleness is a form
+of absence.
+
+**The wake must be presence-gated, or it burns the window.** This is the one operational hazard of "delivery
+wakes the recipient" (§5b.2): a wake pokes a *real, paid* session, and the forums are full of "I resumed an
+old thread and spent my whole five-hour allotment." Two guards, both settled while the switchboard was
+built: **(1)** never poke a **clocked-out or cold** session — it would pay full re-ingestion for a nudge;
+**(2)** a backlog is **coalesced** — a resumed thread with fifty unread is *one* "you have 50," never fifty
+turns. Until presence exists to enforce (1), the terminal arbiter defaults to **inert** (pokes nothing), so
+the mechanism is safe to run before its governor is built — but no auto-poking backend ships until the
+gate does.
+
 **Routing and cover.** Assignment is skill × availability × cost: the deep engine (opus) isn't spent on
 filing; grunt drops to the intern (local, always-on); when a senior is out, a mid (ollama) covers. Pay
 grade = engine cost.

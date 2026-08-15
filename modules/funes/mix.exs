@@ -24,7 +24,10 @@ defmodule Funes.MixProject do
   defp deps do
     [
       {:ecto_sql, "~> 3.12"},
-      {:ecto_sqlite3, ">= 0.17.0"}
+      {:ecto_sqlite3, ">= 0.17.0"},
+      # The switchboard's liveness layer (§10): PubSub fans a posted message out to
+      # internal consumers. SQLite stays the truth; this only makes it live.
+      {:phoenix_pubsub, "~> 2.1"}
     ]
   end
 end

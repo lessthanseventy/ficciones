@@ -24,7 +24,12 @@ defmodule Funes.Channel do
   check here (§10).
   """
   def post(attrs) do
-    attrs |> Message.post_changeset() |> Repo.insert()
+    with {:ok, message} <- attrs |> Message.post_changeset() |> Repo.insert() do
+      # Announce the durable row to the switchboard (liveness only, §10) — a
+      # broadcast with no subscriber is a harmless no-op.
+      Funes.Bus.broadcast_message(message)
+      {:ok, message}
+    end
   end
 
   @doc """
