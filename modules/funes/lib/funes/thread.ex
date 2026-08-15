@@ -11,6 +11,9 @@ defmodule Funes.Thread do
     field :title, :string
     field :state, :string, default: "open"
     field :created_at, :utc_datetime
+    # A thread has 0..1 agent (aleph §3), staffed via Funes.Staff. Nullable FK;
+    # the assignment reference lives on the thread, added in step 3's migration.
+    belongs_to :agent, Funes.Agent
   end
 
   @doc "A new thread, opened now. Title is required; state is not caller-settable."

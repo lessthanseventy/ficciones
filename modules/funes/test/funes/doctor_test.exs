@@ -7,7 +7,7 @@ defmodule Funes.DoctorTest do
   end
 
   test "lists the domain tables and excludes sqlite internals and the migration ledger" do
-    assert Doctor.tables() == ["collection", "message", "thread"]
+    assert Doctor.tables() == ["agent", "collection", "message", "session", "thread"]
   end
 
   test "has no pending migrations once migrated" do
