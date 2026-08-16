@@ -102,6 +102,21 @@ the same commands, which is the one control loop §3 asks for:
 - `mise run funes:doctor` — `mix funes.doctor` against the scratch db, never the real one.
 - `mise run check` — the funes precommit gate, the green-before-commit gate.
 
+The **always-up channel** is a headless service, distinct from the `funes:serve` dev iex:
+a self-contained local `mix release` run by `systemd.user.services.funes` (flake.nix) —
+loopback, the **real XDG db**, migrate-on-boot (`Funes.Release.migrate/0` via
+`bin/funes eval`, so funes never serves on a schema it can't repair), and a named node +
+cookie (the release's `rel/env.sh.eex`) so the operator can reach the live node:
+
+- `mise run funes:release` — build the release the service runs.
+- `mise run funes:restart` — rebuild + restart the service (redeploy a funes change).
+- `mise run funes:console` — remote iex INTO the running service node; the only place a
+  token minted by `Funes.MCP.Spawn.env` survives (the `Tokens` registry dies with its node).
+- `mise run funes:logs` — follow the service's journal.
+
+The `home:switch` that installs the service is the human's (system-mutating); build + verify
+the release with `funes:release` and `nix build .#homeConfigurations.personalbox.activationPackage`.
+
 If a command belongs in the loop, it becomes a task in the root `mise.toml`. Do not invent a second way
 to run these.
 

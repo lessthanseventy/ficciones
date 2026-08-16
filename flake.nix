@@ -95,6 +95,12 @@
               manosExtension = "${repo}/modules/manos/pi/src/extension.ts";
               manosSkillsGlob = "${repo}/modules/manos/skills/*";
 
+              # funes' self-contained release, built locally by `mise run funes:release`
+              # (capability-map move #1; nix builds this same release later — move A). The
+              # service below runs it headless; `funes:console`/`:restart` drive the same
+              # bin/funes, so node + cookie agree via the release's own env.sh.
+              funesRel = "${repo}/modules/funes/_build/prod/rel/funes";
+
               # funes' MCP server, for pi-mcp-adapter. The ${VAR} refs are interpolated by
               # the adapter at connect time from the pane's env (Funes.MCP.Spawn.env prints
               # them). pi-scoped path (~/.pi/agent/mcp.json), so it never collides with a
@@ -185,9 +191,41 @@
                   --arg skills "${manosSkillsGlob}" \
                   '.extensions = ((.extensions // []) + [$ext] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
-                   | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)' \
+                   | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)
+                   | .defaultProvider //= "ollama-cloud"
+                   | .defaultModel //= "glm-5.2"
+                   | .defaultThinkingLevel //= "medium"
+                   | .retry.enabled //= true
+                   | .enabledModels //= ["glm-5.2","glm-5.1","deepseek-v4-pro","deepseek-v4-flash","kimi-k2.7-code","kimi-k3","minimax-m3","qwen3-coder"]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
               '';
+
+              # The always-up sovereign channel (capability-map move #1) as a headless
+              # systemd --user service: nothing registers or briefs if the channel isn't
+              # up, and until now that was a hand-run iex. A self-contained release
+              # (`mise run funes:release`) means ExecStart is one absolute path with no
+              # toolchain on PATH. ExecStartPre migrates first — funes never serves on a
+              # schema it can't repair (its 2am law). LOOPBACK-only, on the REAL XDG db
+              # (FUNES_DB unset → ~/.local/share/funes/wb.db). Node name + cookie come from
+              # the release's own env.sh, so `funes:console`/`:restart` reach THIS node.
+              # Build the release before the first `home:switch` that starts it;
+              # `mise run funes:restart` redeploys a funes change.
+              systemd.user.services.funes = {
+                Unit = {
+                  Description = "funes — the always-up sovereign MCP channel (loopback)";
+                  Documentation = [ "file://${repo}/modules/funes/AGENTS.md" ];
+                  After = [ "network.target" ];
+                };
+                Service = {
+                  Type = "exec";
+                  Environment = [ "FUNES_START_MCP=1" "FUNES_MCP_PORT=4040" ];
+                  ExecStartPre = "${funesRel}/bin/funes eval Funes.Release.migrate()";
+                  ExecStart = "${funesRel}/bin/funes start";
+                  Restart = "on-failure";
+                  RestartSec = 2;
+                };
+                Install.WantedBy = [ "default.target" ];
+              };
             }
           )
         ];

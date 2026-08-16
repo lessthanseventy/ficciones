@@ -12,7 +12,23 @@ defmodule Funes.MixProject do
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
-      aliases: aliases()
+      aliases: aliases(),
+      releases: releases()
+    ]
+  end
+
+  # The always-up channel ships as a self-contained release: it bundles ERTS, so a
+  # systemd --user unit runs one absolute path with no toolchain on PATH, and it
+  # hands us `bin/funes eval` (migrate before boot) plus `bin/funes remote`/`rpc`
+  # (into the LIVE node — the only place a token minted by Funes.MCP.Spawn survives,
+  # since the Tokens registry dies with its node). Built locally today
+  # (`mix release`); nix packages the same release later (capability-map move A).
+  defp releases do
+    [
+      funes: [
+        include_executables_for: [:unix],
+        applications: [funes: :permanent]
+      ]
     ]
   end
 

@@ -57,6 +57,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | Capability | State | Note |
 |---|---|---|
 | `check` / `funes:*` (test/check/setup/doctor/serve) | ✅ | the gate + the funes loop |
+| **`funes:release` / `funes:restart` / `funes:console` / `funes:logs`** | ✅ | operate the always-up service: build the release, redeploy, remote-iex the live node, follow logs |
 | `aleph:*`, `pi:test`/`pi:check`, `flake:check`, `home:switch` | ✅ | |
 | `cap` / `cap:clean` | ✅ | run once, structured failure, swept |
 | **`funes:spawn`** | ⬜ | wrap `Funes.MCP.Spawn.env` — today an **iex incantation**; should be one task |
@@ -64,7 +65,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | **`funes:post`** | ⬜ | post as a participant from the CLI (parity with post_message) |
 | **`funes:roster`** | ⬜ | who's live (Staff.roster) from the CLI |
 | **`funes:sql`** | ⬜ | `sqlite3` the db for the 2am path (doctor exists; this is raw) |
-| **`funes:console`** | ⬜ | remote iex into the *running* serve node, to mint/inspect without a second node |
+| **`funes:console`** | ✅ | remote iex into the *running* service node (`bin/funes remote`), to mint/inspect without a second node — the release's `env.sh` makes it reach the live node |
 
 ## Surface 3 — skills (agent discipline)
 
@@ -90,7 +91,8 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | pi packaged + on PATH | ✅ | byte-preserved bun binary |
 | manos wired into pi declaratively | ✅ | mcp.json + settings.json merge |
 | devShell / home profile | ✅ | |
-| **funes as a mix-release + a home-manager/systemd USER SERVICE** | ⬜ | **high leverage**: `funes:serve` is a hand-run iex today — nothing can register if no one babysat a terminal. A managed service means the channel is *always up*. |
+| **funes as a home-manager/systemd USER SERVICE** | ✅ | move #1 done: a self-contained local `mix release` (`funes:release`) run headless by `systemd.user.services.funes`, loopback, real XDG db, migrate-on-boot, named node + cookie (via the release's `env.sh`) so `funes:console`/`:restart` reach the live node. The channel is *always up*. Verified end-to-end (release → migrate → serve → mint → MCP `initialize` 200) + `home-manager build`. |
+| **funes release built BY NIX** (`nix build .#funes`) | ⬜ | move **A**, deferred: today the release is built locally by `funes:release` (repo-path service, like manos). Nix-packaging it (mix2nix incl. the exqlite NIF) is what reproduces on a bare next-box — do it when box #2 is real. |
 | **aleph packaged** | ⬜ | the cockpit as a real app |
 | **sandbox/cache-path allowlist** (Claude Code settings) | ⬜ | so npm/mise/pip installs+caches don't trip the sandbox and force retries |
 | **NixOS pi wrapper** (byte-preserving ld-linux / nix-ld) | ⬜ | deferred with metal — a bun binary can't be patchelf'd |
@@ -120,9 +122,12 @@ second UI.
 
 Grouped, with the dependency that matters:
 
-1. **funes-as-a-service (nix).** Highest leverage and arguably first: nothing registers or
-   briefs if the channel isn't up, and today that's a hand-run iex. A managed user service
-   makes every other capability actually reachable.
+1. ~~**funes-as-a-service.**~~ **✅ DONE (move #1).** The channel is now an always-up
+   `systemd --user` service running a self-contained local `mix release` — headless,
+   loopback, real XDG db, migrate-on-boot, named node + cookie. `funes:console` reaches the
+   live node to mint/inspect. Nix-*building* the release (reproduce on a bare next-box) is
+   split out as **move A**, deferred. Every other capability is now reachable against a
+   channel that's actually up.
 2. **The mise parity pack.** `funes:spawn` (kill the iex incantation) → then
    `funes:dossier` / `funes:post` / `funes:roster`. Thin `mix` tasks. Gives you + me
    first-class funes access from the shell. (Likely a small `funes` CLI the tasks wrap.)
