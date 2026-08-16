@@ -2,8 +2,8 @@ defmodule Funes.Session do
   @moduledoc """
   The ephemeral instance of an agent (aleph §3): it runs in a pane, on an engine,
   on one thread, and it compacts and dies (§10). It references an `agent` and a
-  `thread`. `workspace_ref` is §2's one seam — an OPAQUE handle to the pane, never
-  a cached copy of the workspace's properties; liveness is asked of the arbiter
+  `thread`. `pane_ref` is §2's one seam — an OPAQUE handle to the pane, never
+  a cached copy of the pane's properties; liveness is asked of the arbiter
   live, never stored. `ended_at` is the only lifecycle stored: NULL means a
   candidate to jump into.
   """
@@ -11,7 +11,7 @@ defmodule Funes.Session do
   import Ecto.Changeset
 
   schema "session" do
-    field :workspace_ref, :string
+    field :pane_ref, :string
     field :started_at, :utc_datetime
     field :ended_at, :utc_datetime
     # When the session last ran a turn (aleph §3b). Drives warmth: idle past the
@@ -25,13 +25,13 @@ defmodule Funes.Session do
   @doc """
   Start a session for an agent on a thread. Both references are required; the FKs
   themselves are the DB's guard (§10) — an orphan is refused by SQLite, so it
-  raises rather than returning a changeset. `workspace_ref` is optional and opaque.
+  raises rather than returning a changeset. `pane_ref` is optional and opaque.
   """
   def start_changeset(attrs) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     %__MODULE__{}
-    |> cast(attrs, [:agent_id, :thread_id, :workspace_ref])
+    |> cast(attrs, [:agent_id, :thread_id, :pane_ref])
     |> validate_required([:agent_id, :thread_id])
     |> put_change(:started_at, now)
     |> put_change(:last_active_at, now)

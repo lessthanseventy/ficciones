@@ -88,7 +88,7 @@ defmodule Funes.Switchboard do
     # Coalesce per pane, keeping the COUNT §3b wants ("you have 50 unread") — one
     # nudge per recipient, never one per message.
     reached
-    |> Enum.group_by(& &1.workspace_ref)
+    |> Enum.group_by(& &1.pane_ref)
     |> Enum.each(fn {ref, sessions} ->
       poke(ref, "you have #{length(sessions)} unread message(s) on your threads")
     end)
@@ -203,8 +203,8 @@ defmodule Funes.Switchboard do
   # a turn, so it refreshes their warmth.
   defp waken(sessions, prompt) do
     sessions
-    |> Enum.uniq_by(& &1.workspace_ref)
-    |> Enum.each(&poke(&1.workspace_ref, prompt))
+    |> Enum.uniq_by(& &1.pane_ref)
+    |> Enum.each(&poke(&1.pane_ref, prompt))
 
     touch(Enum.map(sessions, & &1.id), now())
   end
@@ -213,13 +213,13 @@ defmodule Funes.Switchboard do
   # it. The Inert/Test backends never fail; a real Herdr/tmux one can, and a lost
   # nudge should at least be visible. (At-most-once retry semantics for a fallible
   # arbiter are settled when a real backend ships — see the moduledoc.)
-  defp poke(workspace_ref, prompt) do
-    case Arbiter.wake(workspace_ref, prompt) do
+  defp poke(pane_ref, prompt) do
+    case Arbiter.wake(pane_ref, prompt) do
       :ok ->
         :ok
 
       {:error, reason} ->
-        Logger.warning("arbiter failed to wake #{inspect(workspace_ref)}: #{inspect(reason)}")
+        Logger.warning("arbiter failed to wake #{inspect(pane_ref)}: #{inspect(reason)}")
     end
   end
 

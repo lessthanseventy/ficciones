@@ -30,10 +30,10 @@ defmodule Funes.SwitchboardTest do
     {:ok, _} = Staff.assign(thread, sandra)
 
     {:ok, ss} =
-      Staff.start_session(%{agent_id: sandra.id, thread_id: thread.id, workspace_ref: "wSandra"})
+      Staff.start_session(%{agent_id: sandra.id, thread_id: thread.id, pane_ref: "wSandra"})
 
     {:ok, rs} =
-      Staff.start_session(%{agent_id: robert.id, thread_id: thread.id, workspace_ref: "wRobert"})
+      Staff.start_session(%{agent_id: robert.id, thread_id: thread.id, pane_ref: "wRobert"})
 
     %{thread: thread, sandra: sandra, robert: robert, sandra_session: ss, robert_session: rs}
   end
@@ -146,7 +146,7 @@ defmodule Funes.SwitchboardTest do
     test "an ended session is not woken — @mention a coworker who clocked out" do
       %{thread: thread} = staffed_thread()
       robert_session = Staff.session_for_thread(thread)
-      assert robert_session.workspace_ref == "wRobert"
+      assert robert_session.pane_ref == "wRobert"
       {:ok, _} = Staff.end_session(robert_session)
 
       {:ok, m} =

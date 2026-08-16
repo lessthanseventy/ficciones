@@ -22,7 +22,7 @@ plus `funes doctor`: **nothing ships that cannot be repaired at 2am** — schema
 - **Step 2** — `thread` + `message` (`Funes.Channel`): the atom of work and the channel/§4 capture path,
   with `delivered` a separate column from `read` and a sender who cannot fake delivery (§5b.3).
 - **Step 3** — `agent` + `session` and staffing (`Funes.Staff`): the durable named identity and its
-  ephemeral instance (aleph §3), a thread's `agent_id`, and the opaque `workspace_ref` the arbiter jumps
+  ephemeral instance (aleph §3), a thread's `agent_id`, and the opaque `pane_ref` the arbiter jumps
   into. This is the recipient model step 2 deferred its PubSub wake to await.
 - **Step 4** — the dossier: `fact`/`event`/`issue` scoped to threads (`Funes.Dossier`) →
   `LEARNINGS`/`SHIPPED`/`BLOCKERS`. `fact` is the ledger's successor with `provenance` (stated | derived,

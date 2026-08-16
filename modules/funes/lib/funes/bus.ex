@@ -36,6 +36,9 @@ defmodule Funes.Bus do
   def subscribe_threads, do: sub(threads_topic())
   def subscribe_sessions, do: sub(sessions_topic())
 
+  # --- unsubscribe (a consumer that follows the *focused* thread drops the old topic on a switch) ---
+  def unsubscribe_thread(id), do: Phoenix.PubSub.unsubscribe(@pubsub, thread_topic(id))
+
   defp sub(topic), do: Phoenix.PubSub.subscribe(@pubsub, topic)
 
   @doc """

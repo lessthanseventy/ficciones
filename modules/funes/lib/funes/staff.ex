@@ -41,7 +41,7 @@ defmodule Funes.Staff do
           agent: a.name,
           thread_id: t.id,
           thread_title: t.title,
-          workspace_ref: s.workspace_ref,
+          pane_ref: s.pane_ref,
           last_active_at: s.last_active_at
         }
     )

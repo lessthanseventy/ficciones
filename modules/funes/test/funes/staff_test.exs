@@ -161,14 +161,14 @@ defmodule Funes.StaffTest do
       agent: agent
     } do
       {:ok, session} =
-        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, workspace_ref: "w4H:pJ"})
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w4H:pJ"})
 
       reloaded = Repo.get!(Session, session.id)
       assert reloaded.agent_id == agent.id
       assert reloaded.thread_id == thread.id
-      # The workspace handle is stored verbatim and opaque — never a cached copy of
+      # The pane handle is stored verbatim and opaque — never a cached copy of
       # its properties (§2's one seam).
-      assert reloaded.workspace_ref == "w4H:pJ"
+      assert reloaded.pane_ref == "w4H:pJ"
       assert %DateTime{} = reloaded.started_at
       assert reloaded.ended_at == nil
     end
@@ -186,25 +186,25 @@ defmodule Funes.StaffTest do
       agent: agent
     } do
       assert_raise Ecto.ConstraintError, fn ->
-        Staff.start_session(%{agent_id: 999_999, thread_id: thread.id, workspace_ref: "w"})
+        Staff.start_session(%{agent_id: 999_999, thread_id: thread.id, pane_ref: "w"})
       end
 
       assert_raise Ecto.ConstraintError, fn ->
-        Staff.start_session(%{agent_id: agent.id, thread_id: 999_999, workspace_ref: "w"})
+        Staff.start_session(%{agent_id: agent.id, thread_id: 999_999, pane_ref: "w"})
       end
     end
 
-    test "a session stores NO cached property of its workspace — only the opaque ref (§2)" do
-      # §2's one seam, stated so it cannot be widened: SQLite holds the workspace id
+    test "a session stores NO cached property of its pane — only the opaque ref (§2)" do
+      # §2's one seam, stated so it cannot be widened: SQLite holds the pane id
       # and never a label, pane list, or status. Asserted as an ALLOWLIST, not a
       # denylist of guessed names — the rule is positive ("only the opaque ref"), so
       # ANY new column trips this, including one no one thought to forbid. Note:
-      # last_active_at is OUR OWN presence bookkeeping (§3b), not a cached Herdr
-      # workspace property, so it belongs here.
+      # last_active_at is OUR OWN presence bookkeeping (§3b), not a cached pane
+      # property, so it belongs here.
       assert Session.__schema__(:fields) ==
                [
                  :id,
-                 :workspace_ref,
+                 :pane_ref,
                  :started_at,
                  :ended_at,
                  :last_active_at,
@@ -221,10 +221,10 @@ defmodule Funes.StaffTest do
       # for the thread. Liveness itself is asked of the arbiter live (§2), never
       # stored — this only hands over which pane to poke.
       {:ok, first} =
-        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, workspace_ref: "w1"})
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})
 
       {:ok, second} =
-        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, workspace_ref: "w2"})
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w2"})
 
       assert Staff.session_for_thread(thread).id == second.id
 
@@ -242,7 +242,7 @@ defmodule Funes.StaffTest do
       agent: agent
     } do
       {:ok, session} =
-        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, workspace_ref: "w"})
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w"})
 
       {:ok, ended} = Staff.end_session(session)
       assert %DateTime{} = ended.ended_at

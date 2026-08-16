@@ -26,26 +26,26 @@ defmodule Funes.BoardTest do
       {:ok, robert} = Staff.register_agent(%{name: "Robert", mandate: "m", engine: "e"})
 
       {:ok, _warm} =
-        Staff.start_session(%{agent_id: sandra.id, thread_id: thread.id, workspace_ref: "wS"})
+        Staff.start_session(%{agent_id: sandra.id, thread_id: thread.id, pane_ref: "wS"})
 
       {:ok, chilly} =
-        Staff.start_session(%{agent_id: robert.id, thread_id: thread.id, workspace_ref: "wR"})
+        Staff.start_session(%{agent_id: robert.id, thread_id: thread.id, pane_ref: "wR"})
 
       {:ok, gone} =
-        Staff.start_session(%{agent_id: sandra.id, thread_id: thread.id, workspace_ref: "wG"})
+        Staff.start_session(%{agent_id: sandra.id, thread_id: thread.id, pane_ref: "wG"})
 
       cold(chilly)
       {:ok, _} = Staff.end_session(gone)
 
       roster = Staff.roster()
-      refs = Enum.map(roster, & &1.workspace_ref)
+      refs = Enum.map(roster, & &1.pane_ref)
       assert "wS" in refs
       assert "wR" in refs
       refute "wG" in refs
 
-      assert Enum.find(roster, &(&1.workspace_ref == "wS")).warm? == true
-      assert Enum.find(roster, &(&1.workspace_ref == "wR")).warm? == false
-      assert Enum.find(roster, &(&1.workspace_ref == "wS")).agent == "Sandra"
+      assert Enum.find(roster, &(&1.pane_ref == "wS")).warm? == true
+      assert Enum.find(roster, &(&1.pane_ref == "wR")).warm? == false
+      assert Enum.find(roster, &(&1.pane_ref == "wS")).agent == "Sandra"
     end
   end
 
