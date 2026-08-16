@@ -12,8 +12,10 @@ defmodule Aleph.Space do
   list the situational panels that ride along with the space.
   """
 
+  alias Aleph.Panel.Chorus
   alias Aleph.Panel.Conversation
   alias Aleph.Panel.Dossier
+  alias Aleph.Panel.Roster
   alias Aleph.Panel.ThreadList
 
   @enforce_keys [:key, :label, :surface]
@@ -39,8 +41,12 @@ defmodule Aleph.Space do
       %__MODULE__{
         key: :comms,
         label: "Comms",
-        surface: {Conversation, :conversation},
-        left: [ThreadList],
+        # The chorus (all threads, one feed) IS the center now, so the threads leave the left —
+        # navigating them lives in the feed (the focused thread's block is highlighted). The left
+        # carries who's live (IN FLIGHT), the useful sidebar for a chat: presence, not a list the
+        # middle already shows.
+        surface: {Chorus, :chorus},
+        left: [Roster],
         right: [Dossier]
       },
       %__MODULE__{

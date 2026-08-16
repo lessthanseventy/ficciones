@@ -19,7 +19,7 @@ defmodule Aleph.BoardTest do
   alias Aleph.Board
   alias Aleph.Panel
   alias Aleph.Panel.Border
-  alias Aleph.Panel.Conversation
+  alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Session
@@ -51,6 +51,7 @@ defmodule Aleph.BoardTest do
         threads: @threads,
         scope: nil,
         chatter: [],
+        chorus: [],
         session: :no_session
       },
       overrides
@@ -175,6 +176,30 @@ defmodule Aleph.BoardTest do
       rows = Session.render(:no_session, %{x: 0, y: 0, w: 40, h: 10})
       assert Enum.map_join(rows, "\n", &text/1) =~ "no live tmux session"
     end
+
+    test "chorus groups the feed by thread, marks the focused block and threaded replies" do
+      feed = [
+        %{id: 1, thread_id: 7, thread_title: "fable review", author: "andrew", body: "start it", reply_to: nil},
+        %{id: 2, thread_id: 7, thread_title: "fable review", author: "pi", body: "on it", reply_to: 1},
+        %{id: 3, thread_id: 9, thread_title: "triage inbox", author: "Carl", body: "CI is red", reply_to: nil}
+      ]
+
+      rows = Chorus.render(%{feed: feed, focused_id: 7}, %{x: 0, y: 0, w: 60, h: 40})
+      joined = Enum.map_join(rows, "\n", &text/1)
+
+      # both thread blocks appear, each headed by its title
+      assert joined =~ "fable review"
+      assert joined =~ "triage inbox"
+      # messages appear under their thread; a reply carries the ↳ mark
+      assert joined =~ "andrew"
+      assert joined =~ "on it"
+      assert joined =~ "↳"
+      # the focused thread's header is highlighted (:selected), the other's is not
+      focused_head = Enum.find(rows, &(text(&1) =~ "fable review"))
+      other_head = Enum.find(rows, &(text(&1) =~ "triage inbox"))
+      assert Enum.any?(focused_head, fn {_t, s} -> s == :selected end)
+      refute Enum.any?(other_head, fn {_t, s} -> s == :selected end)
+    end
   end
 
   describe "status bar" do
@@ -273,11 +298,15 @@ defmodule Aleph.BoardTest do
       assert list_rect.x >= 2
     end
 
-    test "comms space swaps the center surface to the conversation" do
+    test "comms space centers the chorus feed, with the roster (not a thread list) at its side" do
       placements = View.compose(reads(%{active_key: :comms}), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
-      assert Conversation in mods
+      # the chorus (all threads, one feed) is the center; the roster is the left sidebar (presence),
+      # and the redundant ThreadList is gone — the feed is the navigator now.
+      assert Chorus in mods
+      assert Roster in mods
       refute Session in mods
+      refute ThreadList in mods
     end
 
     test "sessions space shows a thread navigator so up/down selection is visible" do

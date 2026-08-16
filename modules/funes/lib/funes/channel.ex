@@ -76,4 +76,30 @@ defmodule Funes.Channel do
     |> Repo.all()
     |> Enum.reverse()
   end
+
+  @doc """
+  Recent messages ACROSS all threads — the Comms rollup feed (a "slack for agents" timeline, not
+  one channel). Each row carries its `thread_id` + `thread_title` so the surface can group the
+  feed by thread. Newest `limit` messages, returned oldest-first (chat order, newest at the
+  bottom like a chat log).
+  """
+  def recent_across(limit \\ 50) do
+    from(m in Message,
+      join: t in Thread,
+      on: t.id == m.thread_id,
+      order_by: [desc: m.id],
+      limit: ^limit,
+      select: %{
+        id: m.id,
+        thread_id: m.thread_id,
+        thread_title: t.title,
+        author: m.author,
+        body: m.body,
+        reply_to: m.reply_to,
+        created_at: m.created_at
+      }
+    )
+    |> Repo.all()
+    |> Enum.reverse()
+  end
 end

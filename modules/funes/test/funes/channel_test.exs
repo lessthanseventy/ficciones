@@ -141,6 +141,28 @@ defmodule Funes.ChannelTest do
       assert open.title in titles
       refute done.title in titles
     end
+
+    test "recent_across/1 — the Comms chorus feed: messages from every thread, each tagged" do
+      {:ok, t1} = Channel.open_thread(%{title: "fable review"})
+      {:ok, t2} = Channel.open_thread(%{title: "triage inbox"})
+      {:ok, _} = Channel.post(%{thread_id: t1.id, author: "andrew", body: "start it"})
+      {:ok, _} = Channel.post(%{thread_id: t2.id, author: "Carl", body: "CI is red"})
+      {:ok, _} = Channel.post(%{thread_id: t1.id, author: "pi", body: "on it"})
+
+      feed = Channel.recent_across(50)
+      # chat order, newest at the bottom, drawn from BOTH threads with the thread title carried
+      assert Enum.map(feed, & &1.body) == ["start it", "CI is red", "on it"]
+      assert Enum.map(feed, & &1.thread_title) == ["fable review", "triage inbox", "fable review"]
+    end
+
+    test "recent_across/1 caps to the newest `limit`, still oldest-first" do
+      {:ok, t} = Channel.open_thread(%{title: "chatty"})
+      for i <- 1..5, do: Channel.post(%{thread_id: t.id, author: "a", body: "m#{i}"})
+
+      feed = Channel.recent_across(3)
+      # the 3 NEWEST (m3,m4,m5), returned oldest-first
+      assert Enum.map(feed, & &1.body) == ["m3", "m4", "m5"]
+    end
   end
 
   describe "the state CHECK is the DB's own guard" do

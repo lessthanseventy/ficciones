@@ -136,10 +136,17 @@ defmodule Aleph.Cockpit do
 
   def handle_info(:tick, state) do
     Process.send_after(self(), :tick, @tick_ms)
-    {:noreply, render(state)}
+    # Re-read the terminal size every tick, so a resize that never arrived as an event (a missed
+    # SIGWINCH, a tmux pane resize) self-corrects within a tick instead of leaving the layout
+    # stranded at the old size (black gutters on the right/bottom).
+    {:noreply, render(refresh_size(state))}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
+
+  defp refresh_size(state) do
+    %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
+  end
 
   # --- interpret the reducer's effect (`Aleph.Keymap`) ---
 
@@ -223,6 +230,8 @@ defmodule Aleph.Cockpit do
       threads: threads,
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
+      # The chorus feed — recent messages across ALL threads, for the Comms center.
+      chorus: Channel.recent_across(50),
       session: session_read(state, focused),
       input: state.input,
       flash: state.flash
