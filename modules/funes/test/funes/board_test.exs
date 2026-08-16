@@ -80,15 +80,50 @@ defmodule Funes.BoardTest do
       scope = Board.in_scope(thread)
       assert scope.north_star == "review PR 329"
       assert scope.lead == "Sandra"
-      assert Enum.any?(scope.shipped, &(&1.kind == "work_landed"))
-      assert Enum.any?(scope.learnings, &(&1.text == "a lesson"))
+      assert Enum.any?(scope.shipped.shown, &(&1.kind == "work_landed"))
+      assert Enum.any?(scope.learnings.shown, &(&1.text == "a lesson"))
       assert Enum.any?(scope.blockers.shown, &(&1.summary == "a blocker"))
       assert Enum.any?(scope.chatter, &(&1.body == "starting"))
     end
 
-    test "an unassigned thread has a nil lead" do
+    test "LEARNINGS and SHIPPED are capped WITH a count — a cut without a count lies" do
+      # The silent-cap failure (pi doc §2b): for an agent whose only window into
+      # its memory is this brief, "5 shown" with no number for the rest reads as
+      # "5 exist" — the empty-world lie in miniature. Same shape as blockers.
+      {:ok, thread} = Channel.open_thread(%{title: "t"})
+
+      for n <- 1..7 do
+        {:ok, _} =
+          Dossier.bank_fact(%{
+            thread_id: thread.id,
+            kind: "learned",
+            text: "fact #{n}",
+            provenance: "derived"
+          })
+      end
+
+      for n <- 1..6 do
+        {:ok, _} =
+          Dossier.record_event(%{
+            thread_id: thread.id,
+            kind: "work_landed",
+            detail: %{"summary" => "landed #{n}"}
+          })
+      end
+
+      scope = Board.in_scope(thread)
+      assert length(scope.learnings.shown) == 5
+      assert scope.learnings.more == 2
+      assert length(scope.shipped.shown) == 5
+      assert scope.shipped.more == 1
+    end
+
+    test "an unassigned thread has a nil lead, and empty sections count zero" do
       {:ok, thread} = Channel.open_thread(%{title: "unstaffed"})
-      assert Board.in_scope(thread).lead == nil
+      scope = Board.in_scope(thread)
+      assert scope.lead == nil
+      assert scope.learnings == %{shown: [], more: 0}
+      assert scope.shipped == %{shown: [], more: 0}
     end
   end
 end

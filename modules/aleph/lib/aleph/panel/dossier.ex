@@ -23,9 +23,9 @@ defmodule Aleph.Panel.Dossier do
       [line("IN SCOPE", :header), blank()] ++
         section("NORTH STAR", [scope.north_star], rect.w) ++
         lead_section(scope.lead, rect.w) ++
-        section("LEARNINGS", Enum.map(scope.learnings, & &1.text), rect.w) ++
-        section("BLOCKERS", blocker_lines(scope.blockers), rect.w) ++
-        section("SHIPPED", Enum.map(scope.shipped, &shipped_line/1), rect.w) ++
+        section("LEARNINGS", capped_lines(scope.learnings, & &1.text), rect.w) ++
+        section("BLOCKERS", capped_lines(scope.blockers, & &1.summary), rect.w) ++
+        section("SHIPPED", capped_lines(scope.shipped, &shipped_line/1), rect.w) ++
         section("CHATTER", Enum.map(scope.chatter, &chatter_line/1), rect.w)
 
     Aleph.Panel.clip(rows, rect)
@@ -34,10 +34,12 @@ defmodule Aleph.Panel.Dossier do
   defp lead_section(nil, w), do: section("LEAD", ["unassigned"], w)
   defp lead_section(name, w), do: section("LEAD", [name], w)
 
-  defp blocker_lines(%{shown: [], more: _}), do: []
+  # A capped section (%{shown, more}, funes Board): the cut is always rendered
+  # WITH its count — a cut without a count lies.
+  defp capped_lines(%{shown: [], more: _}, _fmt), do: []
 
-  defp blocker_lines(%{shown: shown, more: more}) do
-    Enum.map(shown, & &1.summary) ++ if(more > 0, do: ["+#{more} more"], else: [])
+  defp capped_lines(%{shown: shown, more: more}, fmt) do
+    Enum.map(shown, fmt) ++ if(more > 0, do: ["+#{more} more"], else: [])
   end
 
   defp shipped_line(%{detail: detail}) when is_map(detail),

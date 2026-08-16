@@ -113,13 +113,15 @@ defmodule Aleph.BoardTest do
       assert text(active) =~ "Comms"
     end
 
-    test "dossier renders sections from an in_scope map, honest about empties" do
+    test "dossier renders sections from an in_scope map, honest about empties and cuts" do
+      # learnings/shipped/blockers are each %{shown, more} (funes Board R3): a cap
+      # is always rendered WITH its count — a cut without a count lies.
       scope = %{
         north_star: "ship the board",
         lead: "Sandra",
-        learnings: [%{text: "termbox compiles"}],
+        learnings: %{shown: [%{text: "termbox compiles"}], more: 2},
         blockers: %{shown: [], more: 0},
-        shipped: [],
+        shipped: %{shown: [], more: 0},
         chatter: []
       }
 
@@ -129,6 +131,8 @@ defmodule Aleph.BoardTest do
       assert joined =~ "ship the board"
       assert joined =~ "LEARNINGS"
       assert joined =~ "termbox compiles"
+      # the cut is counted, never silent
+      assert joined =~ "+2 more"
       # empty section keeps its shape with a dim em-dash, never an invented value
       assert joined =~ "—"
     end
