@@ -61,7 +61,10 @@ defmodule Aleph.View do
   @doc "Resolve the data a panel is fed from the assembled reads (keeps workspaces plain data)."
   def data_for(Panel.Workspaces, r), do: %{workspaces: Workspace.all(), active_key: r.active_key}
   def data_for(Panel.Roster, r), do: r.roster
-  def data_for(Panel.ThreadList, r), do: %{threads: r.threads, selected_id: r.focused_id}
+
+  def data_for(Panel.ThreadList, r),
+    do: %{threads: r.threads, roster: r.roster, selected_id: r.focused_id}
+
   def data_for(Panel.Dossier, r), do: r.scope
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
   def data_for(Panel.Session, r), do: r.session

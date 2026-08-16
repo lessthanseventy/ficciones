@@ -34,23 +34,23 @@ defmodule Aleph.Workspace do
         key: :terminal,
         label: "Terminal",
         surface: {Aleph.Panel.Session, :session},
-        # ThreadList (not Conversation) so up/down has a *visible* cursor: picking a thread here
-        # is what swaps the center's tmux session. The thread's chatter still shows in the dossier.
-        left: [Aleph.Panel.Roster, Aleph.Panel.ThreadList],
+        # The annotated ThreadList *is* the merged IN FLIGHT + THREADS: one list, agents folded in
+        # (Addendum §A). Picking a thread here swaps the center's tmux session.
+        left: [Aleph.Panel.ThreadList],
         right: [Aleph.Panel.Dossier]
       },
       %__MODULE__{
         key: :chat,
         label: "Chat",
         surface: {Aleph.Panel.Conversation, :conversation},
-        left: [Aleph.Panel.Roster, Aleph.Panel.ThreadList],
+        left: [Aleph.Panel.ThreadList],
         right: [Aleph.Panel.Dossier]
       },
       %__MODULE__{
         key: :tickets,
         label: "Tickets",
         surface: {Aleph.Panel.ThreadList, :tickets},
-        left: [Aleph.Panel.Roster, Aleph.Panel.Conversation],
+        left: [Aleph.Panel.Conversation],
         right: [Aleph.Panel.Dossier]
       }
     ]

@@ -80,6 +80,26 @@ defmodule Aleph.BoardTest do
       refute Enum.any?(other, fn {_t, style} -> style == :selected end)
     end
 
+    test "thread list annotates a thread that has a live agent (merged IN FLIGHT)" do
+      rect = %{x: 0, y: 0, w: 40, h: 10}
+
+      roster = [
+        %{agent: "Carl", thread_id: 1, thread_title: "review PR 329", pane_ref: nil, warm?: true}
+      ]
+
+      data = %{threads: @threads, roster: roster, selected_id: 2}
+      rows = ThreadList.render(data, rect)
+
+      live = Enum.find(rows, &(text(&1) =~ "review PR 329"))
+      idle = Enum.find(rows, &(text(&1) =~ "triage"))
+
+      # the live thread shows its warm dot and agent (pink); the idle one shows neither
+      assert text(live) =~ "●"
+      assert text(live) =~ "Carl"
+      assert Enum.any?(live, fn {t, s} -> s == :accent and t =~ "Carl" end)
+      refute text(idle) =~ "Carl"
+    end
+
     test "workspaces picker marks the active workspace" do
       rows =
         Workspaces.render(%{workspaces: Aleph.Workspace.all(), active_key: :chat}, %{
@@ -208,9 +228,9 @@ defmodule Aleph.BoardTest do
 
     test "content sits inside its column box, not against the frame" do
       placements = View.compose(reads(), 120, 40)
-      {_m, _d, roster_rect} = Enum.find(placements, fn {m, _d, _r} -> m == Roster end)
-      # the roster is inset from the left frame — padded, not jammed to x=0
-      assert roster_rect.x >= 2
+      {_m, _d, list_rect} = Enum.find(placements, fn {m, _d, _r} -> m == ThreadList end)
+      # the thread list is inset from the left frame — padded, not jammed to x=0
+      assert list_rect.x >= 2
     end
 
     test "chat workspace swaps the center surface to the conversation" do
