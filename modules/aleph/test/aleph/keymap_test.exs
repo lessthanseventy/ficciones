@@ -14,7 +14,7 @@ defmodule Aleph.KeymapTest do
   defp state(overrides \\ %{}) do
     Map.merge(
       %{
-        active_key: :terminal,
+        active_key: :sessions,
         focused_id: 2,
         threads: [%{id: 1}, %{id: 2}, %{id: 3}],
         center_focused?: false
@@ -36,22 +36,23 @@ defmodule Aleph.KeymapTest do
     end
   end
 
-  describe "workspace switching" do
-    test "Tab moves to the next workspace and repaints" do
-      assert {%{active_key: :chat}, :repaint} = Keymap.handle(key(:tab), state())
+  describe "space switching" do
+    # Picker order: Comms · Sessions · Issues; the default state sits on Sessions.
+    test "Tab moves to the next space and repaints" do
+      assert {%{active_key: :issues}, :repaint} = Keymap.handle(key(:tab), state())
     end
 
-    test "Shift-Tab moves to the previous workspace (wraps)" do
-      assert {%{active_key: :tickets}, :repaint} =
-               Keymap.handle(key(:tab, shift: true), state(%{active_key: :terminal}))
+    test "Shift-Tab moves to the previous space (wraps)" do
+      assert {%{active_key: :issues}, :repaint} =
+               Keymap.handle(key(:tab, shift: true), state(%{active_key: :comms}))
     end
 
     test "] is next, [ is previous" do
-      assert {%{active_key: :chat}, :repaint} = Keymap.handle(char("]"), state())
-      assert {%{active_key: :tickets}, :repaint} = Keymap.handle(char("["), state())
+      assert {%{active_key: :issues}, :repaint} = Keymap.handle(char("]"), state())
+      assert {%{active_key: :comms}, :repaint} = Keymap.handle(char("["), state())
     end
 
-    test "switching a workspace leaves the center unfocused" do
+    test "switching a space leaves the center unfocused" do
       assert {%{center_focused?: false}, :repaint} =
                Keymap.handle(key(:tab), state(%{center_focused?: false}))
     end
@@ -83,13 +84,13 @@ defmodule Aleph.KeymapTest do
   end
 
   describe "center focus (Enter / Esc)" do
-    test "Enter focuses the center in the terminal workspace" do
+    test "Enter focuses the center in the Sessions space" do
       assert {%{center_focused?: true}, :repaint} =
-               Keymap.handle(key(:enter), state(%{active_key: :terminal}))
+               Keymap.handle(key(:enter), state(%{active_key: :sessions}))
     end
 
-    test "Enter does nothing outside the terminal workspace" do
-      s = state(%{active_key: :chat})
+    test "Enter does nothing outside the Sessions space" do
+      s = state(%{active_key: :comms})
       assert {^s, :none} = Keymap.handle(key(:enter), s)
     end
 
@@ -121,7 +122,7 @@ defmodule Aleph.KeymapTest do
       assert {^s, {:forward, %{key: :up}}} = Keymap.handle(key(:up), s)
     end
 
-    test "Tab is forwarded while focused (shell completion), not a workspace switch" do
+    test "Tab is forwarded while focused (shell completion), not a space switch" do
       s = state(%{center_focused?: true})
       assert {^s, {:forward, %{key: :tab}}} = Keymap.handle(key(:tab), s)
     end

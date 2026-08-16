@@ -3,7 +3,7 @@ defmodule Aleph.Cockpit do
   The live loop and the cockpit's one brain (design §8). It *is* the dispatcher: termbox2 paints
   (output-only), `Raxol.Terminal.Driver` feeds it `:key`/`:resize` events as GenServer casts, and
   `Funes.Bus` events arrive as plain messages. Every input, resize, Bus event, and tick reloads
-  the funes reads and repaints. Holds the only shared state — the active workspace and the focused
+  the funes reads and repaints. Holds the only shared state — the active space and the focused
   thread (§8) — and caches nothing about tmux past the paint (§5).
 
   Not supervised at app boot: it grabs the TTY, so it runs only under `mix aleph.run` in a real
@@ -12,7 +12,7 @@ defmodule Aleph.Cockpit do
   use GenServer
   require Logger
 
-  alias Aleph.{Board, Keymap, Tmux, View, Workspace}
+  alias Aleph.{Board, Keymap, Space, Tmux, View}
   alias Funes.{Bus, Channel, Staff}
   alias Raxol.Core.Events.Event
 
@@ -65,7 +65,7 @@ defmodule Aleph.Cockpit do
             driver: driver,
             w: max(:termbox2_nif.tb_width(), 1),
             h: max(:termbox2_nif.tb_height(), 1),
-            active_key: List.first(Workspace.all()).key,
+            active_key: List.first(Space.all()).key,
             focused_id: nil,
             threads: [],
             subscribed_thread: nil,
@@ -199,8 +199,8 @@ defmodule Aleph.Cockpit do
   defp focused_thread(threads, nil), do: List.first(threads)
   defp focused_thread(threads, id), do: Enum.find(threads, List.first(threads), &(&1.id == id))
 
-  # The center is a live tmux view only in the terminal workspace; elsewhere it isn't shown.
-  defp session_read(%{active_key: :terminal} = state, focused) when not is_nil(focused) do
+  # The center is a live tmux view only in the Sessions space; elsewhere it isn't shown.
+  defp session_read(%{active_key: :sessions} = state, focused) when not is_nil(focused) do
     pane = pane_ref(focused)
 
     case Tmux.capture(pane, %{h: state.h}) do

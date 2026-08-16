@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Aleph.Run do
   @shortdoc "Launch the aleph cockpit in this terminal (run in ghostty)"
   @moduledoc """
-  Boot funes (Repo + Bus) and launch the live cockpit — the workspace picker, the reactive board,
+  Boot funes (Repo + Bus) and launch the live cockpit — the space picker, the reactive board,
   the tmux center, chat — over the funes world at `FUNES_DB`. Runs until you quit (`q`).
 
   Run in a REAL terminal: `mise run aleph:run` (headless it boots funes, finds no TTY, and exits

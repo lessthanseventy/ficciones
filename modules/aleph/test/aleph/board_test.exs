@@ -22,9 +22,9 @@ defmodule Aleph.BoardTest do
     Dossier,
     Roster,
     Session,
+    Spaces,
     StatusBar,
-    ThreadList,
-    Workspaces
+    ThreadList
   }
 
   # Flatten a styled row to its text, for assertions.
@@ -43,7 +43,7 @@ defmodule Aleph.BoardTest do
   defp reads(overrides \\ %{}) do
     Map.merge(
       %{
-        active_key: :terminal,
+        active_key: :sessions,
         focused_id: 1,
         focused_title: "review PR 329",
         roster: @roster,
@@ -100,9 +100,9 @@ defmodule Aleph.BoardTest do
       refute text(idle) =~ "Carl"
     end
 
-    test "workspaces picker marks the active workspace" do
+    test "spaces picker marks the active space" do
       rows =
-        Workspaces.render(%{workspaces: Aleph.Workspace.all(), active_key: :chat}, %{
+        Spaces.render(%{spaces: Aleph.Space.all(), active_key: :comms}, %{
           x: 0,
           y: 0,
           w: 20,
@@ -110,7 +110,7 @@ defmodule Aleph.BoardTest do
         })
 
       active = Enum.find(rows, &(text(&1) =~ "▸"))
-      assert text(active) =~ "Chat"
+      assert text(active) =~ "Comms"
     end
 
     test "dossier renders sections from an in_scope map, honest about empties" do
@@ -142,15 +142,15 @@ defmodule Aleph.BoardTest do
   describe "status bar" do
     defp status(overrides \\ %{}) do
       Map.merge(
-        %{workspace: "Terminal", thread: "flaky test hunt", thread_count: 3, live_count: 1},
+        %{space: "Sessions", thread: "flaky test hunt", thread_count: 3, live_count: 1},
         overrides
       )
     end
 
-    test "info line shows the workspace, thread, and global counts" do
+    test "info line shows the space, thread, and global counts" do
       assert [info, _hints] = StatusBar.render(status(), %{x: 0, y: 0, w: 120, h: 2})
       joined = text(info)
-      assert joined =~ "Terminal"
+      assert joined =~ "Sessions"
       assert joined =~ "flaky test hunt"
       # the underused right side now carries global state
       assert joined =~ "3 threads"
@@ -175,10 +175,10 @@ defmodule Aleph.BoardTest do
              end)
     end
 
-    test "the workspace renders as a discrete tab chip" do
+    test "the space renders as a discrete tab chip" do
       assert [info, _hints] = StatusBar.render(status(), %{x: 0, y: 0, w: 120, h: 2})
-      chip = Enum.find(info, fn {t, s} -> s == :tab and t =~ "Terminal" end)
-      assert chip, "workspace should render as a :tab chip"
+      chip = Enum.find(info, fn {t, s} -> s == :tab and t =~ "Sessions" end)
+      assert chip, "space should render as a :tab chip"
     end
   end
 
@@ -208,11 +208,11 @@ defmodule Aleph.BoardTest do
   end
 
   describe "view composition" do
-    test "terminal workspace: picker, tmux surface, three column boxes, status bar — all in bounds" do
+    test "sessions space: picker, tmux surface, three column boxes, status bar — all in bounds" do
       placements = View.compose(reads(), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
 
-      assert Workspaces in mods
+      assert Spaces in mods
       assert Session in mods
       assert Dossier in mods
       assert StatusBar in mods
@@ -233,19 +233,19 @@ defmodule Aleph.BoardTest do
       assert list_rect.x >= 2
     end
 
-    test "chat workspace swaps the center surface to the conversation" do
-      placements = View.compose(reads(%{active_key: :chat}), 120, 40)
+    test "comms space swaps the center surface to the conversation" do
+      placements = View.compose(reads(%{active_key: :comms}), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
       assert Conversation in mods
       refute Session in mods
     end
 
-    test "terminal workspace shows a thread navigator so up/down selection is visible" do
+    test "sessions space shows a thread navigator so up/down selection is visible" do
       placements = View.compose(reads(%{focused_id: 2}), 120, 40)
       thread_list = Enum.find(placements, fn {m, _d, _r} -> m == ThreadList end)
 
       assert thread_list,
-             "Terminal mode needs a visible ThreadList to navigate; focus was invisible"
+             "Sessions space needs a visible ThreadList to navigate; focus was invisible"
 
       {_m, data, _r} = thread_list
       # the navigator's cursor is the focused thread — what up/down moves

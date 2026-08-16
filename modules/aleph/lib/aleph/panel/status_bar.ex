@@ -2,31 +2,31 @@ defmodule Aleph.Panel.StatusBar do
   @moduledoc """
   The bottom status footer — two rows, always present:
 
-    * an **info** line, justified into sections: a workspace *tab* and the focused thread on the
-      left, the global counts (open threads, live sessions) as chips on the right;
+    * an **info** line, justified into sections: a space *tab* and the focused thread on the left,
+      the global counts (open threads, live sessions) as chips on the right;
     * a **hints** line: the key bindings, keycaps lit against dim labels.
 
   The gap between left and right is neutral (never a chip background), so the footer frames the
-  screen instead of flooding it. Data is `%{workspace, thread, thread_count, live_count}`.
+  screen instead of flooding it. Data is `%{space, thread, thread_count, live_count}`.
   """
   @behaviour Aleph.Panel
 
   alias Aleph.Panel
 
   # {keycap, label} pairs — keycaps lit in amber, labels dim.
-  @hints [{"Tab", "workspace"}, {"↑↓", "thread"}, {"⏎", "focus"}, {"q", "quit"}]
+  @hints [{"Tab", "space"}, {"↑↓", "thread"}, {"⏎", "focus"}, {"q", "quit"}]
 
   @impl Aleph.Panel
   def topics(_assigns), do: []
 
   @impl Aleph.Panel
-  def render(%{workspace: workspace} = data, rect) do
+  def render(%{space: space} = data, rect) do
     focus = data[:thread] || "—"
     threads = data[:thread_count] || 0
     live = data[:live_count] || 0
 
     left = [
-      {" #{workspace} ", :tab},
+      {" #{space} ", :tab},
       {"  ", :normal},
       {"▸ ", :accent},
       {focus, :normal}

@@ -17,7 +17,7 @@ defmodule Aleph.Keymap do
     * `:none` — nothing to do.
   """
 
-  alias Aleph.Workspace
+  alias Aleph.Space
 
   @type effect :: :repaint | :quit | {:forward, map()} | :none
 
@@ -34,7 +34,7 @@ defmodule Aleph.Keymap do
   def handle(%{key: :char, char: "c", ctrl: true}, state), do: {state, :quit}
   def handle(%{key: :char, char: "q"}, state), do: {state, :quit}
 
-  # --- workspace switching (releases center focus) ---
+  # --- space switching (releases center focus) ---
   def handle(%{key: :tab, shift: true}, state), do: switch(state, :prev)
   def handle(%{key: :tab}, state), do: switch(state, :next)
   def handle(%{key: :char, char: "]"}, state), do: switch(state, :next)
@@ -46,20 +46,20 @@ defmodule Aleph.Keymap do
   def handle(%{key: :down}, state), do: move(state, 1)
   def handle(%{key: :char, char: "j"}, state), do: move(state, 1)
 
-  # --- Enter focuses the center only when it's a terminal surface to type into ---
-  def handle(%{key: :enter}, %{active_key: :terminal} = state),
+  # --- Enter focuses the center only when it's a live session to type into (Sessions space) ---
+  def handle(%{key: :enter}, %{active_key: :sessions} = state),
     do: {%{state | center_focused?: true}, :repaint}
 
   # --- anything else is unbound ---
   def handle(_key, state), do: {state, :none}
 
   defp switch(state, dir) do
-    ws =
+    space =
       if dir == :next,
-        do: Workspace.next(state.active_key),
-        else: Workspace.prev(state.active_key)
+        do: Space.next(state.active_key),
+        else: Space.prev(state.active_key)
 
-    {%{state | active_key: ws.key, center_focused?: false}, :repaint}
+    {%{state | active_key: space.key, center_focused?: false}, :repaint}
   end
 
   defp move(%{threads: []} = state, _dir), do: {state, :none}

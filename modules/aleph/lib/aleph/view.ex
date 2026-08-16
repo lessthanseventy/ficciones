@@ -2,14 +2,14 @@ defmodule Aleph.View do
   @moduledoc """
   Composition: turn the cockpit's state into placed panels (design §3, "a view is plain data").
   Given the assembled funes `reads` and the terminal size, `compose/3` lays out the fixed frame —
-  left sidebar (workspace picker + the active workspace's situational panels), the center surface,
+  left sidebar (space picker + the active space's situational panels), the center surface,
   the right sidebar, the two column rules, and the status bar — as a list of `{panel, data, rect}`
   placements the `Aleph.Board` paints. Pure and testable: no TTY, no funes calls here.
 
   `reads` is the map the Cockpit assembles:
     `%{active_key, focused_id, focused_title, roster, threads, scope, chatter, session}`
   """
-  alias Aleph.{Panel, Workspace}
+  alias Aleph.{Panel, Space}
 
   @min_col 16
   # The bottom footer: an info line + a hints line (Aleph.Panel.StatusBar).
@@ -17,7 +17,7 @@ defmodule Aleph.View do
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
   def compose(reads, w, h) do
-    ws = Workspace.fetch(reads.active_key)
+    space = Space.fetch(reads.active_key)
     body_h = max(h - @status_h, 1)
 
     left_w = clamp_col(div(w, 4), w)
@@ -27,13 +27,13 @@ defmodule Aleph.View do
     right_x = center_x + center_w + 1
     right_w = max(w - right_x, 1)
 
-    {center_panel, _key} = ws.surface
+    {center_panel, _key} = space.surface
 
     # Each column is a bordered box; a 1-col gap between boxes replaces the old vertical rules.
     columns = [
-      {%{x: 0, y: 0, w: left_w, h: body_h}, [Panel.Workspaces | ws.left]},
+      {%{x: 0, y: 0, w: left_w, h: body_h}, [Panel.Spaces | space.left]},
       {%{x: center_x, y: 0, w: center_w, h: body_h}, [center_panel]},
-      {%{x: right_x, y: 0, w: right_w, h: body_h}, ws.right}
+      {%{x: right_x, y: 0, w: right_w, h: body_h}, space.right}
     ]
 
     borders = Enum.map(columns, fn {rect, _panels} -> {Panel.Border, nil, rect} end)
@@ -47,7 +47,7 @@ defmodule Aleph.View do
       |> Enum.map(fn {panel, rect} -> {panel, data_for(panel, reads), rect} end)
 
     status =
-      {Panel.StatusBar, status_data(reads, ws), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
+      {Panel.StatusBar, status_data(reads, space), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
 
     # Borders first: panel content paints over the box interior, leaving only the frame.
     borders ++ contents ++ [status]
@@ -58,8 +58,8 @@ defmodule Aleph.View do
     %{x: x + 2, y: y + 1, w: max(w - 4, 1), h: max(h - 2, 1)}
   end
 
-  @doc "Resolve the data a panel is fed from the assembled reads (keeps workspaces plain data)."
-  def data_for(Panel.Workspaces, r), do: %{workspaces: Workspace.all(), active_key: r.active_key}
+  @doc "Resolve the data a panel is fed from the assembled reads (keeps spaces plain data)."
+  def data_for(Panel.Spaces, r), do: %{spaces: Space.all(), active_key: r.active_key}
   def data_for(Panel.Roster, r), do: r.roster
 
   def data_for(Panel.ThreadList, r),
@@ -70,9 +70,9 @@ defmodule Aleph.View do
   def data_for(Panel.Session, r), do: r.session
   def data_for(_other, _r), do: nil
 
-  defp status_data(reads, ws) do
+  defp status_data(reads, space) do
     %{
-      workspace: ws.label,
+      space: space.label,
       thread: reads.focused_title,
       thread_count: length(reads.threads),
       live_count: Enum.count(reads.roster, & &1.warm?)
@@ -107,8 +107,8 @@ defmodule Aleph.View do
     List.update_at(resolved, -1, &(&1 + max(total_h - used, 0)))
   end
 
-  # The picker is intrinsically short (header + one row per workspace); everything else flexes.
-  defp fixed_height(Panel.Workspaces), do: length(Workspace.all()) + 3
+  # The picker is intrinsically short (header + one row per space); everything else flexes.
+  defp fixed_height(Panel.Spaces), do: length(Space.all()) + 3
   defp fixed_height(_panel), do: nil
 
   defp clamp_col(v, w), do: v |> max(@min_col) |> min(max(div(w, 3), @min_col))
