@@ -73,6 +73,21 @@ defmodule Aleph.TerminalTest do
       assert Terminal.scroll_delta(:up, 3) == -3
       assert Terminal.scroll_delta(:down, 3) == 3
     end
+
+    test "sgr_mouse_bytes encodes wheel/click at the CORRECT cell, not the NIF's pixel-divided cell" do
+      # The bug: the ghostty NIF treats x,y as PIXELS and divides by a hardcoded 10x20 cell grid,
+      # so a wheel at cell (40,12) encoded as (5,1) and tmux scrolled the wrong pane. SGR is
+      # encoded in cell space here, so (40,12) -> 1-indexed (41,13). Cb 64 = wheel-up, 65 = down.
+      assert Terminal.sgr_mouse_bytes(:press, :four, [], 40, 12) == "\e[<64;41;13M"
+      assert Terminal.sgr_mouse_bytes(:press, :five, [], 40, 12) == "\e[<65;41;13M"
+
+      # A left click is a press (capital M) + release (lowercase m) pair at the same cell.
+      assert Terminal.sgr_mouse_bytes(:press, :left, [], 0, 0) == "\e[<0;1;1M"
+      assert Terminal.sgr_mouse_bytes(:release, :left, [], 0, 0) == "\e[<0;1;1m"
+
+      # Modifier bits: shift +4, alt +8, ctrl +16 (ctrl+click at cell 7,3 -> Cb 16).
+      assert Terminal.sgr_mouse_bytes(:press, :left, [:ctrl], 7, 3) == "\e[<16;8;4M"
+    end
   end
 
   describe "wheel/5 — the live branch" do

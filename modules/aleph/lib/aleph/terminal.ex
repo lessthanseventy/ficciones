@@ -177,14 +177,14 @@ defmodule Aleph.Terminal do
   def handle_call({:encode_key, event}, _from, state), do: {:reply, Terminal.input_key(state.term, event), state}
 
   # The wheel forward-vs-scroll branch (design: keep the Ghostty/mouse detail here, not the cockpit).
-  # Dispatched on whether the embedded program enabled mouse tracking — a runtime boolean read
-  # through a 1-arg helper so the two branches land on their own function heads (house rule).
+  # Dispatched on the embedded program's mouse modes — read once and threaded through so the
+  # forward branch can encode in the mode the program actually negotiated (SGR vs legacy).
   def handle_call({:wheel, direction, n, x, y}, _from, state) do
-    {:reply, route_wheel(Terminal.mouse_modes(state.term).tracking, direction, n, x, y, state), state}
+    {:reply, route_wheel(Terminal.mouse_modes(state.term), direction, n, x, y, state), state}
   end
 
   def handle_call({:click, x, y}, _from, state) do
-    {:reply, route_click(Terminal.mouse_modes(state.term).tracking, x, y, state), state}
+    {:reply, route_click(Terminal.mouse_modes(state.term), x, y, state), state}
   end
 
   def handle_call({:key, event}, _from, state) do
@@ -209,42 +209,76 @@ defmodule Aleph.Terminal do
 
   # --- the wheel forward-vs-scroll branch (design: keep the Ghostty/mouse detail here, not the cockpit) ---
 
-  # Dispatched on whether the embedded program enabled mouse tracking — a runtime boolean read
-  # through a 1-arg helper so the two branches land on their own function heads (house rule).
-  defp route_wheel(tracking?, direction, n, x, y, state),
-    do: route_wheel(tracking?, direction, n, x, y, state.term, state.pty)
-
-  # tracking ON → forward a button-4/5 press to the PTY, exactly like `send_key/2` but for the mouse.
-  defp route_wheel(true, direction, _n, x, y, term, pty) do
-    event = %MouseEvent{action: :press, button: wheel_button(direction), mods: [], x: x * 1.0, y: y * 1.0}
-    emit(pty, Terminal.input_mouse(term, event))
+  # Dispatched on whether the embedded program enabled mouse tracking — the two branches land on
+  # their own function heads (house rule). The full `modes` map is threaded into the forward branch
+  # so it can encode in the negotiated format (SGR vs legacy).
+  defp route_wheel(%{tracking: true} = modes, direction, _n, x, y, state) do
+    emit(state.pty, forward_mouse(modes, :press, wheel_button(direction), [], x, y, state.term))
     :forwarded
   end
 
   # tracking OFF → scroll the VT scrollback (up = into history, down = newer). No PTY bytes, so the
   # cockpit repaints on the returned :scrolled.
-  defp route_wheel(false, direction, n, _x, _y, term, _pty) do
-    Terminal.scroll(term, scroll_delta(direction, n))
+  defp route_wheel(%{tracking: false}, direction, n, _x, _y, state) do
+    Terminal.scroll(state.term, scroll_delta(direction, n))
     :scrolled
   end
 
   # A left click: press+release forwarded when the program tracks the mouse (tmux `mouse on`, a
   # TUI picking a pane/window) — both halves, since SGR apps expect the pair. Untracked → the
   # click is chrome, not input; the cockpit decides what (if anything) it means.
-  defp route_click(true, x, y, state) do
+  defp route_click(%{tracking: true} = modes, x, y, state) do
     for action <- [:press, :release] do
-      event = %MouseEvent{action: action, button: :left, mods: [], x: x * 1.0, y: y * 1.0}
-      emit(state.pty, Terminal.input_mouse(state.term, event))
+      emit(state.pty, forward_mouse(modes, action, :left, [], x, y, state.term))
     end
 
     :forwarded
   end
 
-  defp route_click(false, _x, _y, _state), do: :ignored
+  defp route_click(%{tracking: false}, _x, _y, _state), do: :ignored
+
+  # Forward a mouse event to the PTY in the encoding the embedded program negotiated. SGR
+  # (CSI ?1006 — what tmux and every modern TUI requests) is encoded in CELL space here; the
+  # rare non-SGR mode (legacy xterm/urxvt) falls back to the ghostty NIF.
+  #
+  # Why SGR is hand-rolled: the ghostty NIF's `input_mouse` expects PIXEL positions — it divides
+  # x,y by a hardcoded 10×20 cell-pixel grid (screen 800×600) to recover cells. aleph lives in cell
+  # space (no pixels), so every event it handed the NIF landed at a fixed wrong cell: a wheel at
+  # cell (40,12) encoded as (5,1). tmux then scrolled the pane under (5,1), not the one under the
+  # cursor — the wheel looked dead. Encoding SGR directly from cells fixes the common path; the
+  # NIF fallback keeps legacy-mode programs working (its pixel assumption still misplaces coords
+  # there, but legacy mouse is rare and tmux is SGR).
+  defp forward_mouse(%{sgr: true}, action, button, mods, x, y, _term),
+    do: {:ok, sgr_mouse_bytes(action, button, mods, x, y)}
+
+  defp forward_mouse(_modes, action, button, mods, x, y, term),
+    do: Terminal.input_mouse(term, %MouseEvent{action: action, button: button, mods: mods, x: x * 1.0, y: y * 1.0})
+
+  # SGR mouse: `\e[<Cb;col;row <M|m>` — capital M for press/motion, lowercase m for release;
+  # col,row are 1-indexed cells. Cb: left 0 / middle 1 / right 2, +64 wheel-up / +65 wheel-down,
+  # +4 shift +8 alt +16 ctrl. aleph's x,y are 0-indexed cells (clamped by the cockpit), so +1.
+  @doc false
+  def sgr_mouse_bytes(action, button, mods, x, y) do
+    cb = sgr_cb(button) + sgr_mods(mods)
+    suffix = if action == :release, do: "m", else: "M"
+    "\e[<#{cb};#{trunc(x) + 1};#{trunc(y) + 1}#{suffix}"
+  end
+
+  defp sgr_cb(:left), do: 0
+  defp sgr_cb(:middle), do: 1
+  defp sgr_cb(:right), do: 2
+  defp sgr_cb(:four), do: 64
+  defp sgr_cb(:five), do: 65
+  defp sgr_cb(nil), do: 0
+
+  defp sgr_mods(mods) do
+    if(:shift in mods, do: 4, else: 0) + if(:alt in mods, do: 8, else: 0) + if :ctrl in mods, do: 16, else: 0
+  end
 
   # Write an encoder result to the PTY, or drop a :none (no sequence for this key/mouse under the
-  # active modes). Shared by `:key` and `:wheel` — function-head dispatch, no two-arm `case`.
+  # active modes). Shared by `:key`, `:wheel` and `:click` — function-head dispatch, no two-arm `case`.
   defp emit(pty, {:ok, bytes}), do: PTY.write(pty, bytes)
+  defp emit(pty, bytes) when is_binary(bytes), do: PTY.write(pty, bytes)
   defp emit(_pty, :none), do: :ok
 
   @doc false
