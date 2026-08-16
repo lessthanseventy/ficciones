@@ -41,9 +41,22 @@ plus `funes doctor`: **nothing ships that cannot be repaired at 2am** — schema
   never poked, the "resumed a thread and burned my allotment" footgun; and the default arbiter is **inert**,
   so nothing real is poked until a backend is deliberately wired.
 
+- **The MCP channel** (`Funes.MCP.*` — Track B slice 1, pi doc §2a/§5.1): funes' sovereign channel to
+  any agent, over `anubis_mcp` + Bandit (loopback-only, opt-in via `:start_mcp`). Identity rides the
+  CONNECTION — an in-node token (`Funes.MCP.Tokens`) resolves to (thread, agent, session) claims on
+  every request, so no tool takes a thread parameter and every authenticated call bumps warmth through
+  `Staff.touch_sessions` (measured, never a heartbeat). Tools are thin context callers: register
+  (supersedes the zombie), post_message, bank_fact (derived by default; STATED only by quoting the
+  operator's own message verbatim via `Dossier.bank_stated_fact`), raise_issue, record_done (evidence
+  required), get_dossier/get_facts/get_messages rendered through `Funes.MCP.Brief` (read-time
+  certainty stated > checked > opinion, caps with counts). The dossier and always-loaded constraints
+  are also MCP resources — same reads, second door. Proven end-to-end by a raw JSON-RPC client, not
+  the anubis client.
+
 Change the build-order status line above as each step lands — do not leave it asserting a step that is
-already built (the trap the step-2 handoff caught here). Next is **step 5, the aleph board** — the
-Drafter TUI rendering all of the above, ranked and cut; the dossier tables feed it directly. Deferred
+already built (the trap the step-2 handoff caught here). Next on Track B is **slice 2, the pi side** —
+the funes pi-extension (register + brief) and the skills; then the `todo` and `question` slices (pi doc
+§5). The aleph board (step 5) has its first live cockpit; its build order lives in the aleph docs. Deferred
 still: the **engine-credit half of presence** (clocked-out from spent credits/rate-limit — combine into
 `recipients/1` before an auto-poking backend replaces `Inert`), the human-notification path + re-deliver
 on session-join, cross-thread **mentions**, and the `Sense` collectors. SQLite is the truth — a real db
