@@ -115,7 +115,9 @@ defmodule Aleph.View do
       # When the operator is typing a new-thread title, the footer becomes the prompt.
       input: reads[:input],
       # A transient result line (a spawn's pane id or failure), shown until the next keypress.
-      flash: reads[:flash]
+      flash: reads[:flash],
+      # True for the one keypress after Ctrl+B — the hints line shows the armed-prefix state.
+      leader_pending?: reads[:leader_pending?]
     }
   end
 

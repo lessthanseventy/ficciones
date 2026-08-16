@@ -91,7 +91,7 @@ defmodule Aleph.Cockpit do
             focused_id: nil,
             threads: [],
             subscribed_thread: nil,
-            center_focused?: false,
+            leader_pending?: false,
             input: nil,
             flash: nil,
             scrolls: %{},
@@ -130,11 +130,12 @@ defmodule Aleph.Cockpit do
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
     # Any keypress clears a prior flash (a spawn/create result), so it shows until you act again.
-    {next, effect} = Keymap.handle(key, %{state | flash: nil})
-    # A context switch (space or focused-thread change) resets the panels whose content swaps, so a
-    # new thread's dossier/chat don't inherit the old one's scroll position. (Function-head dispatch
-    # on what changed — house rule.)
-    next = reset_scrolls(state, next)
+    # `center_live?` is derived per keypress (is a live terminal in the center right now?) and handed
+    # to the keymap so it knows whether to forward to the PTY or run nav bindings as bare keys. It
+    # is NOT stored — dropped on the way back; the cockpit keeps only `leader_pending?`.
+    keymap_state = Map.put(%{state | flash: nil}, :center_live?, center_terminal(state) != nil)
+    {next, effect} = Keymap.handle(key, keymap_state)
+    next = reset_scrolls(state, Map.delete(next, :center_live?))
     apply_effect(effect, next)
   end
 
@@ -238,28 +239,24 @@ defmodule Aleph.Cockpit do
 
   defp dispatch_click(nil, _x, _y, state), do: {:noreply, state}
 
-  # Clicking the center terminal focuses it — Enter's mouse analogue — so Ctrl+C/Esc reach the
-  # child, not aleph (the Keymap forwards every key while focused; Ctrl+B still releases). Only when
-  # there's a live session to type into; a click on the placeholder does nothing.
-  defp dispatch_click({Panel.Terminal, _data, _rect}, _x, _y, state), do: focus_center(center_terminal(state), state)
+  # Clicking the center terminal is a no-op in the tmux-style model — the terminal already owns
+  # the keys by default when live, so there's no "focus" to set. (A future drag-select for text
+  # copy will hook here; see docs/plans/2026-08-16-aleph-tmux-style-input.md §Deferred.)
+  defp dispatch_click({Panel.Terminal, _data, _rect}, _x, _y, state), do: {:noreply, state}
 
   defp dispatch_click({panel, data, rect}, _x, y, state), do: apply_pick(Panel.pick(panel, data, rect, y - rect.y), state)
 
-  defp focus_center(nil, state), do: {:noreply, state}
-
-  defp focus_center(term, state) when is_pid(term), do: {:noreply, render(%{state | center_focused?: true, flash: nil})}
-
   defp apply_pick(nil, state), do: {:noreply, state}
 
-  # Selecting a thread by click releases center focus — the focused terminal just changed, so
-  # holding focus on the old one would misdirect the next keypress.
+  # Selecting a thread by click swaps the focused thread (and thus the center's terminal) — no
+  # focus flag to clear in the tmux-style model.
   defp apply_pick({:focus_thread, id}, state) do
-    next = reset_scrolls(state, %{state | focused_id: id, center_focused?: false, flash: nil})
+    next = reset_scrolls(state, %{state | focused_id: id, flash: nil})
     {:noreply, render(next)}
   end
 
   defp apply_pick({:switch_space, key}, state) do
-    next = reset_scrolls(state, %{state | active_key: key, center_focused?: false, flash: nil})
+    next = reset_scrolls(state, %{state | active_key: key, flash: nil})
     {:noreply, render(next)}
   end
 
@@ -303,9 +300,18 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # The `s` verb landed: spawn a session onto the focused thread. The result flashes in the footer.
-  defp apply_effect({:spawn, thread_id}, state) do
-    {:noreply, render(%{state | flash: spawn_onto(thread_id, state)})}
+  # The `Enter` verb landed: enter-or-spawn on the focused thread. The result flashes in the footer.
+  defp apply_effect({:enter_or_spawn, thread_id}, state),
+    do: {:noreply, render(%{state | flash: enter_or_spawn(thread_id, state)})}
+
+  # `enter_or_spawn`: if the focused thread already has a live session, it's already the center —
+  # nothing to do (you're already working there). Otherwise spawn one onto it. The replacement for
+  # the old bare `s` verb — one `spawn_onto/2` path, reached via `n` (new thread) or `Enter` (existing).
+  defp enter_or_spawn(thread_id, state) do
+    case Sessions.terminal(thread_id) do
+      pid when is_pid(pid) -> "already live — type to use it, Ctrl+B for aleph"
+      nil -> spawn_onto(thread_id, state)
+    end
   end
 
   # Spawn a harness as an embedded terminal on this thread: mint identity IN-PROCESS
@@ -319,7 +325,7 @@ defmodule Aleph.Cockpit do
     case Spawn.join(thread_id, agent) do
       {:ok, %{exports: exports}} ->
         case Sessions.spawn_harness(thread_id, exports, cols: cols, rows: rows) do
-          {:ok, _pid} -> "session live — Enter to focus, Ctrl+B to release"
+          {:ok, _pid} -> "session live — type to use it, Ctrl+B for aleph"
           {:error, reason} -> "spawn failed: #{inspect(reason)}"
         end
 
@@ -390,7 +396,8 @@ defmodule Aleph.Cockpit do
       stack: stack_read(state.active_key),
       scrolls: state.scrolls,
       input: state.input,
-      flash: state.flash
+      flash: state.flash,
+      leader_pending?: state.leader_pending?
     }
 
     placements = View.compose(reads, state.w, state.h)

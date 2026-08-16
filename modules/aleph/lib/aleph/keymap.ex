@@ -5,28 +5,42 @@ defmodule Aleph.Keymap do
   what makes every binding testable headlessly (`Aleph.KeymapTest`) — the `Aleph.Cockpit`
   GenServer stays a thin interpreter of the returned effect.
 
+  **Input model — tmux-style** (see `docs/plans/2026-08-16-aleph-tmux-style-input.md`): the center
+  surface owns the keys by default. A **live terminal** in the center forwards every key to its PTY
+  (the terminal is "normal mode"); aleph's own commands are reached through a `Ctrl+B` **leader**
+  that arms the *next* key as an aleph command. When there's no live terminal (Comms' chorus, or a
+  placeholder before a session spawns), aleph's nav bindings are **bare** — the same command table,
+  reached without the prefix. One command table, two doors.
+
   `state` is the slice of cockpit state keys touch: `active_key`, `focused_id`, `threads`,
-  `center_focused?`. A `key_event` is the `Raxol.Core.Events.Event` `data` map, e.g.
-  `%{key: :up}` or `%{key: :char, char: "j", ctrl: false}`.
+  `center_live?` (derived per keypress by the cockpit — true when a live terminal is in the center),
+  `leader_pending?` (the prefix is armed), and `input` (the title-typing modal). A `key_event` is
+  the `Raxol.Core.Events.Event` `data` map, e.g. `%{key: :up}` or `%{key: :char, char: "j"}`.
 
   Effects:
 
     * `:repaint` — state changed; reload funes reads and paint.
     * `:quit` — tear down and stop.
-    * `{:forward, key}` — send this key to the focused tmux pane; local state unchanged.
-    * `{:create_thread, title}` — open a new thread with this title (the `n` verb, on Enter).
-    * `{:spawn, thread_id}` — spawn a harness session onto this thread (the `s` verb).
+    * `{:forward, key}` — send this key to the focused session's embedded terminal.
+    * `{:create_thread, title}` — open a new thread AND spawn a session onto it (the `n` verb).
+    * `{:enter_or_spawn, thread_id}` — spawn a session onto an existing focused thread if it has
+      none, else no-op (the `Enter` verb — the `s` verb's replacement).
     * `:none` — nothing to do.
 
-  `state.input` is `nil` in normal mode, or `%{kind: :new_thread, buffer: String.t()}` while the
-  operator is typing a title — a modal that captures EVERY key (so `q` types a "q", it does not
-  quit) until Enter submits or Esc cancels.
+  `state.input` is `nil` normally, or `%{kind: :new_thread, buffer: String.t()}` while the operator
+  is typing a title — a modal that captures EVERY key (so `q` types a "q", it does not quit) until
+  Enter submits or Esc cancels.
   """
 
   alias Aleph.Space
 
   @type effect ::
-          :repaint | :quit | {:forward, map()} | {:create_thread, String.t()} | {:spawn, term()} | :none
+          :repaint
+          | :quit
+          | {:forward, map()}
+          | {:create_thread, String.t()}
+          | {:enter_or_spawn, term()}
+          | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
   @spec handle(map(), map()) :: {map(), effect()}
@@ -50,43 +64,62 @@ defmodule Aleph.Keymap do
   # Any other key while typing (arrows, function keys) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
 
-  # --- center focused: keys belong to the tmux pane; the LEADER (Ctrl+B) is the one that's ours ---
-  # Ctrl+B always returns to aleph — even from inside a fullscreen app that traps Esc (a config
-  # menu, vim, a REPL). EVERY other key, INCLUDING Esc, forwards to the pane, so the app gets its
-  # own keys and can never trap you. (tmux's prefix idea: one reserved key, nothing else stolen.)
-  def handle(%{key: :char, char: "b", ctrl: true}, %{center_focused?: true} = state),
-    do: {%{state | center_focused?: false}, :repaint}
+  # --- leader pending: Ctrl+B was pressed; the next key is an aleph command. ---
+  # Ctrl+B again → send a LITERAL Ctrl+B through to the terminal (tmux's prefix-twice convention),
+  # so an app inside the pane that wants Ctrl+B (nested tmux, vim) still gets it. Only when there's
+  # a live terminal to receive it; with no terminal, a literal Ctrl+B has nowhere to go → drop.
+  def handle(%{key: :char, char: "b", ctrl: true}, %{leader_pending?: true, center_live?: true} = state),
+    do: {%{state | leader_pending?: false}, {:forward, %{key: :char, char: "b", ctrl: true}}}
 
-  def handle(key, %{center_focused?: true} = state), do: {state, {:forward, key}}
+  def handle(%{key: :char, char: "b", ctrl: true}, %{leader_pending?: true} = state),
+    do: {%{state | leader_pending?: false}, :none}
 
-  # --- quit ---
-  def handle(%{key: :char, char: "c", ctrl: true}, state), do: {state, :quit}
-  def handle(%{key: :char, char: "q"}, state), do: {state, :quit}
+  # Esc cancels a pending prefix without acting — the escape hatch from a half-armed leader.
+  def handle(%{key: :escape}, %{leader_pending?: true} = state), do: {%{state | leader_pending?: false}, :repaint}
 
-  # --- space switching (releases center focus) ---
-  def handle(%{key: :tab, shift: true}, state), do: switch(state, :prev)
-  def handle(%{key: :tab}, state), do: switch(state, :next)
-  def handle(%{key: :char, char: "]"}, state), do: switch(state, :next)
-  def handle(%{key: :char, char: "["}, state), do: switch(state, :prev)
+  # Any other key while the prefix is armed → run the command, then clear the prefix. The command
+  # table (`command/2`) is the single source of aleph's bindings, shared with the bare-key path.
+  def handle(key, %{leader_pending?: true} = state) do
+    {next, effect} = command(key, state)
+    {%{next | leader_pending?: false}, effect}
+  end
 
-  # --- thread focus movement (clamped, no wrap) ---
-  def handle(%{key: :up}, state), do: move(state, -1)
-  def handle(%{key: :char, char: "k"}, state), do: move(state, -1)
-  def handle(%{key: :down}, state), do: move(state, 1)
-  def handle(%{key: :char, char: "j"}, state), do: move(state, 1)
+  # --- the leader: Ctrl+B arms the next key as an aleph command. ---
+  def handle(%{key: :char, char: "b", ctrl: true}, state), do: {%{state | leader_pending?: true}, :repaint}
 
-  # --- Enter focuses the center only when it's a live session to type into (Sessions space) ---
-  def handle(%{key: :enter}, %{active_key: key} = state) when key in [:sessions, :tlon],
-    do: {%{state | center_focused?: true}, :repaint}
+  # --- default: the center surface owns the keys. ---
+  # A live terminal in the center → every key forwards to its PTY. The terminal is "normal mode";
+  # you type into it immediately. (Ctrl+C lands here too → forwards as an interrupt, never a quit.)
+  def handle(key, %{center_live?: true} = state), do: {state, {:forward, key}}
 
-  # --- n: open a new thread (enter title input mode); s: spawn a harness onto the focused thread ---
-  def handle(%{key: :char, char: "n"}, state), do: {%{state | input: %{kind: :new_thread, buffer: ""}}, :repaint}
+  # No live terminal (Comms, or a placeholder before a session spawns) → aleph's nav bindings are
+  # bare — the same command table the leader reaches, just without the prefix.
+  def handle(key, state), do: command(key, state)
 
-  def handle(%{key: :char, char: "s"}, %{focused_id: nil} = state), do: {state, :none}
-  def handle(%{key: :char, char: "s"}, %{focused_id: id} = state), do: {state, {:spawn, id}}
+  # --- aleph's command table — one source of bindings, reached two ways: bare in a nav-default
+  # space, or via the Ctrl+B leader from inside a running terminal. ---
+  defp command(%{key: :char, char: "q"}, state), do: {state, :quit}
 
-  # --- anything else is unbound ---
-  def handle(_key, state), do: {state, :none}
+  defp command(%{key: :char, char: "n"}, state), do: {%{state | input: %{kind: :new_thread, buffer: ""}}, :repaint}
+
+  # Enter on a focused thread → enter-or-spawn: spawn a session if it has none, else no-op. The
+  # replacement for the old `s` verb — creating a thread and spawning are one action (`n` already
+  # does both), and "put a session on an existing thread" is this. No focused thread → nothing.
+  defp command(%{key: :enter}, %{focused_id: nil} = state), do: {state, :none}
+  defp command(%{key: :enter}, %{focused_id: id} = state), do: {state, {:enter_or_spawn, id}}
+
+  defp command(%{key: :tab, shift: true}, state), do: switch(state, :prev)
+  defp command(%{key: :tab}, state), do: switch(state, :next)
+  defp command(%{key: :char, char: "]"}, state), do: switch(state, :next)
+  defp command(%{key: :char, char: "["}, state), do: switch(state, :prev)
+
+  defp command(%{key: :up}, state), do: move(state, -1)
+  defp command(%{key: :char, char: "k"}, state), do: move(state, -1)
+  defp command(%{key: :down}, state), do: move(state, 1)
+  defp command(%{key: :char, char: "j"}, state), do: move(state, 1)
+
+  # Anything else (Ctrl+C, F-keys, page-up…) is unbound — a no-op, never a quit.
+  defp command(_key, state), do: {state, :none}
 
   defp switch(state, dir) do
     space =
@@ -94,7 +127,7 @@ defmodule Aleph.Keymap do
         do: Space.next(state.active_key),
         else: Space.prev(state.active_key)
 
-    {%{state | active_key: space.key, center_focused?: false}, :repaint}
+    {%{state | active_key: space.key}, :repaint}
   end
 
   defp move(%{threads: []} = state, _dir), do: {state, :none}

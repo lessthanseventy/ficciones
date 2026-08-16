@@ -13,8 +13,11 @@ defmodule Aleph.Panel.StatusBar do
 
   alias Aleph.Panel
 
-  # {keycap, label} pairs — keycaps lit in amber, labels dim.
-  @hints [{"n", "new"}, {"s", "spawn"}, {"Tab", "space"}, {"↑↓", "thread"}, {"⏎", "focus"}, {"q", "quit"}]
+  # {keycap, label} pairs — keycaps lit in amber, labels dim. The tmux-style model: the center
+  # owns the keys by default, so aleph's commands are reached through the ^B leader. (In a
+  # nav-default space — no live terminal — these are also bare; the hints name the universal path.)
+  @hints [{"^B", "aleph"}, {"^Bn", "new"}, {"^B⏎", "spawn"}, {"^BTab", "space"}, {"^B↑↓", "thread"}, {"^Bq", "quit"}]
+  @leader_hints [{"^B …", :header}, {"  prefix armed — Esc cancels", :dim}]
 
   @impl Panel
   def topics(_assigns), do: []
@@ -43,6 +46,14 @@ defmodule Aleph.Panel.StatusBar do
     Panel.clip([justify(info, [], rect.w), hints_row()], rect)
   end
 
+  # The prefix is armed (Ctrl+B was pressed, awaiting the next key) — show the prefix state
+  # instead of the command hints, so the operator knows the next key is aleph's, not the terminal's.
+  @impl Panel
+  def render(%{leader_pending?: true}, rect) do
+    info = [{" ", :normal}, {"▸ ^B ", :accent}, {"prefix armed", :normal}]
+    Panel.clip([justify(info, [], rect.w), hints_row(@leader_hints)], rect)
+  end
+
   @impl Panel
   def render(%{space: space} = data, rect) do
     focus = data[:thread] || "—"
@@ -62,12 +73,15 @@ defmodule Aleph.Panel.StatusBar do
       {" ● #{live} live ", :stat_live}
     ]
 
-    Panel.clip([justify(left, right, rect.w), hints_row()], rect)
+    Panel.clip([justify(left, right, rect.w), hints_row(@hints)], rect)
   end
 
-  defp hints_row do
-    Enum.flat_map(@hints, fn {key, label} ->
-      [{key, :header}, {" #{label}", :dim}, {"   ", :dim}]
+  defp hints_row, do: hints_row(@hints)
+
+  defp hints_row(hints) do
+    Enum.flat_map(hints, fn
+      {key, label} when is_binary(label) -> [{key, :header}, {" #{label}", :dim}, {"   ", :dim}]
+      {text, style} -> [{text, style}]
     end)
   end
 
