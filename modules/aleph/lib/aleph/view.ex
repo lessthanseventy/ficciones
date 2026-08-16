@@ -81,6 +81,8 @@ defmodule Aleph.View do
   def data_for(Panel.Chorus, r), do: %{blocks: r.chorus, focused_id: r.focused_id}
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
   def data_for(Panel.Terminal, r), do: r.terminal
+  def data_for(Panel.Stack, r), do: %{commits: r.stack.commits}
+  def data_for(Panel.Tools, r), do: %{tools: r.stack.tools}
   def data_for(_other, _r), do: nil
 
   defp status_data(reads, space) do

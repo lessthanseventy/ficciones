@@ -76,7 +76,8 @@ defmodule Aleph.Keymap do
   def handle(%{key: :char, char: "j"}, state), do: move(state, 1)
 
   # --- Enter focuses the center only when it's a live session to type into (Sessions space) ---
-  def handle(%{key: :enter}, %{active_key: :sessions} = state), do: {%{state | center_focused?: true}, :repaint}
+  def handle(%{key: :enter}, %{active_key: key} = state) when key in [:sessions, :tlon],
+    do: {%{state | center_focused?: true}, :repaint}
 
   # --- n: open a new thread (enter title input mode); s: spawn a harness onto the focused thread ---
   def handle(%{key: :char, char: "n"}, state), do: {%{state | input: %{kind: :new_thread, buffer: ""}}, :repaint}

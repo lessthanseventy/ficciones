@@ -90,7 +90,12 @@ defmodule Aleph.KeymapTest do
                Keymap.handle(key(:enter), state(%{active_key: :sessions}))
     end
 
-    test "Enter does nothing outside the Sessions space" do
+    test "Enter focuses the center in the Tlön space (the machine shell)" do
+      assert {%{center_focused?: true}, :repaint} =
+               Keymap.handle(key(:enter), state(%{active_key: :tlon}))
+    end
+
+    test "Enter does nothing outside a center-terminal space" do
       s = state(%{active_key: :comms})
       assert {^s, :none} = Keymap.handle(key(:enter), s)
     end

@@ -173,7 +173,7 @@ defmodule Aleph.Cockpit do
   # keystroke, no shell-out. An unmappable key is dropped rather than misdelivered.
   defp apply_effect({:forward, key}, state) do
     with %KeyEvent{} = event <- ghostty_key(key),
-         term when is_pid(term) <- focused_terminal(state) do
+         term when is_pid(term) <- center_terminal(state) do
       Terminal.send_key(term, event)
     end
 
@@ -263,6 +263,7 @@ defmodule Aleph.Cockpit do
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
       chorus: chorus,
       terminal: terminal_read(state, focused),
+      stack: stack_read(state.active_key),
       input: state.input,
       flash: state.flash
     }
@@ -284,8 +285,8 @@ defmodule Aleph.Cockpit do
   # The center is a live embedded terminal, only in the Sessions space. The focused thread's
   # Aleph.Terminal render_state (Ghostty's live cells + cursor) is read fresh; no session → the
   # placeholder. `:no_session` elsewhere so the panel isn't shown.
-  defp terminal_read(%{active_key: :sessions} = state, focused) when not is_nil(focused) do
-    state |> focused_terminal() |> render_state_of()
+  defp terminal_read(%{active_key: key} = state, _focused) when key in [:sessions, :tlon] do
+    state |> center_terminal() |> render_state_of()
   end
 
   defp terminal_read(_state, _focused), do: :no_session
@@ -293,17 +294,35 @@ defmodule Aleph.Cockpit do
   defp render_state_of(nil), do: :no_session
   defp render_state_of(term), do: Terminal.render_state(term)
 
-  # The Aleph.Terminal for the focused thread, or nil — asked of the registry, never mirrored (§3).
-  defp focused_terminal(state), do: state |> focused() |> terminal_for()
+  # The terminal the center shows, by space: Sessions → the focused thread's session; Tlön → a
+  # machine shell at the repo root (working ON the env, not a project). nil elsewhere.
+  defp center_terminal(%{active_key: :sessions} = state), do: state |> focused() |> terminal_for()
+  defp center_terminal(%{active_key: :tlon}), do: machine_terminal()
+  defp center_terminal(_state), do: nil
 
   defp terminal_for(nil), do: nil
   defp terminal_for(%{id: id}), do: Sessions.terminal(id)
 
-  # Keep the focused session's PTY sized to the center region so it reflows with the window. An
+  # The STACK/TOOLS reads are only gathered on Tlön (git log + version probes are wasted elsewhere).
+  defp stack_read(:tlon), do: %{commits: Aleph.Stack.commits(), tools: Aleph.Stack.tools()}
+  defp stack_read(_key), do: %{commits: [], tools: []}
+
+  # The Tlön machine shell — one plain login shell at the cockpit's cwd (the repo), ensured lazily
+  # and idempotently, keyed `:machine` in the registry (it is not a funes thread).
+  defp machine_terminal do
+    shell = System.get_env("SHELL") || "/bin/bash"
+
+    case Sessions.ensure(:machine, cmd: shell, cols: 80, rows: 24) do
+      {:ok, pid} -> pid
+      _error -> nil
+    end
+  end
+
+  # Keep the center session's PTY sized to the center region so it reflows with the window. An
   # approximation of the center rect (View lays out left ¼ / center ½ / right ¼, inset by a frame);
   # the terminal reflows on every window resize.
   defp resize_focused_terminal(state) do
-    with term when is_pid(term) <- focused_terminal(state) do
+    with term when is_pid(term) <- center_terminal(state) do
       {cols, rows} = center_dims(state)
       Terminal.resize(term, cols, rows)
     end

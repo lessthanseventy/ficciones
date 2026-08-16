@@ -13,9 +13,9 @@ defmodule Aleph.Space do
   """
 
   alias Aleph.Panel.Chorus
-  alias Aleph.Panel.Conversation
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Roster
+  alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
 
   @enforce_keys [:key, :label, :surface]
@@ -52,22 +52,22 @@ defmodule Aleph.Space do
       %__MODULE__{
         key: :sessions,
         label: "Sessions",
-        surface: {Aleph.Panel.Terminal, :terminal},
+        surface: {Terminal, :terminal},
         # The annotated ThreadList *is* the merged IN FLIGHT + THREADS: one list, agents folded in
         # (Addendum §A). Picking a thread here swaps the center's live coworker session.
         left: [ThreadList],
         right: [Dossier]
       },
       %__MODULE__{
-        # Tlön — the META space: the machine/stack as a whole, not a project. Where you work on the
-        # env itself (nix, the funes/aleph/manos stack, tool changelogs). Shape still coalescing —
-        # this is a transitional placeholder over the same panels; the distinct machine-state view
-        # (stack activity, changelogs, signals) is the next design pass.
+        # Tlön — the META space (v1): the machine/stack as a whole, not a project. The center is a
+        # machine session (a shell at the repo root — work ON the env); the left is STACK (recent
+        # ficciones commits, the stack's own changelog); the right is TOOLS (installed versions).
+        # Next: issues-from-other-sessions + triage, and changelogs.
         key: :tlon,
         label: "Tlön",
-        surface: {ThreadList, :issues},
-        left: [Conversation],
-        right: [Dossier]
+        surface: {Terminal, :terminal},
+        left: [Aleph.Panel.Stack],
+        right: [Aleph.Panel.Tools]
       }
     ]
   end

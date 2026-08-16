@@ -23,9 +23,11 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Spaces
+  alias Aleph.Panel.Stack
   alias Aleph.Panel.StatusBar
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
+  alias Aleph.Panel.Tools
   alias Aleph.View
 
   # Flatten a styled row to its text, for assertions.
@@ -113,6 +115,32 @@ defmodule Aleph.BoardTest do
 
       active = Enum.find(rows, &(text(&1) =~ "▸"))
       assert text(active) =~ "Comms"
+    end
+
+    test "stack (Tlön): header then one row per commit, hash dimmed" do
+      rect = %{x: 0, y: 0, w: 60, h: 10}
+      commits = [%{hash: "bc86cc8", subject: "funes: open_thread / close_thread"}]
+      assert [header, _blank, row] = Stack.render(%{commits: commits}, rect)
+      assert text(header) == "STACK"
+      assert text(row) =~ "bc86cc8"
+      assert text(row) =~ "open_thread"
+      assert Enum.any?(row, fn {t, s} -> s == :dim and t =~ "bc86cc8" end)
+    end
+
+    test "stack (Tlön): honest when there is no git history" do
+      rect = %{x: 0, y: 0, w: 60, h: 10}
+      assert [_header, _blank, empty] = Stack.render(%{commits: []}, rect)
+      assert text(empty) =~ "no git history"
+    end
+
+    test "tools (Tlön): header then one padded name/version row per tool" do
+      rect = %{x: 0, y: 0, w: 40, h: 10}
+      tools = [%{name: "pi", version: "0.9.1"}, %{name: "nix", version: "?"}]
+      assert [header, _blank, pi, nix] = Tools.render(%{tools: tools}, rect)
+      assert text(header) == "TOOLS"
+      assert text(pi) =~ "pi"
+      assert text(pi) =~ "0.9.1"
+      assert text(nix) =~ "?"
     end
 
     test "dossier renders sections from an in_scope map, honest about empties and cuts" do
