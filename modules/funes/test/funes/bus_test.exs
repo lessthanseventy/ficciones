@@ -3,6 +3,7 @@ defmodule Funes.BusTest do
   # board can subscribe to one thread (IN SCOPE) or the roster (IN FLIGHT) rather
   # than filtering a firehose. Pure PubSub — no DB.
   use ExUnit.Case, async: false
+
   alias Funes.Bus
 
   test "a posted message reaches both the firehose and its thread topic" do

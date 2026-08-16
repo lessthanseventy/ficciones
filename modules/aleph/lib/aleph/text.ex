@@ -14,7 +14,7 @@ defmodule Aleph.Text do
   end
 
   # No line in progress, or the word fits on the current line with a space: extend it.
-  defp place(word, [], width), do: hard_break(word, width) |> Enum.reverse()
+  defp place(word, [], width), do: word |> hard_break(width) |> Enum.reverse()
 
   defp place(word, [current | rest], width) do
     cond do
@@ -26,7 +26,7 @@ defmodule Aleph.Text do
 
       true ->
         # word longer than the column — hard-break it, newest chunk stays current.
-        (hard_break(word, width) |> Enum.reverse()) ++ [current | rest]
+        (word |> hard_break(width) |> Enum.reverse()) ++ [current | rest]
     end
   end
 

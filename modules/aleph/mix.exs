@@ -144,7 +144,9 @@ defmodule Aleph.MixProject do
       # drags in payments/earn/mcp/sensor). `raxol_terminal` = screen buffers + ANSI +
       # input + the termbox2 driver; `raxol_core` = the infra behaviours it sits on (§3).
       {:raxol_terminal, "~> 2.6"},
-      {:raxol_core, "~> 2.6"}
+      {:raxol_core, "~> 2.6"},
+      # One styling authority on mix format, same as funes.
+      {:styler, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

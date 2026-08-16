@@ -7,9 +7,9 @@ defmodule Funes.MCP.TokenValidator do
   mirrors the configured resource because anubis validates audience
   unconditionally; there is no `exp` — a token dies with the node, not a clock.
   """
-  alias Funes.MCP.Tokens
-
   @behaviour Anubis.Server.Authorization.Validator
+
+  alias Funes.MCP.Tokens
 
   @impl true
   def validate_token(token, config) do

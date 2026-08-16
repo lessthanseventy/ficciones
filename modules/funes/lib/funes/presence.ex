@@ -11,17 +11,16 @@ defmodule Funes.Presence do
   @default_warmth_seconds 3600
 
   @doc "The configured warmth window in seconds."
-  def warmth_window,
-    do: Application.get_env(:funes, :warmth_window_seconds, @default_warmth_seconds)
+  def warmth_window, do: Application.get_env(:funes, :warmth_window_seconds, @default_warmth_seconds)
 
   @doc "The instant before which a `last_active_at` is cold. Pass `now` for testable time."
-  def warmth_cutoff(now \\ now()), do: DateTime.add(now, -warmth_window(), :second)
+  def warmth_cutoff(now \\ now()), do: DateTime.shift(now, second: -warmth_window())
 
   @doc "Is a session (or a bare `last_active_at`) warm as of `now`?"
   def warm?(session_or_time, now \\ now())
   def warm?(%{last_active_at: at}, now), do: warm?(at, now)
   def warm?(nil, _now), do: false
-  def warm?(%DateTime{} = at, now), do: DateTime.compare(at, warmth_cutoff(now)) == :gt
+  def warm?(%DateTime{} = at, now), do: DateTime.after?(at, warmth_cutoff(now))
 
-  defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
+  defp now, do: DateTime.truncate(DateTime.utc_now(), :second)
 end

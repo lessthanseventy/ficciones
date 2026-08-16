@@ -8,6 +8,7 @@ defmodule Funes.Session do
   candidate to jump into.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
 
   schema "session" do
@@ -28,7 +29,7 @@ defmodule Funes.Session do
   raises rather than returning a changeset. `pane_ref` is optional and opaque.
   """
   def start_changeset(attrs) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = DateTime.truncate(DateTime.utc_now(), :second)
 
     %__MODULE__{}
     |> cast(attrs, [:agent_id, :thread_id, :pane_ref])
@@ -39,6 +40,6 @@ defmodule Funes.Session do
 
   @doc "Stamp a session ended, now. Sessions die; you brief a new one (§3b)."
   def end_changeset(session) do
-    change(session, ended_at: DateTime.utc_now() |> DateTime.truncate(:second))
+    change(session, ended_at: DateTime.truncate(DateTime.utc_now(), :second))
   end
 end

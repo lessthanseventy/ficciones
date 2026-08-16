@@ -20,8 +20,7 @@ defmodule Aleph.Panel.Spaces do
     Aleph.Panel.clip(header ++ body, rect)
   end
 
-  defp row(space, true, w),
-    do: pad([{"▸ ", :selected_accent}, {space.label, :selected_accent}], w, :selected)
+  defp row(space, true, w), do: pad([{"▸ ", :selected_accent}, {space.label, :selected_accent}], w, :selected)
 
   defp row(space, false, _w), do: [{"  ", :dim}, {space.label, :normal}]
 end

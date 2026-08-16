@@ -7,6 +7,7 @@ defmodule Aleph.Panel.Dossier do
   @behaviour Aleph.Panel
 
   import Aleph.Panel, only: [line: 2, blank: 0]
+
   alias Funes.Bus
 
   @impl Aleph.Panel
@@ -42,8 +43,7 @@ defmodule Aleph.Panel.Dossier do
     Enum.map(shown, fmt) ++ if(more > 0, do: ["+#{more} more"], else: [])
   end
 
-  defp shipped_line(%{detail: detail}) when is_map(detail),
-    do: Map.get(detail, "summary") || "work landed"
+  defp shipped_line(%{detail: detail}) when is_map(detail), do: Map.get(detail, "summary") || "work landed"
 
   defp shipped_line(_event), do: "work landed"
 

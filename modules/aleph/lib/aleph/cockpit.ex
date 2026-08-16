@@ -10,11 +10,18 @@ defmodule Aleph.Cockpit do
   terminal, never during `mix test`.
   """
   use GenServer
-  require Logger
 
-  alias Aleph.{Board, Keymap, Space, Tmux, View}
-  alias Funes.{Bus, Channel, Staff}
+  alias Aleph.Board
+  alias Aleph.Keymap
+  alias Aleph.Space
+  alias Aleph.Tmux
+  alias Aleph.View
+  alias Funes.Bus
+  alias Funes.Channel
+  alias Funes.Staff
   alias Raxol.Core.Events.Event
+
+  require Logger
 
   # Redraw cadence for tmux liveness + roster warmth, independent of Bus events.
   @tick_ms 500
@@ -60,8 +67,9 @@ defmodule Aleph.Cockpit do
         normalize_cursor_keys()
         {:ok, driver} = Raxol.Terminal.Driver.start_link(dispatcher_pid: self())
 
+        # --- input + resize from the termbox Driver (GenServer casts) ---
         state =
-          %{
+          render(%{
             driver: driver,
             w: max(:termbox2_nif.tb_width(), 1),
             h: max(:termbox2_nif.tb_height(), 1),
@@ -70,8 +78,7 @@ defmodule Aleph.Cockpit do
             threads: [],
             subscribed_thread: nil,
             center_focused?: false
-          }
-          |> render()
+          })
 
         Process.send_after(self(), :tick, @tick_ms)
         {:ok, state}
@@ -84,6 +91,8 @@ defmodule Aleph.Cockpit do
   # termbox2's `tb_init` enables DECCKM (application cursor keys, `ESC[?1h` — see termbox2.h's
   # ENTER_KEYPAD cap), which makes arrow keys arrive as SS3 (`ESC O A`). Raxol's ANSI
   # `InputParser` decodes CSI arrows (`ESC [ A`) but not SS3 ones, so under DECCKM every arrow
+  # --- Funes.Bus events (plain messages) → reload + repaint ---
+
   # mis-parses (to Alt+O + a stray char) and the cockpit never sees `:up`/`:down` — only `j`/`k`
   # worked. Reset DECCKM to normal cursor keys so arrows come through as CSI, which the parser
   # handles. Written to `/dev/tty` because that's the fd termbox drives (not necessarily stdout);
@@ -93,8 +102,6 @@ defmodule Aleph.Cockpit do
     _ = File.write("/dev/tty", "\e[?1l")
     :ok
   end
-
-  # --- input + resize from the termbox Driver (GenServer casts) ---
 
   @impl true
   def handle_cast({:dispatch, %Event{type: :resize, data: %{width: w, height: h}}}, state) do
@@ -107,8 +114,6 @@ defmodule Aleph.Cockpit do
   end
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
-
-  # --- Funes.Bus events (plain messages) → reload + repaint ---
 
   @impl true
   def handle_info({tag, _row}, state)
@@ -139,6 +144,7 @@ defmodule Aleph.Cockpit do
   # State transitions live in the pure `Aleph.Keymap`; the Cockpit only runs the side effect it
   # asks for — repaint, quit, or forward a key to the focused tmux pane.
   defp apply_effect(:repaint, state), do: {:noreply, render(state)}
+  # --- render ---
   defp apply_effect(:none, state), do: {:noreply, state}
   defp apply_effect(:quit, state), do: quit(state)
 
@@ -168,12 +174,10 @@ defmodule Aleph.Cockpit do
   defp tmux_keys(%{key: :right}), do: [{:key, "Right"}]
   defp tmux_keys(_), do: []
 
-  # --- render ---
-
   defp render(state) do
     threads = Channel.open_threads()
     focused = focused_thread(threads, state.focused_id)
-    state = %{state | threads: threads, focused_id: focused && focused.id} |> resubscribe(focused)
+    state = resubscribe(%{state | threads: threads, focused_id: focused && focused.id}, focused)
 
     reads = %{
       active_key: state.active_key,
@@ -186,7 +190,8 @@ defmodule Aleph.Cockpit do
       session: session_read(state, focused)
     }
 
-    View.compose(reads, state.w, state.h)
+    reads
+    |> View.compose(state.w, state.h)
     |> Board.compose(state.w, state.h)
     |> Board.paint()
 
@@ -224,14 +229,12 @@ defmodule Aleph.Cockpit do
   defp resubscribe(state, focused) do
     id = focused && focused.id
 
-    cond do
-      id == state.subscribed_thread ->
-        state
-
-      true ->
-        if state.subscribed_thread, do: Bus.unsubscribe_thread(state.subscribed_thread)
-        if id, do: Bus.subscribe_thread(id)
-        %{state | subscribed_thread: id}
+    if id == state.subscribed_thread do
+      state
+    else
+      if state.subscribed_thread, do: Bus.unsubscribe_thread(state.subscribed_thread)
+      if id, do: Bus.subscribe_thread(id)
+      %{state | subscribed_thread: id}
     end
   end
 

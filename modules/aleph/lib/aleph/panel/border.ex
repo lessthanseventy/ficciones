@@ -9,10 +9,10 @@ defmodule Aleph.Panel.Border do
 
   alias Aleph.Panel
 
-  @impl Aleph.Panel
+  @impl Panel
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Panel
   def render(_data, %{w: w, h: h} = rect) when w >= 2 and h >= 2 do
     inner = w - 2
 

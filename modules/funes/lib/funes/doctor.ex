@@ -56,7 +56,7 @@ defmodule Funes.Doctor do
   """
   @spec table_to_jsonl(String.t()) :: String.t()
   def table_to_jsonl(table) do
-    unless table in tables(), do: raise(ArgumentError, "no such table: #{table}")
+    if table not in tables(), do: raise(ArgumentError, "no such table: #{table}")
 
     %{rows: rows, columns: columns} = Repo.query!(~s|SELECT * FROM "#{table}"|)
 

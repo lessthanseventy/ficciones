@@ -6,6 +6,7 @@ defmodule Funes.Issue do
   the only required field; any participant may raise anything (§5b).
   """
   use Ecto.Schema
+
   import Ecto.Changeset
 
   schema "issue" do
@@ -27,7 +28,7 @@ defmodule Funes.Issue do
     |> cast(attrs, [:thread_id, :summary, :evidence, :resolution, :found_by])
     |> validate_required([:summary])
     |> put_change(:state, "open")
-    |> put_change(:created_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 
   @doc "Move an issue to a new state. The closed set is enforced by the DB CHECK alone."

@@ -7,7 +7,13 @@ defmodule Funes.StaffTest do
   # or the wake (all §3b/§10-deferred). The DB is the bus (§10): every assertion
   # reads back through SQLite, never through the struct we were handed.
   use ExUnit.Case, async: false
-  alias Funes.{Agent, Channel, Repo, Session, Staff, Thread}
+
+  alias Funes.Agent
+  alias Funes.Channel
+  alias Funes.Repo
+  alias Funes.Session
+  alias Funes.Staff
+  alias Funes.Thread
 
   # This suite shares one DB (no sandbox, like step 2), but unlike thread/message,
   # `agent.name` is UNIQUE — so a reused name across tests would collide. Isolate
@@ -133,7 +139,7 @@ defmodule Funes.StaffTest do
 
       # Scoped to the agent, and newest first (desc id) — the order is the contract,
       # so assert it unsorted rather than laundering it through Enum.sort.
-      titles = Staff.threads_for(agent) |> Enum.map(& &1.title)
+      titles = agent |> Staff.threads_for() |> Enum.map(& &1.title)
       assert titles == ["review PR 400", "review PR 329"]
     end
 
@@ -329,29 +335,30 @@ defmodule Funes.StaffTest do
 
     test "a later stamp advances; an earlier one is ignored (forward-only)", %{session: session} do
       base = Repo.get!(Session, session.id).last_active_at
-      later = DateTime.add(base, 600, :second)
+      later = DateTime.shift(base, minute: 10)
 
       :ok = Staff.touch_sessions([session.id], later)
       assert Repo.get!(Session, session.id).last_active_at == later
 
       # A backlog drain replaying an old message must never move warmth BACKWARD —
       # a session that acted at T is warm as of T, whatever else it did before.
-      earlier = DateTime.add(later, -1200, :second)
+      earlier = DateTime.shift(later, minute: -20)
       :ok = Staff.touch_sessions([session.id], earlier)
       assert Repo.get!(Session, session.id).last_active_at == later
     end
 
     test "fills a NULL last_active_at", %{session: session} do
       import Ecto.Query
+
       Repo.update_all(from(s in Session, where: s.id == ^session.id), set: [last_active_at: nil])
 
-      stamp = DateTime.utc_now() |> DateTime.truncate(:second)
+      stamp = DateTime.truncate(DateTime.utc_now(), :second)
       :ok = Staff.touch_sessions([session.id], stamp)
       assert Repo.get!(Session, session.id).last_active_at == stamp
     end
 
     test "an empty id list is a no-op" do
-      assert :ok = Staff.touch_sessions([], DateTime.utc_now() |> DateTime.truncate(:second))
+      assert :ok = Staff.touch_sessions([], DateTime.truncate(DateTime.utc_now(), :second))
     end
   end
 

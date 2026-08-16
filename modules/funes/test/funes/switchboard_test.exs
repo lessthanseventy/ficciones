@@ -4,7 +4,13 @@ defmodule Funes.SwitchboardTest do
   # a plain post, an @mentioned coworker, or the author of a replied-to message —
   # never the whole room. The DB stays the truth (delivered_at is durable).
   use ExUnit.Case, async: false
-  alias Funes.{Channel, Message, Repo, Staff, Switchboard}
+
+  alias Funes.Channel
+  alias Funes.Message
+  alias Funes.Repo
+  alias Funes.Staff
+  alias Funes.Switchboard
+  alias Funes.Switchboard.Server
 
   setup do
     Application.put_env(:funes, :arbiter, Funes.Arbiter.Test)
@@ -39,7 +45,7 @@ defmodule Funes.SwitchboardTest do
   end
 
   defp set_last_active(session, seconds_ago) do
-    at = DateTime.utc_now() |> DateTime.add(-seconds_ago, :second) |> DateTime.truncate(:second)
+    at = DateTime.utc_now() |> DateTime.shift(second: -seconds_ago) |> DateTime.truncate(:second)
     {:ok, updated} = session |> Ecto.Changeset.change(last_active_at: at) |> Repo.update()
     updated
   end
@@ -181,14 +187,14 @@ defmodule Funes.SwitchboardTest do
 
       assert_received {:woke, "wSandra", _}
       bumped = Repo.get!(Funes.Session, ss.id).last_active_at
-      assert DateTime.compare(bumped, warm) == :gt
+      assert DateTime.after?(bumped, warm)
     end
 
     test "draining an OLD backlog message never cools a warmer author (forward-only)" do
       %{thread: thread, sandra_session: ss} = staffed_thread()
       # Sandra is warm now, but authored a note whose timestamp is two hours old.
       {:ok, m} = Channel.post(%{thread_id: thread.id, author: "Sandra", body: "old note"})
-      old = DateTime.utc_now() |> DateTime.add(-7200, :second) |> DateTime.truncate(:second)
+      old = DateTime.utc_now() |> DateTime.shift(hour: -2) |> DateTime.truncate(:second)
       {:ok, _} = m |> Ecto.Changeset.change(created_at: old) |> Repo.update()
 
       warm_before = Repo.get!(Funes.Session, ss.id).last_active_at
@@ -212,7 +218,7 @@ defmodule Funes.SwitchboardTest do
 
       refute_received {:woke, _, _}
       bumped = Repo.get!(Funes.Session, ss.id).last_active_at
-      assert DateTime.compare(bumped, warm) == :gt
+      assert DateTime.after?(bumped, warm)
     end
   end
 
@@ -273,7 +279,7 @@ defmodule Funes.SwitchboardTest do
   describe "Server — the reactive live path over PubSub" do
     test "a posted message wakes its addressee without anyone calling deliver" do
       %{thread: thread} = staffed_thread()
-      start_supervised!(Funes.Switchboard.Server)
+      start_supervised!(Server)
 
       {:ok, _} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "live!"})
 
@@ -289,7 +295,7 @@ defmodule Funes.SwitchboardTest do
       flush()
       assert Repo.get!(Message, m.id).delivered_at == nil
 
-      start_supervised!(Funes.Switchboard.Server)
+      start_supervised!(Server)
       assert_receive {:woke, "wSandra", _}, 1000
       assert %DateTime{} = Repo.get!(Message, m.id).delivered_at
     end

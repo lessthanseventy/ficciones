@@ -12,7 +12,12 @@ defmodule Funes.Board do
   BLOCKERS are each `%{shown, more}`.
   """
   import Ecto.Query
-  alias Funes.{Agent, Channel, Dossier, Repo, Thread}
+
+  alias Funes.Agent
+  alias Funes.Channel
+  alias Funes.Dossier
+  alias Funes.Repo
+  alias Funes.Thread
 
   @cap 5
 
@@ -28,8 +33,8 @@ defmodule Funes.Board do
       thread: thread,
       north_star: thread.title,
       lead: lead_name(thread),
-      shipped: Dossier.shipped_for_thread(thread) |> rank_and_cut(),
-      learnings: Dossier.facts_for_thread(thread) |> rank_and_cut(),
+      shipped: thread |> Dossier.shipped_for_thread() |> rank_and_cut(),
+      learnings: thread |> Dossier.facts_for_thread() |> rank_and_cut(),
       blockers: Dossier.open_issues_for_thread(thread),
       chatter: Channel.recent_messages(thread, @cap)
     }

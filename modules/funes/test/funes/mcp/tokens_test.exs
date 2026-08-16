@@ -5,7 +5,10 @@ defmodule Funes.MCP.TokensTest do
   # Tokens are ephemeral by design: they live in the node, and a restart
   # invalidates them — an honest failure the agent surfaces, never a stale grant.
   use ExUnit.Case, async: false
-  alias Funes.{Channel, MCP, Staff}
+
+  alias Funes.Channel
+  alias Funes.MCP
+  alias Funes.Staff
 
   setup do
     Funes.TestDB.clean!()

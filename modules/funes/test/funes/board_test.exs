@@ -4,7 +4,12 @@ defmodule Funes.BoardTest do
   # (NORTH STAR / SHIPPED / LEARNINGS / BLOCKERS / CHATTER) — the SAME one-call read
   # that briefs a re-entering session (§3b), so it is built once with two consumers.
   use ExUnit.Case, async: false
-  alias Funes.{Board, Channel, Dossier, Repo, Staff}
+
+  alias Funes.Board
+  alias Funes.Channel
+  alias Funes.Dossier
+  alias Funes.Repo
+  alias Funes.Staff
 
   setup do
     Funes.TestDB.clean!()
@@ -14,7 +19,7 @@ defmodule Funes.BoardTest do
   defp cold(session), do: set_active(session, 7200)
 
   defp set_active(session, seconds_ago) do
-    at = DateTime.utc_now() |> DateTime.add(-seconds_ago, :second) |> DateTime.truncate(:second)
+    at = DateTime.utc_now() |> DateTime.shift(second: -seconds_ago) |> DateTime.truncate(:second)
     {:ok, s} = session |> Ecto.Changeset.change(last_active_at: at) |> Repo.update()
     s
   end

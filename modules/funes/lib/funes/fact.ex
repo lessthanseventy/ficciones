@@ -7,6 +7,7 @@ defmodule Funes.Fact do
   `provenance` are closed sets the DB CHECKs; the schema does not mirror them.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
 
   schema "fact" do
@@ -41,6 +42,6 @@ defmodule Funes.Fact do
       :source_session_id
     ])
     |> validate_required([:kind, :text, :provenance])
-    |> put_change(:created_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 end

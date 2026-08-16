@@ -3,7 +3,11 @@ defmodule Funes.ReactivityTest do
   # focused topics instead of polling. The write is durable first (§10); the
   # broadcast is the nudge. Here we subscribe and assert each context emits.
   use ExUnit.Case, async: false
-  alias Funes.{Bus, Channel, Dossier, Staff}
+
+  alias Funes.Bus
+  alias Funes.Channel
+  alias Funes.Dossier
+  alias Funes.Staff
 
   setup do
     Funes.TestDB.clean!()

@@ -3,7 +3,13 @@ defmodule Funes.DossierTest do
   # scoped to a thread are the thread's accumulated state — LEARNINGS, SHIPPED,
   # BLOCKERS. The DB is the bus (§10): every assertion reads back through SQLite.
   use ExUnit.Case, async: false
-  alias Funes.{Channel, Dossier, Event, Fact, Issue, Repo}
+
+  alias Funes.Channel
+  alias Funes.Dossier
+  alias Funes.Event
+  alias Funes.Fact
+  alias Funes.Issue
+  alias Funes.Repo
 
   # Shared DB, no sandbox (like steps 2–3). Clear domain rows first, FK-safe.
   setup do
@@ -153,7 +159,7 @@ defmodule Funes.DossierTest do
       {:ok, _stated_learned} =
         Dossier.bank_fact(%{kind: "learned", text: "a lesson", provenance: "stated"})
 
-      texts = Dossier.always_loaded_constraints() |> Enum.map(& &1.text)
+      texts = Enum.map(Dossier.always_loaded_constraints(), & &1.text)
       assert texts == ["presses Enter"]
     end
 
@@ -175,7 +181,7 @@ defmodule Funes.DossierTest do
 
       # Both are stated constraints and they conflict; the one something supersedes
       # is retired, so only the superseding one is loaded.
-      texts = Dossier.always_loaded_constraints() |> Enum.map(& &1.text)
+      texts = Enum.map(Dossier.always_loaded_constraints(), & &1.text)
       assert texts == ["the machine may own the daily note"]
     end
 
@@ -194,7 +200,7 @@ defmodule Funes.DossierTest do
           supersedes: stated.id
         })
 
-      texts = Dossier.always_loaded_constraints() |> Enum.map(& &1.text)
+      texts = Enum.map(Dossier.always_loaded_constraints(), & &1.text)
       assert texts == ["his rule"]
     end
   end
@@ -228,7 +234,7 @@ defmodule Funes.DossierTest do
           provenance: "derived"
         })
 
-      texts = Dossier.facts_for_thread(t1) |> Enum.map(& &1.text)
+      texts = t1 |> Dossier.facts_for_thread() |> Enum.map(& &1.text)
       assert texts == ["second", "first"]
     end
   end
@@ -284,7 +290,7 @@ defmodule Funes.DossierTest do
       {:ok, _} =
         Dossier.record_event(%{thread_id: thread.id, kind: "work_landed", correlation: "h-1"})
 
-      grouped = Dossier.events_for_thread(thread) |> Enum.filter(&(&1.correlation == "h-1"))
+      grouped = thread |> Dossier.events_for_thread() |> Enum.filter(&(&1.correlation == "h-1"))
       assert length(grouped) == 2
     end
   end
@@ -301,7 +307,7 @@ defmodule Funes.DossierTest do
       {:ok, _} =
         Dossier.record_event(%{thread_id: thread.id, kind: "work_landed", correlation: "b"})
 
-      kinds = Dossier.shipped_for_thread(thread) |> Enum.map(& &1.kind) |> Enum.uniq()
+      kinds = thread |> Dossier.shipped_for_thread() |> Enum.map(& &1.kind) |> Enum.uniq()
       assert kinds == ["work_landed"]
       assert length(Dossier.shipped_for_thread(thread)) == 2
     end

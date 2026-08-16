@@ -12,6 +12,10 @@ defmodule Aleph.Space do
   list the situational panels that ride along with the space.
   """
 
+  alias Aleph.Panel.Conversation
+  alias Aleph.Panel.Dossier
+  alias Aleph.Panel.ThreadList
+
   @enforce_keys [:key, :label, :surface]
   defstruct [:key, :label, :surface, left: [], right: []]
 
@@ -35,9 +39,9 @@ defmodule Aleph.Space do
       %__MODULE__{
         key: :comms,
         label: "Comms",
-        surface: {Aleph.Panel.Conversation, :conversation},
-        left: [Aleph.Panel.ThreadList],
-        right: [Aleph.Panel.Dossier]
+        surface: {Conversation, :conversation},
+        left: [ThreadList],
+        right: [Dossier]
       },
       %__MODULE__{
         key: :sessions,
@@ -45,15 +49,15 @@ defmodule Aleph.Space do
         surface: {Aleph.Panel.Session, :session},
         # The annotated ThreadList *is* the merged IN FLIGHT + THREADS: one list, agents folded in
         # (Addendum §A). Picking a thread here swaps the center's live coworker session.
-        left: [Aleph.Panel.ThreadList],
-        right: [Aleph.Panel.Dossier]
+        left: [ThreadList],
+        right: [Dossier]
       },
       %__MODULE__{
         key: :issues,
         label: "Issues",
-        surface: {Aleph.Panel.ThreadList, :issues},
-        left: [Aleph.Panel.Conversation],
-        right: [Aleph.Panel.Dossier]
+        surface: {ThreadList, :issues},
+        left: [Conversation],
+        right: [Dossier]
       }
     ]
   end

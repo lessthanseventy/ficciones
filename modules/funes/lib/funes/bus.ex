@@ -54,8 +54,7 @@ defmodule Funes.Bus do
     publish(thread_topics(thread_id), event)
   end
 
-  def broadcast({tag, thread} = event)
-      when tag in [:thread_opened, :thread_closed, :thread_assigned] do
+  def broadcast({tag, thread} = event) when tag in [:thread_opened, :thread_closed, :thread_assigned] do
     publish([threads_topic() | thread_topics(thread.id)], event)
   end
 

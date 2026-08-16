@@ -17,7 +17,8 @@ defmodule Funes.MCP.Tokens do
   """
   use GenServer
 
-  alias Funes.{Agent, Thread}
+  alias Funes.Agent
+  alias Funes.Thread
 
   @type binding :: %{
           thread_id: integer(),
@@ -33,7 +34,7 @@ defmodule Funes.MCP.Tokens do
   @doc "Mint a token binding (thread, agent). Returns the url-safe token string."
   @spec mint(Thread.t(), Agent.t()) :: String.t()
   def mint(%Thread{} = thread, %Agent{} = agent) do
-    token = :crypto.strong_rand_bytes(24) |> Base.url_encode64(padding: false)
+    token = 24 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
     binding = %{
       thread_id: thread.id,

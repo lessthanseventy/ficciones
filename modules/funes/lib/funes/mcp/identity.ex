@@ -38,6 +38,6 @@ defmodule Funes.MCP.Identity do
   defp touch(%{session_id: nil}), do: :ok
 
   defp touch(%{session_id: id}) do
-    Staff.touch_sessions([id], DateTime.utc_now() |> DateTime.truncate(:second))
+    Staff.touch_sessions([id], DateTime.truncate(DateTime.utc_now(), :second))
   end
 end

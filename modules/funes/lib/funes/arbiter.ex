@@ -26,6 +26,7 @@ defmodule Funes.Arbiter.Inert do
   never a crash (§8, degrade honestly).
   """
   @behaviour Funes.Arbiter
+
   require Logger
 
   @impl true

@@ -11,7 +11,12 @@ defmodule Funes.Staff do
   will stand on — the recipient identity step 2's wake was waiting for.
   """
   import Ecto.Query
-  alias Funes.{Agent, Presence, Repo, Session, Thread}
+
+  alias Funes.Agent
+  alias Funes.Presence
+  alias Funes.Repo
+  alias Funes.Session
+  alias Funes.Thread
 
   @doc "Register a durable agent. `{:ok, agent}` or `{:error, changeset}` (e.g. a duplicate name)."
   def register_agent(attrs) do
@@ -29,22 +34,22 @@ defmodule Funes.Staff do
   newest first — the read the board renders as "who's on the clock."
   """
   def roster do
-    Repo.all(
-      from s in Session,
-        join: a in Agent,
-        on: a.id == s.agent_id,
-        join: t in Thread,
-        on: t.id == s.thread_id,
-        where: is_nil(s.ended_at),
-        order_by: [desc: s.id],
-        select: %{
-          agent: a.name,
-          thread_id: t.id,
-          thread_title: t.title,
-          pane_ref: s.pane_ref,
-          last_active_at: s.last_active_at
-        }
+    from(s in Session,
+      join: a in Agent,
+      on: a.id == s.agent_id,
+      join: t in Thread,
+      on: t.id == s.thread_id,
+      where: is_nil(s.ended_at),
+      order_by: [desc: s.id],
+      select: %{
+        agent: a.name,
+        thread_id: t.id,
+        thread_title: t.title,
+        pane_ref: s.pane_ref,
+        last_active_at: s.last_active_at
+      }
     )
+    |> Repo.all()
     |> Enum.map(&Map.put(&1, :warm?, Presence.warm?(&1.last_active_at)))
   end
 
@@ -92,16 +97,17 @@ defmodule Funes.Staff do
     changeset = Session.start_changeset(attrs)
     thread_id = Ecto.Changeset.get_field(changeset, :thread_id)
     agent_id = Ecto.Changeset.get_field(changeset, :agent_id)
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = DateTime.truncate(DateTime.utc_now(), :second)
 
-    Repo.transaction(fn ->
+    fn ->
       superseded = supersede_live(thread_id, agent_id, now)
 
       case Repo.insert(changeset) do
         {:ok, session} -> {session, superseded}
         {:error, cs} -> Repo.rollback(cs)
       end
-    end)
+    end
+    |> Repo.transaction()
     |> case do
       {:ok, {session, superseded}} ->
         Enum.each(superseded, &Funes.Bus.broadcast({:session_ended, &1}))
@@ -116,8 +122,7 @@ defmodule Funes.Staff do
   # End every live session for (thread, agent), returning the ended rows for the
   # post-commit announce. Skipped when either id is missing — the insert's own
   # validation refuses the write and there is nothing to supersede.
-  defp supersede_live(thread_id, agent_id, _now) when is_nil(thread_id) or is_nil(agent_id),
-    do: []
+  defp supersede_live(thread_id, agent_id, _now) when is_nil(thread_id) or is_nil(agent_id), do: []
 
   defp supersede_live(thread_id, agent_id, now) do
     live =

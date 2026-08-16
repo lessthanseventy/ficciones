@@ -1,6 +1,8 @@
 defmodule Funes.DoctorTest do
   use ExUnit.Case, async: false
-  alias Funes.{Doctor, Repo}
+
+  alias Funes.Doctor
+  alias Funes.Repo
 
   test "reports integrity ok on a healthy database" do
     assert Doctor.integrity_check() == "ok"
@@ -16,11 +18,9 @@ defmodule Funes.DoctorTest do
   end
 
   test "exports a table to JSONL — a row that exists must appear (no false empty)" do
-    Repo.query!(
-      "INSERT INTO collection (source, last_attempt) VALUES ('github-prs', '2026-08-14T00:00:00Z')"
-    )
+    Repo.query!("INSERT INTO collection (source, last_attempt) VALUES ('github-prs', '2026-08-14T00:00:00Z')")
 
-    lines = Doctor.table_to_jsonl("collection") |> String.split("\n", trim: true)
+    lines = "collection" |> Doctor.table_to_jsonl() |> String.split("\n", trim: true)
     assert length(lines) == 1
 
     assert JSON.decode!(hd(lines)) == %{

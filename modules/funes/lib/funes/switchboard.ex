@@ -36,8 +36,18 @@ defmodule Funes.Switchboard do
      default `Inert` arbiter.
   """
   import Ecto.Query
+
+  alias Funes.Agent
+  alias Funes.Arbiter
+  alias Funes.Mentions
+  alias Funes.Message
+  alias Funes.Presence
+  alias Funes.Repo
+  alias Funes.Session
+  alias Funes.Staff
+  alias Funes.Thread
+
   require Logger
-  alias Funes.{Agent, Arbiter, Mentions, Message, Presence, Repo, Session, Staff, Thread}
 
   @doc """
   Deliver one message (the live path): wake its addressed recipients (`recipients/1`),
@@ -93,7 +103,7 @@ defmodule Funes.Switchboard do
       poke(ref, "you have #{length(sessions)} unread message(s) on your threads")
     end)
 
-    Staff.touch_sessions(reached |> Enum.map(& &1.id) |> Enum.uniq(), now())
+    reached |> Enum.map(& &1.id) |> Enum.uniq() |> Staff.touch_sessions(now())
   end
 
   # For drain: bump the author's warmth, then return the recipient sessions this call
@@ -114,7 +124,7 @@ defmodule Funes.Switchboard do
   # wakes for it. `delivered_at` is the durable delivery truth (§10), so the claim
   # is both the record and the lock.
   defp claim(ids) do
-    stamp = DateTime.utc_now() |> DateTime.truncate(:second)
+    stamp = DateTime.truncate(DateTime.utc_now(), :second)
 
     {count, _} =
       Repo.update_all(
@@ -136,7 +146,7 @@ defmodule Funes.Switchboard do
     # Match author↔agent case-INSENSITIVELY throughout (as @mentions already do), so
     # a mis-cased author handle can't silently drop a reply or strand an agent cold.
     author = String.downcase(message.author)
-    targets = target_names(message) |> Enum.reject(&(String.downcase(&1) == author))
+    targets = message |> target_names() |> Enum.reject(&(String.downcase(&1) == author))
 
     case targets do
       [] ->
@@ -243,7 +253,7 @@ defmodule Funes.Switchboard do
     Staff.touch_sessions(ids, at)
   end
 
-  defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
+  defp now, do: DateTime.truncate(DateTime.utc_now(), :second)
 
   defp prompt(%Message{author: author, body: body, thread_id: thread_id}) do
     "New message on thread #{thread_id} from #{author}: #{body}"

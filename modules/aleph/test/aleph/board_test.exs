@@ -1,6 +1,8 @@
 # A one-row panel that renders whatever raw string it's given, for probing the paint boundary.
 defmodule SanitizeProbe do
+  @moduledoc false
   @behaviour Aleph.Panel
+
   @impl true
   def topics(_), do: []
   @impl true
@@ -14,18 +16,17 @@ defmodule Aleph.BoardTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.{Board, Panel, View}
-
-  alias Aleph.Panel.{
-    Border,
-    Conversation,
-    Dossier,
-    Roster,
-    Session,
-    Spaces,
-    StatusBar,
-    ThreadList
-  }
+  alias Aleph.Board
+  alias Aleph.Panel
+  alias Aleph.Panel.Border
+  alias Aleph.Panel.Conversation
+  alias Aleph.Panel.Dossier
+  alias Aleph.Panel.Roster
+  alias Aleph.Panel.Session
+  alias Aleph.Panel.Spaces
+  alias Aleph.Panel.StatusBar
+  alias Aleph.Panel.ThreadList
+  alias Aleph.View
 
   # Flatten a styled row to its text, for assertions.
   defp text(row), do: Enum.map_join(row, fn {t, _style} -> t end)
@@ -269,21 +270,21 @@ defmodule Aleph.BoardTest do
     end
 
     test "a wide viewport lays out three columns" do
-      xs = View.compose(reads(), 140, 40) |> box_xs()
+      xs = reads() |> View.compose(140, 40) |> box_xs()
       # three distinct column x-offsets (left at 0, center, right)
       assert length(xs) == 3
       assert 0 in xs
     end
 
     test "a narrow viewport collapses to a single column" do
-      xs = View.compose(reads(), 50, 40) |> box_xs()
+      xs = reads() |> View.compose(50, 40) |> box_xs()
       # every section box sits in one column at x=0
       assert xs == [0]
     end
 
     test "the same sections are present in both layouts" do
-      wide = View.compose(reads(), 140, 40) |> Enum.map(fn {m, _d, _r} -> m end)
-      narrow = View.compose(reads(), 50, 40) |> Enum.map(fn {m, _d, _r} -> m end)
+      wide = reads() |> View.compose(140, 40) |> Enum.map(fn {m, _d, _r} -> m end)
+      narrow = reads() |> View.compose(50, 40) |> Enum.map(fn {m, _d, _r} -> m end)
       assert Enum.sort(Enum.uniq(wide)) == Enum.sort(Enum.uniq(narrow))
     end
   end
@@ -304,7 +305,7 @@ defmodule Aleph.BoardTest do
       rect = %{x: 0, y: 0, w: 20, h: 3}
       panel = {SanitizeProbe, "a\e[31mb\tc", rect}
 
-      chars = Board.compose([panel], 80, 24) |> Enum.map(& &1.ch)
+      chars = [panel] |> Board.compose(80, 24) |> Enum.map(& &1.ch)
 
       refute 27 in chars, "ESC leaked into a cell"
       refute 9 in chars, "TAB leaked into a cell"

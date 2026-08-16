@@ -7,9 +7,11 @@ defmodule Mix.Tasks.Aleph.Seed do
   """
   use Mix.Task
 
-  @requirements ["app.config"]
+  alias Funes.Channel
+  alias Funes.Dossier
+  alias Funes.Staff
 
-  alias Funes.{Channel, Dossier, Staff}
+  @requirements ["app.config"]
 
   @agents [
     %{name: "Sandra", mandate: "review & merge PRs", engine: "claude-opus-4-8"},

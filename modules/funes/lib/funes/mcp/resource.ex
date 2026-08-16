@@ -11,12 +11,14 @@ defmodule Funes.MCP.Resource.Dossier do
     mime_type: "application/json"
 
   alias Anubis.Server.Response
-  alias Funes.{Board, MCP, Thread}
+  alias Funes.Board
+  alias Funes.MCP
+  alias Funes.Thread
 
   @impl true
   def read(_params, frame) do
     identity = MCP.Identity.from_frame(frame)
-    brief = Board.in_scope(%Thread{id: identity.thread_id}) |> MCP.Brief.scope()
+    brief = %Thread{id: identity.thread_id} |> Board.in_scope() |> MCP.Brief.scope()
     {:reply, Response.json(Response.resource(), brief), frame}
   end
 end
@@ -34,11 +36,12 @@ defmodule Funes.MCP.Resource.Constraints do
     mime_type: "application/json"
 
   alias Anubis.Server.Response
-  alias Funes.{Dossier, MCP}
+  alias Funes.Dossier
+  alias Funes.MCP
 
   @impl true
   def read(_params, frame) do
-    constraints = Dossier.always_loaded_constraints() |> Enum.map(&MCP.Brief.fact/1)
+    constraints = Enum.map(Dossier.always_loaded_constraints(), &MCP.Brief.fact/1)
     {:reply, Response.json(Response.resource(), constraints), frame}
   end
 end

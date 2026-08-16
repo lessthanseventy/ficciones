@@ -13,8 +13,12 @@ defmodule Funes.Switchboard.Server do
   one poke — actuate each wake in a supervised `Task` when the backend can block.
   """
   use GenServer
+
+  alias Funes.Bus
+  alias Funes.Doctor
+  alias Funes.Switchboard
+
   require Logger
-  alias Funes.{Bus, Doctor, Switchboard}
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 

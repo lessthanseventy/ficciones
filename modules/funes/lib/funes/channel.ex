@@ -10,7 +10,10 @@ defmodule Funes.Channel do
   what makes them exist.
   """
   import Ecto.Query
-  alias Funes.{Message, Repo, Thread}
+
+  alias Funes.Message
+  alias Funes.Repo
+  alias Funes.Thread
 
   @doc "Open a thread on the board. Returns `{:ok, thread}` or `{:error, changeset}`."
   def open_thread(attrs) do

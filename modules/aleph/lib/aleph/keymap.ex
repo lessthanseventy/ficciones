@@ -25,8 +25,7 @@ defmodule Aleph.Keymap do
   @spec handle(map(), map()) :: {map(), effect()}
 
   # --- center focused: keys belong to the tmux pane; only Esc is ours (release) ---
-  def handle(%{key: :escape}, %{center_focused?: true} = state),
-    do: {%{state | center_focused?: false}, :repaint}
+  def handle(%{key: :escape}, %{center_focused?: true} = state), do: {%{state | center_focused?: false}, :repaint}
 
   def handle(key, %{center_focused?: true} = state), do: {state, {:forward, key}}
 
@@ -47,8 +46,7 @@ defmodule Aleph.Keymap do
   def handle(%{key: :char, char: "j"}, state), do: move(state, 1)
 
   # --- Enter focuses the center only when it's a live session to type into (Sessions space) ---
-  def handle(%{key: :enter}, %{active_key: :sessions} = state),
-    do: {%{state | center_focused?: true}, :repaint}
+  def handle(%{key: :enter}, %{active_key: :sessions} = state), do: {%{state | center_focused?: true}, :repaint}
 
   # --- anything else is unbound ---
   def handle(_key, state), do: {state, :none}

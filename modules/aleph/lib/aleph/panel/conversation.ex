@@ -10,6 +10,7 @@ defmodule Aleph.Panel.Conversation do
   @behaviour Aleph.Panel
 
   import Aleph.Panel, only: [line: 2, blank: 0]
+
   alias Funes.Bus
 
   @impl Aleph.Panel

@@ -10,6 +10,7 @@ defmodule Funes.Event do
   JSON for a human to read, never queried.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
 
   schema "event" do
@@ -28,6 +29,6 @@ defmodule Funes.Event do
     %__MODULE__{}
     |> cast(attrs, [:thread_id, :kind, :correlation, :detail])
     |> validate_required([:kind])
-    |> put_change(:created_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 end

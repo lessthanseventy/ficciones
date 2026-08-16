@@ -4,7 +4,11 @@ defmodule Funes.ChannelTest do
   # participant writes is already a durable row. The DB is the bus (§10): every
   # assertion here reads back through SQLite, never through in-memory state.
   use ExUnit.Case, async: false
-  alias Funes.{Channel, Message, Repo, Thread}
+
+  alias Funes.Channel
+  alias Funes.Message
+  alias Funes.Repo
+  alias Funes.Thread
 
   setup do
     Funes.TestDB.clean!()
@@ -115,7 +119,7 @@ defmodule Funes.ChannelTest do
       {:ok, _} = Channel.post(%{thread_id: thread.id, author: "robert", body: "second"})
       {:ok, _} = Channel.post(%{thread_id: thread.id, author: "sandra", body: "third"})
 
-      bodies = Channel.thread_messages(thread) |> Enum.map(& &1.body)
+      bodies = thread |> Channel.thread_messages() |> Enum.map(& &1.body)
       assert bodies == ["first", "second", "third"]
     end
 
@@ -125,7 +129,7 @@ defmodule Funes.ChannelTest do
       {:ok, _} = Channel.post(%{thread_id: t1.id, author: "a", body: "mine"})
       {:ok, _} = Channel.post(%{thread_id: t2.id, author: "b", body: "theirs"})
 
-      assert Channel.thread_messages(t1) |> Enum.map(& &1.body) == ["mine"]
+      assert t1 |> Channel.thread_messages() |> Enum.map(& &1.body) == ["mine"]
     end
 
     test "open_threads/0 returns open threads and omits closed ones" do
@@ -133,7 +137,7 @@ defmodule Funes.ChannelTest do
       {:ok, done} = Channel.open_thread(%{title: "finished"})
       {:ok, _} = Channel.close_thread(done)
 
-      titles = Channel.open_threads() |> Enum.map(& &1.title)
+      titles = Enum.map(Channel.open_threads(), & &1.title)
       assert open.title in titles
       refute done.title in titles
     end
@@ -162,7 +166,7 @@ defmodule Funes.ChannelTest do
       assert Repo.get!(Thread, thread.id).state == "closed"
 
       # The messages survive the close.
-      assert Channel.thread_messages(thread) |> Enum.map(& &1.body) == ["done"]
+      assert thread |> Channel.thread_messages() |> Enum.map(& &1.body) == ["done"]
     end
   end
 
@@ -171,7 +175,7 @@ defmodule Funes.ChannelTest do
       {:ok, thread} = Channel.open_thread(%{title: "t"})
       {:ok, posted} = Channel.post(%{thread_id: thread.id, author: "andrew", body: "verbatim"})
 
-      assert %Funes.Message{body: "verbatim"} = Channel.message(posted.id)
+      assert %Message{body: "verbatim"} = Channel.message(posted.id)
       assert Channel.message(999_999) == nil
     end
   end

@@ -9,7 +9,10 @@ defmodule Funes.MCP.Brief do
   lies.
   """
 
-  alias Funes.{Event, Fact, Issue, Message}
+  alias Funes.Event
+  alias Funes.Fact
+  alias Funes.Issue
+  alias Funes.Message
 
   @doc "A Board.in_scope/1 map, rendered."
   def scope(scope) do

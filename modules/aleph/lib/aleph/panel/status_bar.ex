@@ -16,10 +16,10 @@ defmodule Aleph.Panel.StatusBar do
   # {keycap, label} pairs — keycaps lit in amber, labels dim.
   @hints [{"Tab", "space"}, {"↑↓", "thread"}, {"⏎", "focus"}, {"q", "quit"}]
 
-  @impl Aleph.Panel
+  @impl Panel
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Panel
   def render(%{space: space} = data, rect) do
     focus = data[:thread] || "—"
     threads = data[:thread_count] || 0

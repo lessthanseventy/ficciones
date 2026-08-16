@@ -5,6 +5,7 @@ defmodule Funes.WriteContractTest do
   # custom busy handler via a NIF (not `PRAGMA busy_timeout`), so the only honest
   # test is the behaviour the spec measured: bounded wait, then a retryable error.
   use ExUnit.Case, async: false
+
   alias Exqlite.Sqlite3
   alias Funes.Repo
 

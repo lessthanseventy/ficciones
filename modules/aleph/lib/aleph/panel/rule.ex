@@ -7,6 +7,6 @@ defmodule Aleph.Panel.Rule do
 
   @impl Aleph.Panel
   def render(_data, %{h: h} = rect) do
-    List.duplicate(Aleph.Panel.line("│", :separator), h) |> Aleph.Panel.clip(rect)
+    "│" |> Aleph.Panel.line(:separator) |> List.duplicate(h) |> Aleph.Panel.clip(rect)
   end
 end

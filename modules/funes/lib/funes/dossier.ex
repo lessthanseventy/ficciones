@@ -12,7 +12,14 @@ defmodule Funes.Dossier do
   caps today, because §5 makes its capped read the acceptance test that must exist now.
   """
   import Ecto.Query
-  alias Funes.{Bus, Event, Fact, Issue, Message, Repo, Thread}
+
+  alias Funes.Bus
+  alias Funes.Event
+  alias Funes.Fact
+  alias Funes.Issue
+  alias Funes.Message
+  alias Funes.Repo
+  alias Funes.Thread
 
   # orient shows at most five open issues per thread; the rest is a number, never a
   # complete-and-useless list (§5 rank-and-cut, §1).
@@ -68,8 +75,7 @@ defmodule Funes.Dossier do
 
     Repo.all(
       from f in Fact,
-        where:
-          f.provenance == "stated" and f.kind == "constraint" and f.id not in subquery(superseded),
+        where: f.provenance == "stated" and f.kind == "constraint" and f.id not in subquery(superseded),
         order_by: [desc: f.id]
     )
   end

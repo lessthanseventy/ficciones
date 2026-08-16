@@ -8,7 +8,16 @@ defmodule Funes.MCP.ServerTest do
 
   import Ecto.Query
 
-  alias Funes.{Channel, Dossier, Fact, Issue, MCP, Message, Presence, Repo, Session, Staff}
+  alias Funes.Channel
+  alias Funes.Dossier
+  alias Funes.Fact
+  alias Funes.Issue
+  alias Funes.MCP
+  alias Funes.Message
+  alias Funes.Presence
+  alias Funes.Repo
+  alias Funes.Session
+  alias Funes.Staff
 
   @port 48_631
   @url ~c"http://127.0.0.1:48631/mcp"
@@ -24,10 +33,7 @@ defmodule Funes.MCP.ServerTest do
     start_supervised!({MCP.Server, transport: :streamable_http})
 
     start_supervised!(
-      {Bandit,
-       plug: {Anubis.Server.Transport.StreamableHTTP.Plug, server: MCP.Server},
-       ip: {127, 0, 0, 1},
-       port: @port}
+      {Bandit, plug: {Anubis.Server.Transport.StreamableHTTP.Plug, server: MCP.Server}, ip: {127, 0, 0, 1}, port: @port}
     )
 
     {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
@@ -60,7 +66,7 @@ defmodule Funes.MCP.ServerTest do
 
     # -- tools/list: the slice-1 surface, visible to any MCP client.
     {200, _, %{"result" => %{"tools" => tools}}} = post(token, session, request(2, "tools/list"))
-    names = Enum.map(tools, & &1["name"]) |> Enum.sort()
+    names = tools |> Enum.map(& &1["name"]) |> Enum.sort()
 
     assert names ==
              Enum.sort([
@@ -215,7 +221,7 @@ defmodule Funes.MCP.ServerTest do
     # Backdate the session cold (an hour past the warmth window), then make ONE
     # ordinary tool call: the call arriving at funes IS the activity.
     db_session = Staff.session_for_thread(thread)
-    cold = DateTime.add(DateTime.utc_now(), -7200, :second) |> DateTime.truncate(:second)
+    cold = DateTime.utc_now() |> DateTime.shift(hour: -2) |> DateTime.truncate(:second)
 
     Repo.update_all(from(s in Session, where: s.id == ^db_session.id),
       set: [last_active_at: cold]
@@ -260,6 +266,7 @@ defmodule Funes.MCP.ServerTest do
         provenance: "derived"
       })
 
+    # -- helpers ---------------------------------------------------------------
     {:ok, _} =
       Dossier.bank_fact(%{
         kind: "constraint",
@@ -270,7 +277,7 @@ defmodule Funes.MCP.ServerTest do
     {200, _, %{"result" => %{"resources" => resources}}} =
       post(token, session, request(3, "resources/list"))
 
-    uris = Enum.map(resources, & &1["uri"]) |> Enum.sort()
+    uris = resources |> Enum.map(& &1["uri"]) |> Enum.sort()
     assert uris == ["funes://constraints", "funes://dossier"]
 
     {200, _, %{"result" => %{"contents" => [dossier]}}} =
@@ -287,8 +294,6 @@ defmodule Funes.MCP.ServerTest do
     assert Enum.any?(loaded, &(&1["text"] == "in production, Andrew presses Enter"))
     assert Enum.all?(loaded, &(&1["certainty"] == "stated"))
   end
-
-  # -- helpers ---------------------------------------------------------------
 
   defp handshake(token) do
     {200, headers, _} = post(token, nil, initialize_request())
@@ -323,8 +328,7 @@ defmodule Funes.MCP.ServerTest do
   end
 
   defp request(id, method, params \\ nil) do
-    %{"jsonrpc" => "2.0", "id" => id, "method" => method}
-    |> then(&if params, do: Map.put(&1, "params", params), else: &1)
+    then(%{"jsonrpc" => "2.0", "id" => id, "method" => method}, &if(params, do: Map.put(&1, "params", params), else: &1))
   end
 
   defp notification(method) do

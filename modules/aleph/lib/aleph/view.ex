@@ -9,7 +9,8 @@ defmodule Aleph.View do
   `reads` is the map the Cockpit assembles:
     `%{active_key, focused_id, focused_title, roster, threads, scope, chatter, session}`
   """
-  alias Aleph.{Panel, Space}
+  alias Aleph.Panel
+  alias Aleph.Space
 
   @min_col 16
   # The bottom footer: an info line + a hints line (Aleph.Panel.StatusBar).
@@ -74,8 +75,7 @@ defmodule Aleph.View do
   def data_for(Panel.Spaces, r), do: %{spaces: Space.all(), active_key: r.active_key}
   def data_for(Panel.Roster, r), do: r.roster
 
-  def data_for(Panel.ThreadList, r),
-    do: %{threads: r.threads, roster: r.roster, selected_id: r.focused_id}
+  def data_for(Panel.ThreadList, r), do: %{threads: r.threads, roster: r.roster, selected_id: r.focused_id}
 
   def data_for(Panel.Dossier, r), do: r.scope
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
@@ -102,7 +102,8 @@ defmodule Aleph.View do
     heights = split_heights(panels, max(h - gaps, length(panels)))
 
     {placed, _y} =
-      Enum.zip(panels, heights)
+      panels
+      |> Enum.zip(heights)
       |> Enum.map_reduce(y, fn {panel, ph}, cy ->
         {{panel, %{x: x, y: cy, w: w, h: ph}}, cy + ph + @gap}
       end)

@@ -7,6 +7,7 @@ defmodule Funes.Agent do
   instance of an agent; the agent persists.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
 
   schema "agent" do
@@ -37,6 +38,6 @@ defmodule Funes.Agent do
     |> cast(attrs, [:name, :mandate, :engine | @axes])
     |> validate_required([:name, :mandate, :engine])
     |> unique_constraint(:name)
-    |> put_change(:created_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 end

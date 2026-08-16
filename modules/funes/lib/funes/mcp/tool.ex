@@ -23,7 +23,8 @@ defmodule Funes.MCP.Tool.Register do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP.{Identity, Tokens}
+  alias Funes.MCP.Identity
+  alias Funes.MCP.Tokens
   alias Funes.Staff
 
   schema do
@@ -62,7 +63,8 @@ defmodule Funes.MCP.Tool.PostMessage do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.{Channel, MCP}
+  alias Funes.Channel
+  alias Funes.MCP
 
   schema do
     field :body, :string, required: true
@@ -98,18 +100,18 @@ defmodule Funes.MCP.Tool.BankFact do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.{Channel, Dossier, MCP}
+  alias Funes.Channel
+  alias Funes.Dossier
+  alias Funes.MCP
 
   schema do
     field :kind, :enum, values: ["decision", "constraint", "learned"], required: true
 
-    field :text, :string,
-      description: "The single claim (omit when from_message quotes the operator)"
+    field :text, :string, description: "The single claim (omit when from_message quotes the operator)"
 
     field :check_cmd, :string, description: "Command that re-runs/verifies the claim"
 
-    field :from_message, :integer,
-      description: "Operator message id to quote verbatim as a STATED fact"
+    field :from_message, :integer, description: "Operator message id to quote verbatim as a STATED fact"
   end
 
   @impl true
@@ -145,8 +147,7 @@ defmodule Funes.MCP.Tool.BankFact do
     |> normalize()
   end
 
-  defp bank_derived(_params, _identity),
-    do: {:error, "text is required unless from_message quotes the operator"}
+  defp bank_derived(_params, _identity), do: {:error, "text is required unless from_message quotes the operator"}
 
   defp bank_stated(message_id, params, identity) do
     message = Channel.message(message_id)
@@ -174,8 +175,7 @@ defmodule Funes.MCP.Tool.BankFact do
   defp normalize({:error, :not_the_operator}),
     do: {:error, "stated facts quote the operator's own words; that message is not his"}
 
-  defp normalize({:error, %Ecto.Changeset{} = cs}),
-    do: {:error, MCP.Tool.changeset_error(cs)}
+  defp normalize({:error, %Ecto.Changeset{} = cs}), do: {:error, MCP.Tool.changeset_error(cs)}
 end
 
 defmodule Funes.MCP.Tool.RaiseIssue do
@@ -187,7 +187,8 @@ defmodule Funes.MCP.Tool.RaiseIssue do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.{Dossier, MCP}
+  alias Funes.Dossier
+  alias Funes.MCP
 
   schema do
     field :summary, :string, required: true
@@ -222,7 +223,8 @@ defmodule Funes.MCP.Tool.RecordDone do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.{Dossier, MCP}
+  alias Funes.Dossier
+  alias Funes.MCP
 
   schema do
     field :text, :string, required: true, description: "What shipped, one line"
@@ -258,7 +260,9 @@ defmodule Funes.MCP.Tool.GetDossier do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.{Board, MCP, Thread}
+  alias Funes.Board
+  alias Funes.MCP
+  alias Funes.Thread
 
   schema do
   end
@@ -266,7 +270,7 @@ defmodule Funes.MCP.Tool.GetDossier do
   @impl true
   def execute(_params, frame) do
     identity = MCP.Identity.from_frame(frame)
-    brief = Board.in_scope(%Thread{id: identity.thread_id}) |> MCP.Brief.scope()
+    brief = %Thread{id: identity.thread_id} |> Board.in_scope() |> MCP.Brief.scope()
     {:reply, Response.json(Response.tool(), brief), frame}
   end
 end
@@ -276,7 +280,9 @@ defmodule Funes.MCP.Tool.GetFacts do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.{Dossier, MCP, Thread}
+  alias Funes.Dossier
+  alias Funes.MCP
+  alias Funes.Thread
 
   schema do
   end
@@ -299,7 +305,9 @@ defmodule Funes.MCP.Tool.GetMessages do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.{Channel, MCP, Thread}
+  alias Funes.Channel
+  alias Funes.MCP
+  alias Funes.Thread
 
   schema do
     field :limit, :integer, default: 50

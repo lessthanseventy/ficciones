@@ -5,6 +5,7 @@ defmodule Funes.Thread do
   is a closed set the database enforces.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
 
   schema "thread" do
@@ -22,7 +23,7 @@ defmodule Funes.Thread do
     |> cast(attrs, [:title])
     |> validate_required([:title])
     |> put_change(:state, "open")
-    |> put_change(:created_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 
   @doc """

@@ -7,6 +7,7 @@ defmodule Funes.Message do
   cannot touch `delivered_at` at all.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
 
   schema "message" do
@@ -29,6 +30,6 @@ defmodule Funes.Message do
     %__MODULE__{}
     |> cast(attrs, [:thread_id, :author, :body, :reply_to])
     |> validate_required([:thread_id, :author, :body])
-    |> put_change(:created_at, DateTime.utc_now() |> DateTime.truncate(:second))
+    |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 end

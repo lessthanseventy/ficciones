@@ -12,6 +12,7 @@ defmodule Aleph.Panel.ThreadList do
   @behaviour Aleph.Panel
 
   import Aleph.Panel, only: [line: 2, blank: 0, pad: 3]
+
   alias Funes.Bus
 
   @impl Aleph.Panel
