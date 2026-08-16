@@ -62,6 +62,20 @@ title). Acceptable for now; refinement is find‑or‑create the latest open mac
 2. **Harness switch in the Tlön center** — pi ↔ claude (claude for implement‑with‑auto‑mode);
    possibly both loaded as separate center sessions ("tabs").
 3. **Multiple standing coworkers by mandate** — tech‑support (now), HR/coordination (later).
+
+   **Agent‑about‑agent feedback (the "HR" idea, de‑metaphored).** Every funes object today is about
+   *work or the machine* (facts/todos/questions/issues/checks) — none has a **coworker** as its
+   subject. So an agent can say "the code is broken" but not "Bob is the problem." That's a real gap
+   in a multi‑agent system. Keep it honest by demanding **actionable state** from each thing the
+   metaphor suggests: "Bob keeps hitting the sandbox" (→ fix his allowlist) and "Bob is
+   thrashing / burning the Claude bucket" (→ reassign, downgrade, clock out) are real; "Bob should be
+   funnier" is the metaphor overreaching — not a primitive. **Minimal shape: don't invent a new
+   object or a department — give `issue` an optional agent subject (`about_agent`) and let triage
+   (Uqbar) show "issues about coworkers" as their own lane.** "Who do they tell?" = the human's
+   triage inbox now; the **supervisor / "HR" standing coworker** later — a *consumer* of that signal
+   (watches roster warmth, thrash, bucket burn, repeated peer‑issues and acts), i.e. the literal‑HR
+   reading done right, one of the coworkers‑by‑mandate. NOT built; captured so the metaphor doesn't
+   generate grievance theater.
 4. **`Panel.Uqbar`** — the triage inbox (the status bar already stubs "triage inbox"): `issue`
    rows filed from other sessions + a keybind + input modal (reuse the `n` new‑thread pattern).
    funes' `issue` table + `raise_issue` MCP already exist. Name approved: **Uqbar** ("deviating
