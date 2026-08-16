@@ -46,17 +46,70 @@ defmodule Aleph.MixProject do
     ]
   end
 
-  # raxol_terminal 2.6.1 builds its termbox2 NIF but only copies the .so into the
-  # build-output priv INSIDE its Makefile link recipe — which `make` skips whenever the
-  # .so already exists (e.g. a deps/ artifact persisting across an `_build` wipe). The
-  # loader reads `:code.priv_dir(:raxol_terminal)`, so a missing copy there is a runtime
-  # `:nif_not_loaded` crash. We restore it from the deps priv after every compile.
-  # Idempotent; a no-op once the copy is in place. Pinned by test/aleph/termbox_nif_test.exs.
+  # raxol_terminal 2.6.1 ships a termbox2 NIF with two defects this alias repairs after every
+  # compile (both idempotent, pinned by test/aleph/termbox_nif_test.exs). deps/ is gitignored,
+  # so the fix can't live in the dep's Makefile — it must re-apply on each build.
+  #
+  #   1. TRUECOLOR. `termbox_impl.c` defines TB_LIB_OPTS (→ 64-bit `uintattr_t`), but the wrapper
+  #      `termbox2_nif.c` does not, so it compiles against the default 16-bit width and truncates
+  #      every 24-bit colour handed to `tb_set_cell` — the red byte is dropped, so amber renders
+  #      green and pink renders blue. We recompile with `-DTB_OPT_ATTR_W=64` so both translation
+  #      units agree on the colour type. Re-runs only when needed (no marker, or the dep rebuilt
+  #      the .so newer than our marker).
+  #   2. INSTALL. The Makefile copies the .so into build-output priv only inside its link recipe,
+  #      which `make` skips when the .so already exists; the loader reads
+  #      `:code.priv_dir(:raxol_terminal)`, so a missing copy is a runtime `:nif_not_loaded`.
+  @termbox_cflags "-O2 -Wall -Wextra -Wno-unused-parameter -std=c99 -fPIC -Itermbox2 -DTB_OPT_ATTR_W=64"
+
   defp ensure_termbox_nif(_args) do
+    c_src =
+      Path.join([Mix.Project.deps_path(), "raxol_terminal", "lib", "termbox2_nif", "c_src"])
+
+    rebuilt? = File.dir?(c_src) and rebuild_termbox_truecolor(c_src)
+    install_termbox_nif(rebuilt?)
+    :ok
+  end
+
+  # Recompile the NIF so both translation units carry a 64-bit colour type. `make CFLAGS=...` on
+  # the command line overrides the Makefile's `CFLAGS ?=`. Returns true iff a rebuild happened.
+  defp rebuild_termbox_truecolor(c_src) do
+    marker = Path.join(c_src, ".aleph_truecolor")
+    so = Path.join(c_src, "termbox2_nif.so")
+
+    if truecolor_current?(marker, so) do
+      false
+    else
+      Mix.shell().info("[aleph] rebuilding termbox2_nif.so with 24-bit truecolor…")
+      System.cmd("make", ["clean"], cd: c_src, stderr_to_stdout: true)
+
+      {out, status} =
+        System.cmd("make", ["CFLAGS=#{@termbox_cflags}"], cd: c_src, stderr_to_stdout: true)
+
+      if status == 0 do
+        File.write!(marker, "TB_OPT_ATTR_W=64 — full 24-bit colour reaches tb_set_cell\n")
+        true
+      else
+        Mix.shell().error("[aleph] termbox2 truecolor rebuild failed:\n#{out}")
+        false
+      end
+    end
+  end
+
+  # Fresh when our marker is at least as new as the built .so; a dep rebuild bumps the .so past it.
+  defp truecolor_current?(marker, so) do
+    with {:ok, %{mtime: marker_at}} <- File.stat(marker, time: :posix),
+         {:ok, %{mtime: so_at}} <- File.stat(so, time: :posix) do
+      marker_at >= so_at
+    else
+      _ -> false
+    end
+  end
+
+  defp install_termbox_nif(force?) do
     dest_dir = Path.join([Mix.Project.build_path(), "lib", "raxol_terminal", "priv"])
     dest = Path.join(dest_dir, "termbox2_nif.so")
 
-    unless File.exists?(dest) do
+    if force? or not File.exists?(dest) do
       src =
         [
           ["lib", "termbox2_nif", "priv", "termbox2_nif.so"],
@@ -75,11 +128,9 @@ defmodule Aleph.MixProject do
         src ->
           File.mkdir_p!(dest_dir)
           File.cp!(src, dest)
-          Mix.shell().info("[aleph] restored termbox2_nif.so -> #{Path.relative_to_cwd(dest)}")
+          Mix.shell().info("[aleph] installed termbox2_nif.so -> #{Path.relative_to_cwd(dest)}")
       end
     end
-
-    :ok
   end
 
   defp deps do
