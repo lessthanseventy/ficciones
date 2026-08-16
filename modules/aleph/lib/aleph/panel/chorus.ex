@@ -37,6 +37,30 @@ defmodule Aleph.Panel.Chorus do
     Aleph.Panel.clip(header ++ body, rect)
   end
 
+  # Click any row inside a thread's block → focus that thread. The feed is header (0) + blank (1)
+  # then blocks; each block's height is its rendered row count (header + wrapped messages + blank),
+  # read from the SAME `block_rows/3` render uses so pick can't drift from what's painted. Scrolled:
+  # add the offset so the row under the cursor maps to the right content block.
+  @impl Aleph.Panel
+  def pick(%{blocks: blocks} = data, rect, local_y) do
+    find_block(blocks, data[:focused_id], rect.w, offset(data) + local_y - 2)
+  end
+
+  defp offset(%{scroll: n}), do: n
+  defp offset(_), do: 0
+
+  defp find_block(_blocks, _focused, _w, idx) when idx < 0, do: nil
+  defp find_block([], _focused, _w, _idx), do: nil
+
+  defp find_block([block | rest], focused, w, idx),
+    do: within_block(length(block_rows(block, focused, w)), idx, block, rest, focused, w)
+
+  # idx falls inside this block's height → it's the clicked block; focus its thread.
+  defp within_block(h, idx, %{thread: thread}, _rest, _focused, _w) when idx < h, do: {:focus_thread, thread.id}
+
+  # past this block → subtract its height and continue down the feed.
+  defp within_block(h, idx, _block, rest, focused, w), do: find_block(rest, focused, w, idx - h)
+
   defp block_rows(%{thread: thread, messages: messages}, focused, w) do
     style = if thread.id == focused, do: :selected, else: :header
     head = [{"▸ ", :accent}, {thread.title || "untitled", style}]

@@ -24,6 +24,17 @@ defmodule Aleph.Panel do
   @doc "Render the panel's data into styled rows, clipped to the rect."
   @callback render(data :: term(), rect()) :: [row()]
 
+  @doc """
+  Map a click at terminal-local row `local_y` (already scroll-adjusted: the panel adds its
+  `:scroll` offset to land on a content row) to a selection action, or `nil` if nothing
+  selectable is there. Optional — only list panels that select-on-click implement it.
+
+  Actions the Cockpit understands: `{:focus_thread, id}`, `{:switch_space, key}`.
+  """
+  @callback pick(data :: term(), rect(), local_y :: non_neg_integer()) :: term() | nil
+
+  @optional_callbacks [pick: 3]
+
   @doc "A one-run row in a given style — the common case."
   @spec line(String.t(), style()) :: row()
   def line(text, style \\ :normal), do: [{text, style}]
@@ -31,6 +42,10 @@ defmodule Aleph.Panel do
   @doc "A blank spacer row."
   @spec blank() :: row()
   def blank, do: []
+
+  # A tall stand-in for "unclipped height" — panels render into this then we window the rows.
+  # 10k covers any realistic panel (a dossier, a long chat) without allocating meaningfully more.
+  @max_rows 10_000
 
   @doc """
   Clip rows to a rect: at most `h` rows, each truncated to `w` graphemes across its runs.
@@ -42,6 +57,44 @@ defmodule Aleph.Panel do
     rows
     |> Enum.take(h)
     |> Enum.map(&clip_row(&1, w))
+  end
+
+  @doc """
+  Render a panel for `rect`, applying a scroll window when its data carries a `:scroll` offset.
+
+  Scrollable panels (declared by `Aleph.View` injecting `:scroll` into their data) are rendered
+  UNclipped in height — `render/2` is called with a tall rect so `clip/2` keeps every row — then
+  the window `[offset, offset + h)` is taken. Panels whose data has no `:scroll` render exactly as
+  before, so non-scrollable panels (Terminal, StatusBar, Border) and `nil` data are unaffected.
+  """
+  @spec render_scroll(module(), term(), rect()) :: [row()]
+  def render_scroll(panel, data, rect) do
+    if is_map(data) and Map.has_key?(data, :scroll) do
+      data
+      |> panel.render(%{rect | h: @max_rows})
+      |> Enum.drop(data.scroll)
+      |> Enum.take(rect.h)
+    else
+      panel.render(data, rect)
+    end
+  end
+
+  @doc """
+  Full content height (rows) at width `w` — the bound for clamping a scroll offset. Renders the
+  panel unclipped in height and counts the rows; one extra render, called only on a wheel event.
+  """
+  @spec content_height(module(), term(), pos_integer()) :: non_neg_integer()
+  def content_height(panel, data, w) do
+    length(panel.render(data, %{x: 0, y: 0, w: w, h: @max_rows}))
+  end
+
+  @doc """
+  Route a click to a panel's `pick/3` if it implements it, else `nil`. `local_y` is the
+  terminal-local row inside the panel's content rect; the panel adds its own `:scroll` offset.
+  """
+  @spec pick(module(), term(), rect(), non_neg_integer()) :: term() | nil
+  def pick(panel, data, rect, local_y) do
+    if function_exported?(panel, :pick, 3), do: panel.pick(data, rect, local_y)
   end
 
   defp clip_row(_runs, w) when w <= 0, do: []

@@ -17,6 +17,17 @@ defmodule Aleph.View do
   @status_h 2
   # Below this width (phone / a shrunk tile) the three columns collapse to one (Addendum §D).
   @wide_min 80
+  # Panels whose content can overflow their box and so accept a `:scroll` offset (wheel scroll).
+  # The center Terminal, the Spaces picker (a fixed 3 rows), and StatusBar/Border never overflow.
+  @scrollable [
+    Panel.ThreadList,
+    Panel.Chorus,
+    Panel.Conversation,
+    Panel.Dossier,
+    Panel.Roster,
+    Panel.Stack,
+    Panel.Tools
+  ]
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
   def compose(reads, w, h) do
@@ -54,7 +65,7 @@ defmodule Aleph.View do
     borders = Enum.map(boxes, fn {_panel, rect} -> {Panel.Border, nil, rect} end)
 
     contents =
-      Enum.map(boxes, fn {panel, rect} -> {panel, data_for(panel, reads), inset(rect)} end)
+      Enum.map(boxes, fn {panel, rect} -> {panel, scroll_data(panel, data_for(panel, reads), reads), inset(rect)} end)
 
     status =
       {Panel.StatusBar, status_data(reads, space), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
@@ -73,7 +84,7 @@ defmodule Aleph.View do
 
   @doc "Resolve the data a panel is fed from the assembled reads (keeps spaces plain data)."
   def data_for(Panel.Spaces, r), do: %{spaces: Space.all(), active_key: r.active_key}
-  def data_for(Panel.Roster, r), do: r.roster
+  def data_for(Panel.Roster, r), do: %{sessions: r.roster}
 
   def data_for(Panel.ThreadList, r), do: %{threads: r.threads, roster: r.roster, selected_id: r.focused_id}
 
@@ -84,6 +95,16 @@ defmodule Aleph.View do
   def data_for(Panel.Stack, r), do: %{commits: r.stack.commits}
   def data_for(Panel.Tools, r), do: %{tools: r.stack.tools}
   def data_for(_other, _r), do: nil
+
+  # Inject the panel's current scroll offset into scrollable panels' data (nil data left alone —
+  # e.g. Dossier with no focused thread renders its placeholder, no scroll needed).
+  defp scroll_data(_panel, nil, _reads), do: nil
+
+  defp scroll_data(panel, data, reads) do
+    if panel in @scrollable,
+      do: Map.put(data, :scroll, (reads[:scrolls] || %{})[panel] || 0),
+      else: data
+  end
 
   defp status_data(reads, space) do
     %{

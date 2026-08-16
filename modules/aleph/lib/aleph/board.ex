@@ -21,8 +21,8 @@ defmodule Aleph.Board do
   @spec compose([placement()], pos_integer(), pos_integer()) :: [cell()]
   def compose(placements, _width, _height) do
     Enum.flat_map(placements, fn {panel, data, rect} ->
-      data
-      |> panel.render(rect)
+      panel
+      |> Panel.render_scroll(data, rect)
       |> Enum.with_index()
       |> Enum.flat_map(fn {row, i} -> row_cells(row, rect.x, rect.y + i) end)
     end)

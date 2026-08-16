@@ -63,7 +63,7 @@ defmodule Aleph.BoardTest do
   describe "panels render styled rows" do
     test "roster: header, one row per session, warmth marked" do
       rect = %{x: 0, y: 0, w: 40, h: 10}
-      assert [header, _blank, sandra, robert] = Roster.render(@roster, rect)
+      assert [header, _blank, sandra, robert] = Roster.render(%{sessions: @roster}, rect)
       assert text(header) == "IN FLIGHT"
       assert text(sandra) =~ "Sandra"
       assert text(sandra) =~ "review PR 329"
@@ -257,6 +257,71 @@ defmodule Aleph.BoardTest do
     end
   end
 
+  describe "panel pick — click a row to select (pure decision, design §8)" do
+    test "thread list: a thread row focuses that thread; the header/blank do not" do
+      data = %{threads: @threads, selected_id: 1, scroll: 0}
+      rect = %{x: 0, y: 0, w: 30, h: 10}
+      assert {:focus_thread, 1} = ThreadList.pick(data, rect, 2)
+      assert {:focus_thread, 2} = ThreadList.pick(data, rect, 3)
+      assert ThreadList.pick(data, rect, 0) == nil
+      assert ThreadList.pick(data, rect, 1) == nil
+    end
+
+    test "thread list: a scrolled view maps the visible row back to the right content thread" do
+      data = %{threads: @threads, selected_id: 1, scroll: 1}
+      # scroll 1 ⇒ content row offset+local_y; local_y 2 → content 3 → thread index 1
+      assert {:focus_thread, 2} = ThreadList.pick(data, %{x: 0, y: 0, w: 30, h: 10}, 2)
+    end
+
+    test "thread list: a click past the last thread selects nothing" do
+      data = %{threads: @threads, selected_id: 1, scroll: 0}
+      assert ThreadList.pick(data, %{x: 0, y: 0, w: 30, h: 10}, 9) == nil
+    end
+
+    test "spaces: a space row switches to it" do
+      data = %{spaces: Aleph.Space.all(), active_key: :comms}
+      rect = %{x: 0, y: 0, w: 20, h: 10}
+      assert {:switch_space, :comms} = Spaces.pick(data, rect, 2)
+      assert {:switch_space, :sessions} = Spaces.pick(data, rect, 3)
+      assert Spaces.pick(data, rect, 0) == nil
+    end
+
+    test "roster: a session row focuses the thread it's working" do
+      data = %{sessions: @roster, scroll: 0}
+      rect = %{x: 0, y: 0, w: 40, h: 10}
+      assert {:focus_thread, 1} = Roster.pick(data, rect, 2)
+      assert {:focus_thread, 2} = Roster.pick(data, rect, 3)
+      assert Roster.pick(data, rect, 0) == nil
+    end
+
+    test "chorus: any row inside a thread's block focuses that thread; the feed header doesn't" do
+      blocks = [
+        %{
+          thread: %Funes.Thread{id: 7, title: "fable review", state: "open"},
+          messages: [%{author: "andrew", body: "start it", reply_to: nil}, %{author: "pi", body: "on it", reply_to: 1}]
+        },
+        %{
+          thread: %Funes.Thread{id: 9, title: "triage inbox", state: "open"},
+          messages: [%{author: "Carl", body: "CI is red", reply_to: nil}]
+        },
+        %{thread: %Funes.Thread{id: 5, title: "new fable review", state: "open"}, messages: []}
+      ]
+
+      data = %{blocks: blocks, focused_id: 7, scroll: 0}
+      rect = %{x: 0, y: 0, w: 60, h: 40}
+      # feed header (0) + blank (1) select nothing
+      assert Chorus.pick(data, rect, 0) == nil
+      assert Chorus.pick(data, rect, 1) == nil
+      # block 7 spans content rows 2–5 (head + 2 messages + blank)
+      assert {:focus_thread, 7} = Chorus.pick(data, rect, 2)
+      assert {:focus_thread, 7} = Chorus.pick(data, rect, 5)
+      # block 9 spans 6–8
+      assert {:focus_thread, 9} = Chorus.pick(data, rect, 6)
+      # block 5 spans 9–11
+      assert {:focus_thread, 5} = Chorus.pick(data, rect, 9)
+    end
+  end
+
   describe "status bar" do
     defp status(overrides \\ %{}) do
       Map.merge(
@@ -409,7 +474,7 @@ defmodule Aleph.BoardTest do
   describe "board composes cells" do
     test "a placement produces cells at the rect origin" do
       rect = %{x: 3, y: 2, w: 40, h: 10}
-      cells = Board.compose([{Roster, @roster, rect}], 80, 24)
+      cells = Board.compose([{Roster, %{sessions: @roster}, rect}], 80, 24)
       assert Enum.any?(cells, &(&1.x == 3 and &1.y == 2))
       # every cell carries a codepoint and colours
       assert Enum.all?(cells, &(is_integer(&1.ch) and is_integer(&1.fg) and is_integer(&1.bg)))

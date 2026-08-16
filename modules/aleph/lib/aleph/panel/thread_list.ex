@@ -32,6 +32,24 @@ defmodule Aleph.Panel.ThreadList do
     Aleph.Panel.clip(header ++ body, rect)
   end
 
+  # Click a thread row → focus it. Layout: header (0), blank (1), then one row per thread, so
+  # content row 2+i is thread i. Scrolled: add the offset to land on the right content row.
+  @impl Aleph.Panel
+  def pick(%{threads: threads} = data, _rect, local_y) do
+    threads
+    |> row_at(offset(data) + local_y)
+    |> focus_thread()
+  end
+
+  defp offset(%{scroll: n}), do: n
+  defp offset(_), do: 0
+
+  defp row_at(_threads, i) when i < 2, do: nil
+  defp row_at(threads, i), do: Enum.at(threads, i - 2)
+
+  defp focus_thread(nil), do: nil
+  defp focus_thread(%{id: id}), do: {:focus_thread, id}
+
   defp index_sessions(roster), do: Map.new(roster, &{&1.thread_id, &1})
 
   # The selected row gets a caret and a highlight bar padded across the column; the live agent (if

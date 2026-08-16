@@ -20,6 +20,20 @@ defmodule Aleph.Panel.Spaces do
     Aleph.Panel.clip(header ++ body, rect)
   end
 
+  # Click a space row → switch to it. Layout: header (0), blank (1), then one row per space.
+  @impl Aleph.Panel
+  def pick(%{spaces: spaces}, _rect, local_y) do
+    spaces
+    |> row_at(local_y)
+    |> switch_space()
+  end
+
+  defp row_at(_spaces, i) when i < 2, do: nil
+  defp row_at(spaces, i), do: Enum.at(spaces, i - 2)
+
+  defp switch_space(nil), do: nil
+  defp switch_space(%{key: key}), do: {:switch_space, key}
+
   defp row(space, true, w), do: pad([{"▸ ", :selected_accent}, {space.label, :selected_accent}], w, :selected)
 
   defp row(space, false, _w), do: [{"  ", :dim}, {space.label, :normal}]
