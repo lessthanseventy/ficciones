@@ -44,7 +44,7 @@ defmodule Funes.MCP.Spawn do
   @spec ensure(thread_ref(), String.t(), keyword()) ::
           {:ok, %{thread: Thread.t(), agent: Funes.Agent.t()}} | {:error, term()}
   def ensure(thread_ref, agent_name, opts \\ []) when is_binary(agent_name) do
-    with {:ok, thread} <- resolve_thread(thread_ref),
+    with {:ok, thread} <- resolve_thread(thread_ref, opts),
          {:ok, agent} <- ensure_agent(agent_name, opts),
          {:ok, thread} <- Staff.assign(thread, agent) do
       {:ok, %{thread: thread, agent: agent}}
@@ -75,7 +75,7 @@ defmodule Funes.MCP.Spawn do
   """
   @spec mint_for(integer() | String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
   def mint_for(thread_id, agent_name) when is_binary(agent_name) do
-    with {:ok, thread} <- resolve_thread({:join, thread_id}),
+    with {:ok, thread} <- resolve_thread({:join, thread_id}, []),
          {:agent, agent} when not is_nil(agent) <- {:agent, Staff.agent_by_name(agent_name)} do
       {:ok, Tokens.mint(thread, agent)}
     else
@@ -91,9 +91,13 @@ defmodule Funes.MCP.Spawn do
     end
   end
 
-  defp resolve_thread({:open, title}) when is_binary(title), do: Channel.open_thread(%{title: title})
+  defp resolve_thread({:open, title}, opts) do
+    attrs = %{title: title}
+    attrs = if scope = opts[:scope], do: Map.put(attrs, :scope, scope), else: attrs
+    Channel.open_thread(attrs)
+  end
 
-  defp resolve_thread({:join, id}) do
+  defp resolve_thread({:join, id}, _opts) do
     case Repo.get(Thread, id) do
       nil -> {:error, {:no_thread, id}}
       thread -> {:ok, thread}

@@ -15,7 +15,8 @@ defmodule Funes.Channel do
   alias Funes.Repo
   alias Funes.Thread
 
-  @doc "Open a thread on the board. Returns `{:ok, thread}` or `{:error, changeset}`."
+  @doc ~s(Open a thread on the board. Returns `{:ok, thread}` or `{:error, changeset}`.
+  `scope` defaults to `"project"`; the Tlön machine-coworker path opens with `"machine"`.)
   def open_thread(attrs) do
     attrs |> Thread.open_changeset() |> Repo.insert() |> Funes.Bus.announce(:thread_opened)
   end
@@ -43,9 +44,18 @@ defmodule Funes.Channel do
     |> Funes.Bus.announce(:thread_closed)
   end
 
-  @doc "Open threads only, newest first — closed threads are omitted."
+  @doc "Open PROJECT threads only, newest first — closed and machine-scope threads are omitted.
+  The machine thread (the Tlön coworker) is filtered out of the project surfaces; reach it via
+  `machine_thread/0` or by id. (aleph Tlön isolation, 2026-08-16.)"
   def open_threads do
-    Repo.all(from t in Thread, where: t.state == "open", order_by: [desc: t.id])
+    Repo.all(from t in Thread, where: t.state == "open" and t.scope == "project", order_by: [desc: t.id])
+  end
+
+  @doc "The latest open MACHINE-scope thread, or nil — the find-or-create lookup for the Tlön
+  machine coworker, so it reuses a persistent machine thread across aleph restarts instead of
+  opening one per boot."
+  def machine_thread do
+    Repo.one(from t in Thread, where: t.state == "open" and t.scope == "machine", order_by: [desc: t.id], limit: 1)
   end
 
   @doc "A thread by id, or nil — the load path for the cross-thread `close_thread` verb."
@@ -104,10 +114,12 @@ defmodule Funes.Channel do
   end
 
   @doc """
-  The Comms chorus as THREAD BLOCKS — one entry per OPEN thread, each with its recent messages
-  (chat order within), ordered by most-recent-activity FIRST. Every open thread appears, including
-  one with no messages yet (a fresh thread you just spawned onto) — so the feed and the ↑/↓
-  navigator share ONE order and every focusable thread is visible. `[%{thread, messages}]`.
+  The Comms chorus as THREAD BLOCKS — one entry per OPEN **project** thread, each with its recent messages
+  (chat order within), ordered by most-recent-activity FIRST. Every open project thread appears,
+  including one with no messages yet (a fresh thread you just spawned onto) — so the feed and the
+  ↑/↓ navigator share ONE order and every focusable thread is visible. The machine-scope thread
+  (the Tlön coworker) is excluded — it's a meta thread, not project work; reach it via the Tlön
+  space. `[%{thread, messages}]`.
 
   Ordered by message **id**, never `created_at` — its second resolution ties (§4), which would
   make the feed order flap. Threads with messages lead (newest message first); threads with none
@@ -116,7 +128,7 @@ defmodule Funes.Channel do
   def chorus(per_thread \\ 20) do
     by_thread = 300 |> recent_across() |> Enum.group_by(& &1.thread_id)
 
-    from(t in Thread, where: t.state == "open")
+    from(t in Thread, where: t.state == "open" and t.scope == "project")
     |> Repo.all()
     |> Enum.map(fn t ->
       messages = by_thread |> Map.get(t.id, []) |> Enum.take(-per_thread)

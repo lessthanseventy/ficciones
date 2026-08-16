@@ -453,12 +453,28 @@ defmodule Aleph.Cockpit do
     end
   end
 
+  # Find-or-create the machine coworker's identity, then spawn its terminal. The machine thread
+  # is `scope: "machine"` (excluded from the project surfaces — see the thread_scope migration and
+  # docs/plans/2026-08-16-tlon-isolation.md). Find-or-create reuses the latest open machine thread
+  # across aleph restarts instead of opening a new one per boot (the v1.1 "known limitation").
   defp spawn_machine_coworker do
-    with {:ok, %{exports: exports}} <- Spawn.env("Tlön", @machine_agent, mandate: "machine"),
+    with {:ok, exports} <- machine_exports(),
          {:ok, pid} <- Sessions.spawn_harness(:machine, exports) do
       pid
     else
       _error -> nil
+    end
+  end
+
+  # Resolve the machine coworker's FUNES_* exports by find-or-create: reuse the latest open
+  # machine thread (joining it) if one exists, else open a fresh `scope: "machine"` thread.
+  defp machine_exports do
+    case Channel.machine_thread() do
+      %{id: id} ->
+        with {:ok, %{exports: e}} <- Spawn.join(id, @machine_agent), do: {:ok, e}
+
+      nil ->
+        with {:ok, %{exports: e}} <- Spawn.env("Tlön", @machine_agent, mandate: "machine", scope: "machine"), do: {:ok, e}
     end
   end
 

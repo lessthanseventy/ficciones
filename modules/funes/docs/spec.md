@@ -49,6 +49,17 @@ agents, the cockpit `aleph`, and the coalesced architecture supersedes two thing
   row that `fact`, `event`, `issue` and `message` reference; a workspace hangs off a thread as an opaque
   handle, and a **agent** (a persistent named identity with a §8 capability profile) is assigned to it.
 
+**Amended 2026-08-16, when the Tlön machine coworker began cluttering the project surfaces.** A
+machine coworker is a funes citizen on a real `thread` (so its facts/issues/checks survive), but it is
+meta work — *on the box*, not a project — and its thread must not appear in the Comms chorus or the
+Sessions thread list. So `thread` gains a **`scope`** column: a closed `('project' | 'machine')` set,
+CHECK-guarded, default `'project'` — the `state` / `event.kind` precedent (§4: a closed set lives in
+the DB, widening it is a migration, which is the point). The project surfaces read `scope = 'project'`
+only; the machine thread is reached by id (the Tlön space) or via `Channel.machine_thread/0`
+(find-or-create, so it is persistent across aleph restarts instead of one-per-boot). `scope`, not
+`kind`, because it names *where the thread belongs*, not *what kind of object it is*; `kind` stays
+reserved for `fact` / `event`. See `docs/plans/2026-08-16-tlon-isolation.md`.
+
 Full architecture: `../../docs/plans/2026-08-14-aleph-cockpit-and-elixir-spine.md`.
 
 ---

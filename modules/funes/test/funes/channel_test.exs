@@ -24,7 +24,13 @@ defmodule Funes.ChannelTest do
       reloaded = Repo.get!(Thread, thread.id)
       assert reloaded.title == "review PR 329"
       assert reloaded.state == "open"
+      assert reloaded.scope == "project"
       assert %DateTime{} = reloaded.created_at
+    end
+
+    test "a machine-scope thread opens with scope=\"machine\" (the Tlön coworker)" do
+      {:ok, thread} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      assert Repo.get!(Thread, thread.id).scope == "machine"
     end
   end
 
@@ -132,14 +138,29 @@ defmodule Funes.ChannelTest do
       assert t1 |> Channel.thread_messages() |> Enum.map(& &1.body) == ["mine"]
     end
 
-    test "open_threads/0 returns open threads and omits closed ones" do
+    test "open_threads/0 returns open PROJECT threads and omits closed and machine-scope ones" do
       {:ok, open} = Channel.open_thread(%{title: "still open"})
       {:ok, done} = Channel.open_thread(%{title: "finished"})
+      {:ok, _machine} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
       {:ok, _} = Channel.close_thread(done)
 
       titles = Enum.map(Channel.open_threads(), & &1.title)
       assert open.title in titles
       refute done.title in titles
+      refute "Tlön" in titles
+    end
+
+    test "machine_thread/0 returns the latest open machine thread, or nil (find-or-create)" do
+      assert Channel.machine_thread() == nil
+
+      {:ok, m1} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      assert Channel.machine_thread().id == m1.id
+
+      {:ok, m2} = Channel.open_thread(%{title: "Tlön 2", scope: "machine"})
+      assert Channel.machine_thread().id == m2.id
+
+      {:ok, _} = Channel.close_thread(m2)
+      assert Channel.machine_thread().id == m1.id
     end
 
     test "recent_across/1 — the Comms chorus feed: messages from every thread, each tagged" do
@@ -164,20 +185,24 @@ defmodule Funes.ChannelTest do
       assert Enum.map(feed, & &1.body) == ["m3", "m4", "m5"]
     end
 
-    test "chorus/0 — one block per OPEN thread, empty ones included, most-recent-activity first" do
+    test "chorus/0 — one block per OPEN project thread, empty ones included; machine-scope excluded" do
       {:ok, quiet} = Channel.open_thread(%{title: "quiet"})
       {:ok, _} = Channel.post(%{thread_id: quiet.id, author: "a", body: "old news"})
       {:ok, fresh} = Channel.open_thread(%{title: "fresh, no messages"})
       {:ok, loud} = Channel.open_thread(%{title: "loud"})
       {:ok, _} = Channel.post(%{thread_id: loud.id, author: "b", body: "latest"})
+      {:ok, machine} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      {:ok, _} = Channel.post(%{thread_id: machine.id, author: "pi-machine", body: "meta chatter"})
 
       blocks = Channel.chorus()
       titles = Enum.map(blocks, & &1.thread.title)
 
-      # every open thread has a block — including the one with no messages
+      # every open PROJECT thread has a block — including the one with no messages
       assert "quiet" in titles
       assert "fresh, no messages" in titles
       assert "loud" in titles
+      # the machine-scope thread is EXCLUDED from the project chorus, even with messages
+      refute "Tlön" in titles
       # most-recent-activity first: loud (newest message) leads; the empty thread trails but is
       # present (visible + navigable), never vanishing
       assert List.first(titles) == "loud"
@@ -198,6 +223,18 @@ defmodule Funes.ChannelTest do
       # raises, exactly as an orphan FK does.
       assert_raise Ecto.ConstraintError, fn ->
         thread |> Thread.state_changeset("garbage") |> Repo.update()
+      end
+    end
+
+    test "a thread scope outside the closed set is refused by SQLite itself" do
+      # The scope CHECK is the same §4 discipline as state: a closed set in the DB.
+      assert_raise Ecto.ConstraintError, fn ->
+        %Thread{}
+        |> Ecto.Changeset.cast(
+          %{title: "x", scope: "secret", state: "open", created_at: DateTime.utc_now()},
+          [:title, :scope, :state, :created_at]
+        )
+        |> Repo.insert()
       end
     end
   end
