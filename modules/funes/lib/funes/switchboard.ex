@@ -171,7 +171,7 @@ defmodule Funes.Switchboard do
         # Then the ENGINE-CREDIT half of clocked-out: drop a session whose model is
         # out of credits / past its rate-limit window (§3b). A pluggable backend
         # (§8) — the SQL can't ask a vendor, so it is a post-filter on small N.
-        |> Enum.reject(fn {_session, agent} -> Presence.Engine.clocked_out?(agent) end)
+        |> Enum.reject(fn {_session, agent} -> Presence.clocked_out?(agent) end)
         |> Enum.map(fn {session, _agent} -> session end)
     end
   end

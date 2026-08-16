@@ -41,4 +41,22 @@ defmodule Funes.ArbiterTest do
       assert text == "line1 line2"
     end
   end
+
+  describe "spawn_argv/3 — opening a new pane for a cold/absent thread" do
+    test "opens the window in cwd, sources the env, then execs the launcher, capturing the pane id" do
+      exports = ~s(export FUNES_TOKEN="abc"\nexport FUNES_THREAD="42")
+
+      ["new-window", "-c", cwd, "-P", "-F", fmt, "bash", "-lc", script] =
+        Tmux.spawn_argv(exports, "mise exec -- pi", "/repo")
+
+      # -c cwd so `mise` finds mise.toml (tools + the dev [env]); -P -F prints the new pane id.
+      assert cwd == "/repo"
+      assert fmt == "#\{pane_id}"
+      # the whole env block is sourced before the harness starts → it comes up a briefed citizen
+      assert script =~ ~s(export FUNES_TOKEN="abc")
+      assert script =~ ~s(export FUNES_THREAD="42")
+      # exec replaces the login shell with the harness — the window IS the session
+      assert script =~ "exec mise exec -- pi"
+    end
+  end
 end

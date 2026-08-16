@@ -12,11 +12,23 @@ defmodule Funes.Arbiter do
   """
   @callback wake(pane_ref :: String.t(), prompt :: String.t()) :: :ok | {:error, term()}
 
+  @doc """
+  Spawn a FRESH pane for a thread whose identity block is `exports` (the `export FUNES_*`
+  from `Funes.MCP.Spawn`) — the other actuation the arbiter owns (aleph §2d, the cold-thread
+  strand §4c.3). `{:ok, pane_ref}` with the new pane the backend assigned, or `{:error, term}`
+  (an inert backend cannot spawn — `{:error, :inert}`). Both aleph's `s` verb and the
+  switchboard's autonomous wake call THIS, so the "how to open a pane" seam has one home.
+  """
+  @callback spawn(exports :: String.t()) :: {:ok, pane_ref :: String.t()} | {:error, term()}
+
   @doc "The configured backend (defaults to the inert one)."
   def impl, do: Application.get_env(:funes, :arbiter, Funes.Arbiter.Inert)
 
   @doc "Wake the pane behind an opaque pane_ref, via the configured backend."
   def wake(pane_ref, prompt), do: impl().wake(pane_ref, prompt)
+
+  @doc "Spawn a fresh pane for a thread's `exports` block, via the configured backend."
+  def spawn(exports), do: impl().spawn(exports)
 end
 
 defmodule Funes.Arbiter.Inert do
@@ -33,6 +45,12 @@ defmodule Funes.Arbiter.Inert do
   def wake(pane_ref, _prompt) do
     Logger.debug("arbiter(inert): would wake pane #{inspect(pane_ref)}")
     :ok
+  end
+
+  @impl true
+  def spawn(_exports) do
+    Logger.debug("arbiter(inert): would spawn a pane")
+    {:error, :inert}
   end
 end
 
@@ -57,6 +75,24 @@ defmodule Funes.Arbiter.Tmux do
 
   @impl true
   def wake(pane_ref, prompt), do: pane_ref |> argv(prompt) |> run_all()
+
+  @impl true
+  def spawn(exports) do
+    launcher = Application.get_env(:funes, :spawn_launcher, "mise exec -- pi")
+    cwd = Application.get_env(:funes, :spawn_cwd) || File.cwd!()
+    exports |> spawn_argv(launcher, cwd) |> run_capture()
+  end
+
+  @doc """
+  The tmux invocation a spawn is: a new window opened in `cwd` (a LOGIN shell, so the nix
+  profile is on PATH) that sources the funes env block then `exec`s `launcher` — so the window
+  IS the session. `-c cwd` lets `mise` find `mise.toml`; `-P -F` prints the new pane id back.
+  The default launcher wraps the harness in `mise exec` so the dev `[env]` (PATH, keys) is
+  present even in a non-interactive shell; §8 keeps the concrete command in config, not here.
+  """
+  def spawn_argv(exports, launcher, cwd) do
+    ["new-window", "-c", cwd, "-P", "-F", "#\{pane_id}", "bash", "-lc", exports <> "\nexec " <> launcher]
+  end
 
   @doc """
   Collapse a prompt to one clean line: control bytes (newlines, tabs, NUL) become
@@ -102,6 +138,16 @@ defmodule Funes.Arbiter.Tmux do
   rescue
     ErlangError -> {:error, :tmux_missing}
   end
+
+  # Like run/1 but returns the captured stdout on success — the new pane id from `-P -F`.
+  defp run_capture(args) do
+    case System.cmd("tmux", args, stderr_to_stdout: true) do
+      {out, 0} -> {:ok, String.trim(out)}
+      {out, code} -> {:error, {:tmux_exit, code, String.trim(out)}}
+    end
+  rescue
+    ErlangError -> {:error, :tmux_missing}
+  end
 end
 
 defmodule Funes.Arbiter.Test do
@@ -116,5 +162,11 @@ defmodule Funes.Arbiter.Test do
   def wake(pane_ref, prompt) do
     if pid = Application.get_env(:funes, :test_pid), do: send(pid, {:woke, pane_ref, prompt})
     :ok
+  end
+
+  @impl true
+  def spawn(exports) do
+    if pid = Application.get_env(:funes, :test_pid), do: send(pid, {:spawned, exports})
+    {:ok, "%test-pane"}
   end
 end

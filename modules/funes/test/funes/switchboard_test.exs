@@ -226,7 +226,7 @@ defmodule Funes.SwitchboardTest do
     setup do
       # A pluggable engine-presence backend (§8: vendor lives in the backend, never the
       # design). The Test impl reads a set of clocked-out engine handles from app env.
-      Application.put_env(:funes, :engine_presence, Funes.Presence.Engine.Test)
+      Application.put_env(:funes, :engine_presence, Funes.Presence.Engine.Manual)
 
       on_exit(fn ->
         Application.delete_env(:funes, :engine_presence)

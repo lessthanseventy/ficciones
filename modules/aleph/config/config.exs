@@ -7,6 +7,11 @@ config :funes, Funes.Repo,
 
 config :funes, :arbiter, Funes.Arbiter.Tmux
 
+# The engine-credit presence backend: the hand toggle (Funes.Presence.clock_out/1 from the
+# console) — when the scarce Claude window is spent, the switchboard stops poking Claude
+# sessions. A real rate-limit reader is a later local backend swapped in the same seam.
+config :funes, :engine_presence, Funes.Presence.Engine.Manual
+
 # aleph boots funes as a live dep (§6), but a dependency's own config/*.exs is NOT evaluated
 # when aleph is the root app — so aleph re-declares what funes' config.exs normally provides:
 # the ecto repo list and the §4 write contract (WAL + busy timeout + foreign keys). The DB

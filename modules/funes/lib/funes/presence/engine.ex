@@ -35,16 +35,17 @@ defmodule Funes.Presence.Engine.Available do
   def clocked_out?(_agent), do: false
 end
 
-defmodule Funes.Presence.Engine.Test do
+defmodule Funes.Presence.Engine.Manual do
   @moduledoc """
-  A configurable engine-presence backend for tests (and a hand toggle): an engine handle
-  is clocked out iff it is in `config :funes, :clocked_out_engines` (default `[]`). Lets a
-  test drive the scarce-bucket guard without any real vendor.
+  A HAND toggle — the concrete backend the dogfood hub runs. An engine is clocked out iff the
+  operator has marked it so: it is in `Funes.Presence.clocked_out_engines/0` (the app-env set,
+  flipped by `Funes.Presence.clock_out/1` / `clock_in/1`). No vendor is named or polled (§8) —
+  when the scarce Claude window is spent, the operator flips it from `funes:console` and the
+  switchboard stops poking Claude sessions; a real rate-limit reader is a later, local backend
+  swapped in the same seam. Tests drive it the same way (`put_env :clocked_out_engines`).
   """
   @behaviour Funes.Presence.Engine
 
   @impl true
-  def clocked_out?(%{engine: engine}) do
-    engine in Application.get_env(:funes, :clocked_out_engines, [])
-  end
+  def clocked_out?(%{engine: engine}), do: engine in Funes.Presence.clocked_out_engines()
 end
