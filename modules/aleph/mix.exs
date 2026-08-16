@@ -36,8 +36,9 @@ defmodule Aleph.MixProject do
   # Mirror funes' one gate: format, warnings-as-errors, and the suite.
   defp aliases do
     [
-      # Self-heal the termbox2 NIF after every compile (see ensure_termbox_nif/1).
-      compile: ["compile", &ensure_termbox_nif/1],
+      # Self-heal the termbox2 NIF after every compile (see ensure_termbox_nif/1), and the
+      # raxol input-parser Kitty CSI-u patch before it (see ensure_raxol_kitty_parser/1).
+      compile: [&ensure_raxol_kitty_parser/1, "compile", &ensure_termbox_nif/1],
       precommit: [
         "format --check-formatted",
         "compile --warnings-as-errors",
@@ -68,6 +69,113 @@ defmodule Aleph.MixProject do
     rebuilt? = File.dir?(c_src) and rebuild_termbox_truecolor(c_src)
     install_termbox_nif(rebuilt?)
     :ok
+  end
+
+  # raxol_terminal 2.6.1's InputParser has no Kitty keyboard CSI-u decode, so shifted keys
+  # (shift+enter) arrive as \e[13;2u and are silently consumed (no event) — the modifier is
+  # lost before aleph sees it. deps/ is gitignored, so this self-heals the patch onto the dep
+  # source before compile (idempotent — a `defp csi_u_event` marker). When the patch is (re)applied
+  # the source mtime advances past the dep's beam, so the `compile` step that follows rebuilds
+  # raxol_terminal with the patch. The host-side Kitty disambiguate mode that PRODUCES these
+  # sequences is enabled in Aleph.Cockpit itself (no dep patch) — this only teaches the parser
+  # to decode them.
+  @kitty_parser Path.join([
+                  Mix.Project.deps_path(),
+                  "raxol_terminal",
+                  "lib",
+                  "raxol",
+                  "terminal",
+                  "ansi",
+                  "input_parser.ex"
+                ])
+
+  # The CSI-u clauses inserted at the head of parse_csi_tilde_one/1's `case`.
+  @kitty_csi_u_clauses """
+      # Kitty keyboard protocol CSI-u: ESC [ <codepoint> [ ; <mods> [ ; <event> ] ] u.
+      # Enabled by Aleph.Cockpit writing \e[>1u (disambiguate) on the host tty. Modified keys
+      # with no legacy form — shift+enter (\e[13;2u), ctrl+enter (\e[13;5u), shift+tab
+      # (\e[9;2u) — arrive here. Plain keys keep their legacy form (enter stays \r), so this
+      # only fires for the modified/disambiguated ones. `mods` is 1 + bitmask (shift=1, alt=2,
+      # ctrl=4, meta=8).
+      {[cp], ?u, rest} ->
+        {csi_u_event(cp, []), rest}
+
+      {[cp, mods], ?u, rest} ->
+        {csi_u_event(cp, mods_to_opts(mods)), rest}
+
+      {[cp, mods, _event_type], ?u, rest} ->
+        {csi_u_event(cp, mods_to_opts(mods)), rest}
+
+  """
+
+  # The helpers inserted after decode_modifier/1.
+  @kitty_csi_u_helpers """
+    # Build the opts keyword list for `key_event/2` from a Kitty CSI-u mods field (1 + bitmask).
+    # Reuses `decode_modifier/1` (same shift=1/alt=2/ctrl=4 encoding); the meta bit (8) is ignored
+    # for now — no binding reads it.
+    defp mods_to_opts(mod) when is_integer(mod) do
+      {shift, alt, ctrl} = decode_modifier(mod)
+      [{:shift, shift}, {:alt, alt}, {:ctrl, ctrl}]
+      |> Enum.filter(fn {_, on?} -> on? end)
+      |> Enum.map(fn {k, _} -> {k, true} end)
+    end
+
+    # A Kitty CSI-u event: map the codepoint to a key atom (special keys) or a :char (printable),
+    # then attach the modifier opts. Plain keys with a legacy form (enter=\r, tab=\t, ctrl+v=\x16)
+    # never arrive here — only modified or disambiguated ones — so the mapping covers the keys
+    # that actually surface as CSI-u under disambiguate mode.
+    defp csi_u_event(cp, opts) do
+      case kitty_codepoint_to_key(cp) do
+        {:key, k} -> key_event(k, opts)
+        {:char, c} -> key_event(:char, Keyword.merge(opts, char: c))
+      end
+    end
+
+    defp kitty_codepoint_to_key(13), do: {:key, :enter}
+    defp kitty_codepoint_to_key(9), do: {:key, :tab}
+    defp kitty_codepoint_to_key(127), do: {:key, :backspace}
+    defp kitty_codepoint_to_key(27), do: {:key, :escape}
+    defp kitty_codepoint_to_key(32), do: {:key, :space}
+    defp kitty_codepoint_to_key(cp) when cp >= 32 and cp <= 0x10ffff, do: {:char, <<cp::utf8>>}
+    defp kitty_codepoint_to_key(_), do: {:key, :unknown}
+
+  """
+
+  defp ensure_raxol_kitty_parser(_args) do
+    path = @kitty_parser
+
+    case File.read(path) do
+      {:ok, src} ->
+        if String.contains?(src, "defp csi_u_event") do
+          :ok
+        else
+          patched =
+            src
+            |> String.replace(
+              "  defp parse_csi_tilde_one(data) do\n    case parse_csi_params(data) do\n      {[n], ?~, rest} ->",
+              "  defp parse_csi_tilde_one(data) do\n    case parse_csi_params(data) do\n" <>
+                @kitty_csi_u_clauses <> "      {[n], ?~, rest} ->"
+            )
+            |> String.replace(
+              "  defp decode_modifier(mod) when is_integer(mod) do\n    bits = mod - 1\n    shift = (bits &&& 1) != 0\n    alt = (bits &&& 2) != 0\n    ctrl = (bits &&& 4) != 0\n    {shift, alt, ctrl}\n  end\n",
+              "  defp decode_modifier(mod) when is_integer(mod) do\n    bits = mod - 1\n    shift = (bits &&& 1) != 0\n    alt = (bits &&& 2) != 0\n    ctrl = (bits &&& 4) != 0\n    {shift, alt, ctrl}\n  end\n" <>
+                @kitty_csi_u_helpers
+            )
+
+          if patched == src do
+            Mix.shell().error(
+              "[aleph] raxol Kitty CSI-u patch anchor not found in #{path} — " <>
+                "did raxol_terminal restructure parse_csi_tilde_one/decode_modifier?"
+            )
+          else
+            File.write!(path, patched)
+            Mix.shell().info("[aleph] patched raxol InputParser with Kitty CSI-u decode")
+          end
+        end
+
+      _ ->
+        :ok
+    end
   end
 
   # Recompile the NIF so both translation units carry a 64-bit colour type. `make CFLAGS=...` on

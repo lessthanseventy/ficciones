@@ -75,12 +75,14 @@ The cockpit stores only `leader_pending?`; `center_live?` is merged into the sta
   UI (panels, thread rows), not text inside the embedded terminal. Host-level Shift-drag selection
   doesn't work (aleph renders borders + labels + center cells as one flat termbox buffer). Needs a
   drag-select mode over `Terminal.cells/1` → OSC 52 to the host tty. Its own kickoff.
-- **Host-side Kitty CSI-u parse (the shift+enter gap).** The `a1bca09` commit armed the
-  *embedded* terminal's Kitty keyboard protocol (`\e[>1u`) so `input_key` encodes shifted keys. In
-  practice **ctrl+v round-trips** — it's a control byte (`\x16`) that flows through termbox2 → raxol
-  → aleph → the PTY as a raw byte, no modifier-decode needed, so pi's image-paste binding fires.
-  What does **not** round-trip is **shift+enter**: the host sends a bare `\r` (no modifier info),
-  and neither termbox2's C parser nor raxol's `input_parser.ex` decodes Kitty/modifyOtherKeys CSI-u
-  sequences, so the shift bit is lost before aleph sees it. Fix needs raxol `input_parser.ex` to
-  decode `\e[13;2u` (and the host tty put in the mode). Narrow scope: shifted *non-control* keys
-  where the modifier is the only distinguishing info.
+- **Host-side Kitty CSI-u parse (the shift+enter gap) — FIXED.** The `a1bca09` commit armed
+  the *embedded* terminal's Kitty keyboard protocol (`\e[>1u`) so `input_key` encodes shifted
+  keys, but the *host* input path never enabled Kitty disambiguate and raxol's `InputParser` had
+  no CSI-u decode, so shift+enter arrived as a bare `\r` and the shift bit was lost before aleph
+  saw it. The fix does both: `Aleph.Cockpit` now writes `\e[>1u` (disambiguate) on the host tty
+  at init and `\e[<u` (pop) at teardown, and raxol's `InputParser` is self-healed (mix.exs
+  compile alias, the termbox-NIF pattern) with CSI-u decode — `\e[13;2u` → `%{key: :enter,
+  shift: true}`. Plain keys keep their legacy form (enter stays `\r`, ctrl+v stays `\x16` —
+  ctrl+v already round-tripped as a raw control byte), so only shifted *non-control* keys change.
+  Pinned by `test/aleph/input_parser_test.exs`. On a host without Kitty support the push is
+  ignored and shift+enter degrades to bare `\r` — no regression.

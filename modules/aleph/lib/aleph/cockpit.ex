@@ -37,6 +37,11 @@ defmodule Aleph.Cockpit do
   # reuse the same agent and it never collides with a project thread's harness.
   @machine_agent "pi-machine"
 
+  # Kitty keyboard protocol: push flags + set disambiguate (CSI > 1 u) at init, pop (CSI < u)
+  # at teardown. See the init comment for the full shifted-key round-trip.
+  @kitty_enable "\e[>1u"
+  @kitty_disable "\e[<u"
+
   @doc "Start the cockpit and block until the operator quits — the entry point `mix aleph.run` calls."
   @spec run() :: :ok
   def run do
@@ -80,6 +85,17 @@ defmodule Aleph.Cockpit do
         # Watch every session terminal — the `s` verb AND the arbiter's autonomous spawn repaint
         # through this cockpit, whoever started them.
         Sessions.observe(self())
+
+        # Enable the Kitty keyboard protocol's disambiguate mode on the host tty (CSI > 1 u =
+        # push flags, set disambiguate). A host like ghostty then sends \e[13;2u for shift+enter
+        # (and \e[<cp>;<mods>u for other modified keys) instead of a bare \r that drops the
+        # modifier. Plain keys keep their legacy form (enter stays \r, ctrl+v stays \x16), so
+        # nothing else changes. raxol's InputParser (self-healed with CSI-u decode — see mix.exs)
+        # turns the sequence into %{key: :enter, shift: true}, and the tmux-style keymap forwards
+        # it to the embedded terminal, which (its own Kitty protocol armed) encodes a real shifted
+        # enter. Popped in teardown (\e[<u). On a host without Kitty support the push is ignored
+        # and shift+enter degrades to a bare \r — no regression.
+        IO.write(@kitty_enable)
 
         # --- input + resize from the termbox Driver (GenServer casts) ---
         state =
@@ -511,6 +527,10 @@ defmodule Aleph.Cockpit do
   end
 
   defp teardown(state) do
+    # Pop the Kitty disambiguate flag pushed in init before the driver tears down the alt
+    # screen, so the host tty's key encoding is restored (paired with @kitty_enable).
+    IO.write(@kitty_disable)
+
     if is_pid(state.driver) and Process.alive?(state.driver),
       do: GenServer.stop(state.driver, :normal, 500)
 
