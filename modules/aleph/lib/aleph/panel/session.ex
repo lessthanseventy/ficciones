@@ -19,7 +19,7 @@ defmodule Aleph.Panel.Session do
   def render(%{lines: lines} = data, rect) when is_list(lines) do
     hint =
       if data[:focused?],
-        do: {" — keys go here · Esc to release", :warm},
+        do: {" — keys go here · Ctrl+B to release", :warm},
         else: {" — Enter to focus", :dim}
 
     body = Enum.map(lines, &line(&1, :normal))

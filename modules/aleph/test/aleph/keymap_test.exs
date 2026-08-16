@@ -84,7 +84,7 @@ defmodule Aleph.KeymapTest do
     end
   end
 
-  describe "center focus (Enter / Esc)" do
+  describe "center focus (Enter / Ctrl+B leader)" do
     test "Enter focuses the center in the Sessions space" do
       assert {%{center_focused?: true}, :repaint} =
                Keymap.handle(key(:enter), state(%{active_key: :sessions}))
@@ -95,14 +95,19 @@ defmodule Aleph.KeymapTest do
       assert {^s, :none} = Keymap.handle(key(:enter), s)
     end
 
-    test "Esc releases center focus" do
+    test "the leader Ctrl+B releases center focus" do
       assert {%{center_focused?: false}, :repaint} =
-               Keymap.handle(key(:escape), state(%{center_focused?: true}))
+               Keymap.handle(char("b", ctrl: true), state(%{center_focused?: true}))
     end
 
-    test "Esc when the center isn't focused is a no-op" do
+    test "Esc while focused FORWARDS to the pane — the app gets it, it never traps you in aleph" do
+      s = state(%{center_focused?: true})
+      assert {^s, {:forward, %{key: :escape}}} = Keymap.handle(key(:escape), s)
+    end
+
+    test "Ctrl+B when the center isn't focused is not a release (no-op locally)" do
       s = state(%{center_focused?: false})
-      assert {^s, :none} = Keymap.handle(key(:escape), s)
+      assert {^s, :none} = Keymap.handle(char("b", ctrl: true), s)
     end
   end
 

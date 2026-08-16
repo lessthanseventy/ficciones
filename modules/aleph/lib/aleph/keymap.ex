@@ -50,8 +50,12 @@ defmodule Aleph.Keymap do
   # Any other key while typing (arrows, function keys) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
 
-  # --- center focused: keys belong to the tmux pane; only Esc is ours (release) ---
-  def handle(%{key: :escape}, %{center_focused?: true} = state), do: {%{state | center_focused?: false}, :repaint}
+  # --- center focused: keys belong to the tmux pane; the LEADER (Ctrl+B) is the one that's ours ---
+  # Ctrl+B always returns to aleph — even from inside a fullscreen app that traps Esc (a config
+  # menu, vim, a REPL). EVERY other key, INCLUDING Esc, forwards to the pane, so the app gets its
+  # own keys and can never trap you. (tmux's prefix idea: one reserved key, nothing else stolen.)
+  def handle(%{key: :char, char: "b", ctrl: true}, %{center_focused?: true} = state),
+    do: {%{state | center_focused?: false}, :repaint}
 
   def handle(key, %{center_focused?: true} = state), do: {state, {:forward, key}}
 
