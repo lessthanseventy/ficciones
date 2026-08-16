@@ -60,6 +60,18 @@ defmodule Aleph.MouseTest do
     end
   end
 
+  describe "to_cell/1 — SGR coordinates are 1-based, rects are 0-based" do
+    test "translates the terminal's 1-based report to the placement grid" do
+      # SGR top-left is 1;1 → cell {0,0}; without the shift every click lands one row below.
+      assert Mouse.to_cell(1) == 0
+      assert Mouse.to_cell(38) == 37
+    end
+
+    test "never goes negative on a malformed 0" do
+      assert Mouse.to_cell(0) == 0
+    end
+  end
+
   describe "wheel_of/1" do
     test "wheel up → :up (into history), wheel down → :down (toward newer)" do
       assert {:up, n} = Mouse.wheel_of(:wheel_up)

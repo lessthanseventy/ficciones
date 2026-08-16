@@ -17,6 +17,15 @@ defmodule Funes.Repo.Migrations.ThreadScope do
       "ALTER TABLE thread DROP COLUMN scope"
     )
 
-    create index(:thread, [:scope])
+    # Reclassify the machine threads that accumulated BEFORE scope existed: the pre-isolation
+    # Spawn.env path opened a fresh thread titled exactly 'Tlön' on every aleph boot. Without
+    # this backfill they'd stay scope='project' — still cluttering the project surfaces (the
+    # thing this migration removes) — while machine_thread/0 ignores them and opens yet another.
+    # No index on scope: two values on a personal-sized table, and every query filters
+    # state+scope together — a scan wins, the index would only tax writes.
+    execute(
+      "UPDATE thread SET scope = 'machine' WHERE title = 'Tlön'",
+      "UPDATE thread SET scope = 'project' WHERE title = 'Tlön'"
+    )
   end
 end

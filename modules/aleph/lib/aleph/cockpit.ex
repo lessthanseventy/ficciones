@@ -78,6 +78,10 @@ defmodule Aleph.Cockpit do
 
     case :termbox2_nif.tb_init() do
       0 ->
+        # Trap exits so a crash anywhere — this server, or the linked Driver — runs terminate/2,
+        # which restores the host tty (Kitty pop + tb_shutdown). Without this, a raise mid-callback
+        # leaves the shell in alt-screen + mouse-reporting + Kitty mode until a manual `reset`.
+        Process.flag(:trap_exit, true)
         :termbox2_nif.tb_set_output_mode(@tb_output_truecolor)
         :termbox2_nif.tb_set_input_mode(@tb_input_esc_mouse)
         normalize_cursor_keys()
@@ -157,17 +161,24 @@ defmodule Aleph.Cockpit do
 
   # A wheel routes to whatever panel is under the cursor: the center terminal forwards to its PTY
   # or scrolls its scrollback (Aleph.Terminal.wheel/5), a scrollable list panel advances its offset
-  # (clamped to its content height), anything else is ignored.
-  def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: x, y: y, button: b}}}, state)
-      when b in [:wheel_up, :wheel_down], do: dispatch_wheel(Mouse.hit_panel(state.placements, x, y), b, x, y, state)
+  # (clamped to its content height), anything else is ignored. Event coords are 1-based SGR;
+  # `Mouse.to_cell/1` normalizes them to the 0-based cells the placement rects use.
+  def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: sx, y: sy, button: b}}}, state)
+      when b in [:wheel_up, :wheel_down] do
+    {x, y} = {Mouse.to_cell(sx), Mouse.to_cell(sy)}
+    dispatch_wheel(Mouse.hit_panel(state.placements, x, y), b, x, y, state)
+  end
 
-  # A left click routes to the panel under the cursor and asks it what that row selects — focus a
-  # thread, switch a space — then repaints. Non-selectable panels (Dossier/Stack/Tools, the center
-  # terminal) return nil and the click is a no-op.
-  def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: x, y: y, button: :left}}}, state),
-    do: dispatch_click(Mouse.hit_panel(state.placements, x, y), x, y, state)
+  # A left PRESS routes to the panel under the cursor and asks it what that row selects — focus a
+  # thread, switch a space — then repaints. Press only: the SGR release carries the same button,
+  # and acting on both would double-fire (and re-hit re-laid-out placements after a space switch).
+  # Non-selectable panels (Dossier/Stack/Tools, the center terminal) return nil → no-op.
+  def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: sx, y: sy, button: :left, action: :press}}}, state) do
+    {x, y} = {Mouse.to_cell(sx), Mouse.to_cell(sy)}
+    dispatch_click(Mouse.hit_panel(state.placements, x, y), x, y, state)
+  end
 
-  # Any other mouse event (right/middle button, motion) is not handled yet.
+  # Any other mouse event (release, right/middle button, motion) is not handled yet.
   def handle_cast({:dispatch, %Event{type: :mouse}}, state), do: {:noreply, state}
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
@@ -207,6 +218,10 @@ defmodule Aleph.Cockpit do
   # not on a timer.
   def handle_info({Terminal, _pid, _event}, state), do: {:noreply, render(state)}
 
+  # Trapped exit from the linked input Driver: the cockpit can't take keys anymore, so stop —
+  # terminate/2 restores the tty on the way out.
+  def handle_info({:EXIT, pid, reason}, %{driver: pid} = state), do: {:stop, reason, state}
+
   def handle_info(_msg, state), do: {:noreply, state}
 
   defp refresh_size(state) do
@@ -232,21 +247,16 @@ defmodule Aleph.Cockpit do
   # A scrollable list panel: advance its offset, clamped to its content height, and repaint. A
   # non-scrollable panel under the wheel (Spaces, a non-center frame) is a no-op.
   defp dispatch_wheel({panel, data, rect}, b, _x, _y, state),
-    do: scroll_wheel(scrollable?(data), panel, data, rect, b, state)
+    do: scroll_wheel(Panel.scrollable?(data), panel, data, rect, b, state)
 
   defp scroll_wheel(true, panel, data, rect, b, state) do
     {dir, n} = Mouse.wheel_of(b)
     content_h = Panel.content_height(panel, data, rect.w)
-    next = Mouse.clamp_offset((state.scrolls[panel] || 0) + scroll_delta(dir, n), content_h, rect.h)
+    next = Mouse.clamp_offset((state.scrolls[panel] || 0) + Terminal.scroll_delta(dir, n), content_h, rect.h)
     {:noreply, render(%{state | scrolls: Map.put(state.scrolls, panel, next)})}
   end
 
   defp scroll_wheel(false, _panel, _data, _rect, _b, state), do: {:noreply, state}
-
-  defp scrollable?(data), do: is_map(data) and Map.has_key?(data, :scroll)
-
-  defp scroll_delta(:up, n), do: -n
-  defp scroll_delta(:down, n), do: n
 
   defp clamp_cell(v, extent), do: v |> max(0) |> min(max(extent - 1, 0))
 
@@ -381,6 +391,10 @@ defmodule Aleph.Cockpit do
   # modified printable (ctrl+v → \e[118;5u, ctrl+shift+c → \e[99;6u). Without it, `input_key`
   # drops the modifier and emits the bare utf8 char (ctrl+v → "v"), so pi's ctrl+v / shift+enter
   # bindings misfire. Letters use the lowercase codepoint; anything else uses its own codepoint.
+  # KNOWN LIMIT: only letters are recoverable — a shifted SYMBOL (shift+2 arriving as "@") keeps
+  # its shifted codepoint because the host keyboard layout is gone by this layer. No current
+  # binding hits that path (the Kitty disambiguate path delivers base codepoints itself); if one
+  # ever does, the fix belongs host-side, not here.
   defp unshifted_codepoint(c) do
     c |> String.downcase() |> String.to_charlist() |> List.first() || 0
   end
@@ -521,10 +535,12 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  defp quit(state) do
-    teardown(state)
-    {:stop, :normal, state}
-  end
+  # terminate/2 (not the quit path) owns the tty restore, so it runs on a normal quit AND on a
+  # crash in any callback — the reason init traps exits.
+  defp quit(state), do: {:stop, :normal, state}
+
+  @impl true
+  def terminate(_reason, state), do: teardown(state)
 
   defp teardown(state) do
     # Pop the Kitty disambiguate flag pushed in init before the driver tears down the alt

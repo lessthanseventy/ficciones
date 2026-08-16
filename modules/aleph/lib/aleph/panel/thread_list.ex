@@ -37,15 +37,9 @@ defmodule Aleph.Panel.ThreadList do
   @impl Aleph.Panel
   def pick(%{threads: threads} = data, _rect, local_y) do
     threads
-    |> row_at(offset(data) + local_y)
+    |> Aleph.Panel.item_at(Aleph.Panel.scroll_offset(data) + local_y)
     |> focus_thread()
   end
-
-  defp offset(%{scroll: n}), do: n
-  defp offset(_), do: 0
-
-  defp row_at(_threads, i) when i < 2, do: nil
-  defp row_at(threads, i), do: Enum.at(threads, i - 2)
 
   defp focus_thread(nil), do: nil
   defp focus_thread(%{id: id}), do: {:focus_thread, id}

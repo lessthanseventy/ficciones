@@ -15,6 +15,12 @@ defmodule Funes.Channel do
   alias Funes.Repo
   alias Funes.Thread
 
+  # The closed thread-scope set (CHECK-guarded in the DB — see the thread_scope migration).
+  # Every scope filter pins one of these, so a future third scope is a grep for the attribute,
+  # not a hunt for string literals.
+  @project_scope "project"
+  @machine_scope "machine"
+
   @doc ~s(Open a thread on the board. Returns `{:ok, thread}` or `{:error, changeset}`.
   `scope` defaults to `"project"`; the Tlön machine-coworker path opens with `"machine"`.)
   def open_thread(attrs) do
@@ -48,14 +54,14 @@ defmodule Funes.Channel do
   The machine thread (the Tlön coworker) is filtered out of the project surfaces; reach it via
   `machine_thread/0` or by id. (aleph Tlön isolation, 2026-08-16.)"
   def open_threads do
-    Repo.all(from t in Thread, where: t.state == "open" and t.scope == "project", order_by: [desc: t.id])
+    Repo.all(from t in Thread, where: t.state == "open" and t.scope == ^@project_scope, order_by: [desc: t.id])
   end
 
   @doc "The latest open MACHINE-scope thread, or nil — the find-or-create lookup for the Tlön
   machine coworker, so it reuses a persistent machine thread across aleph restarts instead of
   opening one per boot."
   def machine_thread do
-    Repo.one(from t in Thread, where: t.state == "open" and t.scope == "machine", order_by: [desc: t.id], limit: 1)
+    Repo.one(from t in Thread, where: t.state == "open" and t.scope == ^@machine_scope, order_by: [desc: t.id], limit: 1)
   end
 
   @doc "A thread by id, or nil — the load path for the cross-thread `close_thread` verb."
@@ -128,7 +134,7 @@ defmodule Funes.Channel do
   def chorus(per_thread \\ 20) do
     by_thread = 300 |> recent_across() |> Enum.group_by(& &1.thread_id)
 
-    from(t in Thread, where: t.state == "open" and t.scope == "project")
+    from(t in Thread, where: t.state == "open" and t.scope == ^@project_scope)
     |> Repo.all()
     |> Enum.map(fn t ->
       messages = by_thread |> Map.get(t.id, []) |> Enum.take(-per_thread)

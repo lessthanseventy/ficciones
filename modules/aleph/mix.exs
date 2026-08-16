@@ -149,33 +149,45 @@ defmodule Aleph.MixProject do
         if String.contains?(src, "defp csi_u_event") do
           :ok
         else
+          # Each anchor is checked individually and a miss RAISES: a soft warning here would let
+          # a raxol bump ship a green build with an unpatched (or half-patched) parser, silently
+          # regressing shift+enter. Nothing is written unless both replacements landed.
           patched =
             src
-            |> String.replace(
+            |> replace_anchor!(
+              "parse_csi_tilde_one",
               "  defp parse_csi_tilde_one(data) do\n    case parse_csi_params(data) do\n      {[n], ?~, rest} ->",
               "  defp parse_csi_tilde_one(data) do\n    case parse_csi_params(data) do\n" <>
                 @kitty_csi_u_clauses <> "      {[n], ?~, rest} ->"
             )
-            |> String.replace(
+            |> replace_anchor!(
+              "decode_modifier",
               "  defp decode_modifier(mod) when is_integer(mod) do\n    bits = mod - 1\n    shift = (bits &&& 1) != 0\n    alt = (bits &&& 2) != 0\n    ctrl = (bits &&& 4) != 0\n    {shift, alt, ctrl}\n  end\n",
               "  defp decode_modifier(mod) when is_integer(mod) do\n    bits = mod - 1\n    shift = (bits &&& 1) != 0\n    alt = (bits &&& 2) != 0\n    ctrl = (bits &&& 4) != 0\n    {shift, alt, ctrl}\n  end\n" <>
                 @kitty_csi_u_helpers
             )
 
-          if patched == src do
-            Mix.shell().error(
-              "[aleph] raxol Kitty CSI-u patch anchor not found in #{path} — " <>
-                "did raxol_terminal restructure parse_csi_tilde_one/decode_modifier?"
-            )
-          else
-            File.write!(path, patched)
-            Mix.shell().info("[aleph] patched raxol InputParser with Kitty CSI-u decode")
-          end
+          File.write!(path, patched)
+          Mix.shell().info("[aleph] patched raxol InputParser with Kitty CSI-u decode")
         end
 
       _ ->
         :ok
     end
+  end
+
+  defp replace_anchor!(src, name, anchor, replacement) do
+    patched = String.replace(src, anchor, replacement)
+
+    if patched == src do
+      Mix.raise(
+        "[aleph] raxol Kitty CSI-u patch: the #{name} anchor no longer matches #{@kitty_parser} — " <>
+          "raxol_terminal restructured it (version bump?). Update the anchor in mix.exs before building, " <>
+          "or shift+enter silently regresses."
+      )
+    end
+
+    patched
   end
 
   # Recompile the NIF so both translation units carry a 64-bit colour type. `make CFLAGS=...` on

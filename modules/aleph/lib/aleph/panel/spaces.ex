@@ -24,12 +24,9 @@ defmodule Aleph.Panel.Spaces do
   @impl Aleph.Panel
   def pick(%{spaces: spaces}, _rect, local_y) do
     spaces
-    |> row_at(local_y)
+    |> Aleph.Panel.item_at(local_y)
     |> switch_space()
   end
-
-  defp row_at(_spaces, i) when i < 2, do: nil
-  defp row_at(spaces, i), do: Enum.at(spaces, i - 2)
 
   defp switch_space(nil), do: nil
   defp switch_space(%{key: key}), do: {:switch_space, key}

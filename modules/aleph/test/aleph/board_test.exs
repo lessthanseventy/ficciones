@@ -322,6 +322,24 @@ defmodule Aleph.BoardTest do
     end
   end
 
+  describe "render_scroll — windowing and the stale-offset clamp" do
+    test "offset 0 renders exactly like a plain render (the every-tick fast path)" do
+      data = %{threads: @threads, selected_id: 1, scroll: 0}
+      rect = %{x: 0, y: 0, w: 30, h: 3}
+      assert Panel.render_scroll(ThreadList, data, rect) == ThreadList.render(data, rect)
+    end
+
+    test "an offset past the end clamps to the last window instead of a blank panel" do
+      # Content shrank while scrolled (a thread closed mid-scroll): the stored offset now
+      # overshoots. render_scroll clamps so the panel shows the tail, not emptiness.
+      data = %{threads: @threads, selected_id: 1, scroll: 50}
+      rect = %{x: 0, y: 0, w: 30, h: 3}
+      rows = Panel.render_scroll(ThreadList, data, rect)
+      assert length(rows) == 3
+      assert rows == %{data | scroll: 0} |> ThreadList.render(%{rect | h: 100}) |> Enum.take(-3)
+    end
+  end
+
   describe "status bar" do
     defp status(overrides \\ %{}) do
       Map.merge(

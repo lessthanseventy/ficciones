@@ -108,6 +108,15 @@ defmodule Aleph.KeymapTest do
       s = state(%{focused_id: nil, threads: []})
       assert {^s, :none} = Keymap.handle(key(:enter), s)
     end
+
+    test "Enter outside the Sessions space is a no-op — the spawned terminal couldn't be seen" do
+      # In Comms the center renders the chorus and in Tlön the machine shell; a spawn from
+      # either would start a live PTY the operator can't see or type into.
+      for space <- [:comms, :tlon] do
+        s = state(%{active_key: space})
+        assert {^s, :none} = Keymap.handle(key(:enter), s)
+      end
+    end
   end
 
   describe "the live terminal owns the keys by default" do

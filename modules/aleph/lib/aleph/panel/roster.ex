@@ -32,16 +32,9 @@ defmodule Aleph.Panel.Roster do
   @impl Aleph.Panel
   def pick(%{sessions: roster} = data, _rect, local_y) do
     roster
-    |> row_at(offset(data) + local_y)
+    |> Aleph.Panel.item_at(Aleph.Panel.scroll_offset(data) + local_y)
     |> focus_thread()
   end
-
-  defp offset(%{scroll: n}), do: n
-  defp offset(_), do: 0
-
-  # header + blank sit above the session rows.
-  defp row_at(_roster, i) when i < 2, do: nil
-  defp row_at(roster, i), do: Enum.at(roster, i - 2)
 
   defp focus_thread(nil), do: nil
   defp focus_thread(%{thread_id: id}), do: {:focus_thread, id}

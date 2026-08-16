@@ -100,11 +100,10 @@ defmodule Aleph.View do
   # e.g. Dossier with no focused thread renders its placeholder, no scroll needed).
   defp scroll_data(_panel, nil, _reads), do: nil
 
-  defp scroll_data(panel, data, reads) do
-    if panel in @scrollable,
-      do: Map.put(data, :scroll, (reads[:scrolls] || %{})[panel] || 0),
-      else: data
-  end
+  defp scroll_data(panel, data, reads) when panel in @scrollable,
+    do: Map.put(data, :scroll, (reads[:scrolls] || %{})[panel] || 0)
+
+  defp scroll_data(_panel, data, _reads), do: data
 
   defp status_data(reads, space) do
     %{

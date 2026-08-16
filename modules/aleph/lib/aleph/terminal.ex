@@ -34,6 +34,10 @@ defmodule Aleph.Terminal do
 
   @default_cols 80
   @default_rows 24
+
+  # Kitty keyboard push, flag 1 (disambiguate) — the emulator-side half of the shifted-key
+  # round-trip; Aleph.Cockpit pushes the same bytes on the host tty.
+  @kitty_enable "\e[>1u"
   # Theme options passed straight to Ghostty.Terminal so the embedded screen matches aleph.
   @theme_opts [:foreground, :background, :cursor_color, :palette, :max_scrollback]
 
@@ -107,7 +111,9 @@ defmodule Aleph.Terminal do
     # embedded VT defaults to modifyOtherKeys and pi's shift+enter (newline), ctrl+v (image paste),
     # and ctrl+shift+v/c (copy/paste) bindings silently misfire. The flag lives in the emulator
     # (terminal→app key encoding only); it does not touch the host tty or pi's rendering.
-    Terminal.write(term, "\e[>1u")
+    # MUST stay byte-identical to Aleph.Cockpit's @kitty_enable (the host-side half of the same
+    # round-trip): host and emulator diverging on the pushed flag level silently breaks it.
+    Terminal.write(term, @kitty_enable)
     {:ok, pty} = PTY.start_link(cmd: cmd, args: args, cols: cols, rows: rows)
 
     {:ok, %{term: term, pty: pty, notify: opts[:notify], cols: cols, rows: rows}}

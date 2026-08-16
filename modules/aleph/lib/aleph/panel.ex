@@ -68,16 +68,26 @@ defmodule Aleph.Panel do
   before, so non-scrollable panels (Terminal, StatusBar, Border) and `nil` data are unaffected.
   """
   @spec render_scroll(module(), term(), rect()) :: [row()]
-  def render_scroll(panel, data, rect) do
-    if is_map(data) and Map.has_key?(data, :scroll) do
-      data
-      |> panel.render(%{rect | h: @max_rows})
-      |> Enum.drop(data.scroll)
-      |> Enum.take(rect.h)
-    else
-      panel.render(data, rect)
-    end
+  # Unscrolled (the common case, every tick): render straight into the real rect — no tall
+  # render, no windowing, exactly the pre-scroll cost.
+  def render_scroll(panel, %{scroll: 0} = data, rect), do: panel.render(data, rect)
+
+  # Scrolled: render tall, then window. The offset is re-clamped here because content can
+  # shrink between wheel events (a thread closes, the feed compacts) and the stored offset
+  # would otherwise window past the end — a blank panel until the next wheel event.
+  def render_scroll(panel, %{scroll: offset} = data, rect) do
+    rows = panel.render(data, %{rect | h: @max_rows})
+
+    rows
+    |> Enum.drop(min(offset, max(length(rows) - rect.h, 0)))
+    |> Enum.take(rect.h)
   end
+
+  def render_scroll(panel, data, rect), do: panel.render(data, rect)
+
+  @doc "Whether a panel's data carries a scroll offset (injected by `Aleph.View` for scrollable panels)."
+  @spec scrollable?(term()) :: boolean()
+  def scrollable?(data), do: is_map(data) and Map.has_key?(data, :scroll)
 
   @doc """
   Full content height (rows) at width `w` — the bound for clamping a scroll offset. Renders the
@@ -96,6 +106,23 @@ defmodule Aleph.Panel do
   def pick(panel, data, rect, local_y) do
     if function_exported?(panel, :pick, 3), do: panel.pick(data, rect, local_y)
   end
+
+  # Every list panel opens with the same chrome: a title row + a blank spacer above the rows.
+  @header_rows 2
+
+  @doc "The scroll offset a panel's data carries (0 when unscrolled or not scrollable)."
+  @spec scroll_offset(term()) :: non_neg_integer()
+  def scroll_offset(%{scroll: n}), do: n
+  def scroll_offset(_data), do: 0
+
+  @doc """
+  The list item at content row `i` under the shared header+blank layout, or `nil` on the
+  header rows. The one place the "#{@header_rows} rows of chrome above the items" convention
+  lives — a panel whose header grows must stop using this rather than fork the math.
+  """
+  @spec item_at([item], non_neg_integer()) :: item | nil when item: term()
+  def item_at(_items, i) when i < @header_rows, do: nil
+  def item_at(items, i), do: Enum.at(items, i - @header_rows)
 
   defp clip_row(_runs, w) when w <= 0, do: []
 

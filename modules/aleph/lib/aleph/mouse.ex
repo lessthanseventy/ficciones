@@ -51,5 +51,14 @@ defmodule Aleph.Mouse do
   def wheel_of(:wheel_up), do: {:up, @wheel_step}
   def wheel_of(:wheel_down), do: {:down, @wheel_step}
 
+  @doc """
+  An SGR mouse coordinate → a 0-based screen cell. The terminal reports mouse positions
+  1-based (SGR `\\e[<b;x;yM`, top-left is `1;1`) and raxol's parser passes them through
+  untranslated, while every placement rect from `Aleph.View` is 0-based — so the cockpit
+  normalizes each event's `x`/`y` here before any hit test or local-row math.
+  """
+  @spec to_cell(pos_integer()) :: non_neg_integer()
+  def to_cell(coord), do: max(coord - 1, 0)
+
   defp contains?(%{x: rx, y: ry, w: rw, h: rh}, x, y), do: x >= rx and x < rx + rw and y >= ry and y < ry + rh
 end

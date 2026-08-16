@@ -43,11 +43,8 @@ defmodule Aleph.Panel.Chorus do
   # add the offset so the row under the cursor maps to the right content block.
   @impl Aleph.Panel
   def pick(%{blocks: blocks} = data, rect, local_y) do
-    find_block(blocks, data[:focused_id], rect.w, offset(data) + local_y - 2)
+    find_block(blocks, data[:focused_id], rect.w, Aleph.Panel.scroll_offset(data) + local_y - 2)
   end
-
-  defp offset(%{scroll: n}), do: n
-  defp offset(_), do: 0
 
   defp find_block(_blocks, _focused, _w, idx) when idx < 0, do: nil
   defp find_block([], _focused, _w, _idx), do: nil

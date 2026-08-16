@@ -104,9 +104,13 @@ defmodule Aleph.Keymap do
 
   # Enter on a focused thread → enter-or-spawn: spawn a session if it has none, else no-op. The
   # replacement for the old `s` verb — creating a thread and spawning are one action (`n` already
-  # does both), and "put a session on an existing thread" is this. No focused thread → nothing.
-  defp command(%{key: :enter}, %{focused_id: nil} = state), do: {state, :none}
-  defp command(%{key: :enter}, %{focused_id: id} = state), do: {state, {:enter_or_spawn, id}}
+  # does both), and "put a session on an existing thread" is this. Sessions space only: anywhere
+  # else the center can't show the spawned terminal (Comms renders the chorus, Tlön the machine
+  # shell), so Enter would start a live PTY the operator can neither see nor type into.
+  defp command(%{key: :enter}, %{active_key: :sessions, focused_id: id} = state) when not is_nil(id),
+    do: {state, {:enter_or_spawn, id}}
+
+  defp command(%{key: :enter}, state), do: {state, :none}
 
   defp command(%{key: :tab, shift: true}, state), do: switch(state, :prev)
   defp command(%{key: :tab}, state), do: switch(state, :next)
