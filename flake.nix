@@ -103,6 +103,12 @@
               # agent-written file. No typecheck here (too heavy per-save); diagnostics are
               # the LSP stack's job, surfaced on demand.
               fmtExtension = "${repo}/modules/manos/fmt/src/extension.ts";
+              # lsp — LSP-backed agent tools (hover/definition/references/symbols/diagnostics)
+              # over Expert (Elixir), typescript-language-server, nil (Nix), bash-ls, json-ls.
+              # See modules/manos/lsp/AGENTS.md. The servers are installed via home.packages
+              # above (pkgs.expert / typescript-language-server / nil / bash-language-server /
+              # vscode-json-languageserver) so the next box gets them.
+              lspExtension = "${repo}/modules/manos/lsp/src/extension.ts";
               manosSkillsGlob = "${repo}/modules/manos/skills/*";
 
               # funes' self-contained release, built locally by `mise run funes:release`
@@ -180,7 +186,23 @@
               # scripts/watch.sh's change-triggered test runner (runs-on-change, debounce,
               # .gitignore-aware, restart-on-supersede); declared here so the next box has
               # it, not left to whatever the OS happens to ship.
-              home.packages = [ pi pkgs.watchexec ];
+              #
+              # LSP servers for the manos/lsp agent extension (hover/definition/references/
+              # diagnostics as pi tools). Flake-managed so the next box gets them, not left to
+              # mason or ~/.local/bin: Expert is the new standard Elixir LSP
+              # (expert-lsp.org, NOT elixir-ls); typescript-language-server wraps tsserver;
+              # nil is the Nix LSP; bash-language-server for shell; vscode-json-languageserver
+              # for JSON. The adapter registry in modules/manos/lsp/src/adapters.ts spawns
+              # these by name — adding a language is an adapter object + (usually) a package here.
+              home.packages = [
+                pi
+                pkgs.watchexec
+                pkgs.expert
+                pkgs.typescript-language-server
+                pkgs.nil
+                pkgs.bash-language-server
+                pkgs.vscode-json-languageserver
+              ];
 
               # funes' channel config — we own this file; pi only reads it.
               home.file.".pi/agent/mcp.json".text = funesMcpJson;
@@ -209,8 +231,9 @@
                   --arg ext "${manosExtension}" \
                   --arg ext2 "${consultExtension}" \
                   --arg ext3 "${fmtExtension}" \
+                  --arg ext4 "${lspExtension}" \
                   --arg skills "${manosSkillsGlob}" \
-                  '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3] | unique)
+                  '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3, $ext4] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
                    | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)
                    | .defaultProvider //= "ollama-cloud"
