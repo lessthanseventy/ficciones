@@ -17,12 +17,32 @@ defmodule Mix.Tasks.Aleph.Run do
     # as a dependency. A DB misconfig surfaces here rather than deep in the first read.
     case Application.ensure_all_started(:aleph) do
       {:ok, _apps} ->
-        Aleph.Cockpit.run()
+        launch_or_explain()
 
       {:error, reason} ->
         Mix.shell().error(
           "aleph could not boot funes: #{inspect(reason)}\n" <>
             "Did you run `mise run aleph:setup` to create + migrate the database?"
+        )
+    end
+  end
+
+  # The DB opens fine but may be BEHIND — a slice that landed a migration leaves the
+  # repo-local scratch db a `mise run aleph:setup` short, and `home:switch` migrates only
+  # the XDG service db, not this one. The cockpit's first read would then raise a raw
+  # `%Exqlite.Error{}` ("no such table: todo") deep in render. So ask the arbiter whose
+  # output names the gap — `Funes.Doctor.pending/0` — and turn that crash into the fix.
+  defp launch_or_explain do
+    case Funes.Doctor.pending() do
+      [] ->
+        Aleph.Cockpit.run()
+
+      pending ->
+        names = Enum.map_join(pending, "\n  ", fn {version, name} -> "#{version}_#{name}" end)
+
+        Mix.shell().error(
+          "aleph's database is #{length(pending)} migration(s) behind — run `mise run aleph:setup` first.\n" <>
+            "Pending:\n  " <> names
         )
     end
   end
