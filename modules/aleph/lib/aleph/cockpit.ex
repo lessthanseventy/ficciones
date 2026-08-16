@@ -28,6 +28,12 @@ defmodule Aleph.Cockpit do
 
   # Redraw cadence for tmux liveness + roster warmth, independent of Bus events.
   @tick_ms 500
+  # Coalesce a burst of terminal events (pi streaming, tmux output) into ONE render on this
+  # cadence, instead of rendering per-event. During streaming the embedded terminal fires
+  # hundreds of events/sec; rendering each starves key casts queued behind them in the
+  # mailbox. ~8ms ≈ 120fps — one frame of output latency, and terminal-event handling
+  # becomes a cheap no-op once a render is armed, so the mailbox drains and input lands now.
+  @render_coalesce_ms 8
   @tb_output_truecolor 5
   # TB_INPUT_ESC (1) | TB_INPUT_MOUSE (4) = 5 (termbox2.h §309–313): keep ESC-sequence parsing AND
   # emit mouse events, which the Driver translates into Event{type: :mouse, data: %{x, y, button}}.
@@ -119,7 +125,8 @@ defmodule Aleph.Cockpit do
             input: nil,
             flash: nil,
             scrolls: %{},
-            placements: []
+            placements: [],
+            render_scheduled?: false
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -209,6 +216,8 @@ defmodule Aleph.Cockpit do
 
   def handle_info(:tick, state) do
     Process.send_after(self(), :tick, @tick_ms)
+    # A pending coalesced :render is now redundant (this tick paints); drop the flag so it no-ops.
+    state = %{state | render_scheduled?: false}
     # Re-read the terminal size every tick, so a resize that never arrived as an event (a missed
     # SIGWINCH) self-corrects within a tick instead of leaving the layout stranded at the old size.
     state = refresh_size(state)
@@ -220,10 +229,18 @@ defmodule Aleph.Cockpit do
     {:noreply, render(state)}
   end
 
-  # An embedded session terminal moved (new output, bell, or the child exited) → repaint exactly
-  # then, at native latency. This is why the center is smooth: it draws when the screen changed,
-  # not on a timer.
-  def handle_info({Terminal, _pid, _event}, state), do: {:noreply, render(state)}
+  # An embedded session terminal moved (new output, bell, or the child exited). Rendering
+  # per-event gave native-latency output but starved input during streaming — the mailbox
+  # flooded with terminal events, each doing a full render, and key casts queued behind.
+  # Coalesce: arm a single :render on a short timer; once armed, subsequent terminal events
+  # are a cheap no-op. Output draws within one frame (@render_coalesce_ms), input lands now.
+  def handle_info({Terminal, _pid, _event}, state), do: {:noreply, schedule_render(state)}
+
+  # The coalesced render: clear the armed flag and paint. A :render that arrives with the
+  # flag cleared (a tick or key cast already painted and dropped the flag) is a no-op — no
+  # double render.
+  def handle_info(:render, %{render_scheduled?: false} = state), do: {:noreply, state}
+  def handle_info(:render, state), do: {:noreply, render(%{state | render_scheduled?: false})}
 
   # Trapped exit from the linked input Driver: the cockpit can't take keys anymore, so stop —
   # terminate/2 restores the tty on the way out.
@@ -434,6 +451,16 @@ defmodule Aleph.Cockpit do
     [{:ctrl, ev[:ctrl]}, {:alt, ev[:alt]}, {:shift, ev[:shift]}]
     |> Enum.filter(fn {_mod, on?} -> on? end)
     |> Enum.map(fn {mod, _} -> mod end)
+  end
+
+  # Arm one coalesced render if none is armed. The first terminal event in a burst schedules
+  # the :render; the rest see the flag set and do nothing — the single :render picks up the
+  # latest terminal state, whatever arrived in the ~8ms window.
+  defp schedule_render(%{render_scheduled?: true} = state), do: state
+
+  defp schedule_render(state) do
+    Process.send_after(self(), :render, @render_coalesce_ms)
+    %{state | render_scheduled?: true}
   end
 
   defp render(state) do
