@@ -115,14 +115,23 @@ defmodule Aleph.BoardTest do
     end
 
     test "dossier renders sections from an in_scope map, honest about empties and cuts" do
-      # learnings/shipped/blockers are each %{shown, more} (funes Board R3): a cap
-      # is always rendered WITH its count — a cut without a count lies.
+      # todos/learnings/blockers/done are each %{shown, more} (funes Board): a cap is
+      # always rendered WITH its count — a cut without a count lies. DONE is the merged
+      # view (completed todos + work_landed events); NEXT is the first open todo.
       scope = %{
         north_star: "ship the board",
         lead: "Sandra",
+        todos: %{shown: [%{id: 1, text: "wire the composer"}, %{id: 2, text: "then the footer"}], more: 3},
+        next: %{id: 1, text: "wire the composer"},
         learnings: %{shown: [%{text: "termbox compiles"}], more: 2},
         blockers: %{shown: [], more: 0},
-        shipped: %{shown: [], more: 0},
+        done: %{
+          shown: [
+            %{source: :todo, row: %{text: "did a step"}},
+            %{source: :event, row: %{detail: %{"summary" => "merged it"}}}
+          ],
+          more: 0
+        },
         chatter: []
       }
 
@@ -130,10 +139,19 @@ defmodule Aleph.BoardTest do
       joined = Enum.map_join(rows, "\n", &text/1)
       assert joined =~ "NORTH STAR"
       assert joined =~ "ship the board"
+      # TODOS with NEXT marked by an arrow; the rest plain
+      assert joined =~ "TODOS"
+      assert joined =~ "→ wire the composer"
+      assert joined =~ "· then the footer"
       assert joined =~ "LEARNINGS"
       assert joined =~ "termbox compiles"
-      # the cut is counted, never silent
+      # DONE merges a completed todo (✓) and a work_landed event's summary
+      assert joined =~ "DONE"
+      assert joined =~ "✓ did a step"
+      assert joined =~ "merged it"
+      # every cut is counted, never silent
       assert joined =~ "+2 more"
+      assert joined =~ "+3 more"
       # empty section keeps its shape with a dim em-dash, never an invented value
       assert joined =~ "—"
     end

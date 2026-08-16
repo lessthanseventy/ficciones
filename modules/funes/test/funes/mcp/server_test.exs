@@ -75,6 +75,8 @@ defmodule Funes.MCP.ServerTest do
                "bank_fact",
                "raise_issue",
                "record_done",
+               "add_todo",
+               "complete_todo",
                "get_dossier",
                "get_facts",
                "get_messages"
@@ -194,7 +196,8 @@ defmodule Funes.MCP.ServerTest do
     assert certainties["the flaky test is a race in drain/0"] == "checked"
 
     assert Enum.any?(brief["blockers"]["shown"], &(&1["summary"] =~ "termbox"))
-    assert Enum.any?(brief["shipped"]["shown"], &(&1["summary"] == "review shipped"))
+    # DONE is the merged view — the record_done outcome rides in as a source:"event" entry.
+    assert Enum.any?(brief["done"]["shown"], &(&1["source"] == "event" and &1["summary"] == "review shipped"))
     assert Enum.any?(brief["chatter"], &(&1["body"] == "starting the review"))
   end
 
@@ -211,6 +214,41 @@ defmodule Funes.MCP.ServerTest do
     [fact] = brief["learnings"]["shown"]
     assert fact["certainty"] == "opinion"
     assert fact["check_cmd"] == nil
+  end
+
+  test "add_todo / complete_todo — the activity axis over the wire", %{token: token} do
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    r1 = call(token, session, 4, "add_todo", %{"text" => "wire the composer"})
+    refute r1["isError"]
+    call(token, session, 5, "add_todo", %{"text" => "then the footer"})
+    first_id = decode_tool_json(r1)["todo_id"]
+
+    # open todos in insertion order; NEXT is the first open
+    brief = decode_tool_json(call(token, session, 6, "get_dossier", %{}))
+    assert Enum.map(brief["todos"]["shown"], & &1["text"]) == ["wire the composer", "then the footer"]
+    assert brief["next"]["text"] == "wire the composer"
+
+    refute call(token, session, 7, "complete_todo", %{"id" => first_id})["isError"]
+
+    # NEXT advances; the completed step rides into DONE as a source:"todo" entry
+    brief2 = decode_tool_json(call(token, session, 8, "get_dossier", %{}))
+    assert brief2["next"]["text"] == "then the footer"
+    assert Enum.any?(brief2["done"]["shown"], &(&1["source"] == "todo" and &1["text"] == "wire the composer"))
+  end
+
+  test "complete_todo refuses a todo on another thread — identity scoping", %{token: token} do
+    {:ok, other} = Channel.open_thread(%{title: "elsewhere"})
+    {:ok, foreign} = Dossier.add_todo(%{thread_id: other.id, text: "not yours"})
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+    result = call(token, session, 4, "complete_todo", %{"id" => foreign.id})
+
+    assert result["isError"]
+    # and it stays open — a cross-thread complete is a no-op on the row
+    assert is_nil(Repo.get(Funes.Todo, foreign.id).done_at)
   end
 
   test "every authenticated call is measured activity — warmth bumps without a heartbeat",

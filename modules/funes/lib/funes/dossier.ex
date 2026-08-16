@@ -20,10 +20,15 @@ defmodule Funes.Dossier do
   alias Funes.Message
   alias Funes.Repo
   alias Funes.Thread
+  alias Funes.Todo
 
   # orient shows at most five open issues per thread; the rest is a number, never a
   # complete-and-useless list (§5 rank-and-cut, §1).
   @issue_cap 5
+
+  # Open todos are capped the same way — a plan longer than five steps shows the next
+  # five and counts the rest; a complete list is not a useful one (§5/§6).
+  @todo_cap 5
 
   @doc "Bank a durable fact. `{:ok, fact}` or `{:error, changeset}`."
   def bank_fact(attrs) do
@@ -131,5 +136,48 @@ defmodule Funes.Dossier do
     total = Repo.aggregate(open, :count, :id)
 
     %{shown: shown, more: total - length(shown)}
+  end
+
+  @doc "Add a plan step (todo) to a thread. `{:ok, todo}` or `{:error, changeset}`."
+  def add_todo(attrs) do
+    attrs |> Todo.add_changeset() |> Repo.insert() |> Bus.announce(:todo_added)
+  end
+
+  @doc """
+  Mark a todo done — stamps `done_at`. Emits NO event: DONE is a merged view (todos by
+  their `done_at`, plus `work_landed`), never a copy. `record_done` is the evidence-
+  bearing verb for judgement-worthy outcomes.
+  """
+  def complete_todo(%Todo{} = todo) do
+    todo |> Todo.done_changeset() |> Repo.update() |> Bus.announce(:todo_completed)
+  end
+
+  @doc "A todo by id, or nil — the load path for `complete_todo`, scope-checked by its tool."
+  def todo(id), do: Repo.get(Todo, id)
+
+  @doc """
+  A thread's OPEN todos, ranked and cut (§5): `%{shown, more}`, `shown` at most five in
+  INSERTION order (`id` asc) — so the head is NEXT, the derived first-open-todo. Completed
+  todos and other threads' todos are excluded.
+  """
+  def open_todos_for_thread(%Thread{} = thread) do
+    open = from t in Todo, where: t.thread_id == ^thread.id and is_nil(t.done_at)
+
+    shown = Repo.all(from t in open, order_by: [asc: t.id], limit: @todo_cap)
+    total = Repo.aggregate(open, :count, :id)
+
+    %{shown: shown, more: total - length(shown)}
+  end
+
+  @doc """
+  A thread's COMPLETED todos, most-recently-done first — the todo half of the DONE merged
+  view. Ordered by `done_at` (then `id` for same-second ties), never copied into an event.
+  """
+  def done_todos_for_thread(%Thread{} = thread) do
+    Repo.all(
+      from t in Todo,
+        where: t.thread_id == ^thread.id and not is_nil(t.done_at),
+        order_by: [desc: t.done_at, desc: t.id]
+    )
   end
 end

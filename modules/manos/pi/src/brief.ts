@@ -25,13 +25,26 @@ export interface Fact {
   at: string | null;
 }
 
-export interface ShippedEvent {
+export interface Todo {
   id: number;
-  kind: string;
-  summary: string | null;
-  evidence: string | null;
+  text: string;
+  done_at: string | null;
   at: string | null;
 }
+
+// One entry of the merged DONE view — a completed todo or a work_landed event, each at
+// its own timestamp. Tagged by `source` so the render tells a finished step from a
+// shipped outcome.
+export type DoneEntry =
+  | { source: "todo"; id: number; text: string; at: string | null }
+  | {
+      source: "event";
+      id: number;
+      kind: string;
+      summary: string | null;
+      evidence: string | null;
+      at: string | null;
+    };
 
 export interface Blocker {
   id: number;
@@ -59,8 +72,10 @@ export interface Dossier {
   thread_id: number;
   north_star: string | null;
   lead: string | null;
+  todos: Capped<Todo>;
+  next: Todo | null;
   learnings: Capped<Fact>;
-  shipped: Capped<ShippedEvent>;
+  done: Capped<DoneEntry>;
   blockers: Capped<Blocker>;
   chatter: ChatterMessage[];
 }
@@ -79,6 +94,15 @@ export function renderBrief(d: Dossier, now: Date = new Date()): string {
   lines.push(`Lead: ${d.lead ?? "unstaffed"}  ·  thread ${d.thread_id}`);
   lines.push(staleness(d, now));
 
+  if (d.todos.shown.length > 0) {
+    lines.push("", "## Plan  (→ is NEXT, the first open step)");
+    for (const t of d.todos.shown) {
+      const isNext = d.next != null && t.id === d.next.id;
+      lines.push(`${isNext ? "→" : " "} [ ] ${t.text}`);
+    }
+    pushMore(lines, d.todos.more, "todos");
+  }
+
   if (d.learnings.shown.length > 0) {
     lines.push("", "## What's known");
     for (const f of d.learnings.shown) lines.push(renderFact(f));
@@ -91,10 +115,10 @@ export function renderBrief(d: Dossier, now: Date = new Date()): string {
     pushMore(lines, d.blockers.more, "blockers");
   }
 
-  if (d.shipped.shown.length > 0) {
-    lines.push("", "## Shipped");
-    for (const e of d.shipped.shown) lines.push(renderShipped(e));
-    pushMore(lines, d.shipped.more, "shipped");
+  if (d.done.shown.length > 0) {
+    lines.push("", "## Done");
+    for (const e of d.done.shown) lines.push(renderDone(e));
+    pushMore(lines, d.done.more, "done");
   }
 
   if (d.chatter.length > 0) {
@@ -127,7 +151,8 @@ function renderBlocker(b: Blocker): string {
   return `- ${b.summary} (${b.state}${who})${ev}`;
 }
 
-function renderShipped(e: ShippedEvent): string {
+function renderDone(e: DoneEntry): string {
+  if (e.source === "todo") return `- [x] ${e.text}`;
   const ev = e.evidence ? ` — ${e.evidence}` : "";
   return `- ${e.summary ?? "(work landed)"}${ev}`;
 }
@@ -156,7 +181,8 @@ function newestAt(d: Dossier): Date | null {
   };
   for (const f of d.learnings.shown) collect(f.at);
   for (const b of d.blockers.shown) collect(b.at);
-  for (const e of d.shipped.shown) collect(e.at);
+  for (const e of d.done.shown) collect(e.at);
+  for (const t of d.todos.shown) collect(t.at);
   for (const m of d.chatter) collect(m.at);
   if (stamps.length === 0) return null;
   return new Date(Math.max(...stamps));

@@ -46,7 +46,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | raise_issue / record_done | ✅ | evidence is hand-typed today |
 | get_dossier / get_facts | ✅ | + resources: dossier, constraints |
 | **open_thread / close_thread** | ⬜ | designed as the deliberate cross-thread tools; never built |
-| **add_todo / complete_todo** | 🔜 | slice 3 |
+| **add_todo / complete_todo** | ✅ | slice 3 (#4a): thread-scoped; complete refuses another thread's todo. Dossier gains TODOS/NEXT/DONE (DONE merges completed todos + `work_landed`, replacing the old SHIPPED-only view) |
 | **raise_question / resolve_question** | 🔜 | slice 4 |
 | **record_check(cmd, exit, tail)** | ⬜ | measured evidence → `check_passed`/`check_failed` event; agent runs (via cap), funes records |
 | **roster / list_threads / read-other-thread** | ⬜ | cross-thread awareness; scope tightly (today only aleph sees this) |
@@ -73,7 +73,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 |---|---|---|
 | coordinate-via-funes | ✅ | talk on your thread = continuity |
 | bank-what-you-learn | ✅ | provenance honestly |
-| **keep-todos-current** | 🔜 | slice 3 |
+| **keep-todos-current** | ✅ | slice 3: add_todo as you plan, complete_todo as you finish, record_done (evidence) for outcomes |
 | **report-done / verify** | ⬜ | run the real command via `cap`, then `record_done`/`raise_issue` with the measured output — evidence stops being self-reported |
 | **catch-up / re-brief** | ⬜ | how a fresh session re-orients from funes |
 
@@ -140,7 +140,7 @@ Grouped, with the dependency that matters:
    join/mint_for`) was backfilled to the `pi:*` launchers too, so `mise run pi:balanced
    [thread-id]` makes a pi model a citizen the same way — one path, both harnesses. Both
    degrade gracefully when the channel is down (launch plain).
-4. **Vocabulary slices** — todo (3), question (4), as planned.
+4. **Vocabulary slices** — ~~todo (3)~~ ✅ DONE, question (4) next.
 5. **Measured verification** — `record_check` + the `verify`/`report-done` skills, on top of
    `cap`: evidence becomes measured, not self-reported; `check_passed`/`check_failed` events
    land; `fact.check_cmd` can be re-run to confirm facts still hold.

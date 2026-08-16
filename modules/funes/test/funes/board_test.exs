@@ -1,8 +1,9 @@
 defmodule Funes.BoardTest do
   # The board's read models (aleph §4): the pure aggregates a TUI/LiveView renders.
   # IN FLIGHT is the roster (live sessions × warmth); IN SCOPE is one thread's brief
-  # (NORTH STAR / SHIPPED / LEARNINGS / BLOCKERS / CHATTER) — the SAME one-call read
-  # that briefs a re-entering session (§3b), so it is built once with two consumers.
+  # (NORTH STAR / TODOS / NEXT / DONE / LEARNINGS / BLOCKERS / CHATTER) — the SAME
+  # one-call read that briefs a re-entering session (§3b), one read, two consumers.
+  # DONE is a MERGED view: completed todos by their `done_at` + `work_landed` events.
   use ExUnit.Case, async: false
 
   alias Funes.Board
@@ -58,7 +59,7 @@ defmodule Funes.BoardTest do
   end
 
   describe "Board.in_scope/1 — IN SCOPE" do
-    test "assembles NORTH STAR, lead, SHIPPED, LEARNINGS, BLOCKERS, CHATTER" do
+    test "assembles NORTH STAR, lead, TODOS/NEXT/DONE, LEARNINGS, BLOCKERS, CHATTER" do
       {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
       {:ok, sandra} = Staff.register_agent(%{name: "Sandra", mandate: "m", engine: "e"})
       {:ok, _} = Staff.assign(thread, sandra)
@@ -82,16 +83,25 @@ defmodule Funes.BoardTest do
 
       {:ok, _} = Dossier.raise_issue(%{thread_id: thread.id, summary: "a blocker"})
 
+      {:ok, planned} = Dossier.add_todo(%{thread_id: thread.id, text: "planned step"})
+      {:ok, _done} = Dossier.complete_todo(planned)
+      {:ok, _} = Dossier.add_todo(%{thread_id: thread.id, text: "open step"})
+
       scope = Board.in_scope(thread)
       assert scope.north_star == "review PR 329"
       assert scope.lead == "Sandra"
-      assert Enum.any?(scope.shipped.shown, &(&1.kind == "work_landed"))
+      # DONE is a MERGED view: the completed todo AND the work_landed event, tagged by source
+      assert Enum.any?(scope.done.shown, &(&1.source == :event and &1.row.kind == "work_landed"))
+      assert Enum.any?(scope.done.shown, &(&1.source == :todo and &1.row.text == "planned step"))
+      # the open steps, and NEXT — the first open todo, derived
+      assert Enum.any?(scope.todos.shown, &(&1.text == "open step"))
+      assert scope.next.text == "open step"
       assert Enum.any?(scope.learnings.shown, &(&1.text == "a lesson"))
       assert Enum.any?(scope.blockers.shown, &(&1.summary == "a blocker"))
       assert Enum.any?(scope.chatter, &(&1.body == "starting"))
     end
 
-    test "LEARNINGS and SHIPPED are capped WITH a count — a cut without a count lies" do
+    test "LEARNINGS and DONE are capped WITH a count — a cut without a count lies" do
       # The silent-cap failure (pi doc §2b): for an agent whose only window into
       # its memory is this brief, "5 shown" with no number for the rest reads as
       # "5 exist" — the empty-world lie in miniature. Same shape as blockers.
@@ -119,8 +129,9 @@ defmodule Funes.BoardTest do
       scope = Board.in_scope(thread)
       assert length(scope.learnings.shown) == 5
       assert scope.learnings.more == 2
-      assert length(scope.shipped.shown) == 5
-      assert scope.shipped.more == 1
+      # DONE here is 6 work_landed events (no todos) — capped at five with the count.
+      assert length(scope.done.shown) == 5
+      assert scope.done.more == 1
     end
 
     test "an unassigned thread has a nil lead, and empty sections count zero" do
@@ -128,7 +139,9 @@ defmodule Funes.BoardTest do
       scope = Board.in_scope(thread)
       assert scope.lead == nil
       assert scope.learnings == %{shown: [], more: 0}
-      assert scope.shipped == %{shown: [], more: 0}
+      assert scope.done == %{shown: [], more: 0}
+      assert scope.todos == %{shown: [], more: 0}
+      assert scope.next == nil
     end
   end
 end

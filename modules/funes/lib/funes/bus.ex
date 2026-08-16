@@ -18,7 +18,8 @@ defmodule Funes.Bus do
 
   ## Events (the envelope every subscriber matches)
     `{:message_posted, message}` · `{:fact_banked, fact}` · `{:event_recorded, event}`
-    `{:issue_raised, issue}` · `{:issue_resolved, issue}` · `{:thread_opened, thread}`
+    `{:issue_raised, issue}` · `{:issue_resolved, issue}` · `{:todo_added, todo}`
+    `{:todo_completed, todo}` · `{:thread_opened, thread}`
     `{:thread_closed, thread}` · `{:thread_assigned, thread}` · `{:session_started, s}`
     `{:session_ended, s}`
   """
@@ -50,7 +51,7 @@ defmodule Funes.Bus do
   end
 
   def broadcast({tag, %{thread_id: thread_id} = _row} = event)
-      when tag in [:fact_banked, :event_recorded, :issue_raised, :issue_resolved] do
+      when tag in [:fact_banked, :event_recorded, :issue_raised, :issue_resolved, :todo_added, :todo_completed] do
     publish(thread_topics(thread_id), event)
   end
 

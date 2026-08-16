@@ -13,15 +13,18 @@ defmodule Funes.MCP.Brief do
   alias Funes.Fact
   alias Funes.Issue
   alias Funes.Message
+  alias Funes.Todo
 
   @doc "A Board.in_scope/1 map, rendered."
   def scope(scope) do
     %{
       "thread_id" => scope.thread.id,
       "north_star" => scope.north_star,
+      "todos" => capped(scope.todos, &todo/1),
+      "next" => next(scope.next),
       "lead" => scope.lead,
+      "done" => capped(scope.done, &done_entry/1),
       "learnings" => capped(scope.learnings, &fact/1),
-      "shipped" => capped(scope.shipped, &event/1),
       "blockers" => capped(scope.blockers, &issue/1),
       "chatter" => Enum.map(scope.chatter, &message/1)
     }
@@ -66,6 +69,32 @@ defmodule Funes.MCP.Brief do
       "evidence" => detail["evidence"],
       "at" => at(e.created_at)
     }
+  end
+
+  @doc "A todo — a plan step. `done_at` present only when done (it opens NULL)."
+  def todo(%Todo{} = t) do
+    %{
+      "id" => t.id,
+      "text" => t.text,
+      "done_at" => at(t.done_at),
+      "at" => at(t.created_at)
+    }
+  end
+
+  @doc "NEXT — the first open todo, or nil (derived, never stored)."
+  def next(nil), do: nil
+  def next(%Todo{} = t), do: todo(t)
+
+  @doc """
+  One entry of the merged DONE view, tagged by `source`: a completed `todo` or a
+  `work_landed` event, each at its own timestamp — the merge, never a copy.
+  """
+  def done_entry(%{source: :todo, at: done_at, row: %Todo{} = t}) do
+    %{"source" => "todo", "id" => t.id, "text" => t.text, "at" => at(done_at)}
+  end
+
+  def done_entry(%{source: :event, row: %Event{} = e}) do
+    e |> event() |> Map.put("source", "event")
   end
 
   @doc "An issue — the stack's tracker (pi doc §4b)."

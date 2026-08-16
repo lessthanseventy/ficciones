@@ -1,7 +1,8 @@
 defmodule Aleph.Panel.Dossier do
   @moduledoc """
   IN SCOPE — the focused thread's brief (design §8), a thin view over `Funes.Board.in_scope/1`:
-  NORTH STAR, LEAD, LEARNINGS, BLOCKERS (capped + a `more` count), SHIPPED, CHATTER. Re-renders
+  NORTH STAR, LEAD, TODOS (NEXT marked →), LEARNINGS, BLOCKERS, DONE (each capped + a `more`
+  count), CHATTER. DONE is the merged view — completed todos + `work_landed` events. Re-renders
   on that thread's topic. Data is the `in_scope/1` map, or `nil` when nothing is focused.
   """
   @behaviour Aleph.Panel
@@ -24,9 +25,10 @@ defmodule Aleph.Panel.Dossier do
       [line("IN SCOPE", :header), blank()] ++
         section("NORTH STAR", [scope.north_star], rect.w) ++
         lead_section(scope.lead, rect.w) ++
+        section("TODOS", capped_lines(scope.todos, &todo_line(&1, scope.next)), rect.w) ++
         section("LEARNINGS", capped_lines(scope.learnings, & &1.text), rect.w) ++
         section("BLOCKERS", capped_lines(scope.blockers, & &1.summary), rect.w) ++
-        section("SHIPPED", capped_lines(scope.shipped, &shipped_line/1), rect.w) ++
+        section("DONE", capped_lines(scope.done, &done_line/1), rect.w) ++
         section("CHATTER", Enum.map(scope.chatter, &chatter_line/1), rect.w)
 
     Aleph.Panel.clip(rows, rect)
@@ -43,9 +45,16 @@ defmodule Aleph.Panel.Dossier do
     Enum.map(shown, fmt) ++ if(more > 0, do: ["+#{more} more"], else: [])
   end
 
-  defp shipped_line(%{detail: detail}) when is_map(detail), do: Map.get(detail, "summary") || "work landed"
+  # NEXT — the first open todo — is marked with an arrow; the rest are plain steps.
+  defp todo_line(%{id: id, text: text}, %{id: next_id}) when id == next_id, do: "→ #{text}"
+  defp todo_line(%{text: text}, _next), do: "· #{text}"
 
-  defp shipped_line(_event), do: "work landed"
+  # DONE is the merged view: a completed todo (✓) or a work_landed event (its summary).
+  defp done_line(%{source: :todo, row: %{text: text}}), do: "✓ #{text}"
+  defp done_line(%{source: :event, row: event}), do: event_summary(event)
+
+  defp event_summary(%{detail: detail}) when is_map(detail), do: Map.get(detail, "summary") || "work landed"
+  defp event_summary(_event), do: "work landed"
 
   defp chatter_line(%{author: author, body: body}), do: "#{author}: #{body}"
 

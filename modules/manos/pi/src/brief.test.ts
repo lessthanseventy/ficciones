@@ -12,8 +12,10 @@ function dossier(over: Partial<Dossier> = {}): Dossier {
     thread_id: 7,
     north_star: "review PR 329",
     lead: "Carl",
+    todos: { shown: [], more: 0 },
+    next: null,
     learnings: { shown: [], more: 0 },
-    shipped: { shown: [], more: 0 },
+    done: { shown: [], more: 0 },
     blockers: { shown: [], more: 0 },
     chatter: [],
     ...over,
@@ -153,7 +155,7 @@ describe("renderBrief — the honest brief (pi doc §2b)", () => {
     expect(out).toContain("12 more");
   });
 
-  test("blockers and shipped render with their evidence", () => {
+  test("blockers and the DONE merge render with their evidence", () => {
     const out = renderBrief(
       dossier({
         blockers: {
@@ -169,9 +171,11 @@ describe("renderBrief — the honest brief (pi doc §2b)", () => {
           ],
           more: 0,
         },
-        shipped: {
+        done: {
           shown: [
+            { source: "todo", id: 4, text: "wired the composer", at: minsAgo(5) },
             {
+              source: "event",
               id: 1,
               kind: "work_landed",
               summary: "review shipped",
@@ -186,16 +190,39 @@ describe("renderBrief — the honest brief (pi doc §2b)", () => {
     );
     expect(out).toContain("termbox NIF crashes on resize");
     expect(out).toContain("aleph pane, 2026-08-15");
+    // a completed todo renders as a checked box; a work_landed event as its summary
+    expect(out).toContain("[x] wired the composer");
     expect(out).toContain("review shipped");
     expect(out).toContain("mise run check → 0 failures");
+  });
+
+  test("the Plan renders open todos with NEXT marked", () => {
+    const out = renderBrief(
+      dossier({
+        todos: {
+          shown: [
+            { id: 1, text: "wire the composer", done_at: null, at: minsAgo(10) },
+            { id: 2, text: "then the footer", done_at: null, at: minsAgo(9) },
+          ],
+          more: 3,
+        },
+        next: { id: 1, text: "wire the composer", done_at: null, at: minsAgo(10) },
+      }),
+      NOW,
+    );
+    expect(out).toContain("## Plan");
+    expect(out).toContain("→ [ ] wire the composer");
+    expect(out).toContain("  [ ] then the footer");
+    expect(out).toContain("3 more todos");
   });
 
   test("the brief states its own staleness from the newest banked row (§6)", () => {
     const out = renderBrief(
       dossier({
-        shipped: {
+        done: {
           shown: [
             {
+              source: "event",
               id: 1,
               kind: "work_landed",
               summary: "did a thing",

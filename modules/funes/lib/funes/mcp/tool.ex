@@ -325,3 +325,69 @@ defmodule Funes.MCP.Tool.GetMessages do
     {:reply, Response.json(Response.tool(), messages), frame}
   end
 end
+
+defmodule Funes.MCP.Tool.AddTodo do
+  @moduledoc """
+  Add a plan step to this thread — `add_todo` as you plan (pi doc §5 slice 3). Thread-
+  scoped by the connection's identity; it opens open. Order is insertion order, so the
+  brief's NEXT is simply the first one still open.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Dossier
+  alias Funes.MCP
+
+  schema do
+    field :text, :string, required: true, description: "The plan step, one line"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+
+    case Dossier.add_todo(%{thread_id: identity.thread_id, text: params[:text]}) do
+      {:ok, todo} ->
+        {:reply, Response.json(Response.tool(), %{"todo_id" => todo.id}), frame}
+
+      {:error, changeset} ->
+        {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+    end
+  end
+end
+
+defmodule Funes.MCP.Tool.CompleteTodo do
+  @moduledoc """
+  Mark a plan step done — `complete_todo(id)` as you finish (pi doc §5 slice 3). The
+  todo must belong to THIS connection's thread; completing another thread's step is
+  refused, the same identity-scoping the whole channel rests on. Emits no event — DONE
+  is a merged view, and `record_done` is the evidence-bearing verb for outcomes.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Dossier
+  alias Funes.MCP
+  alias Funes.Todo
+
+  schema do
+    field :id, :integer, required: true, description: "The todo id (from add_todo or the brief)"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    thread_id = MCP.Identity.from_frame(frame).thread_id
+
+    case Dossier.todo(params[:id]) do
+      %Todo{thread_id: ^thread_id} = todo ->
+        {:ok, _done} = Dossier.complete_todo(todo)
+        {:reply, Response.json(Response.tool(), %{"completed" => todo.id}), frame}
+
+      nil ->
+        {:reply, Response.error(Response.tool(), "no such todo: #{params[:id]}"), frame}
+
+      %Todo{} ->
+        {:reply, Response.error(Response.tool(), "that todo is on another thread"), frame}
+    end
+  end
+end

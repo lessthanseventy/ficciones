@@ -54,9 +54,15 @@ plus `funes doctor`: **nothing ships that cannot be repaired at 2am** — schema
   the anubis client.
 
 Change the build-order status line above as each step lands — do not leave it asserting a step that is
-already built (the trap the step-2 handoff caught here). Next on Track B is **slice 2, the pi side** —
-the funes pi-extension (register + brief) and the skills; then the `todo` and `question` slices (pi doc
-§5). The aleph board (step 5) has its first live cockpit; its build order lives in the aleph docs. Deferred
+already built (the trap the step-2 handoff caught here). Track B slices 1–2 (the MCP channel, the pi
+adapter) and capability-map moves #1–#3 (funes-as-a-service, the mise parity pack, the claude-code
+adapter) are built. **The `todo` slice (pi doc §5 slice 3) is built**: `todo` (thread-scoped, `done_at`
+from birth), `add_todo`/`complete_todo` (complete refuses another thread's step), and the dossier's
+TODOS / NEXT (derived, first open) / DONE (a MERGED view — completed todos + `work_landed`, replacing the
+old SHIPPED-only pane), rendered in both `Funes.MCP.Brief` and the pi `brief.ts`; the `keep-todos-current`
+skill. **Next is the `question` slice (slice 4)** — `raise_question`/`resolve_question` (`resolved_at`
+from birth), the dossier's UNKNOWNS beside FACTS. The aleph board (step 5) has its first live cockpit; its
+build order lives in the aleph docs. Deferred
 still: the **engine-credit half of presence** (clocked-out from spent credits/rate-limit — combine into
 `recipients/1` before an auto-poking backend replaces `Inert`), the human-notification path + re-deliver
 on session-join, cross-thread **mentions**, and the `Sense` collectors. SQLite is the truth — a real db
