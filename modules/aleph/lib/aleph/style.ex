@@ -10,9 +10,12 @@ defmodule Aleph.Style do
 
   @bg 0x000000
 
-  # Retro amber/green phosphor with a hot-pink pop: amber is the primary text, green marks life
-  # and labels, burnt orange draws the structure, and pink flags the agents — a CRT "cyber
-  # hacker" surface on black. One accent per meaning.
+  # Retro amber/green phosphor with a hot-pink pop and a violet highlight: amber is the primary
+  # text, green marks life and labels, burnt orange draws the structure, pink flags the agents,
+  # and a deep violet wash marks selection — a CRT "cyber hacker" surface on black. One accent
+  # per meaning. The two dark hexes (`@sel`) are backgrounds, where deep colour reads best.
+  @sel 0x5B00AE
+
   @colors %{
     normal: {0xFFB454, @bg},
     header: {0xFFD75F, @bg},
@@ -21,8 +24,8 @@ defmodule Aleph.Style do
     warm: {0x5FFF87, @bg},
     dim: {0x9A803F, @bg},
     separator: {0xB5651D, @bg},
-    selected: {0xFFD75F, 0x332600},
-    selected_accent: {0xFFF4C2, 0x332600}
+    selected: {0xFFF4C2, @sel},
+    selected_accent: {0xFFFFFF, @sel}
   }
 
   @doc "The `{fg, bg}` truecolor pair for a semantic style. Unknown styles fall back to `:normal`."
