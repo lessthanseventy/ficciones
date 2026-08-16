@@ -25,6 +25,7 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.Session
   alias Aleph.Panel.Spaces
   alias Aleph.Panel.StatusBar
+  alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
   alias Aleph.View
 
@@ -175,6 +176,27 @@ defmodule Aleph.BoardTest do
     test "session placeholder when no tmux pane" do
       rows = Session.render(:no_session, %{x: 0, y: 0, w: 40, h: 10})
       assert Enum.map_join(rows, "\n", &text/1) =~ "no live tmux session"
+    end
+
+    test "terminal panel renders ghostty cells as truecolor runs, inverting the cursor cell" do
+      render_state = %{
+        cells: [[{"h", {255, 0, 0}, nil, 0}, {"i", nil, nil, 0}]],
+        cursor: %{visible: true, x: 1, y: 0},
+        foreground: {200, 200, 200},
+        background: {10, 10, 10}
+      }
+
+      [row] = Terminal.render(render_state, %{x: 0, y: 0, w: 40, h: 4})
+
+      # 'h' carries its own red fg; nil bg falls back to the terminal's default bg
+      assert {"h", {:rgb, 0xFF0000, 0x0A0A0A}} = Enum.at(row, 0)
+      # 'i' is under the cursor → fg/bg swapped so the cell reads as the cursor
+      assert {"i", {:rgb, 0x0A0A0A, 0xC8C8C8}} = Enum.at(row, 1)
+    end
+
+    test "terminal panel shows a placeholder when there is no session" do
+      rows = Terminal.render(:no_session, %{x: 0, y: 0, w: 40, h: 4})
+      assert Enum.map_join(rows, "\n", &text/1) =~ "press s to spawn"
     end
 
     test "chorus renders a block per thread — empty threads included, focus + replies marked" do

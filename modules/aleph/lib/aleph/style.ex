@@ -37,8 +37,13 @@ defmodule Aleph.Style do
     stat_live: {@bg, @green}
   }
 
-  @doc "The `{fg, bg}` truecolor pair for a semantic style. Unknown styles fall back to `:normal`."
-  @spec fg_bg(atom()) :: {non_neg_integer(), non_neg_integer()}
+  @doc """
+  The `{fg, bg}` truecolor pair for a run's style. A semantic atom resolves from the palette
+  (unknown → `:normal`); an explicit `{:rgb, fg, bg}` passes its own 24-bit colours through — the
+  path the embedded terminal uses, where each cell carries its own colour from the VT engine.
+  """
+  @spec fg_bg(atom() | {:rgb, non_neg_integer(), non_neg_integer()}) :: {non_neg_integer(), non_neg_integer()}
+  def fg_bg({:rgb, fg, bg}), do: {fg, bg}
   def fg_bg(style), do: Map.get(@colors, style, @colors.normal)
 
   @doc "The default background (terminal-native black under truecolor)."
