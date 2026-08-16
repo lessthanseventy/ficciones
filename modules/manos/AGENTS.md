@@ -15,9 +15,12 @@ a thin bridge from that harness's lifecycle to funes' one sovereign channel:
 - **`pi/`** — the pi adapter (built). A TypeScript extension for `pi`
   (`github.com/earendil-works/pi`): register at session start, brief before the agent runs, show
   funes state in the footer. pi is the harness for codex / glm / kimi / any model that speaks it.
-- **`claude-code/`** — *not built yet, and not scaffolded.* Claude (and Claude Code natively) is a
-  first-class harness too; its adapter is born when it has content, never as an empty directory that
-  lies about what exists (root `AGENTS.md`).
+- **`claude-code/`** — the Claude Code adapter (built). Same two doors, adapted to Claude Code's own
+  mechanisms: the MCP tools via `mcpServers.funes` `type:http` with a **`headersHelper`**
+  (`scripts/funes-cli.sh token`) that mints a FRESH token per connect — so unlike pi's static bearer,
+  auth survives a funes restart — and the brief via a `SessionStart` hook (`brief-hook.sh`). Both are
+  scoped to the session by `funes:claude`'s `--mcp-config`/`--settings` launch flags, so a plain
+  `claude` is untouched and nothing is merged into `~/.claude`. See `claude-code/README.md`.
 
 **The rules that hold across every adapter — break one and manos stops being the hands:**
 

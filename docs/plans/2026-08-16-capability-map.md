@@ -82,7 +82,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | Adapter | State | Note |
 |---|---|---|
 | **pi** | ✅ | extension (register + brief + footer) + skills + mcp.json, wired via home-manager |
-| **claude-code** | ⬜ | **confirmed wanted**: Claude Code reaches funes via its own MCP adapter (settings `mcpServers`) **and** mise. Likely also a SessionStart brief hook + the shared skills. This is the deferred `modules/manos/claude-code/`. |
+| **claude-code** | ✅ | move #3: `modules/manos/claude-code/`. Two doors like pi — MCP tools via `type:http` + **`headersHelper`** (`funes-cli.sh token`, a FRESH token per connect, survives a funes restart) and the brief via a `SessionStart` hook. Both scoped to the session by `funes:claude`'s `--mcp-config`/`--settings` flags, so a plain `claude` is untouched (no `~/.claude` mutation, no home-manager wiring needed). `funes:claude [thread-id]` = fresh thread or join. Verified funes-side; the live `claude` MCP-connect is the human's smoke test. |
 
 ## Surface 5 — nix / env / services
 
@@ -133,8 +133,13 @@ Grouped, with the dependency that matters:
    one `scripts/funes-cli.sh` that `bin/funes rpc`s the LIVE node. You + me now have
    first-class funes access from the shell. (Also fixed: the prod release logs at `:info`,
    not `:debug` — no per-query journal spam.) Still open here: `funes:sql` (raw sqlite3).
-3. **The claude-code manos adapter.** Gives *me* the MCP tools directly — closes my gap the
-   other way from mise, and makes Claude Code a first-class citizen like pi.
+3. ~~**The claude-code manos adapter.**~~ **✅ DONE (move #3).** Claude Code is now a
+   funes citizen like pi: `mise run funes:claude [thread-id]` opens/joins a thread and
+   launches `claude` with the funes MCP tools (via `headersHelper`) + the brief hook
+   scoped to that session. The **spawn-or-join primitive** (`Funes.MCP.Spawn.ensure/env/
+   join/mint_for`) was backfilled to the `pi:*` launchers too, so `mise run pi:balanced
+   [thread-id]` makes a pi model a citizen the same way — one path, both harnesses. Both
+   degrade gracefully when the channel is down (launch plain).
 4. **Vocabulary slices** — todo (3), question (4), as planned.
 5. **Measured verification** — `record_check` + the `verify`/`report-done` skills, on top of
    `cap`: evidence becomes measured, not self-reported; `check_passed`/`check_failed` events
