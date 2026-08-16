@@ -16,13 +16,21 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
 
-      # pi (github.com/earendil-works/pi) — the agent harness manos plugs into. It is
-      # NOT a build toolchain (those are erlang/elixir/bun in mise); it is a program the
-      # human runs, so Nix owns it and it lives in the home profile. pi ships no nixpkgs
-      # package and no flake, so we wrap its prebuilt, bun-compiled release binary: pinned
-      # by hash (reproducible), autoPatchelf'd for this store's glibc. The tarball is a
-      # whole tree — the ELF loads sibling node_modules (native .node addons), a theme dir
-      # and a wasm blob — so we install all of it and symlink bin/pi at the real binary.
+      # pi (github.com/earendil-works/pi) — the agent harness manos plugs into. It is NOT a
+      # build toolchain (those are erlang/elixir/bun in mise); it is a program the human
+      # runs, so Nix owns it and it lives in the home profile. pi ships no nixpkgs package
+      # and no flake, so we wrap its prebuilt, bun-compiled linux-x64 release binary. The
+      # tarball is a whole tree — the ELF loads sibling node_modules (native .node addons),
+      # a theme dir and a wasm blob — so we install all of it and symlink bin/pi.
+      #
+      # CRITICAL: a `bun build --compile` binary carries its app bundle as a trailer appended
+      # AFTER the ELF, found by byte offset. patchelf AND strip both rewrite the ELF and
+      # displace that trailer — after which bun no longer detects the embedded app and the
+      # binary degrades to the bare bun CLI (observed: `pi` printed bun's help). So we must
+      # NOT patch or strip it. On Arch (this box) the system glibc loader at /lib64 runs it
+      # as-is. The eventual NixOS box has no such loader and CANNOT patchelf a bun binary —
+      # it needs a wrapper that invokes the store ld-linux without touching the bytes (or
+      # nix-ld). Deferred with metal (adopt Nix gradually), tracked here rather than lost.
       pi = pkgs.stdenv.mkDerivation rec {
         pname = "pi-coding-agent";
         version = "0.84.2";
@@ -34,11 +42,10 @@
 
         sourceRoot = "pi";
 
-        nativeBuildInputs = [ pkgs.autoPatchelfHook ];
-        buildInputs = [
-          pkgs.stdenv.cc.cc.lib # libstdc++ / libgcc_s for the bun-compiled binary
-          pkgs.zlib
-        ];
+        # Keep the bun binary byte-for-byte: no strip, no ELF rewrite, no shebang munging.
+        dontStrip = true;
+        dontPatchELF = true;
+        dontPatchShebangs = true;
 
         installPhase = ''
           runHook preInstall
@@ -49,7 +56,7 @@
         '';
 
         meta = {
-          description = "pi — the AI coding-agent harness (prebuilt release binary, autoPatchelf'd)";
+          description = "pi — the AI coding-agent harness (prebuilt bun-compiled release binary, unpatched)";
           homepage = "https://github.com/earendil-works/pi";
           platforms = [ "x86_64-linux" ];
           sourceProvenance = [ pkgs.lib.sourceTypes.binaryNativeCode ];
@@ -73,22 +80,65 @@
 
       # The gradual-adoption path: home-manager on the existing Arch install.
       # `home-manager switch --flake .#personalbox` applies the profile without touching the
-      # OS. It carries the AI-aware env — pi today; funes returns here as a mix-release
-      # package once it is packaged.
+      # OS. It carries the AI-aware env — pi the harness, plus the manos wiring that makes a
+      # pi session a funes citizen — so the whole loop reproduces from this flake.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         modules = [
-          {
-            home.username = "andrew";
-            home.homeDirectory = "/home/andrew";
-            home.stateVersion = "25.05";
-            programs.home-manager.enable = true;
+          (
+            { lib, ... }:
+            let
+              # The live repo path — pi loads the REAL extension/skills so a dev edit is
+              # picked up (not a stale store snapshot via `self`). Single-user machine: the
+              # home dir already fixes this location.
+              repo = "/home/andrew/projects/ficciones";
+              manosExtension = "${repo}/modules/manos/pi/src/extension.ts";
+              manosSkillsGlob = "${repo}/modules/manos/skills/*";
 
-            # The harness manos targets. Its config (extensions/skills/.mcp.json) is wired
-            # separately — hand-installed for now (modules/manos/AGENTS.md), a home.file
-            # concern when that is nix-managed.
-            home.packages = [ pi ];
-          }
+              # funes' MCP server, for pi-mcp-adapter. The ${VAR} refs are interpolated by
+              # the adapter at connect time from the pane's env (Funes.MCP.Spawn.env prints
+              # them). pi-scoped path (~/.pi/agent/mcp.json), so it never collides with a
+              # global ~/.config/mcp/mcp.json a user might keep.
+              funesMcpJson = builtins.toJSON {
+                mcpServers.funes = {
+                  url = "\${FUNES_MCP_URL}";
+                  headers.Authorization = "Bearer \${FUNES_TOKEN}";
+                  directTools = [ "post_message" "bank_fact" "raise_issue" "record_done" "get_dossier" ];
+                  excludeTools = [ "register" ];
+                };
+              };
+            in
+            {
+              home.username = "andrew";
+              home.homeDirectory = "/home/andrew";
+              home.stateVersion = "25.05";
+              programs.home-manager.enable = true;
+
+              # pi — the harness (byte-preserved bun binary, above).
+              home.packages = [ pi ];
+
+              # funes' channel config — we own this file; pi only reads it.
+              home.file.".pi/agent/mcp.json".text = funesMcpJson;
+
+              # manos into pi's settings.json — MERGED, not owned: pi writes this file (auth,
+              # model choice), so a read-only symlink would break it. jq unions our keys in
+              # idempotently, seeding {} if absent. This is the declarative install replacing
+              # the hand-edit in modules/manos/AGENTS.md.
+              home.activation.manosWiring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                PI_DIR="$HOME/.pi/agent"
+                SETTINGS="$PI_DIR/settings.json"
+                run mkdir -p "$PI_DIR"
+                [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
+                run ${pkgs.jq}/bin/jq \
+                  --arg ext "${manosExtension}" \
+                  --arg skills "${manosSkillsGlob}" \
+                  '.extensions = ((.extensions // []) + [$ext] | unique)
+                   | .skills = ((.skills // []) + [$skills] | unique)
+                   | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)' \
+                  "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
+              '';
+            }
+          )
         ];
       };
     };
