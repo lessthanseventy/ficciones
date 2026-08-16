@@ -42,4 +42,23 @@ defmodule Aleph.TerminalTest do
     # still answering after the resize
     assert is_list(Terminal.cells(t))
   end
+
+  test "render_state/1 gives the renderer everything at once: cells + a real cursor" do
+    {:ok, t} = Terminal.start_link(cmd: "/bin/cat", cols: 40, rows: 4, notify: self())
+    state = Terminal.render_state(t)
+    assert is_list(state.cells)
+    # a cursor with a position + visibility so the embedded terminal shows where you type
+    assert %{x: _, y: _, visible: _} = state.cursor
+  end
+
+  test "a {:pty_write, _} query response from the emulator is written back to the PTY, never dropped" do
+    # cat echoes stdin, so if the query response reaches the PTY it comes back as screen output.
+    {:ok, t} = Terminal.start_link(cmd: "/bin/cat", cols: 40, rows: 4, notify: self())
+    send(t, {:pty_write, "echoed\r\n"})
+    assert_receive {Terminal, ^t, :updated}, 2000
+    Process.sleep(80)
+
+    text = t |> Terminal.cells() |> List.flatten() |> Enum.map_join(fn {g, _, _, _} -> g end)
+    assert text =~ "echoed"
+  end
 end
