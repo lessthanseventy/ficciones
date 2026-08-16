@@ -189,15 +189,18 @@
               #
               # LSP servers for the manos/lsp agent extension (hover/definition/references/
               # diagnostics as pi tools). Flake-managed so the next box gets them, not left to
-              # mason or ~/.local/bin: Expert is the new standard Elixir LSP
-              # (expert-lsp.org, NOT elixir-ls); typescript-language-server wraps tsserver;
-              # nil is the Nix LSP; bash-language-server for shell; vscode-json-languageserver
-              # for JSON. The adapter registry in modules/manos/lsp/src/adapters.ts spawns
-              # these by name — adding a language is an adapter object + (usually) a package here.
+              # mason or ~/.local/bin. typescript-language-server wraps tsserver; nil is the
+              # Nix LSP; bash-language-server for shell; vscode-json-languageserver for JSON.
+              # Expert (the Elixir LSP, expert-lsp.org — NOT elixir-ls) is the one exception:
+              # it isn't in the pinned nixpkgs yet (added upstream after 2026-08-13), so for
+              # now it's installed outside the flake (~/.local/bin/expert) and the adapter
+              # spawns it from PATH. When the flake's nixpkgs moves past expert's addition,
+              # add pkgs.expert here and it's fully flake-managed. The adapter registry in
+              # modules/manos/lsp/src/adapters.ts spawns these by name — adding a language is
+              # an adapter object + (usually) a package here.
               home.packages = [
                 pi
                 pkgs.watchexec
-                pkgs.expert
                 pkgs.typescript-language-server
                 pkgs.nil
                 pkgs.bash-language-server
