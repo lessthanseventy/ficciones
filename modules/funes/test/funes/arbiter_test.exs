@@ -42,21 +42,26 @@ defmodule Funes.ArbiterTest do
     end
   end
 
-  describe "spawn_argv/3 — opening a new pane for a cold/absent thread" do
-    test "opens the window in cwd, sources the env, then execs the launcher, capturing the pane id" do
+  describe "spawn_argv/5 — a pane in the dedicated detached session" do
+    test ":session verb creates the detached session (its first harness is window 1)" do
       exports = ~s(export FUNES_TOKEN="abc"\nexport FUNES_THREAD="42")
 
-      ["new-window", "-c", cwd, "-P", "-F", fmt, "bash", "-lc", script] =
-        Tmux.spawn_argv(exports, "mise exec -- pi", "/repo")
+      ["new-session", "-d", "-s", "tlon", "-c", cwd, "-P", "-F", fmt, "bash", "-lc", script] =
+        Tmux.spawn_argv(:session, exports, "tlon", "mise exec -- pi", "/repo")
 
-      # -c cwd so `mise` finds mise.toml (tools + the dev [env]); -P -F prints the new pane id.
+      # A detached session works whether or not aleph itself runs inside tmux — the bug was that
+      # bare `new-window` needs a server + a target session, which a termbox TUI in ghostty lacks.
       assert cwd == "/repo"
       assert fmt == "#\{pane_id}"
-      # the whole env block is sourced before the harness starts → it comes up a briefed citizen
       assert script =~ ~s(export FUNES_TOKEN="abc")
-      assert script =~ ~s(export FUNES_THREAD="42")
-      # exec replaces the login shell with the harness — the window IS the session
       assert script =~ "exec mise exec -- pi"
+    end
+
+    test ":window verb adds a harness to the existing session" do
+      ["new-window", "-t", "tlon", "-c", "/repo", "-P", "-F", "#\{pane_id}", "bash", "-lc", script] =
+        Tmux.spawn_argv(:window, ~s(export FUNES_THREAD="7"), "tlon", "pi", "/repo")
+
+      assert script =~ "exec pi"
     end
   end
 end

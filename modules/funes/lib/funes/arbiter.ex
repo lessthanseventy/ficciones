@@ -78,20 +78,37 @@ defmodule Funes.Arbiter.Tmux do
 
   @impl true
   def spawn(exports) do
+    session = Application.get_env(:funes, :spawn_session, "tlon")
     launcher = Application.get_env(:funes, :spawn_launcher, "mise exec -- pi")
     cwd = Application.get_env(:funes, :spawn_cwd) || File.cwd!()
-    exports |> spawn_argv(launcher, cwd) |> run_capture()
+    # A DEDICATED detached session holds every harness as a window: `new-session` conjures it
+    # (aleph runs in ghostty via termbox, NOT inside tmux, so bare `new-window` has no server or
+    # target session to attach to — the silent-fail bug), `new-window` adds to it once it exists.
+    # aleph renders these panes in its Sessions space via capture-pane; nobody attaches to tmux.
+    verb = if has_session?(session), do: :window, else: :session
+    exports |> spawn_argv(verb, session, launcher, cwd) |> run_capture()
   end
 
   @doc """
-  The tmux invocation a spawn is: a new window opened in `cwd` (a LOGIN shell, so the nix
-  profile is on PATH) that sources the funes env block then `exec`s `launcher` — so the window
-  IS the session. `-c cwd` lets `mise` find `mise.toml`; `-P -F` prints the new pane id back.
-  The default launcher wraps the harness in `mise exec` so the dev `[env]` (PATH, keys) is
-  present even in a non-interactive shell; §8 keeps the concrete command in config, not here.
+  The tmux invocation a spawn is: a pane in the dedicated detached session `session`, opened in
+  `cwd` (a LOGIN shell, so the nix profile is on PATH) that sources the funes env block then
+  `exec`s `launcher` — so the window IS the harness session. `:session` creates the detached
+  session (first harness = window 1); `:window` adds to it. `-c cwd` lets `mise` find
+  `mise.toml`; `-P -F` prints the new pane id back. §8 keeps the concrete launcher in config.
   """
-  def spawn_argv(exports, launcher, cwd) do
-    ["new-window", "-c", cwd, "-P", "-F", "#\{pane_id}", "bash", "-lc", exports <> "\nexec " <> launcher]
+  def spawn_argv(verb, exports, session, launcher, cwd) do
+    tail = ["-c", cwd, "-P", "-F", "#\{pane_id}", "bash", "-lc", exports <> "\nexec " <> launcher]
+
+    case verb do
+      :session -> ["new-session", "-d", "-s", session | tail]
+      :window -> ["new-window", "-t", session | tail]
+    end
+  end
+
+  defp has_session?(session) do
+    match?({_, 0}, System.cmd("tmux", ["has-session", "-t", session], stderr_to_stdout: true))
+  rescue
+    ErlangError -> false
   end
 
   @doc """

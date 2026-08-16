@@ -35,6 +35,14 @@ defmodule Aleph.Panel.StatusBar do
     Panel.clip([prompt, hints], rect)
   end
 
+  # A transient result line (a spawn's pane id, or its failure reason) — the operator's feedback
+  # that `n`/`s` did something. Shown until the next keypress clears it.
+  @impl Panel
+  def render(%{flash: flash}, rect) when is_binary(flash) do
+    info = [{" ", :normal}, {"▸ ", :accent}, {flash, :normal}]
+    Panel.clip([justify(info, [], rect.w), hints_row()], rect)
+  end
+
   @impl Panel
   def render(%{space: space} = data, rect) do
     focus = data[:thread] || "—"

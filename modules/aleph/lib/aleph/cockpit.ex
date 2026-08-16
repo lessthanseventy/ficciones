@@ -22,8 +22,6 @@ defmodule Aleph.Cockpit do
   alias Funes.Staff
   alias Raxol.Core.Events.Event
 
-  require Logger
-
   # Redraw cadence for tmux liveness + roster warmth, independent of Bus events.
   @tick_ms 500
   @tb_output_truecolor 5
@@ -79,7 +77,8 @@ defmodule Aleph.Cockpit do
             threads: [],
             subscribed_thread: nil,
             center_focused?: false,
-            input: nil
+            input: nil,
+            flash: nil
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -111,7 +110,8 @@ defmodule Aleph.Cockpit do
   end
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
-    {state, effect} = Keymap.handle(key, state)
+    # Any keypress clears a prior flash (a spawn/create result), so it shows until you act again.
+    {state, effect} = Keymap.handle(key, %{state | flash: nil})
     apply_effect(effect, state)
   end
 
@@ -155,26 +155,32 @@ defmodule Aleph.Cockpit do
     {:noreply, state}
   end
 
-  # The `n` verb landed: open the thread and focus it (the Bus event repaints too, but focusing
-  # here means the new thread is selected the instant it exists). A bad title just repaints.
+  # The `n` verb landed: open the thread, focus it, AND spawn a harness onto it in one motion —
+  # a new thread is a new piece of work, so `n` starts working on it rather than making you press
+  # `s` next. A bad title just flashes the error.
   defp apply_effect({:create_thread, title}, state) do
     case Channel.open_thread(%{title: title}) do
-      {:ok, thread} -> {:noreply, render(%{state | focused_id: thread.id})}
-      {:error, _changeset} -> {:noreply, render(state)}
+      {:ok, thread} -> {:noreply, render(%{state | focused_id: thread.id, flash: spawn_onto(thread.id)})}
+      {:error, _changeset} -> {:noreply, render(%{state | flash: "couldn't create “#{title}”"})}
     end
   end
 
-  # The `s` verb landed: spawn a harness onto the focused thread, in-process (aleph is the hub).
-  # A spawn failure (no tmux, a dead join) is logged, never a crash — the cockpit repaints on.
+  # The `s` verb landed: spawn a harness onto the focused thread (for a thread made elsewhere, or
+  # to re-staff one). The RESULT — the new pane id, or the real failure reason — flashes in the
+  # footer so a spawn is never a silent no-op.
   defp apply_effect({:spawn, thread_id}, state) do
+    {:noreply, render(%{state | flash: spawn_onto(thread_id)})}
+  end
+
+  # Spawn a harness onto a thread and return a one-line result for the footer flash. The error is
+  # surfaced verbatim (e.g. tmux missing, a dead join) — this is the operator's only feedback.
+  defp spawn_onto(thread_id) do
     agent = Application.get_env(:aleph, :spawn_agent, "pi")
 
     case Spawn.session(thread_id, agent) do
-      {:ok, _pane} -> :ok
-      {:error, reason} -> Logger.warning("aleph: spawn onto thread #{thread_id} failed: #{inspect(reason)}")
+      {:ok, pane} -> "spawned #{agent} → #{pane} (Sessions space)"
+      {:error, reason} -> "spawn failed: #{inspect(reason)}"
     end
-
-    {:noreply, render(state)}
   end
 
   # --- forward a keypress to the focused tmux pane ---
@@ -212,7 +218,8 @@ defmodule Aleph.Cockpit do
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
       session: session_read(state, focused),
-      input: state.input
+      input: state.input,
+      flash: state.flash
     }
 
     reads

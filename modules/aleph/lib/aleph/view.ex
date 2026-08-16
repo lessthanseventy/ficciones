@@ -89,7 +89,9 @@ defmodule Aleph.View do
       thread_count: length(reads.threads),
       live_count: Enum.count(reads.roster, & &1.warm?),
       # When the operator is typing a new-thread title, the footer becomes the prompt.
-      input: reads[:input]
+      input: reads[:input],
+      # A transient result line (a spawn's pane id or failure), shown until the next keypress.
+      flash: reads[:flash]
     }
   end
 
