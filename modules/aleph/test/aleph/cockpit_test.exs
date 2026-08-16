@@ -42,4 +42,24 @@ defmodule Aleph.CockpitTest do
   test "an unmappable key is nil — dropped, never misdelivered" do
     assert Cockpit.ghostty_key(%{key: :f5}) == nil
   end
+
+  describe "ghostty_key: Kitty keyboard encoding contract" do
+    # pi's TUI decodes Kitty sequences (\e[13;2u for shift+enter, \e[118;5u for ctrl+v). The Kitty
+    # encoder needs the key's UNSHIFTED codepoint to build \e[<cp>;<mods>u for a modified printable;
+    # without it the modifier is dropped (ctrl+v → "v") and pi's binding misfires.
+    test "a char key carries its unshifted codepoint so modifiers survive Kitty encoding" do
+      ev = Cockpit.ghostty_key(%{key: :char, char: "v", ctrl: true})
+      assert %KeyEvent{key: :v, utf8: "v", mods: [:ctrl], unshifted_codepoint: ?v} = ev
+    end
+
+    test "an uppercase letter's unshifted codepoint is the lowercase codepoint (shift+v → ?v)" do
+      ev = Cockpit.ghostty_key(%{key: :char, char: "V", shift: true})
+      assert %KeyEvent{key: :v, utf8: "V", mods: [:shift], unshifted_codepoint: ?v} = ev
+    end
+
+    test "a digit carries its own codepoint" do
+      ev = Cockpit.ghostty_key(%{key: :char, char: "5"})
+      assert ev.unshifted_codepoint == ?5
+    end
+  end
 end

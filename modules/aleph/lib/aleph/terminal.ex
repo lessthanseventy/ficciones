@@ -69,6 +69,13 @@ defmodule Aleph.Terminal do
   def mouse_modes(term), do: GenServer.call(term, :mouse_modes)
 
   @doc """
+  Encode a `Ghostty.KeyEvent` to the bytes the embedded terminal would send to its PTY, WITHOUT
+  writing them — the testable half of `send_key/2`. Exposed so the cockpit's key-encoding contract
+  (e.g. the Kitty keyboard protocol being active) can be asserted headlessly.
+  """
+  def encode_key(term, %Ghostty.KeyEvent{} = event), do: GenServer.call(term, {:encode_key, event})
+
+  @doc """
   The mouse wheel over the embedded terminal — the one input the cockpit routes here when the
   wheel is over the center region. It branches on whether the running program asked for mouse
   tracking (DEC `?1000`/`?1002`/`?1003`/`?9`):
@@ -94,6 +101,13 @@ defmodule Aleph.Terminal do
 
     term_opts = [cols: cols, rows: rows] ++ Keyword.take(opts, @theme_opts)
     {:ok, term} = Terminal.start_link(term_opts)
+    # Enable the Kitty keyboard protocol (CSI > 1 u = push flag level 1, disambiguate) on the
+    # emulator so `input_key` encodes shifted/modified keys the way a host ghostty does — pi's TUI
+    # decodes Kitty sequences (\e[13;2u for shift+enter, \e[118;5u for ctrl+v). Without this the
+    # embedded VT defaults to modifyOtherKeys and pi's shift+enter (newline), ctrl+v (image paste),
+    # and ctrl+shift+v/c (copy/paste) bindings silently misfire. The flag lives in the emulator
+    # (terminal→app key encoding only); it does not touch the host tty or pi's rendering.
+    Terminal.write(term, "\e[>1u")
     {:ok, pty} = PTY.start_link(cmd: cmd, args: args, cols: cols, rows: rows)
 
     {:ok, %{term: term, pty: pty, notify: opts[:notify], cols: cols, rows: rows}}
@@ -142,6 +156,8 @@ defmodule Aleph.Terminal do
   end
 
   def handle_call(:mouse_modes, _from, state), do: {:reply, Terminal.mouse_modes(state.term), state}
+
+  def handle_call({:encode_key, event}, _from, state), do: {:reply, Terminal.input_key(state.term, event), state}
 
   # The wheel forward-vs-scroll branch (design: keep the Ghostty/mouse detail here, not the cockpit).
   # Dispatched on whether the embedded program enabled mouse tracking — a runtime boolean read

@@ -334,7 +334,9 @@ defmodule Aleph.Cockpit do
 
   # aleph key event → Ghostty.KeyEvent (public + tested: a missing mapping silently drops a key).
   @doc false
-  def ghostty_key(%{key: :char, char: c} = ev), do: %KeyEvent{key: char_key(c), utf8: c, mods: mods(ev)}
+  def ghostty_key(%{key: :char, char: c} = ev),
+    do: %KeyEvent{key: char_key(c), utf8: c, mods: mods(ev), unshifted_codepoint: unshifted_codepoint(c)}
+
   def ghostty_key(%{key: :up} = ev), do: %KeyEvent{key: :arrow_up, mods: mods(ev)}
   def ghostty_key(%{key: :down} = ev), do: %KeyEvent{key: :arrow_down, mods: mods(ev)}
   def ghostty_key(%{key: :left} = ev), do: %KeyEvent{key: :arrow_left, mods: mods(ev)}
@@ -352,6 +354,14 @@ defmodule Aleph.Cockpit do
   defp char_key(<<cp>>) when cp in ?A..?Z, do: String.to_existing_atom(<<cp + 32>>)
   defp char_key(<<cp>>) when cp in ?0..?9, do: String.to_existing_atom("digit_#{<<cp>>}")
   defp char_key(_c), do: :unidentified
+
+  # The Kitty encoder needs the base (unshifted) codepoint to build `\e[<cp>;<mods>u` for a
+  # modified printable (ctrl+v → \e[118;5u, ctrl+shift+c → \e[99;6u). Without it, `input_key`
+  # drops the modifier and emits the bare utf8 char (ctrl+v → "v"), so pi's ctrl+v / shift+enter
+  # bindings misfire. Letters use the lowercase codepoint; anything else uses its own codepoint.
+  defp unshifted_codepoint(c) do
+    c |> String.downcase() |> String.to_charlist() |> List.first() || 0
+  end
 
   defp mods(ev) do
     [{:ctrl, ev[:ctrl]}, {:alt, ev[:alt]}, {:shift, ev[:shift]}]

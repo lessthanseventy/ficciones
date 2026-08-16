@@ -5,6 +5,7 @@ defmodule Aleph.TerminalTest do
   """
   use ExUnit.Case, async: true
 
+  alias Aleph.Cockpit
   alias Aleph.Terminal
 
   test "runs a command in a real PTY, pings on output, reads the screen back with color" do
@@ -107,6 +108,35 @@ defmodule Aleph.TerminalTest do
 
       assert Terminal.mouse_modes(t).tracking
       assert :forwarded = Terminal.wheel(t, :up, 3, 5, 5)
+    end
+  end
+
+  describe "Kitty keyboard protocol — the embedded terminal speaks pi's input dialect" do
+    # pi's TUI decodes Kitty sequences: shift+enter (\e[13;2u) is tui.input.newLine, ctrl+v
+    # (\e[118;5u) is app.clipboard.pasteImage. init enables Kitty (\e[>1u) on the emulator so
+    # input_key emits them; without Kitty it emits modifyOtherKeys (\e[27;2;13~) which pi drops.
+    test "shift+enter encodes to \e[13;2u — the newline binding pi expects" do
+      {:ok, t} = Terminal.start_link(cmd: "/bin/cat", cols: 40, rows: 4, notify: self())
+      ev = Cockpit.ghostty_key(%{key: :enter, shift: true})
+      assert {:ok, "\e[13;2u"} = Terminal.encode_key(t, ev)
+    end
+
+    test "ctrl+v encodes to \e[118;5u — the paste-image binding pi expects" do
+      {:ok, t} = Terminal.start_link(cmd: "/bin/cat", cols: 40, rows: 4, notify: self())
+      ev = Cockpit.ghostty_key(%{key: :char, char: "v", ctrl: true})
+      assert {:ok, "\e[118;5u"} = Terminal.encode_key(t, ev)
+    end
+
+    test "ctrl+shift+c encodes to \e[99;6u — copy, not collapsed to ^C (0x03)" do
+      {:ok, t} = Terminal.start_link(cmd: "/bin/cat", cols: 40, rows: 4, notify: self())
+      ev = Cockpit.ghostty_key(%{key: :char, char: "c", ctrl: true, shift: true})
+      assert {:ok, "\e[99;6u"} = Terminal.encode_key(t, ev)
+    end
+
+    test "a plain unmodified key still encodes as its bare char (Kitty doesn't disturb typing)" do
+      {:ok, t} = Terminal.start_link(cmd: "/bin/cat", cols: 40, rows: 4, notify: self())
+      ev = Cockpit.ghostty_key(%{key: :char, char: "a"})
+      assert {:ok, "a"} = Terminal.encode_key(t, ev)
     end
   end
 end
