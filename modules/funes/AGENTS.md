@@ -63,8 +63,10 @@ old SHIPPED-only pane), rendered in both `Funes.MCP.Brief` and the pi `brief.ts`
 skill. **The `question` slice (pi doc §5 slice 4) is built too**: `question` (`resolved_at` from birth,
 `state` open/resolved), `raise_question`/`resolve_question` (resolve refuses another thread's; resolution
 optional, a durable answer is `bank_fact`'d), and the dossier's UNKNOWNS beside FACTS — rendered in all
-three surfaces. **Next is the arbiter bootstrap (slice 5)** — env-in-spawn automated (§2d). The aleph
-board (step 5) has its first live cockpit; its
+three surfaces. **Measured verification (capability-map #5) is built too**: `record_check(cmd, exit, tail)`
+→ a `check_passed`/`check_failed` event keyed on the real exit code, a CHECKS dossier pane, and the
+`verify-with-evidence` skill — "it works" is measured, not self-reported. **Next is the arbiter bootstrap
+(pi doc slice 5)** — env-in-spawn automated (§2d). The aleph board (step 5) has its first live cockpit; its
 build order lives in the aleph docs. Deferred
 still: the **engine-credit half of presence** (clocked-out from spent credits/rate-limit — combine into
 `recipients/1` before an auto-poking backend replaces `Inert`), the human-notification path + re-deliver

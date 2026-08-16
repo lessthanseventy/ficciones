@@ -126,6 +126,13 @@ defmodule Aleph.BoardTest do
         learnings: %{shown: [%{text: "termbox compiles"}], more: 2},
         unknowns: %{shown: [%{text: "does raxol embed?"}], more: 0},
         blockers: %{shown: [], more: 0},
+        checks: %{
+          shown: [
+            %{kind: "check_passed", detail: %{"cmd" => "mise run check"}},
+            %{kind: "check_failed", detail: %{"cmd" => "mix test", "exit" => 1}}
+          ],
+          more: 0
+        },
         done: %{
           shown: [
             %{source: :todo, row: %{text: "did a step"}},
@@ -149,6 +156,10 @@ defmodule Aleph.BoardTest do
       # UNKNOWNS surfaces open questions with a "?"
       assert joined =~ "UNKNOWNS"
       assert joined =~ "? does raxol embed?"
+      # CHECKS: a measured pass (✓) and a fail (✗ with its exit code)
+      assert joined =~ "CHECKS"
+      assert joined =~ "✓ mise run check"
+      assert joined =~ "✗ mix test (exit 1)"
       # DONE merges a completed todo (✓) and a work_landed event's summary
       assert joined =~ "DONE"
       assert joined =~ "✓ did a step"

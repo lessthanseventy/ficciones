@@ -48,7 +48,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | **open_thread / close_thread** | ⬜ | designed as the deliberate cross-thread tools; never built |
 | **add_todo / complete_todo** | ✅ | slice 3 (#4a): thread-scoped; complete refuses another thread's todo. Dossier gains TODOS/NEXT/DONE (DONE merges completed todos + `work_landed`, replacing the old SHIPPED-only view) |
 | **raise_question / resolve_question** | ✅ | slice 4 (#4b): thread-scoped, `resolved_at` from birth; resolve refuses another thread's; dossier gains UNKNOWNS beside FACTS. Durable answers still `bank_fact`'d |
-| **record_check(cmd, exit, tail)** | ⬜ | measured evidence → `check_passed`/`check_failed` event; agent runs (via cap), funes records |
+| **record_check(cmd, exit, tail)** | ✅ | move #5: measured evidence → `check_passed`/`check_failed` event (kind keyed on the exit code); agent runs (via cap), funes records. Dossier gains CHECKS |
 | **roster / list_threads / read-other-thread** | ⬜ | cross-thread awareness; scope tightly (today only aleph sees this) |
 | **mark_read / catch_up(since)** | ⬜ | unread on my thread |
 
@@ -74,7 +74,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | coordinate-via-funes | ✅ | talk on your thread = continuity |
 | bank-what-you-learn | ✅ | provenance honestly |
 | **keep-todos-current** | ✅ | slice 3: add_todo as you plan, complete_todo as you finish, record_done (evidence) for outcomes |
-| **report-done / verify** | ⬜ | run the real command via `cap`, then `record_done`/`raise_issue` with the measured output — evidence stops being self-reported |
+| **verify-with-evidence** | ✅ | run the real command via `cap`, then `record_check` (measured), then `record_done`/`raise_issue` — evidence stops being self-reported |
 | **catch-up / re-brief** | ⬜ | how a fresh session re-orients from funes |
 
 ## Surface 4 — manos adapters (harness ↔ funes)
@@ -110,7 +110,7 @@ it isn't, that's the work:
 | who's live | ⬜ roster tool | ✅ funes:roster | now on our side; the agents' `roster` MCP tool is still a gap |
 | open / close a thread | ⬜ tools | ⬜ funes:thread | thin **both** |
 | bank a fact | ✅ bank_fact | ⬜ funes:bank | maybe (human banks via aleph?) |
-| run a check & record it | harness bash + `cap` (run) / ⬜ record_check | `cap` (run) / ⬜ record | run ✅, record ⬜ |
+| run a check & record it | `cap` (run) + ✅ record_check | `cap` (run) + ✅ record_check | **run ✅, record ✅** (measured) |
 
 **Anti-sprawl caution (the v1 failure):** the spec is emphatic that funes is *"not a set of
 CLIs"* — v1 drowned in invented nouns and stale wrappers. So the mise parity pack stays
@@ -143,9 +143,11 @@ Grouped, with the dependency that matters:
 4. ~~**Vocabulary slices** — todo (3), question (4).~~ **✅ DONE.** Both the activity axis
    (TODOS/NEXT/DONE) and the knowledge-gap axis (UNKNOWNS) are built, rendered in all three
    surfaces (funes brief, pi `brief.ts`, aleph cockpit), with `keep-todos-current`.
-5. **Measured verification** — `record_check` + the `verify`/`report-done` skills, on top of
-   `cap`: evidence becomes measured, not self-reported; `check_passed`/`check_failed` events
-   land; `fact.check_cmd` can be re-run to confirm facts still hold.
+5. ~~**Measured verification**~~ **✅ DONE (move #5).** `record_check(cmd, exit, tail)` lands a
+   `check_passed`/`check_failed` event (kind keyed on the exit code), the dossier gains a CHECKS
+   pane (all three surfaces), and the `verify-with-evidence` skill makes an agent run the real
+   command via `cap` and record the measured result — evidence stops being self-reported. (Still
+   open here: re-running `fact.check_cmd` to confirm a stored fact still holds.)
 6. **open_thread / close_thread tools** — small, already designed.
 7. **sandbox/cache allowlist** — small, anytime.
 8. **arbiter** — the capstone, stays last.

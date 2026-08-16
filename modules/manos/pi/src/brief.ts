@@ -71,6 +71,16 @@ export interface Question {
   at: string | null;
 }
 
+// A measured check — a command's real exit code, recorded as passed/failed. Not a
+// self-report: the number is the truth.
+export interface Check {
+  passed: boolean;
+  cmd: string | null;
+  exit: number | null;
+  tail: string | null;
+  at: string | null;
+}
+
 export interface Capped<T> {
   shown: T[];
   more: number;
@@ -86,6 +96,7 @@ export interface Dossier {
   unknowns: Capped<Question>;
   done: Capped<DoneEntry>;
   blockers: Capped<Blocker>;
+  checks: Capped<Check>;
   chatter: ChatterMessage[];
 }
 
@@ -130,6 +141,12 @@ export function renderBrief(d: Dossier, now: Date = new Date()): string {
     pushMore(lines, d.blockers.more, "blockers");
   }
 
+  if (d.checks.shown.length > 0) {
+    lines.push("", "## Checks  (measured — ✓ passed, ✗ failed at that exit)");
+    for (const c of d.checks.shown) lines.push(renderCheck(c));
+    pushMore(lines, d.checks.more, "checks");
+  }
+
   if (d.done.shown.length > 0) {
     lines.push("", "## Done");
     for (const e of d.done.shown) lines.push(renderDone(e));
@@ -172,6 +189,11 @@ function renderDone(e: DoneEntry): string {
   return `- ${e.summary ?? "(work landed)"}${ev}`;
 }
 
+function renderCheck(c: Check): string {
+  const cmd = c.cmd ?? "(check)";
+  return c.passed ? `- ✓ ${cmd}` : `- ✗ ${cmd} (exit ${c.exit ?? "?"})`;
+}
+
 function pushMore(lines: string[], more: number, noun: string): void {
   if (more > 0) lines.push(`_… and ${more} more ${noun} not shown (get_facts to read past the cap)._`);
 }
@@ -197,6 +219,7 @@ function newestAt(d: Dossier): Date | null {
   for (const f of d.learnings.shown) collect(f.at);
   for (const q of d.unknowns.shown) collect(q.at);
   for (const b of d.blockers.shown) collect(b.at);
+  for (const c of d.checks.shown) collect(c.at);
   for (const e of d.done.shown) collect(e.at);
   for (const t of d.todos.shown) collect(t.at);
   for (const m of d.chatter) collect(m.at);

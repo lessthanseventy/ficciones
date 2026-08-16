@@ -18,6 +18,7 @@ function dossier(over: Partial<Dossier> = {}): Dossier {
     unknowns: { shown: [], more: 0 },
     done: { shown: [], more: 0 },
     blockers: { shown: [], more: 0 },
+    checks: { shown: [], more: 0 },
     chatter: [],
     ...over,
   };
@@ -210,6 +211,24 @@ describe("renderBrief — the honest brief (pi doc §2b)", () => {
     expect(out).toContain("## Unknowns");
     expect(out).toContain("? does raxol support embedding?");
     expect(out).toContain("2 more unknowns");
+  });
+
+  test("Checks render measured pass/fail with the failing exit code", () => {
+    const out = renderBrief(
+      dossier({
+        checks: {
+          shown: [
+            { passed: true, cmd: "mise run check", exit: 0, tail: "0 failures", at: minsAgo(2) },
+            { passed: false, cmd: "mix test", exit: 1, tail: "1 failure", at: minsAgo(4) },
+          ],
+          more: 0,
+        },
+      }),
+      NOW,
+    );
+    expect(out).toContain("## Checks");
+    expect(out).toContain("✓ mise run check");
+    expect(out).toContain("✗ mix test (exit 1)");
   });
 
   test("the Plan renders open todos with NEXT marked", () => {

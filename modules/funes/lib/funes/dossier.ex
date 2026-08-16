@@ -34,6 +34,12 @@ defmodule Funes.Dossier do
   # Open questions (UNKNOWNS) cap identically — the brief shows five gaps and counts more.
   @question_cap 5
 
+  # Recent checks (CHECKS) cap the same — the last five measured verifications, counted.
+  @check_cap 5
+
+  # A measured check outcome is one of these event kinds, keyed on the real exit code.
+  @check_kinds ["check_passed", "check_failed"]
+
   @doc "Bank a durable fact. `{:ok, fact}` or `{:error, changeset}`."
   def bank_fact(attrs) do
     attrs |> Fact.bank_changeset() |> Repo.insert() |> Bus.announce(:fact_banked)
@@ -212,6 +218,36 @@ defmodule Funes.Dossier do
 
     shown = Repo.all(from q in open, order_by: [desc: q.id], limit: @question_cap)
     total = Repo.aggregate(open, :count, :id)
+
+    %{shown: shown, more: total - length(shown)}
+  end
+
+  @doc """
+  Record a MEASURED check (roadmap #5): the command run, its real `exit` code, and a
+  `tail` of output. exit 0 lands a `check_passed` event, anything else a `check_failed` —
+  the outcome is keyed on the number, never on a self-report. `{:ok, event}` or
+  `{:error, changeset}`. The agent runs the command (via `cap`); funes only records.
+  """
+  def record_check(%{exit: exit} = attrs) do
+    kind = if exit == 0, do: "check_passed", else: "check_failed"
+
+    record_event(%{
+      thread_id: attrs[:thread_id],
+      kind: kind,
+      detail: %{"cmd" => attrs[:cmd], "exit" => exit, "tail" => attrs[:tail]}
+    })
+  end
+
+  @doc """
+  A thread's recent checks (CHECKS), ranked and cut (§5): `%{shown, more}`, at most five
+  `check_passed`/`check_failed` events, newest first — so the brief shows the current
+  verification state (last check red or green), not a self-reported one.
+  """
+  def recent_checks_for_thread(%Thread{} = thread) do
+    checks = from e in Event, where: e.thread_id == ^thread.id and e.kind in @check_kinds
+
+    shown = Repo.all(from e in checks, order_by: [desc: e.id], limit: @check_cap)
+    total = Repo.aggregate(checks, :count, :id)
 
     %{shown: shown, more: total - length(shown)}
   end

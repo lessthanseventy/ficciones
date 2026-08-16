@@ -79,6 +79,7 @@ defmodule Funes.MCP.ServerTest do
                "complete_todo",
                "raise_question",
                "resolve_question",
+               "record_check",
                "get_dossier",
                "get_facts",
                "get_messages"
@@ -238,6 +239,23 @@ defmodule Funes.MCP.ServerTest do
     brief2 = decode_tool_json(call(token, session, 8, "get_dossier", %{}))
     assert brief2["next"]["text"] == "then the footer"
     assert Enum.any?(brief2["done"]["shown"], &(&1["source"] == "todo" and &1["text"] == "wire the composer"))
+  end
+
+  test "record_check — measured verification over the wire (exit keys the kind)", %{token: token} do
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    pass = call(token, session, 4, "record_check", %{"cmd" => "mise run check", "exit" => 0, "tail" => "0 failures"})
+    refute pass["isError"]
+    assert decode_tool_json(pass)["kind"] == "check_passed"
+
+    fail = call(token, session, 5, "record_check", %{"cmd" => "mix test", "exit" => 1, "tail" => "1 failure"})
+    assert decode_tool_json(fail)["kind"] == "check_failed"
+
+    # get_dossier: CHECKS surfaces both, newest first
+    brief = decode_tool_json(call(token, session, 6, "get_dossier", %{}))
+    assert Enum.any?(brief["checks"]["shown"], &(&1["cmd"] == "mix test" and &1["passed"] == false))
+    assert Enum.any?(brief["checks"]["shown"], &(&1["cmd"] == "mise run check" and &1["passed"] == true))
   end
 
   test "raise_question / resolve_question — UNKNOWNS over the wire", %{token: token} do

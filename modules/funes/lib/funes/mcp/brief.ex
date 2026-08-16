@@ -28,6 +28,7 @@ defmodule Funes.MCP.Brief do
       "learnings" => capped(scope.learnings, &fact/1),
       "unknowns" => capped(scope.unknowns, &question/1),
       "blockers" => capped(scope.blockers, &issue/1),
+      "checks" => capped(scope.checks, &check/1),
       "chatter" => Enum.map(scope.chatter, &message/1)
     }
   end
@@ -119,6 +120,19 @@ defmodule Funes.MCP.Brief do
       "found_by" => i.found_by,
       "state" => i.state,
       "at" => at(i.created_at)
+    }
+  end
+
+  @doc "A measured check — a `check_passed`/`check_failed` event, keyed on the real exit code."
+  def check(%Event{kind: kind, created_at: created_at, detail: detail}) do
+    d = detail || %{}
+
+    %{
+      "passed" => kind == "check_passed",
+      "cmd" => d["cmd"],
+      "exit" => d["exit"],
+      "tail" => d["tail"],
+      "at" => at(created_at)
     }
   end
 

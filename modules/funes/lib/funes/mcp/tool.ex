@@ -460,3 +460,42 @@ defmodule Funes.MCP.Tool.ResolveQuestion do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.RecordCheck do
+  @moduledoc """
+  Record a MEASURED check (roadmap #5): the command you ran, its real `exit` code, and a
+  `tail` of output. funes lands a `check_passed` (exit 0) or `check_failed` event —
+  evidence keyed on the NUMBER, never a self-report. Run the command yourself (via `cap`);
+  this only records the outcome. Distinct from `record_done` (a judgement-worthy shipped
+  outcome) — record_check is the honest "I ran it and here is what happened".
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Dossier
+  alias Funes.MCP
+
+  schema do
+    field :cmd, :string, required: true, description: "The exact command you ran"
+    field :exit, :integer, required: true, description: "Its real exit code (0 = passed)"
+    field :tail, :string, description: "A short tail of the output"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+
+    case Dossier.record_check(%{
+           thread_id: identity.thread_id,
+           cmd: params[:cmd],
+           exit: params[:exit],
+           tail: Map.get(params, :tail)
+         }) do
+      {:ok, event} ->
+        {:reply, Response.json(Response.tool(), %{"event_id" => event.id, "kind" => event.kind}), frame}
+
+      {:error, changeset} ->
+        {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+    end
+  end
+end

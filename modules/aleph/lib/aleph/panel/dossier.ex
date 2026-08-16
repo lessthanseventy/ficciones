@@ -1,8 +1,8 @@
 defmodule Aleph.Panel.Dossier do
   @moduledoc """
   IN SCOPE — the focused thread's brief (design §8), a thin view over `Funes.Board.in_scope/1`:
-  NORTH STAR, LEAD, TODOS (NEXT marked →), LEARNINGS, UNKNOWNS, BLOCKERS, DONE (each capped + a
-  `more` count), CHATTER. DONE is the merged view — completed todos + `work_landed` events. Re-renders
+  NORTH STAR, LEAD, TODOS (NEXT marked →), LEARNINGS, UNKNOWNS, BLOCKERS, CHECKS (✓/✗ measured), DONE
+  (each capped + a `more` count), CHATTER. DONE is the merged view — completed todos + `work_landed`. Re-renders
   on that thread's topic. Data is the `in_scope/1` map, or `nil` when nothing is focused.
   """
   @behaviour Aleph.Panel
@@ -29,6 +29,7 @@ defmodule Aleph.Panel.Dossier do
         section("LEARNINGS", capped_lines(scope.learnings, & &1.text), rect.w) ++
         section("UNKNOWNS", capped_lines(scope.unknowns, &question_line/1), rect.w) ++
         section("BLOCKERS", capped_lines(scope.blockers, & &1.summary), rect.w) ++
+        section("CHECKS", capped_lines(scope.checks, &check_line/1), rect.w) ++
         section("DONE", capped_lines(scope.done, &done_line/1), rect.w) ++
         section("CHATTER", Enum.map(scope.chatter, &chatter_line/1), rect.w)
 
@@ -48,6 +49,15 @@ defmodule Aleph.Panel.Dossier do
 
   # An open question — a known unknown, marked with a "?".
   defp question_line(%{text: text}), do: "? #{text}"
+
+  # A measured check — passed (✓) or failed (✗ with its exit code), keyed on the number.
+  defp check_line(%{kind: "check_passed", detail: d}), do: "✓ #{check_cmd(d)}"
+  defp check_line(%{detail: d}), do: "✗ #{check_cmd(d)} (exit #{check_exit(d)})"
+
+  defp check_cmd(d) when is_map(d), do: Map.get(d, "cmd") || "check"
+  defp check_cmd(_), do: "check"
+  defp check_exit(d) when is_map(d), do: Map.get(d, "exit")
+  defp check_exit(_), do: "?"
 
   # NEXT — the first open todo — is marked with an arrow; the rest are plain steps.
   defp todo_line(%{id: id, text: text}, %{id: next_id}) when id == next_id, do: "→ #{text}"

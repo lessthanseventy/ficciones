@@ -30,6 +30,7 @@ defmodule Funes.MCP.Server do
   component(Funes.MCP.Tool.CompleteTodo, name: "complete_todo")
   component(Funes.MCP.Tool.RaiseQuestion, name: "raise_question")
   component(Funes.MCP.Tool.ResolveQuestion, name: "resolve_question")
+  component(Funes.MCP.Tool.RecordCheck, name: "record_check")
   component(Funes.MCP.Tool.GetDossier, name: "get_dossier")
   component(Funes.MCP.Tool.GetFacts, name: "get_facts")
   component(Funes.MCP.Tool.GetMessages, name: "get_messages")

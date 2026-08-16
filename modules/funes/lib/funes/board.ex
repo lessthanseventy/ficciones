@@ -42,6 +42,8 @@ defmodule Funes.Board do
       # UNKNOWNS beside FACTS — knowing what you don't know is first-class (§4a).
       unknowns: Dossier.open_questions_for_thread(thread),
       blockers: Dossier.open_issues_for_thread(thread),
+      # CHECKS — the recent MEASURED verifications (last check red or green), not a self-report.
+      checks: Dossier.recent_checks_for_thread(thread),
       chatter: Channel.recent_messages(thread, @cap)
     }
   end
