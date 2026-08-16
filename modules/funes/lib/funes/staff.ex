@@ -92,6 +92,27 @@ defmodule Funes.Staff do
   end
 
   @doc """
+  Bump sessions' `last_active_at` to `at`, FORWARD-ONLY — warmth's one write path,
+  shared by the switchboard (delivery/authoring bumps) and the MCP channel (a tool
+  call arriving is measured activity). Two implementations of this semantic would
+  be two writers that drift (§2), so it lives here and everyone delegates. A stamp
+  earlier than the current value is ignored — a backlog drain replaying an old
+  message must never move warmth backward; NULL is filled.
+  """
+  def touch_sessions([], _at), do: :ok
+
+  def touch_sessions(ids, at) do
+    Repo.update_all(
+      from(s in Session,
+        where: s.id in ^ids and (is_nil(s.last_active_at) or s.last_active_at < ^at)
+      ),
+      set: [last_active_at: at]
+    )
+
+    :ok
+  end
+
+  @doc """
   The session to jump into for a thread (§9.3): the newest not-yet-ended session,
   or nil if every session has ended. This hands over which pane to poke — liveness
   itself is asked of the arbiter live (§2), never read from here.

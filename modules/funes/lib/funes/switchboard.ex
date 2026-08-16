@@ -37,7 +37,7 @@ defmodule Funes.Switchboard do
   """
   import Ecto.Query
   require Logger
-  alias Funes.{Agent, Arbiter, Mentions, Message, Presence, Repo, Session, Thread}
+  alias Funes.{Agent, Arbiter, Mentions, Message, Presence, Repo, Session, Staff, Thread}
 
   @doc """
   Deliver one message (the live path): wake its addressed recipients (`recipients/1`),
@@ -93,7 +93,7 @@ defmodule Funes.Switchboard do
       poke(ref, "you have #{length(sessions)} unread message(s) on your threads")
     end)
 
-    touch(reached |> Enum.map(& &1.id) |> Enum.uniq(), now())
+    Staff.touch_sessions(reached |> Enum.map(& &1.id) |> Enum.uniq(), now())
   end
 
   # For drain: bump the author's warmth, then return the recipient sessions this call
@@ -206,7 +206,7 @@ defmodule Funes.Switchboard do
     |> Enum.uniq_by(& &1.pane_ref)
     |> Enum.each(&poke(&1.pane_ref, prompt))
 
-    touch(Enum.map(sessions, & &1.id), now())
+    Staff.touch_sessions(Enum.map(sessions, & &1.id), now())
   end
 
   # Actuate one wake, and SURFACE a backend failure rather than silently dropping
@@ -223,8 +223,9 @@ defmodule Funes.Switchboard do
     end
   end
 
-  # Bump the author's live sessions on the thread to when they posted — authoring is
-  # a turn. Forward-only (`touch/2`), so a backlog drain never moves warmth backward.
+  # Bump the author's live sessions on the thread to when they posted — authoring
+  # is a turn. Forward-only via `Staff.touch_sessions/2` (warmth's one write path,
+  # shared with the MCP channel), so a backlog drain never moves warmth backward.
   defp touch_author(%Message{thread_id: thread_id, author: author, created_at: at}) do
     down = String.downcase(author)
 
@@ -239,20 +240,7 @@ defmodule Funes.Switchboard do
           select: s.id
       )
 
-    touch(ids, at)
-  end
-
-  defp touch([], _at), do: :ok
-
-  defp touch(ids, at) do
-    Repo.update_all(
-      from(s in Session,
-        where: s.id in ^ids and (is_nil(s.last_active_at) or s.last_active_at < ^at)
-      ),
-      set: [last_active_at: at]
-    )
-
-    :ok
+    Staff.touch_sessions(ids, at)
   end
 
   defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)

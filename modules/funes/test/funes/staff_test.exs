@@ -250,6 +250,49 @@ defmodule Funes.StaffTest do
     end
   end
 
+  describe "touch_sessions/2 — warmth's one write path" do
+    # Warmth (§3b) must have exactly ONE write semantic — forward-only — shared by
+    # the switchboard's delivery/authoring bumps and the MCP channel's per-call
+    # measurement. Two implementations of "bump last_active_at" would be two
+    # writers that drift (§2), so the semantic lives here and everyone delegates.
+    setup do
+      {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
+      {:ok, agent} = Staff.register_agent(%{name: "Sandra", mandate: "m", engine: "e"})
+
+      {:ok, session} =
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w"})
+
+      %{session: session}
+    end
+
+    test "a later stamp advances; an earlier one is ignored (forward-only)", %{session: session} do
+      base = Repo.get!(Session, session.id).last_active_at
+      later = DateTime.add(base, 600, :second)
+
+      :ok = Staff.touch_sessions([session.id], later)
+      assert Repo.get!(Session, session.id).last_active_at == later
+
+      # A backlog drain replaying an old message must never move warmth BACKWARD —
+      # a session that acted at T is warm as of T, whatever else it did before.
+      earlier = DateTime.add(later, -1200, :second)
+      :ok = Staff.touch_sessions([session.id], earlier)
+      assert Repo.get!(Session, session.id).last_active_at == later
+    end
+
+    test "fills a NULL last_active_at", %{session: session} do
+      import Ecto.Query
+      Repo.update_all(from(s in Session, where: s.id == ^session.id), set: [last_active_at: nil])
+
+      stamp = DateTime.utc_now() |> DateTime.truncate(:second)
+      :ok = Staff.touch_sessions([session.id], stamp)
+      assert Repo.get!(Session, session.id).last_active_at == stamp
+    end
+
+    test "an empty id list is a no-op" do
+      assert :ok = Staff.touch_sessions([], DateTime.utc_now() |> DateTime.truncate(:second))
+    end
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
   end
