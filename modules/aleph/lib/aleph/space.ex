@@ -3,9 +3,9 @@ defmodule Aleph.Space do
   A **space** is a named lens over funes — *what's in the middle* and the panels around it — the
   unit the top-left switcher picks (design Addendum §B; renamed from "workspace," which collided
   with tmux and Herdr). Each space is a different app over the same substrate: **Comms** (the
-  thread/message rollup, the default), **Sessions** (the expanded live coworker-session view), and
-  **Issues** (a thin list). The `Aleph.Panel.Spaces` picker switches the active one; the center
-  renders that space's `surface`.
+  thread/message chorus, the default), **Sessions** (the live embedded-terminal view), and
+  **Tlön** (the META space — the machine/stack as a whole, not a project). The `Aleph.Panel.Spaces`
+  picker switches the active one; the center renders that space's `surface`.
 
   A surface is `{panel_module, data_key}` — the Cockpit resolves `data_key` to the funes read it
   feeds the panel (so a space stays plain data, holding no logic of its own). The left/right slots
@@ -59,8 +59,12 @@ defmodule Aleph.Space do
         right: [Dossier]
       },
       %__MODULE__{
-        key: :issues,
-        label: "Issues",
+        # Tlön — the META space: the machine/stack as a whole, not a project. Where you work on the
+        # env itself (nix, the funes/aleph/manos stack, tool changelogs). Shape still coalescing —
+        # this is a transitional placeholder over the same panels; the distinct machine-state view
+        # (stack activity, changelogs, signals) is the next design pass.
+        key: :tlon,
+        label: "Tlön",
         surface: {ThreadList, :issues},
         left: [Conversation],
         right: [Dossier]

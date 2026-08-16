@@ -38,18 +38,18 @@ defmodule Aleph.KeymapTest do
   end
 
   describe "space switching" do
-    # Picker order: Comms · Sessions · Issues; the default state sits on Sessions.
+    # Picker order: Comms · Sessions · Tlön; the default state sits on Sessions.
     test "Tab moves to the next space and repaints" do
-      assert {%{active_key: :issues}, :repaint} = Keymap.handle(key(:tab), state())
+      assert {%{active_key: :tlon}, :repaint} = Keymap.handle(key(:tab), state())
     end
 
     test "Shift-Tab moves to the previous space (wraps)" do
-      assert {%{active_key: :issues}, :repaint} =
+      assert {%{active_key: :tlon}, :repaint} =
                Keymap.handle(key(:tab, shift: true), state(%{active_key: :comms}))
     end
 
     test "] is next, [ is previous" do
-      assert {%{active_key: :issues}, :repaint} = Keymap.handle(char("]"), state())
+      assert {%{active_key: :tlon}, :repaint} = Keymap.handle(char("]"), state())
       assert {%{active_key: :comms}, :repaint} = Keymap.handle(char("["), state())
     end
 
