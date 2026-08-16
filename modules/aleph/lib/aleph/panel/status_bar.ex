@@ -14,10 +14,26 @@ defmodule Aleph.Panel.StatusBar do
   alias Aleph.Panel
 
   # {keycap, label} pairs — keycaps lit in amber, labels dim.
-  @hints [{"Tab", "space"}, {"↑↓", "thread"}, {"⏎", "focus"}, {"q", "quit"}]
+  @hints [{"n", "new"}, {"s", "spawn"}, {"Tab", "space"}, {"↑↓", "thread"}, {"⏎", "focus"}, {"q", "quit"}]
 
   @impl Panel
   def topics(_assigns), do: []
+
+  # Title input mode: the info line becomes the prompt (a caret marks the cursor), and the
+  # hints line names only the two keys that do anything while typing.
+  @impl Panel
+  def render(%{input: %{kind: :new_thread, buffer: buffer}}, rect) do
+    prompt = [
+      {" NEW THREAD ", :tab},
+      {"  ", :normal},
+      {"▸ ", :accent},
+      {buffer, :normal},
+      {"▎", :accent}
+    ]
+
+    hints = [{"⏎", :header}, {" create", :dim}, {"   ", :dim}, {"Esc", :header}, {" cancel", :dim}]
+    Panel.clip([prompt, hints], rect)
+  end
 
   @impl Panel
   def render(%{space: space} = data, rect) do

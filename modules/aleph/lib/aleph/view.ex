@@ -87,7 +87,9 @@ defmodule Aleph.View do
       space: space.label,
       thread: reads.focused_title,
       thread_count: length(reads.threads),
-      live_count: Enum.count(reads.roster, & &1.warm?)
+      live_count: Enum.count(reads.roster, & &1.warm?),
+      # When the operator is typing a new-thread title, the footer becomes the prompt.
+      input: reads[:input]
     }
   end
 

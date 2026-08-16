@@ -17,7 +17,8 @@ defmodule Aleph.KeymapTest do
         active_key: :sessions,
         focused_id: 2,
         threads: [%{id: 1}, %{id: 2}, %{id: 3}],
-        center_focused?: false
+        center_focused?: false,
+        input: nil
       },
       overrides
     )
@@ -132,6 +133,61 @@ defmodule Aleph.KeymapTest do
     test "an unbound key is a no-op" do
       s = state()
       assert {^s, :none} = Keymap.handle(key(:f5), s)
+    end
+  end
+
+  describe "creating a thread — the `n` verb + title input mode" do
+    test "n opens title input (empty buffer) and repaints" do
+      assert {%{input: %{kind: :new_thread, buffer: ""}}, :repaint} = Keymap.handle(char("n"), state())
+    end
+
+    test "printable keys accumulate into the buffer, not acted on locally" do
+      s = state(%{input: %{kind: :new_thread, buffer: "fab"}})
+      assert {%{input: %{buffer: "fabl"}}, :repaint} = Keymap.handle(char("l"), s)
+      # 'e' — normally nothing, here it's just text
+      s2 = state(%{input: %{kind: :new_thread, buffer: "fabl"}})
+      assert {%{input: %{buffer: "fable"}}, :repaint} = Keymap.handle(char("e"), s2)
+    end
+
+    test "keys that are bindings in normal mode are captured as text while typing (q does not quit)" do
+      s = state(%{input: %{kind: :new_thread, buffer: "re"}})
+      assert {%{input: %{buffer: "req"}}, :repaint} = Keymap.handle(char("q"), s)
+    end
+
+    test "backspace deletes the last character" do
+      s = state(%{input: %{kind: :new_thread, buffer: "fable"}})
+      assert {%{input: %{buffer: "fabl"}}, :repaint} = Keymap.handle(key(:backspace), s)
+    end
+
+    test "Enter on a non-empty buffer submits {:create_thread, title} and leaves input mode" do
+      s = state(%{input: %{kind: :new_thread, buffer: "fable review"}})
+      assert {%{input: nil}, {:create_thread, "fable review"}} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Enter on an empty buffer cancels (never creates a blank thread)" do
+      s = state(%{input: %{kind: :new_thread, buffer: ""}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Esc cancels input mode, creating nothing" do
+      s = state(%{input: %{kind: :new_thread, buffer: "half typed"}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+  end
+
+  describe "spawning a session onto the focused thread — the `s` verb" do
+    test "s asks to spawn onto the focused thread" do
+      assert {_s, {:spawn, 2}} = Keymap.handle(char("s"), state())
+    end
+
+    test "s with no focused thread is a no-op" do
+      s = state(%{focused_id: nil, threads: []})
+      assert {^s, :none} = Keymap.handle(char("s"), s)
+    end
+
+    test "s is captured as text while typing a title, not a spawn" do
+      s = state(%{input: %{kind: :new_thread, buffer: "clas"}})
+      assert {%{input: %{buffer: "class"}}, :repaint} = Keymap.handle(char("s"), s)
     end
   end
 end

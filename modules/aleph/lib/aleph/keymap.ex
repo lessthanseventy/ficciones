@@ -14,15 +14,41 @@ defmodule Aleph.Keymap do
     * `:repaint` — state changed; reload funes reads and paint.
     * `:quit` — tear down and stop.
     * `{:forward, key}` — send this key to the focused tmux pane; local state unchanged.
+    * `{:create_thread, title}` — open a new thread with this title (the `n` verb, on Enter).
+    * `{:spawn, thread_id}` — spawn a harness session onto this thread (the `s` verb).
     * `:none` — nothing to do.
+
+  `state.input` is `nil` in normal mode, or `%{kind: :new_thread, buffer: String.t()}` while the
+  operator is typing a title — a modal that captures EVERY key (so `q` types a "q", it does not
+  quit) until Enter submits or Esc cancels.
   """
 
   alias Aleph.Space
 
-  @type effect :: :repaint | :quit | {:forward, map()} | :none
+  @type effect ::
+          :repaint | :quit | {:forward, map()} | {:create_thread, String.t()} | {:spawn, term()} | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
   @spec handle(map(), map()) :: {map(), effect()}
+
+  # --- title input mode: a MODAL — every key belongs to the buffer until Enter/Esc, so a
+  # binding letter (q, s, tab) types its character instead of firing. Must come first. ---
+  def handle(%{key: :escape}, %{input: %{}} = state), do: {%{state | input: nil}, :repaint}
+
+  # Enter submits — but an empty title creates nothing (cancel), never a blank thread.
+  def handle(%{key: :enter}, %{input: %{buffer: ""}} = state), do: {%{state | input: nil}, :repaint}
+
+  def handle(%{key: :enter}, %{input: %{kind: :new_thread, buffer: buffer}} = state),
+    do: {%{state | input: nil}, {:create_thread, buffer}}
+
+  def handle(%{key: :backspace}, %{input: %{buffer: buffer} = input} = state),
+    do: {%{state | input: %{input | buffer: String.slice(buffer, 0..-2//1)}}, :repaint}
+
+  def handle(%{key: :char, char: c}, %{input: %{buffer: buffer} = input} = state) when is_binary(c),
+    do: {%{state | input: %{input | buffer: buffer <> c}}, :repaint}
+
+  # Any other key while typing (arrows, function keys) is ignored, not acted on.
+  def handle(_key, %{input: %{}} = state), do: {state, :none}
 
   # --- center focused: keys belong to the tmux pane; only Esc is ours (release) ---
   def handle(%{key: :escape}, %{center_focused?: true} = state), do: {%{state | center_focused?: false}, :repaint}
@@ -47,6 +73,12 @@ defmodule Aleph.Keymap do
 
   # --- Enter focuses the center only when it's a live session to type into (Sessions space) ---
   def handle(%{key: :enter}, %{active_key: :sessions} = state), do: {%{state | center_focused?: true}, :repaint}
+
+  # --- n: open a new thread (enter title input mode); s: spawn a harness onto the focused thread ---
+  def handle(%{key: :char, char: "n"}, state), do: {%{state | input: %{kind: :new_thread, buffer: ""}}, :repaint}
+
+  def handle(%{key: :char, char: "s"}, %{focused_id: nil} = state), do: {state, :none}
+  def handle(%{key: :char, char: "s"}, %{focused_id: id} = state), do: {state, {:spawn, id}}
 
   # --- anything else is unbound ---
   def handle(_key, state), do: {state, :none}

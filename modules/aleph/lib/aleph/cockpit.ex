@@ -14,6 +14,7 @@ defmodule Aleph.Cockpit do
   alias Aleph.Board
   alias Aleph.Keymap
   alias Aleph.Space
+  alias Aleph.Spawn
   alias Aleph.Tmux
   alias Aleph.View
   alias Funes.Bus
@@ -77,7 +78,8 @@ defmodule Aleph.Cockpit do
             focused_id: nil,
             threads: [],
             subscribed_thread: nil,
-            center_focused?: false
+            center_focused?: false,
+            input: nil
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -153,6 +155,28 @@ defmodule Aleph.Cockpit do
     {:noreply, state}
   end
 
+  # The `n` verb landed: open the thread and focus it (the Bus event repaints too, but focusing
+  # here means the new thread is selected the instant it exists). A bad title just repaints.
+  defp apply_effect({:create_thread, title}, state) do
+    case Channel.open_thread(%{title: title}) do
+      {:ok, thread} -> {:noreply, render(%{state | focused_id: thread.id})}
+      {:error, _changeset} -> {:noreply, render(state)}
+    end
+  end
+
+  # The `s` verb landed: spawn a harness onto the focused thread, in-process (aleph is the hub).
+  # A spawn failure (no tmux, a dead join) is logged, never a crash — the cockpit repaints on.
+  defp apply_effect({:spawn, thread_id}, state) do
+    agent = Application.get_env(:aleph, :spawn_agent, "pi")
+
+    case Spawn.session(thread_id, agent) do
+      {:ok, _pane} -> :ok
+      {:error, reason} -> Logger.warning("aleph: spawn onto thread #{thread_id} failed: #{inspect(reason)}")
+    end
+
+    {:noreply, render(state)}
+  end
+
   # --- forward a keypress to the focused tmux pane ---
   defp forward_to_pane(key, state) do
     pane = pane_ref(focused(state))
@@ -187,7 +211,8 @@ defmodule Aleph.Cockpit do
       threads: threads,
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
-      session: session_read(state, focused)
+      session: session_read(state, focused),
+      input: state.input
     }
 
     reads
