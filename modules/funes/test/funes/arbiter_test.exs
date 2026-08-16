@@ -64,4 +64,23 @@ defmodule Funes.ArbiterTest do
       assert script =~ "exec pi"
     end
   end
+
+  describe "spawn/1 — the real actuation path (the glue that builds + runs)" do
+    test "always returns a result tuple, never raises — no arg-order/wiring bug slips through" do
+      # This exercises spawn/1's own wiring (a mis-piped arg once turned an atom into an
+      # exports binary and crashed aleph). A harmless launcher; degrades to {:error, :tmux_*}
+      # where tmux is absent, so it never depends on a real terminal.
+      Application.put_env(:funes, :spawn_session, "tlon_arbiter_test")
+      Application.put_env(:funes, :spawn_launcher, "true")
+
+      on_exit(fn ->
+        System.cmd("tmux", ["kill-session", "-t", "tlon_arbiter_test"], stderr_to_stdout: true)
+        Application.delete_env(:funes, :spawn_session)
+        Application.delete_env(:funes, :spawn_launcher)
+      end)
+
+      result = Tmux.spawn(~s(export FUNES_THREAD="1"))
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+  end
 end

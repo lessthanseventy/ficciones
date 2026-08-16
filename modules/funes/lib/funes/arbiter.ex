@@ -86,7 +86,7 @@ defmodule Funes.Arbiter.Tmux do
     # target session to attach to — the silent-fail bug), `new-window` adds to it once it exists.
     # aleph renders these panes in its Sessions space via capture-pane; nobody attaches to tmux.
     verb = if has_session?(session), do: :window, else: :session
-    exports |> spawn_argv(verb, session, launcher, cwd) |> run_capture()
+    verb |> spawn_argv(exports, session, launcher, cwd) |> run_capture()
   end
 
   @doc """

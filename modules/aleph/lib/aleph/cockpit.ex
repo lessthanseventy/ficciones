@@ -173,7 +173,9 @@ defmodule Aleph.Cockpit do
   end
 
   # Spawn a harness onto a thread and return a one-line result for the footer flash. The error is
-  # surfaced verbatim (e.g. tmux missing, a dead join) — this is the operator's only feedback.
+  # surfaced verbatim (e.g. tmux missing, a dead join) — this is the operator's only feedback. A
+  # raise or exit in the spawn path becomes a flash too, NEVER an aleph crash: a spawn is a side
+  # errand, and losing the whole cockpit to one is the failure this rescue exists to prevent.
   defp spawn_onto(thread_id) do
     agent = Application.get_env(:aleph, :spawn_agent, "pi")
 
@@ -181,6 +183,10 @@ defmodule Aleph.Cockpit do
       {:ok, pane} -> "spawned #{agent} → #{pane} (Sessions space)"
       {:error, reason} -> "spawn failed: #{inspect(reason)}"
     end
+  rescue
+    e -> "spawn crashed: #{Exception.message(e)}"
+  catch
+    :exit, reason -> "spawn crashed: #{inspect(reason)}"
   end
 
   # --- forward a keypress to the focused tmux pane ---
