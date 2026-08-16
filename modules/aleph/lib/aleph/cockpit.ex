@@ -12,7 +12,7 @@ defmodule Aleph.Cockpit do
   use GenServer
   require Logger
 
-  alias Aleph.{Board, Tmux, View, Workspace}
+  alias Aleph.{Board, Keymap, Tmux, View, Workspace}
   alias Funes.{Bus, Channel, Staff}
   alias Raxol.Core.Events.Event
 
@@ -57,6 +57,7 @@ defmodule Aleph.Cockpit do
     case :termbox2_nif.tb_init() do
       0 ->
         :termbox2_nif.tb_set_output_mode(@tb_output_truecolor)
+        normalize_cursor_keys()
         {:ok, driver} = Raxol.Terminal.Driver.start_link(dispatcher_pid: self())
 
         state =
@@ -80,6 +81,19 @@ defmodule Aleph.Cockpit do
     end
   end
 
+  # termbox2's `tb_init` enables DECCKM (application cursor keys, `ESC[?1h` — see termbox2.h's
+  # ENTER_KEYPAD cap), which makes arrow keys arrive as SS3 (`ESC O A`). Raxol's ANSI
+  # `InputParser` decodes CSI arrows (`ESC [ A`) but not SS3 ones, so under DECCKM every arrow
+  # mis-parses (to Alt+O + a stray char) and the cockpit never sees `:up`/`:down` — only `j`/`k`
+  # worked. Reset DECCKM to normal cursor keys so arrows come through as CSI, which the parser
+  # handles. Written to `/dev/tty` because that's the fd termbox drives (not necessarily stdout);
+  # termbox's own shutdown sends the same reset, so this only brings it forward to boot.
+  defp normalize_cursor_keys do
+    # Best-effort: if /dev/tty can't be written we simply keep termbox's default cursor-key mode.
+    _ = File.write("/dev/tty", "\e[?1l")
+    :ok
+  end
+
   # --- input + resize from the termbox Driver (GenServer casts) ---
 
   @impl true
@@ -88,7 +102,8 @@ defmodule Aleph.Cockpit do
   end
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
-    handle_key(key, state)
+    {state, effect} = Keymap.handle(key, state)
+    apply_effect(effect, state)
   end
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
@@ -119,57 +134,17 @@ defmodule Aleph.Cockpit do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # --- key handling ---
+  # --- interpret the reducer's effect (`Aleph.Keymap`) ---
 
-  # When the center is focused, keys go to the tmux pane; Esc releases.
-  defp handle_key(%{key: :escape}, %{center_focused?: true} = state) do
-    {:noreply, render(%{state | center_focused?: false})}
-  end
+  # State transitions live in the pure `Aleph.Keymap`; the Cockpit only runs the side effect it
+  # asks for — repaint, quit, or forward a key to the focused tmux pane.
+  defp apply_effect(:repaint, state), do: {:noreply, render(state)}
+  defp apply_effect(:none, state), do: {:noreply, state}
+  defp apply_effect(:quit, state), do: quit(state)
 
-  defp handle_key(key, %{center_focused?: true} = state) do
+  defp apply_effect({:forward, key}, state) do
     forward_to_pane(key, state)
     {:noreply, state}
-  end
-
-  defp handle_key(%{key: :char, char: "c", ctrl: true}, state), do: quit(state)
-  defp handle_key(%{key: :char, char: "q"}, state), do: quit(state)
-
-  defp handle_key(%{key: :tab, shift: true}, state),
-    do: {:noreply, switch_workspace(state, :prev)}
-
-  defp handle_key(%{key: :tab}, state), do: {:noreply, switch_workspace(state, :next)}
-  defp handle_key(%{key: :char, char: "]"}, state), do: {:noreply, switch_workspace(state, :next)}
-  defp handle_key(%{key: :char, char: "["}, state), do: {:noreply, switch_workspace(state, :prev)}
-
-  defp handle_key(%{key: :up}, state), do: {:noreply, move_focus(state, -1)}
-  defp handle_key(%{key: :char, char: "k"}, state), do: {:noreply, move_focus(state, -1)}
-  defp handle_key(%{key: :down}, state), do: {:noreply, move_focus(state, 1)}
-  defp handle_key(%{key: :char, char: "j"}, state), do: {:noreply, move_focus(state, 1)}
-
-  # Enter focuses the center only when it's a terminal surface to type into.
-  defp handle_key(%{key: :enter}, %{active_key: :terminal} = state) do
-    {:noreply, render(%{state | center_focused?: true})}
-  end
-
-  defp handle_key(_key, state), do: {:noreply, state}
-
-  defp switch_workspace(state, dir) do
-    ws =
-      if dir == :next,
-        do: Workspace.next(state.active_key),
-        else: Workspace.prev(state.active_key)
-
-    render(%{state | active_key: ws.key, center_focused?: false})
-  end
-
-  # Move the focused thread up/down the current list, clamped (no wrap — a list edge should feel like one).
-  defp move_focus(%{threads: []} = state, _dir), do: state
-
-  defp move_focus(state, dir) do
-    ids = Enum.map(state.threads, & &1.id)
-    i = Enum.find_index(ids, &(&1 == state.focused_id)) || 0
-    new_id = Enum.at(ids, min(max(i + dir, 0), length(ids) - 1))
-    render(%{state | focused_id: new_id})
   end
 
   # --- forward a keypress to the focused tmux pane ---

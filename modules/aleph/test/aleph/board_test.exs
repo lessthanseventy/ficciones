@@ -1,3 +1,12 @@
+# A one-row panel that renders whatever raw string it's given, for probing the paint boundary.
+defmodule SanitizeProbe do
+  @behaviour Aleph.Panel
+  @impl true
+  def topics(_), do: []
+  @impl true
+  def render(text, _rect) when is_binary(text), do: [[{text, :normal}]]
+end
+
 defmodule Aleph.BoardTest do
   @moduledoc """
   The slice-1 render proof: the panel → styled-rows → composed-cells path is correct without a
@@ -151,6 +160,22 @@ defmodule Aleph.BoardTest do
       assert Enum.any?(cells, &(&1.x == 3 and &1.y == 2))
       # every cell carries a codepoint and colours
       assert Enum.all?(cells, &(is_integer(&1.ch) and is_integer(&1.fg) and is_integer(&1.bg)))
+    end
+
+    test "control bytes in panel content are never emitted to the terminal" do
+      # A stray ESC (27) or other C0/C1 control byte from a captured tmux pane would, painted
+      # raw, be read by the terminal as the start of an escape sequence and shift the whole
+      # screen's colours. The paint boundary must neutralise them to a space (0x20).
+      rect = %{x: 0, y: 0, w: 20, h: 3}
+      panel = {SanitizeProbe, "a\e[31mb\tc", rect}
+
+      chars = Board.compose([panel], 80, 24) |> Enum.map(& &1.ch)
+
+      refute 27 in chars, "ESC leaked into a cell"
+      refute 9 in chars, "TAB leaked into a cell"
+      assert Enum.all?(chars, &(&1 >= 32 and &1 != 127)), "a control byte reached the terminal"
+      # printable characters survive
+      assert ?a in chars and ?b in chars and ?c in chars
     end
   end
 end

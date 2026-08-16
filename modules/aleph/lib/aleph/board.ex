@@ -45,7 +45,14 @@ defmodule Aleph.Board do
     cells |> Enum.reverse() |> List.flatten()
   end
 
-  defp codepoint(grapheme), do: grapheme |> String.to_charlist() |> hd()
+  # Panel content can carry raw bytes (a tmux `capture-pane` snapshot of a program's output).
+  # Painting a C0/C1 control byte or DEL straight to the terminal would let it be read as the
+  # start of an escape sequence — a stray ESC shifts the whole screen's colours. Neutralise them
+  # to a space here, at the one boundary every cell passes through, so no panel can leak one.
+  defp codepoint(grapheme) do
+    cp = grapheme |> String.to_charlist() |> hd()
+    if cp < 0x20 or (cp >= 0x7F and cp <= 0x9F), do: 0x20, else: cp
+  end
 
   @doc "Blit composed cells to the real screen via termbox2. Assumes `tb_init` already ran."
   @spec paint([cell()]) :: :ok
