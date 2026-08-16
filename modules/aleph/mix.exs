@@ -84,10 +84,11 @@ defmodule Aleph.MixProject do
 
   defp deps do
     [
-      # `runtime: false` for now: aleph uses funes' modules (read models, Bus topics) but
-      # does not yet auto-boot funes' OTP app — that waits until the live-Bus wiring step,
-      # which needs a test DB for funes' Repo. Flip to a normal dep then.
-      {:funes, path: "../funes", runtime: false},
+      # A live runtime dep: aleph boots funes' OTP app (PubSub + Repo) and subscribes to
+      # the Bus (§6). funes never depends on aleph — the boundary is one-directional. Because
+      # a dependency's own `config/*.exs` is NOT evaluated when aleph is the root app, aleph
+      # supplies funes' Repo config itself (config/config.exs + config/runtime.exs).
+      {:funes, path: "../funes"},
       # The disciplined subset of the Raxol family, NOT the full `raxol` umbrella (which
       # drags in payments/earn/mcp/sensor). `raxol_terminal` = screen buffers + ANSI +
       # input + the termbox2 driver; `raxol_core` = the infra behaviours it sits on (§3).
