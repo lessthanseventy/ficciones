@@ -9,9 +9,37 @@ computing life you can trust and rebuild, the repository has to be the machine, 
 
 **The name.** Borges' *Ficciones* is the 1944 collection that contains the story "Funes the Memorious."
 This repository contains the `funes` module exactly as that book contains that story — so the repo is
-*ficciones*, and each module is another story in it: `funes` is memory (the man who could not forget);
-a desktop module would be `tlon`, the invented world that overwrites the real one. A naming system, not
-just a name.
+*ficciones*, and each module is another story in it: `funes` is memory (the man who could not forget).
+The AI environments the stack grows carry the same Borges naming — see **The environments** below. A
+naming system, not just a name.
+
+## The environments
+
+The AI stack is **many UIs over one memory**. `funes` is the shared spine — the data model, the
+communication bus, the single-writer discipline; `aleph` (from "The Aleph", the point that contains all
+points) is the cockpit that renders it. Over that spine sit the *environments* — each a bounded domain
+with its own data, its own coworkers, and its own surface, and each named for the Borges story it
+behaves like. **None exist yet** — a module is born when it has content, and these are being designed,
+not built — but the vocabulary is fixed:
+
+- **`congress` → Chat.** *The Congress* (1971): a secret society tries to convene an assembly
+  representing every human alive, and finally realises the Congress already exists — it is the world
+  itself, always in session. The always-on assembly of all your coworkers; the conversation doesn't need
+  convening, it just *is*.
+- **`senderos` → Board.** *The Garden of Forking Paths* (1941): a labyrinth that turns out to be a novel
+  where every choice takes *all* paths at once, time branching endlessly. Every ticket is a fork — a
+  branch of work that could be taken; the board is the garden of the paths in flight.
+- **`tlön` → Workbench.** *Tlön, Uqbar, Orbis Tertius* (1940): scholars find an encyclopedia of an
+  invented planet, and as they study the fiction it bleeds into reality and overwrites it. This is the
+  dogfood environment — building a fictional system, in a repo named *ficciones*, that becomes the real
+  one you work inside.
+- **`zahir` → Support.** *The Zahir* (1949): an ordinary coin that, once seen, cannot be forgotten, and
+  grows until it blots out the world. The incident that won't let go, the page that eclipses all other
+  work until it clears. A support queue is a nest of Zahirs.
+- **`compass` → Review.** *Death and the Compass* (1942): a detective reads murders as points on a
+  compass and follows the pattern with beautiful rigor to its end — which was a trap laid for him.
+  Tracing a change to its source with the detective's discipline, and a knowing nudge that the most
+  elegant reading can be the wrong one.
 
 ## Layout
 
