@@ -1,0 +1,18 @@
+{
+  "name": "@manos/pi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "manos — the pi adapter: funes' hands in the pi harness (register + brief + footer).",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "typescript": "^5.6.3"
+  },
+  "pi": {
+    "extensions": ["./src/extension.ts"]
+  }
+}

@@ -18,3 +18,15 @@ end
 # configuration, never identity in the design (§8); the same default aleph uses.
 # `Dossier.bank_stated_fact` trusts only this author for `stated` provenance.
 config :funes, operator: System.get_env("FUNES_OPERATOR") || "andrew"
+
+# The sovereign channel is opt-in (pi doc §2a): a node that serves agents flips it on.
+# `mise run funes:serve` sets FUNES_START_MCP=1 so a hand-spawned pi pane has something to
+# register with. Guarded out of :test — the suite owns its own MCP lifecycle on its own
+# port, and this guard means a stray FUNES_START_MCP=1 in a dev shell can't bind Bandit
+# during `mix test`. The port is loopback-only (Funes.Application); FUNES_MCP_PORT lets a
+# second node avoid a clash.
+if config_env() != :test do
+  config :funes,
+    start_mcp: System.get_env("FUNES_START_MCP") in ~w(1 true yes),
+    mcp_port: String.to_integer(System.get_env("FUNES_MCP_PORT") || "4040")
+end
