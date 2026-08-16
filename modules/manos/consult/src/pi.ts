@@ -1,0 +1,87 @@
+// The slice of pi's ExtensionAPI that consult depends on — hand-declared against pi's
+// documented surface, deliberately minimal like manos/pi/src/pi.ts: it names exactly the
+// command API, the session-reader, and the message-injector this adapter uses, so a change
+// in what we rely on is a change to THIS file. Type-only — erased at runtime.
+//
+// Sources: pi docs/extensions.md §ExtensionContext, §ExtensionCommandContext,
+// §pi.registerCommand, §pi.sendUserMessage. The session-reader is ctx.sessionManager
+// .buildContextEntries() (the active branch with compaction applied).
+
+export interface ExtensionUI {
+  setStatus(key: string, text: string): void;
+  notify(message: string, level?: "info" | "warning" | "error"): void;
+}
+
+export interface SessionEntry {
+  type: string;
+  message?: {
+    role?: string;
+    content?: unknown;
+  };
+}
+
+export interface SessionManager {
+  // Active branch entries with compaction applied — the same view the model gets.
+  buildContextEntries(): SessionEntry[];
+}
+
+export interface ExtensionContext {
+  ui: ExtensionUI;
+  cwd: string;
+  // Read-only session state — available to ALL handlers (the doc puts ctx.sessionManager
+  // on the base ExtensionContext, not just the command context). The auto-vision hook reads
+  // the latest user message here to target the vision prompt at what the operator asked.
+  sessionManager: SessionManager;
+  // Present on active-turn handlers (tool_call, tool_result, message_update, turn_end)
+  // so Esc can cancel nested async work started by the extension.
+  signal?: AbortSignal;
+}
+
+// Command handlers receive this — it extends ExtensionContext with session-control methods
+// that are only safe in commands (they'd deadlock from event handlers). We use isIdle to
+// refuse delegation while the main agent is mid-turn; sessionManager is inherited from the
+// base context (read access is safe everywhere).
+export interface ExtensionCommandContext extends ExtensionContext {
+  isIdle(): boolean;
+}
+
+export interface CommandOptions {
+  description?: string;
+  // arg completions are optional; omitted here.
+  handler: (args: string, ctx: ExtensionCommandContext) => void | Promise<void>;
+}
+
+// A read tool result that pi emits when the model can't ingest images — the text block pi's
+// read tool returns verbatim: "Read image file [image/png]\n[Current model does not support
+// images. The image will be omitted from this request.]". The auto-delegation hook keys on
+// the "does not support images" marker and pulls the path + mime out.
+export interface ToolResultEvent {
+  toolName: string;
+  toolCallId: string;
+  // The tool's input args — for `read`, `{ path, offset?, limit? }`.
+  input: unknown;
+  content: unknown;
+  isError?: boolean;
+}
+
+// What a tool_result handler returns to patch the result. Omitted fields keep their current
+// value; we only ever replace `content` (the image-omission text → a real description).
+export interface ToolResultPatch {
+  content?: unknown;
+  isError?: boolean;
+}
+
+export interface ExtensionAPI {
+  registerCommand(name: string, options: CommandOptions): void;
+  // Inject a user message into the conversation and trigger a turn — how the delegate's
+  // output is handed back to the main model (it appears in the transcript and the main
+  // agent responds to it). See pi docs §pi.sendUserMessage.
+  sendUserMessage(text: string): void;
+  // Middleware over tool results: fires after a tool runs, before the result message is
+  // emitted to the model. Return a patch to modify. Used here to transparently upgrade an
+  // image-omitted `read` result into a real description produced by a multimodal model.
+  on(
+    event: "tool_result",
+    handler: (event: ToolResultEvent, ctx: ExtensionContext) => ToolResultPatch | undefined | Promise<ToolResultPatch | undefined>,
+  ): void;
+}

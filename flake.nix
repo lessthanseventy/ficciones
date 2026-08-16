@@ -93,6 +93,11 @@
               # home dir already fixes this location.
               repo = "/home/andrew/projects/ficciones";
               manosExtension = "${repo}/modules/manos/pi/src/extension.ts";
+              # consult — /consult (rich, with session context) and /fresh (thin one-shot):
+              # delegate a question to a different model and hand the answer back. The vision
+              # case (a text-only main model delegating a screenshot to minimax-m3) is the
+              # first use; a general "second opinion" is the same mechanism.
+              consultExtension = "${repo}/modules/manos/consult/src/extension.ts";
               manosSkillsGlob = "${repo}/modules/manos/skills/*";
 
               # funes' self-contained release, built locally by `mise run funes:release`
@@ -147,7 +152,10 @@
                       # kimi-k3 removed: ollama.com serves it as EXTRA usage (HTTP 402), not
                       # included in the $20 plan — it bills per-token on top. Keep it out so it
                       # can't be selected by accident. Re-add only if you deliberately want to pay.
-                      { id = "minimax-m3"; }       # coding & agentic frontier, 1M ctx, native multimodal
+                      # native multimodal — the one cloud model that takes images, so the
+                      # `input` field is declared and it's the vision target for a /consult
+                      # subagent (text-only models like glm-5.2 delegate screenshots here).
+                      { id = "minimax-m3"; input = [ "text" "image" ]; }
                     ];
                   };
                 };
@@ -190,8 +198,9 @@
                 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
                 run ${pkgs.jq}/bin/jq \
                   --arg ext "${manosExtension}" \
+                  --arg ext2 "${consultExtension}" \
                   --arg skills "${manosSkillsGlob}" \
-                  '.extensions = ((.extensions // []) + [$ext] | unique)
+                  '.extensions = ((.extensions // []) + [$ext, $ext2] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
                    | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)
                    | .defaultProvider //= "ollama-cloud"
