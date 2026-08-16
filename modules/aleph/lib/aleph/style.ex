@@ -10,18 +10,23 @@ defmodule Aleph.Style do
 
   @bg 0x000000
 
-  # Retro amber/green phosphor with a hot-pink pop and a violet highlight: amber is the primary
-  # text, green marks life and labels, burnt orange draws the structure, pink flags the agents,
-  # and a deep violet wash marks selection — a CRT "cyber hacker" surface on black. One accent
-  # per meaning. The two dark hexes (`@sel`) are backgrounds, where deep colour reads best.
+  # 80s phosphor green (#33FF00) is the body — content/strings, the bulk of the surface. Amber
+  # (#FFB000) is the *chrome* — titles, labels, warm dots — where it pops instead of tiring the
+  # eye everywhere. Pink flags the agents, burnt orange draws the structure, and a deep violet
+  # wash marks selection. A CRT "cyber hacker" surface on black. The dark hex (`@sel`) is a
+  # background, where deep colour reads best.
   @sel 0x5B00AE
 
+  # The two canonical phosphors: green #33FF00 (body) and amber #FFB000 (chrome).
+  @green 0x33FF00
+  @amber 0xFFB000
+
   @colors %{
-    normal: {0xFFB454, @bg},
-    header: {0xFFD75F, @bg},
-    label: {0x5FD75F, @bg},
+    normal: {@green, @bg},
+    header: {@amber, @bg},
+    label: {@amber, @bg},
     accent: {0xE0218A, @bg},
-    warm: {0x5FFF87, @bg},
+    warm: {@amber, @bg},
     dim: {0x9A803F, @bg},
     separator: {0xB5651D, @bg},
     selected: {0xFFF4C2, @sel},
