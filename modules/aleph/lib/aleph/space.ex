@@ -61,14 +61,17 @@ defmodule Aleph.Space do
         right: [Dossier]
       },
       %__MODULE__{
-        # Tlön — the META space (v1): the machine/stack as a whole, not a project. The center is
-        # TWO stacked machine panes on the same machine thread: pi (the always-on coworker, the
-        # flat-bucket workhorse) over claude (the deliberate escalation — spawned lazily on first
-        # focus, `Ctrl+B o`, so entering Tlön never drains the scarce bucket by itself). The left
-        # is STACK (recent ficciones commits); the right is TOOLS (installed versions).
+        # Tlön — the META space: the machine/stack as a whole, not a project. The center is
+        # LITERAL tmux: an embedded client attached to the standing `tlon` session, so the
+        # machine workspace gets tmux's own windows/tabs, mouse, resurrect/plugins and the
+        # user's config — and it SURVIVES aleph restarts (the session outlives the client).
+        # pi lives in window 0 (spawned with the session); claude is a lazily-summoned window
+        # (`Ctrl+B o`), so entering Tlön never drains the scarce bucket by itself. The left is
+        # STACK (recent ficciones commits); the right is TOOLS (installed versions). The
+        # multi-section surface machinery (a LIST here) stays for future split centers.
         key: :tlon,
         label: "Tlön",
-        surface: [{Terminal, :machine_pi}, {Terminal, :machine_claude}],
+        surface: [{Terminal, :machine}],
         left: [Aleph.Panel.Stack],
         right: [Aleph.Panel.Tools]
       }

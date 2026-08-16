@@ -73,6 +73,14 @@ defmodule Aleph.Terminal do
   def mouse_modes(term), do: GenServer.call(term, :mouse_modes)
 
   @doc """
+  A left click over the embedded terminal at 0-indexed local cell `(x, y)`: forwarded to the
+  PTY as a press+release pair when the running program tracks the mouse (tmux with `mouse on`,
+  a TUI hit-testing its own regions), `:ignored` otherwise — an untracked click is cockpit
+  chrome, not program input.
+  """
+  def click(term, x, y), do: GenServer.call(term, {:click, x, y})
+
+  @doc """
   Encode a `Ghostty.KeyEvent` to the bytes the embedded terminal would send to its PTY, WITHOUT
   writing them — the testable half of `send_key/2`. Exposed so the cockpit's key-encoding contract
   (e.g. the Kitty keyboard protocol being active) can be asserted headlessly.
@@ -172,6 +180,10 @@ defmodule Aleph.Terminal do
     {:reply, route_wheel(Terminal.mouse_modes(state.term).tracking, direction, n, x, y, state), state}
   end
 
+  def handle_call({:click, x, y}, _from, state) do
+    {:reply, route_click(Terminal.mouse_modes(state.term).tracking, x, y, state), state}
+  end
+
   def handle_call({:key, event}, _from, state) do
     emit(state.pty, Terminal.input_key(state.term, event))
     {:reply, :ok, state}
@@ -212,6 +224,20 @@ defmodule Aleph.Terminal do
     Terminal.scroll(term, scroll_delta(direction, n))
     :scrolled
   end
+
+  # A left click: press+release forwarded when the program tracks the mouse (tmux `mouse on`, a
+  # TUI picking a pane/window) — both halves, since SGR apps expect the pair. Untracked → the
+  # click is chrome, not input; the cockpit decides what (if anything) it means.
+  defp route_click(true, x, y, state) do
+    for action <- [:press, :release] do
+      event = %MouseEvent{action: action, button: :left, mods: [], x: x * 1.0, y: y * 1.0}
+      emit(state.pty, Terminal.input_mouse(state.term, event))
+    end
+
+    :forwarded
+  end
+
+  defp route_click(false, _x, _y, _state), do: :ignored
 
   # Write an encoder result to the PTY, or drop a :none (no sequence for this key/mouse under the
   # active modes). Shared by `:key` and `:wheel` — function-head dispatch, no two-arm `case`.

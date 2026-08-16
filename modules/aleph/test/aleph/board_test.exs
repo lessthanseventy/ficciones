@@ -436,29 +436,19 @@ defmodule Aleph.BoardTest do
       assert list_rect.x >= 2
     end
 
-    test "tlön space stacks two machine panes — pi over claude — in the center" do
+    test "tlön space centers ONE machine terminal (the embedded tmux client), fed by the :machine read" do
       tlon =
         reads(%{
           active_key: :tlon,
-          machine_pi: %{cells: [], pane: :pi},
-          machine_claude: {:no_session, :claude},
+          machine: :no_session,
           stack: %{commits: [], tools: []}
         })
 
       placements = View.compose(tlon, 120, 40)
-      terminals = Enum.filter(placements, fn {m, _d, _r} -> m == Terminal end)
 
-      assert [{_, pi_data, pi_rect}, {_, claude_data, claude_rect}] = terminals
-      assert pi_data.pane == :pi
-      assert claude_data == {:no_session, :claude}
-      # stacked: pi on top, claude below, in the same column
-      assert pi_rect.y < claude_rect.y
-      assert pi_rect.x == claude_rect.x
-    end
-
-    test "terminal panel: an unspawned claude pane says how to summon it" do
-      [row | _] = Terminal.render({:no_session, :claude}, %{x: 0, y: 0, w: 60, h: 4})
-      assert text(row) =~ "claude idle"
+      # one full-height center terminal — tmux owns the windows INSIDE it
+      assert [{Terminal, :no_session, rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == Terminal end)
+      assert rect.h > 30
     end
 
     test "comms space centers the chorus feed, with the roster (not a thread list) at its side" do

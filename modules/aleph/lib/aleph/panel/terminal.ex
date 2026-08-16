@@ -5,9 +5,7 @@ defmodule Aleph.Panel.Terminal do
   from the VT engine (not a semantic palette). The cursor cell is inverted so you can see where
   you type, and the `inverse` attribute (SGR 7) swaps fg/bg like a real terminal.
 
-  Data is a `render_state` map (`%{cells, cursor, foreground, background}`, optionally tagged
-  `pane: :pi | :claude` by the Tlön reads), `:no_session`, or `{:no_session, pane}` — the tagged
-  placeholder for an unspawned Tlön pane, so a click on it knows which pane to summon.
+  Data is a `render_state` map (`%{cells, cursor, foreground, background}`) or `:no_session`.
   Pure: a render_state in → styled rows out, no TTY. The cockpit blits these through `Aleph.Board`,
   which already paints 24-bit colour.
   """
@@ -28,14 +26,6 @@ defmodule Aleph.Panel.Terminal do
   def render(:no_session, rect) do
     Aleph.Panel.clip([line("no live session — press s to spawn one here", :dim)], rect)
   end
-
-  # An unspawned Tlön pane. Claude is the deliberate escalation (the scarce bucket), so its
-  # empty pane says how to summon it rather than being started on space entry.
-  def render({:no_session, :claude}, rect) do
-    Aleph.Panel.clip([line("claude idle — Ctrl+B o (or click here) to summon it", :dim)], rect)
-  end
-
-  def render({:no_session, _pane}, rect), do: render(:no_session, rect)
 
   def render(%{cells: cells} = render_state, rect) do
     default_fg = rgb_int(render_state[:foreground]) || @default_fg

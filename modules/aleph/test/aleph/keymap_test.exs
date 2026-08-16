@@ -118,16 +118,13 @@ defmodule Aleph.KeymapTest do
       end
     end
 
-    test "o in Tlön focuses the other machine pane (pi ⇄ claude)" do
-      s = state(%{active_key: :tlon, machine_pane: :pi})
-      assert {^s, {:focus_pane, :claude}} = Keymap.handle(char("o"), s)
-
-      s = state(%{active_key: :tlon, machine_pane: :claude})
-      assert {^s, {:focus_pane, :pi}} = Keymap.handle(char("o"), s)
+    test "o in Tlön summons-or-cycles the tmux windows (pi ⇄ claude)" do
+      s = state(%{active_key: :tlon})
+      assert {^s, :toggle_pane} = Keymap.handle(char("o"), s)
     end
 
-    test "o outside Tlön is unbound — only the two-pane center has an other-pane" do
-      s = state(%{active_key: :sessions, machine_pane: :pi})
+    test "o outside Tlön is unbound — only the machine tmux center has an other-window" do
+      s = state(%{active_key: :sessions})
       assert {^s, :none} = Keymap.handle(char("o"), s)
     end
   end
