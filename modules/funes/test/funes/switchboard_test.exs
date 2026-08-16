@@ -7,6 +7,7 @@ defmodule Funes.SwitchboardTest do
 
   alias Funes.Channel
   alias Funes.Message
+  alias Funes.Presence.Engine.Manual
   alias Funes.Repo
   alias Funes.Staff
   alias Funes.Switchboard
@@ -22,6 +23,9 @@ defmodule Funes.SwitchboardTest do
     end)
 
     Funes.TestDB.clean!()
+    # The autonomous cold-thread spawn mints a token (Funes.MCP.Spawn), so the registry
+    # must be up — the switchboard's spawn path is MCP-dependent by nature.
+    start_supervised!(Funes.MCP.Tokens)
     :ok
   end
 
@@ -226,7 +230,7 @@ defmodule Funes.SwitchboardTest do
     setup do
       # A pluggable engine-presence backend (§8: vendor lives in the backend, never the
       # design). The Test impl reads a set of clocked-out engine handles from app env.
-      Application.put_env(:funes, :engine_presence, Funes.Presence.Engine.Manual)
+      Application.put_env(:funes, :engine_presence, Manual)
 
       on_exit(fn ->
         Application.delete_env(:funes, :engine_presence)
@@ -285,9 +289,10 @@ defmodule Funes.SwitchboardTest do
       assert %DateTime{} = Repo.get!(Message, m.id).delivered_at
     end
 
-    test "a message no live addressee can receive stays undelivered" do
-      # A thread with a lead assigned but whose session hasn't started: nobody live
-      # to wake, so the post is pending until a session appears and drains it.
+    test "a message no live addressee can receive stays undelivered (the spawned session delivers it)" do
+      # A thread with a lead assigned but whose session hasn't started: nobody live to
+      # WAKE, so the post is pending — but the autonomous spawn (§4c.3) opens a pane, and
+      # the message is delivered once that session registers and drains, not by this call.
       {:ok, thread} = Channel.open_thread(%{title: "unattended"})
       {:ok, sandra} = Staff.register_agent(%{name: "Sandra", mandate: "lead", engine: "deep"})
       {:ok, _} = Staff.assign(thread, sandra)
@@ -297,6 +302,73 @@ defmodule Funes.SwitchboardTest do
 
       refute_received {:woke, _, _}
       assert Repo.get!(Message, m.id).delivered_at == nil
+    end
+  end
+
+  describe "autonomous cold-thread spawn — the lead is absent (§4c.3)" do
+    # The switchboard's own answer to a thread whose lead isn't running: spawn a fresh pane
+    # (the mechanism the `s` verb also uses), so a message to an unattended thread wakes
+    # someone instead of waiting for the human. Gated hard: never a clocked-out engine, never
+    # a double-spawn over a live session.
+    test "a message to a thread whose LEAD has no live session spawns a fresh pane for it" do
+      {:ok, thread} = Channel.open_thread(%{title: "cold thread"})
+      {:ok, carl} = Staff.register_agent(%{name: "Carl", mandate: "review", engine: "fresh"})
+      {:ok, _} = Staff.assign(thread, carl)
+      # No session was ever started — the thread is staffed but not running.
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "please review"})
+      assert {:pending, _} = Switchboard.deliver(m)
+
+      # the arbiter was asked to open a pane carrying Carl's identity on this thread
+      assert_received {:spawned, exports}
+      assert exports =~ ~s(FUNES_AUTHOR="Carl")
+      assert exports =~ ~s(FUNES_THREAD="#{thread.id}")
+    end
+
+    test "a clocked-out lead is NOT spawned — a fresh session it can't run is worse than waiting" do
+      Application.put_env(:funes, :engine_presence, Manual)
+      on_exit(fn -> Application.delete_env(:funes, :engine_presence) end)
+
+      {:ok, thread} = Channel.open_thread(%{title: "cold thread"})
+      {:ok, carl} = Staff.register_agent(%{name: "Carl", mandate: "review", engine: "claude"})
+      {:ok, _} = Staff.assign(thread, carl)
+      Application.put_env(:funes, :clocked_out_engines, ["claude"])
+      on_exit(fn -> Application.delete_env(:funes, :clocked_out_engines) end)
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "review?"})
+      Switchboard.deliver(m)
+
+      refute_received {:spawned, _}
+    end
+
+    test "a lead with a live (even cold) session is not auto-spawned — no zombie double-spawn" do
+      {:ok, thread} = Channel.open_thread(%{title: "cold but attended"})
+      {:ok, carl} = Staff.register_agent(%{name: "Carl", mandate: "review", engine: "fresh"})
+      {:ok, _} = Staff.assign(thread, carl)
+      {:ok, sess} = Staff.start_session(%{agent_id: carl.id, thread_id: thread.id, pane_ref: "wCarl"})
+      set_last_active(sess, 7200)
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "hi"})
+      Switchboard.deliver(m)
+
+      # cold → not poked, and a live session already exists → not re-spawned.
+      refute_received {:woke, _, _}
+      refute_received {:spawned, _}
+    end
+
+    test "an @mention of an absent coworker does not spawn the LEAD (only the addressed lead spawns)" do
+      {:ok, thread} = Channel.open_thread(%{title: "t"})
+      {:ok, carl} = Staff.register_agent(%{name: "Carl", mandate: "lead", engine: "fresh"})
+      {:ok, _} = Staff.assign(thread, carl)
+      {:ok, ss} = Staff.start_session(%{agent_id: carl.id, thread_id: thread.id, pane_ref: "wCarl"})
+      set_last_active(ss, 60)
+      {:ok, _dana} = Staff.register_agent(%{name: "Dana", mandate: "review", engine: "fresh"})
+
+      # @Dana (absent coworker) is addressed, not the lead — the lead must not be spawned.
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "@Dana take a look"})
+      Switchboard.deliver(m)
+
+      refute_received {:spawned, _}
     end
   end
 

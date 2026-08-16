@@ -40,6 +40,7 @@ defmodule Funes.Switchboard do
 
   alias Funes.Agent
   alias Funes.Arbiter
+  alias Funes.MCP.Spawn
   alias Funes.Mentions
   alias Funes.Message
   alias Funes.Presence
@@ -65,6 +66,10 @@ defmodule Funes.Switchboard do
 
     case recipients(message) do
       [] ->
+        # Nobody warm+available is addressed — but if the thread's LEAD simply isn't running,
+        # open a pane for it (§4c.3) rather than wait for the human. Delivery still happens
+        # when that session registers and drains, so this stays :pending.
+        maybe_spawn_absent(message)
         {:pending, message}
 
       sessions ->
@@ -174,6 +179,40 @@ defmodule Funes.Switchboard do
         |> Enum.reject(fn {_session, agent} -> Presence.clocked_out?(agent) end)
         |> Enum.map(fn {session, _agent} -> session end)
     end
+  end
+
+  # The autonomous cold-thread spawn (§4c.3): a message addressed to a thread whose LEAD has no
+  # live session opens a fresh pane for it — the SAME arbiter seam the `s` verb uses (`Spawn`
+  # mints identity, `Arbiter` actuates) — so an unattended thread wakes someone instead of
+  # waiting for the human. Gated three ways: the lead must be ADDRESSED by this message (an
+  # @mention of a coworker does not spawn the lead), have NO live session (never a zombie
+  # double-spawn over a cold-but-live one), and its engine must NOT be clocked out (starting a
+  # fresh session it cannot run is worse than waiting). An inert arbiter's spawn is a no-op, so
+  # this is safe until a real backend is wired. Only the LEAD auto-spawns; an absent coworker
+  # stays pending for the human (or the `s` verb).
+  defp maybe_spawn_absent(%Message{thread_id: thread_id} = message) do
+    with %Thread{agent_id: agent_id} when not is_nil(agent_id) <- Repo.get(Thread, thread_id),
+         %Agent{} = lead <- Repo.get(Agent, agent_id),
+         true <- lead_addressed?(message, lead),
+         false <- has_live_session?(thread_id, agent_id),
+         false <- Presence.clocked_out?(lead),
+         {:ok, %{exports: exports}} <- Spawn.join(thread_id, lead.name) do
+      Arbiter.spawn(exports)
+    else
+      _ -> :ok
+    end
+  end
+
+  defp lead_addressed?(%Message{} = message, %Agent{name: name}) do
+    down = String.downcase(name)
+    message |> target_names() |> Enum.any?(&(String.downcase(&1) == down))
+  end
+
+  defp has_live_session?(thread_id, agent_id) do
+    Repo.exists?(
+      from s in Session,
+        where: s.thread_id == ^thread_id and s.agent_id == ^agent_id and is_nil(s.ended_at)
+    )
   end
 
   defp target_names(%Message{} = message) do
