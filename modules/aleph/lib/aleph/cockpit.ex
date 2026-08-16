@@ -67,6 +67,9 @@ defmodule Aleph.Cockpit do
         :termbox2_nif.tb_set_output_mode(@tb_output_truecolor)
         normalize_cursor_keys()
         {:ok, driver} = Raxol.Terminal.Driver.start_link(dispatcher_pid: self())
+        # Watch every session terminal — the `s` verb AND the arbiter's autonomous spawn repaint
+        # through this cockpit, whoever started them.
+        Sessions.observe(self())
 
         # --- input + resize from the termbox Driver (GenServer casts) ---
         state =
@@ -197,15 +200,11 @@ defmodule Aleph.Cockpit do
   # native PTY per thread, rendered in the center. A raise/exit becomes a flash, never a crash.
   defp spawn_onto(thread_id, state) do
     agent = Application.get_env(:aleph, :spawn_agent, "pi")
-    launcher = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
     {cols, rows} = center_dims(state)
 
     case Spawn.join(thread_id, agent) do
       {:ok, %{exports: exports}} ->
-        script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> launcher
-        args = ["-lc", script]
-
-        case Sessions.ensure(thread_id, cmd: "/bin/bash", args: args, notify: self(), cols: cols, rows: rows) do
+        case Sessions.spawn_harness(thread_id, exports, cols: cols, rows: rows) do
           {:ok, _pid} -> "session live — Enter to focus, Ctrl+B to release"
           {:error, reason} -> "spawn failed: #{inspect(reason)}"
         end

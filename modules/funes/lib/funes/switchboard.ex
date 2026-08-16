@@ -101,12 +101,12 @@ defmodule Funes.Switchboard do
     # contributes nothing here.
     reached = Enum.flat_map(undelivered, &claim_reached/1)
 
-    # Coalesce per pane, keeping the COUNT §3b wants ("you have 50 unread") — one
+    # Coalesce per recipient thread, keeping the COUNT §3b wants ("you have 50 unread") — one
     # nudge per recipient, never one per message.
     reached
-    |> Enum.group_by(& &1.pane_ref)
-    |> Enum.each(fn {ref, sessions} ->
-      poke(ref, "you have #{length(sessions)} unread message(s) on your threads")
+    |> Enum.group_by(& &1.thread_id)
+    |> Enum.each(fn {_thread_id, [session | _] = sessions} ->
+      poke(session, "you have #{length(sessions)} unread message(s) on your threads")
     end)
 
     reached |> Enum.map(& &1.id) |> Enum.uniq() |> Staff.touch_sessions(now())
@@ -255,27 +255,29 @@ defmodule Funes.Switchboard do
     end
   end
 
-  # Poke each distinct pane once, and bump the woken sessions warm — being woken is
+  # Poke each distinct recipient thread once, and bump the woken sessions warm — being woken is
   # a turn, so it refreshes their warmth.
   defp waken(sessions, prompt) do
     sessions
-    |> Enum.uniq_by(& &1.pane_ref)
-    |> Enum.each(&poke(&1.pane_ref, prompt))
+    |> Enum.uniq_by(& &1.thread_id)
+    |> Enum.each(&poke(&1, prompt))
 
     Staff.touch_sessions(Enum.map(sessions, & &1.id), now())
   end
 
-  # Actuate one wake, and SURFACE a backend failure rather than silently dropping
-  # it. The Inert/Test backends never fail; a real Herdr/tmux one can, and a lost
-  # nudge should at least be visible. (At-most-once retry semantics for a fallible
-  # arbiter are settled when a real backend ships — see the moduledoc.)
-  defp poke(pane_ref, prompt) do
-    case Arbiter.wake(pane_ref, prompt) do
+  # Actuate one wake through the configured arbiter. No backend wired (`:no_arbiter`) is expected —
+  # the message stays a durable row, delivered when a display appears — so it's silent; a real
+  # backend's failure (a dead terminal) is surfaced, because a lost nudge should be visible.
+  defp poke(session, prompt) do
+    case Arbiter.wake(session, prompt) do
       :ok ->
         :ok
 
+      {:error, :no_arbiter} ->
+        :ok
+
       {:error, reason} ->
-        Logger.warning("arbiter failed to wake #{inspect(pane_ref)}: #{inspect(reason)}")
+        Logger.warning("arbiter failed to wake #{inspect(session.pane_ref)}: #{inspect(reason)}")
     end
   end
 

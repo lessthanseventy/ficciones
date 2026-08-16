@@ -17,6 +17,23 @@ defmodule Aleph.Sessions do
 
   def start_link(_opts \\ []), do: GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
 
+  @doc """
+  Register the process (the cockpit) that watches all session terminals — every terminal is started
+  with it as `:notify`, so both the `s` verb and the arbiter's autonomous spawn wake the same eye.
+  """
+  def observe(pid), do: GenServer.cast(__MODULE__, {:observe, pid})
+
+  @doc """
+  Spawn a harness as a session terminal on `thread_id` from its `exports` block — the one seam the
+  cockpit's `s` and the arbiter both use. Builds a login-shell command that sources the FUNES_* env
+  (and `TERM`, so the harness produces colour) then execs the configured launcher.
+  """
+  def spawn_harness(thread_id, exports, opts \\ []) do
+    launcher = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
+    script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> launcher
+    ensure(thread_id, Keyword.merge([cmd: "/bin/bash", args: ["-lc", script]], opts))
+  end
+
   @doc "Ensure a terminal for `thread_id`, starting one with `opts` if absent. `{:ok, pid}`."
   def ensure(thread_id, opts), do: GenServer.call(__MODULE__, {:ensure, thread_id, opts})
 
@@ -27,7 +44,10 @@ defmodule Aleph.Sessions do
   def all, do: GenServer.call(__MODULE__, :all)
 
   @impl true
-  def init(:ok), do: {:ok, %{by_thread: %{}, by_ref: %{}}}
+  def init(:ok), do: {:ok, %{by_thread: %{}, by_ref: %{}, observer: nil}}
+
+  @impl true
+  def handle_cast({:observe, pid}, state), do: {:noreply, %{state | observer: pid}}
 
   @impl true
   def handle_call({:ensure, thread_id, opts}, _from, state) do
@@ -36,6 +56,9 @@ defmodule Aleph.Sessions do
         {:reply, {:ok, pid}, state}
 
       nil ->
+        # Every terminal notifies the registered observer (the cockpit), whoever asked to start it.
+        opts = Keyword.put_new(opts, :notify, state.observer)
+
         case DynamicSupervisor.start_child(@sup, {Terminal, opts}) do
           {:ok, pid} ->
             ref = Process.monitor(pid)

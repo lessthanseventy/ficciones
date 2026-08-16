@@ -55,6 +55,9 @@ defmodule Aleph.Terminal do
   @doc "Encode a key event and write it to the PTY — a native keystroke."
   def send_key(term, %Ghostty.KeyEvent{} = event), do: GenServer.call(term, {:key, event})
 
+  @doc "Write raw bytes straight to the PTY (a wake prompt, a paste) — no key encoding."
+  def feed(term, bytes), do: GenServer.call(term, {:feed, bytes})
+
   @doc "Resize the emulator AND the PTY (SIGWINCH to the child)."
   def resize(term, cols, rows), do: GenServer.call(term, {:resize, cols, rows})
 
@@ -123,6 +126,11 @@ defmodule Aleph.Terminal do
       :none -> :ok
     end
 
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:feed, bytes}, _from, state) do
+    PTY.write(state.pty, bytes)
     {:reply, :ok, state}
   end
 

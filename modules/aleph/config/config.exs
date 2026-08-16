@@ -5,9 +5,10 @@ config :funes, Funes.Repo,
   busy_timeout: 100,
   foreign_keys: :on
 
-# The arbiter (the switchboard's poke/autonomous-spawn actuator) is a no-op for now — sessions are
-# aleph-owned ghostty PTYs, not tmux panes, so the tmux backend no longer reaches them. Aleph.Arbiter
-# (writes to those PTYs) is the next step; until then the wake stays pending, honest and harmless.
+# The arbiter: the switchboard actuates a wake by writing into the session's embedded ghostty
+# terminal (Aleph.Arbiter), and spawns a fresh one for a cold thread the same way the `s` verb does.
+# funes calls this through the behaviour seam (§8) — it never imports aleph.
+config :funes, :arbiter, Aleph.Arbiter
 
 # The engine-credit presence backend: the hand toggle (Funes.Presence.clock_out/1 from the
 # console) — when the scarce Claude window is spent, the switchboard stops poking Claude
