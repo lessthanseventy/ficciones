@@ -117,6 +117,19 @@ defmodule Aleph.KeymapTest do
         assert {^s, :none} = Keymap.handle(key(:enter), s)
       end
     end
+
+    test "o in Tlön focuses the other machine pane (pi ⇄ claude)" do
+      s = state(%{active_key: :tlon, machine_pane: :pi})
+      assert {^s, {:focus_pane, :claude}} = Keymap.handle(char("o"), s)
+
+      s = state(%{active_key: :tlon, machine_pane: :claude})
+      assert {^s, {:focus_pane, :pi}} = Keymap.handle(char("o"), s)
+    end
+
+    test "o outside Tlön is unbound — only the two-pane center has an other-pane" do
+      s = state(%{active_key: :sessions, machine_pane: :pi})
+      assert {^s, :none} = Keymap.handle(char("o"), s)
+    end
   end
 
   describe "the live terminal owns the keys by default" do

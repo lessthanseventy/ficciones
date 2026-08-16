@@ -41,31 +41,30 @@ defmodule Aleph.View do
     right_x = center_x + center_w + 1
     right_w = max(w - right_x, 1)
 
-    {center_panel, _key} = space.surface
-
     # Each column holds a stack of *sections*, and every section is its own bordered box (the
-    # switcher is a box, the thread list is a box, …) — so sections read as defined regions. Wide
-    # viewports get three columns; narrow ones (phone / shrunk tile) collapse to one stacked column.
+    # switcher is a box, the thread list is a box, …) — so sections read as defined regions. A
+    # section is a bare panel module (data resolved by `data_for/2`) or a `{panel, read_key}`
+    # surface pair (data read straight from `reads[key]` — how Tlön's two Terminal panes get
+    # distinct data). Wide viewports get three columns; narrow ones collapse to one stacked column.
     columns =
       case layout_for(w) do
         :wide ->
           [
             {%{x: 0, y: 0, w: left_w, h: body_h}, [Panel.Spaces | space.left]},
-            {%{x: center_x, y: 0, w: center_w, h: body_h}, [center_panel]},
+            {%{x: center_x, y: 0, w: center_w, h: body_h}, space.surface},
             {%{x: right_x, y: 0, w: right_w, h: body_h}, space.right}
           ]
 
         :narrow ->
-          sections = [Panel.Spaces | space.left] ++ [center_panel | space.right]
+          sections = [Panel.Spaces | space.left] ++ space.surface ++ space.right
           [{%{x: 0, y: 0, w: w, h: body_h}, sections}]
       end
 
     boxes = Enum.flat_map(columns, fn {rect, panels} -> boxed(panels, rect) end)
 
-    borders = Enum.map(boxes, fn {_panel, rect} -> {Panel.Border, nil, rect} end)
+    borders = Enum.map(boxes, fn {_section, rect} -> {Panel.Border, nil, rect} end)
 
-    contents =
-      Enum.map(boxes, fn {panel, rect} -> {panel, scroll_data(panel, data_for(panel, reads), reads), inset(rect)} end)
+    contents = Enum.map(boxes, fn {section, rect} -> content_for(section, reads, inset(rect)) end)
 
     status =
       {Panel.StatusBar, status_data(reads, space), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
@@ -82,6 +81,10 @@ defmodule Aleph.View do
     %{x: x + 2, y: y + 1, w: max(w - 4, 1), h: max(h - 2, 1)}
   end
 
+  # A keyed surface section reads its data directly; a bare module resolves via data_for/2.
+  defp content_for({panel, read_key}, reads, rect), do: {panel, scroll_data(panel, reads[read_key], reads), rect}
+  defp content_for(panel, reads, rect), do: {panel, scroll_data(panel, data_for(panel, reads), reads), rect}
+
   @doc "Resolve the data a panel is fed from the assembled reads (keeps spaces plain data)."
   def data_for(Panel.Spaces, r), do: %{spaces: Space.all(), active_key: r.active_key}
   def data_for(Panel.Roster, r), do: %{sessions: r.roster}
@@ -91,7 +94,6 @@ defmodule Aleph.View do
   def data_for(Panel.Dossier, r), do: r.scope
   def data_for(Panel.Chorus, r), do: %{blocks: r.chorus, focused_id: r.focused_id}
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
-  def data_for(Panel.Terminal, r), do: r.terminal
   def data_for(Panel.Stack, r), do: %{commits: r.stack.commits}
   def data_for(Panel.Tools, r), do: %{tools: r.stack.tools}
   def data_for(_other, _r), do: nil
@@ -154,6 +156,7 @@ defmodule Aleph.View do
 
   # The picker box is intrinsically short: header + blank + one row per space, plus its frame.
   defp fixed_height(Panel.Spaces), do: length(Space.all()) + 4
+  defp fixed_height({panel, _read_key}), do: fixed_height(panel)
   defp fixed_height(_panel), do: nil
 
   defp clamp_col(v, w), do: v |> max(@min_col) |> min(max(div(w, 3), @min_col))

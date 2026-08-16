@@ -33,9 +33,13 @@ defmodule Aleph.Cockpit do
   # emit mouse events, which the Driver translates into Event{type: :mouse, data: %{x, y, button}}.
   @tb_input_esc_mouse 5
 
-  # The standing Tlön machine coworker's funes agent name — a stable, distinct identity so restarts
-  # reuse the same agent and it never collides with a project thread's harness.
+  # The standing Tlön machine coworkers' funes agent names — stable, distinct identities so
+  # restarts reuse the same agents and they never collide with a project thread's harness. Both
+  # panes are citizens of the SAME machine thread: pi is the always-on workhorse, claude the
+  # deliberate escalation (spawned lazily on first focus — entering Tlön must not drain the
+  # scarce bucket by itself).
   @machine_agent "pi-machine"
+  @machine_claude_agent "claude-machine"
 
   # Kitty keyboard protocol: push flags + set disambiguate (CSI > 1 u) at init, pop (CSI < u)
   # at teardown. See the init comment for the full shifted-key round-trip.
@@ -112,6 +116,7 @@ defmodule Aleph.Cockpit do
             threads: [],
             subscribed_thread: nil,
             leader_pending?: false,
+            machine_pane: :pi,
             input: nil,
             flash: nil,
             scrolls: %{},
@@ -265,14 +270,21 @@ defmodule Aleph.Cockpit do
 
   defp dispatch_click(nil, _x, _y, state), do: {:noreply, state}
 
-  # Clicking the center terminal is a no-op in the tmux-style model — the terminal already owns
-  # the keys by default when live, so there's no "focus" to set. (A future drag-select for text
-  # copy will hook here; see docs/plans/2026-08-16-aleph-tmux-style-input.md §Deferred.)
-  defp dispatch_click({Panel.Terminal, _data, _rect}, _x, _y, state), do: {:noreply, state}
+  # Clicking a terminal: in Tlön the pane tag routes the click — focus that machine pane
+  # (summoning claude if it isn't running). A Sessions terminal has no pane tag and stays a
+  # no-op — it already owns the keys when live. (A future drag-select for copy hooks here; see
+  # docs/plans/2026-08-16-aleph-tmux-style-input.md §Deferred.)
+  defp dispatch_click({Panel.Terminal, data, _rect}, _x, _y, state), do: apply_pick(pane_pick(data), state)
 
   defp dispatch_click({panel, data, rect}, _x, y, state), do: apply_pick(Panel.pick(panel, data, rect, y - rect.y), state)
 
+  defp pane_pick(%{pane: pane}), do: {:focus_pane, pane}
+  defp pane_pick({:no_session, pane}), do: {:focus_pane, pane}
+  defp pane_pick(_data), do: nil
+
   defp apply_pick(nil, state), do: {:noreply, state}
+
+  defp apply_pick({:focus_pane, pane}, state), do: apply_effect({:focus_pane, pane}, state)
 
   # Selecting a thread by click swaps the focused thread (and thus the center's terminal) — no
   # focus flag to clear in the tmux-style model.
@@ -329,6 +341,12 @@ defmodule Aleph.Cockpit do
   # The `Enter` verb landed: enter-or-spawn on the focused thread. The result flashes in the footer.
   defp apply_effect({:enter_or_spawn, thread_id}, state),
     do: {:noreply, render(%{state | flash: enter_or_spawn(thread_id, state)})}
+
+  # The `o` verb (or a pane click) landed: focus a Tlön machine pane, summoning it if it isn't
+  # running. pi find-or-creates (same as Tlön entry); claude spawns here and ONLY here — the
+  # lazy escalation. A failed summon flashes and focus still moves (the placeholder says why).
+  defp apply_effect({:focus_pane, pane}, state),
+    do: {:noreply, render(%{state | machine_pane: pane, flash: summon_pane(pane)})}
 
   # `enter_or_spawn`: if the focused thread already has a live session, it's already the center —
   # nothing to do (you're already working there). Otherwise spawn one onto it. The replacement for
@@ -423,6 +441,8 @@ defmodule Aleph.Cockpit do
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
       chorus: chorus,
       terminal: terminal_read(state, focused),
+      machine_pi: machine_read(state, :pi),
+      machine_claude: machine_read(state, :claude),
       stack: stack_read(state.active_key),
       scrolls: state.scrolls,
       input: state.input,
@@ -445,21 +465,34 @@ defmodule Aleph.Cockpit do
   defp focused_thread(threads, nil), do: List.first(threads)
   defp focused_thread(threads, id), do: Enum.find(threads, List.first(threads), &(&1.id == id))
 
-  # The center is a live embedded terminal, only in the Sessions space. The focused thread's
-  # Aleph.Terminal render_state (Ghostty's live cells + cursor) is read fresh; no session → the
-  # placeholder. `:no_session` elsewhere so the panel isn't shown.
-  defp terminal_read(%{active_key: key} = state, _focused) when key in [:sessions, :tlon] do
+  # The Sessions center: the focused thread's Aleph.Terminal render_state (Ghostty's live cells
+  # + cursor), read fresh; no session → the placeholder. `:no_session` elsewhere.
+  defp terminal_read(%{active_key: :sessions} = state, _focused) do
     state |> center_terminal() |> render_state_of()
   end
 
   defp terminal_read(_state, _focused), do: :no_session
 
+  # The Tlön machine panes' reads, tagged with WHICH pane so a click can route back (focus, or
+  # summon an unspawned claude). Reading the pi pane find-or-creates the coworker (Tlön entry
+  # summons pi, as before); the claude pane is looked up only — it spawns on first focus.
+  defp machine_read(%{active_key: :tlon}, :pi), do: machine_terminal() |> render_state_of() |> tag_pane(:pi)
+
+  defp machine_read(%{active_key: :tlon}, :claude),
+    do: :machine_claude |> Sessions.terminal() |> render_state_of() |> tag_pane(:claude)
+
+  defp machine_read(_state, _pane), do: :no_session
+
+  defp tag_pane(:no_session, pane), do: {:no_session, pane}
+  defp tag_pane(render_state, pane), do: Map.put(render_state, :pane, pane)
+
   defp render_state_of(nil), do: :no_session
   defp render_state_of(term), do: Terminal.render_state(term)
 
-  # The terminal the center shows, by space: Sessions → the focused thread's session; Tlön → a
-  # machine shell at the repo root (working ON the env, not a project). nil elsewhere.
+  # The terminal that owns the keys, by space: Sessions → the focused thread's session; Tlön →
+  # the FOCUSED machine pane (pi by default, claude after Ctrl+B o / a click). nil elsewhere.
   defp center_terminal(%{active_key: :sessions} = state), do: state |> focused() |> terminal_for()
+  defp center_terminal(%{active_key: :tlon, machine_pane: :claude}), do: Sessions.terminal(:machine_claude)
   defp center_terminal(%{active_key: :tlon}), do: machine_terminal()
   defp center_terminal(_state), do: nil
 
@@ -488,7 +521,7 @@ defmodule Aleph.Cockpit do
   # docs/plans/2026-08-16-tlon-isolation.md). Find-or-create reuses the latest open machine thread
   # across aleph restarts instead of opening a new one per boot (the v1.1 "known limitation").
   defp spawn_machine_coworker do
-    with {:ok, exports} <- machine_exports(),
+    with {:ok, exports} <- machine_exports(@machine_agent),
          {:ok, pid} <- Sessions.spawn_harness(:machine, exports) do
       pid
     else
@@ -496,21 +529,59 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Resolve the machine coworker's FUNES_* exports by find-or-create: reuse the latest open
-  # machine thread (joining it) if one exists, else open a fresh `scope: "machine"` thread.
-  defp machine_exports do
+  # Focus landed on a pane: make sure something is running there. pi's summon IS the existing
+  # find-or-create; claude's is the one lazy spawn site. nil = quiet success (no flash).
+  defp summon_pane(:pi), do: if(machine_terminal(), do: nil, else: "couldn't start the pi coworker")
+
+  defp summon_pane(:claude) do
+    case Sessions.terminal(:machine_claude) do
+      pid when is_pid(pid) -> nil
+      nil -> spawn_machine_claude()
+    end
+  end
+
+  # Claude joins the SAME machine thread as pi (two voices, one thread — the escalation reads
+  # the coworker's context) but launches through the claude adapter, which keeps the identity
+  # aleph hands it via FUNES_* env. A raise/exit becomes a flash, never a crash.
+  defp spawn_machine_claude do
+    launcher = Application.get_env(:aleph, :machine_claude_launcher, "mise run funes:claude")
+
+    with {:ok, exports} <- machine_exports(@machine_claude_agent),
+         {:ok, _pid} <- Sessions.spawn_harness(:machine_claude, exports, launcher: launcher) do
+      "claude summoned — type to use it, Ctrl+B o back to pi"
+    else
+      error -> "claude spawn failed: #{inspect(error)}"
+    end
+  rescue
+    e -> "claude spawn crashed: #{Exception.message(e)}"
+  catch
+    :exit, reason -> "claude spawn crashed: #{inspect(reason)}"
+  end
+
+  # Resolve a machine pane's FUNES_* exports by find-or-create: reuse the latest open machine
+  # thread (joining it as `agent`) if one exists, else open a fresh `scope: "machine"` thread.
+  defp machine_exports(agent) do
     case Channel.machine_thread() do
       %{id: id} ->
-        with {:ok, %{exports: e}} <- Spawn.join(id, @machine_agent), do: {:ok, e}
+        with {:ok, %{exports: e}} <- Spawn.join(id, agent), do: {:ok, e}
 
       nil ->
-        with {:ok, %{exports: e}} <- Spawn.env("Tlön", @machine_agent, mandate: "machine", scope: "machine"), do: {:ok, e}
+        with {:ok, %{exports: e}} <- Spawn.env("Tlön", agent, mandate: "machine", scope: "machine"), do: {:ok, e}
     end
   end
 
   # Keep the center session's PTY sized to the center region so it reflows with the window. An
   # approximation of the center rect (View lays out left ¼ / center ½ / right ¼, inset by a frame);
-  # the terminal reflows on every window resize.
+  # the terminal reflows on every window resize. Tlön refits BOTH machine panes (each gets half
+  # the stacked center), not just the focused one — the background pane keeps rendering.
+  defp resize_focused_terminal(%{active_key: :tlon} = state) do
+    {cols, rows} = center_dims(state)
+
+    for key <- [:machine, :machine_claude], pid = Sessions.terminal(key) do
+      Terminal.resize(pid, cols, rows)
+    end
+  end
+
   defp resize_focused_terminal(state) do
     with term when is_pid(term) <- center_terminal(state) do
       {cols, rows} = center_dims(state)
@@ -518,9 +589,9 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  defp center_dims(%{w: w, h: h}) do
-    {max(div(w, 2) - 4, 20), max(h - 6, 5)}
-  end
+  # Two stacked pane boxes (plus the gap between them) in Tlön; one full-height box elsewhere.
+  defp center_dims(%{active_key: :tlon, w: w, h: h}), do: {max(div(w, 2) - 4, 20), max(div(h - 3, 2) - 2, 5)}
+  defp center_dims(%{w: w, h: h}), do: {max(div(w, 2) - 4, 20), max(h - 6, 5)}
 
   # Follow the focused thread's Bus topic so its dossier/chat repaint on new activity.
   defp resubscribe(state, focused) do

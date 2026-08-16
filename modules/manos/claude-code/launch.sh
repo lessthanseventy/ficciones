@@ -19,30 +19,39 @@ adapter="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$adapter/../../.." && pwd)"
 cli="$repo/scripts/funes-cli.sh"
 
-# Optional leading numeric thread-id → join; otherwise open a fresh thread.
-join_id=""
-if [ -n "${1:-}" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
-  join_id="$1"
-  shift
-fi
-
-if [ -n "$join_id" ]; then
-  block="$("$cli" spawn --join "$join_id" claude-code 2>/dev/null || true)"
+# Identity handed in by the environment (aleph's Tlön claude pane exports the FUNES_* block
+# before exec'ing this launcher): keep it — the identity was minted by the CALLING funes node
+# (aleph's own, port 4041), and a funes-cli spawn here would talk to the SERVICE node instead,
+# splitting claude into the wrong world. Tokens are stateless-signed (they survive restarts),
+# so a static bearer header is sufficient — no headersHelper round-trip needed.
+if [ -n "${FUNES_MCP_URL:-}" ] && [ -n "${FUNES_TOKEN:-}" ] && [ -n "${FUNES_THREAD:-}" ]; then
+  mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headers\":{\"Authorization\":\"Bearer $FUNES_TOKEN\"}}}}"
 else
-  branch="$(git -C "$PWD" branch --show-current 2>/dev/null || true)"
-  block="$("$cli" spawn "claude-code @ $(basename "$PWD")${branch:+ ($branch)}" claude-code 2>/dev/null || true)"
-fi
+  # Optional leading numeric thread-id → join; otherwise open a fresh thread.
+  join_id=""
+  if [ -n "${1:-}" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
+    join_id="$1"
+    shift
+  fi
 
-# Degrade gracefully: no live channel (or no such thread) → launch a PLAIN claude, so
-# the harness is never held hostage to funes being up.
-if [ -z "$block" ]; then
-  echo "funes: channel not up${join_id:+ or no thread #$join_id} — launching plain claude (start it with 'mise run funes:restart')" >&2
-  [ "${FUNES_LAUNCH_DRYRUN:-}" = "1" ] && { echo "exec: claude $*"; exit 0; }
-  exec claude "$@"
-fi
-eval "$block" # exports FUNES_MCP_URL / FUNES_TOKEN / FUNES_THREAD / FUNES_AUTHOR
+  if [ -n "$join_id" ]; then
+    block="$("$cli" spawn --join "$join_id" claude-code 2>/dev/null || true)"
+  else
+    branch="$(git -C "$PWD" branch --show-current 2>/dev/null || true)"
+    block="$("$cli" spawn "claude-code @ $(basename "$PWD")${branch:+ ($branch)}" claude-code 2>/dev/null || true)"
+  fi
 
-mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headersHelper\":\"$cli token\"}}}"
+  # Degrade gracefully: no live channel (or no such thread) → launch a PLAIN claude, so
+  # the harness is never held hostage to funes being up.
+  if [ -z "$block" ]; then
+    echo "funes: channel not up${join_id:+ or no thread #$join_id} — launching plain claude (start it with 'mise run funes:restart')" >&2
+    [ "${FUNES_LAUNCH_DRYRUN:-}" = "1" ] && { echo "exec: claude $*"; exit 0; }
+    exec claude "$@"
+  fi
+  eval "$block" # exports FUNES_MCP_URL / FUNES_TOKEN / FUNES_THREAD / FUNES_AUTHOR
+
+  mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headersHelper\":\"$cli token\"}}}"
+fi
 settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}]}}"
 
 if [ "${FUNES_LAUNCH_DRYRUN:-}" = "1" ]; then

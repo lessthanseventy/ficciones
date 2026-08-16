@@ -25,6 +25,8 @@ defmodule Aleph.Keymap do
     * `{:create_thread, title}` — open a new thread AND spawn a session onto it (the `n` verb).
     * `{:enter_or_spawn, thread_id}` — spawn a session onto an existing focused thread if it has
       none, else no-op (the `Enter` verb — the `s` verb's replacement).
+    * `{:focus_pane, pane}` — focus a Tlön machine pane (`:pi` | `:claude`), summoning it if it
+      isn't running yet (the `o` verb, tmux's other-pane; Tlön only).
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer: String.t()}` while the operator
@@ -40,6 +42,7 @@ defmodule Aleph.Keymap do
           | {:forward, map()}
           | {:create_thread, String.t()}
           | {:enter_or_spawn, term()}
+          | {:focus_pane, :pi | :claude}
           | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
@@ -112,6 +115,10 @@ defmodule Aleph.Keymap do
 
   defp command(%{key: :enter}, state), do: {state, :none}
 
+  # `o` — the other Tlön machine pane (tmux's other-pane verb): pi ⇄ claude. The cockpit owns
+  # the summon side effect (claude spawns lazily on first focus). Unbound outside Tlön.
+  defp command(%{key: :char, char: "o"}, %{active_key: :tlon} = state), do: {state, {:focus_pane, other_pane(state)}}
+
   defp command(%{key: :tab, shift: true}, state), do: switch(state, :prev)
   defp command(%{key: :tab}, state), do: switch(state, :next)
   defp command(%{key: :char, char: "]"}, state), do: switch(state, :next)
@@ -124,6 +131,9 @@ defmodule Aleph.Keymap do
 
   # Anything else (Ctrl+C, F-keys, page-up…) is unbound — a no-op, never a quit.
   defp command(_key, state), do: {state, :none}
+
+  defp other_pane(%{machine_pane: :claude}), do: :pi
+  defp other_pane(_state), do: :claude
 
   defp switch(state, dir) do
     space =

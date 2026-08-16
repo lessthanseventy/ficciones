@@ -7,9 +7,11 @@ defmodule Aleph.Space do
   **Tlön** (the META space — the machine/stack as a whole, not a project). The `Aleph.Panel.Spaces`
   picker switches the active one; the center renders that space's `surface`.
 
-  A surface is `{panel_module, data_key}` — the Cockpit resolves `data_key` to the funes read it
-  feeds the panel (so a space stays plain data, holding no logic of its own). The left/right slots
-  list the situational panels that ride along with the space.
+  A surface is a LIST of sections stacked down the center — one for most spaces, two for
+  Tlön (the pi machine coworker over the claude escalation pane). A section is either a
+  bare panel module (its data shaped by `Aleph.View.data_for/2`, like the sidebars) or a
+  `{panel_module, read_key}` pair whose data is the named Cockpit read verbatim — how two
+  Terminal panes on one surface get distinct data. A space stays plain data either way.
   """
 
   alias Aleph.Panel.Chorus
@@ -21,7 +23,7 @@ defmodule Aleph.Space do
   @enforce_keys [:key, :label, :surface]
   defstruct [:key, :label, :surface, left: [], right: []]
 
-  @type surface :: {module(), atom()}
+  @type surface :: [module() | {module(), atom()}]
   @type t :: %__MODULE__{
           key: atom(),
           label: String.t(),
@@ -45,27 +47,28 @@ defmodule Aleph.Space do
         # navigating them lives in the feed (the focused thread's block is highlighted). The left
         # carries who's live (IN FLIGHT), the useful sidebar for a chat: presence, not a list the
         # middle already shows.
-        surface: {Chorus, :chorus},
+        surface: [Chorus],
         left: [Roster],
         right: [Dossier]
       },
       %__MODULE__{
         key: :sessions,
         label: "Sessions",
-        surface: {Terminal, :terminal},
+        surface: [{Terminal, :terminal}],
         # The annotated ThreadList *is* the merged IN FLIGHT + THREADS: one list, agents folded in
         # (Addendum §A). Picking a thread here swaps the center's live coworker session.
         left: [ThreadList],
         right: [Dossier]
       },
       %__MODULE__{
-        # Tlön — the META space (v1): the machine/stack as a whole, not a project. The center is a
-        # machine session (a shell at the repo root — work ON the env); the left is STACK (recent
-        # ficciones commits, the stack's own changelog); the right is TOOLS (installed versions).
-        # Next: issues-from-other-sessions + triage, and changelogs.
+        # Tlön — the META space (v1): the machine/stack as a whole, not a project. The center is
+        # TWO stacked machine panes on the same machine thread: pi (the always-on coworker, the
+        # flat-bucket workhorse) over claude (the deliberate escalation — spawned lazily on first
+        # focus, `Ctrl+B o`, so entering Tlön never drains the scarce bucket by itself). The left
+        # is STACK (recent ficciones commits); the right is TOOLS (installed versions).
         key: :tlon,
         label: "Tlön",
-        surface: {Terminal, :terminal},
+        surface: [{Terminal, :machine_pi}, {Terminal, :machine_claude}],
         left: [Aleph.Panel.Stack],
         right: [Aleph.Panel.Tools]
       }

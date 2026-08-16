@@ -73,10 +73,14 @@ defmodule Aleph.Panel.StatusBar do
       {" ● #{live} live ", :stat_live}
     ]
 
-    Panel.clip([justify(left, right, rect.w), hints_row(@hints)], rect)
+    Panel.clip([justify(left, right, rect.w), hints_row(hints_for(space))], rect)
   end
 
   defp hints_row, do: hints_row(@hints)
+
+  # Tlön's center is two machine panes, so it alone carries the other-pane verb.
+  defp hints_for("Tlön"), do: @hints ++ [{"^Bo", "pane"}]
+  defp hints_for(_space), do: @hints
 
   defp hints_row(hints) do
     Enum.flat_map(hints, fn

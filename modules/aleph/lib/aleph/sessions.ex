@@ -29,7 +29,9 @@ defmodule Aleph.Sessions do
   (and `TERM`, so the harness produces colour) then execs the configured launcher.
   """
   def spawn_harness(thread_id, exports, opts \\ []) do
-    launcher = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
+    # `:launcher` overrides the configured default — the Tlön claude pane launches a different
+    # harness than the pi coworker through this same seam.
+    {launcher, opts} = Keyword.pop(opts, :launcher, Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi"))
     # `env --default-signal` resets the child's signal dispositions to default before exec. The BEAM
     # runs SIGCHLD in a non-default state (it reaps its own children), and Ghostty.PTY's forkpty child
     # execs WITHOUT resetting signals (pty_nif.zig) — so a harness inherits it and every subprocess it
