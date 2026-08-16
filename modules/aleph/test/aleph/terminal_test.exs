@@ -61,4 +61,52 @@ defmodule Aleph.TerminalTest do
     text = t |> Terminal.cells() |> List.flatten() |> Enum.map_join(fn {g, _, _, _} -> g end)
     assert text =~ "echoed"
   end
+
+  describe "wheel/5 — the pure routing seams" do
+    test "wheel_button maps up→:four (xterm button 4), down→:five (button 5)" do
+      assert Terminal.wheel_button(:up) == :four
+      assert Terminal.wheel_button(:down) == :five
+    end
+
+    test "scroll_delta: up is negative (into scrollback history), down is positive (newer)" do
+      assert Terminal.scroll_delta(:up, 3) == -3
+      assert Terminal.scroll_delta(:down, 3) == 3
+    end
+  end
+
+  describe "wheel/5 — the live branch" do
+    test "scrolls the VT scrollback when the program hasn't enabled mouse tracking" do
+      # 30 lines into a 4-row terminal ⇒ scrollback. The child stays alive long enough to scroll.
+      {:ok, t} =
+        Terminal.start_link(
+          cmd: "/bin/bash",
+          args: ["-c", "for i in $(seq 1 30); do printf 'line %d\n' $i; done; sleep 1"],
+          cols: 40,
+          rows: 4,
+          notify: self()
+        )
+
+      assert_receive {Terminal, ^t, :updated}, 2000
+      Process.sleep(250)
+
+      base = Terminal.render_state(t).scrollbar.offset
+      assert :scrolled = Terminal.wheel(t, :up, 3, 0, 0)
+      up = Terminal.render_state(t).scrollbar.offset
+      assert up != base
+      # wheel back down by the same amount restores the viewport
+      assert :scrolled = Terminal.wheel(t, :down, 3, 0, 0)
+      assert Terminal.render_state(t).scrollbar.offset == base
+    end
+
+    test "forwards a mouse event to the PTY when the program enabled mouse tracking" do
+      # A mouse-aware TUI enables tracking by writing \e[?1000h to its stdout; the PTY delivers that
+      # to the emulator as :data. Send it directly (the realistic path) and assert the branch taken.
+      {:ok, t} = Terminal.start_link(cmd: "/bin/cat", cols: 40, rows: 4, notify: self())
+      send(t, {:data, "\e[?1000h"})
+      assert_receive {Terminal, ^t, :updated}, 1000
+
+      assert Terminal.mouse_modes(t).tracking
+      assert :forwarded = Terminal.wheel(t, :up, 3, 5, 5)
+    end
+  end
 end

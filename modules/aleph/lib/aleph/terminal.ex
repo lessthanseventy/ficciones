@@ -28,6 +28,7 @@ defmodule Aleph.Terminal do
   """
   use GenServer
 
+  alias Ghostty.MouseEvent
   alias Ghostty.PTY
   alias Ghostty.Terminal
 
@@ -63,6 +64,26 @@ defmodule Aleph.Terminal do
 
   @doc "Scroll the scrollback by `delta` rows (negative = up into history)."
   def scroll(term, delta), do: GenServer.call(term, {:scroll, delta})
+
+  @doc "The embedded program's mouse-tracking modes (`%{tracking, x10, normal, button, any, sgr}`)."
+  def mouse_modes(term), do: GenServer.call(term, :mouse_modes)
+
+  @doc """
+  The mouse wheel over the embedded terminal — the one input the cockpit routes here when the
+  wheel is over the center region. It branches on whether the running program asked for mouse
+  tracking (DEC `?1000`/`?1002`/`?1003`/`?9`):
+
+    * tracking ON  — the wheel is forwarded as a button-4 (up) / button-5 (down) *press* to the
+      PTY via `Ghostty.Terminal.input_mouse/2`, exactly like `send_key/2` but for the mouse. A
+      mouse-aware TUI (vim/tmux/less in mouse mode) then scrolls its own view.
+    * tracking OFF — the VT scrollback is scrolled `n` rows (up = into history, down = newer), so
+      a plain shell or an unfocused TUI still scrolls its captured output.
+
+  `x`/`y` are 0-indexed terminal-local cell coordinates (only used when forwarding). Returns
+  `:forwarded` or `:scrolled` so the cockpit repaints only when the viewport moved (a forward
+  surfaces as PTY output → an `:updated` ping → its own repaint; a scroll changes no PTY bytes).
+  """
+  def wheel(term, direction, n, x, y), do: GenServer.call(term, {:wheel, direction, n, x, y})
 
   @impl true
   def init(opts) do
@@ -120,12 +141,17 @@ defmodule Aleph.Terminal do
     {:reply, :ok, state}
   end
 
-  def handle_call({:key, event}, _from, state) do
-    case Terminal.input_key(state.term, event) do
-      {:ok, bytes} -> PTY.write(state.pty, bytes)
-      :none -> :ok
-    end
+  def handle_call(:mouse_modes, _from, state), do: {:reply, Terminal.mouse_modes(state.term), state}
 
+  # The wheel forward-vs-scroll branch (design: keep the Ghostty/mouse detail here, not the cockpit).
+  # Dispatched on whether the embedded program enabled mouse tracking — a runtime boolean read
+  # through a 1-arg helper so the two branches land on their own function heads (house rule).
+  def handle_call({:wheel, direction, n, x, y}, _from, state) do
+    {:reply, route_wheel(Terminal.mouse_modes(state.term).tracking, direction, n, x, y, state), state}
+  end
+
+  def handle_call({:key, event}, _from, state) do
+    emit(state.pty, Terminal.input_key(state.term, event))
     {:reply, :ok, state}
   end
 
@@ -143,6 +169,43 @@ defmodule Aleph.Terminal do
     PTY.resize(state.pty, cols, rows)
     {:reply, :ok, %{state | cols: cols, rows: rows}}
   end
+
+  # --- the wheel forward-vs-scroll branch (design: keep the Ghostty/mouse detail here, not the cockpit) ---
+
+  # Dispatched on whether the embedded program enabled mouse tracking — a runtime boolean read
+  # through a 1-arg helper so the two branches land on their own function heads (house rule).
+  defp route_wheel(tracking?, direction, n, x, y, state),
+    do: route_wheel(tracking?, direction, n, x, y, state.term, state.pty)
+
+  # tracking ON → forward a button-4/5 press to the PTY, exactly like `send_key/2` but for the mouse.
+  defp route_wheel(true, direction, _n, x, y, term, pty) do
+    event = %MouseEvent{action: :press, button: wheel_button(direction), mods: [], x: x * 1.0, y: y * 1.0}
+    emit(pty, Terminal.input_mouse(term, event))
+    :forwarded
+  end
+
+  # tracking OFF → scroll the VT scrollback (up = into history, down = newer). No PTY bytes, so the
+  # cockpit repaints on the returned :scrolled.
+  defp route_wheel(false, direction, n, _x, _y, term, _pty) do
+    Terminal.scroll(term, scroll_delta(direction, n))
+    :scrolled
+  end
+
+  # Write an encoder result to the PTY, or drop a :none (no sequence for this key/mouse under the
+  # active modes). Shared by `:key` and `:wheel` — function-head dispatch, no two-arm `case`.
+  defp emit(pty, {:ok, bytes}), do: PTY.write(pty, bytes)
+  defp emit(_pty, :none), do: :ok
+
+  @doc false
+  # xterm mouse convention: button 4 = wheel up, button 5 = wheel down (Ghostty.MouseEvent maps
+  # :four→4 / :five→5). Reported as a :press; the encoder applies the active mode's formatting.
+  def wheel_button(:up), do: :four
+  def wheel_button(:down), do: :five
+
+  @doc false
+  # Ghostty.Terminal.scroll: positive = down (newer), negative = up (into scrollback history).
+  def scroll_delta(:up, n), do: -n
+  def scroll_delta(:down, n), do: n
 
   defp notify(%{notify: pid}, msg) when is_pid(pid), do: send(pid, {__MODULE__, self(), msg})
   defp notify(_state, _msg), do: :ok
