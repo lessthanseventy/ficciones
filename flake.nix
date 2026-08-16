@@ -98,6 +98,11 @@
               # case (a text-only main model delegating a screenshot to minimax-m3) is the
               # first use; a general "second opinion" is the same mechanism.
               consultExtension = "${repo}/modules/manos/consult/src/extension.ts";
+              # fmt — the agent's format-on-save: mix format any .ex/.exs the edit/write tools
+              # touch, so `mix format --check-formatted` in the gate can't fail for an
+              # agent-written file. No typecheck here (too heavy per-save); diagnostics are
+              # the LSP stack's job, surfaced on demand.
+              fmtExtension = "${repo}/modules/manos/fmt/src/extension.ts";
               manosSkillsGlob = "${repo}/modules/manos/skills/*";
 
               # funes' self-contained release, built locally by `mise run funes:release`
@@ -203,8 +208,9 @@
                 run ${pkgs.jq}/bin/jq \
                   --arg ext "${manosExtension}" \
                   --arg ext2 "${consultExtension}" \
+                  --arg ext3 "${fmtExtension}" \
                   --arg skills "${manosSkillsGlob}" \
-                  '.extensions = ((.extensions // []) + [$ext, $ext2] | unique)
+                  '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
                    | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)
                    | .defaultProvider //= "ollama-cloud"
