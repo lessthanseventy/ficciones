@@ -206,16 +206,30 @@ defmodule Aleph.Cockpit do
     end)
   end
 
-  defp tmux_keys(%{key: :char, char: c, ctrl: true}), do: [{:key, "C-#{c}"}]
-  defp tmux_keys(%{key: :char, char: c}), do: [{:text, c}]
-  defp tmux_keys(%{key: :enter}), do: [{:key, "Enter"}]
-  defp tmux_keys(%{key: :backspace}), do: [{:key, "BSpace"}]
-  defp tmux_keys(%{key: :tab}), do: [{:key, "Tab"}]
-  defp tmux_keys(%{key: :up}), do: [{:key, "Up"}]
-  defp tmux_keys(%{key: :down}), do: [{:key, "Down"}]
-  defp tmux_keys(%{key: :left}), do: [{:key, "Left"}]
-  defp tmux_keys(%{key: :right}), do: [{:key, "Right"}]
-  defp tmux_keys(_), do: []
+  @doc """
+  Translate a cockpit key event to what to send the focused tmux pane: a literal `{:text, s}`
+  (send-keys -l) or a named `{:key, name}` (a tmux key name). Public because it is the seam a
+  forwarded key crosses to the app — a MISSING clause here silently drops the key (an Esc that
+  vanished trapped the operator in a fullscreen menu), so it earns a test of its own.
+  """
+  def tmux_keys(%{key: :char, char: c, ctrl: true}), do: [{:key, "C-#{c}"}]
+  def tmux_keys(%{key: :char, char: c}), do: [{:text, c}]
+  def tmux_keys(%{key: :enter}), do: [{:key, "Enter"}]
+  # Esc MUST translate — the focused app (pi's config menu, vim) uses it to cancel. Without this
+  # clause a forwarded Esc fell through to `[]` and vanished, trapping the operator in the app.
+  def tmux_keys(%{key: :escape}), do: [{:key, "Escape"}]
+  def tmux_keys(%{key: :backspace}), do: [{:key, "BSpace"}]
+  def tmux_keys(%{key: :delete}), do: [{:key, "Delete"}]
+  def tmux_keys(%{key: :tab}), do: [{:key, "Tab"}]
+  def tmux_keys(%{key: :up}), do: [{:key, "Up"}]
+  def tmux_keys(%{key: :down}), do: [{:key, "Down"}]
+  def tmux_keys(%{key: :left}), do: [{:key, "Left"}]
+  def tmux_keys(%{key: :right}), do: [{:key, "Right"}]
+  def tmux_keys(%{key: :home}), do: [{:key, "Home"}]
+  def tmux_keys(%{key: :end}), do: [{:key, "End"}]
+  def tmux_keys(%{key: :page_up}), do: [{:key, "PageUp"}]
+  def tmux_keys(%{key: :page_down}), do: [{:key, "PageDown"}]
+  def tmux_keys(_), do: []
 
   defp render(state) do
     # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
