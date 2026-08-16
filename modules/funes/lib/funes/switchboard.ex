@@ -31,9 +31,10 @@ defmodule Funes.Switchboard do
      (treated like ended ones), and the switchboard bumps `last_active_at` as a
      session acts — on being woken and on authoring (§3b, the warmth window).
      The OTHER half of "clocked out" — an engine out of credits or past its
-     rate-limit window — is a pluggable presence signal not yet wired; combine it
-     into `recipients/1` before an auto-poking Herdr/tmux backend replaces the
-     default `Inert` arbiter.
+     rate-limit window — is now wired too: `recipients/1` drops a session whose
+     engine `Funes.Presence.Engine.clocked_out?/1` reports spent (a pluggable §8
+     backend, defaulting to always-available). Both halves gate the wake before an
+     auto-poking tmux backend replaces the default `Inert` arbiter.
   """
   import Ecto.Query
 
@@ -158,14 +159,20 @@ defmodule Funes.Switchboard do
         wanted = Enum.map(names, &String.downcase/1)
         cutoff = Presence.warmth_cutoff()
 
-        Repo.all(
-          from s in Session,
-            join: a in Agent,
-            on: a.id == s.agent_id,
-            where:
-              s.thread_id == ^message.thread_id and is_nil(s.ended_at) and
-                fragment("lower(?)", a.name) in ^wanted and s.last_active_at > ^cutoff
+        from(s in Session,
+          join: a in Agent,
+          on: a.id == s.agent_id,
+          where:
+            s.thread_id == ^message.thread_id and is_nil(s.ended_at) and
+              fragment("lower(?)", a.name) in ^wanted and s.last_active_at > ^cutoff,
+          select: {s, a}
         )
+        |> Repo.all()
+        # Then the ENGINE-CREDIT half of clocked-out: drop a session whose model is
+        # out of credits / past its rate-limit window (§3b). A pluggable backend
+        # (§8) — the SQL can't ask a vendor, so it is a post-filter on small N.
+        |> Enum.reject(fn {_session, agent} -> Presence.Engine.clocked_out?(agent) end)
+        |> Enum.map(fn {session, _agent} -> session end)
     end
   end
 

@@ -1,0 +1,50 @@
+defmodule Funes.Presence.Engine do
+  @moduledoc """
+  The engine-credit half of presence (§3b) — the OTHER "clocked out": a session
+  whose model is out of credits or past its rate-limit window. Warmth (`Funes.Presence`)
+  asks "is the context still cheap to resume?"; this asks "can the model behind it take
+  a turn at all right now?". Both gate the wake; a poke that clears neither burns a paid
+  turn for nothing.
+
+  A **capability, not a product** — symmetric with `Funes.Arbiter`. §8 forbids the design
+  from naming a vendor, so which engine is spent (Claude's five-hour window, an ollama
+  flat plan that never is) lives entirely in the backend, chosen by config
+  `:funes, :engine_presence`, defaulting to `Available` — absent config, every engine is
+  available, so the wake behaves exactly as before it was wired (degrade honestly). The
+  switchboard's `recipients/1` excludes a session whose engine is clocked out.
+  """
+  @callback clocked_out?(agent :: Funes.Agent.t()) :: boolean()
+
+  @doc "The configured engine-presence backend (defaults to the always-available one)."
+  def impl, do: Application.get_env(:funes, :engine_presence, Funes.Presence.Engine.Available)
+
+  @doc "Is this agent's engine clocked out right now, per the configured backend?"
+  def clocked_out?(agent), do: impl().clocked_out?(agent)
+end
+
+defmodule Funes.Presence.Engine.Available do
+  @moduledoc """
+  The default engine-presence backend: nothing is ever clocked out. A machine that has
+  not wired a credit/rate-limit signal still runs the whole design — the wake is gated on
+  warmth alone, exactly as before. Local models are first-class (§8), and a flat-plan
+  engine that never clocks out is precisely this.
+  """
+  @behaviour Funes.Presence.Engine
+
+  @impl true
+  def clocked_out?(_agent), do: false
+end
+
+defmodule Funes.Presence.Engine.Test do
+  @moduledoc """
+  A configurable engine-presence backend for tests (and a hand toggle): an engine handle
+  is clocked out iff it is in `config :funes, :clocked_out_engines` (default `[]`). Lets a
+  test drive the scarce-bucket guard without any real vendor.
+  """
+  @behaviour Funes.Presence.Engine
+
+  @impl true
+  def clocked_out?(%{engine: engine}) do
+    engine in Application.get_env(:funes, :clocked_out_engines, [])
+  end
+end

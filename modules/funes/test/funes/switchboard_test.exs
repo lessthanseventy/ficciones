@@ -222,6 +222,59 @@ defmodule Funes.SwitchboardTest do
     end
   end
 
+  describe "engine-credit presence — the other half of clocked-out (§3b)" do
+    setup do
+      # A pluggable engine-presence backend (§8: vendor lives in the backend, never the
+      # design). The Test impl reads a set of clocked-out engine handles from app env.
+      Application.put_env(:funes, :engine_presence, Funes.Presence.Engine.Test)
+
+      on_exit(fn ->
+        Application.delete_env(:funes, :engine_presence)
+        Application.delete_env(:funes, :clocked_out_engines)
+      end)
+
+      :ok
+    end
+
+    test "a WARM session whose engine is clocked out is not woken — the scarce-bucket guard" do
+      %{thread: thread, sandra_session: ss} = staffed_thread()
+      # Sandra is freshly warm, but her engine ("deep") is out of credits / past its
+      # rate-limit window — poking it would burn the wrong bucket for a full re-ingestion.
+      set_last_active(ss, 60)
+      Application.put_env(:funes, :clocked_out_engines, ["deep"])
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "you there?"})
+      Switchboard.deliver(m)
+
+      refute_received {:woke, "wSandra", _}
+      # No live+available recipient, so it is not a delivery — it stays pending for drain.
+      assert Repo.get!(Message, m.id).delivered_at == nil
+    end
+
+    test "a coworker on an AVAILABLE engine is still woken while another's engine is clocked out" do
+      %{thread: thread, robert_session: rs} = staffed_thread()
+      set_last_active(rs, 60)
+      # "deep" is Sandra's engine; Robert's is "fresh" and available.
+      Application.put_env(:funes, :clocked_out_engines, ["deep"])
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "@Robert ping"})
+      Switchboard.deliver(m)
+
+      assert_received {:woke, "wRobert", _}
+    end
+
+    test "absent config, every engine is available — the default degrades honestly" do
+      %{thread: thread, sandra_session: ss} = staffed_thread()
+      set_last_active(ss, 60)
+      # No :clocked_out_engines set → Test impl treats none as clocked out.
+
+      {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "hi"})
+      Switchboard.deliver(m)
+
+      assert_received {:woke, "wSandra", _}
+    end
+  end
+
   describe "delivered ≠ a file (§5b.3)" do
     test "marks delivered once the addressee was woken" do
       %{thread: thread} = staffed_thread()

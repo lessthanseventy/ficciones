@@ -7,9 +7,12 @@ defmodule Funes.Application do
     # PubSub is always up — it is the switchboard's nudge and cheap to run, and the
     # test harness needs it so Channel.post can broadcast. The Repo is started
     # except under :test (the harness owns its lifecycle). The switchboard Server is
-    # opt-in (off by default) until presence-gating exists — see Funes.Switchboard.
-    # The MCP channel is opt-in the same way: tests own its lifecycle, and a node
-    # that serves agents flips :start_mcp on.
+    # opt-in (off by default): its presence-gating prerequisite now exists (BOTH
+    # warmth and engine-credit, see Funes.Switchboard), but the wake only pokes for
+    # real once a deployment ALSO sets a non-Inert arbiter — so the dogfood hub
+    # (aleph, topology A) flips :start_switchboard on, the prod service stays inert
+    # until the service→tmux path is proven (see the tlön design doc). The MCP
+    # channel is opt-in the same way: a node that serves agents flips :start_mcp on.
     children =
       [{Phoenix.PubSub, name: Funes.PubSub}] ++
         maybe(:start_repo, true, Funes.Repo) ++
