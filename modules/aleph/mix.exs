@@ -145,6 +145,11 @@ defmodule Aleph.MixProject do
       # input + the termbox2 driver; `raxol_core` = the infra behaviours it sits on (§3).
       {:raxol_terminal, "~> 2.6"},
       {:raxol_core, "~> 2.6"},
+      # The embedded REAL terminal for the center column (design §4): Ghostty's own VT engine
+      # (libghostty-vt) + a PTY, as precompiled NIFs (x86_64/aarch64 Linux, aarch64 macOS — no Zig
+      # toolchain). Spawn a session in a PTY, feed its bytes to the emulator, read the cell grid
+      # back — a native terminal widget, NOT a captured-and-repainted view (which felt laggy).
+      {:ghostty, "~> 0.4"},
       # One styling authority on mix format, same as funes.
       {:styler, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
