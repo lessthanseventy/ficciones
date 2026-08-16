@@ -208,7 +208,7 @@ defmodule Aleph.BoardTest do
   end
 
   describe "view composition" do
-    test "sessions space: picker, tmux surface, three column boxes, status bar — all in bounds" do
+    test "sessions space: picker, tmux surface, a box per section, status bar — all in bounds" do
       placements = View.compose(reads(), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
 
@@ -216,8 +216,10 @@ defmodule Aleph.BoardTest do
       assert Session in mods
       assert Dossier in mods
       assert StatusBar in mods
-      # one bordered box per column (left / center / right)
-      assert Enum.count(mods, &(&1 == Border)) == 3
+      # every section gets its own bordered box (switcher, thread list, session, dossier)
+      content_panels = Enum.reject(mods, &(&1 in [Border, StatusBar]))
+      assert Enum.count(mods, &(&1 == Border)) == length(content_panels)
+      assert length(content_panels) >= 4
 
       Enum.each(placements, fn {_m, _d, r} ->
         assert r.x >= 0 and r.y >= 0

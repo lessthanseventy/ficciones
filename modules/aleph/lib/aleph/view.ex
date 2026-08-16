@@ -2,9 +2,9 @@ defmodule Aleph.View do
   @moduledoc """
   Composition: turn the cockpit's state into placed panels (design §3, "a view is plain data").
   Given the assembled funes `reads` and the terminal size, `compose/3` lays out the fixed frame —
-  left sidebar (space picker + the active space's situational panels), the center surface,
-  the right sidebar, the two column rules, and the status bar — as a list of `{panel, data, rect}`
-  placements the `Aleph.Board` paints. Pure and testable: no TTY, no funes calls here.
+  left sidebar (space picker + the active space's situational panels), the center surface, the
+  right sidebar — each section in its own bordered box — and the status footer, as a list of
+  `{panel, data, rect}` placements the `Aleph.Board` paints. Pure and testable: no TTY, no funes.
 
   `reads` is the map the Cockpit assembles:
     `%{active_key, focused_id, focused_title, roster, threads, scope, chatter, session}`
@@ -29,31 +29,29 @@ defmodule Aleph.View do
 
     {center_panel, _key} = space.surface
 
-    # Each column is a bordered box; a 1-col gap between boxes replaces the old vertical rules.
+    # Each column holds a stack of *sections*, and every section is its own bordered box (the
+    # switcher is a box, the thread list is a box, …) — so sections read as defined regions.
     columns = [
       {%{x: 0, y: 0, w: left_w, h: body_h}, [Panel.Spaces | space.left]},
       {%{x: center_x, y: 0, w: center_w, h: body_h}, [center_panel]},
       {%{x: right_x, y: 0, w: right_w, h: body_h}, space.right}
     ]
 
-    borders = Enum.map(columns, fn {rect, _panels} -> {Panel.Border, nil, rect} end)
+    boxes = Enum.flat_map(columns, fn {rect, panels} -> boxed(panels, rect) end)
+
+    borders = Enum.map(boxes, fn {_panel, rect} -> {Panel.Border, nil, rect} end)
 
     contents =
-      columns
-      |> Enum.flat_map(fn {rect, panels} ->
-        %{x: ix, y: iy, w: iw, h: ih} = inset(rect)
-        stack(panels, ix, iy, iw, ih)
-      end)
-      |> Enum.map(fn {panel, rect} -> {panel, data_for(panel, reads), rect} end)
+      Enum.map(boxes, fn {panel, rect} -> {panel, data_for(panel, reads), inset(rect)} end)
 
     status =
       {Panel.StatusBar, status_data(reads, space), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
 
-    # Borders first: panel content paints over the box interior, leaving only the frame.
+    # Borders first: panel content paints over each box interior, leaving only the frames.
     borders ++ contents ++ [status]
   end
 
-  # The content region inside a column box: one cell of frame + one of padding on each side.
+  # The content region inside a section box: one cell of frame + one of padding on each side.
   defp inset(%{x: x, y: y, w: w, h: h}) do
     %{x: x + 2, y: y + 1, w: max(w - 4, 1), h: max(h - 2, 1)}
   end
@@ -79,17 +77,20 @@ defmodule Aleph.View do
     }
   end
 
-  # Stack panels vertically in a column: the picker takes a fixed height, the rest split the
-  # remainder evenly (the last absorbs the rounding remainder so no row is left unpainted).
-  defp stack([], _x, _y0, _w, _h), do: []
+  @gap 1
 
-  defp stack(panels, x, y0, w, total_h) do
-    heights = split_heights(panels, total_h)
+  # Stack sections vertically down a column as box rects, a 1-row gap between them. The picker
+  # takes a fixed height, the rest split the remainder (the last absorbs the rounding remainder).
+  defp boxed([], _rect), do: []
+
+  defp boxed(panels, %{x: x, y: y, w: w, h: h}) do
+    gaps = max(length(panels) - 1, 0) * @gap
+    heights = split_heights(panels, max(h - gaps, length(panels)))
 
     {placed, _y} =
       Enum.zip(panels, heights)
-      |> Enum.map_reduce(y0, fn {panel, ph}, y ->
-        {{panel, %{x: x, y: y, w: w, h: ph}}, y + ph}
+      |> Enum.map_reduce(y, fn {panel, ph}, cy ->
+        {{panel, %{x: x, y: cy, w: w, h: ph}}, cy + ph + @gap}
       end)
 
     placed
@@ -107,8 +108,8 @@ defmodule Aleph.View do
     List.update_at(resolved, -1, &(&1 + max(total_h - used, 0)))
   end
 
-  # The picker is intrinsically short (header + one row per space); everything else flexes.
-  defp fixed_height(Panel.Spaces), do: length(Space.all()) + 3
+  # The picker box is intrinsically short: header + blank + one row per space, plus its frame.
+  defp fixed_height(Panel.Spaces), do: length(Space.all()) + 4
   defp fixed_height(_panel), do: nil
 
   defp clamp_col(v, w), do: v |> max(@min_col) |> min(max(div(w, 3), @min_col))
