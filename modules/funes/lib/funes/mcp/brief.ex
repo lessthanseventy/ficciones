@@ -13,6 +13,7 @@ defmodule Funes.MCP.Brief do
   alias Funes.Fact
   alias Funes.Issue
   alias Funes.Message
+  alias Funes.Question
   alias Funes.Todo
 
   @doc "A Board.in_scope/1 map, rendered."
@@ -25,6 +26,7 @@ defmodule Funes.MCP.Brief do
       "lead" => scope.lead,
       "done" => capped(scope.done, &done_entry/1),
       "learnings" => capped(scope.learnings, &fact/1),
+      "unknowns" => capped(scope.unknowns, &question/1),
       "blockers" => capped(scope.blockers, &issue/1),
       "chatter" => Enum.map(scope.chatter, &message/1)
     }
@@ -95,6 +97,17 @@ defmodule Funes.MCP.Brief do
 
   def done_entry(%{source: :event, row: %Event{} = e}) do
     e |> event() |> Map.put("source", "event")
+  end
+
+  @doc "A question — an UNKNOWN. `resolution` is the answer once resolved (nil while open)."
+  def question(%Question{} = q) do
+    %{
+      "id" => q.id,
+      "text" => q.text,
+      "state" => q.state,
+      "resolution" => q.resolution,
+      "at" => at(q.created_at)
+    }
   end
 
   @doc "An issue — the stack's tracker (pi doc §4b)."

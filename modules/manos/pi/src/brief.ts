@@ -63,6 +63,14 @@ export interface ChatterMessage {
   at: string | null;
 }
 
+export interface Question {
+  id: number;
+  text: string;
+  state: string;
+  resolution: string | null;
+  at: string | null;
+}
+
 export interface Capped<T> {
   shown: T[];
   more: number;
@@ -75,6 +83,7 @@ export interface Dossier {
   todos: Capped<Todo>;
   next: Todo | null;
   learnings: Capped<Fact>;
+  unknowns: Capped<Question>;
   done: Capped<DoneEntry>;
   blockers: Capped<Blocker>;
   chatter: ChatterMessage[];
@@ -107,6 +116,12 @@ export function renderBrief(d: Dossier, now: Date = new Date()): string {
     lines.push("", "## What's known");
     for (const f of d.learnings.shown) lines.push(renderFact(f));
     pushMore(lines, d.learnings.more, "learnings");
+  }
+
+  if (d.unknowns.shown.length > 0) {
+    lines.push("", "## Unknowns  (open questions — resolve or you inherit the doubt)");
+    for (const q of d.unknowns.shown) lines.push(`- ? ${q.text}`);
+    pushMore(lines, d.unknowns.more, "unknowns");
   }
 
   if (d.blockers.shown.length > 0) {
@@ -180,6 +195,7 @@ function newestAt(d: Dossier): Date | null {
     if (!Number.isNaN(t)) stamps.push(t);
   };
   for (const f of d.learnings.shown) collect(f.at);
+  for (const q of d.unknowns.shown) collect(q.at);
   for (const b of d.blockers.shown) collect(b.at);
   for (const e of d.done.shown) collect(e.at);
   for (const t of d.todos.shown) collect(t.at);

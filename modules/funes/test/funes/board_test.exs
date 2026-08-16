@@ -82,6 +82,7 @@ defmodule Funes.BoardTest do
         })
 
       {:ok, _} = Dossier.raise_issue(%{thread_id: thread.id, summary: "a blocker"})
+      {:ok, _} = Dossier.raise_question(%{thread_id: thread.id, text: "does raxol embed?"})
 
       {:ok, planned} = Dossier.add_todo(%{thread_id: thread.id, text: "planned step"})
       {:ok, _done} = Dossier.complete_todo(planned)
@@ -97,6 +98,7 @@ defmodule Funes.BoardTest do
       assert Enum.any?(scope.todos.shown, &(&1.text == "open step"))
       assert scope.next.text == "open step"
       assert Enum.any?(scope.learnings.shown, &(&1.text == "a lesson"))
+      assert Enum.any?(scope.unknowns.shown, &(&1.text == "does raxol embed?"))
       assert Enum.any?(scope.blockers.shown, &(&1.summary == "a blocker"))
       assert Enum.any?(scope.chatter, &(&1.body == "starting"))
     end
@@ -139,6 +141,7 @@ defmodule Funes.BoardTest do
       scope = Board.in_scope(thread)
       assert scope.lead == nil
       assert scope.learnings == %{shown: [], more: 0}
+      assert scope.unknowns == %{shown: [], more: 0}
       assert scope.done == %{shown: [], more: 0}
       assert scope.todos == %{shown: [], more: 0}
       assert scope.next == nil

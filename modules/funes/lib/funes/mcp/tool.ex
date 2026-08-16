@@ -391,3 +391,72 @@ defmodule Funes.MCP.Tool.CompleteTodo do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.RaiseQuestion do
+  @moduledoc """
+  Surface a knowledge gap in the WORK — `raise_question(text)` (pi doc §5 slice 4).
+  "does raxol support embedding?" Thread-scoped by the connection's identity; it opens
+  open, and shows up as an UNKNOWN in every brief until resolved. Distinct from
+  `raise_issue` (a defect in the STACK) — a question is what the work needs to know.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Dossier
+  alias Funes.MCP
+
+  schema do
+    field :text, :string, required: true, description: "The question — a knowledge gap in the work"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+
+    case Dossier.raise_question(%{thread_id: identity.thread_id, text: params[:text]}) do
+      {:ok, question} ->
+        {:reply, Response.json(Response.tool(), %{"question_id" => question.id}), frame}
+
+      {:error, changeset} ->
+        {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+    end
+  end
+end
+
+defmodule Funes.MCP.Tool.ResolveQuestion do
+  @moduledoc """
+  Resolve a question — `resolve_question(id, resolution)` (pi doc §5 slice 4). The
+  question must belong to THIS connection's thread; resolving another thread's is
+  refused. `resolution` (the answer) is optional here — a DURABLE answer should also be
+  `bank_fact`'d, since a resolved question closes the gap but a fact is what a successor
+  reads as known.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Dossier
+  alias Funes.MCP
+  alias Funes.Question
+
+  schema do
+    field :id, :integer, required: true, description: "The question id (from raise_question or the brief)"
+    field :resolution, :string, description: "The answer, if you have one"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    thread_id = MCP.Identity.from_frame(frame).thread_id
+
+    case Dossier.question(params[:id]) do
+      %Question{thread_id: ^thread_id} = question ->
+        {:ok, _resolved} = Dossier.resolve_question(question, Map.get(params, :resolution))
+        {:reply, Response.json(Response.tool(), %{"resolved" => question.id}), frame}
+
+      nil ->
+        {:reply, Response.error(Response.tool(), "no such question: #{params[:id]}"), frame}
+
+      %Question{} ->
+        {:reply, Response.error(Response.tool(), "that question is on another thread"), frame}
+    end
+  end
+end

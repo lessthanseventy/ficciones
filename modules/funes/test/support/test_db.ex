@@ -16,6 +16,7 @@ defmodule Funes.TestDB do
     Funes.Event,
     Funes.Issue,
     Funes.Todo,
+    Funes.Question,
     Funes.Message,
     Funes.Session,
     Funes.Thread,

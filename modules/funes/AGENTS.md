@@ -60,8 +60,11 @@ adapter) are built. **The `todo` slice (pi doc §5 slice 3) is built**: `todo` (
 from birth), `add_todo`/`complete_todo` (complete refuses another thread's step), and the dossier's
 TODOS / NEXT (derived, first open) / DONE (a MERGED view — completed todos + `work_landed`, replacing the
 old SHIPPED-only pane), rendered in both `Funes.MCP.Brief` and the pi `brief.ts`; the `keep-todos-current`
-skill. **Next is the `question` slice (slice 4)** — `raise_question`/`resolve_question` (`resolved_at`
-from birth), the dossier's UNKNOWNS beside FACTS. The aleph board (step 5) has its first live cockpit; its
+skill. **The `question` slice (pi doc §5 slice 4) is built too**: `question` (`resolved_at` from birth,
+`state` open/resolved), `raise_question`/`resolve_question` (resolve refuses another thread's; resolution
+optional, a durable answer is `bank_fact`'d), and the dossier's UNKNOWNS beside FACTS — rendered in all
+three surfaces. **Next is the arbiter bootstrap (slice 5)** — env-in-spawn automated (§2d). The aleph
+board (step 5) has its first live cockpit; its
 build order lives in the aleph docs. Deferred
 still: the **engine-credit half of presence** (clocked-out from spent credits/rate-limit — combine into
 `recipients/1` before an auto-poking backend replaces `Inert`), the human-notification path + re-deliver

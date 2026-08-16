@@ -39,6 +39,8 @@ defmodule Funes.Board do
       next: List.first(todos.shown),
       done: done_view(thread),
       learnings: thread |> Dossier.facts_for_thread() |> rank_and_cut(),
+      # UNKNOWNS beside FACTS — knowing what you don't know is first-class (§4a).
+      unknowns: Dossier.open_questions_for_thread(thread),
       blockers: Dossier.open_issues_for_thread(thread),
       chatter: Channel.recent_messages(thread, @cap)
     }

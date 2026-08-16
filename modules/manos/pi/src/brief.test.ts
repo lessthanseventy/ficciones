@@ -15,6 +15,7 @@ function dossier(over: Partial<Dossier> = {}): Dossier {
     todos: { shown: [], more: 0 },
     next: null,
     learnings: { shown: [], more: 0 },
+    unknowns: { shown: [], more: 0 },
     done: { shown: [], more: 0 },
     blockers: { shown: [], more: 0 },
     chatter: [],
@@ -194,6 +195,21 @@ describe("renderBrief — the honest brief (pi doc §2b)", () => {
     expect(out).toContain("[x] wired the composer");
     expect(out).toContain("review shipped");
     expect(out).toContain("mise run check → 0 failures");
+  });
+
+  test("Unknowns renders open questions with a marker and a count", () => {
+    const out = renderBrief(
+      dossier({
+        unknowns: {
+          shown: [{ id: 1, text: "does raxol support embedding?", state: "open", resolution: null, at: minsAgo(8) }],
+          more: 2,
+        },
+      }),
+      NOW,
+    );
+    expect(out).toContain("## Unknowns");
+    expect(out).toContain("? does raxol support embedding?");
+    expect(out).toContain("2 more unknowns");
   });
 
   test("the Plan renders open todos with NEXT marked", () => {

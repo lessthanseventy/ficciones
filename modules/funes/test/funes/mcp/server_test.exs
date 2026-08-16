@@ -77,6 +77,8 @@ defmodule Funes.MCP.ServerTest do
                "record_done",
                "add_todo",
                "complete_todo",
+               "raise_question",
+               "resolve_question",
                "get_dossier",
                "get_facts",
                "get_messages"
@@ -236,6 +238,39 @@ defmodule Funes.MCP.ServerTest do
     brief2 = decode_tool_json(call(token, session, 8, "get_dossier", %{}))
     assert brief2["next"]["text"] == "then the footer"
     assert Enum.any?(brief2["done"]["shown"], &(&1["source"] == "todo" and &1["text"] == "wire the composer"))
+  end
+
+  test "raise_question / resolve_question — UNKNOWNS over the wire", %{token: token} do
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    r = call(token, session, 4, "raise_question", %{"text" => "does raxol support embedding?"})
+    refute r["isError"]
+    qid = decode_tool_json(r)["question_id"]
+
+    # get_dossier: the open question surfaces as an UNKNOWN
+    brief = decode_tool_json(call(token, session, 5, "get_dossier", %{}))
+    assert Enum.any?(brief["unknowns"]["shown"], &(&1["text"] == "does raxol support embedding?"))
+
+    refute call(token, session, 6, "resolve_question", %{"id" => qid, "resolution" => "yes, via ghostty_ex"})[
+             "isError"
+           ]
+
+    # resolved: it leaves UNKNOWNS
+    brief2 = decode_tool_json(call(token, session, 7, "get_dossier", %{}))
+    refute Enum.any?(brief2["unknowns"]["shown"], &(&1["text"] == "does raxol support embedding?"))
+  end
+
+  test "resolve_question refuses a question on another thread — identity scoping", %{token: token} do
+    {:ok, other} = Channel.open_thread(%{title: "elsewhere"})
+    {:ok, foreign} = Dossier.raise_question(%{thread_id: other.id, text: "not yours"})
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+    result = call(token, session, 4, "resolve_question", %{"id" => foreign.id})
+
+    assert result["isError"]
+    assert Repo.get(Funes.Question, foreign.id).state == "open"
   end
 
   test "complete_todo refuses a todo on another thread — identity scoping", %{token: token} do

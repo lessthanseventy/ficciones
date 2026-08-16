@@ -1,8 +1,8 @@
 defmodule Aleph.Panel.Dossier do
   @moduledoc """
   IN SCOPE — the focused thread's brief (design §8), a thin view over `Funes.Board.in_scope/1`:
-  NORTH STAR, LEAD, TODOS (NEXT marked →), LEARNINGS, BLOCKERS, DONE (each capped + a `more`
-  count), CHATTER. DONE is the merged view — completed todos + `work_landed` events. Re-renders
+  NORTH STAR, LEAD, TODOS (NEXT marked →), LEARNINGS, UNKNOWNS, BLOCKERS, DONE (each capped + a
+  `more` count), CHATTER. DONE is the merged view — completed todos + `work_landed` events. Re-renders
   on that thread's topic. Data is the `in_scope/1` map, or `nil` when nothing is focused.
   """
   @behaviour Aleph.Panel
@@ -27,6 +27,7 @@ defmodule Aleph.Panel.Dossier do
         lead_section(scope.lead, rect.w) ++
         section("TODOS", capped_lines(scope.todos, &todo_line(&1, scope.next)), rect.w) ++
         section("LEARNINGS", capped_lines(scope.learnings, & &1.text), rect.w) ++
+        section("UNKNOWNS", capped_lines(scope.unknowns, &question_line/1), rect.w) ++
         section("BLOCKERS", capped_lines(scope.blockers, & &1.summary), rect.w) ++
         section("DONE", capped_lines(scope.done, &done_line/1), rect.w) ++
         section("CHATTER", Enum.map(scope.chatter, &chatter_line/1), rect.w)
@@ -44,6 +45,9 @@ defmodule Aleph.Panel.Dossier do
   defp capped_lines(%{shown: shown, more: more}, fmt) do
     Enum.map(shown, fmt) ++ if(more > 0, do: ["+#{more} more"], else: [])
   end
+
+  # An open question — a known unknown, marked with a "?".
+  defp question_line(%{text: text}), do: "? #{text}"
 
   # NEXT — the first open todo — is marked with an arrow; the rest are plain steps.
   defp todo_line(%{id: id, text: text}, %{id: next_id}) when id == next_id, do: "→ #{text}"

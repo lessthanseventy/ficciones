@@ -124,6 +124,7 @@ defmodule Aleph.BoardTest do
         todos: %{shown: [%{id: 1, text: "wire the composer"}, %{id: 2, text: "then the footer"}], more: 3},
         next: %{id: 1, text: "wire the composer"},
         learnings: %{shown: [%{text: "termbox compiles"}], more: 2},
+        unknowns: %{shown: [%{text: "does raxol embed?"}], more: 0},
         blockers: %{shown: [], more: 0},
         done: %{
           shown: [
@@ -145,6 +146,9 @@ defmodule Aleph.BoardTest do
       assert joined =~ "· then the footer"
       assert joined =~ "LEARNINGS"
       assert joined =~ "termbox compiles"
+      # UNKNOWNS surfaces open questions with a "?"
+      assert joined =~ "UNKNOWNS"
+      assert joined =~ "? does raxol embed?"
       # DONE merges a completed todo (✓) and a work_landed event's summary
       assert joined =~ "DONE"
       assert joined =~ "✓ did a step"

@@ -18,6 +18,7 @@ defmodule Funes.Dossier do
   alias Funes.Fact
   alias Funes.Issue
   alias Funes.Message
+  alias Funes.Question
   alias Funes.Repo
   alias Funes.Thread
   alias Funes.Todo
@@ -29,6 +30,9 @@ defmodule Funes.Dossier do
   # Open todos are capped the same way — a plan longer than five steps shows the next
   # five and counts the rest; a complete list is not a useful one (§5/§6).
   @todo_cap 5
+
+  # Open questions (UNKNOWNS) cap identically — the brief shows five gaps and counts more.
+  @question_cap 5
 
   @doc "Bank a durable fact. `{:ok, fact}` or `{:error, changeset}`."
   def bank_fact(attrs) do
@@ -179,5 +183,36 @@ defmodule Funes.Dossier do
         where: t.thread_id == ^thread.id and not is_nil(t.done_at),
         order_by: [desc: t.done_at, desc: t.id]
     )
+  end
+
+  @doc "Raise a task question — a knowledge gap. `{:ok, question}` or `{:error, changeset}`."
+  def raise_question(attrs) do
+    attrs |> Question.raise_changeset() |> Repo.insert() |> Bus.announce(:question_raised)
+  end
+
+  @doc """
+  Resolve a question — state resolved, `resolved_at` stamped, the optional `resolution`
+  (the answer) recorded. A durable answer is banked as a `fact` separately; this only
+  closes the gap. `{:ok, question}` or `{:error, changeset}`.
+  """
+  def resolve_question(%Question{} = question, resolution \\ nil) do
+    question |> Question.resolve_changeset(resolution) |> Repo.update() |> Bus.announce(:question_resolved)
+  end
+
+  @doc "A question by id, or nil — the load path for `resolve_question`, scope-checked by its tool."
+  def question(id), do: Repo.get(Question, id)
+
+  @doc """
+  A thread's OPEN questions, ranked and cut (§5): `%{shown, more}`, `shown` at most five
+  (newest first) — the UNKNOWNS the brief surfaces beside FACTS. Resolved and other
+  threads' questions are excluded.
+  """
+  def open_questions_for_thread(%Thread{} = thread) do
+    open = from q in Question, where: q.thread_id == ^thread.id and q.state == "open"
+
+    shown = Repo.all(from q in open, order_by: [desc: q.id], limit: @question_cap)
+    total = Repo.aggregate(open, :count, :id)
+
+    %{shown: shown, more: total - length(shown)}
   end
 end

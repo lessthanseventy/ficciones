@@ -47,7 +47,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | get_dossier / get_facts | ✅ | + resources: dossier, constraints |
 | **open_thread / close_thread** | ⬜ | designed as the deliberate cross-thread tools; never built |
 | **add_todo / complete_todo** | ✅ | slice 3 (#4a): thread-scoped; complete refuses another thread's todo. Dossier gains TODOS/NEXT/DONE (DONE merges completed todos + `work_landed`, replacing the old SHIPPED-only view) |
-| **raise_question / resolve_question** | 🔜 | slice 4 |
+| **raise_question / resolve_question** | ✅ | slice 4 (#4b): thread-scoped, `resolved_at` from birth; resolve refuses another thread's; dossier gains UNKNOWNS beside FACTS. Durable answers still `bank_fact`'d |
 | **record_check(cmd, exit, tail)** | ⬜ | measured evidence → `check_passed`/`check_failed` event; agent runs (via cap), funes records |
 | **roster / list_threads / read-other-thread** | ⬜ | cross-thread awareness; scope tightly (today only aleph sees this) |
 | **mark_read / catch_up(since)** | ⬜ | unread on my thread |
@@ -140,7 +140,9 @@ Grouped, with the dependency that matters:
    join/mint_for`) was backfilled to the `pi:*` launchers too, so `mise run pi:balanced
    [thread-id]` makes a pi model a citizen the same way — one path, both harnesses. Both
    degrade gracefully when the channel is down (launch plain).
-4. **Vocabulary slices** — ~~todo (3)~~ ✅ DONE, question (4) next.
+4. ~~**Vocabulary slices** — todo (3), question (4).~~ **✅ DONE.** Both the activity axis
+   (TODOS/NEXT/DONE) and the knowledge-gap axis (UNKNOWNS) are built, rendered in all three
+   surfaces (funes brief, pi `brief.ts`, aleph cockpit), with `keep-todos-current`.
 5. **Measured verification** — `record_check` + the `verify`/`report-done` skills, on top of
    `cap`: evidence becomes measured, not self-reported; `check_passed`/`check_failed` events
    land; `fact.check_cmd` can be re-run to confirm facts still hold.
