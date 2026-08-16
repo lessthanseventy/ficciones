@@ -189,19 +189,22 @@ defmodule Aleph.Cockpit do
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
   @impl true
-  def handle_info({tag, _row}, state)
+  def handle_info({tag, row}, state)
       when tag in [
              :message_posted,
              :fact_banked,
              :event_recorded,
              :issue_raised,
              :issue_resolved,
+             :question_raised,
+             :question_resolved,
              :thread_opened,
              :thread_closed,
              :thread_assigned,
              :session_started,
              :session_ended
            ] do
+    desktop_notify(tag, row)
     {:noreply, render(state)}
   end
 
@@ -231,6 +234,18 @@ defmodule Aleph.Cockpit do
 
   defp refresh_size(state) do
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
+  end
+
+  # Operator-relevant Bus events become native desktop notifications: an OSC 777 escape on the
+  # host tty, which ghostty (Linux and macOS alike) raises natively and only when unfocused —
+  # the terminal owns focus policy, aleph just says what happened. Best-effort: a host that
+  # ignores OSC 777 ignores the bytes. Aleph.Notify decides+formats (pure); this is the edge.
+  defp desktop_notify(tag, row) do
+    with {title, body} <- Aleph.Notify.for_event(tag, row) do
+      _ = File.write("/dev/tty", Aleph.Notify.osc(title, body))
+    end
+
+    :ok
   end
 
   # --- mouse routing (the Cockpit interprets Aleph.Mouse's pure decisions) ---
