@@ -48,6 +48,9 @@ defmodule Funes.Channel do
     Repo.all(from t in Thread, where: t.state == "open", order_by: [desc: t.id])
   end
 
+  @doc "A thread by id, or nil — the load path for the cross-thread `close_thread` verb."
+  def thread(id), do: Repo.get(Thread, id)
+
   @doc """
   The message with this id, or nil. The `from_message` hook for stated facts
   (`Dossier.bank_stated_fact/2`): a caller quotes a message by reference, never

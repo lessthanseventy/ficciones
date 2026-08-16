@@ -45,7 +45,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | bank_fact (full provenance) | ✅ | stated only via `from_message` |
 | raise_issue / record_done | ✅ | evidence is hand-typed today |
 | get_dossier / get_facts | ✅ | + resources: dossier, constraints |
-| **open_thread / close_thread** | ⬜ | designed as the deliberate cross-thread tools; never built |
+| **open_thread / close_thread** | ✅ | move #6: the two DELIBERATE cross-thread verbs (the sanctioned exception to "no tool takes a thread param") — open returns a new thread id, close closes by id |
 | **add_todo / complete_todo** | ✅ | slice 3 (#4a): thread-scoped; complete refuses another thread's todo. Dossier gains TODOS/NEXT/DONE (DONE merges completed todos + `work_landed`, replacing the old SHIPPED-only view) |
 | **raise_question / resolve_question** | ✅ | slice 4 (#4b): thread-scoped, `resolved_at` from birth; resolve refuses another thread's; dossier gains UNKNOWNS beside FACTS. Durable answers still `bank_fact`'d |
 | **record_check(cmd, exit, tail)** | ✅ | move #5: measured evidence → `check_passed`/`check_failed` event (kind keyed on the exit code); agent runs (via cap), funes records. Dossier gains CHECKS |
@@ -108,7 +108,7 @@ it isn't, that's the work:
 | read a brief | ✅ get_dossier | ✅ funes:dossier | **parity** |
 | start a session / hand out env | (register, in-adapter) | ✅ funes:spawn | **parity** (human-arbiter side) |
 | who's live | ⬜ roster tool | ✅ funes:roster | now on our side; the agents' `roster` MCP tool is still a gap |
-| open / close a thread | ⬜ tools | ⬜ funes:thread | thin **both** |
+| open / close a thread | ✅ open_thread/close_thread | ⬜ funes:thread | agents ✅; a mise wrapper is the remaining thin bit |
 | bank a fact | ✅ bank_fact | ⬜ funes:bank | maybe (human banks via aleph?) |
 | run a check & record it | `cap` (run) + ✅ record_check | `cap` (run) + ✅ record_check | **run ✅, record ✅** (measured) |
 
@@ -148,7 +148,7 @@ Grouped, with the dependency that matters:
    pane (all three surfaces), and the `verify-with-evidence` skill makes an agent run the real
    command via `cap` and record the measured result — evidence stops being self-reported. (Still
    open here: re-running `fact.check_cmd` to confirm a stored fact still holds.)
-6. **open_thread / close_thread tools** — small, already designed.
+6. ~~**open_thread / close_thread tools**~~ **✅ DONE** — the two deliberate cross-thread verbs.
 7. **sandbox/cache allowlist** — small, anytime.
 8. **arbiter** — the capstone, stays last.
 

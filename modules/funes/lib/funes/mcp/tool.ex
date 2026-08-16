@@ -499,3 +499,62 @@ defmodule Funes.MCP.Tool.RecordCheck do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.OpenThread do
+  @moduledoc """
+  Open a NEW thread — a fresh unit of work. One of the two DELIBERATE cross-thread verbs:
+  unlike every other tool, it does not act on the connection's own thread (there is no
+  thread to misdirect — it is creating one). An orchestrator opens threads for work to be
+  picked up; the returned id is how a pane is then spawned onto it (`Funes.MCP.Spawn`).
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Channel
+  alias Funes.MCP
+
+  schema do
+    field :title, :string, required: true, description: "What the thread is for (its NORTH STAR)"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    case Channel.open_thread(%{title: params[:title]}) do
+      {:ok, thread} ->
+        {:reply, Response.json(Response.tool(), %{"thread_id" => thread.id}), frame}
+
+      {:error, changeset} ->
+        {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+    end
+  end
+end
+
+defmodule Funes.MCP.Tool.CloseThread do
+  @moduledoc """
+  Close a thread by id — the second DELIBERATE cross-thread verb. History outlives the
+  close (messages are untouched); a closed thread just leaves the open list. It takes a
+  thread id BY DESIGN — closing a peer's finished thread is the coordination act this verb
+  exists for, the sanctioned exception to "no tool takes a thread parameter". A missing id
+  is refused.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Channel
+
+  schema do
+    field :thread_id, :integer, required: true, description: "The thread to close"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    case Channel.thread(params[:thread_id]) do
+      nil ->
+        {:reply, Response.error(Response.tool(), "no such thread: #{params[:thread_id]}"), frame}
+
+      thread ->
+        {:ok, closed} = Channel.close_thread(thread)
+        {:reply, Response.json(Response.tool(), %{"closed" => closed.id, "state" => closed.state}), frame}
+    end
+  end
+end

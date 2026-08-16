@@ -80,6 +80,8 @@ defmodule Funes.MCP.ServerTest do
                "raise_question",
                "resolve_question",
                "record_check",
+               "open_thread",
+               "close_thread",
                "get_dossier",
                "get_facts",
                "get_messages"
@@ -239,6 +241,25 @@ defmodule Funes.MCP.ServerTest do
     brief2 = decode_tool_json(call(token, session, 8, "get_dossier", %{}))
     assert brief2["next"]["text"] == "then the footer"
     assert Enum.any?(brief2["done"]["shown"], &(&1["source"] == "todo" and &1["text"] == "wire the composer"))
+  end
+
+  test "open_thread / close_thread — the deliberate cross-thread verbs", %{token: token} do
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    # open a NEW thread (not the caller's own) — returns its id
+    r = call(token, session, 4, "open_thread", %{"title" => "spun-up work"})
+    refute r["isError"]
+    new_id = decode_tool_json(r)["thread_id"]
+    assert Repo.get(Funes.Thread, new_id).state == "open"
+
+    # close it by id — cross-thread by design
+    c = call(token, session, 5, "close_thread", %{"thread_id" => new_id})
+    refute c["isError"]
+    assert Repo.get(Funes.Thread, new_id).state == "closed"
+
+    # closing a missing thread is refused
+    assert call(token, session, 6, "close_thread", %{"thread_id" => 999_999})["isError"]
   end
 
   test "record_check — measured verification over the wire (exit keys the kind)", %{token: token} do
