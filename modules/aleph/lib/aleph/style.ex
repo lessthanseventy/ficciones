@@ -10,17 +10,19 @@ defmodule Aleph.Style do
 
   @bg 0x000000
 
-  # Tokyo-night-ish: calm on black, one cyan accent, warmth in green, cold in slate.
+  # Retro amber/green phosphor with a hot-pink pop: amber is the primary text, green marks life
+  # and labels, burnt orange draws the structure, and pink flags the agents — a CRT "cyber
+  # hacker" surface on black. One accent per meaning.
   @colors %{
-    normal: {0xC0CAF5, @bg},
-    header: {0x7DCFFF, @bg},
-    label: {0x7AA2F7, @bg},
-    accent: {0xFFFFFF, @bg},
-    warm: {0x9ECE6A, @bg},
-    dim: {0x565F89, @bg},
-    separator: {0x3B4261, @bg},
-    selected: {0xC0CAF5, 0x283457},
-    selected_accent: {0xFFFFFF, 0x283457}
+    normal: {0xFFB454, @bg},
+    header: {0xFFD75F, @bg},
+    label: {0x5FD75F, @bg},
+    accent: {0xE0218A, @bg},
+    warm: {0x5FFF87, @bg},
+    dim: {0x9A803F, @bg},
+    separator: {0xB5651D, @bg},
+    selected: {0xFFD75F, 0x332600},
+    selected_accent: {0xFFF4C2, 0x332600}
   }
 
   @doc "The `{fg, bg}` truecolor pair for a semantic style. Unknown styles fall back to `:normal`."

@@ -34,7 +34,9 @@ defmodule Aleph.Workspace do
         key: :terminal,
         label: "Terminal",
         surface: {Aleph.Panel.Session, :session},
-        left: [Aleph.Panel.Roster, Aleph.Panel.Conversation],
+        # ThreadList (not Conversation) so up/down has a *visible* cursor: picking a thread here
+        # is what swaps the center's tmux session. The thread's chatter still shows in the dossier.
+        left: [Aleph.Panel.Roster, Aleph.Panel.ThreadList],
         right: [Aleph.Panel.Dossier]
       },
       %__MODULE__{

@@ -151,6 +151,18 @@ defmodule Aleph.BoardTest do
       assert Conversation in mods
       refute Session in mods
     end
+
+    test "terminal workspace shows a thread navigator so up/down selection is visible" do
+      placements = View.compose(reads(%{focused_id: 2}), 120, 40)
+      thread_list = Enum.find(placements, fn {m, _d, _r} -> m == ThreadList end)
+
+      assert thread_list,
+             "Terminal mode needs a visible ThreadList to navigate; focus was invisible"
+
+      {_m, data, _r} = thread_list
+      # the navigator's cursor is the focused thread — what up/down moves
+      assert data.selected_id == 2
+    end
   end
 
   describe "board composes cells" do
