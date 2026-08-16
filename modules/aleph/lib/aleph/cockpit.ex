@@ -566,8 +566,10 @@ defmodule Aleph.Cockpit do
 
   # Claude joins the SAME machine thread as pi (two voices, one thread — the escalation reads
   # the coworker's context) as a new tmux window. Its window command carries its OWN identity
-  # exports (author claude-machine), overriding the session's pi identity; the claude launcher
-  # keeps an env-handed identity instead of minting one against the wrong funes node.
+  # exports (author claude-machine), overriding the session's pi identity. No FUNES_TOKEN is
+  # frozen into the env — the claude launcher's headersHelper mints a fresh token per connect
+  # against the FUNES_MCP_URL origin's /mint, so it always hits aleph's world (not the service
+  # node's) and survives a restart / model change / secret regeneration.
   defp summon_claude_window do
     launcher = Application.get_env(:aleph, :machine_claude_launcher, "mise run funes:claude")
 

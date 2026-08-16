@@ -47,12 +47,16 @@ defmodule Funes.MCP.SpawnTest do
   end
 
   describe "env/3 and join/3 — mint + exports" do
-    test "env/3 opens, mints, returns a valid token and the four-var export block" do
+    test "env/3 opens, mints, returns a valid token and the identity-only export block" do
       assert {:ok, %{thread: t, token: tok, exports: ex}} = Spawn.env("fresh", "codex")
       assert is_binary(tok)
-      assert ex =~ ~s(FUNES_TOKEN="#{tok}")
+      # The block carries identity, NOT a frozen token — the adapter mints per connect
+      # against the URL's origin (POST /mint), so a pane is never stranded by a model
+      # change or a secret regeneration.
+      assert ex =~ ~s(FUNES_MCP_URL="http://127.0.0.1:4040/mcp")
       assert ex =~ ~s(FUNES_THREAD="#{t.id}")
       assert ex =~ ~s(FUNES_AUTHOR="codex")
+      refute ex =~ "FUNES_TOKEN"
       assert {:ok, _binding} = Tokens.resolve(tok)
     end
 

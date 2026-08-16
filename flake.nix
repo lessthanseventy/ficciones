@@ -106,14 +106,18 @@
               # bin/funes, so node + cookie agree via the release's own env.sh.
               funesRel = "${repo}/modules/funes/_build/prod/rel/funes";
 
-              # funes' MCP server, for pi-mcp-adapter. The ${VAR} refs are interpolated by
-              # the adapter at connect time from the pane's env (Funes.MCP.Spawn.env prints
-              # them). pi-scoped path (~/.pi/agent/mcp.json), so it never collides with a
-              # global ~/.config/mcp/mcp.json a user might keep.
+              # funes' MCP server, for pi-mcp-adapter (door 2 — the model's funes tool calls).
+              # The URL is env-interpolated by the adapter at connect time. The auth header is
+              # a `!command` (pi-mcp-adapter §headers): the adapter runs it at connect and uses
+              # stdout as the header value. funes-cli.sh bearer mints a FRESH token against the
+              # FUNES_MCP_URL origin's /mint — same world as /mcp, survives a restart / token-
+              # model change / secret regeneration (the literal-tmux stale-401 fix). No frozen
+              # FUNES_TOKEN. pi-scoped path (~/.pi/agent/mcp.json), no collision with a global
+              # ~/.config/mcp/mcp.json a user might keep.
               funesMcpJson = builtins.toJSON {
                 mcpServers.funes = {
                   url = "\${FUNES_MCP_URL}";
-                  headers.Authorization = "Bearer \${FUNES_TOKEN}";
+                  headers.Authorization = "!${repo}/scripts/funes-cli.sh bearer";
                   directTools = [ "post_message" "bank_fact" "raise_issue" "record_done" "get_dossier" ];
                   excludeTools = [ "register" ];
                 };
@@ -209,6 +213,26 @@
                    | .retry.enabled //= true
                    | .enabledModels //= ["glm-5.2","glm-5.1","deepseek-v4-pro","deepseek-v4-flash","kimi-k2.7-code","minimax-m3","qwen3-coder"]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
+              '';
+
+              # tmux extended-keys-format — MERGED into the user's tmux.conf, not owned (same
+              # pattern as manosWiring: the repo doesn't own the file's body). pi probes
+              # `tmux show -gv extended-keys-format` at startup and warns when it's the tmux
+              # default `xterm`; with `csi-u` tmux forwards modified keys in Kitty/CSI-u form,
+              # which pi (and other Kitty-keyboard apps) decode most reliably. The Tlön center
+              # is a real `tmux attach` into the user's session, so this is the one line the
+              # workbench needs the user's tmux to carry. Idempotent append-only — never edits
+              # or clobbers existing config; last-wins tmux semantics make position irrelevant.
+              # Requires tmux 3.5+; this box runs 3.7b. Apply live after switch with
+              # `tmux set-option -g extended-keys-format csi-u` (or restart tmux).
+              home.activation.tmuxCsiU = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                TMUX_DIR="$HOME/.config/tmux"
+                TMUX_CONF="$TMUX_DIR/tmux.conf"
+                run mkdir -p "$TMUX_DIR"
+                [ -f "$TMUX_CONF" ] || run touch "$TMUX_CONF"
+                if ! grep -q 'extended-keys-format[[:space:]]\+csi-u' "$TMUX_CONF"; then
+                  printf '\n# Added by ficciones home-manager — pi decodes csi-u best (tmux 3.5+).\nset -g extended-keys-format csi-u\n' >> "$TMUX_CONF"
+                fi
               '';
 
               # The always-up sovereign channel (capability-map move #1) as a headless

@@ -9,10 +9,11 @@
 # stays untouched and never sees a funes server it can't authenticate. Everything is
 # computed at launch (no hardcoded paths on disk), so it works from any box/checkout.
 #
-# The token is NOT static: the server's `headersHelper` (`funes-cli.sh token`) mints a
-# fresh token for (FUNES_THREAD, FUNES_AUTHOR) on every connect/reconnect, so auth
-# survives a funes restart. The FUNES_TOKEN we export here is the pi path's static
-# bearer; Claude Code ignores it.
+# The token is NEVER frozen. The MCP server uses a `headersHelper` (`scripts/funes-cli.sh
+# token`) that mints a FRESH token for (FUNES_THREAD, FUNES_AUTHOR) on every
+# connect/reconnect by POSTing to the /mint endpoint at the FUNES_MCP_URL origin — so auth
+# hits the right world (aleph's 4041 or the service's 4040) and survives a funes restart,
+# a token-model change, or a secret regeneration (the literal-tmux stale-401 fix).
 set -euo pipefail
 
 adapter="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,13 +21,10 @@ repo="$(cd "$adapter/../../.." && pwd)"
 cli="$repo/scripts/funes-cli.sh"
 
 # Identity handed in by the environment (aleph's Tlön claude pane exports the FUNES_* block
-# before exec'ing this launcher): keep it — the identity was minted by the CALLING funes node
-# (aleph's own, port 4041), and a funes-cli spawn here would talk to the SERVICE node instead,
-# splitting claude into the wrong world. Tokens are stateless-signed (they survive restarts),
-# so a static bearer header is sufficient — no headersHelper round-trip needed.
-if [ -n "${FUNES_MCP_URL:-}" ] && [ -n "${FUNES_TOKEN:-}" ] && [ -n "${FUNES_THREAD:-}" ]; then
-  mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headers\":{\"Authorization\":\"Bearer $FUNES_TOKEN\"}}}}"
-else
+# before exec'ing this launcher): keep it — the identity was ensured by the CALLING funes
+# node, and per-connect mint targets FUNES_MCP_URL's origin, so the token is always minted
+# in the same world that serves /mcp. No static bearer, no wrong-world split.
+if [ -z "${FUNES_MCP_URL:-}" ] || [ -z "${FUNES_THREAD:-}" ] || [ -z "${FUNES_AUTHOR:-}" ]; then
   # Optional leading numeric thread-id → join; otherwise open a fresh thread.
   join_id=""
   if [ -n "${1:-}" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
@@ -48,10 +46,10 @@ else
     [ "${FUNES_LAUNCH_DRYRUN:-}" = "1" ] && { echo "exec: claude $*"; exit 0; }
     exec claude "$@"
   fi
-  eval "$block" # exports FUNES_MCP_URL / FUNES_TOKEN / FUNES_THREAD / FUNES_AUTHOR
-
-  mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headersHelper\":\"$cli token\"}}}"
+  eval "$block" # exports FUNES_MCP_URL / FUNES_THREAD / FUNES_AUTHOR (no FUNES_TOKEN — minted per connect)
 fi
+
+mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headersHelper\":\"$cli token\"}}}"
 settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}]}}"
 
 if [ "${FUNES_LAUNCH_DRYRUN:-}" = "1" ]; then

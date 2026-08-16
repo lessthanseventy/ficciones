@@ -26,9 +26,9 @@ Both reach the **live** funes service node (loopback MCP on :4040); the service 
   pointing at the channel, with a **`headersHelper`** (`scripts/funes-cli.sh token`) instead
   of a static bearer. Claude Code runs the helper on every connect and reconnect; it mints a
   **fresh** funes token for `(FUNES_THREAD, FUNES_AUTHOR)` each time, so auth survives a funes
-  restart and a 401 auto-refreshes. No token is ever written to disk. This is the key
-  divergence from pi (whose extension reads a static `FUNES_TOKEN` once) — Claude Code
-  supports dynamic headers, so it uses them.
+  restart and a 401 auto-refreshes. No token is ever written to disk. pi's manos adapter
+  does the same (mints per connect against `/mint`), so both doors are frozen-token-free —
+  Claude Code's `headersHelper` and pi's in-adapter mint are the same idea in two shapes.
 - **Door 2 — the brief.** [`brief-hook.sh`](brief-hook.sh) is a `SessionStart` hook. Claude
   Code adds its plain stdout to the session context, so on start / resume / clear it renders
   the thread's dossier (the same `Board.in_scope → Brief` as `get_dossier`) and Claude

@@ -6,19 +6,24 @@ defmodule Funes.MCP.Spawn do
 
   Run in the SERVING node (the one holding the `Funes.MCP.Tokens` registry and Bandit):
   a token minted anywhere else dies with its node and 401s. So the launchers reach this
-  through `bin/funes rpc` into the LIVE service node.
+  through `bin/funes rpc` into the LIVE service node, OR through the loopback `POST /mint`
+  endpoint (`Funes.MCP.Gateway`) that any adapter on the same box hits per connect.
 
   Three doors onto the same core (`ensure/3`, which mints nothing):
 
-    * `env/3` / `join/3` — ensure + mint + build the `export FUNES_*` block. A STATIC
-      bearer the caller pastes into the harness's env. This is pi's path: its manos
-      extension reads `FUNES_TOKEN` once at `session_start`, so the token can't refresh.
+    * `env/3` / `join/3` — ensure + mint + build the `export FUNES_*` block (identity only:
+      `FUNES_MCP_URL`, `FUNES_THREAD`, `FUNES_AUTHOR`). NO `FUNES_TOKEN` is frozen into the
+      block — a frozen token strands a pane the moment the token model changes or the world
+      secret regenerates (the literal-tmux stale-401 of 2026-08-16). The adapter mints a
+      fresh token per connect against the URL's origin (`POST /mint`), so identity is stable
+      and format-agnostic. The `:token` in the return is kept for callers/tests that want a
+      one-shot token, but it is not frozen into any pane's env.
     * `mint_for/2` — a FRESH token for an already-ensured (thread, agent), minted on
-      demand. This is Claude Code's `headersHelper` path: it runs on every MCP connect
-      and reconnect, so the token stays current across a funes restart.
+      demand. This is what `POST /mint` calls and what Claude Code's `headersHelper` used to
+      call directly — so the token stays current across a funes restart, a model change, or
+      a secret regeneration.
 
-  The launchers call `ensure` once (identity), then either take a static token (`env`/
-  `join`) or defer to `mint_for` per connect.
+  The launchers call `ensure` once (identity), and the adapter mints per connect.
   """
   alias Funes.Channel
   alias Funes.MCP.Tokens
@@ -118,12 +123,17 @@ defmodule Funes.MCP.Spawn do
     end
   end
 
-  defp exports(thread, agent, token) do
+  defp exports(thread, agent, _token) do
+    # No FUNES_TOKEN in the block: a frozen token strands the pane the moment the token
+    # model changes or the world secret regenerates (the 2026-08-16 literal-tmux stale-401).
+    # The adapter mints a fresh token per connect against this URL's origin (POST /mint),
+    # so identity travels as the stable, format-agnostic (FUNES_THREAD, FUNES_AUTHOR,
+    # FUNES_MCP_URL). The `:token` in this function's return is kept for callers/tests
+    # that want a one-shot token, but it is not frozen into any pane's env.
     port = Application.get_env(:funes, :mcp_port, 4040)
 
     """
     export FUNES_MCP_URL="http://127.0.0.1:#{port}/mcp"
-    export FUNES_TOKEN="#{token}"
     export FUNES_THREAD="#{thread.id}"
     export FUNES_AUTHOR="#{agent.name}"\
     """

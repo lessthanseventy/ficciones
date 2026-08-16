@@ -20,13 +20,19 @@ const STATUS_KEY = "funes";
 const WIDGET_KEY = "funes";
 
 // Identity travels in the spawn (pi doc §2d): the arbiter — the human, for these slices —
-// exports FUNES_MCP_URL (the endpoint) and FUNES_TOKEN (the bearer). Missing either means
-// this pane was not spawned as a funes citizen; the adapter stays quiet rather than guessing.
+// exports FUNES_MCP_URL (the endpoint), FUNES_THREAD and FUNES_AUTHOR (the binding). No
+// FUNES_TOKEN — the client mints a fresh token per connect against the URL's origin
+// (POST /mint), so a pane survives a token-model change or a secret regeneration (the
+// literal-tmux stale-401 fix). Missing any of the three means this pane was not spawned
+// as a funes citizen; the adapter stays quiet rather than guessing.
 function readConfig(): FunesConfig | null {
   const url = env.FUNES_MCP_URL;
-  const token = env.FUNES_TOKEN;
-  if (!url || !token) return null;
-  return { url, token };
+  const thread = env.FUNES_THREAD;
+  const author = env.FUNES_AUTHOR;
+  if (!url || !thread || !author) return null;
+  const threadId = Number(thread);
+  if (!Number.isInteger(threadId)) return null;
+  return { url, threadId, agent: author };
 }
 
 function identityLabel(): string {
@@ -44,7 +50,7 @@ export default function manos(pi: ExtensionAPI): void {
 
   pi.on("session_start", async (_event, ctx) => {
     if (!client) {
-      ctx.ui.setStatus(STATUS_KEY, "funes: not wired (no FUNES_MCP_URL / FUNES_TOKEN)");
+      ctx.ui.setStatus(STATUS_KEY, "funes: not wired (need FUNES_MCP_URL / FUNES_THREAD / FUNES_AUTHOR)");
       return;
     }
     try {

@@ -42,7 +42,7 @@ fi
 if [ -z "$block" ]; then
   echo "funes: channel not up${join_id:+ or no thread #$join_id} — launching pi WITHOUT a funes identity (start it with 'mise run funes:restart')" >&2
 else
-  eval "$block" # exports FUNES_MCP_URL / FUNES_TOKEN / FUNES_THREAD / FUNES_AUTHOR — manos reads them
+  eval "$block" # exports FUNES_MCP_URL / FUNES_THREAD / FUNES_AUTHOR — manos mints the token per connect (no FUNES_TOKEN)
 fi
 
 set -- pi --provider "$provider" --model "$model" ${thinking:+--thinking "$thinking"} "$@"

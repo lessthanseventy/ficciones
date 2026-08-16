@@ -3,10 +3,13 @@
 # the human + Claude Code peer to the agents' MCP tools, and the identity handoff the
 # launchers (funes:claude, pi:*) use.
 #
-# Every subcommand runs through `bin/funes rpc` INTO the running service node — a token
+# Most subcommands run through `bin/funes rpc` INTO the running service node — a token
 # minted anywhere else dies with its node and 401s, and roster/presence is in-memory
 # there, so a fresh `eval` node would see neither. The service must be up (the
-# `systemd --user` unit, or a dev daemon). Thin and deliberate: operate access, NOT a
+# `systemd --user` unit, or a dev daemon). EXCEPTION: `token` POSTs to the /mint HTTP
+# endpoint at FUNES_MCP_URL's origin, so it mints in the RIGHT world for any node (aleph's
+# 4041 or the service's 4040) — bin/funes rpc would only reach the service node and split
+# an aleph-handed pane into the wrong world. Thin and deliberate: operate access, NOT a
 # second cockpit — aleph is the human's rich surface.
 #
 # Subcommands:
@@ -33,10 +36,11 @@ shift || true
 
 case "$cmd" in
   spawn)
-    # Open or join a thread, staff the agent (register if new), mint a static token, and
-    # print the four-var export FUNES_* block. The human reads it to paste into a pane;
-    # the launchers `eval` it. pi reads FUNES_TOKEN once; Claude Code ignores it (its
-    # headersHelper mints fresh per connect — the `token` subcommand below).
+    # Open or join a thread, staff the agent (register if new), and print the identity-only
+    # export FUNES_* block (FUNES_MCP_URL / FUNES_THREAD / FUNES_AUTHOR — NO FUNES_TOKEN).
+    # The human reads it to paste into a pane; the launchers `eval` it. The adapter mints a
+    # fresh token per connect against the URL's /mint (`token`/`bearer` below), so no frozen
+    # token strands a pane across a restart, a model change, or a secret regeneration.
     if [ "${1:-}" = "--join" ]; then
       shift; id="${1:-}"; agent="${2:-}"
       { int "$id" && [ -n "$agent" ]; } ||
@@ -52,17 +56,21 @@ case "$cmd" in
     ;;
 
   token)
-    # Claude Code's headersHelper — runs on every MCP connect/reconnect. Reads the
-    # session's identity from its own env (set by the funes:claude launcher) and mints a
-    # FRESH token, so auth survives a funes restart. Output is the exact headers JSON CC
-    # merges into the connection. Any failure exits non-zero so CC reports the server bad.
-    : "${FUNES_THREAD:?funes token: FUNES_THREAD not set (launch via 'mise run funes:claude')}"
-    : "${FUNES_AUTHOR:?funes token: FUNES_AUTHOR not set (launch via 'mise run funes:claude')}"
-    int "$FUNES_THREAD" || { echo "funes token: FUNES_THREAD must be numeric" >&2; exit 1; }
-    tok=$("$FUNES" rpc "{:ok, t} = Funes.MCP.Spawn.mint_for($FUNES_THREAD, \"$(esc "$FUNES_AUTHOR")\"); IO.puts(t)" 2>/dev/null | tail -1)
-    [ -n "$tok" ] ||
-      { echo "funes token: mint failed for thread $FUNES_THREAD / $FUNES_AUTHOR — is the service up and the (thread, agent) live?" >&2; exit 1; }
-    printf '{"Authorization":"Bearer %s"}\n' "$tok"
+    # Claude Code's headersHelper — runs on every MCP connect/reconnect. Output is
+    # the exact headers JSON CC merges into the connection. Per-connect /mint → right
+    # world, restart-/model-/secret-survival. Any failure exits non-zero so CC reports
+    # the server bad.
+    tok=$(mint_token) || exit 1
+    printf '{"Authorization":"Bearer %s"}
+' "$tok"
+    ;;
+  bearer)
+    # pi-mcp-adapter's `!command` header value (runs at connect): same per-connect /mint
+    # as `token`, but outputs the BARE `Bearer <token>` value for a header field, not
+    # the Claude headersHelper JSON object. Same world-correctness, same survival.
+    tok=$(mint_token) || exit 1
+    printf 'Bearer %s
+' "$tok"
     ;;
 
   roster)

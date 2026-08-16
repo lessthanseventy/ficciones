@@ -33,10 +33,10 @@ defmodule Funes.Application do
     [
       # Funes.MCP.Tokens is stateless now (signed tokens, no registry) — nothing to supervise.
       {Funes.MCP.Server, transport: :streamable_http},
-      {Bandit,
-       plug: {Anubis.Server.Transport.StreamableHTTP.Plug, server: Funes.MCP.Server},
-       ip: {127, 0, 0, 1},
-       port: Application.get_env(:funes, :mcp_port, 4040)}
+      # The Gateway routes POST /mint (a fresh-token mint for an adapter's per-connect auth)
+      # and forwards everything else to the anubis MCP transport. Loopback only — a personal
+      # machine binds no further than 127.0.0.1. See Funes.MCP.Gateway for why /mint exists.
+      {Bandit, plug: {Funes.MCP.Gateway, []}, ip: {127, 0, 0, 1}, port: Application.get_env(:funes, :mcp_port, 4040)}
     ]
   end
 end

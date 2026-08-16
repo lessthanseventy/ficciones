@@ -78,9 +78,11 @@ defmodule Funes.MixProject do
       # cannot drift from the MCP spec under our hands; the tools themselves stay
       # thin callers of the contexts — no mirror, one writer.
       {:anubis_mcp, "~> 2.0"},
-      # Serves the StreamableHTTP plug, loopback-only. Plumbing, not design — the
-      # channel's contract is MCP, whatever serves it.
+      # Serves the StreamableHTTP plug + the /mint gateway, loopback-only. Plumbing, not
+      # design — the channel's contract is MCP, whatever serves it.
       {:bandit, "~> 1.0"},
+      # The plug we author the /mint gateway on (Bandit serves plugs; we route one path).
+      {:plug, "~> 1.0"},
       # Static analysis, part of the precommit gate.
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       # A mix format plugin: one styling authority so directive order, alias

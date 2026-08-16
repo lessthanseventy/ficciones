@@ -57,16 +57,20 @@ model's writes bump the same session's warmth for free. Register once; both door
 ## Install (the human is the arbiter, for now)
 
 Slices before the automated arbiter (pi doc §5, slice 5) install by hand. In the serving funes node's
-`iex`, `Funes.MCP.Spawn.env/2` opens a thread, staffs an agent, mints a token, and prints the
-`export FUNES_*` block. Paste it into a fresh pi pane, then point pi at manos:
+`iex`, `Funes.MCP.Spawn.env/2` opens a thread, staffs an agent, and prints the identity-only
+`export FUNES_*` block (`FUNES_MCP_URL`, `FUNES_THREAD`, `FUNES_AUTHOR` — NO `FUNES_TOKEN`).
+Paste it into a fresh pi pane, then point pi at manos:
 
 - `~/.pi/agent/settings.json` → `"extensions": [".../modules/manos/pi/src/extension.ts"]`,
   `"packages": ["pi-mcp-adapter"]`, `"skills": [".../modules/manos/skills/*"]`.
-- an `.mcp.json` (see `pi/mcp.json.example`) points `pi-mcp-adapter` at
-  `http://127.0.0.1:${FUNES_MCP_PORT}/mcp` with `Authorization: Bearer ${FUNES_TOKEN}`.
+- an `mcp.json` (see `pi/mcp.json.example`) points `pi-mcp-adapter` at
+  `http://127.0.0.1:${FUNES_MCP_PORT}/mcp` with `Authorization` set to a `!command`
+  (`scripts/funes-cli.sh bearer`) that mints a fresh token per connect.
 
-The env contract (`FUNES_MCP_URL` for the endpoint, `FUNES_TOKEN` for the bearer) splits the plan
-doc's "token-bearing endpoint" honestly: funes authenticates with a header, not a URL.
+The env contract is identity-only (`FUNES_MCP_URL`, `FUNES_THREAD`, `FUNES_AUTHOR`). The token
+is NEVER frozen in env — both doors mint per connect against the URL's `/mint` endpoint, so a
+pane survives a funes restart, a token-model change, or a world-secret regeneration (the fix
+for the 2026-08-16 literal-tmux stale-401).
 
 ## The dev loop
 

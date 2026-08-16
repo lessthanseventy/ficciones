@@ -31,9 +31,7 @@ defmodule Funes.MCP.ServerTest do
     Funes.TestDB.clean!()
     start_supervised!({MCP.Server, transport: :streamable_http})
 
-    start_supervised!(
-      {Bandit, plug: {Anubis.Server.Transport.StreamableHTTP.Plug, server: MCP.Server}, ip: {127, 0, 0, 1}, port: @port}
-    )
+    start_supervised!({Bandit, plug: {Funes.MCP.Gateway, []}, ip: {127, 0, 0, 1}, port: @port})
 
     {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
     {:ok, agent} = Staff.register_agent(%{name: "Carl", mandate: "review", engine: "fresh"})
