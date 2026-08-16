@@ -308,6 +308,15 @@ The wide (3-column) layout, sections settled:
 
 ## C · The knowledge model — what a mind must be able to say
 
+> **Corrected 2026-08-15, by the pi-integration doc's revision**
+> (`2026-08-15-pi-integration-and-funes-mcp-design.md` §4), after an adversarial review and an owner
+> clarification. Two of this section's funes-new proposals were wrong and are superseded there:
+> the certainty axis is a **query over what exists** (`provenance` × `check_cmd` — spec §4's own
+> "our unverifiable opinions"), **not** a new `kind`/`confidence` on `fact`; and the three kinds of
+> "open" split as `issue` = the stack's tracker, `question` = the task's knowledge gap, `todo` = the
+> plan step. NEXT and DOING are derived, never stored; EVIDENCE as a type is cut. The dossier
+> section list below stands; the storage behind it is as the pi doc settles it.
+
 The owner's framing, banked verbatim as the thesis: *"this is essentially a whole harness… it has
 facts, maybe it needs opinions as well — things it's not quite sure of, fuzzy facts. It needs all the
 facilities for knowing what it knows, what it doesn't, what it's doing and has done and should do
