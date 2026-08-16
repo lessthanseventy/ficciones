@@ -60,10 +60,10 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | **`funes:release` / `funes:restart` / `funes:console` / `funes:logs`** | ✅ | operate the always-up service: build the release, redeploy, remote-iex the live node, follow logs |
 | `aleph:*`, `pi:test`/`pi:check`, `flake:check`, `home:switch` | ✅ | |
 | `cap` / `cap:clean` | ✅ | run once, structured failure, swept |
-| **`funes:spawn`** | ⬜ | wrap `Funes.MCP.Spawn.env` — today an **iex incantation**; should be one task |
-| **`funes:dossier` / `funes:brief`** | ⬜ | read a thread's brief from the CLI (parity with get_dossier) |
-| **`funes:post`** | ⬜ | post as a participant from the CLI (parity with post_message) |
-| **`funes:roster`** | ⬜ | who's live (Staff.roster) from the CLI |
+| **`funes:spawn`** | ✅ | move #2: `bin/funes rpc Funes.MCP.Spawn.env` into the LIVE node → prints the export block; killed the iex incantation |
+| **`funes:dossier`** | ✅ | render a thread's brief from the CLI (Board.in_scope → Brief), parity with get_dossier |
+| **`funes:post`** | ✅ | post as the operator from the CLI, parity with post_message |
+| **`funes:roster`** | ✅ | who's live (Staff.roster), warm/cold, from the CLI |
 | **`funes:sql`** | ⬜ | `sqlite3` the db for the 2am path (doctor exists; this is raw) |
 | **`funes:console`** | ✅ | remote iex into the *running* service node (`bin/funes remote`), to mint/inspect without a second node — the release's `env.sh` makes it reach the live node |
 
@@ -104,10 +104,10 @@ it isn't, that's the work:
 
 | Capability | agents (MCP) | human + CC (mise) | verdict |
 |---|---|---|---|
-| post to a thread | ✅ post_message | ⬜ funes:post | thin on our side |
-| read a brief | ✅ get_dossier | ⬜ funes:dossier | thin on our side |
-| start a session / hand out env | (register, in-adapter) | ⬜ funes:spawn (iex today) | thin **both** |
-| who's live | ⬜ roster tool | ⬜ funes:roster | only aleph has it |
+| post to a thread | ✅ post_message | ✅ funes:post | **parity** |
+| read a brief | ✅ get_dossier | ✅ funes:dossier | **parity** |
+| start a session / hand out env | (register, in-adapter) | ✅ funes:spawn | **parity** (human-arbiter side) |
+| who's live | ⬜ roster tool | ✅ funes:roster | now on our side; the agents' `roster` MCP tool is still a gap |
 | open / close a thread | ⬜ tools | ⬜ funes:thread | thin **both** |
 | bank a fact | ✅ bank_fact | ⬜ funes:bank | maybe (human banks via aleph?) |
 | run a check & record it | harness bash + `cap` (run) / ⬜ record_check | `cap` (run) / ⬜ record | run ✅, record ⬜ |
@@ -128,9 +128,11 @@ Grouped, with the dependency that matters:
    live node to mint/inspect. Nix-*building* the release (reproduce on a bare next-box) is
    split out as **move A**, deferred. Every other capability is now reachable against a
    channel that's actually up.
-2. **The mise parity pack.** `funes:spawn` (kill the iex incantation) → then
-   `funes:dossier` / `funes:post` / `funes:roster`. Thin `mix` tasks. Gives you + me
-   first-class funes access from the shell. (Likely a small `funes` CLI the tasks wrap.)
+2. ~~**The mise parity pack.**~~ **✅ DONE (move #2).** `funes:spawn` (killed the iex
+   incantation) + `funes:dossier` / `funes:post` / `funes:roster`, all thin wrappers over
+   one `scripts/funes-cli.sh` that `bin/funes rpc`s the LIVE node. You + me now have
+   first-class funes access from the shell. (Also fixed: the prod release logs at `:info`,
+   not `:debug` — no per-query journal spam.) Still open here: `funes:sql` (raw sqlite3).
 3. **The claude-code manos adapter.** Gives *me* the MCP tools directly — closes my gap the
    other way from mise, and makes Claude Code a first-class citizen like pi.
 4. **Vocabulary slices** — todo (3), question (4), as planned.

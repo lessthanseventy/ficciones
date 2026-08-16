@@ -114,6 +114,16 @@ cookie (the release's `rel/env.sh.eex`) so the operator can reach the live node:
   token minted by `Funes.MCP.Spawn.env` survives (the `Tokens` registry dies with its node).
 - `mise run funes:logs` — follow the service's journal.
 
+The **mise parity pack** — operate the live channel from the shell, our peer to the
+agents' MCP tools (all via `scripts/funes-cli.sh` → `bin/funes rpc` into the running node,
+so the service must be up):
+
+- `mise run funes:spawn -- "<title>" <agent>` — open a thread, staff+register the agent,
+  mint a token, print the `export FUNES_*` block for a pi pane (the human-arbiter path).
+- `mise run funes:roster` — who's on the clock (live sessions, warm/cold).
+- `mise run funes:dossier -- <thread-id>` — render a thread's brief (parity with get_dossier).
+- `mise run funes:post -- <thread-id> <text…>` — post as the operator (parity with post_message).
+
 The `home:switch` that installs the service is the human's (system-mutating); build + verify
 the release with `funes:release` and `nix build .#homeConfigurations.personalbox.activationPackage`.
 
