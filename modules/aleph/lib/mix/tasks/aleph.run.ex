@@ -19,6 +19,13 @@ defmodule Mix.Tasks.Aleph.Run do
   @black 0x000000
   @cyan 0x00FFFF
 
+  # termbox2 defaults to TB_OUTPUT_NORMAL, where color args are small ints [0..8] and
+  # the high bits are style attributes (bold/reverse/…). Feeding it 0xRRGGBB there
+  # truncates into those attribute bits — that's the reversed highlight block behind
+  # every glyph. TB_OUTPUT_TRUECOLOR (5) makes tb_set_cell take real 24-bit RGB, and
+  # 0x000000 maps to the terminal's own background. Set once after tb_init, before paint.
+  @tb_output_truecolor 5
+
   @roster [
     %{
       agent: "Sandra",
@@ -66,6 +73,7 @@ defmodule Mix.Tasks.Aleph.Run do
     case :termbox2_nif.tb_init() do
       0 ->
         try do
+          :termbox2_nif.tb_set_output_mode(@tb_output_truecolor)
           paint()
           :termbox2_nif.tb_present()
           Process.sleep(6000)

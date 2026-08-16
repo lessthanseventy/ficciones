@@ -36,12 +36,50 @@ defmodule Aleph.MixProject do
   # Mirror funes' one gate: format, warnings-as-errors, and the suite.
   defp aliases do
     [
+      # Self-heal the termbox2 NIF after every compile (see ensure_termbox_nif/1).
+      compile: ["compile", &ensure_termbox_nif/1],
       precommit: [
         "format --check-formatted",
         "compile --warnings-as-errors",
         "test --warnings-as-errors"
       ]
     ]
+  end
+
+  # raxol_terminal 2.6.1 builds its termbox2 NIF but only copies the .so into the
+  # build-output priv INSIDE its Makefile link recipe — which `make` skips whenever the
+  # .so already exists (e.g. a deps/ artifact persisting across an `_build` wipe). The
+  # loader reads `:code.priv_dir(:raxol_terminal)`, so a missing copy there is a runtime
+  # `:nif_not_loaded` crash. We restore it from the deps priv after every compile.
+  # Idempotent; a no-op once the copy is in place. Pinned by test/aleph/termbox_nif_test.exs.
+  defp ensure_termbox_nif(_args) do
+    dest_dir = Path.join([Mix.Project.build_path(), "lib", "raxol_terminal", "priv"])
+    dest = Path.join(dest_dir, "termbox2_nif.so")
+
+    unless File.exists?(dest) do
+      src =
+        [
+          ["lib", "termbox2_nif", "priv", "termbox2_nif.so"],
+          ["lib", "termbox2_nif", "c_src", "termbox2_nif.so"]
+        ]
+        |> Enum.map(&Path.join([Mix.Project.deps_path(), "raxol_terminal" | &1]))
+        |> Enum.find(&File.exists?/1)
+
+      case src do
+        nil ->
+          Mix.shell().error(
+            "[aleph] termbox2_nif.so not found in deps — run " <>
+              "`mise exec -- mix deps.compile raxol_terminal --force`"
+          )
+
+        src ->
+          File.mkdir_p!(dest_dir)
+          File.cp!(src, dest)
+          Mix.shell().info("[aleph] restored termbox2_nif.so -> #{Path.relative_to_cwd(dest)}")
+      end
+    end
+
+    :ok
   end
 
   defp deps do
