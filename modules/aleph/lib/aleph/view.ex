@@ -80,7 +80,7 @@ defmodule Aleph.View do
   def data_for(Panel.Dossier, r), do: r.scope
   def data_for(Panel.Chorus, r), do: %{blocks: r.chorus, focused_id: r.focused_id}
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
-  def data_for(Panel.Session, r), do: r.session
+  def data_for(Panel.Terminal, r), do: r.terminal
   def data_for(_other, _r), do: nil
 
   defp status_data(reads, space) do

@@ -5,7 +5,9 @@ config :funes, Funes.Repo,
   busy_timeout: 100,
   foreign_keys: :on
 
-config :funes, :arbiter, Funes.Arbiter.Tmux
+# The arbiter (the switchboard's poke/autonomous-spawn actuator) is a no-op for now — sessions are
+# aleph-owned ghostty PTYs, not tmux panes, so the tmux backend no longer reaches them. Aleph.Arbiter
+# (writes to those PTYs) is the next step; until then the wake stays pending, honest and harmless.
 
 # The engine-credit presence backend: the hand toggle (Funes.Presence.clock_out/1 from the
 # console) — when the scarce Claude window is spent, the switchboard stops poking Claude
@@ -26,11 +28,10 @@ config :funes, ecto_repos: [Funes.Repo]
 config :funes, mcp_port: 4041
 config :funes, start_mcp: true
 
-# aleph is the dogfood HUB (tlön topology A): it runs the full funes world in one interactive
-# node, so the switchboard's wake loop and the MCP channel start here, and the arbiter is the
-# real tmux backend — the switchboard runs in the operator's own session, so a poke is native
-# send-keys into a pane it can reach. The presence gate the wake needs (warmth AND engine-credit)
-# now exists, so this is safe; the always-up prod service stays inert until service→tmux is proven.
+# aleph is the dogfood HUB (tlön topology A): it runs the full funes world in one interactive node,
+# so the switchboard's wake loop and the MCP channel start here, and sessions are embedded ghostty
+# terminals aleph owns (not tmux). The presence gate the wake needs (warmth AND engine-credit)
+# exists; the live poke over those terminals arrives with Aleph.Arbiter.
 config :funes, start_switchboard: true
 
 # Quiet raxol_terminal's internal debug/info chatter (e.g. Buffer.Writer "Writing char"):

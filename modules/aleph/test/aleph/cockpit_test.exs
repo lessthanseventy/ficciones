@@ -1,53 +1,45 @@
 defmodule Aleph.CockpitTest do
   @moduledoc """
-  The cockpit is a TTY-grabbing GenServer, so only its PURE seams are unit-tested. `tmux_keys/1`
-  is the translation a forwarded key crosses to reach the focused pane — the exact seam where a
-  missing clause silently drops a key (a forwarded Esc that vanished trapped the operator in pi's
-  fullscreen menu). Every key the keymap can forward must translate to something.
+  The cockpit is a TTY-grabbing GenServer, so only its PURE seams are unit-tested. `ghostty_key/1`
+  is the translation a forwarded key crosses to reach the focused session's embedded terminal —
+  aleph key event → `Ghostty.KeyEvent`, which the emulator encodes to PTY bytes. A wrong or missing
+  mapping is a key that misfires or vanishes, so it earns its own test.
   """
   use ExUnit.Case, async: true
 
   alias Aleph.Cockpit
+  alias Ghostty.KeyEvent
 
-  test "Esc translates to the tmux Escape key — the fix for being trapped in a focused menu" do
-    assert Cockpit.tmux_keys(%{key: :escape}) == [{:key, "Escape"}]
+  test "a printable char carries its utf8 and its key atom" do
+    ev = Cockpit.ghostty_key(%{key: :char, char: "x"})
+    assert %KeyEvent{key: :x, utf8: "x"} = ev
   end
 
-  test "Ctrl+C forwards as C-c to the pane (cancel the app), not an aleph quit" do
-    assert Cockpit.tmux_keys(%{key: :char, char: "c", ctrl: true}) == [{:key, "C-c"}]
+  test "Ctrl+C maps to key :c with a ctrl mod — the emulator encodes it to ^C" do
+    ev = Cockpit.ghostty_key(%{key: :char, char: "c", ctrl: true})
+    assert ev.key == :c
+    assert :ctrl in ev.mods
   end
 
-  test "a printable char is sent literally; Enter/Backspace/Tab/arrows are named keys" do
-    assert Cockpit.tmux_keys(%{key: :char, char: "x"}) == [{:text, "x"}]
-    assert Cockpit.tmux_keys(%{key: :enter}) == [{:key, "Enter"}]
-    assert Cockpit.tmux_keys(%{key: :backspace}) == [{:key, "BSpace"}]
-    assert Cockpit.tmux_keys(%{key: :tab}) == [{:key, "Tab"}]
-    assert Cockpit.tmux_keys(%{key: :up}) == [{:key, "Up"}]
+  test "Esc, Enter, Tab, Backspace map straight through" do
+    assert %KeyEvent{key: :escape} = Cockpit.ghostty_key(%{key: :escape})
+    assert %KeyEvent{key: :enter} = Cockpit.ghostty_key(%{key: :enter})
+    assert %KeyEvent{key: :tab} = Cockpit.ghostty_key(%{key: :tab})
+    assert %KeyEvent{key: :backspace} = Cockpit.ghostty_key(%{key: :backspace})
   end
 
-  test "every key the keymap forwards to a focused pane has a translation (none silently dropped)" do
-    # These are the events Aleph.Keymap's center-focused catch-all forwards. If the keymap grows a
-    # forwarded key, add it here AND to tmux_keys — a `[]` here is a key that vanishes.
-    forwardable = [
-      %{key: :escape},
-      %{key: :enter},
-      %{key: :backspace},
-      %{key: :delete},
-      %{key: :tab},
-      %{key: :up},
-      %{key: :down},
-      %{key: :left},
-      %{key: :right},
-      %{key: :home},
-      %{key: :end},
-      %{key: :page_up},
-      %{key: :page_down},
-      %{key: :char, char: "a"},
-      %{key: :char, char: "c", ctrl: true}
-    ]
+  test "arrows map to the ghostty arrow_* keys" do
+    assert %KeyEvent{key: :arrow_up} = Cockpit.ghostty_key(%{key: :up})
+    assert %KeyEvent{key: :arrow_down} = Cockpit.ghostty_key(%{key: :down})
+    assert %KeyEvent{key: :arrow_left} = Cockpit.ghostty_key(%{key: :left})
+    assert %KeyEvent{key: :arrow_right} = Cockpit.ghostty_key(%{key: :right})
+  end
 
-    for event <- forwardable do
-      assert Cockpit.tmux_keys(event) != [], "no translation for #{inspect(event)} — it would vanish"
-    end
+  test "a digit maps to its :digit_N key" do
+    assert %KeyEvent{key: :digit_7, utf8: "7"} = Cockpit.ghostty_key(%{key: :char, char: "7"})
+  end
+
+  test "an unmappable key is nil — dropped, never misdelivered" do
+    assert Cockpit.ghostty_key(%{key: :f5}) == nil
   end
 end

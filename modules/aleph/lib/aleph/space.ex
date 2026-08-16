@@ -52,7 +52,7 @@ defmodule Aleph.Space do
       %__MODULE__{
         key: :sessions,
         label: "Sessions",
-        surface: {Aleph.Panel.Session, :session},
+        surface: {Aleph.Panel.Terminal, :terminal},
         # The annotated ThreadList *is* the merged IN FLIGHT + THREADS: one list, agents folded in
         # (Addendum §A). Picking a thread here swaps the center's live coworker session.
         left: [ThreadList],

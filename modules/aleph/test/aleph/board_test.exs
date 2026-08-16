@@ -22,7 +22,6 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Roster
-  alias Aleph.Panel.Session
   alias Aleph.Panel.Spaces
   alias Aleph.Panel.StatusBar
   alias Aleph.Panel.Terminal
@@ -53,7 +52,7 @@ defmodule Aleph.BoardTest do
         scope: nil,
         chatter: [],
         chorus: [],
-        session: :no_session
+        terminal: :no_session
       },
       overrides
     )
@@ -171,11 +170,6 @@ defmodule Aleph.BoardTest do
       assert joined =~ "+3 more"
       # empty section keeps its shape with a dim em-dash, never an invented value
       assert joined =~ "—"
-    end
-
-    test "session placeholder when no tmux pane" do
-      rows = Session.render(:no_session, %{x: 0, y: 0, w: 40, h: 10})
-      assert Enum.map_join(rows, "\n", &text/1) =~ "no live tmux session"
     end
 
     test "terminal panel renders ghostty cells as truecolor runs, inverting the cursor cell" do
@@ -309,7 +303,7 @@ defmodule Aleph.BoardTest do
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
 
       assert Spaces in mods
-      assert Session in mods
+      assert Terminal in mods
       assert Dossier in mods
       assert StatusBar in mods
       # every section gets its own bordered box (switcher, thread list, session, dossier)
@@ -338,7 +332,7 @@ defmodule Aleph.BoardTest do
       # and the redundant ThreadList is gone — the feed is the navigator now.
       assert Chorus in mods
       assert Roster in mods
-      refute Session in mods
+      refute Terminal in mods
       refute ThreadList in mods
     end
 

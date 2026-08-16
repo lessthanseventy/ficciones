@@ -13,13 +13,15 @@ defmodule Aleph.Cockpit do
 
   alias Aleph.Board
   alias Aleph.Keymap
+  alias Aleph.Sessions
   alias Aleph.Space
-  alias Aleph.Spawn
-  alias Aleph.Tmux
+  alias Aleph.Terminal
   alias Aleph.View
   alias Funes.Bus
   alias Funes.Channel
+  alias Funes.MCP.Spawn
   alias Funes.Staff
+  alias Ghostty.KeyEvent
   alias Raxol.Core.Events.Event
 
   # Redraw cadence for tmux liveness + roster warmth, independent of Bus events.
@@ -106,7 +108,9 @@ defmodule Aleph.Cockpit do
 
   @impl true
   def handle_cast({:dispatch, %Event{type: :resize, data: %{width: w, height: h}}}, state) do
-    {:noreply, render(%{state | w: max(w, 1), h: max(h, 1)})}
+    state = %{state | w: max(w, 1), h: max(h, 1)}
+    resize_focused_terminal(state)
+    {:noreply, render(state)}
   end
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
@@ -137,10 +141,14 @@ defmodule Aleph.Cockpit do
   def handle_info(:tick, state) do
     Process.send_after(self(), :tick, @tick_ms)
     # Re-read the terminal size every tick, so a resize that never arrived as an event (a missed
-    # SIGWINCH, a tmux pane resize) self-corrects within a tick instead of leaving the layout
-    # stranded at the old size (black gutters on the right/bottom).
+    # SIGWINCH) self-corrects within a tick instead of leaving the layout stranded at the old size.
     {:noreply, render(refresh_size(state))}
   end
+
+  # An embedded session terminal moved (new output, bell, or the child exited) → repaint exactly
+  # then, at native latency. This is why the center is smooth: it draws when the screen changed,
+  # not on a timer.
+  def handle_info({Terminal, _pid, _event}, state), do: {:noreply, render(state)}
 
   def handle_info(_msg, state), do: {:noreply, state}
 
@@ -157,38 +165,53 @@ defmodule Aleph.Cockpit do
   defp apply_effect(:none, state), do: {:noreply, state}
   defp apply_effect(:quit, state), do: quit(state)
 
+  # A focused key goes to the focused session's embedded terminal: encode it as a Ghostty.KeyEvent
+  # and hand it to the emulator, which writes the right bytes straight to the PTY — one native
+  # keystroke, no shell-out. An unmappable key is dropped rather than misdelivered.
   defp apply_effect({:forward, key}, state) do
-    forward_to_pane(key, state)
+    with %KeyEvent{} = event <- ghostty_key(key),
+         term when is_pid(term) <- focused_terminal(state) do
+      Terminal.send_key(term, event)
+    end
+
     {:noreply, state}
   end
 
-  # The `n` verb landed: open the thread, focus it, AND spawn a harness onto it in one motion —
-  # a new thread is a new piece of work, so `n` starts working on it rather than making you press
-  # `s` next. A bad title just flashes the error.
+  # The `n` verb landed: open the thread, focus it, AND spawn a session onto it in one motion —
+  # a new thread is a new piece of work, so `n` starts working on it. A bad title just flashes.
   defp apply_effect({:create_thread, title}, state) do
     case Channel.open_thread(%{title: title}) do
-      {:ok, thread} -> {:noreply, render(%{state | focused_id: thread.id, flash: spawn_onto(thread.id)})}
+      {:ok, thread} -> {:noreply, render(%{state | focused_id: thread.id, flash: spawn_onto(thread.id, state)})}
       {:error, _changeset} -> {:noreply, render(%{state | flash: "couldn't create “#{title}”"})}
     end
   end
 
-  # The `s` verb landed: spawn a harness onto the focused thread (for a thread made elsewhere, or
-  # to re-staff one). The RESULT — the new pane id, or the real failure reason — flashes in the
-  # footer so a spawn is never a silent no-op.
+  # The `s` verb landed: spawn a session onto the focused thread. The result flashes in the footer.
   defp apply_effect({:spawn, thread_id}, state) do
-    {:noreply, render(%{state | flash: spawn_onto(thread_id)})}
+    {:noreply, render(%{state | flash: spawn_onto(thread_id, state)})}
   end
 
-  # Spawn a harness onto a thread and return a one-line result for the footer flash. The error is
-  # surfaced verbatim (e.g. tmux missing, a dead join) — this is the operator's only feedback. A
-  # raise or exit in the spawn path becomes a flash too, NEVER an aleph crash: a spawn is a side
-  # errand, and losing the whole cockpit to one is the failure this rescue exists to prevent.
-  defp spawn_onto(thread_id) do
+  # Spawn a harness as an embedded terminal on this thread: mint identity IN-PROCESS
+  # (Funes.MCP.Spawn.join — aleph is the serving node) and start an Aleph.Terminal that runs the
+  # launcher with the FUNES_* env sourced (and TERM set, so the harness produces colour). One
+  # native PTY per thread, rendered in the center. A raise/exit becomes a flash, never a crash.
+  defp spawn_onto(thread_id, state) do
     agent = Application.get_env(:aleph, :spawn_agent, "pi")
+    launcher = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
+    {cols, rows} = center_dims(state)
 
-    case Spawn.session(thread_id, agent) do
-      {:ok, pane} -> "spawned #{agent} → #{pane} (Sessions space)"
-      {:error, reason} -> "spawn failed: #{inspect(reason)}"
+    case Spawn.join(thread_id, agent) do
+      {:ok, %{exports: exports}} ->
+        script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> launcher
+        args = ["-lc", script]
+
+        case Sessions.ensure(thread_id, cmd: "/bin/bash", args: args, notify: self(), cols: cols, rows: rows) do
+          {:ok, _pid} -> "session live — Enter to focus, Ctrl+B to release"
+          {:error, reason} -> "spawn failed: #{inspect(reason)}"
+        end
+
+      {:error, reason} ->
+        "spawn failed: #{inspect(reason)}"
     end
   rescue
     e -> "spawn crashed: #{Exception.message(e)}"
@@ -196,40 +219,32 @@ defmodule Aleph.Cockpit do
     :exit, reason -> "spawn crashed: #{inspect(reason)}"
   end
 
-  # --- forward a keypress to the focused tmux pane ---
-  defp forward_to_pane(key, state) do
-    pane = pane_ref(focused(state))
+  # aleph key event → Ghostty.KeyEvent (public + tested: a missing mapping silently drops a key).
+  @doc false
+  def ghostty_key(%{key: :char, char: c} = ev), do: %KeyEvent{key: char_key(c), utf8: c, mods: mods(ev)}
+  def ghostty_key(%{key: :up} = ev), do: %KeyEvent{key: :arrow_up, mods: mods(ev)}
+  def ghostty_key(%{key: :down} = ev), do: %KeyEvent{key: :arrow_down, mods: mods(ev)}
+  def ghostty_key(%{key: :left} = ev), do: %KeyEvent{key: :arrow_left, mods: mods(ev)}
+  def ghostty_key(%{key: :right} = ev), do: %KeyEvent{key: :arrow_right, mods: mods(ev)}
 
-    Enum.each(tmux_keys(key), fn
-      {:text, t} -> Tmux.send_text(pane, t)
-      {:key, k} -> Tmux.send_key(pane, k)
-    end)
+  def ghostty_key(%{key: k} = ev)
+      when k in [:enter, :tab, :backspace, :delete, :escape, :space, :home, :end, :page_up, :page_down],
+      do: %KeyEvent{key: k, mods: mods(ev)}
+
+  def ghostty_key(_key), do: nil
+
+  # a-z (and A-Z → the lowercase key + a shift mod via utf8), 0-9 → :digit_N; anything else is
+  # carried by utf8 alone under :unidentified.
+  defp char_key(<<cp>>) when cp in ?a..?z, do: String.to_existing_atom(<<cp>>)
+  defp char_key(<<cp>>) when cp in ?A..?Z, do: String.to_existing_atom(<<cp + 32>>)
+  defp char_key(<<cp>>) when cp in ?0..?9, do: String.to_existing_atom("digit_#{<<cp>>}")
+  defp char_key(_c), do: :unidentified
+
+  defp mods(ev) do
+    [{:ctrl, ev[:ctrl]}, {:alt, ev[:alt]}, {:shift, ev[:shift]}]
+    |> Enum.filter(fn {_mod, on?} -> on? end)
+    |> Enum.map(fn {mod, _} -> mod end)
   end
-
-  @doc """
-  Translate a cockpit key event to what to send the focused tmux pane: a literal `{:text, s}`
-  (send-keys -l) or a named `{:key, name}` (a tmux key name). Public because it is the seam a
-  forwarded key crosses to the app — a MISSING clause here silently drops the key (an Esc that
-  vanished trapped the operator in a fullscreen menu), so it earns a test of its own.
-  """
-  def tmux_keys(%{key: :char, char: c, ctrl: true}), do: [{:key, "C-#{c}"}]
-  def tmux_keys(%{key: :char, char: c}), do: [{:text, c}]
-  def tmux_keys(%{key: :enter}), do: [{:key, "Enter"}]
-  # Esc MUST translate — the focused app (pi's config menu, vim) uses it to cancel. Without this
-  # clause a forwarded Esc fell through to `[]` and vanished, trapping the operator in the app.
-  def tmux_keys(%{key: :escape}), do: [{:key, "Escape"}]
-  def tmux_keys(%{key: :backspace}), do: [{:key, "BSpace"}]
-  def tmux_keys(%{key: :delete}), do: [{:key, "Delete"}]
-  def tmux_keys(%{key: :tab}), do: [{:key, "Tab"}]
-  def tmux_keys(%{key: :up}), do: [{:key, "Up"}]
-  def tmux_keys(%{key: :down}), do: [{:key, "Down"}]
-  def tmux_keys(%{key: :left}), do: [{:key, "Left"}]
-  def tmux_keys(%{key: :right}), do: [{:key, "Right"}]
-  def tmux_keys(%{key: :home}), do: [{:key, "Home"}]
-  def tmux_keys(%{key: :end}), do: [{:key, "End"}]
-  def tmux_keys(%{key: :page_up}), do: [{:key, "PageUp"}]
-  def tmux_keys(%{key: :page_down}), do: [{:key, "PageDown"}]
-  def tmux_keys(_), do: []
 
   defp render(state) do
     # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
@@ -248,7 +263,7 @@ defmodule Aleph.Cockpit do
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
       chorus: chorus,
-      session: session_read(state, focused),
+      terminal: terminal_read(state, focused),
       input: state.input,
       flash: state.flash
     }
@@ -267,25 +282,36 @@ defmodule Aleph.Cockpit do
   defp focused_thread(threads, nil), do: List.first(threads)
   defp focused_thread(threads, id), do: Enum.find(threads, List.first(threads), &(&1.id == id))
 
-  # The center is a live tmux view only in the Sessions space; elsewhere it isn't shown.
-  defp session_read(%{active_key: :sessions} = state, focused) when not is_nil(focused) do
-    pane = pane_ref(focused)
+  # The center is a live embedded terminal, only in the Sessions space. The focused thread's
+  # Aleph.Terminal render_state (Ghostty's live cells + cursor) is read fresh; no session → the
+  # placeholder. `:no_session` elsewhere so the panel isn't shown.
+  defp terminal_read(%{active_key: :sessions} = state, focused) when not is_nil(focused) do
+    state |> focused_terminal() |> render_state_of()
+  end
 
-    case Tmux.capture(pane, %{h: state.h}) do
-      :no_session -> :no_session
-      lines -> %{target: pane, lines: lines, focused?: state.center_focused?}
+  defp terminal_read(_state, _focused), do: :no_session
+
+  defp render_state_of(nil), do: :no_session
+  defp render_state_of(term), do: Terminal.render_state(term)
+
+  # The Aleph.Terminal for the focused thread, or nil — asked of the registry, never mirrored (§3).
+  defp focused_terminal(state), do: state |> focused() |> terminal_for()
+
+  defp terminal_for(nil), do: nil
+  defp terminal_for(%{id: id}), do: Sessions.terminal(id)
+
+  # Keep the focused session's PTY sized to the center region so it reflows with the window. An
+  # approximation of the center rect (View lays out left ¼ / center ½ / right ¼, inset by a frame);
+  # the terminal reflows on every window resize.
+  defp resize_focused_terminal(state) do
+    with term when is_pid(term) <- focused_terminal(state) do
+      {cols, rows} = center_dims(state)
+      Terminal.resize(term, cols, rows)
     end
   end
 
-  defp session_read(_state, _focused), do: :no_session
-
-  defp pane_ref(nil), do: nil
-
-  defp pane_ref(thread) do
-    case Staff.session_for_thread(thread) do
-      %{pane_ref: ref} -> ref
-      _ -> nil
-    end
+  defp center_dims(%{w: w, h: h}) do
+    {max(div(w, 2) - 4, 20), max(h - 6, 5)}
   end
 
   # Follow the focused thread's Bus topic so its dossier/chat repaint on new activity.
