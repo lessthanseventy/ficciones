@@ -149,7 +149,13 @@ defmodule Aleph.Cockpit do
     Process.send_after(self(), :tick, @tick_ms)
     # Re-read the terminal size every tick, so a resize that never arrived as an event (a missed
     # SIGWINCH) self-corrects within a tick instead of leaving the layout stranded at the old size.
-    {:noreply, render(refresh_size(state))}
+    state = refresh_size(state)
+    # And re-fit the center PTY to the center region — a terminal spawned *between* window resizes
+    # (a new session, the Tlön coworker) starts at 80x24 and would otherwise fill only part of the
+    # panel until the next resize. `Terminal.resize` is a no-op when the size is unchanged, so this
+    # only actually reflows the child when it needs to.
+    resize_focused_terminal(state)
+    {:noreply, render(state)}
   end
 
   # An embedded session terminal moved (new output, bell, or the child exited) → repaint exactly

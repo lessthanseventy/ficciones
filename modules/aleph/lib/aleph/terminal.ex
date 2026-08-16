@@ -134,6 +134,10 @@ defmodule Aleph.Terminal do
     {:reply, :ok, state}
   end
 
+  # Already at this size — a no-op, so the cockpit can call resize every tick to self-correct a
+  # freshly-spawned PTY without spamming the child with redundant SIGWINCHs (which make a TUI repaint).
+  def handle_call({:resize, cols, rows}, _from, %{cols: cols, rows: rows} = state), do: {:reply, :ok, state}
+
   def handle_call({:resize, cols, rows}, _from, state) do
     Terminal.resize(state.term, cols, rows)
     PTY.resize(state.pty, cols, rows)
