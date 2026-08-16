@@ -102,4 +102,31 @@ defmodule Funes.Channel do
     |> Repo.all()
     |> Enum.reverse()
   end
+
+  @doc """
+  The Comms chorus as THREAD BLOCKS — one entry per OPEN thread, each with its recent messages
+  (chat order within), ordered by most-recent-activity FIRST. Every open thread appears, including
+  one with no messages yet (a fresh thread you just spawned onto) — so the feed and the ↑/↓
+  navigator share ONE order and every focusable thread is visible. `[%{thread, messages}]`.
+
+  Ordered by message **id**, never `created_at` — its second resolution ties (§4), which would
+  make the feed order flap. Threads with messages lead (newest message first); threads with none
+  trail (newest thread first), so a just-made quiet thread is visible at the bottom, not lost.
+  """
+  def chorus(per_thread \\ 20) do
+    by_thread = 300 |> recent_across() |> Enum.group_by(& &1.thread_id)
+
+    from(t in Thread, where: t.state == "open")
+    |> Repo.all()
+    |> Enum.map(fn t ->
+      messages = by_thread |> Map.get(t.id, []) |> Enum.take(-per_thread)
+      %{thread: t, messages: messages}
+    end)
+    |> Enum.sort_by(&sort_key/1, :desc)
+  end
+
+  # {tier, id}: threads WITH messages (tier 1) rank above empty ones (tier 0); within a tier the
+  # higher id (newest message, else newest thread) leads. A total order, no created_at tie.
+  defp sort_key(%{messages: [], thread: %Thread{id: id}}), do: {0, id}
+  defp sort_key(%{messages: messages}), do: {1, List.last(messages).id}
 end

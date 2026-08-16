@@ -177,25 +177,36 @@ defmodule Aleph.BoardTest do
       assert Enum.map_join(rows, "\n", &text/1) =~ "no live tmux session"
     end
 
-    test "chorus groups the feed by thread, marks the focused block and threaded replies" do
-      feed = [
-        %{id: 1, thread_id: 7, thread_title: "fable review", author: "andrew", body: "start it", reply_to: nil},
-        %{id: 2, thread_id: 7, thread_title: "fable review", author: "pi", body: "on it", reply_to: 1},
-        %{id: 3, thread_id: 9, thread_title: "triage inbox", author: "Carl", body: "CI is red", reply_to: nil}
+    test "chorus renders a block per thread — empty threads included, focus + replies marked" do
+      blocks = [
+        %{
+          thread: %Funes.Thread{id: 7, title: "fable review", state: "open"},
+          messages: [
+            %{author: "andrew", body: "start it", reply_to: nil},
+            %{author: "pi", body: "on it", reply_to: 1}
+          ]
+        },
+        %{
+          thread: %Funes.Thread{id: 9, title: "triage inbox", state: "open"},
+          messages: [%{author: "Carl", body: "CI is red", reply_to: nil}]
+        },
+        # a fresh thread with NO messages still gets a block (so it's visible + navigable)
+        %{thread: %Funes.Thread{id: 5, title: "new fable review", state: "open"}, messages: []}
       ]
 
-      rows = Chorus.render(%{feed: feed, focused_id: 7}, %{x: 0, y: 0, w: 60, h: 40})
+      rows = Chorus.render(%{blocks: blocks, focused_id: 7}, %{x: 0, y: 0, w: 60, h: 40})
       joined = Enum.map_join(rows, "\n", &text/1)
 
-      # both thread blocks appear, each headed by its title
+      # every thread has a header — including the empty one, which shows a placeholder
       assert joined =~ "fable review"
       assert joined =~ "triage inbox"
+      assert joined =~ "new fable review"
+      assert joined =~ "no messages yet"
       # messages appear under their thread; a reply carries the ↳ mark
-      assert joined =~ "andrew"
       assert joined =~ "on it"
       assert joined =~ "↳"
-      # the focused thread's header is highlighted (:selected), the other's is not
-      focused_head = Enum.find(rows, &(text(&1) =~ "fable review"))
+      # the focused thread's header is highlighted (:selected), the others are not
+      focused_head = Enum.find(rows, &(text(&1) =~ "fable review" and text(&1) =~ "▸"))
       other_head = Enum.find(rows, &(text(&1) =~ "triage inbox"))
       assert Enum.any?(focused_head, fn {_t, s} -> s == :selected end)
       refute Enum.any?(other_head, fn {_t, s} -> s == :selected end)

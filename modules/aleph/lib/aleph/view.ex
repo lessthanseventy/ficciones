@@ -78,7 +78,7 @@ defmodule Aleph.View do
   def data_for(Panel.ThreadList, r), do: %{threads: r.threads, roster: r.roster, selected_id: r.focused_id}
 
   def data_for(Panel.Dossier, r), do: r.scope
-  def data_for(Panel.Chorus, r), do: %{feed: r.chorus, focused_id: r.focused_id}
+  def data_for(Panel.Chorus, r), do: %{blocks: r.chorus, focused_id: r.focused_id}
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
   def data_for(Panel.Session, r), do: r.session
   def data_for(_other, _r), do: nil

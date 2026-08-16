@@ -163,6 +163,30 @@ defmodule Funes.ChannelTest do
       # the 3 NEWEST (m3,m4,m5), returned oldest-first
       assert Enum.map(feed, & &1.body) == ["m3", "m4", "m5"]
     end
+
+    test "chorus/0 — one block per OPEN thread, empty ones included, most-recent-activity first" do
+      {:ok, quiet} = Channel.open_thread(%{title: "quiet"})
+      {:ok, _} = Channel.post(%{thread_id: quiet.id, author: "a", body: "old news"})
+      {:ok, fresh} = Channel.open_thread(%{title: "fresh, no messages"})
+      {:ok, loud} = Channel.open_thread(%{title: "loud"})
+      {:ok, _} = Channel.post(%{thread_id: loud.id, author: "b", body: "latest"})
+
+      blocks = Channel.chorus()
+      titles = Enum.map(blocks, & &1.thread.title)
+
+      # every open thread has a block — including the one with no messages
+      assert "quiet" in titles
+      assert "fresh, no messages" in titles
+      assert "loud" in titles
+      # most-recent-activity first: loud (newest message) leads; the empty thread trails but is
+      # present (visible + navigable), never vanishing
+      assert List.first(titles) == "loud"
+      assert List.last(titles) == "fresh, no messages"
+      # the block carries the thread's own recent messages, chat order
+      loud_block = Enum.find(blocks, &(&1.thread.id == loud.id))
+      assert Enum.map(loud_block.messages, & &1.body) == ["latest"]
+      assert Enum.find(blocks, &(&1.thread.id == fresh.id)).messages == []
+    end
   end
 
   describe "the state CHECK is the DB's own guard" do

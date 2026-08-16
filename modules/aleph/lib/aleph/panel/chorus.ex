@@ -7,11 +7,12 @@ defmodule Aleph.Panel.Chorus do
   little channel, newest at the bottom like a chat log. A reply carries a `↳` so a threaded answer
   is visually distinct from a top-level post.
 
-  Data is `%{feed: [%{thread_title, thread_id, author, body, reply_to, ...}], focused_id: id}` in
-  chat order. The focused thread's block is highlighted, so ↑/↓ navigation stays visible once the
-  left ThreadList is gone (the rollup IS the navigator). Read-only for now — composing/replying/
-  collapsing from here is the next slice; the value first is *seeing all the chatter in one place*
-  instead of one thread at a time.
+  Data is `%{blocks: [%{thread: %Funes.Thread{}, messages: [%Message{}]}], focused_id: id}` — one
+  block per OPEN thread (from `Funes.Channel.chorus/1`), most-recent-activity FIRST, so the feed
+  and the ↑/↓ navigator share ONE order: down moves the highlight down the feed. EVERY open thread
+  has a block — a fresh one with no messages shows a placeholder, so a thread you can focus is
+  always visible. The focused thread's header is highlighted; a reply carries a `↳`. Read-only for
+  now — composing/replying/collapsing from here is the next slice.
   """
   @behaviour Aleph.Panel
 
@@ -23,31 +24,30 @@ defmodule Aleph.Panel.Chorus do
   def topics(_assigns), do: []
 
   @impl Aleph.Panel
-  def render(%{feed: feed} = data, rect) do
+  def render(%{blocks: blocks} = data, rect) do
     focused = data[:focused_id]
     header = [line("COMMS · all threads", :header), blank()]
 
     body =
-      case feed do
-        [] -> [line("no messages yet", :dim)]
-        msgs -> msgs |> group_consecutive() |> Enum.flat_map(&group_rows(&1, focused, rect.w))
+      case blocks do
+        [] -> [line("no threads yet — press n", :dim)]
+        bs -> Enum.flat_map(bs, &block_rows(&1, focused, rect.w))
       end
 
     Aleph.Panel.clip(header ++ body, rect)
   end
 
-  # Consecutive messages on the same thread form one block, so the feed reads as channels rather
-  # than a flat interleaving. `chunk_by` keeps chat order within and across blocks.
-  defp group_consecutive(msgs) do
-    msgs
-    |> Enum.chunk_by(& &1.thread_id)
-    |> Enum.map(fn [%{thread_title: title, thread_id: tid} | _] = block -> {title, tid, block} end)
-  end
+  defp block_rows(%{thread: thread, messages: messages}, focused, w) do
+    style = if thread.id == focused, do: :selected, else: :header
+    head = [{"▸ ", :accent}, {thread.title || "untitled", style}]
 
-  defp group_rows({title, tid, msgs}, focused, w) do
-    style = if tid == focused, do: :selected, else: :header
-    head = [{"▸ ", :accent}, {title || "untitled", style}]
-    [head | Enum.flat_map(msgs, &message_rows(&1, w))] ++ [blank()]
+    msg_rows =
+      case messages do
+        [] -> [line("  no messages yet", :dim)]
+        ms -> Enum.flat_map(ms, &message_rows(&1, w))
+      end
+
+    [head | msg_rows] ++ [blank()]
   end
 
   # "author: body", wrapped with a hanging indent; a reply is marked with a leading ↳.

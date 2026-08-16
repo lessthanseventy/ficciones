@@ -218,7 +218,10 @@ defmodule Aleph.Cockpit do
   defp tmux_keys(_), do: []
 
   defp render(state) do
-    threads = Channel.open_threads()
+    # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
+    # navigates by, so ↑/↓ move the highlight down the feed and every open thread is reachable.
+    chorus = Channel.chorus()
+    threads = Enum.map(chorus, & &1.thread)
     focused = focused_thread(threads, state.focused_id)
     state = resubscribe(%{state | threads: threads, focused_id: focused && focused.id}, focused)
 
@@ -230,8 +233,7 @@ defmodule Aleph.Cockpit do
       threads: threads,
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
-      # The chorus feed — recent messages across ALL threads, for the Comms center.
-      chorus: Channel.recent_across(50),
+      chorus: chorus,
       session: session_read(state, focused),
       input: state.input,
       flash: state.flash
