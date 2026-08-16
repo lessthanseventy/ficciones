@@ -11,6 +11,8 @@ defmodule Aleph.MixProject do
       app: :aleph,
       version: "0.1.0",
       elixir: "~> 1.19",
+      # Boundary enforcement (lib/aleph.ex): aleph may call only what Funes exports.
+      compilers: [:boundary] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -260,6 +262,8 @@ defmodule Aleph.MixProject do
       # a dependency's own `config/*.exs` is NOT evaluated when aleph is the root app, aleph
       # supplies funes' Repo config itself (config/config.exs + config/runtime.exs).
       {:funes, path: "../funes"},
+      # Compile-time module-boundary checks (lib/aleph.ex). runtime: false — pure tooling.
+      {:boundary, "~> 0.10", runtime: false},
       # The disciplined subset of the Raxol family, NOT the full `raxol` umbrella (which
       # drags in payments/earn/mcp/sensor). `raxol_terminal` = screen buffers + ANSI +
       # input + the termbox2 driver; `raxol_core` = the infra behaviours it sits on (§3).

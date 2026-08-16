@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Funes.Doctor do
   @shortdoc "The 2am report: integrity_check, schema, tables"
   @moduledoc @shortdoc
   use Mix.Task
+  use Boundary, classify_to: Funes
 
   @impl Mix.Task
   def run(_args) do

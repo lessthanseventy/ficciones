@@ -9,6 +9,9 @@ defmodule Funes.MixProject do
       app: :funes,
       version: "0.1.0",
       elixir: "~> 1.18",
+      # Boundary enforcement (lib/funes.ex declares the surface) — violations are compile
+      # warnings, which the gate's --warnings-as-errors turns into failures.
+      compilers: [:boundary] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
@@ -63,6 +66,8 @@ defmodule Funes.MixProject do
 
   defp deps do
     [
+      # Compile-time module-boundary checks (lib/funes.ex). runtime: false — pure tooling.
+      {:boundary, "~> 0.10", runtime: false},
       {:ecto_sql, "~> 3.12"},
       {:ecto_sqlite3, ">= 0.17.0"},
       # The switchboard's liveness layer (§10): PubSub fans a posted message out to

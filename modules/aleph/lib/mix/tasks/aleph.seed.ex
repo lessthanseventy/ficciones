@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Aleph.Seed do
   Writes only through funes' public API (never raw rows) — the same path agents and the human use.
   """
   use Mix.Task
+  use Boundary, classify_to: Aleph
 
   alias Funes.Channel
   alias Funes.Dossier

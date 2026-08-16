@@ -8,6 +8,7 @@ defmodule Mix.Tasks.Aleph.Run do
   clean). Set up the DB first with `mise run aleph:setup`, and `mise run aleph:seed` for sample data.
   """
   use Mix.Task
+  use Boundary, classify_to: Aleph
 
   @requirements ["app.config"]
 
