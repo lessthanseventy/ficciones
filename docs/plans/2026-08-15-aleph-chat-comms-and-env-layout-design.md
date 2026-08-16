@@ -268,3 +268,103 @@ Mapping the design onto the tree so the build is additive, not a rewrite.
    right; thread verbs (open/focus/archive/pin/open-session) and message verbs (compose/reply) (§3/§4).
 5. **Intelligence is computed, not invented** — Needs-you / Active / Recent ship first with no schema
    change; Pinned / Folders wait for an honest thread attribute (§5).
+
+---
+
+# Addendum — the harness: information architecture + the knowledge model
+
+Added later the same session (2026-08-15), after the truecolor/theme/footer/border polish, when the
+question turned from *how it looks* to *what it shows*. This settles the cockpit's information
+architecture and names the thing it is becoming: **a harness — the face of an agent's working mind,
+over funes as its memory.** These sections revise §3's provisional panel list and extend §5's "computed,
+never invented" rule onto a knowledge model.
+
+## A · The redundancy, resolved — one annotated thread list
+
+`IN FLIGHT` (sessions) and `THREADS` (threads) were the same list seen twice. A **thread** is the task;
+a **session** is only *"a thread that currently has a live agent."* So they collapse into **one
+annotated thread list** — the session/agent/warmth is decoration on the thread, never a second list:
+
+```
+● Carl · flaky test hunt      ← live agent, warm (pink agent name, green dot)
+○ triage inbox                ← no live session
+○ review PR 329
+```
+
+funes already supplies the annotation (`Staff.session_for_thread/1` + `warm?`). This kills the
+duplication and is the merge the layout build starts from.
+
+## B · The three columns, each with one job
+
+The wide (3-column) layout, sections settled:
+
+- **LEFT — navigate & triage** (three defined, *boxed* sections; the switcher is its own square
+  component): **Switcher** (modes) · **Views** (the computed facets — `⚡ Needs you · ● Active ·
+  ◷ Recent`, §5) · **Threads** (the merged annotated list, scoped by the selected view).
+- **CENTER — the work:** the focused thread's live surface — the tmux session (Terminal) or the
+  conversation (Chat).
+- **RIGHT — the dossier:** the per-thread state, and *the surface that varies most between workspaces*.
+  This is where "what the agent knows / is doing / has done / should do next" lives (§C).
+
+## C · The knowledge model — what a mind must be able to say
+
+The owner's framing, banked verbatim as the thesis: *"this is essentially a whole harness… it has
+facts, maybe it needs opinions as well — things it's not quite sure of, fuzzy facts. It needs all the
+facilities for knowing what it knows, what it doesn't, what it's doing and has done and should do
+next."* A harness's dossier must express the **full epistemic + activity state**, along two axes:
+
+**Certainty axis — what it believes, and how surely:**
+
+- **Knows — facts.** Certain, banked knowledge. *funes today:* `fact` (`fact_banked`).
+- **Believes — opinions / fuzzy facts.** Working hypotheses and hunches held with *less than
+  certainty*, carrying a **confidence**. *funes-new:* a `fact` gains a `kind` (`:fact | :opinion`) and
+  a `confidence`; an opinion can later harden into a fact or be refuted.
+- **Doesn't know — open questions / unknowns.** The gaps it is *explicitly tracking*. Knowing what you
+  don't know is **first-class**, not an afterthought — the UNKNOWNS section sits beside FACTS, not
+  below it. *funes-new:* a `question`/`unknown` type, resolvable into a fact/opinion.
+
+**Activity axis — where the work stands:**
+
+- **Doing** — in progress now (the live session + the current task). *funes:* session liveness + a
+  current-todo marker.
+- **Done** — completed. *funes today:* events / `SHIPPED`.
+- **Next / TODOs** — planned, ordered. *funes-new:* a `todo`/`next` with order + open/done state.
+
+The dossier renders all of it — `GOAL · NEXT · TODOS(n) · DOING · DONE(n) · FACTS · OPINIONS ·
+UNKNOWNS · BLOCKERS · EVIDENCE · LEDGER/memory · CHATTER` — so the operator sees at a glance what the
+agent knows, doubts, doesn't know, is doing, has done, and will do.
+
+**Honest now vs. funes-later** (§5's rule, applied to the knowledge model):
+
+| Surfaces now (`Board.in_scope/1`) | Needs a funes addition (migration + gate) |
+|---|---|
+| GOAL, LEAD, BLOCKERS, DONE(shipped), LEDGER(facts), CHATTER | NEXT, TODOS, EVIDENCE; the certainty axis (OPINIONS + confidence, UNKNOWNS); DOING marker; per-session **capabilities / MCPs connected** |
+
+Never a faked count or an invented confidence — a section funes cannot yet populate is not shown until
+it can. The certainty axis (opinions/unknowns) is the biggest funes addition and the one that most
+makes this a *mind* rather than a task board; it earns its own funes design pass.
+
+## D · Responsive layout — wide / narrow, one pure seam
+
+`View.compose(reads, w, h)` is already a pure function of the viewport, and resize already re-renders,
+so responsive is just branching on width — the same seam as "configurable views" (§3), keyed on the
+viewport instead of user config. Two layouts to start, a `layout_for(w)` picker:
+
+- **Wide** (`w ≥ ~80`) — the 3-column, per-section-boxed layout above.
+- **Narrow** (`w < ~80`, phone / a shrunk Hyprland tile) — a single column. **First cut:** the sections
+  stacked (no new state). **Intended:** a **tmux-tab** strip — the sidebars become tabs over one
+  main pane (a ~30/70 split) — which needs an *active-tab* state + keymap, so it is a deliberate later
+  feature, not half-built now.
+
+Panels stay pure `(read, rect) → rows`; only `compose` knows about layouts. A medium (2-column)
+breakpoint drops in later as a third case.
+
+## E · Build order (supersedes §7 for the layout work)
+
+1. **Merge the thread list** — one annotated list (§A); retire the separate roster/threads split.
+2. **Per-section boxes + the square switcher** (§B) — box each section, not each column.
+3. **Responsive wide/narrow** (§D) — the pure `layout_for` seam; stacked narrow first.
+4. **Enrich the dossier** (§C) with the sections funes supports today.
+5. **funes: the knowledge model** — `todo`/`next`/`evidence`, then the certainty axis
+   (`kind`/`confidence` on facts, a `question` type), then per-session capabilities. Each its own gate.
+6. Then, earned: the tmux-tab narrow mode; capabilities/MCP display; the medium breakpoint.
