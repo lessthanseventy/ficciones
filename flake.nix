@@ -114,8 +114,11 @@
               home.stateVersion = "25.05";
               programs.home-manager.enable = true;
 
-              # pi — the harness (byte-preserved bun binary, above).
-              home.packages = [ pi ];
+              # pi — the harness (byte-preserved bun binary, above). watchexec backs
+              # scripts/watch.sh's change-triggered test runner (runs-on-change, debounce,
+              # .gitignore-aware, restart-on-supersede); declared here so the next box has
+              # it, not left to whatever the OS happens to ship.
+              home.packages = [ pi pkgs.watchexec ];
 
               # funes' channel config — we own this file; pi only reads it.
               home.file.".pi/agent/mcp.json".text = funesMcpJson;
