@@ -66,7 +66,7 @@ defmodule Aleph.Space do
         # machine workspace gets tmux's own windows/tabs, mouse, resurrect/plugins and the
         # user's config — and it SURVIVES aleph restarts (the session outlives the client).
         # pi lives in window 0 (spawned with the session); claude is a lazily-summoned window
-        # (`Ctrl+B o`), so entering Tlön never drains the scarce bucket by itself. The left is
+        # (`Ctrl+Space o`), so entering Tlön never drains the scarce bucket by itself. The left is
         # STACK (recent ficciones commits); the right is TOOLS (installed versions). The
         # multi-section surface machinery (a LIST here) stays for future split centers.
         key: :tlon,

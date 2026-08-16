@@ -7,7 +7,7 @@ defmodule Aleph.KeymapTest do
 
   **Input model — tmux-style** (see `docs/plans/2026-08-16-aleph-tmux-style-input.md`): a live
   terminal in the center forwards every key by default; aleph's commands are reached through a
-  `Ctrl+B` leader. With no live terminal, the same commands are bare. `center_live?` is derived by
+  `Ctrl+Space` leader (Ctrl+B belongs to tmux in the Tlön center and forwards like any key). With no live terminal, the same commands are bare. `center_live?` is derived by
   the cockpit; the tests set it directly. Every binding is asserted here so a regression like
   "Ctrl+C quit aleph again" or "arrows stopped moving focus" is caught headlessly.
   """
@@ -33,7 +33,7 @@ defmodule Aleph.KeymapTest do
 
   defp key(k, opts \\ []), do: Enum.into(opts, %{key: k})
   defp char(c, opts \\ []), do: Enum.into(opts, %{key: :char, char: c})
-  defp leader, do: char("b", ctrl: true)
+  defp leader, do: key(:space, ctrl: true)
 
   # A helper: press the leader, then a key, against `state`. Asserts the leader arms the prefix.
   defp via_leader(next_key, s) do
@@ -41,14 +41,20 @@ defmodule Aleph.KeymapTest do
     Keymap.handle(next_key, armed)
   end
 
-  describe "the leader (Ctrl+B)" do
-    test "Ctrl+B arms the next key as an aleph command (sets leader_pending?, repaints)" do
+  describe "the leader (Ctrl+Space)" do
+    test "Ctrl+Space arms the next key as an aleph command (sets leader_pending?, repaints)" do
       assert {%{leader_pending?: true}, :repaint} = Keymap.handle(leader(), state())
     end
 
     test "Ctrl+C never quits — it is unbound in nav context (no live terminal)" do
       s = state(%{center_live?: false})
       assert {^s, :none} = Keymap.handle(char("c", ctrl: true), s)
+    end
+
+    test "Ctrl+B forwards to the terminal when one is live — it is tmux's prefix, not aleph's" do
+      s = state(%{center_live?: true})
+      k = char("b", ctrl: true)
+      assert {^s, {:forward, ^k}} = Keymap.handle(k, s)
     end
 
     test "Ctrl+C forwards to the terminal when one is live — never a quit" do
@@ -156,7 +162,7 @@ defmodule Aleph.KeymapTest do
     end
   end
 
-  describe "commands via the Ctrl+B leader (reachable from inside a running terminal)" do
+  describe "commands via the Ctrl+Space leader (reachable from inside a running terminal)" do
     test "^B q quits even when a terminal is live" do
       s = state(%{center_live?: true})
       assert {%{leader_pending?: false}, :quit} = via_leader(char("q"), s)
@@ -189,14 +195,14 @@ defmodule Aleph.KeymapTest do
                via_leader(char("n"), s)
     end
 
-    test "^B Ctrl+B sends a LITERAL Ctrl+B through to the terminal (prefix-twice)" do
+    test "leader twice sends a LITERAL Ctrl+Space through to the terminal (prefix-twice)" do
       s = state(%{center_live?: true})
 
-      assert {%{leader_pending?: false}, {:forward, %{key: :char, char: "b", ctrl: true}}} =
+      assert {%{leader_pending?: false}, {:forward, %{key: :space, ctrl: true}}} =
                via_leader(leader(), s)
     end
 
-    test "^B Ctrl+B with no live terminal just drops the prefix (nowhere to send it)" do
+    test "leader twice with no live terminal just drops the prefix (nowhere to send it)" do
       s = state(%{center_live?: false})
       assert {%{leader_pending?: false}, :none} = via_leader(leader(), s)
     end

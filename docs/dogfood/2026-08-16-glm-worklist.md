@@ -69,5 +69,23 @@ in dossier-vocabulary order, entries in id order, new material appends at sectio
 - Notifications: from a project session, raise an issue on the FOCUSED thread and check a
   desktop notification appears when the ghostty window is unfocused.
 
+## 6. pi bug: slash commands treated as prose inside aleph
+
+Andrew typed `/clear` in a pi session inside aleph and the MODEL answered ("/clear is a
+command, not something I can do") — pi's TUI didn't intercept it. Outside aleph it does.
+Reproduce inside aleph, then find what pi's command detection keys on (first-char "/" in an
+empty editor? an exact keypress path?) and what arrives differently through aleph's forward
+path (the ghostty_key encode). Suspects: the emulator's forced Kitty push changing how "/"
+or Enter arrives, or a stray leading byte in the editor. Fix on whichever side is wrong —
+if it's pi's, file it against pi with the captured bytes; if it's aleph's encode, TDD via
+`Terminal.encode_key/2`.
+
+Also two fresh eye-tests for the newest commits: quit aleph → shell must be CLEAN (type —
+no `;5u` garbage; the restore is now belt-and-braces on both screens), and `Ctrl+B 2` /
+`Ctrl+B c` must reach tmux in Tlön (aleph's leader moved to Ctrl+Space; the tmux center
+spawns with the Kitty push OFF so the prefix flows as \x02). If shift+enter stops working
+for pi INSIDE tmux, that's tmux swallowing extended keys — needs `set -s extended-keys on`
+in Andrew's tmux config (human-owned; flag it, don't edit).
+
 If something's broken, fix-forward on the branch with the usual gates; if it's ambiguous,
 file it on the machine thread and move to the next item.

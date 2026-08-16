@@ -7,10 +7,13 @@ defmodule Aleph.Keymap do
 
   **Input model — tmux-style** (see `docs/plans/2026-08-16-aleph-tmux-style-input.md`): the center
   surface owns the keys by default. A **live terminal** in the center forwards every key to its PTY
-  (the terminal is "normal mode"); aleph's own commands are reached through a `Ctrl+B` **leader**
-  that arms the *next* key as an aleph command. When there's no live terminal (Comms' chorus, or a
-  placeholder before a session spawns), aleph's nav bindings are **bare** — the same command table,
-  reached without the prefix. One command table, two doors.
+  (the terminal is "normal mode"); aleph's own commands are reached through a `Ctrl+Space` **leader**
+  that arms the *next* key as an aleph command. NOT Ctrl+B: that's tmux's prefix, and the Tlön
+  center is literal tmux — Ctrl+B forwards like any other key so `C-b 2` reaches the real thing.
+  When there's no live terminal (Comms' chorus, or a placeholder before a session spawns), aleph's
+  nav bindings are **bare** — the same command table, reached without the prefix. One command
+  table, two doors. (Ctrl+Space arrives as Kitty CSI-u `\\e[32;5u` → `%{key: :space, ctrl: true}`
+  under the disambiguate mode the cockpit arms on the host.)
 
   `state` is the slice of cockpit state keys touch: `active_key`, `focused_id`, `threads`,
   `center_live?` (derived per keypress by the cockpit — true when a live terminal is in the center),
@@ -67,15 +70,13 @@ defmodule Aleph.Keymap do
   # Any other key while typing (arrows, function keys) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
 
-  # --- leader pending: Ctrl+B was pressed; the next key is an aleph command. ---
-  # Ctrl+B again → send a LITERAL Ctrl+B through to the terminal (tmux's prefix-twice convention),
-  # so an app inside the pane that wants Ctrl+B (nested tmux, vim) still gets it. Only when there's
-  # a live terminal to receive it; with no terminal, a literal Ctrl+B has nowhere to go → drop.
-  def handle(%{key: :char, char: "b", ctrl: true}, %{leader_pending?: true, center_live?: true} = state),
-    do: {%{state | leader_pending?: false}, {:forward, %{key: :char, char: "b", ctrl: true}}}
+  # --- leader pending: Ctrl+Space was pressed; the next key is an aleph command. ---
+  # Ctrl+Space again → send a LITERAL Ctrl+Space through (the prefix-twice convention), so an
+  # app that binds it (emacs set-mark!) still gets it. Only with a live terminal to receive it.
+  def handle(%{key: :space, ctrl: true}, %{leader_pending?: true, center_live?: true} = state),
+    do: {%{state | leader_pending?: false}, {:forward, %{key: :space, ctrl: true}}}
 
-  def handle(%{key: :char, char: "b", ctrl: true}, %{leader_pending?: true} = state),
-    do: {%{state | leader_pending?: false}, :none}
+  def handle(%{key: :space, ctrl: true}, %{leader_pending?: true} = state), do: {%{state | leader_pending?: false}, :none}
 
   # Esc cancels a pending prefix without acting — the escape hatch from a half-armed leader.
   def handle(%{key: :escape}, %{leader_pending?: true} = state), do: {%{state | leader_pending?: false}, :repaint}
@@ -87,8 +88,8 @@ defmodule Aleph.Keymap do
     {%{next | leader_pending?: false}, effect}
   end
 
-  # --- the leader: Ctrl+B arms the next key as an aleph command. ---
-  def handle(%{key: :char, char: "b", ctrl: true}, state), do: {%{state | leader_pending?: true}, :repaint}
+  # --- the leader: Ctrl+Space arms the next key as an aleph command. ---
+  def handle(%{key: :space, ctrl: true}, state), do: {%{state | leader_pending?: true}, :repaint}
 
   # --- default: the center surface owns the keys. ---
   # A live terminal in the center → every key forwards to its PTY. The terminal is "normal mode";
@@ -100,7 +101,7 @@ defmodule Aleph.Keymap do
   def handle(key, state), do: command(key, state)
 
   # --- aleph's command table — one source of bindings, reached two ways: bare in a nav-default
-  # space, or via the Ctrl+B leader from inside a running terminal. ---
+  # space, or via the Ctrl+Space leader from inside a running terminal. ---
   defp command(%{key: :char, char: "q"}, state), do: {state, :quit}
 
   defp command(%{key: :char, char: "n"}, state), do: {%{state | input: %{kind: :new_thread, buffer: ""}}, :repaint}

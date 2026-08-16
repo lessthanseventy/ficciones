@@ -56,7 +56,7 @@ defmodule Aleph.Cockpit do
         ref = Process.monitor(pid)
 
         receive do
-          {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+          {:DOWN, ^ref, :process, ^pid, _reason} -> restore_host_tty()
         end
 
       {:error, {:tb_init_failed, code}} ->
@@ -366,7 +366,7 @@ defmodule Aleph.Cockpit do
   # the old bare `s` verb — one `spawn_onto/2` path, reached via `n` (new thread) or `Enter` (existing).
   defp enter_or_spawn(thread_id, state) do
     case Sessions.terminal(thread_id) do
-      pid when is_pid(pid) -> "already live — type to use it, Ctrl+B for aleph"
+      pid when is_pid(pid) -> "already live — type to use it, Ctrl+Space for aleph"
       nil -> spawn_onto(thread_id, state)
     end
   end
@@ -382,7 +382,7 @@ defmodule Aleph.Cockpit do
     case Spawn.join(thread_id, agent) do
       {:ok, %{exports: exports}} ->
         case Sessions.spawn_harness(thread_id, exports, cols: cols, rows: rows) do
-          {:ok, _pid} -> "session live — type to use it, Ctrl+B for aleph"
+          {:ok, _pid} -> "session live — type to use it, Ctrl+Space for aleph"
           {:error, reason} -> "spawn failed: #{inspect(reason)}"
         end
 
@@ -530,7 +530,8 @@ defmodule Aleph.Cockpit do
   # thread is `scope: "machine"` (see the thread_scope migration and the tlon-isolation plan).
   defp spawn_machine_coworker do
     with {:ok, exports} <- machine_exports(@machine_agent),
-         {:ok, pid} <- Sessions.spawn_harness(:machine, exports, launcher: tmux_attach_launcher()) do
+         # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
+         {:ok, pid} <- Sessions.spawn_harness(:machine, exports, launcher: tmux_attach_launcher(), kitty: false) do
       pid
     else
       _error -> nil
@@ -575,7 +576,7 @@ defmodule Aleph.Cockpit do
         script = exports <> "\nexec env --default-signal " <> launcher
 
         case System.cmd("tmux", ["new-window", "-t", @tlon_session, "-n", "claude", script], stderr_to_stdout: true) do
-          {_out, 0} -> "claude summoned — Ctrl+B o cycles pi ⇄ claude"
+          {_out, 0} -> "claude summoned — Ctrl+Space o cycles pi ⇄ claude"
           {out, _code} -> "claude window failed: #{String.trim(out)}"
         end
 
@@ -635,15 +636,37 @@ defmodule Aleph.Cockpit do
   def terminate(_reason, state), do: teardown(state)
 
   defp teardown(state) do
-    # Pop the Kitty disambiguate flag pushed in init before the driver tears down the alt
-    # screen, so the host tty's key encoding is restored (paired with @kitty_enable).
-    IO.write(@kitty_disable)
+    # Pop Kitty while still ON the alt screen (the spec gives main and alternate screens
+    # INDEPENDENT keyboard-flag stacks, so the pop must land on the screen the push landed on).
+    # Straight to /dev/tty, not stdout — the io server may already be winding down on a crash.
+    _ = File.write("/dev/tty", @kitty_disable)
 
-    if is_pid(state.driver) and Process.alive?(state.driver),
-      do: GenServer.stop(state.driver, :normal, 500)
+    # Each step in its own try: a wedged Driver stop (it can exceed its 500ms) must never skip
+    # tb_shutdown — that skip leaves the shell in alt-screen + mouse-reporting, needing `reset`.
+    try do
+      if is_pid(state.driver) and Process.alive?(state.driver),
+        do: GenServer.stop(state.driver, :normal, 500)
+    catch
+      _, _ -> :ok
+    end
 
-    :termbox2_nif.tb_shutdown()
-  rescue
-    _ -> :ok
+    try do
+      :termbox2_nif.tb_shutdown()
+    catch
+      _, _ -> :ok
+    end
+
+    # Back on the MAIN screen now — final belt-and-braces restore (see restore_host_tty/0).
+    restore_host_tty()
+  end
+
+  # Everything a dead cockpit could have left armed, force-disarmed in one idempotent write:
+  # Kitty pop (covers the main screen's stack — a pop on an empty stack is a no-op per spec),
+  # every mouse-reporting mode off, leave the alt screen, show the cursor. Safe to run twice —
+  # run/0 also fires it after the DOWN, so even a teardown that never ran (a brutal kill of the
+  # GenServer) still hands the operator a working shell instead of `;5u` keystroke garbage.
+  defp restore_host_tty do
+    _ = File.write("/dev/tty", @kitty_disable <> "\e[?1000;1002;1003;1006l\e[?1049l\e[?25h")
+    :ok
   end
 end

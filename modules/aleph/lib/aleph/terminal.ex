@@ -121,7 +121,10 @@ defmodule Aleph.Terminal do
     # (terminal→app key encoding only); it does not touch the host tty or pi's rendering.
     # MUST stay byte-identical to Aleph.Cockpit's @kitty_enable (the host-side half of the same
     # round-trip): host and emulator diverging on the pushed flag level silently breaks it.
-    Terminal.write(term, @kitty_enable)
+    # `kitty: false` opts out for children that DON'T decode CSI-u — the Tlön tmux client needs
+    # a legacy \x02 for its Ctrl+B prefix, not \e[98;5u (tmux ignores extended keys by default);
+    # apps under tmux negotiate their own key encoding with tmux.
+    if Keyword.get(opts, :kitty, true), do: Terminal.write(term, @kitty_enable)
     {:ok, pty} = PTY.start_link(cmd: cmd, args: args, cols: cols, rows: rows)
 
     {:ok, %{term: term, pty: pty, notify: opts[:notify], cols: cols, rows: rows}}

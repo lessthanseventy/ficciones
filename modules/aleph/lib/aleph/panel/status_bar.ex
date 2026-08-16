@@ -16,8 +16,8 @@ defmodule Aleph.Panel.StatusBar do
   # {keycap, label} pairs — keycaps lit in amber, labels dim. The tmux-style model: the center
   # owns the keys by default, so aleph's commands are reached through the ^B leader. (In a
   # nav-default space — no live terminal — these are also bare; the hints name the universal path.)
-  @hints [{"^B", "aleph"}, {"^Bn", "new"}, {"^B⏎", "spawn"}, {"^BTab", "space"}, {"^B↑↓", "thread"}, {"^Bq", "quit"}]
-  @leader_hints [{"^B …", :header}, {"  prefix armed — Esc cancels", :dim}]
+  @hints [{"^␣", "aleph"}, {"^␣n", "new"}, {"^␣⏎", "spawn"}, {"^␣Tab", "space"}, {"^␣↑↓", "thread"}, {"^␣q", "quit"}]
+  @leader_hints [{"^␣ …", :header}, {"  prefix armed — Esc cancels", :dim}]
 
   @impl Panel
   def topics(_assigns), do: []
@@ -46,11 +46,11 @@ defmodule Aleph.Panel.StatusBar do
     Panel.clip([justify(info, [], rect.w), hints_row()], rect)
   end
 
-  # The prefix is armed (Ctrl+B was pressed, awaiting the next key) — show the prefix state
+  # The prefix is armed (Ctrl+Space was pressed, awaiting the next key) — show the prefix state
   # instead of the command hints, so the operator knows the next key is aleph's, not the terminal's.
   @impl Panel
   def render(%{leader_pending?: true}, rect) do
-    info = [{" ", :normal}, {"▸ ^B ", :accent}, {"prefix armed", :normal}]
+    info = [{" ", :normal}, {"▸ ^␣ ", :accent}, {"prefix armed", :normal}]
     Panel.clip([justify(info, [], rect.w), hints_row(@leader_hints)], rect)
   end
 
@@ -79,7 +79,7 @@ defmodule Aleph.Panel.StatusBar do
   defp hints_row, do: hints_row(@hints)
 
   # Tlön's center is two machine panes, so it alone carries the other-pane verb.
-  defp hints_for("Tlön"), do: @hints ++ [{"^Bo", "claude"}]
+  defp hints_for("Tlön"), do: @hints ++ [{"^␣o", "claude"}]
   defp hints_for(_space), do: @hints
 
   defp hints_row(hints) do
