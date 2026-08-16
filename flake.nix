@@ -165,6 +165,13 @@
               home.username = "andrew";
               home.homeDirectory = "/home/andrew";
               home.stateVersion = "25.05";
+              # home-manager refuses to overwrite a file that already exists on disk without a
+              # backup strategy (it hard-stops `home:switch` with "would be clobbered"). This
+              # happens whenever a `home.file` target is touched outside home-manager — e.g. the
+              # models.json direct-patch while iterating, or a file carried over from a prior
+              # install. Auto-rename the conflict to `<file>.backup` and write the new one, so
+              # `mise run home:switch` never blocks on a stale file again.
+              home.backupFileExtension = "backup";
               programs.home-manager.enable = true;
 
               # pi — the harness (byte-preserved bun binary, above). watchexec backs
