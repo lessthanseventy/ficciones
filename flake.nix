@@ -182,6 +182,71 @@
               home.stateVersion = "25.05";
               programs.home-manager.enable = true;
 
+              # tmux — a first-class stack citizen, flake-managed (adopted from the standalone
+              # ~/.config/tmux/tmux.conf repo). Trimmed to what the aleph/Tlön stack needs: mouse,
+              # extended-keys (shift+enter round-trips), resurrect+continuum (the Tlön persistence
+              # fable's literal-tmux design relies on), yank (OSC 52/wl-copy), tmux-thumbs (hint-
+              # label copy for paths/commit-hashes/IDs the agent workflow surfaces). Dropped the
+              # chrome that churned alongside the embedded pi: gitmux/tmux-cpu/tmux-battery (status
+              # scripts rerunning every status-interval), tmux-which-key, -floating, -autoreload,
+              # -mode-indicator, -prefix-highlight, -notify, -pain-control, -better-mouse-mode,
+              # -open, -fzf-url, extrakto, -sensible. Lean status bar (session + window tabs, no
+              # scripts) — load-bearing in Tlön for seeing/clicking the pi⇄claude windows. The old
+              # file is backed up on `home:switch` by the -b flag.
+              programs.tmux = {
+                enable = true;
+                shortcut = "b"; # Ctrl+B prefix (aleph's leader is Ctrl+Space, so no clash)
+                escapeTime = 10;
+                baseIndex = 1;
+                historyLimit = 50000;
+                mouse = true;
+                terminal = "tmux-256color";
+                plugins = with pkgs.tmuxPlugins; [ resurrect continuum yank tmux-thumbs ];
+                extraConfig = ''
+                  # Extended keys so shift+enter etc. round-trip to apps under tmux (the kitty-
+                  # protocol gap the worklist flagged). Apps negotiate their own encoding above this.
+                  set -s extended-keys on
+                  set -as terminal-features 'xterm*:extkeys'
+
+                  # Vi mode for the prompt line + copy mode.
+                  set -g status-keys vi
+                  set -g mode-keys vi
+                  bind -T copy-mode-vi v send-keys -X begin-selection
+                  bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "wl-copy"
+
+                  # Lean status bar — session + window tabs, NO script churn (gitmux/cpu/battery
+                  # dropped). Load-bearing in Tlön: this is how the pi⇄claude windows show/click.
+                  set -g status-position top
+                  set -g status-interval 15
+                  set -g status-style "bg=default,fg=#FFB000"
+                  set -g status-left " #S "
+                  set -g status-right ""
+                  set -g window-status-current-style "fg=#0a0a0a,bg=#FFB000,bold"
+                  set -g window-status-current-format " #I #W "
+                  set -g window-status-format " #I #W "
+
+                  # Splits + pane nav (prefix chords — the alt- bindings dropped, they clash with
+                  # terminal apps like pi/nvim and aren't worth the surface; re-add if you miss them).
+                  bind | split-window -h -c "#{pane_current_path}"
+                  bind - split-window -v -c "#{pane_current_path}"
+                  bind h select-pane -L
+                  bind j select-pane -D
+                  bind k select-pane -U
+                  bind l select-pane -R
+                  bind r source-file ~/.config/tmux/tmux.conf \; display "Config reloaded!"
+
+                  # Tlön persistence: resurrect + continuum restore the standing session across
+                  # reboots, with the agent panes in the allowlist so they come back.
+                  set -g @continuum-restore 'on'
+                  set -g @continuum-save-interval '10'
+                  set -g @resurrect-capture-pane-contents 'on'
+                  set -g @resurrect-processes 'pi claude "mise exec -- pi" "mise run funes:claude" iex mix nvim vim'
+
+                  # tmux-thumbs: hint-label copy — prefix+F fires hint labels on all visible text.
+                  set -g @thumbs-key F
+                '';
+              };
+
               # pi — the harness (byte-preserved bun binary, above). watchexec backs
               # scripts/watch.sh's change-triggered test runner (runs-on-change, debounce,
               # .gitignore-aware, restart-on-supersede); declared here so the next box has
