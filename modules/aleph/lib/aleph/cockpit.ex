@@ -28,6 +28,10 @@ defmodule Aleph.Cockpit do
   @tick_ms 500
   @tb_output_truecolor 5
 
+  # The standing Tlön machine coworker's funes agent name — a stable, distinct identity so restarts
+  # reuse the same agent and it never collides with a project thread's harness.
+  @machine_agent "pi-machine"
+
   @doc "Start the cockpit and block until the operator quits — the entry point `mix aleph.run` calls."
   @spec run() :: :ok
   def run do
@@ -307,13 +311,24 @@ defmodule Aleph.Cockpit do
   defp stack_read(:tlon), do: %{commits: Aleph.Stack.commits(), tools: Aleph.Stack.tools()}
   defp stack_read(_key), do: %{commits: [], tools: []}
 
-  # The Tlön machine shell — one plain login shell at the cockpit's cwd (the repo), ensured lazily
-  # and idempotently, keyed `:machine` in the registry (it is not a funes thread).
+  # The Tlön machine coworker — a pi session working ON the box, a funes citizen on a persistent
+  # "machine" thread so its work (issues it files, checks it runs) is remembered and triageable.
+  # pi (not claude) by design: Tlön is meta/triage/machine work, the flat-bucket workhorse — claude
+  # stays the deliberate escalation for implementing code (AGENTS.md routing). Spawned once on first
+  # Tlön entry and reused (keyed `:machine`, decoupled from the funes thread id); the fast path is a
+  # bare registry lookup on every render.
   defp machine_terminal do
-    shell = System.get_env("SHELL") || "/bin/bash"
+    case Sessions.terminal(:machine) do
+      pid when is_pid(pid) -> pid
+      nil -> spawn_machine_coworker()
+    end
+  end
 
-    case Sessions.ensure(:machine, cmd: shell, cols: 80, rows: 24) do
-      {:ok, pid} -> pid
+  defp spawn_machine_coworker do
+    with {:ok, %{exports: exports}} <- Spawn.env("Tlön", @machine_agent, mandate: "machine"),
+         {:ok, pid} <- Sessions.spawn_harness(:machine, exports) do
+      pid
+    else
       _error -> nil
     end
   end
