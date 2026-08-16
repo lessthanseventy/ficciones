@@ -13,6 +13,8 @@ defmodule Aleph.Cockpit do
 
   alias Aleph.Board
   alias Aleph.Keymap
+  alias Aleph.Mouse
+  alias Aleph.Panel
   alias Aleph.Sessions
   alias Aleph.Space
   alias Aleph.Terminal
@@ -27,6 +29,9 @@ defmodule Aleph.Cockpit do
   # Redraw cadence for tmux liveness + roster warmth, independent of Bus events.
   @tick_ms 500
   @tb_output_truecolor 5
+  # TB_INPUT_ESC (1) | TB_INPUT_MOUSE (4) = 5 (termbox2.h §309–313): keep ESC-sequence parsing AND
+  # emit mouse events, which the Driver translates into Event{type: :mouse, data: %{x, y, button}}.
+  @tb_input_esc_mouse 5
 
   # The standing Tlön machine coworker's funes agent name — a stable, distinct identity so restarts
   # reuse the same agent and it never collides with a project thread's harness.
@@ -69,6 +74,7 @@ defmodule Aleph.Cockpit do
     case :termbox2_nif.tb_init() do
       0 ->
         :termbox2_nif.tb_set_output_mode(@tb_output_truecolor)
+        :termbox2_nif.tb_set_input_mode(@tb_input_esc_mouse)
         normalize_cursor_keys()
         {:ok, driver} = Raxol.Terminal.Driver.start_link(dispatcher_pid: self())
         # Watch every session terminal — the `s` verb AND the arbiter's autonomous spawn repaint
@@ -87,7 +93,9 @@ defmodule Aleph.Cockpit do
             subscribed_thread: nil,
             center_focused?: false,
             input: nil,
-            flash: nil
+            flash: nil,
+            scrolls: %{},
+            placements: []
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -122,9 +130,28 @@ defmodule Aleph.Cockpit do
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
     # Any keypress clears a prior flash (a spawn/create result), so it shows until you act again.
-    {state, effect} = Keymap.handle(key, %{state | flash: nil})
-    apply_effect(effect, state)
+    {next, effect} = Keymap.handle(key, %{state | flash: nil})
+    # A context switch (space or focused-thread change) resets the panels whose content swaps, so a
+    # new thread's dossier/chat don't inherit the old one's scroll position. (Function-head dispatch
+    # on what changed — house rule.)
+    next = reset_scrolls(state, next)
+    apply_effect(effect, next)
   end
+
+  # A wheel routes to whatever panel is under the cursor: the center terminal forwards to its PTY
+  # or scrolls its scrollback (Aleph.Terminal.wheel/5), a scrollable list panel advances its offset
+  # (clamped to its content height), anything else is ignored.
+  def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: x, y: y, button: b}}}, state)
+      when b in [:wheel_up, :wheel_down], do: dispatch_wheel(Mouse.hit_panel(state.placements, x, y), b, x, y, state)
+
+  # A left click routes to the panel under the cursor and asks it what that row selects — focus a
+  # thread, switch a space — then repaints. Non-selectable panels (Dossier/Stack/Tools, the center
+  # terminal) return nil and the click is a no-op.
+  def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: x, y: y, button: :left}}}, state),
+    do: dispatch_click(Mouse.hit_panel(state.placements, x, y), x, y, state)
+
+  # Any other mouse event (right/middle button, motion) is not handled yet.
+  def handle_cast({:dispatch, %Event{type: :mouse}}, state), do: {:noreply, state}
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
@@ -168,6 +195,83 @@ defmodule Aleph.Cockpit do
   defp refresh_size(state) do
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
   end
+
+  # --- mouse routing (the Cockpit interprets Aleph.Mouse's pure decisions) ---
+
+  defp dispatch_wheel(nil, _b, _x, _y, state), do: {:noreply, state}
+
+  # The center terminal: forward to the embedded app if it tracks the mouse, else scroll scrollback.
+  defp dispatch_wheel({Panel.Terminal, _data, rect}, b, x, y, state) do
+    with term when is_pid(term) <- center_terminal(state),
+         {dir, n} <- Mouse.wheel_of(b) do
+      lx = clamp_cell(x - rect.x, rect.w)
+      ly = clamp_cell(y - rect.y, rect.h)
+      repaint_on_scroll(Terminal.wheel(term, dir, n, lx, ly), state)
+    else
+      _ -> {:noreply, state}
+    end
+  end
+
+  # A scrollable list panel: advance its offset, clamped to its content height, and repaint. A
+  # non-scrollable panel under the wheel (Spaces, a non-center frame) is a no-op.
+  defp dispatch_wheel({panel, data, rect}, b, _x, _y, state),
+    do: scroll_wheel(scrollable?(data), panel, data, rect, b, state)
+
+  defp scroll_wheel(true, panel, data, rect, b, state) do
+    {dir, n} = Mouse.wheel_of(b)
+    content_h = Panel.content_height(panel, data, rect.w)
+    next = Mouse.clamp_offset((state.scrolls[panel] || 0) + scroll_delta(dir, n), content_h, rect.h)
+    {:noreply, render(%{state | scrolls: Map.put(state.scrolls, panel, next)})}
+  end
+
+  defp scroll_wheel(false, _panel, _data, _rect, _b, state), do: {:noreply, state}
+
+  defp scrollable?(data), do: is_map(data) and Map.has_key?(data, :scroll)
+
+  defp scroll_delta(:up, n), do: -n
+  defp scroll_delta(:down, n), do: n
+
+  defp clamp_cell(v, extent), do: v |> max(0) |> min(max(extent - 1, 0))
+
+  defp repaint_on_scroll(:scrolled, state), do: {:noreply, render(state)}
+  defp repaint_on_scroll(:forwarded, state), do: {:noreply, state}
+
+  defp dispatch_click(nil, _x, _y, state), do: {:noreply, state}
+
+  # Clicking the center terminal focuses it — Enter's mouse analogue — so Ctrl+C/Esc reach the
+  # child, not aleph (the Keymap forwards every key while focused; Ctrl+B still releases). Only when
+  # there's a live session to type into; a click on the placeholder does nothing.
+  defp dispatch_click({Panel.Terminal, _data, _rect}, _x, _y, state), do: focus_center(center_terminal(state), state)
+
+  defp dispatch_click({panel, data, rect}, _x, y, state), do: apply_pick(Panel.pick(panel, data, rect, y - rect.y), state)
+
+  defp focus_center(nil, state), do: {:noreply, state}
+
+  defp focus_center(term, state) when is_pid(term), do: {:noreply, render(%{state | center_focused?: true, flash: nil})}
+
+  defp apply_pick(nil, state), do: {:noreply, state}
+
+  # Selecting a thread by click releases center focus — the focused terminal just changed, so
+  # holding focus on the old one would misdirect the next keypress.
+  defp apply_pick({:focus_thread, id}, state) do
+    next = reset_scrolls(state, %{state | focused_id: id, center_focused?: false, flash: nil})
+    {:noreply, render(next)}
+  end
+
+  defp apply_pick({:switch_space, key}, state) do
+    next = reset_scrolls(state, %{state | active_key: key, center_focused?: false, flash: nil})
+    {:noreply, render(next)}
+  end
+
+  # Reset scroll offsets when the context they're relative to changes. A space switch swaps every
+  # panel, so all offsets go; a focus change only swaps the thread-specific panels (Dossier,
+  # Conversation), so just those. Function-head dispatch on what changed — house rule.
+  defp reset_scrolls(%{active_key: a}, %{active_key: a2} = next) when a != a2, do: %{next | scrolls: %{}}
+
+  defp reset_scrolls(%{focused_id: f}, %{focused_id: f2} = next) when f != f2,
+    do: %{next | scrolls: Map.drop(next.scrolls, [Panel.Dossier, Panel.Conversation])}
+
+  defp reset_scrolls(_prev, next), do: next
 
   # --- interpret the reducer's effect (`Aleph.Keymap`) ---
 
@@ -274,16 +378,18 @@ defmodule Aleph.Cockpit do
       chorus: chorus,
       terminal: terminal_read(state, focused),
       stack: stack_read(state.active_key),
+      scrolls: state.scrolls,
       input: state.input,
       flash: state.flash
     }
 
-    reads
-    |> View.compose(state.w, state.h)
+    placements = View.compose(reads, state.w, state.h)
+
+    placements
     |> Board.compose(state.w, state.h)
     |> Board.paint()
 
-    state
+    %{state | placements: placements}
   end
 
   defp focused(state), do: focused_thread(state.threads, state.focused_id)
