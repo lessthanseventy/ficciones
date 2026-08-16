@@ -500,6 +500,59 @@ defmodule Funes.MCP.Tool.RecordCheck do
   end
 end
 
+defmodule Funes.MCP.Tool.RecheckFact do
+  @moduledoc """
+  Re-verify a fact by re-running its OWN `check_cmd` — is the claim you are about to
+  build on STILL true? Run the fact's command yourself (via `cap`) and report the real
+  `exit` code; funes lands a check keyed on that number and correlated to the fact, so a
+  `check_failed` is the drift signal that a "checked" fact has gone stale. You give the
+  fact `id` and the result, never a command — the command is the fact's own, pinned, so a
+  re-verification cannot quietly prove a DIFFERENT claim. A fact with no `check_cmd` is
+  unverifiable and is refused rather than faked.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Dossier
+  alias Funes.Fact
+  alias Funes.MCP
+
+  schema do
+    field :id, :integer, required: true, description: "The fact id (from the brief or get_facts)"
+
+    field :exit, :integer,
+      required: true,
+      description: "The real exit code of re-running its check_cmd (0 = still passes)"
+
+    field :tail, :string, description: "A short tail of the output"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    thread_id = MCP.Identity.from_frame(frame).thread_id
+
+    case Dossier.fact(params[:id]) do
+      %Fact{thread_id: ^thread_id} = fact ->
+        case Dossier.recheck_fact(fact, %{exit: params[:exit], tail: Map.get(params, :tail)}) do
+          {:ok, event} ->
+            {:reply, Response.json(Response.tool(), %{"event_id" => event.id, "kind" => event.kind}), frame}
+
+          {:error, :no_check_cmd} ->
+            {:reply, Response.error(Response.tool(), "fact #{params[:id]} has no check_cmd — nothing to re-run"), frame}
+
+          {:error, changeset} ->
+            {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+        end
+
+      nil ->
+        {:reply, Response.error(Response.tool(), "no such fact: #{params[:id]}"), frame}
+
+      %Fact{} ->
+        {:reply, Response.error(Response.tool(), "that fact is on another thread"), frame}
+    end
+  end
+end
+
 defmodule Funes.MCP.Tool.OpenThread do
   @moduledoc """
   Open a NEW thread — a fresh unit of work. One of the two DELIBERATE cross-thread verbs:

@@ -80,6 +80,7 @@ defmodule Funes.MCP.ServerTest do
                "raise_question",
                "resolve_question",
                "record_check",
+               "recheck_fact",
                "open_thread",
                "close_thread",
                "get_dossier",
@@ -277,6 +278,59 @@ defmodule Funes.MCP.ServerTest do
     brief = decode_tool_json(call(token, session, 6, "get_dossier", %{}))
     assert Enum.any?(brief["checks"]["shown"], &(&1["cmd"] == "mix test" and &1["passed"] == false))
     assert Enum.any?(brief["checks"]["shown"], &(&1["cmd"] == "mise run check" and &1["passed"] == true))
+  end
+
+  test "recheck_fact — re-verify a fact's OWN check_cmd over the wire (drift signal)",
+       %{thread: thread, token: token} do
+    {:ok, fact} =
+      Dossier.bank_fact(%{
+        thread_id: thread.id,
+        kind: "learned",
+        text: "the drain re-delivers on restart",
+        provenance: "derived",
+        check_cmd: "mix test test/funes/switchboard_test.exs"
+      })
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    ok = call(token, session, 4, "recheck_fact", %{"id" => fact.id, "exit" => 0, "tail" => "3 tests, 0 failures"})
+    refute ok["isError"]
+    assert decode_tool_json(ok)["kind"] == "check_passed"
+
+    # the re-verification surfaces in CHECKS, pinned to the fact's OWN check_cmd
+    brief = decode_tool_json(call(token, session, 5, "get_dossier", %{}))
+    assert Enum.any?(brief["checks"]["shown"], &(&1["cmd"] == fact.check_cmd and &1["passed"] == true))
+  end
+
+  test "recheck_fact refuses a fact on another thread — identity scoping", %{token: token} do
+    {:ok, other} = Channel.open_thread(%{title: "elsewhere"})
+
+    {:ok, foreign} =
+      Dossier.bank_fact(%{
+        thread_id: other.id,
+        kind: "learned",
+        text: "not yours",
+        provenance: "derived",
+        check_cmd: "true"
+      })
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+    result = call(token, session, 4, "recheck_fact", %{"id" => foreign.id, "exit" => 0})
+
+    assert result["isError"]
+  end
+
+  test "recheck_fact refuses a fact with no check_cmd — nothing to re-run", %{thread: thread, token: token} do
+    {:ok, opinion} =
+      Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "an unverifiable hunch", provenance: "derived"})
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+    result = call(token, session, 4, "recheck_fact", %{"id" => opinion.id, "exit" => 0})
+
+    assert result["isError"]
   end
 
   test "raise_question / resolve_question — UNKNOWNS over the wire", %{token: token} do

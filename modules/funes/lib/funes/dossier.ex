@@ -100,6 +100,9 @@ defmodule Funes.Dossier do
     Repo.all(from f in Fact, where: f.thread_id == ^thread.id, order_by: [desc: f.id])
   end
 
+  @doc "A fact by id, or nil — the load path for `recheck_fact`, scope-checked by its tool."
+  def fact(id), do: Repo.get(Fact, id)
+
   @doc "Record an append-only event. `{:ok, event}` or `{:error, changeset}`."
   def record_event(attrs) do
     attrs |> Event.record_changeset() |> Repo.insert() |> Bus.announce(:event_recorded)
@@ -234,8 +237,49 @@ defmodule Funes.Dossier do
     record_event(%{
       thread_id: attrs[:thread_id],
       kind: kind,
+      correlation: attrs[:correlation],
       detail: %{"cmd" => attrs[:cmd], "exit" => exit, "tail" => attrs[:tail]}
     })
+  end
+
+  @doc """
+  Re-verify a fact by re-running its OWN `check_cmd` (fact re-verification): the check
+  is keyed on the real exit code and CORRELATED to the fact (`correlation: "fact:<id>"`),
+  so a reader can tell "checked once, long ago" from "still passes" — and a `check_failed`
+  is the drift signal that a claim `certainty` still calls `checked` has gone stale. The
+  recorded `cmd` is PINNED to the fact's `check_cmd`; the agent re-runs it (via `cap`) and
+  reports `exit`/`tail`, but cannot substitute a different command for the claim it proves.
+
+  A fact with no `check_cmd` is unverifiable by construction (§4: `derived` WITHOUT a check
+  ranks lowest) — there is nothing to re-run, so it is refused rather than faked.
+  `{:ok, event}`, `{:error, :no_check_cmd}`, or `{:error, changeset}`.
+  """
+  def recheck_fact(%Fact{check_cmd: nil}, _attrs), do: {:error, :no_check_cmd}
+
+  def recheck_fact(%Fact{check_cmd: cmd} = fact, %{exit: exit} = attrs) do
+    record_check(%{
+      thread_id: fact.thread_id,
+      cmd: cmd,
+      exit: exit,
+      tail: attrs[:tail],
+      correlation: "fact:#{fact.id}"
+    })
+  end
+
+  @doc """
+  A fact's re-verification trail: the `check_passed`/`check_failed` events correlated to
+  it, `%{shown, more}`, newest first, capped and counted like every check read. The head
+  is the fact's CURRENT verification state — green if its command still passes, red if it
+  has drifted. Other facts' checks and free-floating thread checks are excluded.
+  """
+  def checks_for_fact(%Fact{} = fact) do
+    correlation = "fact:#{fact.id}"
+    checks = from e in Event, where: e.correlation == ^correlation and e.kind in @check_kinds
+
+    shown = Repo.all(from e in checks, order_by: [desc: e.id], limit: @check_cap)
+    total = Repo.aggregate(checks, :count, :id)
+
+    %{shown: shown, more: total - length(shown)}
   end
 
   @doc """
