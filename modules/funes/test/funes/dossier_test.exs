@@ -396,6 +396,56 @@ defmodule Funes.DossierTest do
     end
   end
 
+  describe "bank_stated_fact/2 — the capture path made mechanical (pi doc §2a)" do
+    # `stated` outranks everything (§4), so it must be unreachable by paraphrase:
+    # a stated fact is banked FROM an operator-authored message row, quoting it
+    # verbatim — the fact cites the words that state it. An agent's rewording, or
+    # an agent quoting another agent, is the laundering the provenance order
+    # exists to prevent, and here it is refused mechanically rather than by rule.
+    setup do
+      {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
+      %{thread: thread}
+    end
+
+    test "banks the operator's message verbatim as a stated fact on its thread", %{
+      thread: thread
+    } do
+      {:ok, message} =
+        Channel.post(%{
+          thread_id: thread.id,
+          author: "andrew",
+          body: "never retry order 1149702 without asking me"
+        })
+
+      {:ok, fact} = Dossier.bank_stated_fact(message, %{kind: "constraint"})
+
+      reloaded = Repo.get!(Fact, fact.id)
+      assert reloaded.text == "never retry order 1149702 without asking me"
+      assert reloaded.provenance == "stated"
+      assert reloaded.kind == "constraint"
+      assert reloaded.thread_id == thread.id
+    end
+
+    test "refuses a message the operator did not author", %{thread: thread} do
+      {:ok, message} =
+        Channel.post(%{thread_id: thread.id, author: "Carl", body: "I think we should ship it"})
+
+      assert {:error, :not_the_operator} =
+               Dossier.bank_stated_fact(message, %{kind: "constraint"})
+
+      assert Repo.aggregate(Fact, :count, :id) == 0
+    end
+
+    test "operator matching is case-insensitive — a mis-cased handle is still him", %{
+      thread: thread
+    } do
+      {:ok, message} =
+        Channel.post(%{thread_id: thread.id, author: "Andrew", body: "tabs, not splits"})
+
+      assert {:ok, _fact} = Dossier.bank_stated_fact(message, %{kind: "constraint"})
+    end
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
   end

@@ -52,6 +52,14 @@ defmodule Funes.MixProject do
       # The switchboard's liveness layer (§10): PubSub fans a posted message out to
       # internal consumers. SQLite stays the truth; this only makes it live.
       {:phoenix_pubsub, "~> 2.1"},
+      # The sovereign channel (pi doc §2a): funes' MCP server. Anubis owns the
+      # protocol lifecycle (JSON-RPC, sessions, auth, version negotiation) so it
+      # cannot drift from the MCP spec under our hands; the tools themselves stay
+      # thin callers of the contexts — no mirror, one writer.
+      {:anubis_mcp, "~> 2.0"},
+      # Serves the StreamableHTTP plug, loopback-only. Plumbing, not design — the
+      # channel's contract is MCP, whatever serves it.
+      {:bandit, "~> 1.0"},
       # Static analysis, part of the precommit gate.
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]

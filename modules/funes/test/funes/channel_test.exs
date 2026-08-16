@@ -166,6 +166,16 @@ defmodule Funes.ChannelTest do
     end
   end
 
+  describe "message/1" do
+    test "returns the message row, or nil — the from_message hook for stated facts" do
+      {:ok, thread} = Channel.open_thread(%{title: "t"})
+      {:ok, posted} = Channel.post(%{thread_id: thread.id, author: "andrew", body: "verbatim"})
+
+      assert %Funes.Message{body: "verbatim"} = Channel.message(posted.id)
+      assert Channel.message(999_999) == nil
+    end
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
   end

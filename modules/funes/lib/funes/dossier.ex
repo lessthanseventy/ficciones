@@ -12,7 +12,7 @@ defmodule Funes.Dossier do
   caps today, because §5 makes its capped read the acceptance test that must exist now.
   """
   import Ecto.Query
-  alias Funes.{Bus, Event, Fact, Issue, Repo, Thread}
+  alias Funes.{Bus, Event, Fact, Issue, Message, Repo, Thread}
 
   # orient shows at most five open issues per thread; the rest is a number, never a
   # complete-and-useless list (§5 rank-and-cut, §1).
@@ -21,6 +21,33 @@ defmodule Funes.Dossier do
   @doc "Bank a durable fact. `{:ok, fact}` or `{:error, changeset}`."
   def bank_fact(attrs) do
     attrs |> Fact.bank_changeset() |> Repo.insert() |> Bus.announce(:fact_banked)
+  end
+
+  @doc """
+  Bank a STATED fact from the operator's own message — §4's capture path made
+  mechanical (pi doc §2a). `stated` outranks everything by construction, so it is
+  reachable only THROUGH a message row: the fact quotes the message body VERBATIM
+  and is scoped to the message's thread. The message must be authored by the
+  operator (config `:operator`, case-insensitive) — an agent's paraphrase, or an
+  agent quoted by another agent, laundered into the owner's instruction is the one
+  abuse the provenance ordering makes possible, refused here rather than by rule.
+  `attrs` carries the judgement half (`kind`, optionally `check_cmd`/`incident`).
+  Returns `{:ok, fact}`, `{:error, :not_the_operator}`, or `{:error, changeset}`.
+  """
+  def bank_stated_fact(%Message{} = message, attrs) do
+    operator = Application.get_env(:funes, :operator, "andrew")
+
+    if String.downcase(message.author) == String.downcase(operator) do
+      attrs
+      |> Map.merge(%{
+        text: message.body,
+        provenance: "stated",
+        thread_id: message.thread_id
+      })
+      |> bank_fact()
+    else
+      {:error, :not_the_operator}
+    end
   end
 
   @doc """

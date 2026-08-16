@@ -1,0 +1,379 @@
+defmodule Funes.MCP.ServerTest do
+  # The sovereign channel, proven END TO END over the wire (pi doc §2a/§4): a raw
+  # JSON-RPC client — deliberately NOT the anubis client, which would only prove
+  # anubis agrees with itself ("a test that reads our own files proves only that
+  # we were consistent", §8) — initializes, registers, and drives every slice-1
+  # tool; every assertion reads back through SQLite. Bandit serves loopback-only.
+  use ExUnit.Case, async: false
+
+  import Ecto.Query
+
+  alias Funes.{Channel, Dossier, Fact, Issue, MCP, Message, Presence, Repo, Session, Staff}
+
+  @port 48_631
+  @url ~c"http://127.0.0.1:48631/mcp"
+
+  setup_all do
+    {:ok, _} = Application.ensure_all_started(:inets)
+    :ok
+  end
+
+  setup do
+    Funes.TestDB.clean!()
+    start_supervised!(MCP.Tokens)
+    start_supervised!({MCP.Server, transport: :streamable_http})
+
+    start_supervised!(
+      {Bandit,
+       plug: {Anubis.Server.Transport.StreamableHTTP.Plug, server: MCP.Server},
+       ip: {127, 0, 0, 1},
+       port: @port}
+    )
+
+    {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
+    {:ok, agent} = Staff.register_agent(%{name: "Carl", mandate: "review", engine: "fresh"})
+    token = MCP.Tokens.mint(thread, agent)
+
+    %{thread: thread, agent: agent, token: token}
+  end
+
+  test "a request with no bearer token is refused with 401", %{} do
+    {status, _headers, _body} = post(nil, nil, initialize_request())
+    assert status == 401
+  end
+
+  test "a token this node never minted is refused with 401" do
+    {status, _headers, _body} = post("counterfeit", nil, initialize_request())
+    assert status == 401
+  end
+
+  test "the full slice-1 loop: initialize, register, post, bank, raise, done, read back",
+       %{thread: thread, agent: agent, token: token} do
+    # -- initialize: the MCP handshake; the session id comes back in a header.
+    {200, headers, %{"result" => init}} = post(token, nil, initialize_request())
+    assert init["serverInfo"]["name"] == "funes"
+    session = header(headers, "mcp-session-id")
+    assert is_binary(session)
+
+    {status, _, _} = post(token, session, notification("notifications/initialized"))
+    assert status in [200, 202]
+
+    # -- tools/list: the slice-1 surface, visible to any MCP client.
+    {200, _, %{"result" => %{"tools" => tools}}} = post(token, session, request(2, "tools/list"))
+    names = Enum.map(tools, & &1["name"]) |> Enum.sort()
+
+    assert names ==
+             Enum.sort([
+               "register",
+               "post_message",
+               "bank_fact",
+               "raise_issue",
+               "record_done",
+               "get_dossier",
+               "get_facts",
+               "get_messages"
+             ])
+
+    # -- register: claims a session for the token's OWN (thread, agent) — no
+    # thread parameter exists to misdirect.
+    result = call(token, session, 3, "register", %{"pane_ref" => "w4H:pJ"})
+    refute result["isError"]
+
+    db_session = Staff.session_for_thread(thread)
+    assert db_session.agent_id == agent.id
+    assert db_session.pane_ref == "w4H:pJ"
+
+    # -- post_message: author is the bound agent, never a parameter.
+    result = call(token, session, 4, "post_message", %{"body" => "starting the review"})
+    refute result["isError"]
+
+    [message] = Repo.all(Message)
+    assert message.author == "Carl"
+    assert message.body == "starting the review"
+    assert message.thread_id == thread.id
+
+    # -- bank_fact, derived: an agent's own finding defaults to derived — an
+    # agent is never the owner — and cites its banking session.
+    result =
+      call(token, session, 5, "bank_fact", %{
+        "kind" => "learned",
+        "text" => "the flaky test is a race in drain/0",
+        "check_cmd" => "mix test test/funes/switchboard_test.exs"
+      })
+
+    refute result["isError"]
+
+    derived = Repo.one!(from(f in Fact, where: f.provenance == "derived"))
+    assert derived.text == "the flaky test is a race in drain/0"
+    assert derived.check_cmd == "mix test test/funes/switchboard_test.exs"
+    assert derived.source_session_id == db_session.id
+
+    # -- bank_fact, stated: reachable ONLY via the operator's own message row,
+    # quoted verbatim (§4's capture path, made mechanical).
+    {:ok, his} =
+      Channel.post(%{thread_id: thread.id, author: "andrew", body: "tabs, not splits"})
+
+    result =
+      call(token, session, 6, "bank_fact", %{
+        "kind" => "constraint",
+        "from_message" => his.id
+      })
+
+    refute result["isError"]
+
+    stated = Repo.one!(from(f in Fact, where: f.provenance == "stated"))
+    assert stated.text == "tabs, not splits"
+
+    # -- and NOT via an agent's message: quoting Carl is not the owner's word.
+    result =
+      call(token, session, 7, "bank_fact", %{
+        "kind" => "constraint",
+        "from_message" => message.id
+      })
+
+    assert result["isError"]
+
+    # -- nor from a message on ANOTHER thread: the connection's thread is the law.
+    {:ok, elsewhere} = Channel.open_thread(%{title: "other"})
+
+    {:ok, foreign} =
+      Channel.post(%{thread_id: elsewhere.id, author: "andrew", body: "unrelated"})
+
+    result =
+      call(token, session, 8, "bank_fact", %{
+        "kind" => "constraint",
+        "from_message" => foreign.id
+      })
+
+    assert result["isError"]
+
+    # -- raise_issue: the STACK's tracker; found_by is the bound agent.
+    result =
+      call(token, session, 9, "raise_issue", %{
+        "summary" => "termbox NIF crashes on resize",
+        "evidence" => "aleph pane, 2026-08-15 session"
+      })
+
+    refute result["isError"]
+
+    [issue] = Repo.all(Issue)
+    assert issue.found_by == "Carl"
+    assert issue.thread_id == thread.id
+
+    # -- record_done: a done claim carries its evidence ("a claim that something
+    # works is backed by having run it").
+    result =
+      call(token, session, 10, "record_done", %{
+        "text" => "review shipped",
+        "evidence" => "mise run check → 99 tests, 0 failures"
+      })
+
+    refute result["isError"]
+
+    # -- get_dossier: the brief reads back everything above, with counts and the
+    # read-time certainty rank on every fact (§4a: the certainty axis is a query).
+    result = call(token, session, 11, "get_dossier", %{})
+    refute result["isError"]
+    brief = decode_tool_json(result)
+
+    assert brief["north_star"] == "review PR 329"
+    assert brief["learnings"]["more"] == 0
+    texts = Enum.map(brief["learnings"]["shown"], & &1["text"])
+    assert "tabs, not splits" in texts
+
+    certainties =
+      Map.new(brief["learnings"]["shown"], fn f -> {f["text"], f["certainty"]} end)
+
+    assert certainties["tabs, not splits"] == "stated"
+    assert certainties["the flaky test is a race in drain/0"] == "checked"
+
+    assert Enum.any?(brief["blockers"]["shown"], &(&1["summary"] =~ "termbox"))
+    assert Enum.any?(brief["shipped"]["shown"], &(&1["summary"] == "review shipped"))
+    assert Enum.any?(brief["chatter"], &(&1["body"] == "starting the review"))
+  end
+
+  test "an unchecked derived fact reads back as an opinion — the §4a query", %{token: token} do
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    call(token, session, 4, "bank_fact", %{
+      "kind" => "learned",
+      "text" => "the footer flicker is probably the double repaint"
+    })
+
+    brief = decode_tool_json(call(token, session, 5, "get_dossier", %{}))
+    [fact] = brief["learnings"]["shown"]
+    assert fact["certainty"] == "opinion"
+    assert fact["check_cmd"] == nil
+  end
+
+  test "every authenticated call is measured activity — warmth bumps without a heartbeat",
+       %{thread: thread, token: token} do
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    # Backdate the session cold (an hour past the warmth window), then make ONE
+    # ordinary tool call: the call arriving at funes IS the activity.
+    db_session = Staff.session_for_thread(thread)
+    cold = DateTime.add(DateTime.utc_now(), -7200, :second) |> DateTime.truncate(:second)
+
+    Repo.update_all(from(s in Session, where: s.id == ^db_session.id),
+      set: [last_active_at: cold]
+    )
+
+    call(token, session, 4, "get_dossier", %{})
+
+    reloaded = Repo.get!(Session, db_session.id)
+    assert Presence.warm?(reloaded.last_active_at)
+  end
+
+  test "get_facts returns the full corpus past the brief's cap", %{thread: thread, token: token} do
+    session = handshake(token)
+
+    for n <- 1..7 do
+      {:ok, _} =
+        Dossier.bank_fact(%{
+          thread_id: thread.id,
+          kind: "learned",
+          text: "fact #{n}",
+          provenance: "derived"
+        })
+    end
+
+    facts = decode_tool_json(call(token, session, 3, "get_facts", %{}))
+    assert length(facts) == 7
+  end
+
+  test "the dossier and the always-loaded constraints are readable as MCP resources",
+       %{thread: thread, token: token} do
+    # The free half of anubis: the same single reads (Board.in_scope,
+    # Dossier.always_loaded_constraints) exposed on the resources primitive — a
+    # second protocol DOOR, never a second source. The extension reads the
+    # resource to brief; the model calls the tool to refresh.
+    session = handshake(token)
+
+    {:ok, _} =
+      Dossier.bank_fact(%{
+        thread_id: thread.id,
+        kind: "learned",
+        text: "a thread learning",
+        provenance: "derived"
+      })
+
+    {:ok, _} =
+      Dossier.bank_fact(%{
+        kind: "constraint",
+        text: "in production, Andrew presses Enter",
+        provenance: "stated"
+      })
+
+    {200, _, %{"result" => %{"resources" => resources}}} =
+      post(token, session, request(3, "resources/list"))
+
+    uris = Enum.map(resources, & &1["uri"]) |> Enum.sort()
+    assert uris == ["funes://constraints", "funes://dossier"]
+
+    {200, _, %{"result" => %{"contents" => [dossier]}}} =
+      post(token, session, request(4, "resources/read", %{"uri" => "funes://dossier"}))
+
+    brief = JSON.decode!(dossier["text"])
+    assert brief["north_star"] == "review PR 329"
+    assert Enum.any?(brief["learnings"]["shown"], &(&1["text"] == "a thread learning"))
+
+    {200, _, %{"result" => %{"contents" => [constraints]}}} =
+      post(token, session, request(5, "resources/read", %{"uri" => "funes://constraints"}))
+
+    loaded = JSON.decode!(constraints["text"])
+    assert Enum.any?(loaded, &(&1["text"] == "in production, Andrew presses Enter"))
+    assert Enum.all?(loaded, &(&1["certainty"] == "stated"))
+  end
+
+  # -- helpers ---------------------------------------------------------------
+
+  defp handshake(token) do
+    {200, headers, _} = post(token, nil, initialize_request())
+    session = header(headers, "mcp-session-id")
+    post(token, session, notification("notifications/initialized"))
+    session
+  end
+
+  defp call(token, session, id, tool, arguments) do
+    {200, _, %{"result" => result}} =
+      post(
+        token,
+        session,
+        request(id, "tools/call", %{"name" => tool, "arguments" => arguments})
+      )
+
+    result
+  end
+
+  # A tool that replies JSON does so as text content; decode the first text blob.
+  defp decode_tool_json(%{"content" => content}) do
+    %{"text" => text} = Enum.find(content, &(&1["type"] == "text"))
+    JSON.decode!(text)
+  end
+
+  defp initialize_request do
+    request(1, "initialize", %{
+      "protocolVersion" => "2025-03-26",
+      "capabilities" => %{},
+      "clientInfo" => %{"name" => "funes-test", "version" => "0.0.0"}
+    })
+  end
+
+  defp request(id, method, params \\ nil) do
+    %{"jsonrpc" => "2.0", "id" => id, "method" => method}
+    |> then(&if params, do: Map.put(&1, "params", params), else: &1)
+  end
+
+  defp notification(method) do
+    %{"jsonrpc" => "2.0", "method" => method}
+  end
+
+  defp post(token, session, body) do
+    headers =
+      [{~c"accept", ~c"application/json, text/event-stream"}] ++
+        if(token, do: [{~c"authorization", String.to_charlist("Bearer " <> token)}], else: []) ++
+        if session, do: [{~c"mcp-session-id", String.to_charlist(session)}], else: []
+
+    {:ok, {{_http, status, _reason}, resp_headers, resp_body}} =
+      :httpc.request(
+        :post,
+        {@url, headers, ~c"application/json", JSON.encode!(body)},
+        [],
+        body_format: :binary
+      )
+
+    {status, resp_headers, decode_body(resp_headers, resp_body)}
+  end
+
+  # A StreamableHTTP response is JSON or a one-shot SSE stream; accept both.
+  defp decode_body(headers, body) do
+    content_type = to_string(header(headers, "content-type") || "")
+
+    cond do
+      body in [nil, "", []] ->
+        nil
+
+      String.contains?(content_type, "event-stream") ->
+        body |> to_string() |> String.split("\n") |> Enum.find_value(&sse_data/1)
+
+      true ->
+        JSON.decode!(to_string(body))
+    end
+  end
+
+  defp sse_data(line) do
+    case String.trim_leading(line, "data: ") do
+      ^line -> nil
+      data -> JSON.decode!(data)
+    end
+  end
+
+  defp header(headers, name) do
+    Enum.find_value(headers, fn {k, v} ->
+      if String.downcase(to_string(k)) == name, do: to_string(v)
+    end)
+  end
+end

@@ -46,6 +46,13 @@ defmodule Funes.Channel do
   end
 
   @doc """
+  The message with this id, or nil. The `from_message` hook for stated facts
+  (`Dossier.bank_stated_fact/2`): a caller quotes a message by reference, never
+  by paraphrase.
+  """
+  def message(id), do: Repo.get(Message, id)
+
+  @doc """
   A thread's messages in the order they were posted. Ordered by id, which is the
   true insertion order under §4's single writer — never by `created_at`, whose
   second resolution can tie.
