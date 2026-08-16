@@ -12,11 +12,13 @@ defmodule Aleph.View do
   alias Aleph.{Panel, Workspace}
 
   @min_col 16
+  # The bottom footer: an info line + a hints line (Aleph.Panel.StatusBar).
+  @status_h 2
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
   def compose(reads, w, h) do
     ws = Workspace.fetch(reads.active_key)
-    body_h = max(h - 1, 1)
+    body_h = max(h - @status_h, 1)
 
     left_w = clamp_col(div(w, 4), w)
     right_w = clamp_col(div(w, 4), w)
@@ -42,7 +44,8 @@ defmodule Aleph.View do
       {Panel.Rule, nil, %{x: rule2_x, y: 0, w: 1, h: body_h}}
     ]
 
-    status = {Panel.StatusBar, status_data(reads, ws), %{x: 0, y: h - 1, w: w, h: 1}}
+    status =
+      {Panel.StatusBar, status_data(reads, ws), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
 
     panels ++ rules ++ [status]
   end
@@ -56,7 +59,14 @@ defmodule Aleph.View do
   def data_for(Panel.Session, r), do: r.session
   def data_for(_other, _r), do: nil
 
-  defp status_data(reads, ws), do: %{workspace: ws.label, thread: reads.focused_title}
+  defp status_data(reads, ws) do
+    %{
+      workspace: ws.label,
+      thread: reads.focused_title,
+      thread_count: length(reads.threads),
+      live_count: Enum.count(reads.roster, & &1.warm?)
+    }
+  end
 
   # Stack panels vertically in a column: the picker takes a fixed height, the rest split the
   # remainder evenly (the last absorbs the rounding remainder so no row is left unpainted).

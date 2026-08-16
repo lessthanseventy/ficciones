@@ -30,7 +30,11 @@ defmodule Aleph.Style do
     dim: {0x9A803F, @bg},
     separator: {0xB5651D, @bg},
     selected: {0xFFF4C2, @sel},
-    selected_accent: {0xFFFFFF, @sel}
+    selected_accent: {0xFFFFFF, @sel},
+    # Status-line chips: inverse-video tabs on the phosphors, dark text on a bright field.
+    tab: {0xFFFFFF, @sel},
+    stat: {@bg, @amber},
+    stat_live: {@bg, @green}
   }
 
   @doc "The `{fg, bg}` truecolor pair for a semantic style. Unknown styles fall back to `:normal`."

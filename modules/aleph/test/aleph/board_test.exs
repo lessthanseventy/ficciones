@@ -119,6 +119,49 @@ defmodule Aleph.BoardTest do
     end
   end
 
+  describe "status bar" do
+    defp status(overrides \\ %{}) do
+      Map.merge(
+        %{workspace: "Terminal", thread: "flaky test hunt", thread_count: 3, live_count: 1},
+        overrides
+      )
+    end
+
+    test "info line shows the workspace, thread, and global counts" do
+      assert [info, _hints] = StatusBar.render(status(), %{x: 0, y: 0, w: 120, h: 2})
+      joined = text(info)
+      assert joined =~ "Terminal"
+      assert joined =~ "flaky test hunt"
+      # the underused right side now carries global state
+      assert joined =~ "3 threads"
+      assert joined =~ "1 live"
+    end
+
+    test "hints line is always present on the bottom row" do
+      assert [_info, hints] = StatusBar.render(status(), %{x: 0, y: 0, w: 120, h: 2})
+      joined = text(hints)
+      assert joined =~ "quit"
+      assert joined =~ "thread"
+    end
+
+    test "the info line fills the width without flooding it with a chip background" do
+      w = 120
+      assert [info, _hints] = StatusBar.render(status(), %{x: 0, y: 0, w: w, h: 2})
+      # padded to the full width...
+      assert Panel.row_width(info) == w
+      # ...but the wide gap is neutral, never a chip/selection background (the old full-bar flood)
+      refute Enum.any?(info, fn {t, s} ->
+               s != :normal and String.trim(t) == "" and String.length(t) >= 3
+             end)
+    end
+
+    test "the workspace renders as a discrete tab chip" do
+      assert [info, _hints] = StatusBar.render(status(), %{x: 0, y: 0, w: 120, h: 2})
+      chip = Enum.find(info, fn {t, s} -> s == :tab and t =~ "Terminal" end)
+      assert chip, "workspace should render as a :tab chip"
+    end
+  end
+
   describe "clip" do
     test "clips rows to height and each row to width" do
       rows = [Panel.line("a very long header line", :header)]
