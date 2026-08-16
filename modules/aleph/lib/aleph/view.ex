@@ -23,31 +23,39 @@ defmodule Aleph.View do
     left_w = clamp_col(div(w, 4), w)
     right_w = clamp_col(div(w, 4), w)
     center_w = max(w - left_w - right_w - 2, 1)
-    rule1_x = left_w
     center_x = left_w + 1
-    rule2_x = center_x + center_w
-    right_x = rule2_x + 1
+    right_x = center_x + center_w + 1
     right_w = max(w - right_x, 1)
 
-    left_panels = [Panel.Workspaces | ws.left]
-    left = stack(left_panels, 0, left_w, body_h)
-    right = stack(ws.right, right_x, right_w, body_h)
     {center_panel, _key} = ws.surface
-    center = [{center_panel, %{x: center_x, y: 0, w: center_w, h: body_h}}]
 
-    panels =
-      (left ++ center ++ right)
-      |> Enum.map(fn {panel, rect} -> {panel, data_for(panel, reads), rect} end)
-
-    rules = [
-      {Panel.Rule, nil, %{x: rule1_x, y: 0, w: 1, h: body_h}},
-      {Panel.Rule, nil, %{x: rule2_x, y: 0, w: 1, h: body_h}}
+    # Each column is a bordered box; a 1-col gap between boxes replaces the old vertical rules.
+    columns = [
+      {%{x: 0, y: 0, w: left_w, h: body_h}, [Panel.Workspaces | ws.left]},
+      {%{x: center_x, y: 0, w: center_w, h: body_h}, [center_panel]},
+      {%{x: right_x, y: 0, w: right_w, h: body_h}, ws.right}
     ]
+
+    borders = Enum.map(columns, fn {rect, _panels} -> {Panel.Border, nil, rect} end)
+
+    contents =
+      columns
+      |> Enum.flat_map(fn {rect, panels} ->
+        %{x: ix, y: iy, w: iw, h: ih} = inset(rect)
+        stack(panels, ix, iy, iw, ih)
+      end)
+      |> Enum.map(fn {panel, rect} -> {panel, data_for(panel, reads), rect} end)
 
     status =
       {Panel.StatusBar, status_data(reads, ws), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
 
-    panels ++ rules ++ [status]
+    # Borders first: panel content paints over the box interior, leaving only the frame.
+    borders ++ contents ++ [status]
+  end
+
+  # The content region inside a column box: one cell of frame + one of padding on each side.
+  defp inset(%{x: x, y: y, w: w, h: h}) do
+    %{x: x + 2, y: y + 1, w: max(w - 4, 1), h: max(h - 2, 1)}
   end
 
   @doc "Resolve the data a panel is fed from the assembled reads (keeps workspaces plain data)."
@@ -70,14 +78,14 @@ defmodule Aleph.View do
 
   # Stack panels vertically in a column: the picker takes a fixed height, the rest split the
   # remainder evenly (the last absorbs the rounding remainder so no row is left unpainted).
-  defp stack([], _x, _w, _h), do: []
+  defp stack([], _x, _y0, _w, _h), do: []
 
-  defp stack(panels, x, w, total_h) do
+  defp stack(panels, x, y0, w, total_h) do
     heights = split_heights(panels, total_h)
 
     {placed, _y} =
       Enum.zip(panels, heights)
-      |> Enum.map_reduce(0, fn {panel, ph}, y ->
+      |> Enum.map_reduce(y0, fn {panel, ph}, y ->
         {{panel, %{x: x, y: y, w: w, h: ph}}, y + ph}
       end)
 

@@ -17,10 +17,10 @@ defmodule Aleph.BoardTest do
   alias Aleph.{Board, Panel, View}
 
   alias Aleph.Panel.{
+    Border,
     Conversation,
     Dossier,
     Roster,
-    Rule,
     Session,
     StatusBar,
     ThreadList,
@@ -162,6 +162,23 @@ defmodule Aleph.BoardTest do
     end
   end
 
+  describe "border box" do
+    test "draws a rounded box framing the whole rect" do
+      rows = Border.render(nil, %{x: 0, y: 0, w: 6, h: 4})
+      assert length(rows) == 4
+      assert text(Enum.at(rows, 0)) == "╭────╮"
+      assert text(Enum.at(rows, 3)) == "╰────╯"
+      mid = Enum.at(rows, 1)
+      assert text(mid) == "│    │"
+      # the frame is drawn in the separator style; the interior is neutral
+      assert {"│", :separator} = hd(mid)
+    end
+
+    test "degenerates safely below 2×2" do
+      assert Border.render(nil, %{x: 0, y: 0, w: 1, h: 5}) == []
+    end
+  end
+
   describe "clip" do
     test "clips rows to height and each row to width" do
       rows = [Panel.line("a very long header line", :header)]
@@ -171,7 +188,7 @@ defmodule Aleph.BoardTest do
   end
 
   describe "view composition" do
-    test "terminal workspace: picker, tmux surface, two rules, status bar — all in bounds" do
+    test "terminal workspace: picker, tmux surface, three column boxes, status bar — all in bounds" do
       placements = View.compose(reads(), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
 
@@ -179,13 +196,21 @@ defmodule Aleph.BoardTest do
       assert Session in mods
       assert Dossier in mods
       assert StatusBar in mods
-      assert Enum.count(mods, &(&1 == Rule)) == 2
+      # one bordered box per column (left / center / right)
+      assert Enum.count(mods, &(&1 == Border)) == 3
 
       Enum.each(placements, fn {_m, _d, r} ->
         assert r.x >= 0 and r.y >= 0
         assert r.x + r.w <= 120
         assert r.y + r.h <= 40
       end)
+    end
+
+    test "content sits inside its column box, not against the frame" do
+      placements = View.compose(reads(), 120, 40)
+      {_m, _d, roster_rect} = Enum.find(placements, fn {m, _d, _r} -> m == Roster end)
+      # the roster is inset from the left frame — padded, not jammed to x=0
+      assert roster_rect.x >= 2
     end
 
     test "chat workspace swaps the center surface to the conversation" do
