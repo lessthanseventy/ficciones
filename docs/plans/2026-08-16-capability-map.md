@@ -58,7 +58,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 |---|---|---|
 | `check` / `funes:*` (test/check/setup/doctor/serve) | ✅ | the gate + the funes loop |
 | **`funes:release` / `funes:restart` / `funes:console` / `funes:logs`** | ✅ | operate the always-up service: build the release, redeploy, remote-iex the live node, follow logs |
-| `aleph:*`, `pi:test`/`pi:check`, `flake:check`, `home:switch` | ✅ | |
+| `aleph:*`, `manos:pi:test`/`manos:pi:check`, `flake:check`, `home:switch` | ✅ | |
 | `cap` / `cap:clean` | ✅ | run once, structured failure, swept |
 | **`funes:spawn`** | ✅ | move #2: `bin/funes rpc Funes.MCP.Spawn.env` into the LIVE node → prints the export block; killed the iex incantation |
 | **`funes:dossier`** | ✅ | render a thread's brief from the CLI (Board.in_scope → Brief), parity with get_dossier |

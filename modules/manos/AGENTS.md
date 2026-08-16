@@ -69,8 +69,8 @@ doc's "token-bearing endpoint" honestly: funes authenticates with a header, not 
 
 Driven through the shared mise tasks (`mise tasks`), same as the rest of the repo:
 
-- `mise run pi:test` — the pi adapter's unit suite (`bun test`) — the TDD loop for the brief renderer.
-- `mise run pi:check` — typecheck + tests, the precommit gate for this module.
+- `mise run manos:pi:test` — the pi adapter's unit suite (`bun test`) — the TDD loop for the brief renderer.
+- `mise run manos:pi:check` — typecheck + tests, the precommit gate for this module.
 - `mise run funes:serve` — boot funes with its sovereign channel on, against the scratch db, so a
   hand-spawned pi pane has something to register with.
 - `mise run check` — the whole-repo gate (funes + aleph + pi).

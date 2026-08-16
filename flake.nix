@@ -144,7 +144,9 @@
                       { id = "deepseek-v4-pro"; }  # frontier MoE, three reasoning modes
                       { id = "deepseek-v4-flash"; } # efficient MoE, 1M ctx — the cheap/fast everyday tier
                       { id = "kimi-k2.7-code"; }   # Moonshot coding-specialized, ~30% fewer thinking tokens
-                      { id = "kimi-k3"; }          # most-capable multimodal agentic
+                      # kimi-k3 removed: ollama.com serves it as EXTRA usage (HTTP 402), not
+                      # included in the $20 plan — it bills per-token on top. Keep it out so it
+                      # can't be selected by accident. Re-add only if you deliberately want to pay.
                       { id = "minimax-m3"; }       # coding & agentic frontier, 1M ctx, native multimodal
                     ];
                   };
@@ -196,7 +198,7 @@
                    | .defaultModel //= "glm-5.2"
                    | .defaultThinkingLevel //= "medium"
                    | .retry.enabled //= true
-                   | .enabledModels //= ["glm-5.2","glm-5.1","deepseek-v4-pro","deepseek-v4-flash","kimi-k2.7-code","kimi-k3","minimax-m3","qwen3-coder"]' \
+                   | .enabledModels //= ["glm-5.2","glm-5.1","deepseek-v4-pro","deepseek-v4-flash","kimi-k2.7-code","minimax-m3","qwen3-coder"]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
               '';
 

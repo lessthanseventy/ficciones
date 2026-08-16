@@ -27,8 +27,8 @@ manos/
 ## Run it
 
 ```
-mise run pi:test     # the renderer's unit suite (bun)
-mise run pi:check    # typecheck + tests — this module's gate
+mise run manos:pi:test   # the renderer's unit suite (bun)
+mise run manos:pi:check  # typecheck + tests — this module's gate
 mise run funes:serve # boot funes' channel; in its iex, Funes.MCP.Spawn.env/2 prints the
                      # export FUNES_* block to paste into a fresh pi pane
 ```
