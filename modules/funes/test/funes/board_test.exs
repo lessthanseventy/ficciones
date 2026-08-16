@@ -22,6 +22,7 @@ defmodule Funes.BoardTest do
   describe "Staff.roster/0 — IN FLIGHT" do
     test "lists live sessions across threads with a warm/cold flag, omitting ended ones" do
       {:ok, thread} = Channel.open_thread(%{title: "one"})
+      {:ok, other} = Channel.open_thread(%{title: "two"})
       {:ok, sandra} = Staff.register_agent(%{name: "Sandra", mandate: "m", engine: "e"})
       {:ok, robert} = Staff.register_agent(%{name: "Robert", mandate: "m", engine: "e"})
 
@@ -31,8 +32,10 @@ defmodule Funes.BoardTest do
       {:ok, chilly} =
         Staff.start_session(%{agent_id: robert.id, thread_id: thread.id, pane_ref: "wR"})
 
+      # Sandra's ended session lives on a SECOND thread — a second live session on
+      # the same (thread, agent) would be superseded, not coexist (the zombie guard).
       {:ok, gone} =
-        Staff.start_session(%{agent_id: sandra.id, thread_id: thread.id, pane_ref: "wG"})
+        Staff.start_session(%{agent_id: sandra.id, thread_id: other.id, pane_ref: "wG"})
 
       cold(chilly)
       {:ok, _} = Staff.end_session(gone)

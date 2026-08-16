@@ -219,12 +219,16 @@ defmodule Funes.StaffTest do
     } do
       # jump-into-session (§9.3): the candidate is the newest not-yet-ended session
       # for the thread. Liveness itself is asked of the arbiter live (§2), never
-      # stored — this only hands over which pane to poke.
+      # stored — this only hands over which pane to poke. Sandra and Robert are
+      # COWORKERS on the thread — per-(thread, agent) liveness is the invariant, so
+      # two agents' live sessions coexist; two of one agent's cannot.
+      {:ok, robert} = Staff.register_agent(%{name: "Robert", mandate: "m", engine: "e"})
+
       {:ok, first} =
         Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})
 
       {:ok, second} =
-        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w2"})
+        Staff.start_session(%{agent_id: robert.id, thread_id: thread.id, pane_ref: "w2"})
 
       assert Staff.session_for_thread(thread).id == second.id
 
@@ -235,6 +239,64 @@ defmodule Funes.StaffTest do
       {:ok, _} = Staff.end_session(first)
       # All ended — nothing to jump into. Sessions die; you brief a new one (§3b).
       assert Staff.session_for_thread(thread) == nil
+    end
+
+    test "a second session for the same (thread, agent) SUPERSEDES the first", %{
+      thread: thread,
+      agent: agent
+    } do
+      # The zombie guard (pi doc §4c.2): a crashed pi leaves ended_at NULL, and
+      # "reconciliation cannot depend on a clean exit" (§8) — so the replacement's
+      # start is what ends the predecessor, in the same transaction. Otherwise the
+      # switchboard wakes BOTH panes while the zombie is still warm.
+      {:ok, first} =
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})
+
+      {:ok, second} =
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w2"})
+
+      assert %DateTime{} = Repo.get!(Session, first.id).ended_at
+      assert Repo.get!(Session, second.id).ended_at == nil
+      assert Staff.session_for_thread(thread).id == second.id
+    end
+
+    test "supersede announces the ended zombie, then the started replacement", %{
+      thread: thread,
+      agent: agent
+    } do
+      # The roster is reactive (aleph §4): it must see the zombie leave and the
+      # replacement arrive, or IN FLIGHT shows a pane that no longer exists.
+      Funes.Bus.subscribe_sessions()
+
+      {:ok, first} =
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})
+
+      first_id = first.id
+      assert_receive {:session_started, %Session{id: ^first_id}}
+
+      {:ok, second} =
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w2"})
+
+      second_id = second.id
+      assert_receive {:session_ended, %Session{id: ^first_id}}
+      assert_receive {:session_started, %Session{id: ^second_id}}
+    end
+
+    test "the DB itself refuses a second live (thread, agent) session", %{
+      thread: thread,
+      agent: agent
+    } do
+      # The partial unique index is the guard (§10) — supersede-in-start is
+      # convention, and under a concurrent-register race convention loses. A raw
+      # write that bypasses start_session is refused by SQLite itself.
+      {:ok, _} =
+        Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})
+
+      assert_raise Ecto.ConstraintError, fn ->
+        %{agent_id: agent.id, thread_id: thread.id, pane_ref: "w2"}
+        |> Session.start_changeset()
+        |> Repo.insert()
+      end
     end
 
     test "end_session/1 stamps ended_at, read back through SQLite", %{
