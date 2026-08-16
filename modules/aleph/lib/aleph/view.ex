@@ -14,6 +14,8 @@ defmodule Aleph.View do
   @min_col 16
   # The bottom footer: an info line + a hints line (Aleph.Panel.StatusBar).
   @status_h 2
+  # Below this width (phone / a shrunk tile) the three columns collapse to one (Addendum §D).
+  @wide_min 80
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
   def compose(reads, w, h) do
@@ -30,12 +32,21 @@ defmodule Aleph.View do
     {center_panel, _key} = space.surface
 
     # Each column holds a stack of *sections*, and every section is its own bordered box (the
-    # switcher is a box, the thread list is a box, …) — so sections read as defined regions.
-    columns = [
-      {%{x: 0, y: 0, w: left_w, h: body_h}, [Panel.Spaces | space.left]},
-      {%{x: center_x, y: 0, w: center_w, h: body_h}, [center_panel]},
-      {%{x: right_x, y: 0, w: right_w, h: body_h}, space.right}
-    ]
+    # switcher is a box, the thread list is a box, …) — so sections read as defined regions. Wide
+    # viewports get three columns; narrow ones (phone / shrunk tile) collapse to one stacked column.
+    columns =
+      case layout_for(w) do
+        :wide ->
+          [
+            {%{x: 0, y: 0, w: left_w, h: body_h}, [Panel.Spaces | space.left]},
+            {%{x: center_x, y: 0, w: center_w, h: body_h}, [center_panel]},
+            {%{x: right_x, y: 0, w: right_w, h: body_h}, space.right}
+          ]
+
+        :narrow ->
+          sections = [Panel.Spaces | space.left] ++ [center_panel | space.right]
+          [{%{x: 0, y: 0, w: w, h: body_h}, sections}]
+      end
 
     boxes = Enum.flat_map(columns, fn {rect, panels} -> boxed(panels, rect) end)
 
@@ -50,6 +61,9 @@ defmodule Aleph.View do
     # Borders first: panel content paints over each box interior, leaving only the frames.
     borders ++ contents ++ [status]
   end
+
+  defp layout_for(w) when w >= @wide_min, do: :wide
+  defp layout_for(_w), do: :narrow
 
   # The content region inside a section box: one cell of frame + one of padding on each side.
   defp inset(%{x: x, y: y, w: w, h: h}) do

@@ -255,6 +255,35 @@ defmodule Aleph.BoardTest do
     end
   end
 
+  describe "responsive layout" do
+    defp box_xs(placements) do
+      placements
+      |> Enum.filter(fn {m, _d, _r} -> m == Border end)
+      |> Enum.map(fn {_m, _d, r} -> r.x end)
+      |> Enum.uniq()
+      |> Enum.sort()
+    end
+
+    test "a wide viewport lays out three columns" do
+      xs = View.compose(reads(), 140, 40) |> box_xs()
+      # three distinct column x-offsets (left at 0, center, right)
+      assert length(xs) == 3
+      assert 0 in xs
+    end
+
+    test "a narrow viewport collapses to a single column" do
+      xs = View.compose(reads(), 50, 40) |> box_xs()
+      # every section box sits in one column at x=0
+      assert xs == [0]
+    end
+
+    test "the same sections are present in both layouts" do
+      wide = View.compose(reads(), 140, 40) |> Enum.map(fn {m, _d, _r} -> m end)
+      narrow = View.compose(reads(), 50, 40) |> Enum.map(fn {m, _d, _r} -> m end)
+      assert Enum.sort(Enum.uniq(wide)) == Enum.sort(Enum.uniq(narrow))
+    end
+  end
+
   describe "board composes cells" do
     test "a placement produces cells at the rect origin" do
       rect = %{x: 3, y: 2, w: 40, h: 10}
