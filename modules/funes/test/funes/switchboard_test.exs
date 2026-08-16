@@ -23,9 +23,6 @@ defmodule Funes.SwitchboardTest do
     end)
 
     Funes.TestDB.clean!()
-    # The autonomous cold-thread spawn mints a token (Funes.MCP.Spawn), so the registry
-    # must be up — the switchboard's spawn path is MCP-dependent by nature.
-    start_supervised!(Funes.MCP.Tokens)
     :ok
   end
 

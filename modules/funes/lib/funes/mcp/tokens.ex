@@ -1,23 +1,27 @@
 defmodule Funes.MCP.Tokens do
   @moduledoc """
-  The identity seam of the sovereign channel (pi doc §2a). A token is minted IN
-  this node — by the arbiter at spawn, or by the operator in iex for a hand-run
-  session — and binds an MCP connection to its (thread, agent). Every tool then
-  reads identity from the connection's claims, never from a call parameter, so
-  banking onto the wrong thread is unrepresentable rather than merely discouraged.
+  The identity seam of the sovereign channel (pi doc §2a). A token binds an MCP connection to its
+  (thread, agent) so every tool reads identity from the connection's claims, never from a call
+  parameter — banking onto the wrong thread is unrepresentable rather than merely discouraged.
 
-  Deliberately EPHEMERAL: bindings live in this process, and a node restart
-  invalidates every token. That is the honest failure mode — the agent's next
-  call 401s and it says so — never a durable credential store (how a machine
-  authenticates is local configuration, §8, and a stale grant that outlives its
-  session is the zombie problem wearing a lanyard).
+  **STATELESS and restart-surviving (amended 2026-08-16).** A token IS its claims: an HMAC over
+  `(thread_id, agent_id, agent)` signed with the per-world key (`Funes.MCP.Secret`). `resolve/1`
+  verifies the signature and decodes — no in-memory registry, so a token stays valid across a node
+  restart. This overturns the original "deliberately ephemeral, dies with the node" design, which
+  was right for the always-up service (rare restart) but wrong for the **aleph dogfood hub**, which
+  restarts constantly during development and would 401 every spawned session on each restart.
 
-  `register` claims a session and binds it here (`bind_session/2`), so later
-  calls resolve to a full identity including the session to keep warm.
+  The concern that retired the registry — "a stale grant that outlives its session is the zombie
+  problem wearing a lanyard" — is handled by the SESSION model, not the token lifetime: `resolve`
+  attaches the CURRENT live session for (thread, agent) via `Staff.live_session/2`, and the partial
+  unique index guarantees at most one. So a token from a dead session resolves to whoever is live
+  now (or to no session), never resurrects a zombie. Forgery is out of scope on a single-human
+  loopback machine (§8: how a machine authenticates is local configuration), and the HMAC still
+  means only a holder of the world's key can mint.
   """
-  use GenServer
-
   alias Funes.Agent
+  alias Funes.MCP.Secret
+  alias Funes.Staff
   alias Funes.Thread
 
   @type binding :: %{
@@ -27,60 +31,60 @@ defmodule Funes.MCP.Tokens do
           session_id: integer() | nil
         }
 
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
-  end
-
-  @doc "Mint a token binding (thread, agent). Returns the url-safe token string."
+  @doc "Mint a signed token binding (thread, agent). Survives a node restart (same world key)."
   @spec mint(Thread.t(), Agent.t()) :: String.t()
-  def mint(%Thread{} = thread, %Agent{} = agent) do
-    token = 24 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
-
-    binding = %{
-      thread_id: thread.id,
-      agent_id: agent.id,
-      agent: agent.name,
-      session_id: nil
-    }
-
-    :ok = GenServer.call(__MODULE__, {:put, token, binding})
-    token
+  def mint(%Thread{id: thread_id}, %Agent{id: agent_id, name: name}) do
+    payload = encode(%{"t" => thread_id, "a" => agent_id, "n" => name})
+    payload <> "." <> sign(payload)
   end
 
-  @doc "The binding behind a token, or `:error` for one this node never minted."
+  @doc """
+  The binding behind a token, or `:error` for one this world's key never signed (a forgery, a
+  wrong-world token, or a garbled string). `session_id` is the CURRENT live session for the pair,
+  resolved at read time — nil before `register`, and never a stale session after.
+  """
   @spec resolve(String.t()) :: {:ok, binding()} | :error
   def resolve(token) when is_binary(token) do
-    GenServer.call(__MODULE__, {:resolve, token})
-  end
-
-  @doc "Attach the registered session to a token's binding. `:error` on an unknown token."
-  @spec bind_session(String.t(), integer()) :: :ok | :error
-  def bind_session(token, session_id) when is_binary(token) do
-    GenServer.call(__MODULE__, {:bind_session, token, session_id})
-  end
-
-  @impl true
-  def init(:ok), do: {:ok, %{}}
-
-  @impl true
-  def handle_call({:put, token, binding}, _from, state) do
-    {:reply, :ok, Map.put(state, token, binding)}
-  end
-
-  def handle_call({:resolve, token}, _from, state) do
-    case Map.fetch(state, token) do
-      {:ok, binding} -> {:reply, {:ok, binding}, state}
-      :error -> {:reply, :error, state}
+    with [payload, sig] <- String.split(token, ".", parts: 2),
+         true <- valid?(sig, payload),
+         {:ok, %{"t" => thread_id, "a" => agent_id, "n" => name}} <- decode(payload) do
+      {:ok,
+       %{
+         thread_id: thread_id,
+         agent_id: agent_id,
+         agent: name,
+         session_id: live_session_id(thread_id, agent_id)
+       }}
+    else
+      _ -> :error
     end
   end
 
-  def handle_call({:bind_session, token, session_id}, _from, state) do
-    case Map.fetch(state, token) do
-      {:ok, binding} ->
-        {:reply, :ok, Map.put(state, token, %{binding | session_id: session_id})}
+  defp sign(payload) do
+    :hmac |> :crypto.mac(:sha256, Secret.get(), payload) |> Base.url_encode64(padding: false)
+  end
 
-      :error ->
-        {:reply, :error, state}
+  # Constant-time compare of the presented signature against the recomputed one.
+  defp valid?(sig, payload), do: byte_size(sig) == byte_size(sign(payload)) and secure_equal?(sig, sign(payload))
+
+  defp secure_equal?(a, b) do
+    :crypto.hash_equals(a, b)
+  rescue
+    _ -> a == b
+  end
+
+  defp encode(map), do: map |> Jason.encode!() |> Base.url_encode64(padding: false)
+
+  defp decode(payload) do
+    with {:ok, json} <- Base.url_decode64(payload, padding: false) do
+      Jason.decode(json)
+    end
+  end
+
+  defp live_session_id(thread_id, agent_id) do
+    case Staff.live_session(thread_id, agent_id) do
+      %{id: id} -> id
+      _ -> nil
     end
   end
 end

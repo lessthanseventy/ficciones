@@ -29,7 +29,6 @@ defmodule Funes.MCP.ServerTest do
 
   setup do
     Funes.TestDB.clean!()
-    start_supervised!(MCP.Tokens)
     start_supervised!({MCP.Server, transport: :streamable_http})
 
     start_supervised!(

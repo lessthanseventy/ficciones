@@ -181,4 +181,16 @@ defmodule Funes.Staff do
         limit: 1
     )
   end
+
+  @doc """
+  The live session for a specific (thread, agent), or nil — the identity a stateless token
+  resolves to at read time (`Funes.MCP.Tokens`). The partial unique index guarantees at most one
+  live session per pair, so this is the current holder of that identity, never a stale one.
+  """
+  def live_session(thread_id, agent_id) do
+    Repo.one(
+      from s in Session,
+        where: s.thread_id == ^thread_id and s.agent_id == ^agent_id and is_nil(s.ended_at)
+    )
+  end
 end

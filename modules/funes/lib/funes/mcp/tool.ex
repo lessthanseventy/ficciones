@@ -24,7 +24,6 @@ defmodule Funes.MCP.Tool.Register do
 
   alias Anubis.Server.Response
   alias Funes.MCP.Identity
-  alias Funes.MCP.Tokens
   alias Funes.Staff
 
   schema do
@@ -35,15 +34,14 @@ defmodule Funes.MCP.Tool.Register do
   def execute(params, frame) do
     identity = Identity.from_frame(frame)
 
-    # The binding came from real rows, so an FK failure here is a bug that raises.
+    # The binding came from real rows, so an FK failure here is a bug that raises. The token needs
+    # no updating — it is stateless, and later calls resolve this session via Staff.live_session/2.
     {:ok, session} =
       Staff.start_session(%{
         agent_id: identity.agent_id,
         thread_id: identity.thread_id,
         pane_ref: params[:pane_ref]
       })
-
-    :ok = Tokens.bind_session(identity.token, session.id)
 
     payload = %{
       "session_id" => session.id,

@@ -31,7 +31,7 @@ defmodule Funes.Application do
   # binds no further than the machine.
   defp mcp_children do
     [
-      Funes.MCP.Tokens,
+      # Funes.MCP.Tokens is stateless now (signed tokens, no registry) — nothing to supervise.
       {Funes.MCP.Server, transport: :streamable_http},
       {Bandit,
        plug: {Anubis.Server.Transport.StreamableHTTP.Plug, server: Funes.MCP.Server},

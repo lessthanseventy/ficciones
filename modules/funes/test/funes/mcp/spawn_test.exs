@@ -15,7 +15,6 @@ defmodule Funes.MCP.SpawnTest do
 
   setup do
     Funes.TestDB.clean!()
-    start_supervised!(Tokens)
     :ok
   end
 
@@ -77,11 +76,14 @@ defmodule Funes.MCP.SpawnTest do
       assert {:ok, _binding} = Tokens.resolve(tok)
     end
 
-    test "a second mint_for yields a DIFFERENT token (fresh per connect)" do
+    test "a second mint_for yields the SAME token — deterministic, so a connect survives a restart" do
+      # With stateless signed tokens the headersHelper re-mint is idempotent: the same (thread,
+      # agent) always signs to the same token, which is exactly why it stays valid across a hub
+      # restart (no random per-connect grant to invalidate).
       {:ok, %{thread: t}} = Spawn.ensure({:open, "hh"}, "claude-code")
       {:ok, first} = Spawn.mint_for(t.id, "claude-code")
       {:ok, second} = Spawn.mint_for(t.id, "claude-code")
-      assert first != second
+      assert first == second
     end
 
     test "errors on a missing thread or agent" do

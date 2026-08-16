@@ -1,58 +1,69 @@
 defmodule Funes.MCP.TokensTest do
-  # The identity seam (pi doc §2a): a token minted IN the funes node binds an MCP
-  # connection to its (thread, agent) — identity is a property of the connection,
-  # never a parameter of a call, so cross-thread misdirection is unrepresentable.
-  # Tokens are ephemeral by design: they live in the node, and a restart
-  # invalidates them — an honest failure the agent surfaces, never a stale grant.
+  # The identity seam (pi doc §2a): a token binds an MCP connection to its (thread, agent), so
+  # identity is a property of the connection, never a call parameter. STATELESS + signed
+  # (amended 2026-08-16): the token IS its claims (HMAC over thread/agent), so it survives a node
+  # restart — the aleph hub restarts constantly and must not 401 every session. The live session
+  # is resolved at read time, so a token never grants a stale one.
   use ExUnit.Case, async: false
 
   alias Funes.Channel
-  alias Funes.MCP
+  alias Funes.MCP.Tokens
   alias Funes.Staff
 
   setup do
     Funes.TestDB.clean!()
-    start_supervised!(MCP.Tokens)
     {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
     {:ok, agent} = Staff.register_agent(%{name: "Carl", mandate: "m", engine: "e"})
     %{thread: thread, agent: agent}
   end
 
-  test "mint/2 → resolve/1 round-trips the binding", %{thread: thread, agent: agent} do
-    token = MCP.Tokens.mint(thread, agent)
+  test "mint/2 → resolve/1 round-trips the binding; no session until register", %{thread: thread, agent: agent} do
+    token = Tokens.mint(thread, agent)
 
-    assert {:ok, binding} = MCP.Tokens.resolve(token)
+    assert {:ok, binding} = Tokens.resolve(token)
     assert binding.thread_id == thread.id
     assert binding.agent_id == agent.id
     assert binding.agent == "Carl"
-    # No session until register claims one — nil is honest, never a placeholder.
+    # No live session for the pair yet → nil, honest, never a placeholder.
     assert binding.session_id == nil
   end
 
-  test "an unknown token resolves to :error" do
-    assert MCP.Tokens.resolve("no-such-token") == :error
+  test "a garbled or unsigned token resolves to :error" do
+    assert Tokens.resolve("no-such-token") == :error
+    assert Tokens.resolve("only-one-part") == :error
   end
 
-  test "two mints yield distinct tokens", %{thread: thread, agent: agent} do
-    assert MCP.Tokens.mint(thread, agent) != MCP.Tokens.mint(thread, agent)
+  test "a tampered payload fails the signature check", %{thread: thread, agent: agent} do
+    [_payload, sig] = thread |> Tokens.mint(agent) |> String.split(".", parts: 2)
+    forged = Base.url_encode64(~s({"t":999,"a":999,"n":"mallory"}), padding: false) <> "." <> sig
+    assert Tokens.resolve(forged) == :error
   end
 
-  test "bind_session/2 attaches the registered session to later resolves", %{
+  test "the token is DETERMINISTIC — same (thread, agent) → same token, so it survives a restart", %{
     thread: thread,
     agent: agent
   } do
-    token = MCP.Tokens.mint(thread, agent)
-
-    {:ok, session} =
-      Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})
-
-    :ok = MCP.Tokens.bind_session(token, session.id)
-
-    assert {:ok, %{session_id: session_id}} = MCP.Tokens.resolve(token)
-    assert session_id == session.id
+    # A node restart re-reads the same world key (Funes.MCP.Secret), so a token minted before it
+    # verifies after: determinism IS the restart-survival property the registry lacked.
+    assert Tokens.mint(thread, agent) == Tokens.mint(thread, agent)
   end
 
-  test "bind_session/2 on an unknown token is refused" do
-    assert MCP.Tokens.bind_session("no-such-token", 1) == :error
+  test "resolve attaches the CURRENT live session automatically — no bind step", %{thread: thread, agent: agent} do
+    token = Tokens.mint(thread, agent)
+    assert {:ok, %{session_id: nil}} = Tokens.resolve(token)
+
+    {:ok, session} = Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})
+    assert {:ok, %{session_id: sid}} = Tokens.resolve(token)
+    assert sid == session.id
+  end
+
+  test "resolve follows the live session across a supersede — never a stale one", %{thread: thread, agent: agent} do
+    token = Tokens.mint(thread, agent)
+    {:ok, old} = Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})
+    {:ok, _} = Staff.end_session(old)
+    {:ok, fresh} = Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w2"})
+
+    assert {:ok, %{session_id: sid}} = Tokens.resolve(token)
+    assert sid == fresh.id
   end
 end

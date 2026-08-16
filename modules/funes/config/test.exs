@@ -8,3 +8,7 @@ config :funes, Funes.Repo,
 # so the application does not start it. The DB is a repo-local scratch file,
 # never the real one.
 config :funes, start_repo: false
+
+# A fixed signing key for the stateless MCP tokens, so tests mint/resolve deterministically with
+# no secret-file IO (Funes.MCP.Secret reads this before touching disk).
+config :funes, token_secret: "test-only-token-secret-not-for-any-real-world-32b"
