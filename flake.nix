@@ -107,6 +107,43 @@
                   excludeTools = [ "register" ];
                 };
               };
+
+              # pi's provider config (docs.ollama.com/integrations/pi → ~/.pi/agent/models.json).
+              # We OWN this file like mcp.json — it is machine config, not something pi writes to
+              # (pi's own UI-added models land in the separate models-store.json). Two providers,
+              # both OpenAI-compatible:
+              #   ollama       — the LOCAL daemon (localhost:11434). apiKey "ollama" is a placeholder
+              #                  the daemon ignores; models here must be pulled (`ollama pull …`).
+              #   ollama-cloud — ollama.com directly. The one door the OLLAMA_API_KEY opens: pi sends
+              #                  the key itself (\${OLLAMA_API_KEY} → pi env-interpolates it, so no
+              #                  secret lands in the nix store), and cloud model ids are BARE — no
+              #                  ":cloud" suffix (that suffix is only for the local-daemon signin path).
+              # The cloud list is a curated coding set from ollama.com/search?c=cloud (Aug 2026);
+              # add/remove ids freely — this file is the single source of truth for what pi offers.
+              piModelsJson = builtins.toJSON {
+                providers = {
+                  ollama = {
+                    baseUrl = "http://localhost:11434/v1";
+                    api = "openai-completions";
+                    apiKey = "ollama";
+                    models = [ { id = "qwen3-coder"; } ];
+                  };
+                  "ollama-cloud" = {
+                    baseUrl = "https://ollama.com/v1";
+                    api = "openai-completions";
+                    apiKey = "\${OLLAMA_API_KEY}";
+                    models = [
+                      { id = "glm-5.2"; }          # Z.ai flagship, long-horizon, 976K ctx (default)
+                      { id = "glm-5.1"; }          # leads SWE-Bench Pro — strongest pure agentic-coding
+                      { id = "deepseek-v4-pro"; }  # frontier MoE, three reasoning modes
+                      { id = "deepseek-v4-flash"; } # efficient MoE, 1M ctx — the cheap/fast everyday tier
+                      { id = "kimi-k2.7-code"; }   # Moonshot coding-specialized, ~30% fewer thinking tokens
+                      { id = "kimi-k3"; }          # most-capable multimodal agentic
+                      { id = "minimax-m3"; }       # coding & agentic frontier, 1M ctx, native multimodal
+                    ];
+                  };
+                };
+              };
             in
             {
               home.username = "andrew";
@@ -123,10 +160,21 @@
               # funes' channel config — we own this file; pi only reads it.
               home.file.".pi/agent/mcp.json".text = funesMcpJson;
 
+              # pi's providers (ollama local + ollama.com cloud) — owned like mcp.json.
+              home.file.".pi/agent/models.json".text = piModelsJson;
+
               # manos into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in
               # idempotently, seeding {} if absent. This is the declarative install replacing
               # the hand-edit in modules/manos/AGENTS.md.
+              #
+              # The ollama defaults are seeded with `//=` (set-only-if-absent), NOT `=`: pi
+              # persists your runtime model switch (Ctrl+P) back into this same file, and we must
+              # not stomp it on every home:switch. So this picks the default the FIRST time and
+              # then defers to you. defaultProvider is ollama-cloud/glm-5.2 — works the moment
+              # OLLAMA_API_KEY is set, no GPU or pull needed. Flip to "ollama"/"qwen3-coder" here
+              # (or just switch in-session) to drive a local model instead. enabledModels is the
+              # Ctrl+P cycle ring — every id from models.json so all are one keystroke away.
               home.activation.manosWiring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 PI_DIR="$HOME/.pi/agent"
                 SETTINGS="$PI_DIR/settings.json"
