@@ -39,6 +39,13 @@ describe("renderBrief — the honest brief (pi doc §2b)", () => {
     expect(renderBrief(dossier(), NOW)).not.toContain("You are");
   });
 
+  test("the brief nudges the agent to post its work to the thread (coordinate-via-funes)", () => {
+    // The skill is loaded but a flash model reads it once and forgets; the brief is injected
+    // every turn, so the one behavior that keeps the thread from going cold rides here too.
+    const out = renderBrief(dossier(), NOW);
+    expect(out).toContain("post_message");
+  });
+
   test("a stated fact is the operator's own quoted words", () => {
     const out = renderBrief(
       dossier({

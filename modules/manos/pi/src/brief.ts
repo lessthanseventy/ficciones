@@ -161,6 +161,16 @@ export function renderBrief(d: Dossier, now: Date = new Date(), model?: string):
     for (const m of d.chatter.slice(-CHATTER_TAIL)) lines.push(`- ${m.author}: ${m.body}`);
   }
 
+  // A standing nudge, not state — the one behavior that keeps a thread from going cold. The
+  // `coordinate-via-funes` skill teaches it, but a flash model reads a skill once and forgets;
+  // the brief is injected every turn, so the reminder rides here too. Without it a rich session
+  // banks nothing and its successor is briefed cold (§4c: the channel is the continuity
+  // mechanism, not politeness).
+  lines.push(
+    "",
+    "— Post as you work with `post_message` — the thread, not this session, is the memory a successor inherits; judgment you keep in your own context dies with the session.",
+  );
+
   return lines.join("\n");
 }
 
