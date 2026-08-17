@@ -39,8 +39,15 @@ defmodule Aleph.MixProject do
   defp aliases do
     [
       # Self-heal the termbox2 NIF after every compile (see ensure_termbox_nif/1), and the
-      # raxol input-parser Kitty CSI-u patch before it (see ensure_raxol_kitty_parser/1).
-      compile: [&ensure_raxol_kitty_parser/1, "compile", &ensure_termbox_nif/1],
+      # raxol input-parser Kitty CSI-u + termbox2_nif tb_resize/0 stub patches before it (so the
+      # `compile` that follows rebuilds the patched dep modules — see ensure_raxol_kitty_parser/1
+      # and ensure_termbox_resize_stub/1).
+      compile: [
+        &ensure_raxol_kitty_parser/1,
+        &ensure_termbox_resize_stub/1,
+        "compile",
+        &ensure_termbox_nif/1
+      ],
       precommit: [
         "format --check-formatted",
         "compile --warnings-as-errors",
@@ -49,8 +56,8 @@ defmodule Aleph.MixProject do
     ]
   end
 
-  # raxol_terminal 2.6.1 ships a termbox2 NIF with two defects this alias repairs after every
-  # compile (both idempotent, pinned by test/aleph/termbox_nif_test.exs). deps/ is gitignored,
+  # raxol_terminal 2.6.1 ships a termbox2 NIF with three defects this alias repairs after every
+  # compile (all idempotent, pinned by test/aleph/termbox_nif_test.exs). deps/ is gitignored,
   # so the fix can't live in the dep's Makefile — it must re-apply on each build.
   #
   #   1. TRUECOLOR. `termbox_impl.c` defines TB_LIB_OPTS (→ 64-bit `uintattr_t`), but the wrapper
@@ -62,13 +69,25 @@ defmodule Aleph.MixProject do
   #   2. INSTALL. The Makefile copies the .so into build-output priv only inside its link recipe,
   #      which `make` skips when the .so already exists; the loader reads
   #      `:code.priv_dir(:raxol_terminal)`, so a missing copy is a runtime `:nif_not_loaded`.
+  #   3. NO RESIZE ENTRY. termbox2 re-learns the terminal size ONLY inside its poll path
+  #      (`tb_poll_event` → `update_term_size` + `resize_cellbufs`), and aleph never polls —
+  #      `Raxol.Terminal.Driver` owns input — so `tb_width()/tb_height()` stay frozen at `tb_init`
+  #      size and every `tb_set_cell`/`tb_present` clips to the old width (void on the right after
+  #      a widen). We patch in a public `tb_resize/0` (C wrapper over the two static refreshers +
+  #      an Elixir stub) the cockpit calls each tick. See patch_termbox_resize/1 (C, post-compile)
+  #      and ensure_termbox_resize_stub/1 (the .ex stub, pre-compile). update_term_size is cheap
+  #      (one ioctl); we gate resize_cellbufs on an actual size change so a per-tick call can't
+  #      flicker (resize_cellbufs clears the screen).
   @termbox_cflags "-O2 -Wall -Wextra -Wno-unused-parameter -std=c99 -fPIC -Itermbox2 -DTB_OPT_ATTR_W=64"
 
   defp ensure_termbox_nif(_args) do
     c_src =
       Path.join([Mix.Project.deps_path(), "raxol_terminal", "lib", "termbox2_nif", "c_src"])
 
-    rebuilt? = File.dir?(c_src) and rebuild_termbox_truecolor(c_src)
+    # The tb_resize/0 NIF (defect #3, see @termbox_resize_impl) is patched into the C source here;
+    # a fresh patch forces a .so rebuild regardless of the truecolor marker.
+    patched? = File.dir?(c_src) and patch_termbox_resize(c_src)
+    rebuilt? = File.dir?(c_src) and rebuild_termbox_truecolor(c_src, patched?)
     install_termbox_nif(rebuilt?)
     :ok
   end
@@ -183,22 +202,149 @@ defmodule Aleph.MixProject do
 
     if patched == src do
       Mix.raise(
-        "[aleph] raxol Kitty CSI-u patch: the #{name} anchor no longer matches #{@kitty_parser} — " <>
-          "raxol_terminal restructured it (version bump?). Update the anchor in mix.exs before building, " <>
-          "or shift+enter silently regresses."
+        "[aleph] dep source patch: the #{name} anchor no longer matches — raxol_terminal " <>
+          "restructured it (version bump?). Update the anchor in mix.exs before building, or the " <>
+          "patch silently regresses (Kitty shift+enter, or the tb_resize/0 size refresh)."
       )
     end
 
     patched
   end
 
+  # --- Defect #3: tb_resize/0 (see the @termbox_cflags comment). Two source patches, both
+  # idempotent and anchor-checked. The C side (below) is applied post-compile in
+  # ensure_termbox_nif/1; the .ex stub is applied pre-compile in ensure_termbox_resize_stub/1.
+
+  # Appended to termbox_impl.c (the TB_IMPL translation unit, so the static refreshers `global`,
+  # `update_term_size`, `resize_cellbufs` are in scope). Non-static, so termbox2_nif.c can link it.
+  @termbox_resize_impl """
+
+  // aleph patch (defect #3): a public size-refresh entry point. termbox2 re-learns the terminal
+  // size only inside its poll path, which aleph never calls, so tb_width()/tb_height() would stay
+  // frozen at tb_init size. Re-query via update_term_size (one cheap ioctl), and reallocate the
+  // cell buffers ONLY when the size actually changed — resize_cellbufs() clears the screen
+  // (cellbuf_clear(front) + send_clear()), so an unconditional call would flicker every frame.
+  // Safe after tb_init (real tty) and after tb_shutdown (ttyfd < 0 → update_term_size no-ops);
+  // aleph only calls it once the cockpit is up. Returns TB_OK / a TB_ERR_* code.
+  int tb_resize(void) {
+      int old_w = global.width, old_h = global.height;
+      int rv = update_term_size();
+      if (rv != TB_OK) return rv;
+      if (global.width == old_w && global.height == old_h) return TB_OK;
+      return resize_cellbufs();
+  }
+  """
+
+  # Inserted before the nif_funcs[] table in termbox2_nif.c (the wrapper TU — it sees only the
+  # public termbox2.h, so tb_resize is forward-declared here).
+  @termbox_resize_wrapper """
+  // aleph patch (defect #3): tb_resize/0 — re-sync termbox's cached terminal size (impl in
+  // termbox_impl.c). Forward-declared: this TU includes termbox2.h without TB_IMPL.
+  int tb_resize(void);
+  static ERL_NIF_TERM nif_tb_resize(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+  {
+    int result = tb_resize();
+    return enif_make_int(env, result);
+  }
+
+  """
+
+  # Appended after the tb_height/0 stub in termbox2_nif.ex (the atom-named `:termbox2_nif` module).
+  @termbox_resize_stub """
+
+    @doc \"\"\"
+    Re-sync termbox's cached terminal size after a window resize (aleph patch — see mix.exs
+    defect #3). Returns TB_OK (0) or a TB_ERR_* code. Safe only after tb_init/0.
+    \"\"\"
+    def tb_resize, do: :erlang.nif_error(:nif_not_loaded)
+  """
+
+  @termbox_nif_ex Path.join([
+                    Mix.Project.deps_path(),
+                    "raxol_terminal",
+                    "lib",
+                    "termbox2_nif",
+                    "lib",
+                    "termbox2_nif.ex"
+                  ])
+
+  # Patch the C source with tb_resize (impl + NIF wrapper + funcs-table entry). Returns true iff it
+  # just applied the patch (so ensure_termbox_nif/1 forces a .so rebuild). Idempotent: a second run
+  # sees `nif_tb_resize` already present and no-ops.
+  defp patch_termbox_resize(c_src) do
+    impl = Path.join(c_src, "termbox_impl.c")
+    nif = Path.join(c_src, "termbox2_nif.c")
+
+    cond do
+      not (File.exists?(impl) and File.exists?(nif)) ->
+        false
+
+      String.contains?(File.read!(nif), "nif_tb_resize") ->
+        false
+
+      true ->
+        File.write!(impl, File.read!(impl) <> @termbox_resize_impl)
+
+        nif_src =
+          nif
+          |> File.read!()
+          |> replace_anchor!(
+            "nif_funcs table",
+            "static ErlNifFunc nif_funcs[] = {",
+            @termbox_resize_wrapper <> "static ErlNifFunc nif_funcs[] = {"
+          )
+          |> replace_anchor!(
+            "nif_funcs tb_set_position entry",
+            "{\"tb_set_position\", 2, tb_set_position, 0}};",
+            ~s({"tb_set_position", 2, tb_set_position, 0},\n    {"tb_resize", 0, nif_tb_resize, 0}};)
+          )
+
+        File.write!(nif, nif_src)
+        Mix.shell().info("[aleph] patched termbox2 NIF with tb_resize/0")
+        true
+    end
+  end
+
+  # Patch the Elixir stub into termbox2_nif.ex before `compile`, so the recompiled dep module
+  # exports tb_resize/0 (the NIF binds to it once the rebuilt .so loads). Idempotent + anchored.
+  defp ensure_termbox_resize_stub(_args) do
+    case File.read(@termbox_nif_ex) do
+      {:ok, src} ->
+        if String.contains?(src, "def tb_resize") do
+          :ok
+        else
+          patched =
+            replace_anchor!(
+              src,
+              "tb_height/0 stub",
+              "  def tb_height, do: :erlang.nif_error(:nif_not_loaded)",
+              "  def tb_height, do: :erlang.nif_error(:nif_not_loaded)\n" <> @termbox_resize_stub
+            )
+
+          File.write!(@termbox_nif_ex, patched)
+          Mix.shell().info("[aleph] patched termbox2_nif.ex with tb_resize/0 stub")
+
+          # `mix compile` won't recompile an already-built hex dep on a source change, so an upgrade
+          # over a pre-built deps/ would leave the module without the stub while the rebuilt .so
+          # declares the NIF — load_nif then fails `{:bad_lib, "Function not found tb_resize/0"}` and
+          # stubs out the WHOLE NIF (tb_init included). Force the dep to recompile now so the module
+          # carries the stub before the .so is rebuilt post-compile. Only runs when the patch is
+          # first applied (idempotent), so it's a one-time cost, not every build.
+          Mix.Task.rerun("deps.compile", ["raxol_terminal", "--force"])
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
   # Recompile the NIF so both translation units carry a 64-bit colour type. `make CFLAGS=...` on
   # the command line overrides the Makefile's `CFLAGS ?=`. Returns true iff a rebuild happened.
-  defp rebuild_termbox_truecolor(c_src) do
+  defp rebuild_termbox_truecolor(c_src, force?) do
     marker = Path.join(c_src, ".aleph_truecolor")
     so = Path.join(c_src, "termbox2_nif.so")
 
-    if truecolor_current?(marker, so) do
+    if not force? and truecolor_current?(marker, so) do
       false
     else
       Mix.shell().info("[aleph] rebuilding termbox2_nif.so with 24-bit truecolor…")

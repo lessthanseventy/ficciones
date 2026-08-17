@@ -153,8 +153,12 @@ defmodule Aleph.Cockpit do
   end
 
   @impl true
-  def handle_cast({:dispatch, %Event{type: :resize, data: %{width: w, height: h}}}, state) do
-    state = %{state | w: max(w, 1), h: max(h, 1)}
+  def handle_cast({:dispatch, %Event{type: :resize}}, state) do
+    # Raxol's :resize event is a low-latency trigger; `refresh_size` (via `tb_resize/0`) re-queries
+    # and syncs termbox so its buffers — what `tb_set_cell`/`tb_present` clip to — match the window.
+    # We take termbox's re-queried size, not the event's, so `state.w/h` can never exceed the size
+    # termbox will actually render at. The tick catches the resize too if this event never fires.
+    state = refresh_size(state)
     resize_focused_terminal(state)
     {:noreply, render(state)}
   end
@@ -218,8 +222,12 @@ defmodule Aleph.Cockpit do
     Process.send_after(self(), :tick, @tick_ms)
     # A pending coalesced :render is now redundant (this tick paints); drop the flag so it no-ops.
     state = %{state | render_scheduled?: false}
-    # Re-read the terminal size every tick, so a resize that never arrived as an event (a missed
-    # SIGWINCH) self-corrects within a tick instead of leaving the layout stranded at the old size.
+    # Re-sync + re-read the terminal size every tick, so a resize that never arrived as an event
+    # (a missed SIGWINCH — plausible here, since termbox's `tb_init` and Raxol's Driver contend for
+    # the handler) self-corrects within a tick. This is the reliable path: `refresh_size` calls
+    # `tb_resize/0`, which re-queries the real size via ioctl independent of any signal, so the
+    # layout can't strand at the old size. (It previously re-read the FROZEN `tb_width()` here and
+    # "self-corrected" to the same stale value — the bug this fixes.)
     state = refresh_size(state)
     # And re-fit the center PTY to the center region — a terminal spawned *between* window resizes
     # (a new session, the Tlön coworker) starts at 80x24 and would otherwise fill only part of the
@@ -248,7 +256,13 @@ defmodule Aleph.Cockpit do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
+  # The single source of truth for the cockpit's size. termbox re-learns the terminal size only in
+  # its poll path (which aleph never calls — Raxol's Driver owns input), so `tb_resize/0` (aleph's
+  # NIF patch, see mix.exs defect #3) must sync it first, or `tb_width()/tb_height()` stay frozen at
+  # `tb_init` size and every `tb_set_cell`/`tb_present` clips to the old width. `tb_resize/0` is a
+  # cheap ioctl when nothing moved; it only reallocs (and clears) on a real change.
   defp refresh_size(state) do
+    :termbox2_nif.tb_resize()
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
   end
 
@@ -558,20 +572,37 @@ defmodule Aleph.Cockpit do
   defp spawn_machine_coworker do
     with {:ok, exports} <- machine_exports(@machine_agent),
          # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
-         {:ok, pid} <- Sessions.spawn_harness(:machine, exports, launcher: tmux_attach_launcher(), kitty: false) do
+         {:ok, pid} <- Sessions.spawn_harness(:machine, exports, launcher: tlon_launcher(exports), kitty: false) do
       pid
     else
       _error -> nil
     end
   end
 
-  # `new-session -A` = attach-or-create. The pi launcher becomes window 0's command on first
-  # creation only; the FUNES_* exports the spawn script sets become the session's environment,
-  # so pi (and later windows that don't override them) inherit the machine-thread identity.
-  defp tmux_attach_launcher do
+  @doc false
+  # `new-session -A` = attach-or-create. pi becomes window 0's command on first creation. The catch
+  # (the 2026-08-16 "not wired" bug): tmux runs that command in the SERVER's environment, NOT the
+  # launching client shell's, so `spawn_harness`'s FUNES_* exports never reach pi. `-e` forwards each
+  # into the new session's environment, which window 0 inherits (verified on tmux 3.7b). On attach
+  # (`-A`, session already up) `-e` is ignored and window 0 is reused, so only the FIRST creation
+  # wires the identity — a `tlon` session started unwired must be killed to re-wire. (The claude
+  # window bakes the same exports into its own command in `summon_claude_window`.)
+  def tlon_launcher(exports) do
     pi = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
-    "tmux new-session -A -s #{@tlon_session} '#{pi}'"
+    env_flags = exports |> env_pairs() |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
+    "tmux new-session -A -s #{@tlon_session} #{env_flags} '#{pi}'"
   end
+
+  # The `export KEY="VALUE"` lines of a FUNES_* exports block as `{key, value}` pairs.
+  defp env_pairs(exports) do
+    ~r/export (\w+)="([^"]*)"/
+    |> Regex.scan(exports)
+    |> Enum.map(fn [_, k, v] -> {k, v} end)
+  end
+
+  # POSIX single-quote: wrap in '…' and escape any embedded quote as '\'' so the value survives
+  # the shell verbatim regardless of what a future agent name / URL contains.
+  defp sh_single_quote(s), do: "'" <> String.replace(s, "'", "'\\''") <> "'"
 
   # `o`: claude window absent → summon it; present → cycle tmux's windows. Asking tmux (not
   # cockpit state) means this can't drift from what's actually on screen.

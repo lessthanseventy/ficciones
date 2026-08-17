@@ -62,4 +62,32 @@ defmodule Aleph.CockpitTest do
       assert ev.unshifted_codepoint == ?5
     end
   end
+
+  describe "tlon_launcher/1: the Tlön window-0 command carries the machine identity" do
+    # tmux runs window 0's command in the SERVER's environment, NOT the launching client shell's,
+    # so the FUNES_* exports must ride into the session via `-e` or pi comes up "not wired". This
+    # is the pure builder for that command; the 2026-08-16 regression was window 0 getting a bare
+    # `mise exec -- pi` with no identity.
+    @exports """
+    export FUNES_MCP_URL="http://127.0.0.1:4041/mcp"
+    export FUNES_THREAD="d7f2-abc"
+    export FUNES_AUTHOR="pi-machine"\
+    """
+
+    test "attaches-or-creates the standing tlon session" do
+      assert Cockpit.tlon_launcher(@exports) =~ "new-session -A -s tlon"
+    end
+
+    test "forwards every FUNES_* export into the new session's environment" do
+      cmd = Cockpit.tlon_launcher(@exports)
+      assert cmd =~ "FUNES_MCP_URL=http://127.0.0.1:4041/mcp"
+      assert cmd =~ "FUNES_THREAD=d7f2-abc"
+      assert cmd =~ "FUNES_AUTHOR=pi-machine"
+      assert length(Regex.scan(~r/(^|\s)-e /, cmd)) == 3
+    end
+
+    test "still launches pi as window 0's command" do
+      assert Cockpit.tlon_launcher(@exports) =~ "mise exec -- pi"
+    end
+  end
 end
