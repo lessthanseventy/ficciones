@@ -189,6 +189,14 @@ export class FunesClient {
       this.#drop();
       throw new FunesUnreachable(`funes returned HTTP ${res.status} — the node may be starting or down`);
     }
+    // 404 = the node doesn't know this session — it restarted and lost it (the standing Tlön pi
+    // outlives an aleph crash/restart), or the session expired. Dead exactly like a 401 token, so
+    // #drop() and let the next connect() re-mint + re-handshake, instead of hammering the stale
+    // session id forever (the Tlön 404 loop). Only 401 was self-healing before this.
+    if (res.status === 404) {
+      this.#drop();
+      throw new FunesRejected("funes lost the session (404) — the node restarted; reconnecting");
+    }
     if (res.status >= 400) throw new FunesRejected(`funes returned HTTP ${res.status}`);
 
     return { headers: res.headers, body: await this.#decodeBody(res) };
