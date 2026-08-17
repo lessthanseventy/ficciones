@@ -7,8 +7,8 @@ defmodule Aleph.Panel.Triage do
   Where DOSSIER shows one thread's brief in depth, TRIAGE shows ALL threads' trouble spots
   at a glance — the "what's on fire" summary the operator sees without focusing a thread.
 
-  Data is `%{blockers, failed_checks, unassigned}` where each is a list of
-  `%{thread_title, summary, count}` entries, capped at 5 with a `more` count.
+  Data is `%{blockers, failed_checks, unassigned}` where blockers/failed_checks are
+  `%{shown: [...], more: count}` (capped at 5 with a more count), and unassigned is a plain list.
   """
   @behaviour Aleph.Panel
 
@@ -20,13 +20,18 @@ defmodule Aleph.Panel.Triage do
   def topics(_assigns), do: [Bus.threads_topic(), Bus.sessions_topic()]
 
   @impl Aleph.Panel
+  def render(nil, rect) do
+    Aleph.Panel.clip([line("TRIAGE", :header), blank(), line("switch to Comms", :dim)], rect)
+  end
+
+  @impl Aleph.Panel
   def render(data, rect) do
     header = [line("TRIAGE", :header), blank()]
     body = triage_rows(data, rect.w)
     Aleph.Panel.clip(header ++ body, rect)
   end
 
-  defp triage_rows(%{blockers: [], failed_checks: [], unassigned: []}, _w) do
+  defp triage_rows(%{blockers: %{shown: []}, failed_checks: %{shown: []}, unassigned: []}, _w) do
     [line("all clear", :dim)]
   end
 
@@ -36,20 +41,18 @@ defmodule Aleph.Panel.Triage do
       unassigned_section(data.unassigned, w)
   end
 
-  defp blockers_section([], _w), do: []
+  defp blockers_section(%{shown: []}, _w), do: []
 
-  defp blockers_section(blockers, w) do
-    items = Enum.map(blockers, &blocker_row(&1, w))
-    more = more_line(blockers)
-    [line("BLOCKERS", :label) | items] ++ more
+  defp blockers_section(%{shown: items} = data, w) do
+    rows = Enum.map(items, &blocker_row(&1, w))
+    [line("BLOCKERS", :label) | rows] ++ more_line(data)
   end
 
-  defp checks_section([], _w), do: []
+  defp checks_section(%{shown: []}, _w), do: []
 
-  defp checks_section(checks, w) do
-    items = Enum.map(checks, &check_row(&1, w))
-    more = more_line(checks)
-    [line("FAILED CHECKS", :label) | items] ++ more
+  defp checks_section(%{shown: items} = data, w) do
+    rows = Enum.map(items, &check_row(&1, w))
+    [line("FAILED CHECKS", :label) | rows] ++ more_line(data)
   end
 
   defp unassigned_section([], _w), do: []
