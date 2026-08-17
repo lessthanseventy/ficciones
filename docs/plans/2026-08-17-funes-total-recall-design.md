@@ -56,23 +56,26 @@ A regex/entropy scan in `bank_fact` (and `post_message`?) that refuses obvious s
 tokens, SSH keys, `AKIA…`, high-entropy blobs) before they land. Cheap, high safety — and it guards
 the *automated* capture below from banking a leaked key it read in a buffer.
 
-### API constraint (spiked 2026-08-17)
-The pi extension API **exposes boundary hooks** (`session_before_compact`, `session_compact`,
-`session_shutdown`, `turn_end`, `message_end`) but **NO out-of-band LLM/inference call** — an
-extension cannot run its own extraction pass. It *can* inject content via `ui.sendMessage` /
-`appendEntry` (the `before_agent_start` brief already does). So auto-EXTRACTION must be
-**agent-self-capture**: the extension injects a "capture now" instruction and the in-session model
-(which already holds the funes tools) does the banking. `FunesClient` (mcp.ts) already has a generic
-`#callTool`, so any funes write the extension itself needs (e.g. `propose_habit`) is a thin method.
+### API note (spiked, then resolved 2026-08-17)
+The pi extension API exposes boundary hooks (`session_before_compact`, `session_compact`,
+`session_shutdown`, `turn_end`) but **no out-of-band LLM/inference call**. First read: auto-extraction
+would need agent-self-capture via `sendMessage` injection (risky — does an injected message get a turn
+before compaction?). **Andrew's correction dissolved that:** manos/consult ALREADY built the
+out-of-band LLM call — `runPi` (a transient `pi -p` one-shot) and a direct `ollama.com` completion
+(`describeImage`). So capture calls a cheap model itself (`llm.ts::completeText`), no injection, no
+agent turn — works even at shutdown.
 
-### C. Boundary auto-capture (manos/pi) — effort M — NEEDS LIVE PI
-On `session_before_compact`, inject a capture instruction: "before this context is compacted, bank
-any durable facts/decisions and raise any open questions via your funes tools." The agent extracts
-using the tools + provenance it already has (lands `derived`, never `stated`). **Open unknown that
-needs a real pi session to resolve:** whether a message injected at `session_before_compact` actually
-gets an agent turn to act on *before* the compaction runs, and that `session_shutdown` is too late to
-run a turn (so shutdown capture likely isn't viable — before_compact is the hook). This is the
-human's eye-test, not a headless build.
+### C. Cadence + boundary fact-capture (manos/pi) — DONE (`36f933f`)
+Not one big extraction at compaction (which would overflow the cheap model — at compaction the
+frontier context is full). Instead capture the **delta** on a cadence: a watermark into the entry
+list, extraction every `captureEveryTurns` turns plus a flush at `session_before_compact` /
+`session_shutdown`, over ONLY the turns since the watermark — bounded input at any context size. Each
+extraction is an out-of-band `completeText` call → durable facts banked **derived** (kind clamped to
+learned/decision — the extractor can never mint a `constraint`) + open questions raised. Best-effort
+(a failed extraction/bank never disturbs the session), re-entrancy-guarded, funes' slice-B secret scan
+rejects credentials. Pure core (`capture.ts`) is unit-pinned (10 tests); live extraction quality + hook
+timing are the eye-test. Remaining option: an end-of-session **consolidation** of the session's (small)
+banked facts into one summary event — cheap, reads facts not the transcript; not built yet.
 
 ### D. Active capture (manos/pi)
 - **Correction detection — effort S, BUILDABLE + VERIFIABLE NOW (no LLM):** pattern-match user
