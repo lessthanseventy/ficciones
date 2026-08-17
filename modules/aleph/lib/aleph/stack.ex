@@ -56,32 +56,45 @@ defmodule Aleph.Stack do
   # fork per health_read. Returns {current_gen, behind_count} or {nil, nil} on failure.
   # nix-env --list-generations prints one gen per line; the current gen is marked "(current)".
   # "Behind" = how many generations have a higher number than the current one (rollback gap).
+  # Tries home-manager first (common on non-NixOS), then the system profile.
   defp nix_generation_and_behind do
-    case cmd("nix-env", ["--list-generations", "--profile", "/nix/var/nix/profiles/default"]) do
-      {:ok, out} ->
-        lines = String.split(out, "\n", trim: true)
+    Enum.reduce_while(nix_profile_paths(), {nil, nil}, fn path, _acc ->
+      case cmd("nix-env", ["--list-generations", "--profile", path]) do
+        {:ok, out} ->
+          result = parse_nix_gens(out)
+          if elem(result, 0) == nil, do: {:cont, {nil, nil}}, else: {:halt, result}
 
-        # Find the line marked (current) and extract its generation number.
-        current_gen =
-          Enum.find_value(lines, fn line ->
-            if String.contains?(line, "(current)"), do: parse_nix_gen(line)
-          end)
+        :error ->
+          {:cont, {nil, nil}}
+      end
+    end)
+  end
 
-        behind =
-          if current_gen do
-            Enum.count(lines, fn line ->
-              gen = parse_nix_gen(line)
-              gen != nil and gen > current_gen
-            end)
-          else
-            0
-          end
+  # Profile paths to try, in order: home-manager (non-NixOS), then the system default.
+  defp nix_profile_paths do
+    home = System.user_home!()
+    [Path.join(home, ".local/state/nix/profiles/home-manager"), "/nix/var/nix/profiles/default"]
+  end
 
-        {current_gen, behind}
+  defp parse_nix_gens(out) do
+    lines = String.split(out, "\n", trim: true)
 
-      :error ->
-        {nil, nil}
-    end
+    current_gen =
+      Enum.find_value(lines, fn line ->
+        if String.contains?(line, "(current)"), do: parse_nix_gen(line)
+      end)
+
+    behind =
+      if current_gen do
+        Enum.count(lines, fn line ->
+          gen = parse_nix_gen(line)
+          gen != nil and gen > current_gen
+        end)
+      else
+        0
+      end
+
+    {current_gen, behind}
   end
 
   @doc "Current nix generation number, or nil. Best-effort: nil if nix isn't available."
@@ -92,12 +105,26 @@ defmodule Aleph.Stack do
 
   @doc "Disk usage percentage for the root filesystem (best-effort)."
   def disk_pct do
-    case cmd("df", ["--output=pct", "/"]) do
+    # GNU coreutils uses `pcent` (percent), not `pct`. Fall back to parsing `df -h`
+    # on systems where --output isn't available.
+    case cmd("df", ["--output=pcent", "/"]) do
       {:ok, out} ->
         out |> String.split("\n", trim: true) |> List.last() |> String.trim() |> parse_pct()
 
       :error ->
-        nil
+        case cmd("df", ["-h", "/"]) do
+          {:ok, out} ->
+            out
+            |> String.split("\n", trim: true)
+            |> List.last()
+            |> String.split()
+            |> Enum.at(-2, "")
+            |> String.replace("%", "")
+            |> parse_pct()
+
+          :error ->
+            nil
+        end
     end
   end
 
@@ -113,6 +140,71 @@ defmodule Aleph.Stack do
         end
 
       {:error, _} ->
+        nil
+    end
+  end
+
+  @doc "System 1-minute load average, or nil. Best-effort, reads /proc/loadavg on Linux."
+  def load_avg do
+    case File.read("/proc/loadavg") do
+      {:ok, content} ->
+        case String.split(content) do
+          [one_min | _] ->
+            case Float.parse(one_min) do
+              {f, _} -> Float.round(f, 2)
+              :error -> nil
+            end
+
+          _ ->
+            nil
+        end
+
+      {:error, _} ->
+        nil
+    end
+  end
+
+  @doc "Commits ahead/behind the tracking branch, or {nil, nil}. Best-effort."
+  def ahead_behind(dir \\ ".") do
+    case cmd("git", ["-C", dir, "rev-list", "--left-right", "--count", "@{upstream}...HEAD"]) do
+      {:ok, out} ->
+        case String.split(String.trim(out), "\t", parts: 2) do
+          [behind, ahead] ->
+            {to_integer(ahead), to_integer(behind)}
+
+          _ ->
+            {nil, nil}
+        end
+
+      :error ->
+        {nil, nil}
+    end
+  end
+
+  @doc """
+  Git status summary: %{staged, unstaged, untracked} counts from `git status --porcelain`.
+  Nil if not in a git repo. Staged = files in the index (X column not blank/?);
+  unstaged = modified in the worktree (Y column not blank/?); untracked = `??` lines.
+  """
+  def status_summary(dir \\ ".") do
+    case cmd("git", ["-C", dir, "status", "--porcelain"]) do
+      {:ok, out} ->
+        lines = String.split(out, "\n", trim: true)
+
+        staged =
+          Enum.count(lines, fn l ->
+            String.length(l) >= 1 and String.at(l, 0) not in [" ", "?"]
+          end)
+
+        unstaged =
+          Enum.count(lines, fn l ->
+            String.length(l) >= 2 and String.at(l, 1) not in [" ", "?"]
+          end)
+
+        untracked = Enum.count(lines, &String.starts_with?(&1, "??"))
+        %{staged: staged, unstaged: unstaged, untracked: untracked}
+
+      :error ->
         nil
     end
   end

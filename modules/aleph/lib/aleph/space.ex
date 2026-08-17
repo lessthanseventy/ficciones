@@ -16,11 +16,11 @@ defmodule Aleph.Space do
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Health
+  alias Aleph.Panel.Logbook
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
-  alias Aleph.Panel.Tools
   alias Aleph.Panel.Triage
 
   @enforce_keys [:key, :label, :surface]
@@ -73,7 +73,7 @@ defmodule Aleph.Space do
         label: "Tlön",
         surface: [{Terminal, :machine}],
         left: [Stack],
-        right: [Health, Tools],
+        right: [Health, Logbook],
         # Self-contained coworker: the "tlon" profile (no funes MCP, funes-brief extension dropped,
         # sandboxed). See Aleph.Profiles.
         coworker: "tlon"

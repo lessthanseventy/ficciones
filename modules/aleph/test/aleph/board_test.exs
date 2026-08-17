@@ -33,13 +33,14 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.Border
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
+  alias Aleph.Panel.Health
+  alias Aleph.Panel.Logbook
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Spaces
   alias Aleph.Panel.Stack
   alias Aleph.Panel.StatusBar
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
-  alias Aleph.Panel.Tools
   alias Aleph.View
 
   # Flatten a styled row to its text, for assertions.
@@ -68,6 +69,7 @@ defmodule Aleph.BoardTest do
         chorus: [],
         terminal: :no_session,
         health: nil,
+        logbook: nil,
         triage: %{blockers: %{shown: [], more: 0}, failed_checks: %{shown: [], more: 0}, unassigned: []}
       },
       overrides
@@ -134,7 +136,8 @@ defmodule Aleph.BoardTest do
     test "stack (Tlön): header then branch then one row per commit, hash dimmed" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
       commits = [%{hash: "bc86cc8", subject: "funes: open_thread / close_thread", time: "2h ago", author: "andrew"}]
-      assert [header, _blank, branch, row] = Stack.render(%{branch: "main", dirty: false, commits: commits}, rect)
+      data = %{branch: "main", dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: commits}
+      assert [header, _blank, branch, row] = Stack.render(data, rect)
       assert text(header) == "STACK"
       assert text(branch) =~ "main"
       assert text(row) =~ "bc86cc8"
@@ -142,21 +145,95 @@ defmodule Aleph.BoardTest do
       assert Enum.any?(row, fn {t, s} -> s == :dim and t =~ "bc86cc8" end)
     end
 
+    test "stack (Tlön): ahead/behind tracking and dirty status" do
+      rect = %{x: 0, y: 0, w: 60, h: 10}
+      data_ahead = %{branch: "main", dirty: false, ahead: 3, behind: 1, status_summary: nil, commits: []}
+      rows = Stack.render(data_ahead, rect)
+      branch_row = Enum.find(rows, fn r -> text(r) =~ "main" end)
+      assert text(branch_row) =~ "↑"
+      assert text(branch_row) =~ "3"
+      assert text(branch_row) =~ "↓"
+      assert text(branch_row) =~ "1"
+
+      data_dirty = %{
+        branch: "main",
+        dirty: true,
+        ahead: 0,
+        behind: 0,
+        status_summary: %{staged: 2, unstaged: 1, untracked: 3},
+        commits: []
+      }
+
+      rows_dirty = Stack.render(data_dirty, rect)
+      joined = Enum.map_join(rows_dirty, "\n", &text/1)
+      assert joined =~ "✗"
+      assert joined =~ "+2"
+      assert joined =~ "~1"
+      assert joined =~ "?3"
+    end
+
     test "stack (Tlön): honest when there is no git history" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
-      assert [_header, _blank, branch, empty] = Stack.render(%{branch: nil, dirty: false, commits: []}, rect)
+      data = %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: []}
+      assert [_header, _blank, branch, empty] = Stack.render(data, rect)
       assert text(branch) =~ "no branch"
       assert text(empty) =~ "no git history"
     end
 
-    test "tools (Tlön): header then one padded name/version row per tool" do
+    test "health (Tlön): services, system metrics, and tools in sections" do
+      rect = %{x: 0, y: 0, w: 40, h: 20}
+
+      data = %{
+        funes_up: true,
+        tlon_up: false,
+        nix_gen: 21,
+        nix_behind: 0,
+        disk_pct: 67,
+        mem_pct: 40,
+        load_avg: 2.5,
+        tools: [%{name: "pi", version: "0.9.1"}, %{name: "nix", version: "?"}]
+      }
+
+      rows = Health.render(data, rect)
+      joined = Enum.map_join(rows, "\n", &text/1)
+      assert joined =~ "HEALTH"
+      assert joined =~ "funes"
+      assert joined =~ "tlon"
+      assert joined =~ "SYS"
+      assert joined =~ "nix gen 21"
+      assert joined =~ "disk 67%"
+      assert joined =~ "mem 40%"
+      assert joined =~ "load 2.5"
+      assert joined =~ "TOOLS"
+      assert joined =~ "pi"
+      assert joined =~ "0.9.1"
+    end
+
+    test "logbook (Tlön): shows issues and recent messages from the machine thread" do
+      rect = %{x: 0, y: 0, w: 60, h: 20}
+      thread = %Funes.Thread{id: 99, title: "Tlön", state: "open"}
+
+      data = %{
+        thread: thread,
+        issues: [%Funes.Issue{summary: "disk probe returns ?", found_by: "pi"}],
+        messages: [%{author: "andrew", body: "moved the health probes", reply_to: nil}]
+      }
+
+      rows = Logbook.render(data, rect)
+      joined = Enum.map_join(rows, "\n", &text/1)
+      assert joined =~ "LOGBOOK"
+      assert joined =~ "disk probe returns ?"
+      assert joined =~ "pi"
+      assert joined =~ "moved the health probes"
+      assert joined =~ "andrew"
+    end
+
+    test "logbook (Tlön): nil data renders placeholder" do
       rect = %{x: 0, y: 0, w: 40, h: 10}
-      tools = [%{name: "pi", version: "0.9.1"}, %{name: "nix", version: "?"}]
-      assert [header, _blank, pi, nix] = Tools.render(%{tools: tools}, rect)
-      assert text(header) == "TOOLS"
-      assert text(pi) =~ "pi"
-      assert text(pi) =~ "0.9.1"
-      assert text(nix) =~ "?"
+      rows = Logbook.render(nil, rect)
+      joined = Enum.map_join(rows, "\n", &text/1)
+      assert joined =~ "LOGBOOK"
+      assert joined =~ "no machine thread"
     end
 
     test "dossier renders sections from an in_scope map, honest about empties and cuts" do
@@ -473,8 +550,18 @@ defmodule Aleph.BoardTest do
         reads(%{
           active_key: :tlon,
           machine: :no_session,
-          stack: %{branch: nil, dirty: false, commits: [], tools: []},
-          health: %{funes_up: false, tlon_up: true, nix_gen: nil, nix_behind: nil, disk_pct: nil, mem_pct: nil}
+          stack: %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []},
+          health: %{
+            funes_up: false,
+            tlon_up: true,
+            nix_gen: nil,
+            nix_behind: nil,
+            disk_pct: nil,
+            mem_pct: nil,
+            load_avg: nil,
+            tools: []
+          },
+          logbook: nil
         })
 
       placements = View.compose(tlon, 120, 40)
@@ -494,8 +581,9 @@ defmodule Aleph.BoardTest do
           reads(%{
             active_key: key,
             machine: :no_session,
-            stack: %{branch: nil, dirty: false, commits: [], tools: []},
-            health: nil
+            stack: %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []},
+            health: nil,
+            logbook: nil
           })
 
         {_m, _d, term_rect} = Enum.find(View.compose(r, w, h), fn {m, _d, _r} -> m == Terminal end)

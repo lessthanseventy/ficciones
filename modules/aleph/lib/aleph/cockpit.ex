@@ -23,6 +23,7 @@ defmodule Aleph.Cockpit do
   alias Aleph.View
   alias Funes.Bus
   alias Funes.Channel
+  alias Funes.Dossier
   alias Funes.MCP.Spawn
   alias Funes.Staff
   alias Ghostty.KeyEvent
@@ -237,7 +238,7 @@ defmodule Aleph.Cockpit do
   # A left PRESS routes to the panel under the cursor and asks it what that row selects — focus a
   # thread, switch a space — then repaints. Press only: the SGR release carries the same button,
   # and acting on both would double-fire (and re-hit re-laid-out placements after a space switch).
-  # Non-selectable panels (Dossier/Stack/Tools, the center terminal) return nil → no-op.
+  # Non-selectable panels (Dossier/Stack/Health, the center terminal) return nil → no-op.
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: sx, y: sy, button: :left, action: :press}}}, state) do
     {x, y} = {Mouse.to_cell(sx), Mouse.to_cell(sy)}
     dispatch_click(Mouse.hit_panel(state.placements, x, y), x, y, state)
@@ -594,6 +595,7 @@ defmodule Aleph.Cockpit do
       machine: machine_read(state),
       stack: stack_read(state.active_key),
       health: health_read(state.active_key),
+      logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :comms, do: triage_read(threads)),
       scrolls: state.scrolls,
       input: state.input,
@@ -662,19 +664,24 @@ defmodule Aleph.Cockpit do
   defp terminal_for(%{id: id}), do: Sessions.terminal(id)
 
   # The STACK reads are only gathered on Tlön (git log + version probes are wasted elsewhere).
-  # Branch, dirty status, and enriched commits (with time + author) join the existing tools.
+  # Branch, dirty status, ahead/behind, status summary, and enriched commits.
   defp stack_read(:tlon) do
     %{
       branch: Aleph.Stack.branch(),
       dirty: Aleph.Stack.dirty?(),
+      ahead: elem(Aleph.Stack.ahead_behind(), 0),
+      behind: elem(Aleph.Stack.ahead_behind(), 1),
+      status_summary: Aleph.Stack.status_summary(),
       commits: Aleph.Stack.commits(),
       tools: Aleph.Stack.tools()
     }
   end
 
-  defp stack_read(_key), do: %{branch: nil, dirty: false, commits: [], tools: []}
+  defp stack_read(_key),
+    do: %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
 
   # HEALTH reads are only gathered on Tlön — system probes are wasted elsewhere.
+  # Tools are read here (merged into Health from the old Tools panel).
   defp health_read(:tlon) do
     %{
       funes_up: Aleph.Stack.funes_up?(),
@@ -682,11 +689,31 @@ defmodule Aleph.Cockpit do
       nix_gen: Aleph.Stack.nix_generation(),
       nix_behind: Aleph.Stack.nix_behind(),
       disk_pct: Aleph.Stack.disk_pct(),
-      mem_pct: Aleph.Stack.mem_pct()
+      mem_pct: Aleph.Stack.mem_pct(),
+      load_avg: Aleph.Stack.load_avg(),
+      tools: Aleph.Stack.tools()
     }
   end
 
   defp health_read(_key), do: nil
+
+  # LOGBOOK reads are only gathered on Tlön — the machine thread's issues + recent messages,
+  # the shared notebook for notes and observations about the env.
+  defp logbook_read(:tlon) do
+    case Channel.machine_thread() do
+      nil ->
+        nil
+
+      thread ->
+        %{
+          thread: thread,
+          issues: Dossier.open_issues_for_thread(thread).shown,
+          messages: Channel.recent_messages(thread, 10)
+        }
+    end
+  end
+
+  defp logbook_read(_key), do: nil
 
   # TRIAGE reads: cross-thread blockers, failed checks, and unassigned threads.
   # Gathers from all open threads — a funes Board aggregate.
@@ -947,7 +974,7 @@ defmodule Aleph.Cockpit do
 
     with %{id: id} = thread <- Channel.machine_thread(),
          false <- crash_issue_open?(thread, summary) do
-      Funes.Dossier.raise_issue(%{thread_id: id, summary: summary, evidence: report, found_by: "aleph"})
+      Dossier.raise_issue(%{thread_id: id, summary: summary, evidence: report, found_by: "aleph"})
     end
   rescue
     _ -> :ok
@@ -956,6 +983,6 @@ defmodule Aleph.Cockpit do
   end
 
   defp crash_issue_open?(thread, summary) do
-    thread |> Funes.Dossier.open_issues_for_thread() |> Enum.any?(&(&1.summary == summary))
+    thread |> Dossier.open_issues_for_thread() |> Enum.any?(&(&1.summary == summary))
   end
 end
