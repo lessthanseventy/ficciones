@@ -219,6 +219,14 @@
                 includeCursor = false;
                 showUsage = false;
               };
+
+              # funes total-recall's noise knob (design: funes-total-recall). When a user message
+              # reads as a correction ("don't do that", "use X instead"), manos/pi proposes it as a
+              # PENDING funes habit to review in the Tlön panel — never auto-applied. Default on; set
+              # false to silence it. Owned like the other pi config; the adapter defaults if absent.
+              piRecallJson = builtins.toJSON {
+                correctionDetection = true;
+              };
             in
             {
               home.username = "andrew";
@@ -346,6 +354,9 @@
               # pi-multi-account's failover config — owned like models.json (see the binding
               # above for why the default anthropic-first order is left in place).
               home.file.".pi/agent/provider-failover.json".text = piFailoverJson;
+
+              # funes total-recall's noise knob (correction→habit proposals) — owned; adapter reads it.
+              home.file.".pi/agent/funes-recall.json".text = piRecallJson;
 
               # manos into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in

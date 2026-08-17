@@ -8,9 +8,25 @@
 // no spill file (AGENTS.md, pi doc §2a).
 
 import { env } from "node:process";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { renderBrief, type Dossier } from "./brief.ts";
 import { FunesClient, FunesUnreachable, type FunesConfig } from "./mcp.ts";
+import { detectCorrection } from "./recall.ts";
 import type { ExtensionAPI, ExtensionContext } from "./pi.ts";
+
+// The total-recall noise knob: ~/.pi/agent/funes-recall.json. correctionDetection defaults ON
+// (the flake seeds the file with defaults + a comment). A missing/broken file → defaults, so the
+// adapter never fails to load over config.
+function correctionEnabled(): boolean {
+  try {
+    const raw = readFileSync(join(homedir(), ".pi/agent/funes-recall.json"), "utf-8");
+    return (JSON.parse(raw) as { correctionDetection?: boolean }).correctionDetection !== false;
+  } catch {
+    return true;
+  }
+}
 
 const STATUS_KEY = "funes";
 const WIDGET_KEY = "funes";
@@ -49,7 +65,13 @@ export default function manos(pi: ExtensionAPI): void {
   // with the clock, so a rendered-string compare would re-display on time alone, not on change.
   let lastDossierKey: string | null = null;
 
+  // Correction detection (total-recall slice D): read the knob once at start; track the last
+  // correction we proposed so a retry of the same prompt doesn't re-file the same pending habit.
+  let correctionOn = true;
+  let lastProposedCorrection: string | null = null;
+
   pi.on("session_start", async (_event, ctx) => {
+    correctionOn = correctionEnabled();
     if (!client) {
       ctx.ui.setStatus(STATUS_KEY, "funes: not wired (need FUNES_MCP_URL / FUNES_THREAD / FUNES_AUTHOR)");
       return;
@@ -63,10 +85,27 @@ export default function manos(pi: ExtensionAPI): void {
     }
   });
 
-  pi.on("before_agent_start", async (_event, ctx) => {
+  pi.on("before_agent_start", async (event, ctx) => {
     if (!client) return;
     try {
       await client.connect();
+
+      // If this turn's prompt reads as a correction, propose it as a pending habit — the operator
+      // approves (or drops) it in the Tlön panel. Best-effort: a failure here must never fail the
+      // turn, and we surface it quietly rather than as an error toast (a proposal is not a problem).
+      if (correctionOn) {
+        const habit = detectCorrection(event.prompt ?? "");
+        if (habit && habit !== lastProposedCorrection) {
+          lastProposedCorrection = habit;
+          try {
+            await client.proposeHabit(habit, "auto-detected from a correction you made");
+            ctx.ui.setStatus(STATUS_KEY, "funes: proposed a habit from your correction (review in Tlön)");
+          } catch {
+            // proposing is a nicety; never interrupt the turn over it
+          }
+        }
+      }
+
       const dossier = (await client.getDossier()) as Dossier;
       updateWidget(ctx, dossier);
       const content = renderBrief(dossier, new Date(), env.PI_MODEL);

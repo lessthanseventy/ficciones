@@ -97,6 +97,12 @@ export class FunesClient {
     return this.#decodeJsonContent(result);
   }
 
+  // Propose a working HABIT (total-recall slice D) — lands PENDING for the operator to approve in
+  // the Tlön panel. Fired from a detected correction; it never auto-approves.
+  async proposeHabit(text: string, rationale?: string): Promise<void> {
+    await this.#callTool("propose_habit", rationale ? { text, rationale } : { text });
+  }
+
   async #callTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     const { body } = await this.#post({
       jsonrpc: "2.0",
