@@ -121,13 +121,13 @@ defmodule Aleph.CockpitTest do
   end
 
   describe "parse_tlon_tabs/1: the workspace's windows as tab data" do
-    test "each `<active>\\t<name>` line becomes a tab, active flagged" do
-      out = "1\tpi\n0\tclaude\n0\tterm\n"
+    test "each `<active>\\t<index>\\t<name>` line becomes a tab — active flagged, index kept" do
+      out = "1\t1\tpi\n0\t2\tclaude\n0\t3\tterm\n"
 
       assert Cockpit.parse_tlon_tabs(out) == [
-               %{name: "pi", active?: true},
-               %{name: "claude", active?: false},
-               %{name: "term", active?: false}
+               %{name: "pi", active?: true, index: "1"},
+               %{name: "claude", active?: false, index: "2"},
+               %{name: "term", active?: false, index: "3"}
              ]
     end
 
@@ -136,7 +136,7 @@ defmodule Aleph.CockpitTest do
     end
 
     test "a malformed line is dropped, not guessed" do
-      assert Cockpit.parse_tlon_tabs("garbage\n1\tpi\n") == [%{name: "pi", active?: true}]
+      assert Cockpit.parse_tlon_tabs("garbage\n1\t1\tpi\n") == [%{name: "pi", active?: true, index: "1"}]
     end
   end
 end

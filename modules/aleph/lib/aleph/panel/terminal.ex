@@ -48,11 +48,30 @@ defmodule Aleph.Panel.Terminal do
   # terminal carries no tabs and renders edge-to-edge. The active window is `:selected` (the picker's
   # highlight), the rest `:dim`.
   defp tab_rows(tabs, w) when is_list(tabs) and tabs != [] do
-    runs = Enum.map(tabs, fn t -> {" #{t.name} ", if(t.active?, do: :selected, else: :dim)} end)
-    [pad(runs, w, :normal)]
+    [pad(Enum.map(tabs, &tab_run/1), w, :normal)]
   end
 
   defp tab_rows(_tabs, _w), do: []
+
+  defp tab_run(t), do: {tab_label(t), if(t.active?, do: :selected, else: :dim)}
+  defp tab_label(t), do: " #{t.name} "
+
+  @doc """
+  Hit-test the tab strip a click landed on: the tab whose ` name ` segment contains column `x`
+  (0-based within the panel), or nil past the last tab. Shares `tab_label/1` with the render so the
+  clickable regions can't drift from what's drawn.
+  """
+  def tab_at_x(tabs, x) do
+    tabs
+    |> Enum.reduce_while(0, fn t, start ->
+      next = start + String.length(tab_label(t))
+      if x >= start and x < next, do: {:halt, t}, else: {:cont, next}
+    end)
+    |> case do
+      %{} = tab -> tab
+      _ -> nil
+    end
+  end
 
   # One run per cell — its own RGB. Board.row_cells emits a cell per grapheme, so per-cell runs are
   # exactly right for a terminal, where adjacent cells routinely differ in colour.

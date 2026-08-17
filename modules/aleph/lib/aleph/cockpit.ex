@@ -44,6 +44,11 @@ defmodule Aleph.Cockpit do
   # opens with tmux's own keys (Ctrl+B c) — aleph renders them as tabs, it doesn't spawn them.
   @machine_agent "pi-machine"
 
+  # The tlon tmux session name — tmux is a first-class stack citizen here: the Tlön center is a real
+  # `tmux attach`, so the machine workspace gets the user's tmux config, mouse, windows, and
+  # resurrect/continuum persistence, and it SURVIVES aleph restarts.
+  @tlon_session "tlon"
+
   # Kitty keyboard protocol: push flags + set disambiguate (CSI > 1 u) at init, pop (CSI < u)
   # at teardown. See the init comment for the full shifted-key round-trip.
   @kitty_enable "\e[>1u"
@@ -292,18 +297,40 @@ defmodule Aleph.Cockpit do
 
   defp dispatch_click(nil, _x, _y, state), do: {:noreply, state}
 
-  # Clicking the center terminal: forwarded to the PTY when the embedded program tracks the
-  # mouse — tmux (`mouse on`) selects the pane/window under the cursor, a TUI hit-tests its own
-  # regions. Untracked (a plain shell) → no-op; the terminal already owns the keys when live.
-  defp dispatch_click({Panel.Terminal, _data, rect}, x, y, state) do
-    with term when is_pid(term) <- center_terminal(state) do
-      Terminal.click(term, clamp_cell(x - rect.x, rect.w), clamp_cell(y - rect.y, rect.h))
-    end
+  # Clicking the center terminal. In the Tlön workspace, row 0 is aleph's OWN tab strip — a click
+  # there selects that tmux window (never forwarded to the PTY). Below it is the terminal proper:
+  # forwarded to the PTY when the embedded program tracks the mouse (tmux `mouse on` selects; a TUI
+  # hit-tests its own regions), shifted UP by the tab row so the cell under the cursor is the one hit.
+  defp dispatch_click({Panel.Terminal, data, rect}, x, y, state) do
+    tabs = tabs_of(data)
+    local_y = y - rect.y
 
-    {:noreply, state}
+    if tabs != [] and local_y == 0 do
+      select_tlon_window(Panel.Terminal.tab_at_x(tabs, x - rect.x))
+      {:noreply, render(state)}
+    else
+      offset = if tabs == [], do: 0, else: 1
+
+      with term when is_pid(term) <- center_terminal(state) do
+        Terminal.click(term, clamp_cell(x - rect.x, rect.w), clamp_cell(local_y - offset, rect.h))
+      end
+
+      {:noreply, state}
+    end
   end
 
   defp dispatch_click({panel, data, rect}, _x, y, state), do: apply_pick(Panel.pick(panel, data, rect, y - rect.y), state)
+
+  defp tabs_of(data) when is_map(data), do: data[:tabs] || []
+  defp tabs_of(_data), do: []
+
+  # Select a Tlön tmux window by the clicked tab's index; nil (a click past the tabs) is a no-op.
+  defp select_tlon_window(%{index: idx}) do
+    System.cmd("tmux", ["select-window", "-t", "#{@tlon_session}:#{idx}"], stderr_to_stdout: true)
+    :ok
+  end
+
+  defp select_tlon_window(_tab), do: :ok
 
   defp apply_pick(nil, state), do: {:noreply, state}
 
@@ -557,11 +584,6 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # The tlon tmux session name — tmux is a first-class stack citizen here: the Tlön center is a
-  # real `tmux attach`, so the machine workspace gets the user's tmux config, mouse, windows,
-  # and resurrect/continuum persistence, and it SURVIVES aleph restarts.
-  @tlon_session "tlon"
-
   # Find-or-create the machine coworker's identity, then spawn the Tlön center: an embedded
   # tmux client attached to the standing session (pi as window 0 if absent) — an aleph restart
   # re-attaches to the running pi instead of spawning another.
@@ -609,7 +631,9 @@ defmodule Aleph.Cockpit do
   # so it asks tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort:
   # the session not being up yet is an empty strip, not a crash.
   defp tlon_tabs do
-    case System.cmd("tmux", ["list-windows", "-t", @tlon_session, "-F", "\#{window_active}\t\#{window_name}"],
+    case System.cmd(
+           "tmux",
+           ["list-windows", "-t", @tlon_session, "-F", "\#{window_active}\t\#{window_index}\t\#{window_name}"],
            stderr_to_stdout: true
          ) do
       {out, 0} -> parse_tlon_tabs(out)
@@ -618,13 +642,14 @@ defmodule Aleph.Cockpit do
   end
 
   @doc false
-  # `window_active` is "1" for the current window, "0" otherwise; each line is `<active>\t<name>`.
+  # `window_active` is "1" for the current window, "0" otherwise; each line is
+  # `<active>\t<index>\t<name>` — the index is tmux's window index, for select-window on a tab click.
   def parse_tlon_tabs(out) do
     out
     |> String.split("\n", trim: true)
     |> Enum.flat_map(fn line ->
-      case String.split(line, "\t", parts: 2) do
-        [active, name] -> [%{name: name, active?: active == "1"}]
+      case String.split(line, "\t", parts: 3) do
+        [active, index, name] -> [%{name: name, active?: active == "1", index: index}]
         _ -> []
       end
     end)
