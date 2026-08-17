@@ -834,9 +834,9 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Keep the center session's PTY sized to the center region so it reflows with the window. An
-  # approximation of the center rect (View lays out left ¼ / center ½ / right ¼, inset by a frame);
-  # the terminal reflows on every window resize.
+  # Keep the center session's PTY sized to the center region so it reflows with the window. Sized to
+  # the EXACT center Terminal rect (Aleph.View.center_rect — the one layout authority), so the PTY
+  # matches what's on screen; the terminal reflows on every window resize.
   defp resize_focused_terminal(state) do
     with term when is_pid(term) <- center_terminal(state) do
       {cols, rows} = center_dims(state)
@@ -844,13 +844,16 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Tlön reserves one extra row for aleph's own tab strip (drawn as the center's header row), so the
-  # embedded terminal is sized one shorter and its content sits below the tabs.
-  defp center_dims(%{active_key: :tlon, w: w, h: h}), do: {max(div(w, 2) - 4, 20), max(h - 7, 5)}
-
-  defp center_dims(%{w: w, h: h}) do
-    {max(div(w, 2) - 4, 20), max(h - 6, 5)}
+  # Size the PTY to EXACTLY the center Terminal's content rect (Aleph.View.center_rect), so pi never
+  # draws past the frame (a wider PTY spills; a shorter one leaves a dead band). Tlön reserves the
+  # terminal's top row for aleph's own tab strip, so its PTY is one row shorter than the rect.
+  defp center_dims(%{active_key: active_key, w: w, h: h}) do
+    rect = View.center_rect(w, h)
+    {max(rect.w, 1), max(rect.h - tab_reserve(active_key), 1)}
   end
+
+  defp tab_reserve(:tlon), do: 1
+  defp tab_reserve(_), do: 0
 
   # Follow the focused thread's Bus topic so its dossier/chat repaint on new activity.
   defp resubscribe(state, focused) do

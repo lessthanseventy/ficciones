@@ -68,7 +68,7 @@ defmodule Aleph.BoardTest do
         chorus: [],
         terminal: :no_session,
         health: nil,
-        triage: %{blockers: [], failed_checks: [], unassigned: []}
+        triage: %{blockers: %{shown: [], more: 0}, failed_checks: %{shown: [], more: 0}, unassigned: []}
       },
       overrides
     )
@@ -482,6 +482,25 @@ defmodule Aleph.BoardTest do
       # one full-height center terminal — tmux owns the windows INSIDE it
       assert [{Terminal, :no_session, rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == Terminal end)
       assert rect.h > 30
+    end
+
+    test "the PTY sizes to the placed Terminal rect — no overflow past the frame" do
+      # center_rect is what the embedded PTY is sized to; it MUST equal the rect compose places the
+      # Terminal into, or pi draws wider/taller than the visible area (content spills past the frame,
+      # or a dead band opens below). One authority for both, asserted across sizes and both terminal
+      # spaces. (A terminal space growing a second center section would break this — and should.)
+      for {key, w, h} <- [{:sessions, 120, 40}, {:tlon, 120, 40}, {:sessions, 84, 30}] do
+        r =
+          reads(%{
+            active_key: key,
+            machine: :no_session,
+            stack: %{branch: nil, dirty: false, commits: [], tools: []},
+            health: nil
+          })
+
+        {_m, _d, term_rect} = Enum.find(View.compose(r, w, h), fn {m, _d, _r} -> m == Terminal end)
+        assert View.center_rect(w, h) == term_rect, "center_rect drifted from the Terminal placement at #{key} #{w}x#{h}"
+      end
     end
 
     test "comms space centers the chorus feed, with the roster (not a thread list) at its side" do

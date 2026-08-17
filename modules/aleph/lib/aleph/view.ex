@@ -36,13 +36,6 @@ defmodule Aleph.View do
     space = Space.fetch(reads.active_key)
     body_h = max(h - @status_h, 1)
 
-    left_w = clamp_col(div(w, 4), w)
-    right_w = clamp_col(div(w, 4), w)
-    center_w = max(w - left_w - right_w - 2, 1)
-    center_x = left_w + 1
-    right_x = center_x + center_w + 1
-    right_w = max(w - right_x, 1)
-
     # Each column holds a stack of *sections*, each its own bordered box, so sections read as
     # defined regions. A section is a bare panel module (data resolved by `data_for/2`) or a
     # `{panel, read_key}` pair reading straight from `reads[key]` — how Tlön's two Terminal panes
@@ -50,10 +43,12 @@ defmodule Aleph.View do
     columns =
       case layout_for(w) do
         :wide ->
+          %{left: left, center: center, right: right} = wide_columns(w, body_h)
+
           [
-            {%{x: 0, y: 0, w: left_w, h: body_h}, [Panel.Spaces | space.left]},
-            {%{x: center_x, y: 0, w: center_w, h: body_h}, space.surface},
-            {%{x: right_x, y: 0, w: right_w, h: body_h}, space.right}
+            {left, [Panel.Spaces | space.left]},
+            {center, space.surface},
+            {right, space.right}
           ]
 
         :narrow ->
@@ -76,6 +71,36 @@ defmodule Aleph.View do
 
   defp layout_for(w) when w >= @wide_min, do: :wide
   defp layout_for(_w), do: :narrow
+
+  # The three-column geometry (left ¼ · center ½ · right ¼) of the wide layout, as box rects — the
+  # single source of truth for where each column sits. `compose/3` places panels into these, and
+  # `center_rect/2` derives the center Terminal's content rect from the SAME math, so the embedded
+  # PTY can be sized to exactly what's on screen (a wider PTY spills pi past the frame; a shorter
+  # one leaves a dead band).
+  defp wide_columns(w, body_h) do
+    left_w = clamp_col(div(w, 4), w)
+    right_w = clamp_col(div(w, 4), w)
+    center_w = max(w - left_w - right_w - 2, 1)
+    center_x = left_w + 1
+    right_x = center_x + center_w + 1
+    right_w = max(w - right_x, 1)
+
+    %{
+      left: %{x: 0, y: 0, w: left_w, h: body_h},
+      center: %{x: center_x, y: 0, w: center_w, h: body_h},
+      right: %{x: right_x, y: 0, w: right_w, h: body_h}
+    }
+  end
+
+  @doc """
+  The content rect the center Terminal renders into for a `w`×`h` cockpit — the single source of
+  truth the embedded PTY sizes to, so pi never draws wider or taller than the visible area. It is
+  the wide layout's center column inset by its frame; the terminal-bearing spaces (Sessions, Tlön)
+  each have a single-section center surface, so that box IS the full-height center column. (The PTY
+  is only sized in the wide layout — a real cockpit is never below the narrow threshold.)
+  """
+  @spec center_rect(pos_integer(), pos_integer()) :: Panel.rect()
+  def center_rect(w, h), do: inset(wide_columns(w, max(h - @status_h, 1)).center)
 
   # The content region inside a section box: one cell of frame + one of padding on each side.
   defp inset(%{x: x, y: y, w: w, h: h}) do
