@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { contextBar, fmtCost, fmtTokens } from "./footer.ts";
+import { accumulateUsage, cacheHitPct, contextBar, fmtCost, fmtTokens } from "./footer.ts";
 
 describe("fmtTokens — human token counts", () => {
   test("0 / under 1k / k / M thresholds", () => {
@@ -16,6 +16,35 @@ describe("fmtCost — money, or nothing when free", () => {
     expect(fmtCost(0.0004)).toBe("$0.0004");
     expect(fmtCost(0.42)).toBe("$0.42");
     expect(fmtCost(12.5)).toBe("$12.50");
+  });
+});
+
+describe("accumulateUsage — sums the fields the footer glances at, cache included", () => {
+  test("empty is all zeros", () => {
+    expect(accumulateUsage([])).toEqual({ input: 0, output: 0, cost: 0, cacheRead: 0, cacheWrite: 0 });
+  });
+
+  test("sums input/output/cost/cacheRead/cacheWrite across turns", () => {
+    const totals = accumulateUsage([
+      { input: 100, output: 20, cacheRead: 400, cacheWrite: 50, cost: { total: 0.5 } },
+      { input: 30, output: 10, cacheRead: 900, cacheWrite: 0, cost: { total: 0.25 } },
+    ]);
+    expect(totals).toEqual({ input: 130, output: 30, cost: 0.75, cacheRead: 1300, cacheWrite: 50 });
+  });
+});
+
+describe("cacheHitPct — share of prompt tokens served from cache", () => {
+  test("zero prompt tokens is 0 (no divide-by-zero)", () => {
+    expect(cacheHitPct(0, 0, 0)).toBe(0);
+  });
+
+  test("rounds cacheRead / (input + cacheRead + cacheWrite)", () => {
+    expect(cacheHitPct(100, 900, 0)).toBe(90); // 900 / 1000
+    expect(cacheHitPct(100, 400, 500)).toBe(40); // 400 / 1000
+  });
+
+  test("all-fresh input is 0%", () => {
+    expect(cacheHitPct(1000, 0, 0)).toBe(0);
   });
 });
 

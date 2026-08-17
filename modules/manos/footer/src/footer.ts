@@ -28,6 +28,47 @@ export function fmtCost(c: number): string {
   return `$${c.toFixed(2)}`;
 }
 
+// The usage fields the footer glances at, cache included. Structural (not the full pi-ai
+// `Usage`) so the seam is unit-pinnable without constructing whole AssistantMessages.
+export interface UsageLike {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  cost: { total: number };
+}
+
+export interface UsageTotals {
+  input: number;
+  output: number;
+  cost: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
+// Fold the per-turn usages into session totals. Extends the old inline input/output/cost
+// sum with the cache read/write tokens that were already sitting unused on every Usage.
+export function accumulateUsage(usages: Iterable<UsageLike>): UsageTotals {
+  const totals: UsageTotals = { input: 0, output: 0, cost: 0, cacheRead: 0, cacheWrite: 0 };
+  for (const u of usages) {
+    totals.input += u.input;
+    totals.output += u.output;
+    totals.cost += u.cost.total;
+    totals.cacheRead += u.cacheRead;
+    totals.cacheWrite += u.cacheWrite;
+  }
+  return totals;
+}
+
+// Share of prompt tokens served from cache: cacheRead / (input + cacheRead + cacheWrite),
+// rounded to a whole percent. Zero prompt tokens → 0 (no divide-by-zero). High is good —
+// it's the reuse signal the cache-reuse cribs care about.
+export function cacheHitPct(input: number, cacheRead: number, cacheWrite: number): number {
+  const prompt = input + cacheRead + cacheWrite;
+  if (prompt === 0) return 0;
+  return Math.round((cacheRead / prompt) * 100);
+}
+
 export function fmtCwd(cwd: string): string {
   const home = process.env.HOME;
   if (home && cwd.startsWith(home)) return `~${cwd.slice(home.length)}`;
@@ -85,20 +126,21 @@ export default function footer(pi: ExtensionAPI): void {
               ? `${contextBar(ctxPct, ctxBarW)} ${Math.round(ctxPct)}%/${fmtTokens(ctxWindow)}`
               : "ctx ?";
 
-          // Session I/O
-          let input = 0;
-          let output = 0;
-          let cost = 0;
+          // Session I/O + cache — one fold over the branch's assistant usages.
+          const usages: UsageLike[] = [];
           for (const e of ctx.sessionManager.getBranch()) {
             if (e.type === "message" && e.message.role === "assistant") {
-              const m = e.message as AssistantMessage;
-              input += m.usage.input;
-              output += m.usage.output;
-              cost += m.usage.cost.total;
+              usages.push((e.message as AssistantMessage).usage);
             }
           }
-          const ioParts = [`↑${fmtTokens(input)}`, `↓${fmtTokens(output)}`];
-          const costStr = fmtCost(cost);
+          const totals = accumulateUsage(usages);
+          const ioParts = [`↑${fmtTokens(totals.input)}`, `↓${fmtTokens(totals.output)}`];
+          // Cache reuse: only worth showing once cache is actually in play, else it reads
+          // as a permanent 0% on providers/sessions that don't cache.
+          if (totals.cacheRead > 0 || totals.cacheWrite > 0) {
+            ioParts.push(`↺${cacheHitPct(totals.input, totals.cacheRead, totals.cacheWrite)}%`);
+          }
+          const costStr = fmtCost(totals.cost);
           if (costStr) ioParts.push(costStr);
           const ioLabel = ioParts.join(" ");
 
