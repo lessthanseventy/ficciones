@@ -82,48 +82,43 @@ defmodule Aleph.CockpitTest do
     end
   end
 
-  describe "tlon_launcher/1: the Tlön window-0 command carries the machine identity" do
-    # tmux runs window 0's command in the SERVER's environment, not the client's, so FUNES_*
-    # exports must ride in via `-e` or pi comes up "not wired".
-    @exports """
-    export FUNES_MCP_URL="http://127.0.0.1:4041/mcp"
-    export FUNES_THREAD="d7f2-abc"
-    export FUNES_AUTHOR="pi-machine"\
-    """
+  describe "profile_launcher/1: the Tlön window-0 command runs pi from its profile's config dir" do
+    @profile %Aleph.Profile{name: "tlon"}
 
     test "attaches-or-creates the standing tlon session" do
-      assert Cockpit.tlon_launcher(@exports) =~ "new-session -A -s tlon"
+      assert Cockpit.profile_launcher(@profile) =~ "new-session -A -s tlon"
     end
 
-    test "forwards every FUNES_* export into the new session's environment" do
-      cmd = Cockpit.tlon_launcher(@exports)
-      assert cmd =~ "FUNES_MCP_URL=http://127.0.0.1:4041/mcp"
-      assert cmd =~ "FUNES_THREAD=d7f2-abc"
-      assert cmd =~ "FUNES_AUTHOR=pi-machine"
-      # three FUNES_* exports + MANOS_RELOAD_CMD = four `-e` flags.
-      assert length(Regex.scan(~r/(^|\s)-e /, cmd)) == 4
+    test "points pi at the profile's config dir and wires NO funes env (self-contained)" do
+      cmd = Cockpit.profile_launcher(@profile)
+      assert cmd =~ "PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")}"
+      # The whole funes sever lives in the profile's config (empty mcp.json, dropped funes-brief
+      # extension) — no FUNES_* plumbing in the launcher, so MANOS_RELOAD_CMD is the only `-e`.
+      refute cmd =~ "FUNES_"
+      assert length(Regex.scan(~r/(^|\s)-e /, cmd)) == 1
     end
 
-    test "exports MANOS_RELOAD_CMD so manos/reload can respawn pi and resume the session" do
-      cmd = Cockpit.tlon_launcher(@exports)
-      assert cmd =~ "MANOS_RELOAD_CMD=mise exec -- pi --continue"
+    test "MANOS_RELOAD_CMD carries the config dir so a manos/reload respawn stays on-profile" do
+      cmd = Cockpit.profile_launcher(@profile)
+      assert cmd =~ "MANOS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")} mise exec -- pi --continue"
+    end
+
+    test "a profile with a persona adds --append-system-prompt; without one, none" do
+      refute Cockpit.profile_launcher(@profile) =~ "--append-system-prompt"
+      withp = Cockpit.profile_launcher(%Aleph.Profile{name: "tlon", system_prompt: "be terse"})
+      assert withp =~ "--append-system-prompt #{Aleph.Profiles.config_dir("tlon")}/system_prompt.md"
     end
 
     test "still launches pi as window 0's command" do
-      assert Cockpit.tlon_launcher(@exports) =~ "mise exec -- pi"
+      assert Cockpit.profile_launcher(@profile) =~ "mise exec -- pi"
     end
 
     test "silences tmux's own chrome — aleph draws the Tlön header itself" do
-      # Chained onto the one new-session with `\;` (the launcher must stay a single foreground
-      # command). Window 0 is named `pi` for a clean tab label. `status off` alone leaves a themed
-      # multi-line status, so we also blank status-format[0] and disable pane-border-status — the
-      # session owns its chrome without depending on the user's tmux theme.
-      cmd = Cockpit.tlon_launcher(@exports)
+      cmd = Cockpit.profile_launcher(@profile)
       assert cmd =~ "new-session -A -s tlon -n pi"
       assert cmd =~ "\\; set-option -t tlon status off"
       assert cmd =~ "\\; set-option -t tlon 'status-format[0]' ''"
       assert cmd =~ "\\; set-option -t tlon pane-border-status off"
-      # and a readable selection highlight for mouse-drag copy
       assert cmd =~ "\\; set-option -t tlon mode-style 'bg=#3b4261,fg=#c0caf5'"
     end
   end
