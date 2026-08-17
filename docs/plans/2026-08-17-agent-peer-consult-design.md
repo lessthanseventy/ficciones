@@ -105,10 +105,12 @@ many threads"), and `live_session/2` takes a thread id as input — it is the to
 not a lookup-by-agent. There is no `current_thread_for_agent/1`. So `consult_peer("claude", …)` must
 resolve over the peer's staffed threads with a defined rule, not a hop:
 
-1. `peer` → `Staff.agent_by_name/1` (refuse unknown / duplicate name).
+1. `peer` → `Staff.agent_by_name/1` (refuse unknown / duplicate name). This yields `claude.id`.
 2. `threads_for(claude)` → every thread claude is staffed on.
-3. For each, the live session (`session_for_thread/1` — the newest live session on a thread staffed to
-   claude IS claude's). Filter to live.
+3. For each, claude's live session via **`live_session(thread.id, claude.id)`** — NOT
+   `session_for_thread/1`, which filters only by thread, not agent. A stray cross-agent session on a
+   thread staffed to claude must not misroute the target; filtering by the `claude.id` we already hold
+   is the cheap guard. Filter to live.
 4. Tie-break:
    - **0 live** → deliver durably to `threads_for(claude)` head (the most recent thread); the ask
      waits there, no liveness invented.
@@ -132,7 +134,18 @@ answer must come back. So a consult is a **correlated ask/answer pair**:
   `consult_id` and authored as the peer. It lands in the caller's own dossier/chatter; no cross-thread
   read tool is needed.
 - The caller reads the answer on its OWN thread (its dossier) and can keep the consult going by
-  `reply_to` on the mirrored message.
+  `reply_to` on the mirrored message — which the mirror carries **forward** to the peer again.
+
+**The mirror is a bidirectional bridge, keyed on `consult_id`, for the life of the consult** — not a
+one-shot peer→caller hop. A follow-up the caller posts on its own thread mirrors forward to the peer;
+ a follow-up the peer posts mirrors back to the caller. The mirroring rule is "any new message on
+ either side's thread that replies within this consult is copied to the other side", until the consult
+ closes. The one-way phrasing undercounted it.
+
+**Echo guard (correctness, not polish):** a mirrored post is itself a `Channel.post`, so the mirror
+must not re-fire on its own output — ask→mirror→mirror-of-mirror→… forever. Every mirrored message
+carries a marker (a `mirrored` flag on the row, or keyed off which side authored it) and the mirror
+skips anything already marked. Without this it is an infinite reactive-bridge loop.
 
 This is the schema cost the first draft hid: the ask message needs `consult_id` + `origin_thread_id`
 (a small correlation — a column or a consult table), so `consult_id` is a real correlation, not an
@@ -159,9 +172,9 @@ implied fiction.
 **Boundary cost**
 
 A `Consult` context (or `Channel`-adjacent functions) + the ask's `consult_id`/`origin_thread_id`
-correlation, a new `Funes.MCP.Tool.ConsultPeer` component and the `consult_peer` directTool, plus the
-answer path (reply-to-ask auto-mirroring). That is the whole surface — and it is the reviewed,
-deliberate widening this file's history is for.
+correlation and the mirrored-post marker, a new `Funes.MCP.Tool.ConsultPeer` component and the
+`consult_peer` directTool, plus the answer path (the bidirectional, echo-guarded mirror). That is the
+whole surface — and it is the reviewed, deliberate widening this file's history is for.
 
 ### 2c — Discoverability (the operator's "point at the surface" fix)
 
@@ -199,6 +212,15 @@ fights the token/session model is exactly what this pass is for:
   `consult_id` correlation, and the peer's reply must be mirrored back to the caller's own thread.
   If the caller would have to poll the peer's thread (it can't — `get_messages` is own-thread) or if
   `consult_id` has no backing schema, the round-trip is unfinished. Reject.
+- **The mirror is a bidirectional bridge, not a one-shot.** A follow-up on the caller's side must
+  mirror forward to the peer, keyed on `consult_id`, for the life of the consult — not just
+  peer→caller once. A one-way implementation is incomplete.
+- **Echo guard.** A mirrored post is itself a `Channel.post`; the mirror must never re-fire on its
+  own output (ask→mirror→mirror-of-mirror→…). Verify every mirrored row is marked and the mirror
+  skips already-marked rows. This is a correctness bug if missing, not polish.
+- **Target filters by agent.** The per-thread lookup uses `live_session(thread.id, peer_id)` —
+  never `session_for_thread/1` un-filtered, which could return a stray cross-agent session on the
+  peer's thread and misroute the ask.
 - **Single-writer.** Both the ask and the mirrored answer must go through `Funes.Channel.post` (or a
   new `Consult` context that itself calls the channel) — never a direct schema write from the tool.
   The new export must live inside the `lib/funes.ex` boundary, not widen it accidentally.
