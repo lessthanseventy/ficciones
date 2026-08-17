@@ -2,6 +2,10 @@
 // packs the things you glance at most: full model name (never truncated), context
 // usage with a visual bar, session I/O, git branch, sandbox, and funes connection.
 //
+// A generic statusline: NOT a funes concern, so it lives in its own manos package (not
+// modules/manos/pi, which the Tlön coworker profile drops to sever funes) — the footer
+// loads for every pi, funes-citizen or self-contained.
+//
 // Uses the footerData API for reactive git-branch updates and extension statuses, plus
 // ctx.sessionManager / ctx.model / ctx.getContextUsage() for everything else.
 
@@ -9,30 +13,30 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext, FooterData } from "./pi.ts";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
-// ── formatters ────────────────────────────────────────────────────────────────
+// ── formatters (pure — exported so the seams are unit-pinned) ───────────────────
 
-function fmtTokens(n: number): string {
+export function fmtTokens(n: number): string {
   if (n === 0) return "0";
   if (n < 1_000) return String(n);
   if (n < 1_000_000) return `${(n / 1_000).toFixed(1)}k`;
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
-function fmtCost(c: number): string {
+export function fmtCost(c: number): string {
   if (c === 0) return "";
   if (c < 0.01) return `$${c.toFixed(4)}`;
   return `$${c.toFixed(2)}`;
 }
 
-function fmtCwd(cwd: string): string {
+export function fmtCwd(cwd: string): string {
   const home = process.env.HOME;
   if (home && cwd.startsWith(home)) return `~${cwd.slice(home.length)}`;
   return cwd;
 }
 
-// A 10-char context bar: ▓▓▓░░░░░░░  fills proportionally. Clamps pct to [0, 100] so context
-// overflow (pct > 100) can't produce a negative repeat count.
-function contextBar(pct: number, width: number): string {
+// A context bar: ▓▓▓░░░░░░░  fills proportionally. Clamps pct to [0, 100] so context overflow
+// (pct > 100) can't produce a negative repeat count (a crash in String.repeat).
+export function contextBar(pct: number, width: number): string {
   const clamped = Math.max(0, Math.min(100, pct));
   const filled = Math.round((clamped / 100) * width);
   return "▓".repeat(filled) + "░".repeat(width - filled);

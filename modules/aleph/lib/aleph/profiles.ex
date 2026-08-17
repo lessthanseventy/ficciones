@@ -6,7 +6,10 @@ defmodule Aleph.Profile do
   on (design: `docs/plans/2026-08-17-pi-coworker-profiles-design.md`):
 
     * **tool / MCP surface** — `mcp` (`:base` inherit, `:none` self-contained, or an explicit
-      `%{server => config}`) and `drop_extensions` (which pi extensions to omit).
+      `%{server => config}`), `drop_extensions` (which base pi extensions to omit), and
+      `add_extensions` (extensions to add ON TOP, by absolute path — a coworker-specific extension,
+      or one the flake hasn't registered into the base yet, so it loads at the next cockpit restart
+      without a `home:switch`).
     * **model + thinking** — `model` (`%{provider, model, thinking}`, or `nil` to inherit the base
       defaults).
     * **system prompt / persona** — `system_prompt` (materialised to a file, passed as
@@ -21,6 +24,7 @@ defmodule Aleph.Profile do
   @enforce_keys [:name]
   defstruct name: nil,
             drop_extensions: [],
+            add_extensions: [],
             mcp: :base,
             model: nil,
             system_prompt: nil,
@@ -29,6 +33,7 @@ defmodule Aleph.Profile do
   @type t :: %__MODULE__{
           name: String.t(),
           drop_extensions: [String.t()],
+          add_extensions: [String.t()],
           mcp: :base | :none | map(),
           model: %{provider: String.t(), model: String.t(), thinking: String.t()} | nil,
           system_prompt: String.t() | nil,
@@ -116,8 +121,13 @@ defmodule Aleph.Profiles do
     }
   }
 
+  # The dense statusline (manos/footer) — its OWN package, not manos/pi, so dropping the funes
+  # adapter doesn't take the footer with it. Added explicitly so Tlön shows it at the next cockpit
+  # restart even before the flake registers it into the base config (which needs a home:switch).
+  @footer_extension "#{@repo}/modules/manos/footer/src/footer.ts"
+
   # The registry. Tlön: self-contained (no funes MCP), the funes-brief extension (manos/pi) dropped,
-  # sandboxed. Driver model is glm-5.1 (ollama-cloud) — a capable ORCHESTRATOR that stays lean by
+  # the generic footer added back, sandboxed. Driver model is glm-5.1 (ollama-cloud) — a capable ORCHESTRATOR that stays lean by
   # delegating heavy/cheap work to workers via /consult and spawned tabs (route those to LOCAL
   # qwen3-coder / flash to keep the flat cloud plan cool). Not flash: flash context-overflowed on real
   # builds. Not the pro/max tier: mid-tier hedges the plan's usage caps. glm-5.1 not 5.2 because 5.2
@@ -126,6 +136,7 @@ defmodule Aleph.Profiles do
     %Profile{
       name: "tlon",
       drop_extensions: ["/manos/pi/"],
+      add_extensions: [@footer_extension],
       mcp: :none,
       model: %{provider: "ollama-cloud", model: "glm-5.1", thinking: "medium"},
       sandbox: @tlon_sandbox
@@ -147,8 +158,13 @@ defmodule Aleph.Profiles do
           system_prompt: String.t() | nil
         }
   def render(%Profile{} = p, base_settings, base_mcp) do
+    # Drop, then add on top — the add wins, so an add_extensions path survives even if it would
+    # match a drop pattern. `uniq` keeps it idempotent once the flake also registers it into the base.
     exts =
-      Enum.reject(base_settings["extensions"] || [], fn e -> Enum.any?(p.drop_extensions, &String.contains?(e, &1)) end)
+      (base_settings["extensions"] || [])
+      |> Enum.reject(fn e -> Enum.any?(p.drop_extensions, &String.contains?(e, &1)) end)
+      |> Kernel.++(p.add_extensions)
+      |> Enum.uniq()
 
     settings =
       base_settings

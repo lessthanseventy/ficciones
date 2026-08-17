@@ -144,6 +144,10 @@
               # reload — restart the pi harness in place and resume the session, so an agent
               # that edited its own tooling picks up the new code. See modules/manos/reload.
               reloadExtension = "${repo}/modules/manos/reload/src/extension.ts";
+              # footer — a dense 2-line statusline (model, context bar, I/O, branch, statuses).
+              # A generic footer, NOT a funes concern, so it's its OWN package (not manos/pi,
+              # which the Tlön coworker profile drops) and loads for every pi. See modules/manos/footer.
+              footerExtension = "${repo}/modules/manos/footer/src/footer.ts";
               manosSkillsGlob = "${repo}/modules/manos/skills/*";
 
               # funes' self-contained release (`mise run funes:release`). The service below
@@ -345,8 +349,9 @@
                   --arg ext3 "${fmtExtension}" \
                   --arg ext4 "${lspExtension}" \
                   --arg ext5 "${reloadExtension}" \
+                  --arg ext6 "${footerExtension}" \
                   --arg skills "${manosSkillsGlob}" \
-                  '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3, $ext4, $ext5] | unique)
+                  '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
                    | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)
                    | .defaultProvider //= "ollama-cloud"

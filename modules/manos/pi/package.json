@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "manos — the pi adapter: funes' hands in the pi harness (register + brief + footer).",
+  "description": "manos — the pi adapter: funes' hands in the pi harness (register + brief). The dense statusline lives in the sibling manos/footer package.",
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit"
@@ -13,10 +13,7 @@
     "typescript": "^5.6.3"
   },
   "pi": {
-    "extensions": [
-      "./src/extension.ts",
-      "./src/footer.ts"
-    ]
+    "extensions": ["./src/extension.ts"]
   },
   "dependencies": {
     "@earendil-works/pi-ai": "^0.84.2",

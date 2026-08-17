@@ -52,6 +52,47 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.render(%Profile{name: "t", sandbox: %{"enabled" => true}}, @base_settings, @base_mcp).sandbox ==
                %{"enabled" => true}
     end
+
+    test "add_extensions appends on top of the base (a coworker-specific / not-yet-flake-registered extension)" do
+      r =
+        Profiles.render(
+          %Profile{name: "t", add_extensions: ["/repo/modules/manos/footer/src/footer.ts"]},
+          @base_settings,
+          @base_mcp
+        )
+
+      assert "/repo/modules/manos/footer/src/footer.ts" in r.settings["extensions"]
+      # the base ones are still there
+      assert Enum.any?(r.settings["extensions"], &String.contains?(&1, "/manos/lsp/"))
+    end
+
+    test "add wins over drop, and a doubly-present extension appears once" do
+      # add_extensions survives a drop pattern it would otherwise match...
+      r =
+        Profiles.render(
+          %Profile{
+            name: "t",
+            drop_extensions: ["/manos/pi/"],
+            add_extensions: ["/repo/modules/manos/pi/src/extension.ts"]
+          },
+          @base_settings,
+          @base_mcp
+        )
+
+      assert "/repo/modules/manos/pi/src/extension.ts" in r.settings["extensions"]
+
+      # ...and once the base already lists an add, it isn't duplicated (idempotent post-home:switch).
+      base_with_footer = Map.update!(@base_settings, "extensions", &(&1 ++ ["/repo/modules/manos/footer/src/footer.ts"]))
+
+      r2 =
+        Profiles.render(
+          %Profile{name: "t", add_extensions: ["/repo/modules/manos/footer/src/footer.ts"]},
+          base_with_footer,
+          @base_mcp
+        )
+
+      assert Enum.count(r2.settings["extensions"], &(&1 == "/repo/modules/manos/footer/src/footer.ts")) == 1
+    end
   end
 
   describe "the tlon profile — self-contained + sandboxed" do
@@ -60,6 +101,13 @@ defmodule Aleph.ProfilesTest do
       assert p.mcp == :none
       assert p.drop_extensions == ["/manos/pi/"]
       assert p.sandbox["network"]["allowAllUnixSockets"] == true
+    end
+
+    test "adds the generic footer back (its own package, not swept up by the manos/pi drop)" do
+      p = Profiles.fetch("tlon")
+      assert Enum.any?(p.add_extensions, &String.ends_with?(&1, "/modules/manos/footer/src/footer.ts"))
+      # and the footer path does NOT match the funes-adapter drop, so it isn't a fight
+      refute Enum.any?(p.add_extensions, &String.contains?(&1, "/manos/pi/"))
     end
 
     test "drives on a capable glm — an orchestrator, not flash" do
