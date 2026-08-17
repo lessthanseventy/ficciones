@@ -52,37 +52,43 @@ defmodule Aleph.Stack do
     end
   end
 
-  @doc "Current nix generation number, or nil. Best-effort: nil if nix isn't available."
-  def nix_generation do
-    case cmd("nix-env", ["--list-generations", "--profile", "/nix/var/nix/profiles/default"]) do
-      {:ok, out} ->
-        # Last line is the current generation: "123 2026-01-15 ..."
-        out |> String.split("\n", trim: true) |> List.last() |> parse_nix_gen()
-
-      :error ->
-        nil
-    end
-  end
-
-  @doc "How many generations behind the current one is. 0 means current, nil if unknown."
-  def nix_behind do
+  # One nix-env call, shared by nix_generation and nix_behind — halves the subprocess
+  # fork per health_read. Returns {current_gen, behind_count} or {nil, nil} on failure.
+  # nix-env --list-generations prints one gen per line; the current gen is marked "(current)".
+  # "Behind" = how many generations have a higher number than the current one (rollback gap).
+  defp nix_generation_and_behind do
     case cmd("nix-env", ["--list-generations", "--profile", "/nix/var/nix/profiles/default"]) do
       {:ok, out} ->
         lines = String.split(out, "\n", trim: true)
-        # Generations are listed oldest-first; the last is current.
-        # "Behind" = total - current_index - 1
-        count = length(lines)
 
-        if count <= 1 do
-          0
-        else
-          count - 1
-        end
+        # Find the line marked (current) and extract its generation number.
+        current_gen =
+          Enum.find_value(lines, fn line ->
+            if String.contains?(line, "(current)"), do: parse_nix_gen(line)
+          end)
+
+        behind =
+          if current_gen do
+            Enum.count(lines, fn line ->
+              gen = parse_nix_gen(line)
+              gen != nil and gen > current_gen
+            end)
+          else
+            0
+          end
+
+        {current_gen, behind}
 
       :error ->
-        nil
+        {nil, nil}
     end
   end
+
+  @doc "Current nix generation number, or nil. Best-effort: nil if nix isn't available."
+  def nix_generation, do: elem(nix_generation_and_behind(), 0)
+
+  @doc "How many generations behind the current one is. 0 means current, nil if unknown."
+  def nix_behind, do: elem(nix_generation_and_behind(), 1)
 
   @doc "Disk usage percentage for the root filesystem (best-effort)."
   def disk_pct do
@@ -99,14 +105,14 @@ defmodule Aleph.Stack do
   def mem_pct do
     case File.read("/proc/meminfo") do
       {:ok, content} ->
-        with {total, rest} <- parse_mem_line(content, "MemTotal:"),
-             {available, _} <- parse_mem_line(rest, "MemAvailable:") do
+        with {total, _} <- parse_mem_line(content, "MemTotal:"),
+             {available, _} <- parse_mem_line(content, "MemAvailable:") do
           if total > 0, do: round((total - available) / total * 100)
         else
           _ -> nil
         end
 
-      :error ->
+      {:error, _} ->
         nil
     end
   end
@@ -164,7 +170,7 @@ defmodule Aleph.Stack do
   defp parse_mem_line(content, prefix) do
     case Regex.run(~r/#{prefix}\s+(\d+)/, content) do
       [_, num] -> {String.to_integer(num), content}
-      _ -> {:error, content}
+      _ -> nil
     end
   end
 
