@@ -43,6 +43,15 @@ defmodule Aleph.CockpitTest do
     assert Cockpit.ghostty_key(%{key: :f5}) == nil
   end
 
+  test "EVERY letter and digit maps without crashing (atom-intern safety)" do
+    # Iterate by codepoint so no literal key atom (`:o`, `:p`, …) is interned by this test — the trap
+    # that let `to_existing_atom` crash the cockpit on a keypress whose atom existed nowhere. With
+    # `to_atom` every printable maps; with `to_existing_atom` the first un-interned letter raises.
+    for c <- Enum.map(?a..?z, &<<&1>>) ++ Enum.map(?A..?Z, &<<&1>>) ++ Enum.map(?0..?9, &<<&1>>) do
+      assert %KeyEvent{utf8: ^c} = Cockpit.ghostty_key(%{key: :char, char: c})
+    end
+  end
+
   describe "ghostty_key: Kitty keyboard encoding contract" do
     # pi's TUI decodes Kitty sequences (\e[13;2u for shift+enter, \e[118;5u for ctrl+v). The Kitty
     # encoder needs the key's UNSHIFTED codepoint to build \e[<cp>;<mods>u for a modified printable;

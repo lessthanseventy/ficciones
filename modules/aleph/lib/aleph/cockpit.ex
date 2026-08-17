@@ -534,9 +534,13 @@ defmodule Aleph.Cockpit do
 
   # a-z (and A-Z → the lowercase key + a shift mod via utf8), 0-9 → :digit_N; anything else is
   # carried by utf8 alone under :unidentified.
-  defp char_key(<<cp>>) when cp in ?a..?z, do: String.to_existing_atom(<<cp>>)
-  defp char_key(<<cp>>) when cp in ?A..?Z, do: String.to_existing_atom(<<cp + 32>>)
-  defp char_key(<<cp>>) when cp in ?0..?9, do: String.to_existing_atom("digit_#{<<cp>>}")
+  # to_atom, NOT to_existing_atom: the char set is bounded (a-z, A-Z, 0-9 → 36 known atoms), so there's
+  # no atom-table-exhaustion risk — and to_existing_atom CRASHES the cockpit on any letter whose atom
+  # wasn't already interned (e.g. pressing "o" when :o exists nowhere as a literal). The ghostty_key
+  # unit tests masked this: their :x/:c/:v literals intern exactly those atoms at compile time.
+  defp char_key(<<cp>>) when cp in ?a..?z, do: String.to_atom(<<cp>>)
+  defp char_key(<<cp>>) when cp in ?A..?Z, do: String.to_atom(<<cp + 32>>)
+  defp char_key(<<cp>>) when cp in ?0..?9, do: String.to_atom("digit_#{<<cp>>}")
   defp char_key(_c), do: :unidentified
 
   # The Kitty encoder needs the unshifted codepoint to build \e[<cp>;<mods>u for a modified
