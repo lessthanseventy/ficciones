@@ -198,7 +198,13 @@ defmodule Aleph.Cockpit do
 
   # While a paste is open, content keys accumulate into the buffer (a newline stays \n, NOT
   # :enter) instead of dispatching to the keymap — so a paste never submits mid-block. Must
-  # precede the normal :key clause.
+  # precede the normal :key clause. Escape force-closes a stuck paste buffer (lost \e[201~) and
+  # resumes normal key dispatch, so a dropped paste-end can't wedge the cockpit.
+  def handle_cast({:dispatch, %Event{type: :key, data: %{key: :escape}}}, %{paste_buffer: buffer} = state)
+      when not is_nil(buffer) do
+    {:noreply, %{state | paste_buffer: nil}}
+  end
+
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, %{paste_buffer: buffer} = state) when not is_nil(buffer) do
     {:noreply, %{state | paste_buffer: Aleph.PasteBuffer.accumulate(buffer, key)}}
   end
@@ -588,7 +594,7 @@ defmodule Aleph.Cockpit do
       machine: machine_read(state),
       stack: stack_read(state.active_key),
       health: health_read(state.active_key),
-      triage: triage_read(threads),
+      triage: if(state.active_key == :comms, do: triage_read(threads)),
       scrolls: state.scrolls,
       input: state.input,
       flash: state.flash,
@@ -684,24 +690,21 @@ defmodule Aleph.Cockpit do
 
   # TRIAGE reads: cross-thread blockers, failed checks, and unassigned threads.
   # Gathers from all open threads — a funes Board aggregate.
+  # Each section is `%{shown: [...], more: count}` so the panel can render "+N more".
   defp triage_read(threads) do
     scopes = for thread <- threads, do: {thread, Funes.Board.in_scope(thread)}
 
-    blockers =
-      scopes
-      |> Enum.flat_map(fn {thread, scope} ->
+    all_blockers =
+      Enum.flat_map(scopes, fn {thread, scope} ->
         Enum.map(scope.blockers.shown, fn b -> %{thread_title: thread.title, summary: b.summary} end)
       end)
-      |> Enum.take(5)
 
-    failed_checks =
-      scopes
-      |> Enum.flat_map(fn {thread, scope} ->
+    all_failed_checks =
+      Enum.flat_map(scopes, fn {thread, scope} ->
         scope.checks.shown
         |> Enum.filter(fn c -> c.kind == "check_failed" end)
         |> Enum.map(fn c -> %{thread_title: thread.title, cmd: cmd_from_detail(c.detail)} end)
       end)
-      |> Enum.take(5)
 
     unassigned =
       threads
@@ -709,8 +712,14 @@ defmodule Aleph.Cockpit do
       |> Enum.map(fn thread -> %{title: thread.title} end)
       |> Enum.take(5)
 
-    %{blockers: blockers, failed_checks: failed_checks, unassigned: unassigned}
+    %{
+      blockers: cap(all_blockers, 5),
+      failed_checks: cap(all_failed_checks, 5),
+      unassigned: unassigned
+    }
   end
+
+  defp cap(list, n), do: %{shown: Enum.take(list, n), more: max(length(list) - n, 0)}
 
   defp cmd_from_detail(%{"cmd" => cmd}), do: cmd
   defp cmd_from_detail(_), do: "check"
