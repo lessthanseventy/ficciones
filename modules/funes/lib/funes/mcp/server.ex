@@ -39,6 +39,8 @@ defmodule Funes.MCP.Server do
   component(Funes.MCP.Tool.GetDossier, name: "get_dossier")
   component(Funes.MCP.Tool.GetFacts, name: "get_facts")
   component(Funes.MCP.Tool.GetMessages, name: "get_messages")
+  component(Funes.MCP.Tool.SearchHistory, name: "search_history")
+  component(Funes.MCP.Tool.SearchFacts, name: "search_facts")
   component(Funes.MCP.Resource.Dossier, name: "dossier")
   component(Funes.MCP.Resource.Constraints, name: "constraints")
   component(Funes.MCP.Resource.Habits, name: "habits")

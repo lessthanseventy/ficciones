@@ -84,7 +84,9 @@ defmodule Funes.MCP.ServerTest do
                "propose_habit",
                "get_dossier",
                "get_facts",
-               "get_messages"
+               "get_messages",
+               "search_history",
+               "search_facts"
              ])
 
     # -- register: claims a session for the token's OWN (thread, agent) — no

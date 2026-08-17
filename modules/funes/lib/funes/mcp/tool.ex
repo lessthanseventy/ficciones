@@ -689,3 +689,49 @@ defmodule Funes.MCP.Tool.ProposeHabit do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.SearchHistory do
+  @moduledoc """
+  Search PAST conversations across the whole channel — episodic recall the curated brief does not
+  hold. Full-text, bm25-ranked; a multi-word query ANDs its terms. Reach for it to answer "did we
+  ever discuss X" or "what did we decide about Y" when it was never banked as a durable fact.
+  Returns a `%{shown, more}` cut: the best matches (message id, thread, author, a snippet) and a
+  count of the rest.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Search
+
+  schema do
+    field :query, :string, required: true, description: "Words to search for (multiple words AND together)"
+    field :limit, :integer, description: "Max results to show (default 10)"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    {:reply, Response.json(Response.tool(), Search.history(params[:query], params[:limit] || 10)), frame}
+  end
+end
+
+defmodule Funes.MCP.Tool.SearchFacts do
+  @moduledoc """
+  Search the FACT corpus — the whole ledger, past the brief's cap. Full-text, bm25-ranked. Use it
+  to find a banked finding by a remembered word when it is not in the current thread's brief.
+  Returns a `%{shown, more}` cut (fact id, thread, kind, text, snippet).
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Search
+
+  schema do
+    field :query, :string, required: true, description: "Words to search for (multiple words AND together)"
+    field :limit, :integer, description: "Max results to show (default 10)"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    {:reply, Response.json(Response.tool(), Search.facts(params[:query], params[:limit] || 10)), frame}
+  end
+end

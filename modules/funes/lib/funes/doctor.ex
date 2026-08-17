@@ -34,6 +34,7 @@ defmodule Funes.Doctor do
       Repo.query!("""
       SELECT name FROM sqlite_master
       WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations'
+        AND name NOT LIKE '%\\_fts' ESCAPE '\\' AND name NOT LIKE '%\\_fts\\_%' ESCAPE '\\'
       ORDER BY name
       """)
 
