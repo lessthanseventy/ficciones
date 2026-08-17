@@ -41,6 +41,14 @@ export default function manos(pi: ExtensionAPI): void {
   // (a separate connection, same token) resolve this same session.
   const client = config ? new FunesClient(config) : null;
 
+  // The last dossier state we surfaced this pane. The dossier is re-read every turn (to catch
+  // what peers banked), but re-DISPLAYING an unchanged brief every turn buries the pane in
+  // duplicate blocks — the "why so many mid-convo briefs" smell. We keep feeding the model the
+  // current brief each turn; we only surface it to the operator when the state actually changed.
+  // Keyed on the dossier, NOT the rendered brief — the brief's staleness line ("40m ago") drifts
+  // with the clock, so a rendered-string compare would re-display on time alone, not on change.
+  let lastDossierKey: string | null = null;
+
   pi.on("session_start", async (_event, ctx) => {
     if (!client) {
       ctx.ui.setStatus(STATUS_KEY, "funes: not wired (need FUNES_MCP_URL / FUNES_THREAD / FUNES_AUTHOR)");
@@ -61,7 +69,11 @@ export default function manos(pi: ExtensionAPI): void {
       await client.connect();
       const dossier = (await client.getDossier()) as Dossier;
       updateWidget(ctx, dossier);
-      return { message: { customType: "funes-brief", content: renderBrief(dossier, new Date(), env.PI_MODEL), display: true } };
+      const content = renderBrief(dossier, new Date(), env.PI_MODEL);
+      const key = JSON.stringify(dossier);
+      const changed = key !== lastDossierKey;
+      lastDossierKey = key;
+      return { message: { customType: "funes-brief", content, display: changed } };
     } catch (err) {
       surface(ctx, err);
       return;
