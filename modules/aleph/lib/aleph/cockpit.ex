@@ -681,7 +681,11 @@ defmodule Aleph.Cockpit do
   # unwired `tlon` session must be killed to re-wire).
   def tlon_launcher(exports) do
     pi = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
-    env_flags = exports |> env_pairs() |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
+    # MANOS_RELOAD_CMD: how manos/reload respawns pi in place — `--continue` resumes the
+    # most-recent session (the one being killed), so a reload keeps the thread across the restart.
+    # Set as a session env var (via -e) so it survives into a respawned pane, alongside FUNES_*.
+    reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
+    env_flags = (env_pairs(exports) ++ [reload_cmd]) |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
     # aleph draws the Tlön header + window tabs itself, so tmux's OWN chrome is silenced — chained
     # onto the one `new-session` with `\;` because the launcher must stay a single foreground command
     # (spawn_harness execs it via `env`, no shell sequencing). Window 0 is named `pi` so the tab strip

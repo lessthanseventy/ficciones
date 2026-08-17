@@ -106,6 +106,9 @@
               # servers installed via home.packages below so the next box gets them. See
               # modules/manos/lsp/AGENTS.md.
               lspExtension = "${repo}/modules/manos/lsp/src/extension.ts";
+              # reload — restart the pi harness in place and resume the session, so an agent
+              # that edited its own tooling picks up the new code. See modules/manos/reload.
+              reloadExtension = "${repo}/modules/manos/reload/src/extension.ts";
               manosSkillsGlob = "${repo}/modules/manos/skills/*";
 
               # funes' self-contained release (`mise run funes:release`). The service below
@@ -307,8 +310,9 @@
                   --arg ext2 "${consultExtension}" \
                   --arg ext3 "${fmtExtension}" \
                   --arg ext4 "${lspExtension}" \
+                  --arg ext5 "${reloadExtension}" \
                   --arg skills "${manosSkillsGlob}" \
-                  '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3, $ext4] | unique)
+                  '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3, $ext4, $ext5] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
                    | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)
                    | .defaultProvider //= "ollama-cloud"

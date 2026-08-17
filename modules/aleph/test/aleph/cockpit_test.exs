@@ -100,7 +100,13 @@ defmodule Aleph.CockpitTest do
       assert cmd =~ "FUNES_MCP_URL=http://127.0.0.1:4041/mcp"
       assert cmd =~ "FUNES_THREAD=d7f2-abc"
       assert cmd =~ "FUNES_AUTHOR=pi-machine"
-      assert length(Regex.scan(~r/(^|\s)-e /, cmd)) == 3
+      # three FUNES_* exports + MANOS_RELOAD_CMD = four `-e` flags.
+      assert length(Regex.scan(~r/(^|\s)-e /, cmd)) == 4
+    end
+
+    test "exports MANOS_RELOAD_CMD so manos/reload can respawn pi and resume the session" do
+      cmd = Cockpit.tlon_launcher(@exports)
+      assert cmd =~ "MANOS_RELOAD_CMD=mise exec -- pi --continue"
     end
 
     test "still launches pi as window 0's command" do
