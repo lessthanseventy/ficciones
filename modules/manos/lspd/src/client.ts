@@ -9,6 +9,7 @@
 
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import * as fs from "node:fs";
+import { rangesOverlap, type LineRange } from "./impact.ts";
 
 export interface LspPosition {
   line: number; // 0-based
@@ -108,21 +109,58 @@ export class LspClient {
   }
 
   async references(absPath: string, pos: LspPosition): Promise<string> {
+    const locs = await this.#referencesRaw(absPath, pos);
+    return locs.length === 0 ? "(no results)" : locs.map(fmtLoc).join("\n");
+  }
+
+  async documentSymbol(absPath: string): Promise<string> {
+    return stringifySymbols(await this.#documentSymbolsRaw(absPath));
+  }
+
+  // Structured references — the location list, before rendering. Shared by `references`
+  // (which stringifies) and `impact` (which walks them).
+  async #referencesRaw(absPath: string, pos: LspPosition): Promise<LspLocation[]> {
     this.openDoc(absPath);
     const r = await this.#request("textDocument/references", {
       textDocument: { uri: uri(absPath) },
       position: pos,
       context: { includeDeclaration: true },
     });
-    return stringifyLocations(r);
+    if (!r) return [];
+    return Array.isArray(r) ? (r as LspLocation[]) : [r as LspLocation];
   }
 
-  async documentSymbol(absPath: string): Promise<string> {
+  // Structured document symbols — the outline before rendering.
+  async #documentSymbolsRaw(absPath: string): Promise<DocumentSymbol[]> {
     this.openDoc(absPath);
     const r = await this.#request("textDocument/documentSymbol", {
       textDocument: { uri: uri(absPath) },
     });
-    return stringifySymbols(r);
+    return Array.isArray(r) ? (r as DocumentSymbol[]) : [];
+  }
+
+  // Change blast-radius, first-order: for each symbol whose span overlaps a changed line
+  // range, the EXTERNAL references to it (its callers) — the definition site and uses within
+  // the symbol's own body are filtered out, leaving the reach of the change. References are
+  // resolved at the symbol's NAME (`selectionRange`), not its `range` start (the `def`/`function`
+  // keyword), so the language server actually binds the identifier.
+  async impact(absPath: string, ranges: LineRange[]): Promise<string> {
+    const touched = flattenSymbols(await this.#documentSymbolsRaw(absPath)).filter(
+      (s) => s.range && ranges.some((r) => rangesOverlap(s.range!.start.line, s.range!.end.line, r)),
+    );
+    if (touched.length === 0) return "(no symbols touched by the change)";
+
+    const sections: string[] = [];
+    for (const s of touched) {
+      const namePos = (s.selectionRange ?? s.range!).start;
+      const refs = await this.#referencesRaw(absPath, namePos);
+      const external = refs.filter((l) => !withinOwnBody(l, absPath, s.range!));
+      const header = `${symKind(s.kind)} ${s.name} (${s.range!.start.line + 1}) — ${external.length} caller${external.length === 1 ? "" : "s"}`;
+      const shown = external.slice(0, 20).map((l) => "  " + fmtLoc(l));
+      const more = external.length > 20 ? [`  … ${external.length - 20} more`] : [];
+      sections.push([header, ...shown, ...more].join("\n"));
+    }
+    return sections.join("\n\n");
   }
 
   // The latest diagnostics the server has published for a file (collected from
@@ -279,12 +317,30 @@ function stringifyLocations(result: unknown): string {
   if (!result) return "(no results)";
   const locs = Array.isArray(result) ? (result as LspLocation[]) : [result as LspLocation];
   if (locs.length === 0) return "(no results)";
-  return locs
-    .map((l) => {
-      const file = l.uri.replace(/^file:\/\//, "");
-      return `${file}:${l.range.start.line + 1}:${l.range.start.character + 1}`;
-    })
-    .join("\n");
+  return locs.map(fmtLoc).join("\n");
+}
+
+// One `file:line:col` location line, 1-based (the editor convention the tools present).
+function fmtLoc(l: LspLocation): string {
+  return `${l.uri.replace(/^file:\/\//, "")}:${l.range.start.line + 1}:${l.range.start.character + 1}`;
+}
+
+// Flatten a DocumentSymbol tree (a module's functions, a class's methods) to one list — impact
+// tests every symbol at any depth for overlap with the change.
+function flattenSymbols(syms: DocumentSymbol[]): DocumentSymbol[] {
+  const out: DocumentSymbol[] = [];
+  for (const s of syms) {
+    out.push(s);
+    if (s.children) out.push(...flattenSymbols(s.children));
+  }
+  return out;
+}
+
+// Is a reference the symbol's own definition or an internal use (same file, inside its span)?
+// Those aren't blast radius — the reach is the EXTERNAL callers, so impact filters them out.
+function withinOwnBody(l: LspLocation, absPath: string, range: { start: LspPosition; end: LspPosition }): boolean {
+  const file = l.uri.replace(/^file:\/\//, "");
+  return file === absPath && l.range.start.line >= range.start.line && l.range.start.line <= range.end.line;
 }
 
 function stringifySymbols(result: unknown): string {
@@ -306,7 +362,10 @@ function renderSymbol(s: DocumentSymbol, depth: number): string {
 interface DocumentSymbol {
   name: string;
   kind: number;
-  range?: { start: LspPosition };
+  // `range` is the symbol's full span (used for overlap + own-body filtering); `selectionRange`
+  // is just the name (where `references` must be resolved so the server binds the identifier).
+  range?: { start: LspPosition; end: LspPosition };
+  selectionRange?: { start: LspPosition };
   children?: DocumentSymbol[];
 }
 

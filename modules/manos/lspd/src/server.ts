@@ -88,6 +88,9 @@ async function handle(req: LspdRequest): Promise<LspdResponse> {
       case "diagnostics":
         text = c.client.diagnostics(params.path);
         break;
+      case "impact":
+        text = await c.client.impact(params.path, params.ranges ?? []);
+        break;
       default:
         throw new LspError(`unknown method ${method}`);
     }

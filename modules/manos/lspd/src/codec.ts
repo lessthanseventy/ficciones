@@ -3,10 +3,14 @@
 // (no escaping issues, unlike newline-delimited). Pure + unit-tested: the daemon and the
 // pi shim both speak it, so this codec is the one seam that must not drift.
 
+import type { LineRange } from "./impact.ts";
+
 export interface LspdRequest {
   id: number;
-  method: "hover" | "definition" | "references" | "symbols" | "diagnostics";
-  params: { path: string; line?: number; col?: number };
+  method: "hover" | "definition" | "references" | "symbols" | "diagnostics" | "impact";
+  // `ranges` is additive and used only by `impact` (the changed line spans of `path`); every
+  // other method reads `path`/`line`/`col` and ignores it, so the seam stays backward-compatible.
+  params: { path: string; line?: number; col?: number; ranges?: LineRange[] };
 }
 
 export type LspdResponse =

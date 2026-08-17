@@ -5,9 +5,24 @@
 //
 // line/col are 1-based (editor convention); the daemon converts to 0-based for the protocol.
 
+import * as path from "node:path";
+import { execFile } from "node:child_process";
 import type { ExtensionAPI, ToolResult } from "./pi.ts";
 import { Type } from "./pi.ts";
 import { LspdClient, LspdConnectionError } from "./socket.ts";
+import { adapterForFile } from "../../lspd/src/adapters.ts";
+import { parseDiff } from "../../lspd/src/impact.ts";
+
+// `git diff --unified=0 <ref>` in pi's cwd — the working tree (staged + unstaged) against ref.
+// --unified=0 so hunk headers pin the exact changed line spans with no context lines to widen them.
+function gitDiff(ref: string, cwd: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile("git", ["diff", "--unified=0", ref, "--"], { cwd, maxBuffer: 32 * 1024 * 1024 }, (err, stdout) => {
+      if (err) reject(err instanceof Error ? err : new Error(String(err)));
+      else resolve(stdout);
+    });
+  });
+}
 
 export default function lsp(pi: ExtensionAPI): void {
   const client = new LspdClient();
@@ -71,5 +86,61 @@ export default function lsp(pi: ExtensionAPI): void {
     description: "LSP diagnostics: the server's published errors/warnings for a file (incremental, file-scoped — cheaper and finer than a full mix compile / tsc). May be empty until the server has indexed the doc.",
     parameters: PathParam,
     execute: (_id, p) => run(p, "diagnostics"),
+  });
+
+  // impact — change blast-radius. Not a per-(path,line,col) op: it diffs the working tree,
+  // maps each hunk to the symbols it touches, and reports their external callers. The git diff
+  // + file filtering happen here (the shim has pi's cwd); the per-file symbol/reference walk
+  // happens in the daemon (the warm pool), which is why `ranges` rides the codec.
+  const requestHealed = async (method: Parameters<LspdClient["request"]>[0], params: Record<string, unknown>): Promise<string> => {
+    try {
+      return await client.request(method, params);
+    } catch (err) {
+      if (err instanceof LspdConnectionError) return await client.selfHeal(method, params);
+      throw err;
+    }
+  };
+
+  pi.registerTool({
+    name: "impact",
+    description:
+      "Change blast-radius (first-order): for each symbol your uncommitted changes touch, the external callers that reference it. Diffs the working tree against `ref` (default HEAD). Coverage is best for Elixir and TypeScript; other languages' references may be sparse or absent.",
+    parameters: Type.Object({ ref: Type.Optional(Type.String({ description: "git ref to diff against (default HEAD)" })) }),
+    execute: async (_id, p, _signal, _onUpdate, ctx): Promise<ToolResult> => {
+      const ref = String((p as { ref?: unknown }).ref ?? "HEAD");
+      let diff: string;
+      try {
+        diff = await gitDiff(ref, ctx.cwd);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { content: [{ type: "text", text: `impact: git diff failed — ${msg}` }], isError: true };
+      }
+
+      const byFile = parseDiff(diff);
+      if (byFile.size === 0) return { content: [{ type: "text", text: `impact: no changes vs ${ref}` }] };
+
+      const sections: string[] = [];
+      let skipped = 0;
+      for (const [rel, ranges] of byFile) {
+        const abs = path.resolve(ctx.cwd, rel);
+        if (!adapterForFile(abs)) {
+          skipped++;
+          continue;
+        }
+        try {
+          const text = await requestHealed("impact", { path: abs, ranges });
+          sections.push(`# ${rel}\n${text}`);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          sections.push(`# ${rel}\n  (impact failed: ${msg})`);
+        }
+      }
+
+      if (sections.length === 0) {
+        return { content: [{ type: "text", text: `impact: changes vs ${ref} touch no LSP-supported files (${skipped} skipped)` }] };
+      }
+      const note = skipped > 0 ? `\n\n(${skipped} non-code file${skipped === 1 ? "" : "s"} skipped)` : "";
+      return { content: [{ type: "text", text: sections.join("\n\n") + note }] };
+    },
   });
 }
