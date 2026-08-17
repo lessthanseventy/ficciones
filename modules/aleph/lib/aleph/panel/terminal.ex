@@ -11,7 +11,7 @@ defmodule Aleph.Panel.Terminal do
   """
   @behaviour Aleph.Panel
 
-  import Aleph.Panel, only: [line: 2]
+  import Aleph.Panel, only: [line: 2, pad: 3]
   import Bitwise
 
   # Fallback colours when the emulator reports nil (use the terminal-native pair).
@@ -32,11 +32,27 @@ defmodule Aleph.Panel.Terminal do
     default_bg = rgb_int(render_state[:background]) || @default_bg
     cursor = render_state[:cursor] || %{visible: false}
 
-    cells
-    |> Enum.with_index()
-    |> Enum.map(fn {row, y} -> cell_runs(row, y, cursor, default_fg, default_bg) end)
+    cell_rows =
+      cells
+      |> Enum.with_index()
+      |> Enum.map(fn {row, y} -> cell_runs(row, y, cursor, default_fg, default_bg) end)
+
+    render_state[:tabs]
+    |> tab_rows(rect.w)
+    |> Kernel.++(cell_rows)
     |> Aleph.Panel.clip(rect)
   end
+
+  # When the panel carries a window list (the Tlön workspace), aleph draws its OWN tab strip as the
+  # header row — tmux's status bar is off, so this is the only window chrome. A Sessions coworker
+  # terminal carries no tabs and renders edge-to-edge. The active window is `:selected` (the picker's
+  # highlight), the rest `:dim`.
+  defp tab_rows(tabs, w) when is_list(tabs) and tabs != [] do
+    runs = Enum.map(tabs, fn t -> {" #{t.name} ", if(t.active?, do: :selected, else: :dim)} end)
+    [pad(runs, w, :normal)]
+  end
+
+  defp tab_rows(_tabs, _w), do: []
 
   # One run per cell — its own RGB. Board.row_cells emits a cell per grapheme, so per-cell runs are
   # exactly right for a terminal, where adjacent cells routinely differ in colour.

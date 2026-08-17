@@ -106,5 +106,33 @@ defmodule Aleph.CockpitTest do
     test "still launches pi as window 0's command" do
       assert Cockpit.tlon_launcher(@exports) =~ "mise exec -- pi"
     end
+
+    test "silences tmux's own status bar — aleph draws the Tlön chrome" do
+      # Chained onto the one new-session with `\;` (the launcher must stay a single foreground
+      # command). Window 0 is named `pi` so the tab strip has a clean label.
+      cmd = Cockpit.tlon_launcher(@exports)
+      assert cmd =~ "\\; set-option -t tlon status off"
+      assert cmd =~ "new-session -A -s tlon -n pi"
+    end
+  end
+
+  describe "parse_tlon_tabs/1: the workspace's windows as tab data" do
+    test "each `<active>\\t<name>` line becomes a tab, active flagged" do
+      out = "1\tpi\n0\tclaude\n0\tterm\n"
+
+      assert Cockpit.parse_tlon_tabs(out) == [
+               %{name: "pi", active?: true},
+               %{name: "claude", active?: false},
+               %{name: "term", active?: false}
+             ]
+    end
+
+    test "empty output (session not up yet) is an empty strip, not a crash" do
+      assert Cockpit.parse_tlon_tabs("") == []
+    end
+
+    test "a malformed line is dropped, not guessed" do
+      assert Cockpit.parse_tlon_tabs("garbage\n1\tpi\n") == [%{name: "pi", active?: true}]
+    end
   end
 end

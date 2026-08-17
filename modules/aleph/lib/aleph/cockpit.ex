@@ -514,7 +514,13 @@ defmodule Aleph.Cockpit do
 
   # The Tlön center's read: the embedded tmux client (find-or-created on entry). tmux owns the
   # windows inside it; aleph just renders the attached client.
-  defp machine_read(%{active_key: :tlon}), do: render_state_of(machine_terminal())
+  defp machine_read(%{active_key: :tlon}) do
+    case render_state_of(machine_terminal()) do
+      %{} = render_state -> Map.put(render_state, :tabs, tlon_tabs())
+      other -> other
+    end
+  end
+
   defp machine_read(_state), do: :no_session
 
   defp render_state_of(nil), do: :no_session
@@ -583,7 +589,12 @@ defmodule Aleph.Cockpit do
   def tlon_launcher(exports) do
     pi = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
     env_flags = exports |> env_pairs() |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
-    "tmux new-session -A -s #{@tlon_session} #{env_flags} '#{pi}'"
+    # aleph draws the Tlön header + window tabs itself, so tmux's OWN status bar is turned off —
+    # chained onto the one `new-session` with `\;` because the launcher must stay a single foreground
+    # command (spawn_harness execs it via `env`, no shell sequencing). Window 0 is named `pi` so the
+    # tab strip has a clean label.
+    "tmux new-session -A -s #{@tlon_session} -n pi #{env_flags} '#{pi}'" <>
+      " \\; set-option -t #{@tlon_session} status off"
   end
 
   # The `export KEY="VALUE"` lines of a FUNES_* exports block as `{key, value}` pairs.
@@ -612,6 +623,31 @@ defmodule Aleph.Cockpit do
   defp cycle_tlon_window do
     System.cmd("tmux", ["next-window", "-t", @tlon_session], stderr_to_stdout: true)
     nil
+  end
+
+  # The Tlön workspace's windows as tabs — aleph draws them itself (tmux's own status bar is off),
+  # so it asks tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort:
+  # the session not being up yet is an empty strip, not a crash.
+  defp tlon_tabs do
+    case System.cmd("tmux", ["list-windows", "-t", @tlon_session, "-F", "\#{window_active}\t\#{window_name}"],
+           stderr_to_stdout: true
+         ) do
+      {out, 0} -> parse_tlon_tabs(out)
+      _ -> []
+    end
+  end
+
+  @doc false
+  # `window_active` is "1" for the current window, "0" otherwise; each line is `<active>\t<name>`.
+  def parse_tlon_tabs(out) do
+    out
+    |> String.split("\n", trim: true)
+    |> Enum.flat_map(fn line ->
+      case String.split(line, "\t", parts: 2) do
+        [active, name] -> [%{name: name, active?: active == "1"}]
+        _ -> []
+      end
+    end)
   end
 
   # Claude joins the SAME machine thread as pi (two voices, one thread) as a new tmux window,
@@ -659,6 +695,10 @@ defmodule Aleph.Cockpit do
       Terminal.resize(term, cols, rows)
     end
   end
+
+  # Tlön reserves one extra row for aleph's own tab strip (drawn as the center's header row), so the
+  # embedded terminal is sized one shorter and its content sits below the tabs.
+  defp center_dims(%{active_key: :tlon, w: w, h: h}), do: {max(div(w, 2) - 4, 20), max(h - 7, 5)}
 
   defp center_dims(%{w: w, h: h}) do
     {max(div(w, 2) - 4, 20), max(h - 6, 5)}
