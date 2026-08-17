@@ -639,10 +639,13 @@ defmodule Aleph.Cockpit do
     # has a clean label. `status off` alone leaves a themed multi-line status (a user's tmux theme can
     # render it regardless), so we also blank `status-format[0]` and disable `pane-border-status` — the
     # session owns its own chrome, no dependency on the user's tmux theme cooperating.
+    # The mouse-drag text selection's highlight (tmux copy-mode `mode-style`) — a readable
+    # blue-grey selection instead of tmux's default yellow-on-black.
     "tmux new-session -A -s #{@tlon_session} -n pi #{env_flags} '#{pi}'" <>
       " \\; set-option -t #{@tlon_session} status off" <>
       " \\; set-option -t #{@tlon_session} 'status-format[0]' ''" <>
-      " \\; set-option -t #{@tlon_session} pane-border-status off"
+      " \\; set-option -t #{@tlon_session} pane-border-status off" <>
+      " \\; set-option -t #{@tlon_session} mode-style 'bg=#3b4261,fg=#c0caf5'"
   end
 
   # The `export KEY="VALUE"` lines of a FUNES_* exports block as `{key, value}` pairs.

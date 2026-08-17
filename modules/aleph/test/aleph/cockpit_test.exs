@@ -117,6 +117,8 @@ defmodule Aleph.CockpitTest do
       assert cmd =~ "\\; set-option -t tlon status off"
       assert cmd =~ "\\; set-option -t tlon 'status-format[0]' ''"
       assert cmd =~ "\\; set-option -t tlon pane-border-status off"
+      # and a readable selection highlight for mouse-drag copy
+      assert cmd =~ "\\; set-option -t tlon mode-style 'bg=#3b4261,fg=#c0caf5'"
     end
   end
 
