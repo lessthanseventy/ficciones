@@ -23,6 +23,16 @@ judgment you keep in your own context dies with you.
   link to a diff — anything goes. There is no taxonomy and no required shape beyond a body.
   The failure mode of the channel is noise, and funes ranks and caps the reading, not the
   writing — so post freely and let the surface do the cutting.
+- **Want a second opinion? Say so on the thread and ask the human.** The `/consult [model]`
+  and `/fresh [model]` commands (manos/consult) delegate a question to another model —
+  `/consult` with your recent session as context, `/fresh` as a clean one-shot. They're
+  human-invoked (pi refuses them mid-turn), so ask the operator to run one rather than
+  improvising a way to reach a peer yourself. A live `consult_peer` tool for waking a
+  running coworker session is designed, not yet built (docs/plans/2026-08-17-agent-peer-consult-design.md).
+- **Never route yourself through operator-only UI to reach a coworker.** You cannot press
+  the cockpit's keybindings; reaching claude by typing into another window's terminal is a
+  raw hack, not a capability. Delegate through `/consult`, post on your thread, or ask the
+  human — not `tmux send-keys`.
 
 ## What NOT to do
 
