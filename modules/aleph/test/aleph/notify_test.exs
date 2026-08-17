@@ -23,6 +23,27 @@ defmodule Aleph.NotifyTest do
       assert body =~ "7"
     end
 
+    # The Bus event's :agent is an Ecto belongs_to, not a name string — unloaded on the events
+    # that reach the cockpit, so the notifier must not interpolate it raw (the Tlön-entry crash).
+    test "an unloaded agent association falls back instead of crashing" do
+      not_loaded = %Ecto.Association.NotLoaded{
+        __field__: :agent,
+        __owner__: Aleph.NotifyTest,
+        __cardinality__: :one
+      }
+
+      assert {_title, body} = Notify.for_event(:session_ended, %{agent: not_loaded, thread_id: 3})
+      assert body =~ "session"
+      assert body =~ "3"
+    end
+
+    test "a preloaded agent shows its name" do
+      assert {_title, body} =
+               Notify.for_event(:session_ended, %{agent: %{name: "pi-machine"}, thread_id: 9})
+
+      assert body =~ "pi-machine"
+    end
+
     test "repaint-only noise notifies nobody" do
       assert Notify.for_event(:fact_banked, %{}) == nil
       assert Notify.for_event(:message_posted, %{}) == nil

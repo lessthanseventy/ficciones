@@ -42,6 +42,15 @@ defmodule Aleph.Notify do
 
   defp text_of(row, keys), do: Enum.find_value(keys, "(no detail)", &Map.get(row, &1))
   defp row_author(row), do: if(by = Map.get(row, :found_by), do: "#{by}: ", else: "")
-  defp row_agent(row), do: Map.get(row, :agent) || "a session"
+  # The event's :agent is a belongs_to — a preloaded %Agent{}, a bare name, or an unloaded
+  # association. Only a name is safe to interpolate; anything else falls back.
+  defp row_agent(row) do
+    case Map.get(row, :agent) do
+      %{name: name} when is_binary(name) -> name
+      name when is_binary(name) -> name
+      _ -> "a session"
+    end
+  end
+
   defp row_thread(row), do: Map.get(row, :thread_id) || "?"
 end
