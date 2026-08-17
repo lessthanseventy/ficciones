@@ -185,6 +185,18 @@ export class LspClient {
       this.#diagnostics.set(params.uri, params.diagnostics);
       return;
     }
+    // A request FROM the server — it carries BOTH a method and an id (a response to our request
+    // has an id but no method; a notification has a method but no id). Servers send
+    // client/registerCapability and window/workDoneProgress/create this way right after
+    // `initialized`. Per LSP the client MUST reply, and Expert issues them as a synchronous
+    // GenServer.call(..., :infinity) on its protocol buffer — leaving one unanswered deadlocks
+    // EVERY subsequent request on the connection (the 15s hover/symbol/diagnostic timeouts). We
+    // register no dynamic capabilities and drive no progress UI, so a null result is the correct,
+    // complete reply. Ack generically.
+    if (typeof msg.method === "string" && "id" in msg) {
+      this.#write({ jsonrpc: "2.0", id: msg.id, result: null });
+      return;
+    }
     if (typeof msg.id === "number" && this.#pending.has(msg.id)) {
       const p = this.#pending.get(msg.id)!;
       this.#pending.delete(msg.id);

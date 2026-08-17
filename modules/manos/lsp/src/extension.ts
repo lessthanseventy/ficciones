@@ -27,7 +27,11 @@ export default function lsp(pi: ExtensionAPI): void {
       // Fire-and-forget: this races the first real request, but LSP servers queue
       // requests until initialized, so it's safe.
       client.initialize().catch(() => {
-        /* a failed init surfaces on the next request via a disposed/errored client */
+        // A failed init leaves a client that never sent `initialized` — every request on it
+        // would hang or error forever. Evict it so the next call spawns a fresh one (and
+        // surfaces a real error) instead of reusing a permanently-wedged connection.
+        client!.dispose();
+        clients.delete(key);
       });
       clients.set(key, client);
     }
