@@ -66,7 +66,9 @@ defmodule Aleph.BoardTest do
         scope: nil,
         chatter: [],
         chorus: [],
-        terminal: :no_session
+        terminal: :no_session,
+        health: nil,
+        triage: %{blockers: [], failed_checks: [], unassigned: []}
       },
       overrides
     )
@@ -129,11 +131,12 @@ defmodule Aleph.BoardTest do
       assert text(active) =~ "Comms"
     end
 
-    test "stack (Tlön): header then one row per commit, hash dimmed" do
+    test "stack (Tlön): header then branch then one row per commit, hash dimmed" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
-      commits = [%{hash: "bc86cc8", subject: "funes: open_thread / close_thread"}]
-      assert [header, _blank, row] = Stack.render(%{commits: commits}, rect)
+      commits = [%{hash: "bc86cc8", subject: "funes: open_thread / close_thread", time: "2h ago", author: "andrew"}]
+      assert [header, _blank, branch, row] = Stack.render(%{branch: "main", dirty: false, commits: commits}, rect)
       assert text(header) == "STACK"
+      assert text(branch) =~ "main"
       assert text(row) =~ "bc86cc8"
       assert text(row) =~ "open_thread"
       assert Enum.any?(row, fn {t, s} -> s == :dim and t =~ "bc86cc8" end)
@@ -141,7 +144,8 @@ defmodule Aleph.BoardTest do
 
     test "stack (Tlön): honest when there is no git history" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
-      assert [_header, _blank, empty] = Stack.render(%{commits: []}, rect)
+      assert [_header, _blank, branch, empty] = Stack.render(%{branch: nil, dirty: false, commits: []}, rect)
+      assert text(branch) =~ "no branch"
       assert text(empty) =~ "no git history"
     end
 
@@ -469,7 +473,8 @@ defmodule Aleph.BoardTest do
         reads(%{
           active_key: :tlon,
           machine: :no_session,
-          stack: %{commits: [], tools: []}
+          stack: %{branch: nil, dirty: false, commits: [], tools: []},
+          health: %{funes_up: false, tlon_up: true, nix_gen: nil, nix_behind: nil, disk_pct: nil, mem_pct: nil}
         })
 
       placements = View.compose(tlon, 120, 40)

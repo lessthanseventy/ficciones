@@ -15,9 +15,13 @@ defmodule Aleph.Space do
 
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
+  alias Aleph.Panel.Health
   alias Aleph.Panel.Roster
+  alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
+  alias Aleph.Panel.Tools
+  alias Aleph.Panel.Triage
 
   @enforce_keys [:key, :label, :surface]
   defstruct [:key, :label, :surface, left: [], right: [], coworker: nil]
@@ -47,9 +51,9 @@ defmodule Aleph.Space do
         label: "Comms",
         # The chorus IS the center now, so thread navigation lives in the feed (the focused
         # thread's block is highlighted) and the left carries presence (IN FLIGHT) instead of a
-        # list the middle already shows.
+        # list the middle already shows. TRIAGE below IN FLIGHT shows cross-thread trouble.
         surface: [Chorus],
-        left: [Roster],
+        left: [Roster, Triage],
         right: [Dossier]
       },
       %__MODULE__{
@@ -68,8 +72,8 @@ defmodule Aleph.Space do
         key: :tlon,
         label: "Tlön",
         surface: [{Terminal, :machine}],
-        left: [Aleph.Panel.Stack],
-        right: [Aleph.Panel.Tools],
+        left: [Stack],
+        right: [Health, Tools],
         # Self-contained coworker: the "tlon" profile (no funes MCP, funes-brief extension dropped,
         # sandboxed). See Aleph.Profiles.
         coworker: "tlon"

@@ -26,7 +26,9 @@ defmodule Aleph.View do
     Panel.Dossier,
     Panel.Roster,
     Panel.Stack,
-    Panel.Tools
+    Panel.Tools,
+    Panel.Health,
+    Panel.Triage
   ]
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
@@ -93,8 +95,10 @@ defmodule Aleph.View do
   def data_for(Panel.Dossier, r), do: r.scope
   def data_for(Panel.Chorus, r), do: %{blocks: r.chorus, focused_id: r.focused_id}
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
-  def data_for(Panel.Stack, r), do: %{commits: r.stack.commits}
+  def data_for(Panel.Stack, r), do: r.stack
   def data_for(Panel.Tools, r), do: %{tools: r.stack.tools}
+  def data_for(Panel.Health, r), do: r.health
+  def data_for(Panel.Triage, r), do: r.triage
   def data_for(_other, _r), do: nil
 
   # Inject the panel's current scroll offset into scrollable panels' data (nil data left alone —

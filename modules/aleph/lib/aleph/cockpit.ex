@@ -587,6 +587,8 @@ defmodule Aleph.Cockpit do
       terminal: terminal_read(state, focused),
       machine: machine_read(state),
       stack: stack_read(state.active_key),
+      health: health_read(state.active_key),
+      triage: triage_read(threads),
       scrolls: state.scrolls,
       input: state.input,
       flash: state.flash,
@@ -653,9 +655,65 @@ defmodule Aleph.Cockpit do
   defp terminal_for(nil), do: nil
   defp terminal_for(%{id: id}), do: Sessions.terminal(id)
 
-  # The STACK/TOOLS reads are only gathered on Tlön (git log + version probes are wasted elsewhere).
-  defp stack_read(:tlon), do: %{commits: Aleph.Stack.commits(), tools: Aleph.Stack.tools()}
-  defp stack_read(_key), do: %{commits: [], tools: []}
+  # The STACK reads are only gathered on Tlön (git log + version probes are wasted elsewhere).
+  # Branch, dirty status, and enriched commits (with time + author) join the existing tools.
+  defp stack_read(:tlon) do
+    %{
+      branch: Aleph.Stack.branch(),
+      dirty: Aleph.Stack.dirty?(),
+      commits: Aleph.Stack.commits(),
+      tools: Aleph.Stack.tools()
+    }
+  end
+
+  defp stack_read(_key), do: %{branch: nil, dirty: false, commits: [], tools: []}
+
+  # HEALTH reads are only gathered on Tlön — system probes are wasted elsewhere.
+  defp health_read(:tlon) do
+    %{
+      funes_up: Aleph.Stack.funes_up?(),
+      tlon_up: Aleph.Stack.tlon_up?(),
+      nix_gen: Aleph.Stack.nix_generation(),
+      nix_behind: Aleph.Stack.nix_behind(),
+      disk_pct: Aleph.Stack.disk_pct(),
+      mem_pct: Aleph.Stack.mem_pct()
+    }
+  end
+
+  defp health_read(_key), do: nil
+
+  # TRIAGE reads: cross-thread blockers, failed checks, and unassigned threads.
+  # Gathers from all open threads — a funes Board aggregate.
+  defp triage_read(threads) do
+    scopes = for thread <- threads, do: {thread, Funes.Board.in_scope(thread)}
+
+    blockers =
+      scopes
+      |> Enum.flat_map(fn {thread, scope} ->
+        Enum.map(scope.blockers.shown, fn b -> %{thread_title: thread.title, summary: b.summary} end)
+      end)
+      |> Enum.take(5)
+
+    failed_checks =
+      scopes
+      |> Enum.flat_map(fn {thread, scope} ->
+        scope.checks.shown
+        |> Enum.filter(fn c -> c.kind == "check_failed" end)
+        |> Enum.map(fn c -> %{thread_title: thread.title, cmd: cmd_from_detail(c.detail)} end)
+      end)
+      |> Enum.take(5)
+
+    unassigned =
+      threads
+      |> Enum.filter(fn thread -> is_nil(thread.agent_id) end)
+      |> Enum.map(fn thread -> %{title: thread.title} end)
+      |> Enum.take(5)
+
+    %{blockers: blockers, failed_checks: failed_checks, unassigned: unassigned}
+  end
+
+  defp cmd_from_detail(%{"cmd" => cmd}), do: cmd
+  defp cmd_from_detail(_), do: "check"
 
   # The Tlön machine coworker: a pi session working ON the box on a persistent "machine" thread
   # (so its work is triageable). pi by design — Tlön is meta/machine work, claude stays the
