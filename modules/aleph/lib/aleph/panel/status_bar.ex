@@ -116,7 +116,6 @@ defmodule Aleph.Panel.StatusBar do
   defp hints_row, do: hints_row(@hints)
 
   # Tlön's center is two machine panes, so it alone carries the other-pane verb.
-  defp hints_for("Tlön"), do: @hints ++ [{"^␣o", "claude"}]
   defp hints_for(_space), do: @hints
 
   defp hints_row(hints) do

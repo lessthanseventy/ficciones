@@ -107,12 +107,16 @@ defmodule Aleph.CockpitTest do
       assert Cockpit.tlon_launcher(@exports) =~ "mise exec -- pi"
     end
 
-    test "silences tmux's own status bar — aleph draws the Tlön chrome" do
+    test "silences tmux's own chrome — aleph draws the Tlön header itself" do
       # Chained onto the one new-session with `\;` (the launcher must stay a single foreground
-      # command). Window 0 is named `pi` so the tab strip has a clean label.
+      # command). Window 0 is named `pi` for a clean tab label. `status off` alone leaves a themed
+      # multi-line status, so we also blank status-format[0] and disable pane-border-status — the
+      # session owns its chrome without depending on the user's tmux theme.
       cmd = Cockpit.tlon_launcher(@exports)
-      assert cmd =~ "\\; set-option -t tlon status off"
       assert cmd =~ "new-session -A -s tlon -n pi"
+      assert cmd =~ "\\; set-option -t tlon status off"
+      assert cmd =~ "\\; set-option -t tlon 'status-format[0]' ''"
+      assert cmd =~ "\\; set-option -t tlon pane-border-status off"
     end
   end
 

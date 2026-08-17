@@ -7,8 +7,7 @@ defmodule Aleph.Space do
   **Tlön** (the META space — the machine/stack as a whole, not a project). The `Aleph.Panel.Spaces`
   picker switches the active one; the center renders that space's `surface`.
 
-  A surface is a LIST of sections stacked down the center — one for most spaces, two for
-  Tlön (the pi machine coworker over the claude escalation pane). A section is either a
+  A surface is a LIST of sections stacked down the center (one per space today). A section is either a
   bare panel module (its data shaped by `Aleph.View.data_for/2`, like the sidebars) or a
   `{panel_module, read_key}` pair whose data is the named Cockpit read verbatim — how two
   Terminal panes on one surface get distinct data. A space stays plain data either way.
@@ -61,8 +60,8 @@ defmodule Aleph.Space do
       },
       %__MODULE__{
         # Tlön: the center is literal tmux — an embedded client on the standing `tlon` session, so
-        # it survives aleph restarts. pi lives in window 0; claude is lazily summoned (Ctrl+Space
-        # o), so entering Tlön alone never drains the scarce bucket.
+        # it survives aleph restarts. pi lives in window 0; other windows (a claude, a shell) the
+        # operator opens with tmux's own keys (Ctrl+B c), which aleph renders as the tab strip.
         key: :tlon,
         label: "Tlön",
         surface: [{Terminal, :machine}],

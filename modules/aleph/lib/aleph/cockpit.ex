@@ -39,11 +39,10 @@ defmodule Aleph.Cockpit do
   # emit mouse events, which the Driver translates into Event{type: :mouse, data: %{x, y, button}}.
   @tb_input_esc_mouse 5
 
-  # Stable identities for Tlön's two machine coworkers, so restarts reuse the same agents (no
-  # collision with a project thread's harness). Both share the machine thread: pi always-on,
-  # claude a lazy escalation spawned on first focus, so entering Tlön alone never drains the bucket.
+  # Stable identity for Tlön's machine coworker, so restarts reuse the same agent (no collision with
+  # a project thread's harness). pi is window 0; any other window (a claude, a shell) the operator
+  # opens with tmux's own keys (Ctrl+B c) — aleph renders them as tabs, it doesn't spawn them.
   @machine_agent "pi-machine"
-  @machine_claude_agent "claude-machine"
 
   # Kitty keyboard protocol: push flags + set disambiguate (CSI > 1 u) at init, pop (CSI < u)
   # at teardown. See the init comment for the full shifted-key round-trip.
@@ -377,11 +376,6 @@ defmodule Aleph.Cockpit do
   defp apply_effect({:enter_or_spawn, thread_id}, state),
     do: {:noreply, render(%{state | flash: enter_or_spawn(thread_id, state)})}
 
-  # The `o` verb landed: summon the claude window into the tlon tmux session if it doesn't
-  # exist (the lazy escalation — this is claude's ONLY spawn site), else cycle tmux's windows.
-  # tmux is the source of truth for what's up, so nothing here can drift from what's on screen.
-  defp apply_effect(:toggle_pane, state), do: {:noreply, render(%{state | flash: toggle_claude_window()})}
-
   # `enter_or_spawn`: if the focused thread already has a live session, it's already the center —
   # nothing to do (you're already working there). Otherwise spawn one onto it. The replacement for
   # the old bare `s` verb — one `spawn_onto/2` path, reached via `n` (new thread) or `Enter` (existing).
@@ -589,12 +583,16 @@ defmodule Aleph.Cockpit do
   def tlon_launcher(exports) do
     pi = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
     env_flags = exports |> env_pairs() |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
-    # aleph draws the Tlön header + window tabs itself, so tmux's OWN status bar is turned off —
-    # chained onto the one `new-session` with `\;` because the launcher must stay a single foreground
-    # command (spawn_harness execs it via `env`, no shell sequencing). Window 0 is named `pi` so the
-    # tab strip has a clean label.
+    # aleph draws the Tlön header + window tabs itself, so tmux's OWN chrome is silenced — chained
+    # onto the one `new-session` with `\;` because the launcher must stay a single foreground command
+    # (spawn_harness execs it via `env`, no shell sequencing). Window 0 is named `pi` so the tab strip
+    # has a clean label. `status off` alone leaves a themed multi-line status (a user's tmux theme can
+    # render it regardless), so we also blank `status-format[0]` and disable `pane-border-status` — the
+    # session owns its own chrome, no dependency on the user's tmux theme cooperating.
     "tmux new-session -A -s #{@tlon_session} -n pi #{env_flags} '#{pi}'" <>
-      " \\; set-option -t #{@tlon_session} status off"
+      " \\; set-option -t #{@tlon_session} status off" <>
+      " \\; set-option -t #{@tlon_session} 'status-format[0]' ''" <>
+      " \\; set-option -t #{@tlon_session} pane-border-status off"
   end
 
   # The `export KEY="VALUE"` lines of a FUNES_* exports block as `{key, value}` pairs.
@@ -606,24 +604,6 @@ defmodule Aleph.Cockpit do
 
   # POSIX single-quote: escape embedded quotes as '\'' so the value survives the shell verbatim.
   defp sh_single_quote(s), do: "'" <> String.replace(s, "'", "'\\''") <> "'"
-
-  # `o`: claude window absent → summon it; present → cycle tmux's windows. Asking tmux (not
-  # cockpit state) means this can't drift from what's actually on screen.
-  defp toggle_claude_window do
-    case System.cmd("tmux", ["list-windows", "-t", @tlon_session, "-F", "\#{window_name}"], stderr_to_stdout: true) do
-      {out, 0} -> toggle_claude_window(String.split(out, "\n", trim: true))
-      {_out, _code} -> "the tlon tmux session isn't up — enter Tlön to start it"
-    end
-  end
-
-  defp toggle_claude_window(windows) do
-    if "claude" in windows, do: cycle_tlon_window(), else: summon_claude_window()
-  end
-
-  defp cycle_tlon_window do
-    System.cmd("tmux", ["next-window", "-t", @tlon_session], stderr_to_stdout: true)
-    nil
-  end
 
   # The Tlön workspace's windows as tabs — aleph draws them itself (tmux's own status bar is off),
   # so it asks tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort:
@@ -648,30 +628,6 @@ defmodule Aleph.Cockpit do
         _ -> []
       end
     end)
-  end
-
-  # Claude joins the SAME machine thread as pi (two voices, one thread) as a new tmux window,
-  # carrying its own identity exports (claude-machine). No FUNES_TOKEN is frozen into the env —
-  # headersHelper mints a fresh token per connect, so it survives a restart/model change/secret rotation.
-  defp summon_claude_window do
-    launcher = Application.get_env(:aleph, :machine_claude_launcher, "mise run funes:claude")
-
-    case machine_exports(@machine_claude_agent) do
-      {:ok, exports} ->
-        script = exports <> "\nexec env --default-signal " <> launcher
-
-        case System.cmd("tmux", ["new-window", "-t", @tlon_session, "-n", "claude", script], stderr_to_stdout: true) do
-          {_out, 0} -> "claude summoned — Ctrl+Space o cycles pi ⇄ claude"
-          {out, _code} -> "claude window failed: #{String.trim(out)}"
-        end
-
-      error ->
-        "claude spawn failed: #{inspect(error)}"
-    end
-  rescue
-    e -> "claude spawn crashed: #{Exception.message(e)}"
-  catch
-    :exit, reason -> "claude spawn crashed: #{inspect(reason)}"
   end
 
   # Resolve a machine pane's FUNES_* exports by find-or-create: reuse the latest open machine

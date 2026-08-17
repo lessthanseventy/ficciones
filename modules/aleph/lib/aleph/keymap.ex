@@ -32,8 +32,6 @@ defmodule Aleph.Keymap do
       none, else no-op (the `Enter` verb — the `s` verb's replacement).
     * `{:post_message, thread_id, body}` — post the composer's body to the focused thread as the
       operator (the `c` verb).
-    * `:toggle_pane` — summon-or-cycle the Tlön tmux windows (pi ⇄ claude; the `o` verb,
-      Tlön only — claude's window is created lazily on first summon).
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer: String.t()}` (the `n` verb) or
@@ -51,7 +49,6 @@ defmodule Aleph.Keymap do
           | {:create_thread, String.t()}
           | {:enter_or_spawn, term()}
           | {:post_message, term(), String.t()}
-          | :toggle_pane
           | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
@@ -138,10 +135,6 @@ defmodule Aleph.Keymap do
     do: {state, {:enter_or_spawn, id}}
 
   defp command(%{key: :enter}, state), do: {state, :none}
-
-  # `o` — the other Tlön window (tmux's other-pane verb): summon claude's window if it doesn't
-  # exist, else cycle. The cockpit owns the side effect (tmux is asked, never mirrored).
-  defp command(%{key: :char, char: "o"}, %{active_key: :tlon} = state), do: {state, :toggle_pane}
 
   defp command(%{key: :tab, shift: true}, state), do: switch(state, :prev)
   defp command(%{key: :tab}, state), do: switch(state, :next)

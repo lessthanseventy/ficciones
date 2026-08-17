@@ -127,16 +127,6 @@ defmodule Aleph.KeymapTest do
         assert {^s, :none} = Keymap.handle(key(:enter), s)
       end
     end
-
-    test "o in Tlön summons-or-cycles the tmux windows (pi ⇄ claude)" do
-      s = state(%{active_key: :tlon})
-      assert {^s, :toggle_pane} = Keymap.handle(char("o"), s)
-    end
-
-    test "o outside Tlön is unbound — only the machine tmux center has an other-window" do
-      s = state(%{active_key: :sessions})
-      assert {^s, :none} = Keymap.handle(char("o"), s)
-    end
   end
 
   describe "the live terminal owns the keys by default" do
