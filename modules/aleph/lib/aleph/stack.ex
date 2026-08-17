@@ -1,9 +1,11 @@
 defmodule Aleph.Stack do
   @moduledoc """
-  The machine/stack read models for the **Tlön** space (§the meta lens): what's changed in the env
-  (recent `ficciones` commits — the stack's own changelog) and what's installed (tool versions).
-  Best-effort and honest: a missing `git` or tool yields an empty/`"?"` value, never a crash. Tool
-  versions are cached in `:persistent_term` (they don't change mid-session); commits are read fresh.
+  The machine/stack read models for the **Tlön** space (§the meta lens): what's changed in the
+  env (recent `ficciones` commits with relative time and author — the stack's own changelog),
+  what's installed (tool versions), and what's the system state (branch, dirty status, nix
+  generation, disk/memory). Best-effort and honest: a missing `git` or tool yields an empty/`"?"`
+  value, never a crash. Tool versions are cached in `:persistent_term` (they don't change
+  mid-session); commits and system state are read fresh on each Cockpit tick.
   """
   @default_tools [
     {"pi", ["--version"]},
@@ -13,11 +15,27 @@ defmodule Aleph.Stack do
     {"tmux", ["-V"]}
   ]
 
-  @doc "Recent `ficciones` commits as `[%{hash, subject}]`, newest first (best-effort, fresh)."
+  @doc "Recent `ficciones` commits as `[%{hash, subject, time, author}]`, newest first (best-effort, fresh)."
   def commits(dir \\ ".", n \\ 8) do
-    case cmd("git", ["-C", dir, "log", "--oneline", "-n", Integer.to_string(n)]) do
+    case cmd("git", ["-C", dir, "log", "--format=#{format()}", "-n", Integer.to_string(n)]) do
       {:ok, out} -> out |> String.split("\n", trim: true) |> Enum.map(&parse_commit/1)
       :error -> []
+    end
+  end
+
+  @doc "Current branch name, or nil if not in a git repo."
+  def branch(dir \\ ".") do
+    case cmd("git", ["-C", dir, "branch", "--show-current"]) do
+      {:ok, out} -> out |> String.trim() |> then(&if &1 == "", do: nil, else: &1)
+      :error -> nil
+    end
+  end
+
+  @doc "Whether the working tree has uncommitted changes (best-effort)."
+  def dirty?(dir \\ ".") do
+    case cmd("git", ["-C", dir, "status", "--porcelain"]) do
+      {:ok, out} -> String.trim(out) != ""
+      :error -> false
     end
   end
 
@@ -34,10 +52,119 @@ defmodule Aleph.Stack do
     end
   end
 
+  @doc "Current nix generation number, or nil. Best-effort: nil if nix isn't available."
+  def nix_generation do
+    case cmd("nix-env", ["--list-generations", "--profile", "/nix/var/nix/profiles/default"]) do
+      {:ok, out} ->
+        # Last line is the current generation: "123 2026-01-15 ..."
+        out |> String.split("\n", trim: true) |> List.last() |> parse_nix_gen()
+
+      :error ->
+        nil
+    end
+  end
+
+  @doc "How many generations behind the current one is. 0 means current, nil if unknown."
+  def nix_behind do
+    case cmd("nix-env", ["--list-generations", "--profile", "/nix/var/nix/profiles/default"]) do
+      {:ok, out} ->
+        lines = String.split(out, "\n", trim: true)
+        # Generations are listed oldest-first; the last is current.
+        # "Behind" = total - current_index - 1
+        count = length(lines)
+
+        if count <= 1 do
+          0
+        else
+          count - 1
+        end
+
+      :error ->
+        nil
+    end
+  end
+
+  @doc "Disk usage percentage for the root filesystem (best-effort)."
+  def disk_pct do
+    case cmd("df", ["--output=pct", "/"]) do
+      {:ok, out} ->
+        out |> String.split("\n", trim: true) |> List.last() |> String.trim() |> parse_pct()
+
+      :error ->
+        nil
+    end
+  end
+
+  @doc "Memory usage percentage (best-effort, reads from /proc/meminfo on Linux)."
+  def mem_pct do
+    case File.read("/proc/meminfo") do
+      {:ok, content} ->
+        with {total, rest} <- parse_mem_line(content, "MemTotal:"),
+             {available, _} <- parse_mem_line(rest, "MemAvailable:") do
+          if total > 0, do: round((total - available) / total * 100)
+        else
+          _ -> nil
+        end
+
+      :error ->
+        nil
+    end
+  end
+
+  @doc "Whether the funes always-up service is reachable on :4040."
+  def funes_up? do
+    case :gen_tcp.connect(~c"127.0.0.1", 4040, [], 500) do
+      {:ok, socket} ->
+        :gen_tcp.close(socket)
+        true
+
+      {:error, _} ->
+        false
+    end
+  end
+
+  @doc "Whether the tlon tmux session exists."
+  def tlon_up? do
+    case cmd("tmux", ["has-session", "-t", "tlon"]) do
+      {:ok, _} -> true
+      :error -> false
+    end
+  end
+
+  # -- format: hash<tab>relative_time<tab>author_name<tab>subject
+  defp format, do: "%h%x09%ar%x09%an%x09%s"
+
   defp parse_commit(line) do
-    case String.split(line, " ", parts: 2) do
-      [hash, subject] -> %{hash: hash, subject: subject}
-      [hash] -> %{hash: hash, subject: ""}
+    case String.split(line, "\t", parts: 4) do
+      [hash, time, author, subject] -> %{hash: hash, time: time, author: author, subject: subject}
+      [hash, subject] -> %{hash: hash, time: "?", author: "?", subject: subject}
+      [hash] -> %{hash: hash, time: "?", author: "?", subject: ""}
+    end
+  end
+
+  defp parse_nix_gen(nil), do: nil
+  defp parse_nix_gen(line), do: line |> String.split() |> List.first() |> to_integer()
+
+  defp to_integer(nil), do: nil
+
+  defp to_integer(s) do
+    case Integer.parse(s) do
+      {n, _} -> n
+      :error -> nil
+    end
+  end
+
+  defp parse_pct(s) do
+    case Integer.parse(String.trim(s)) do
+      {n, _} -> n
+      :error -> nil
+    end
+  end
+
+  defp parse_mem_line(content, prefix) do
+    case Regex.run(~r/#{prefix}\s+(\d+)/, content) do
+      [_, num] -> {String.to_integer(num), content}
+      _ -> {:error, content}
     end
   end
 
