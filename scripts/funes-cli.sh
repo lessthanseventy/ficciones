@@ -28,6 +28,27 @@ FUNES="$(dirname "$0")/../modules/funes/_build/prod/rel/funes/bin/funes"
 esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 int() { case "$1" in ('' | *[!0-9]*) return 1 ;; (*) return 0 ;; esac; }
 
+# Mint a fresh token against FUNES_MCP_URL's origin /mint (Funes.MCP.Gateway) — the same
+# per-connect mint manos/pi's mcp.ts does: POST {"thread_id", "agent"} → {"token"}. The token
+# is signed with THAT node's world secret, so it verifies at /mcp on the same node (aleph's
+# 4041 or the service's 4040); minting via `bin/funes rpc` instead would only reach the service
+# node and strand an aleph-handed pane in the wrong world. No token is frozen — a fresh one per
+# connect survives restart/model/secret changes. Any failure returns non-zero so the caller
+# (CC's `token` headersHelper / pi's `bearer` !command) marks the server bad rather than 401ing.
+mint_token() {
+  : "${FUNES_MCP_URL:?mint: FUNES_MCP_URL not set (launch via a funes launcher)}"
+  : "${FUNES_THREAD:?mint: FUNES_THREAD not set}"
+  : "${FUNES_AUTHOR:?mint: FUNES_AUTHOR not set}"
+  int "$FUNES_THREAD" || { echo "mint: FUNES_THREAD must be numeric" >&2; return 1; }
+  local url="${FUNES_MCP_URL%/*}/mint" body resp token
+  body=$(printf '{"thread_id": %s, "agent": "%s"}' "$FUNES_THREAD" "$(esc "$FUNES_AUTHOR")")
+  resp=$(curl -fsS -X POST "$url" -H 'content-type: application/json' -d "$body" 2>/dev/null) ||
+    { echo "mint: POST $url failed — is the funes node up?" >&2; return 1; }
+  token=$(printf '%s' "$resp" | jq -r '.token // empty')
+  [ -n "$token" ] || { echo "mint: no token in response from $url" >&2; return 1; }
+  printf '%s' "$token"
+}
+
 cmd="${1:-}"
 shift || true
 
