@@ -18,6 +18,13 @@ defmodule Funes.Message do
     # Optional: the message this one replies to (aleph §2). A reply is addressed to
     # the replied-to message's author — one of the three ways delivery is targeted.
     field :reply_to, :id
+    # The agent-to-agent consult correlation (Funes.Consult): `consult_id` links the
+    # ask/answer pair, `origin_thread_id` is the asker's thread (where the answer is
+    # mirrored back), and `mirrored` marks a copy so the mirror never re-fires on
+    # itself (the echo guard). NULL/0 on an ordinary message.
+    field :consult_id, :integer
+    field :origin_thread_id, :integer
+    field :mirrored, :boolean, default: false
     belongs_to :thread, Funes.Thread
   end
 
@@ -28,7 +35,15 @@ defmodule Funes.Message do
   """
   def post_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:thread_id, :author, :body, :reply_to])
+    |> cast(attrs, [
+      :thread_id,
+      :author,
+      :body,
+      :reply_to,
+      :consult_id,
+      :origin_thread_id,
+      :mirrored
+    ])
     |> validate_required([:thread_id, :author, :body])
     |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
   end

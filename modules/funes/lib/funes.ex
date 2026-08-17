@@ -23,6 +23,8 @@ defmodule Funes do
       Board,
       Dossier,
       Presence,
+      # The agent-to-agent consult (ask a peer; the answer is mirrored back).
+      Consult,
       # Migration pre-flight (aleph.run refuses to boot a behind db).
       Doctor,
       # Identity minting for spawned harnesses (the funes-citizen handshake).

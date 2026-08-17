@@ -80,6 +80,7 @@ defmodule Funes.MCP.ServerTest do
                "recheck_fact",
                "open_thread",
                "close_thread",
+               "consult_peer",
                "get_dossier",
                "get_facts",
                "get_messages"
@@ -258,6 +259,34 @@ defmodule Funes.MCP.ServerTest do
 
     # closing a missing thread is refused
     assert call(token, session, 6, "close_thread", %{"thread_id" => 999_999})["isError"]
+  end
+
+  test "consult_peer — ask a peer on another thread, the third cross-thread verb",
+       %{thread: thread, token: token} do
+    # A peer agent, staffed and live on its own thread.
+    {:ok, peer_thread} = Channel.open_thread(%{title: "peer's work"})
+    {:ok, claude} = Staff.register_agent(%{name: "claude", mandate: "answer", engine: "fresh"})
+    {:ok, _} = Staff.assign(peer_thread, claude)
+    {:ok, _} = Staff.start_session(%{agent_id: claude.id, thread_id: peer_thread.id, pane_ref: "wClaude"})
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    # The caller names a peer AGENT, never a thread id.
+    r = call(token, session, 4, "consult_peer", %{"peer" => "claude", "prompt" => "is this sound?"})
+    refute r["isError"]
+    %{"consult_id" => consult_id, "peer_thread_id" => peer_thread_id} = decode_tool_json(r)
+    assert peer_thread_id == peer_thread.id
+
+    # The ask is a message on the PEER's thread, authored by the CALLER (the bound agent).
+    [ask] = Channel.thread_messages(peer_thread)
+    assert ask.author == "Carl"
+    assert ask.body == "is this sound?"
+    assert ask.consult_id == consult_id
+    assert ask.origin_thread_id == thread.id
+
+    # An unknown peer is refused.
+    assert call(token, session, 5, "consult_peer", %{"peer" => "nobody", "prompt" => "hi"})["isError"]
   end
 
   test "record_check — measured verification over the wire (exit keys the kind)", %{token: token} do

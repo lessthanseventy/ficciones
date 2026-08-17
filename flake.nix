@@ -122,7 +122,7 @@
                 mcpServers.funes = {
                   url = "\${FUNES_MCP_URL}";
                   headers.Authorization = "!${repo}/scripts/funes-cli.sh bearer";
-                  directTools = [ "post_message" "bank_fact" "raise_issue" "record_done" "get_dossier" ];
+                  directTools = [ "post_message" "bank_fact" "raise_issue" "record_done" "get_dossier" "consult_peer" ];
                   excludeTools = [ "register" ];
                 };
               };

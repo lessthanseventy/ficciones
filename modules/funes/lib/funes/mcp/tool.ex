@@ -609,3 +609,41 @@ defmodule Funes.MCP.Tool.CloseThread do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.ConsultPeer do
+  @moduledoc """
+  Ask a peer agent a question — the third DELIBERATE cross-thread verb (after
+  open_thread/close_thread). The caller names a peer AGENT, never a thread id; funes
+  resolves the peer's target thread (agent-filtered, with a defined tie-break) and
+  delivers the ask there. The peer's answer is mirrored back to the caller's own thread
+  (see `Funes.Consult`), so the caller reads it in its own dossier. A missing or
+  ambiguous peer is refused.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Consult
+  alias Funes.MCP
+
+  schema do
+    field :peer, :string, required: true, description: "The peer agent's name to ask"
+    field :prompt, :string, required: true, description: "The question to ask the peer"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+
+    case Consult.consult_peer(identity, params[:peer], params[:prompt]) do
+      {:ok, %{consult_id: consult_id, peer_thread_id: peer_thread_id}} ->
+        {:reply,
+         Response.json(Response.tool(), %{
+           "consult_id" => consult_id,
+           "peer_thread_id" => peer_thread_id
+         }), frame}
+
+      {:error, reason} ->
+        {:reply, Response.error(Response.tool(), "consult_peer failed: #{inspect(reason)}"), frame}
+    end
+  end
+end

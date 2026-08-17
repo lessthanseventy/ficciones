@@ -13,9 +13,15 @@ defmodule Funes.Application do
     # (aleph, topology A) flips :start_switchboard on, the prod service stays inert
     # until the service→tmux path is proven (see the tlön design doc). The MCP
     # channel is opt-in the same way: a node that serves agents flips :start_mcp on.
+    # The consult mirror is always-on: it only writes DB rows (never pokes a pane), so it
+    # is safe where the switchboard is deliberately opt-in.
+    # The consult mirror is on by default (it only writes DB rows, never pokes a pane, so it
+    # is safe where the switchboard is deliberately opt-in) — but the test harness turns it
+    # off so the pure maybe_mirror tests don't double-fire.
     children =
       [{Phoenix.PubSub, name: Funes.PubSub}] ++
         maybe(:start_repo, true, Funes.Repo) ++
+        maybe(:start_consult_mirror, true, Funes.Consult.Mirror) ++
         maybe(:start_switchboard, false, Funes.Switchboard.Server) ++
         maybe(:start_mcp, false, mcp_children())
 

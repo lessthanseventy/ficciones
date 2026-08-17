@@ -34,6 +34,7 @@ defmodule Funes.MCP.Server do
   component(Funes.MCP.Tool.RecheckFact, name: "recheck_fact")
   component(Funes.MCP.Tool.OpenThread, name: "open_thread")
   component(Funes.MCP.Tool.CloseThread, name: "close_thread")
+  component(Funes.MCP.Tool.ConsultPeer, name: "consult_peer")
   component(Funes.MCP.Tool.GetDossier, name: "get_dossier")
   component(Funes.MCP.Tool.GetFacts, name: "get_facts")
   component(Funes.MCP.Tool.GetMessages, name: "get_messages")
