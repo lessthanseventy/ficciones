@@ -15,6 +15,8 @@ defmodule Aleph.Cockpit do
   alias Aleph.Keymap
   alias Aleph.Mouse
   alias Aleph.Panel
+  alias Aleph.Profile
+  alias Aleph.Profiles
   alias Aleph.Sessions
   alias Aleph.Space
   alias Aleph.Terminal
@@ -661,31 +663,48 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Find-or-create the machine coworker's identity, then spawn the Tlön center: an embedded
-  # tmux client attached to the standing session (pi as window 0 if absent) — an aleph restart
-  # re-attaches to the running pi instead of spawning another.
+  # Materialise the Tlön space's coworker profile, find-or-create the machine identity, then spawn
+  # the Tlön center: an embedded tmux client attached to the standing session (pi as window 0 if
+  # absent) — an aleph restart re-attaches to the running pi instead of spawning another.
   defp spawn_machine_coworker do
-    with {:ok, exports} <- machine_exports(@machine_agent),
+    space = Space.fetch(:tlon)
+
+    with %Profile{} = profile <- Profiles.fetch(space.coworker),
+         {:ok, _dir} <- materialise_profile(profile),
+         {:ok, exports} <- machine_exports(@machine_agent),
          # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
-         {:ok, pid} <- Sessions.spawn_harness(:machine, exports, launcher: tlon_launcher(exports), kitty: false) do
+         {:ok, pid} <- Sessions.spawn_harness(:machine, exports, launcher: profile_launcher(profile), kitty: false) do
       pid
     else
       _error -> nil
     end
   end
 
+  # Wrap the raising materialiser so a filesystem hiccup degrades to "no coworker", never a cockpit crash.
+  defp materialise_profile(profile) do
+    {:ok, Profiles.materialise!(profile)}
+  rescue
+    e -> {:error, e}
+  end
+
   @doc false
   # `new-session -A` = attach-or-create; pi becomes window 0's command on first creation only.
-  # tmux runs that command in the SERVER's environment, not the client's, so `-e` forwards each
-  # FUNES_* export into the new session (ignored on attach, so only first creation wires it — an
-  # unwired `tlon` session must be killed to re-wire).
-  def tlon_launcher(exports) do
-    pi = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
-    # MANOS_RELOAD_CMD: how manos/reload respawns pi in place — `--continue` resumes the
-    # most-recent session (the one being killed), so a reload keeps the thread across the restart.
-    # Set as a session env var (via -e) so it survives into a respawned pane, alongside FUNES_*.
+  #
+  # The coworker's pi runs from its profile's config dir (`PI_CODING_AGENT_DIR`) — its own
+  # settings/mcp/sandbox — so Tlön is self-contained with NO funes env plumbing: the profile's empty
+  # mcp.json (no funes server) and dropped funes-brief extension are the whole sever. A persona, if
+  # the profile has one, rides as `--append-system-prompt <file>`. Both the config dir and the persona
+  # flag travel into `MANOS_RELOAD_CMD` so a manos/reload respawn stays on-profile. (Paths are the
+  # single-user machine's — no spaces/quotes — so they sit inside the launcher's quoting bare.)
+  def profile_launcher(%Profile{} = profile) do
+    base = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
+    dir = Profiles.config_dir(profile.name)
+    prompt = if profile.system_prompt, do: " --append-system-prompt #{Path.join(dir, "system_prompt.md")}", else: ""
+    pi = "env PI_CODING_AGENT_DIR=#{dir} #{base}#{prompt}"
+    # MANOS_RELOAD_CMD: how manos/reload respawns pi in place — `--continue` resumes the most-recent
+    # session (the one being killed), so a reload keeps the thread across the restart.
     reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
-    env_flags = (env_pairs(exports) ++ [reload_cmd]) |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
+    env_flags = [reload_cmd] |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
     # aleph draws the Tlön header + window tabs itself, so tmux's OWN chrome is silenced — chained
     # onto the one `new-session` with `\;` because the launcher must stay a single foreground command
     # (spawn_harness execs it via `env`, no shell sequencing). Window 0 is named `pi` so the tab strip
@@ -699,13 +718,6 @@ defmodule Aleph.Cockpit do
       " \\; set-option -t #{@tlon_session} 'status-format[0]' ''" <>
       " \\; set-option -t #{@tlon_session} pane-border-status off" <>
       " \\; set-option -t #{@tlon_session} mode-style 'bg=#3b4261,fg=#c0caf5'"
-  end
-
-  # The `export KEY="VALUE"` lines of a FUNES_* exports block as `{key, value}` pairs.
-  defp env_pairs(exports) do
-    ~r/export (\w+)="([^"]*)"/
-    |> Regex.scan(exports)
-    |> Enum.map(fn [_, k, v] -> {k, v} end)
   end
 
   # POSIX single-quote: escape embedded quotes as '\'' so the value survives the shell verbatim.

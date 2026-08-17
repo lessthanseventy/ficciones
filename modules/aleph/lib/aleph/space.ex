@@ -20,7 +20,7 @@ defmodule Aleph.Space do
   alias Aleph.Panel.ThreadList
 
   @enforce_keys [:key, :label, :surface]
-  defstruct [:key, :label, :surface, left: [], right: []]
+  defstruct [:key, :label, :surface, left: [], right: [], coworker: nil]
 
   @type surface :: [module() | {module(), atom()}]
   @type t :: %__MODULE__{
@@ -28,7 +28,10 @@ defmodule Aleph.Space do
           label: String.t(),
           surface: surface(),
           left: [module()],
-          right: [module()]
+          right: [module()],
+          # The name of the pi coworker profile this space spawns into its center, or nil for a space
+          # with no machine coworker (Aleph.Profiles). Tlön → "tlon".
+          coworker: String.t() | nil
         }
 
   @doc """
@@ -66,7 +69,10 @@ defmodule Aleph.Space do
         label: "Tlön",
         surface: [{Terminal, :machine}],
         left: [Aleph.Panel.Stack],
-        right: [Aleph.Panel.Tools]
+        right: [Aleph.Panel.Tools],
+        # Self-contained coworker: the "tlon" profile (no funes MCP, funes-brief extension dropped,
+        # sandboxed). See Aleph.Profiles.
+        coworker: "tlon"
       }
     ]
   end
