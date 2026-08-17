@@ -69,15 +69,11 @@ defmodule Aleph.MixProject do
   #   2. INSTALL. The Makefile copies the .so into build-output priv only inside its link recipe,
   #      which `make` skips when the .so already exists; the loader reads
   #      `:code.priv_dir(:raxol_terminal)`, so a missing copy is a runtime `:nif_not_loaded`.
-  #   3. NO RESIZE ENTRY. termbox2 re-learns the terminal size ONLY inside its poll path
-  #      (`tb_poll_event` → `update_term_size` + `resize_cellbufs`), and aleph never polls —
-  #      `Raxol.Terminal.Driver` owns input — so `tb_width()/tb_height()` stay frozen at `tb_init`
-  #      size and every `tb_set_cell`/`tb_present` clips to the old width (void on the right after
-  #      a widen). We patch in a public `tb_resize/0` (C wrapper over the two static refreshers +
-  #      an Elixir stub) the cockpit calls each tick. See patch_termbox_resize/1 (C, post-compile)
-  #      and ensure_termbox_resize_stub/1 (the .ex stub, pre-compile). update_term_size is cheap
-  #      (one ioctl); we gate resize_cellbufs on an actual size change so a per-tick call can't
-  #      flicker (resize_cellbufs clears the screen).
+  #   3. NO RESIZE ENTRY. termbox2 only re-learns terminal size inside its poll path, which aleph
+  #      never calls (Raxol.Terminal.Driver owns input) — so tb_width()/tb_height() stay frozen at
+  #      tb_init size. We patch in a public tb_resize/0 (see patch_termbox_resize/1 +
+  #      ensure_termbox_resize_stub/1) the cockpit calls each tick; it gates the (screen-clearing)
+  #      resize_cellbufs on an actual size change, since update_term_size alone is a cheap ioctl.
   @termbox_cflags "-O2 -Wall -Wextra -Wno-unused-parameter -std=c99 -fPIC -Itermbox2 -DTB_OPT_ATTR_W=64"
 
   defp ensure_termbox_nif(_args) do
@@ -219,13 +215,9 @@ defmodule Aleph.MixProject do
   # `update_term_size`, `resize_cellbufs` are in scope). Non-static, so termbox2_nif.c can link it.
   @termbox_resize_impl """
 
-  // aleph patch (defect #3): a public size-refresh entry point. termbox2 re-learns the terminal
-  // size only inside its poll path, which aleph never calls, so tb_width()/tb_height() would stay
-  // frozen at tb_init size. Re-query via update_term_size (one cheap ioctl), and reallocate the
-  // cell buffers ONLY when the size actually changed — resize_cellbufs() clears the screen
-  // (cellbuf_clear(front) + send_clear()), so an unconditional call would flicker every frame.
-  // Safe after tb_init (real tty) and after tb_shutdown (ttyfd < 0 → update_term_size no-ops);
-  // aleph only calls it once the cockpit is up. Returns TB_OK / a TB_ERR_* code.
+  // aleph patch (defect #3): public size-refresh entry point (termbox2 only re-learns size in its
+  // poll path, which aleph never calls). Only reallocates via resize_cellbufs (screen-clearing)
+  // when the size actually changed. Returns TB_OK / a TB_ERR_* code.
   int tb_resize(void) {
       int old_w = global.width, old_h = global.height;
       int rv = update_term_size();
@@ -324,12 +316,9 @@ defmodule Aleph.MixProject do
           File.write!(@termbox_nif_ex, patched)
           Mix.shell().info("[aleph] patched termbox2_nif.ex with tb_resize/0 stub")
 
-          # `mix compile` won't recompile an already-built hex dep on a source change, so an upgrade
-          # over a pre-built deps/ would leave the module without the stub while the rebuilt .so
-          # declares the NIF — load_nif then fails `{:bad_lib, "Function not found tb_resize/0"}` and
-          # stubs out the WHOLE NIF (tb_init included). Force the dep to recompile now so the module
-          # carries the stub before the .so is rebuilt post-compile. Only runs when the patch is
-          # first applied (idempotent), so it's a one-time cost, not every build.
+          # `mix compile` won't recompile an already-built hex dep, so without this the module
+          # would lack the stub while the rebuilt .so declares the NIF — load_nif then bad_libs
+          # the WHOLE NIF. Force recompile now; runs once (idempotent), not every build.
           Mix.Task.rerun("deps.compile", ["raxol_terminal", "--force"])
         end
 

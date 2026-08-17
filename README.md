@@ -17,7 +17,8 @@ naming system, not just a name.
 
 The AI stack is **many UIs over one memory**. `funes` is the shared spine — the data model, the
 communication bus, the single-writer discipline; `aleph` (from "The Aleph", the point that contains all
-points) is the cockpit that renders it. Over that spine sit the *environments* — each a bounded domain
+points) is the cockpit that renders it — launched with `uqbar`, Uqbar being the doorway *into* Tlön in
+the same story, and a launcher is a gateway (the command `aleph` itself belongs to TeX). Over that spine sit the *environments* — each a bounded domain
 with its own data, its own coworkers, and its own surface, and each named for the Borges story it
 behaves like. **None exist yet** — a module is born when it has content, and these are being designed,
 not built — but the vocabulary is fixed:

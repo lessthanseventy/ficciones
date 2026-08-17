@@ -7,10 +7,8 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # agenix — age-encrypted secrets committed to this repo, decrypted at home:switch by the box's
-    # ssh key (no runtime unlock). This is the right tool for MACHINE secrets a non-interactive
-    # process needs (OLLAMA_API_KEY for the Tlön pi spawn / funes); rbw stays for interactive
-    # passwords. See secrets/secrets.nix + the age.secrets block below.
+    # agenix — age-encrypted secrets, decrypted at home:switch by the box's ssh key (no runtime
+    # unlock). For machine secrets a non-interactive process needs; rbw stays for interactive ones.
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -216,11 +214,8 @@
                 extraConfig = ''
                   # Extended keys so shift+enter etc. round-trip to apps under tmux (the kitty-
                   # protocol gap the worklist flagged). Apps negotiate their own encoding above this.
-                  # csi-u format: pi (and other Kitty-keyboard apps) decode CSI-u most reliably;
-                  # pi probes `tmux show -gv extended-keys-format` at startup and warns when it's
-                  # the tmux default `xterm`. The Tlön center is a real `tmux attach` into the
-                  # user's session, so this is the one line the workbench needs the user's tmux to
-                  # carry. Requires tmux 3.5+; this box runs 3.7b.
+                  # csi-u format: pi decodes CSI-u most reliably and probes for it at startup
+                  # (warns on tmux's `xterm` default). Requires tmux 3.5+; this box runs 3.7b.
                   set -s extended-keys on
                   set -g extended-keys-format csi-u
                   set -as terminal-features 'xterm*:extkeys'
@@ -264,26 +259,18 @@
                 '';
               };
 
-              # rbw — a Bitwarden CLI with an unlock *agent*, so secrets live in the vault instead
-              # of plaintext dotfiles or the nix store. This is the machine's secret-fetch tool: the
-              # config here (email, server, pinentry) is non-secret and declarative; the master
-              # password + vault stay with Bitwarden. mise resolves OLLAMA_API_KEY via `rbw get`
-              # (see mise.toml [env]), which is why the key no longer lives in ~/.config/mise.
-              #
-              # Server is bitwarden.com for now — set `base_url` to a self-hosted Vaultwarden later
-              # (rbw speaks the same API) and nothing else changes. pinentry-curses works in any
-              # terminal (ghostty, a tmux pane) — swap to pinentry-gnome3/qt for a GUI prompt.
-              # Operational contract: `rbw unlock` once per session so the agent is warm; the
-              # non-interactive Tlön pi spawn can't prompt, so a locked vault yields an empty key.
+              # rbw — Bitwarden CLI with an unlock agent; secrets stay in the vault, not plaintext
+              # dotfiles or the nix store. Config here is non-secret/declarative; master password +
+              # vault stay with Bitwarden. Needs `rbw unlock` once per session to warm the agent —
+              # a locked vault yields an empty key for the non-interactive Tlön pi spawn.
               programs.rbw = {
                 enable = true;
                 settings = {
                   email = "andrew@lessthanseventy.com";
                   # base_url = "https://vault.example.tld";  # ← self-hosted Vaultwarden goes here
-                  # pinentry-qt — a self-contained GUI dialog. Terminal pinentries (curses/tty) EOF'd
-                  # because the rbw-agent daemon has no controlling tty; a GUI prompt sidesteps that
-                  # and needs no GPG_TTY. qt (not gnome3) because this box is Hyprland/Qt (qt6ct +
-                  # kvantum in .zprofile) — pinentry-gnome3 needs GNOME's gcr-prompter service.
+                  # pinentry-qt: rbw-agent has no controlling tty, so terminal pinentries EOF; a GUI
+                  # dialog sidesteps that. qt not gnome3 — this box is Hyprland/Qt, and gnome3 needs
+                  # GNOME's gcr-prompter.
                   pinentry = pkgs.pinentry-qt;
                   lock_timeout = 3600;
                 };
@@ -316,28 +303,15 @@
                 # handled by the agenix module (age.secrets below).
                 agenix.packages.${system}.default
 
-                # `uqbar` on PATH — type it from anywhere to launch the cockpit, instead of
-                # `cd modules/aleph && mise run aleph:run`. NOT named `aleph`: TeX Live ships an
-                # `aleph` binary (the Omega/Unicode TeX engine) at /usr/bin, so the name collides.
-                # `uqbar` is the Borgesian fit — in "Tlön, Uqbar, Orbis Tertius" (the story that
-                # names the dogfood env), Uqbar is the DOORWAY you pass through to reach Tlön, and a
-                # launcher is exactly a gateway. Deliberately THIN: it just runs the mise task, so the
-                # launch logic (reap a stale cockpit + self-heal an unwired tlon session + mix
-                # aleph.run) stays in ONE place (mise.toml), not duplicated here. Dev-mode (recompiles
-                # on launch); a self-contained release binary is a later step. Uses the ambient mise
-                # (system-installed, on the interactive shell's PATH).
+                # not `aleph`: collides with TeX Live's aleph binary. Thin wrapper over the mise task.
                 (pkgs.writeShellScriptBin "uqbar" ''
                   cd ${repo} || { echo "uqbar: repo not found at ${repo}" >&2; exit 1; }
                   exec mise run aleph:run
                 '')
               ];
 
-              # Machine secrets — age-encrypted in secrets/, decrypted at home:switch to
-              # $XDG_RUNTIME_DIR/agenix/<name> by the box's ssh key. Gated on the .age existing so the
-              # flake evaluates before the first secret is created: once `agenix -e
-              # secrets/ollama-api-key.age` writes it, this block activates on the next switch and the
-              # key lands at /run/user/1000/agenix/ollama-api-key (mise reads it — see mise.toml [env]).
-              # No runtime unlock: the non-interactive Tlön pi spawn just finds it there.
+              # age-encrypted secrets, decrypted at home:switch to $XDG_RUNTIME_DIR/agenix/<name>.
+              # Gated on pathExists so the flake evaluates before the first secret is created.
               age.secrets = lib.optionalAttrs (builtins.pathExists ./secrets/ollama-api-key.age) {
                 ollama-api-key.file = ./secrets/ollama-api-key.age;
               };

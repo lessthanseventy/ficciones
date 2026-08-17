@@ -64,9 +64,7 @@ defmodule Aleph.Cockpit do
         receive do
           {:DOWN, ^ref, :process, ^pid, reason} ->
             restore_host_tty()
-            # Capture a crashed exit: the alt-screen otherwise swallows it (the operator sees the
-            # cockpit vanish with "nothing printed"). A NIF segfault kills the BEAM before this runs,
-            # but every Elixir-level crash lands here with its stacktrace.
+            # Capture a crashed exit — the alt-screen otherwise swallows it silently.
             log_crash(reason)
         end
 
@@ -159,10 +157,8 @@ defmodule Aleph.Cockpit do
 
   @impl true
   def handle_cast({:dispatch, %Event{type: :resize}}, state) do
-    # Raxol's :resize event is a low-latency trigger; `refresh_size` (via `tb_resize/0`) re-queries
-    # and syncs termbox so its buffers — what `tb_set_cell`/`tb_present` clip to — match the window.
-    # We take termbox's re-queried size, not the event's, so `state.w/h` can never exceed the size
-    # termbox will actually render at. The tick catches the resize too if this event never fires.
+    # Use termbox's re-queried size (refresh_size/tb_resize), not the event's, so state.w/h never
+    # exceeds what termbox will actually render at. The tick catches this too as a backstop.
     state = refresh_size(state)
     resize_focused_terminal(state)
     {:noreply, render(state)}
@@ -227,12 +223,9 @@ defmodule Aleph.Cockpit do
     Process.send_after(self(), :tick, @tick_ms)
     # A pending coalesced :render is now redundant (this tick paints); drop the flag so it no-ops.
     state = %{state | render_scheduled?: false}
-    # Re-sync + re-read the terminal size every tick, so a resize that never arrived as an event
-    # (a missed SIGWINCH — plausible here, since termbox's `tb_init` and Raxol's Driver contend for
-    # the handler) self-corrects within a tick. This is the reliable path: `refresh_size` calls
-    # `tb_resize/0`, which re-queries the real size via ioctl independent of any signal, so the
-    # layout can't strand at the old size. (It previously re-read the FROZEN `tb_width()` here and
-    # "self-corrected" to the same stale value — the bug this fixes.)
+    # Re-sync + re-read the terminal size every tick, so a missed SIGWINCH self-corrects within a
+    # tick: refresh_size calls tb_resize/0, which re-queries the size via ioctl independent of any
+    # signal, so the layout can't strand at the old size.
     state = refresh_size(state)
     # And re-fit the center PTY to the center region — a terminal spawned *between* window resizes
     # (a new session, the Tlön coworker) starts at 80x24 and would otherwise fill only part of the
@@ -261,11 +254,9 @@ defmodule Aleph.Cockpit do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # The single source of truth for the cockpit's size. termbox re-learns the terminal size only in
-  # its poll path (which aleph never calls — Raxol's Driver owns input), so `tb_resize/0` (aleph's
-  # NIF patch, see mix.exs defect #3) must sync it first, or `tb_width()/tb_height()` stay frozen at
-  # `tb_init` size and every `tb_set_cell`/`tb_present` clips to the old width. `tb_resize/0` is a
-  # cheap ioctl when nothing moved; it only reallocs (and clears) on a real change.
+  # Single source of truth for the cockpit's size. termbox only re-learns size in its poll path
+  # (which aleph never calls), so tb_resize/0 (mix.exs defect #3) must sync it first or
+  # tb_width()/tb_height() stay frozen at tb_init size.
   defp refresh_size(state) do
     :termbox2_nif.tb_resize()
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
@@ -585,13 +576,10 @@ defmodule Aleph.Cockpit do
   end
 
   @doc false
-  # `new-session -A` = attach-or-create. pi becomes window 0's command on first creation. The catch
-  # (the 2026-08-16 "not wired" bug): tmux runs that command in the SERVER's environment, NOT the
-  # launching client shell's, so `spawn_harness`'s FUNES_* exports never reach pi. `-e` forwards each
-  # into the new session's environment, which window 0 inherits (verified on tmux 3.7b). On attach
-  # (`-A`, session already up) `-e` is ignored and window 0 is reused, so only the FIRST creation
-  # wires the identity — a `tlon` session started unwired must be killed to re-wire. (The claude
-  # window bakes the same exports into its own command in `summon_claude_window`.)
+  # `new-session -A` = attach-or-create; pi becomes window 0's command on first creation only.
+  # tmux runs that command in the SERVER's environment, not the client's, so `-e` forwards each
+  # FUNES_* export into the new session (ignored on attach, so only first creation wires it — an
+  # unwired `tlon` session must be killed to re-wire).
   def tlon_launcher(exports) do
     pi = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
     env_flags = exports |> env_pairs() |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
@@ -605,8 +593,7 @@ defmodule Aleph.Cockpit do
     |> Enum.map(fn [_, k, v] -> {k, v} end)
   end
 
-  # POSIX single-quote: wrap in '…' and escape any embedded quote as '\'' so the value survives
-  # the shell verbatim regardless of what a future agent name / URL contains.
+  # POSIX single-quote: escape embedded quotes as '\'' so the value survives the shell verbatim.
   defp sh_single_quote(s), do: "'" <> String.replace(s, "'", "'\\''") <> "'"
 
   # `o`: claude window absent → summon it; present → cycle tmux's windows. Asking tmux (not
@@ -743,10 +730,8 @@ defmodule Aleph.Cockpit do
   def crash_report({:shutdown, _}), do: nil
   def crash_report(reason), do: Exception.format_exit(reason)
 
-  # Append a crashed exit (reason + stacktrace) to a crash log and echo it to stderr AFTER the tty
-  # is restored — so the death lands on the main screen and on disk, not swallowed by the alt-screen.
-  # The path is $XDG_CACHE_HOME/aleph/crash.log (else ~/.cache/aleph/crash.log). Best-effort: a
-  # failure to write the log must never mask the original crash.
+  # Append a crashed exit to the crash log and echo it to stderr after the tty is restored, so it
+  # doesn't get swallowed by the alt-screen. Best-effort: a log write failure never masks the crash.
   defp log_crash(reason) do
     case crash_report(reason) do
       nil ->
