@@ -91,8 +91,27 @@ defmodule Aleph.Profiles do
       ]
     },
     "filesystem" => %{
-      "allowWrite" => [@repo, "/tmp", "$XDG_RUNTIME_DIR", "~/.pi", "~/.cache", "~/.local"],
-      "allowRead" => [@repo, "~/.config", "~/.local", "~/.pi", "~/.cache"],
+      # Writes: the repo (edits), /tmp + the socket dir (manos-lspd), caches. Never the nix store.
+      "allowWrite" => [
+        @repo,
+        "/tmp",
+        "$XDG_RUNTIME_DIR",
+        "~/.pi",
+        "~/.cache",
+        "~/.local"
+      ],
+      # Reads (prompt-by-default otherwise): the repo, plus /nix/store + ~/.nix-profile so pi reading
+      # its OWN install/docs/extensions — and any flake-managed binary's files — never triggers a
+      # useless prompt (the store is immutable + world-readable). Config/cache dirs round it out.
+      "allowRead" => [
+        @repo,
+        "/nix/store",
+        "~/.nix-profile",
+        "~/.config",
+        "~/.local",
+        "~/.pi",
+        "~/.cache"
+      ],
       "denyWrite" => [".env", ".env.*", "*.pem", "*.key"]
     }
   }
