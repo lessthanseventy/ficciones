@@ -143,10 +143,43 @@ only what's worth history (usage-over-time).
 - **Source-packet → synthesis-page ingestion** (from `@zosmaai/pi-llm-wiki`) → a funes ingestion
   path for URLs/PDFs into structured, linked facts; pairs with `@lincoln504/pi-research` output.
 - **Notify-on-event** (from `@aliou/pi-processes` / pi-interactive-shell Monitor mode) → the
-  `herdr-native-notifications` "agent waiting on you" want (OSC 9/777 via ghostty).
+  `herdr-native-notifications` "agent waiting on you" want (OSC 9/777 via ghostty). PARTIAL:
+  `@pi-unipi/notify` is now installed (notify-send-based, `agent_settled`/`ask_user_prompt`/
+  `permission_request`) — a pragmatic stopgap, not yet the zero-dep OSC-through-ghostty path.
+- **Recurring-tasks Space** (concept from `pi-schedule`, not the extension) → a new `Aleph.Space`
+  with a Borgesian name, Oban-backed — the recurring/scheduled-tasks lens already mused in the
+  funes/aleph notes. Its own panel(s) over an Oban job table.
+- **Session-deck / monitor** (ideas from `@robhowley/pi-session-deck`) → feeds the deferred
+  observability panel (below): a live session/monitor readout in the cockpit.
 - **Mobile / remote session access** (from `@firstpick/pi-package-webui`) → the one thing aleph's
   terminal hub doesn't cover; a real gap, not a duplicate.
 - **Inline image rendering** (from `pi-pretty`) → relevant to the minimax-m3 `/consult` vision flow.
+
+## Build status (2026-08-17)
+
+- **Slice 1 — footer cache/context — DONE** (`2577a52`). `accumulateUsage` + `cacheHitPct`; a
+  `↺N%` cache-reuse readout in the footer, shown only when caching is in play. 9 tests, tsc clean.
+- **Slice 2 — habits axis in funes — DONE** (`061b43b`). `habit` table + schema, Dossier
+  propose/approve/reject + approved/pending reads, `propose_habit` MCP tool, `Resource.Habits`
+  (`funes://habits`), Bus `:habit_*` events. Machine-wide, agent-proposed / operator-approved.
+  199 funes tests, compile clean w/ `--warnings-as-errors`.
+- **Slice 3 — LSP blast-radius — DONE** (`aa87360`). `impact` pi tool: git diff → touched symbols
+  → external callers, first-order. Additive codec widening; pure `parseDiff`/`rangesOverlap`
+  unit-pinned. lspd 37 + lsp 4 tests, tsc clean. Elixir+TS coverage.
+- **Slice 4 — habits review panel — DONE** (`a4f08c4`). `Aleph.Panel.Habits` on Tlön (right),
+  live on `funes:habits`. Completes slice 2's loop (pending queue visible). 194 aleph tests,
+  compile clean. On-screen paint + in-TUI approve are the eye-test / a fast-follow.
+
+### Remaining (needs a decision or the human's live aleph)
+- **Slice 5 — tabbed observability panel (usage/cache/context).** Blocked on the telemetry-path
+  decision: pi's in-process cache/context can't reach the Elixir cockpit without a bridge, and
+  funes is the wrong home for per-turn metrics (it's memory/comms, not a metrics store). Options:
+  (a) a new `post_telemetry` MCP tool → funes broadcasts ephemerally (no persistence) → panel;
+  (b) aleph polls provider endpoints directly for USAGE only (ollama.com works; Anthropic has no
+  public quota API), leaving cache/context to the footer. Recommend (b) for usage + keep
+  cache/context in the footer, revisiting (a) only if a cross-session cache view earns its keep.
+- **In-TUI habit approve** — a cockpit `pick`/key action emitting `{:approve_habit, id}`; needs
+  live-aleph verification, so held for the human.
 
 ## Explicitly out of scope / not taken
 

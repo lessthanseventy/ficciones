@@ -398,7 +398,12 @@
                        #   pi-retry          → zero-dep stall-watchdog + transient-error retry,
                        #                       stronger than settings.retry.enabled alone; matters
                        #                       over flaky ollama.com cloud + multi-provider failover.
-                       + ["pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:pi-cc-header","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry"] | unique)
+                       #   notify            → "agent waiting on you" notifications (agent_settled /
+                       #                       ask_user_prompt / permission_request, all default-OFF —
+                       #                       enable via /unipi:notify-settings). Uses notify-send on
+                       #                       Linux, so it needs a notification daemon (mako on
+                       #                       Hyprland); NOT the OSC-9/777-through-ghostty path yet.
+                       + ["pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:pi-cc-header","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry","npm:@pi-unipi/notify"] | unique)
                    | .defaultProvider //= "ollama-cloud"
                    | .defaultModel //= "deepseek-v4-flash"
                    | .defaultThinkingLevel //= "medium"
