@@ -316,14 +316,18 @@
                 # handled by the agenix module (age.secrets below).
                 agenix.packages.${system}.default
 
-                # `aleph` on PATH — type it from anywhere to launch the cockpit, instead of
-                # `cd modules/aleph && mise run aleph:run`. Deliberately THIN: it just runs the mise
-                # task, so the launch logic (reap a stale cockpit + self-heal an unwired tlon session
-                # + mix aleph.run) stays in ONE place (mise.toml), not duplicated here. Dev-mode
-                # (recompiles on launch); a self-contained release binary is a later step. Uses the
-                # ambient mise (system-installed, on the interactive shell's PATH).
-                (pkgs.writeShellScriptBin "aleph" ''
-                  cd ${repo} || { echo "aleph: repo not found at ${repo}" >&2; exit 1; }
+                # `uqbar` on PATH — type it from anywhere to launch the cockpit, instead of
+                # `cd modules/aleph && mise run aleph:run`. NOT named `aleph`: TeX Live ships an
+                # `aleph` binary (the Omega/Unicode TeX engine) at /usr/bin, so the name collides.
+                # `uqbar` is the Borgesian fit — in "Tlön, Uqbar, Orbis Tertius" (the story that
+                # names the dogfood env), Uqbar is the DOORWAY you pass through to reach Tlön, and a
+                # launcher is exactly a gateway. Deliberately THIN: it just runs the mise task, so the
+                # launch logic (reap a stale cockpit + self-heal an unwired tlon session + mix
+                # aleph.run) stays in ONE place (mise.toml), not duplicated here. Dev-mode (recompiles
+                # on launch); a self-contained release binary is a later step. Uses the ambient mise
+                # (system-installed, on the interactive shell's PATH).
+                (pkgs.writeShellScriptBin "uqbar" ''
+                  cd ${repo} || { echo "uqbar: repo not found at ${repo}" >&2; exit 1; }
                   exec mise run aleph:run
                 '')
               ];
