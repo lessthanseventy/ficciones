@@ -21,7 +21,6 @@ function fmtTokens(n: number): string {
 function fmtCost(c: number): string {
   if (c === 0) return "";
   if (c < 0.01) return `$${c.toFixed(4)}`;
-  if (c < 1) return `$${c.toFixed(2)}`;
   return `$${c.toFixed(2)}`;
 }
 
@@ -31,9 +30,11 @@ function fmtCwd(cwd: string): string {
   return cwd;
 }
 
-// A 10-char context bar: ▓▓▓░░░░░░░  fills proportionally.
+// A 10-char context bar: ▓▓▓░░░░░░░  fills proportionally. Clamps pct to [0, 100] so context
+// overflow (pct > 100) can't produce a negative repeat count.
 function contextBar(pct: number, width: number): string {
-  const filled = Math.round((pct / 100) * width);
+  const clamped = Math.max(0, Math.min(100, pct));
+  const filled = Math.round((clamped / 100) * width);
   return "▓".repeat(filled) + "░".repeat(width - filled);
 }
 
