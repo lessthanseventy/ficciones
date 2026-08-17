@@ -15,7 +15,7 @@ export default function lsp(pi: ExtensionAPI): void {
   // Cached servers: one per (adapter name, project root). Lives for the session.
   const clients = new Map<string, LspClient>();
 
-  function clientFor(file: string): { client: LspClient; adapter: LanguageAdapter } {
+  function clientFor(file: string): { client: LspClient; adapter: LanguageAdapter; key: string } {
     const adapter = adapterForFile(file);
     if (!adapter) throw new LspError(`no LSP adapter for ${file} (unknown extension)`);
     const root = adapter.rootFor(file);
@@ -35,7 +35,16 @@ export default function lsp(pi: ExtensionAPI): void {
       });
       clients.set(key, client);
     }
-    return { client, adapter };
+    return { client, adapter, key };
+  }
+
+  // Drop a cached server so the next call spawns a fresh one.
+  function evict(key: string): void {
+    const dead = clients.get(key);
+    if (dead) {
+      dead.dispose();
+      clients.delete(key);
+    }
   }
 
   const pos = (p: Record<string, unknown>): LspPosition => ({
@@ -49,12 +58,26 @@ export default function lsp(pi: ExtensionAPI): void {
   ): Promise<ToolResult> => {
     const file = String(params.path ?? "");
     if (!file) return { content: [{ type: "text", text: "missing `path`" }], isError: true };
+    let key: string | undefined;
     try {
-      const { client } = clientFor(file);
-      const text = await fn(client, file);
+      const c = clientFor(file);
+      key = c.key;
+      const text = await fn(c.client, file);
       return { content: [{ type: "text", text }] };
     } catch (err) {
       const msg = err instanceof LspError ? err.message : err instanceof Error ? err.message : String(err);
+      // A timeout means the server took the connection but never answered — usually its process
+      // is alive while an internal worker has crashed (e.g. Expert's intermittent Unicode-stdio
+      // bug: XPGenLSP.Buffer dies on startup, so no request is ever served). Reusing that wedged
+      // server just times out again. Evict it so the NEXT call spawns a fresh one — the crash is
+      // flaky, so a respawn usually succeeds — and tell the agent it's worth retrying.
+      if (key && /timed out/.test(msg)) {
+        evict(key);
+        return {
+          content: [{ type: "text", text: `lsp: ${msg} — the language server stopped responding (it may have crashed on startup); it has been restarted, so retry this tool.` }],
+          isError: true,
+        };
+      }
       return { content: [{ type: "text", text: `lsp: ${msg}` }], isError: true };
     }
   };

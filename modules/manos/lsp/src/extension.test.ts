@@ -1,5 +1,29 @@
 import { describe, expect, test } from "bun:test";
 import { adapterForFile, findRootWith, ADAPTERS } from "./adapters.ts";
+import { frameMessage } from "./client.ts";
+
+describe("frameMessage — LSP frames are byte-exact (Content-Length counts bytes, not chars)", () => {
+  // A Content-Length that counts characters instead of bytes desyncs the server's framing and
+  // lands its reader mid-character — Expert then crashes reading the next header with
+  // {:no_translation, :unicode, :latin1}. The header must equal the body's UTF-8 byte length.
+  test("multibyte payload: declared length equals the body's byte length", () => {
+    const msg = { jsonrpc: "2.0", method: "textDocument/didOpen", params: { text: "Tlön — Uqbar 😀 中文" } };
+    const buf = frameMessage(msg);
+    const sep = buf.indexOf("\r\n\r\n");
+    const declared = Number(/Content-Length: (\d+)/.exec(buf.subarray(0, sep).toString("ascii"))![1]);
+    const actualBodyBytes = buf.length - (sep + 4);
+    expect(declared).toBe(actualBodyBytes);
+    // And bytes must exceed JS's UTF-16 code-unit count here — proving the count is of bytes.
+    expect(declared).toBeGreaterThan(JSON.stringify(msg).length);
+  });
+
+  test("ASCII payload: byte length equals string length", () => {
+    const msg = { jsonrpc: "2.0", id: 1, method: "textDocument/hover" };
+    const buf = frameMessage(msg);
+    const declared = Number(/Content-Length: (\d+)/.exec(buf.toString("ascii"))![1]);
+    expect(declared).toBe(JSON.stringify(msg).length);
+  });
+});
 
 // The adapter registry is the pluggable seam — test that routing + root-finding are
 // correct, so adding a language (a new adapter object) can't silently break the others.

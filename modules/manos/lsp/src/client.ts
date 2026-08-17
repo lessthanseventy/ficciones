@@ -227,10 +227,25 @@ export class LspClient {
   }
 
   #write(msg: Record<string, unknown>): void {
-    const json = JSON.stringify(msg);
-    const frame = `Content-Length: ${Buffer.byteLength(json)}\r\n\r\n${json}`;
-    this.#proc.stdin.write(frame);
+    // One byte-exact frame, written as a single Buffer — see frameMessage.
+    this.#proc.stdin.write(frameMessage(msg));
   }
+}
+
+// The LSP wire frame for a message: an ASCII `Content-Length` header followed by the body as
+// UTF-8 bytes. LSP is BYTE-framed — the header counts bytes, and the receiver reads exactly
+// that many bytes for the body. So the count and the bytes we put on the wire must be identical.
+// Building the body as an explicit UTF-8 Buffer (rather than writing a string and trusting the
+// stream's default encoding) guarantees that: `body.length` IS what gets sent, whatever the
+// pipe's encoding happens to be. A mismatch here — Content-Length off by even one byte for a
+// multibyte character — desyncs the server's framing, landing its reader mid-character on the
+// next header. Expert reads that header through a Unicode char reader and crashes with
+// `{:no_translation, :unicode, :latin1}`, wedging every subsequent request. Kept pure + exported
+// so the bytes-not-chars invariant is unit-tested without a live server.
+export function frameMessage(msg: Record<string, unknown>): Buffer {
+  const body = Buffer.from(JSON.stringify(msg), "utf-8");
+  const header = Buffer.from(`Content-Length: ${body.length}\r\n\r\n`, "ascii");
+  return Buffer.concat([header, body]);
 }
 
 function uri(absPath: string): string {
