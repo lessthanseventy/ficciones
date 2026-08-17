@@ -94,34 +94,74 @@ because the caller never names one.
 consult_peer(peer: agent_name, prompt: string) → {consult_id, peer_thread_id}
 ```
 
-**How it resolves without fighting the token/session model**
+`consult_id` correlates the pair — the ask the caller sent and the answer the peer gives. (The first
+draft returned it without a backing schema; the return-path design below is what makes it real.)
 
-- The call authenticates as the caller via the connection token → frame binds (caller_thread,
-  caller_agent, caller_session). `consult_peer` reads ONLY that — no peer thread id comes from the
-  call, so misdirection is unrepresentable, the same rule PostMessage's no-thread-param enforces.
-- `peer` is an **agent name** (`Staff.agent_by_name/1`), never a thread id. funes resolves the peer's
-  current thread from its live session (`Staff.live_session` / `threads_for`). The caller asks for a
-  *coworker*, not a thread — how a human would address them.
-- funes (the single writer) creates the consult as a `Channel.post` on the peer's thread, authored by
-  the **caller's real agent identity** (`caller_agent`). No adapter writes cross-thread directly; the
-  write is mediated by funes exactly like `post_message` is, just to a resolved target thread. The
-  adapter stays a client of the channel.
+**Hole 1 (review) — how the peer's target thread is actually resolved**
+
+The first draft said funes "resolves the peer's current thread from its live session". That is wrong:
+an agent maps to MANY threads (`threads_for/1` returns a list — its moduledoc says "an agent maps to
+many threads"), and `live_session/2` takes a thread id as input — it is the token→identity resolver,
+not a lookup-by-agent. There is no `current_thread_for_agent/1`. So `consult_peer("claude", …)` must
+resolve over the peer's staffed threads with a defined rule, not a hop:
+
+1. `peer` → `Staff.agent_by_name/1` (refuse unknown / duplicate name).
+2. `threads_for(claude)` → every thread claude is staffed on.
+3. For each, the live session (`session_for_thread/1` — the newest live session on a thread staffed to
+   claude IS claude's). Filter to live.
+4. Tie-break:
+   - **0 live** → deliver durably to `threads_for(claude)` head (the most recent thread); the ask
+     waits there, no liveness invented.
+   - **exactly 1 live** → deliver there.
+   - **>1 live** → the most-recently-active session, by `last_active_at` — the forward-only warmth the
+     switchboard and MCP tool calls already bump (a measured signal, not thread-id order). This is the
+     defined rule, not a guess: refusing on ambiguity would make the tool unusable for an agent who is
+     a coworker on several threads (claude on Tlön + the machine thread), which is the normal case.
+
+**Hole 2 (review) — the return path: how the answer gets home**
+
+The first draft stopped at delivery to the peer and never said how the caller reads the answer — and
+it cannot via existing tools: `get_messages`/`get_facts` are scoped to the connection's own thread
+(identity rides the token), so a caller who isn't staffed on the peer's thread cannot poll it. The
+answer must come back. So a consult is a **correlated ask/answer pair**:
+
+- The ask lands on the peer's thread, authored by the caller's real identity, carrying `consult_id`
+  and its `origin_thread_id` (the caller's thread).
+- When the peer answers — a normal reply to the ask (`reply_to` the ask's message id) on its own
+  thread — funes mirrors the reply **back to the caller's `origin_thread_id`**, tagged with the same
+  `consult_id` and authored as the peer. It lands in the caller's own dossier/chatter; no cross-thread
+  read tool is needed.
+- The caller reads the answer on its OWN thread (its dossier) and can keep the consult going by
+  `reply_to` on the mirrored message.
+
+This is the schema cost the first draft hid: the ask message needs `consult_id` + `origin_thread_id`
+(a small correlation — a column or a consult table), so `consult_id` is a real correlation, not an
+implied fiction.
+
+**Single-writer + identity still hold**
+
+- The call authenticates as the caller via the token → frame binds (caller_thread, caller_agent,
+  caller_session). The caller never passes a thread id — only a peer agent name — so misdirection is
+  unrepresentable.
+- funes mediates BOTH writes (ask on the peer's thread, mirrored answer on the caller's) through
+  `Channel.post`; no adapter writes cross-thread directly. Authors are always real identities.
 
 **Two delivery modes, one contract**
 
-- **Durable (works today):** the consult is a normal message on the peer's thread; the peer sees it on
-  its next dossier refresh (or the switchboard's `@mention` wake if that lands). No liveness is
-  invented — an offline peer finds the consult waiting, which is honest.
+- **Durable (works today):** the ask is a message on the peer's thread; the peer sees it on its next
+  dossier refresh (or the switchboard's `@mention` wake if that lands). An offline peer finds it
+  waiting, which is honest.
 - **Live wake (the optimization, presence-gated):** when the switchboard is presence-gated, the
-  delivered consult pokes the peer's live session (the `Funes.Switchboard` + `Funes.Mentions`
-  machinery exists for exactly this). The tool's *contract* is durable delivery; the wake is a latency
-  improvement on top, never assumed.
+  delivered ask pokes the peer's live session (the `Funes.Switchboard` + `Funes.Mentions` machinery
+  exists for exactly this). The contract is durable delivery; the wake is a latency improvement, never
+  assumed.
 
 **Boundary cost**
 
-One new export in `lib/funes.ex` (a `Consult` context, or a `Channel`-adjacent function) plus a new
-`Funes.MCP.Tool.ConsultPeer` component and the `consult_peer` directTool. That is the whole surface —
-and it is the reviewed, deliberate widening this file's history is for.
+A `Consult` context (or `Channel`-adjacent functions) + the ask's `consult_id`/`origin_thread_id`
+correlation, a new `Funes.MCP.Tool.ConsultPeer` component and the `consult_peer` directTool, plus the
+answer path (reply-to-ask auto-mirroring). That is the whole surface — and it is the reviewed,
+deliberate widening this file's history is for.
 
 ### 2c — Discoverability (the operator's "point at the surface" fix)
 
@@ -135,11 +175,12 @@ Whatever lands, it must be *nameable from inside Tlön*. Concretely:
 
 ### 2d — Deferred, and why
 
-Building A touches funes' boundary (`lib/funes.ex` exports), which is deliberate by design — "the
-surface creeps only on purpose, reviewed in this file's history." It also needs the presence-gated
-switchboard to actually wake a live peer, which the switchboard's own moduledoc flags as not-yet.
-So the sequence is: (1) ship attribution (done), (2) get sign-off on A's surface widening, (3) land
-presence-gating, (4) build `consult_peer` + name it in the brief/skill. This doc is step 2's artifact.
+Building A touches funes' boundary (`lib/funes.ex` exports) and the message schema (the ask's
+`consult_id`/`origin_thread_id` correlation) — both deliberate by design, "the surface creeps only on
+purpose, reviewed in this file's history." A live wake also needs the presence-gated switchboard, which
+its moduledoc flags as not-yet. So the sequence is: (1) ship attribution (done), (2) get sign-off on
+A's surface + schema widening (this review), (3) land presence-gating, (4) build `consult_peer` +
+the answer mirror + name it in the brief/skill. This doc is step 2's artifact.
 
 ### 2e — Review checks (for the second set of eyes)
 
@@ -150,16 +191,24 @@ fights the token/session model is exactly what this pass is for:
   caller must never pass a thread id — only a peer *agent name*. If `consult_peer` lets a caller post
   to an arbitrary thread, or as the operator/peer, it breaks both the misdirection rule and the
   single-writer discipline. Reject.
-- **Single-writer.** The cross-thread write must go through `Funes.Channel.post` (or a new `Consult`
-  context that itself calls the channel) — never a direct schema write from the tool. The new export
-  must live inside the `lib/funes.ex` boundary, not widen it accidentally.
+- **Tie-break is a real rule, not a hop.** The target resolves over `threads_for/1` + live
+  sessions; for >1 live, the most-recently-active session by `last_active_at` — NOT thread-id order,
+  and NOT `live_session/2` used as if it were a lookup-by-agent. Verify the warmth signal is the
+  measured `last_active_at`, and that an agent live on several threads gets a defined target.
+- **Return path is a round-trip, not a one-way fire.** The ask must carry `origin_thread_id` + a real
+  `consult_id` correlation, and the peer's reply must be mirrored back to the caller's own thread.
+  If the caller would have to poll the peer's thread (it can't — `get_messages` is own-thread) or if
+  `consult_id` has no backing schema, the round-trip is unfinished. Reject.
+- **Single-writer.** Both the ask and the mirrored answer must go through `Funes.Channel.post` (or a
+  new `Consult` context that itself calls the channel) — never a direct schema write from the tool.
+  The new export must live inside the `lib/funes.ex` boundary, not widen it accidentally.
 - **Presence honesty.** The tool must not claim the peer read, will answer, or is live. Delivery is
   durable; a wake is gated on presence-gating landing. Any "answered"/"read" claim is invented.
-- **Offline degradation.** A consult to an agent with no live session must land durably and be
-  readable later — never a dropped message or a false failure.
+- **Offline degradation.** A consult to an agent with no live session must land durably on the most
+  recent thread and be readable later — never a dropped message or a false failure.
 - **Unknown/duplicate peer.** `peer` is `Staff.agent_by_name`. On an unknown or ambiguous name, refuse
   (like `CloseThread`'s missing-id refusal) rather than guess.
 
-Known open questions for the review: should the consult appear in the peer's brief as a distinct kind
-(so it reads as "asked you something", not ambient chatter), and should a consult ever auto-close when
-answered? Both are surface/UX choices that don't change the token/session mechanics above.
+Open questions for the review (surface/UX, not session-model — the mechanics above settle the model):
+should the consult render as a distinct kind in the peer's brief ("asked you something", not ambient
+chatter), and should a consult auto-close when answered?
