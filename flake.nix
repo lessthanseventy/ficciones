@@ -7,10 +7,18 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # agenix — age-encrypted secrets committed to this repo, decrypted at home:switch by the box's
+    # ssh key (no runtime unlock). This is the right tool for MACHINE secrets a non-interactive
+    # process needs (OLLAMA_API_KEY for the Tlön pi spawn / funes); rbw stays for interactive
+    # passwords. See secrets/secrets.nix + the age.secrets block below.
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { self, nixpkgs, home-manager }:
+    { self, nixpkgs, home-manager, agenix }:
     let
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
@@ -85,6 +93,9 @@
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         modules = [
+          # agenix: decrypt age secrets at activation with the box's ssh key (identityPaths
+          # defaults to ~/.ssh/id_ed25519 — ours). See the age.secrets block below.
+          agenix.homeManagerModules.default
           (
             { lib, ... }:
             let
@@ -269,7 +280,10 @@
                 settings = {
                   email = "andrew@lessthanseventy.com";
                   # base_url = "https://vault.example.tld";  # ← self-hosted Vaultwarden goes here
-                  pinentry = pkgs.pinentry-curses;
+                  # pinentry-tty (pure stdin/stdout) — curses EOF'd inside ghostty (the rbw-agent
+                  # daemon couldn't attach curses to the terminal). Needs GPG_TTY set in shell init;
+                  # if this still EOFs, switch to a GUI pinentry (pinentry-gnome3/qt — no tty needed).
+                  pinentry = pkgs.pinentry-tty;
                   lock_timeout = 3600;
                 };
               };
@@ -297,7 +311,20 @@
                 pkgs.nil
                 pkgs.bash-language-server
                 pkgs.vscode-json-languageserver
+                # `agenix -e secrets/<name>.age` to create/edit a secret; decryption at switch is
+                # handled by the agenix module (age.secrets below).
+                agenix.packages.${system}.default
               ];
+
+              # Machine secrets — age-encrypted in secrets/, decrypted at home:switch to
+              # $XDG_RUNTIME_DIR/agenix/<name> by the box's ssh key. Gated on the .age existing so the
+              # flake evaluates before the first secret is created: once `agenix -e
+              # secrets/ollama-api-key.age` writes it, this block activates on the next switch and the
+              # key lands at /run/user/1000/agenix/ollama-api-key (mise reads it — see mise.toml [env]).
+              # No runtime unlock: the non-interactive Tlön pi spawn just finds it there.
+              age.secrets = lib.optionalAttrs (builtins.pathExists ./secrets/ollama-api-key.age) {
+                ollama-api-key.file = ./secrets/ollama-api-key.age;
+              };
 
               # funes' channel config — we own this file; pi only reads it.
               home.file.".pi/agent/mcp.json".text = funesMcpJson;
