@@ -19,7 +19,9 @@ embedding real terminals via `ghostty`. Not a service: you launch it, sit at it,
 ## The law
 
 - **Depends on funes, one-directionally.** aleph boots funes' OTP app and calls only what `Funes`
-  exports (the `:boundary` compiler enforces it). funes NEVER depends on aleph.
+  exports (the `:boundary` compiler enforces it — reach past and the build fails). funes NEVER
+  depends on aleph. That export list in `lib/funes.ex` IS funes' API surface — don't grep for a
+  function, see `modules/funes/AGENTS.md` § Public surface.
 - **Not supervised at boot — it grabs the TTY.** Runs only under `mix aleph.run` in a real terminal,
   never during `mix test`. Tests cover PURE seams only (`ghostty_key`, `tlon_launcher`,
   `crash_report`, …); anything touching the TTY or the GenServer is not unit-tested.

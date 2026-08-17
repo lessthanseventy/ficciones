@@ -77,6 +77,17 @@ Version one ran on the *work* machine and is **not on this clean-room box** (§8
 a source**: it exists to show what a failure looked like, never to copy a shape. Nothing here needs to be
 backwards compatible with it.
 
+## Public surface
+
+funes' public API *is* its boundary: the `exports:` list in `lib/funes.ex` (`use Boundary`). That
+annotated list — `Channel` (threads/messages/chorus), `Board`/`Staff`/`Dossier`/`Presence` (read
+models), `Doctor`, `MCP.Spawn`, `Arbiter`, `Thread`/`Message` (structs) — is the whole surface a
+consumer (aleph, an MCP adapter) may call, machine-enforced: reach a non-exported module and the
+`:boundary` compiler fails the build. Each export is a context whose functions carry `@doc`s — call
+`Funes.<Context>.<fun>` (e.g. `Funes.Dossier.raise_issue/1`, `Funes.Channel.machine_thread/0`). To
+find one, read the context module or `h Funes.Dossier.raise_issue` in `iex -S mix` — the `@doc`s are
+the reference. Don't grep for it, and don't copy it into a hand-maintained doc that would drift.
+
 ## The rules most likely to be broken by accident
 
 - **When two things can answer the same question, delete one.** Three defects in one day were "two
