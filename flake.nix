@@ -203,6 +203,22 @@
                   };
                 };
               };
+
+              # pi-multi-account's config — we own it like models.json (the extension only
+              # READS it; it self-seeds defaults only when the file is ABSENT, so our copy wins
+              # and nothing rewrites config at runtime). We keep multi-account's DEFAULT
+              # provider order (anthropic-first, ollama last) rather than set providerOrder:
+              # that's exactly "lean on the $100 Claude plan, fall over to ollama only when
+              # Claude finally caps." Qwen/Cursor excluded (no such accounts); local ollama
+              # stays in rotation as the fallback. showUsage off so it doesn't fight
+              # manos/footer's statusline — flip true if you want the per-account Claude-cap
+              # readout and it doesn't clash. Claude OAuth is `/login`, the human's one-time step.
+              piFailoverJson = builtins.toJSON {
+                enabled = true;
+                includeQwen = false;
+                includeCursor = false;
+                showUsage = false;
+              };
             in
             {
               home.username = "andrew";
@@ -327,6 +343,10 @@
               # pi's providers (ollama local + ollama.com cloud) — owned like mcp.json.
               home.file.".pi/agent/models.json".text = piModelsJson;
 
+              # pi-multi-account's failover config — owned like models.json (see the binding
+              # above for why the default anthropic-first order is left in place).
+              home.file.".pi/agent/provider-failover.json".text = piFailoverJson;
+
               # manos into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in
               # idempotently, seeding {} if absent.
@@ -353,7 +373,29 @@
                   --arg skills "${manosSkillsGlob}" \
                   '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
-                   | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)
+                   | .packages = ((.packages // [])
+                       # pi auto-installs these npm extensions on launch. The npm: prefix
+                       # matches what `pi install` persists, so `unique` dedupes against a
+                       # hand-installed copy instead of doubling it.
+                       #   web-search        → Ollama's search API (reuses OLLAMA_API_KEY, the
+                       #                       ollama.com plan we already pay for).
+                       #   agent-browser     → browser-automation tool (may want a system
+                       #                       chromium — see verify note).
+                       #   multi-account     → Anthropic OAuth + cap-aware failover/rotation;
+                       #                       replaces pi-anthropic-auth. Config + rationale in
+                       #                       provider-failover.json below. `/login` is human's.
+                       #   permission-system → tool-permission enforcement (pairs with sandbox).
+                       #   pi-sandbox        → sandboxed bash; installed by hand, captured here.
+                       #   cc-header         → Claude-Code-style startup banner + status line.
+                       #   pi-research       → local deep-research (stealth browser + KB); needs
+                       #                       a residential IP and a 100k-context model.
+                       #   interactive-shell → real-PTY tool so pi can drive iex/psql/REPLs and
+                       #                       long builds without non-interactive-tty trip-ups;
+                       #                       Monitor/Hands-free modes can retire the brittle
+                       #                       parts of scripts/watch.sh. Self-installs its skill;
+                       #                       test it inside aleph's embedded pane, and note its
+                       #                       spawn/PTY tools may need sandbox/permission allowlisting.
+                       + ["pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:pi-cc-header","npm:@lincoln504/pi-research","npm:pi-interactive-shell"] | unique)
                    | .defaultProvider //= "ollama-cloud"
                    | .defaultModel //= "deepseek-v4-flash"
                    | .defaultThinkingLevel //= "medium"

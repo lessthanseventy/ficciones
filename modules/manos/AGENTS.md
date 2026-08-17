@@ -67,7 +67,11 @@ Slices before the automated arbiter (pi doc §5, slice 5) install by hand. In th
 Paste it into a fresh pi pane, then point pi at manos:
 
 - `~/.pi/agent/settings.json` → `"extensions": [".../modules/manos/pi/src/extension.ts"]`,
-  `"packages": ["pi-mcp-adapter"]`, `"skills": [".../modules/manos/skills/*"]`.
+  `"packages": ["pi-mcp-adapter", "npm:pi-sandbox", "npm:@ollama/pi-web-search",
+  "npm:pi-agent-browser-native", "npm:pi-multi-account",
+  "npm:@gotgenes/pi-permission-system", "npm:pi-cc-header",
+  "npm:@lincoln504/pi-research", "npm:pi-interactive-shell"]`,
+  `"skills": [".../modules/manos/skills/*"]`.
 - an `mcp.json` (see `pi/mcp.json.example`) points `pi-mcp-adapter` at
   `http://127.0.0.1:${FUNES_MCP_PORT}/mcp` with `Authorization` set to a `!command`
   (`scripts/funes-cli.sh bearer`) that mints a fresh token per connect.
