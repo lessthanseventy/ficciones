@@ -699,18 +699,10 @@ defmodule Aleph.Cockpit do
         :ok
 
       report ->
-        path = crash_log_path()
-        stamp = DateTime.to_iso8601(DateTime.utc_now())
-        _ = File.mkdir_p(Path.dirname(path))
-        _ = File.write(path, "=== aleph crash #{stamp} ===\n#{report}\n\n", [:append])
-        IO.puts(:stderr, "aleph crashed (logged to #{path}):\n#{report}")
+        Aleph.CrashLog.append("aleph crash", report)
+        IO.puts(:stderr, "aleph crashed (logged to #{Aleph.CrashLog.path()}):\n#{report}")
     end
   rescue
     _ -> :ok
-  end
-
-  defp crash_log_path do
-    cache = System.get_env("XDG_CACHE_HOME") || Path.join(System.user_home!() || "/tmp", ".cache")
-    Path.join([cache, "aleph", "crash.log"])
   end
 end

@@ -22,11 +22,31 @@ defmodule Aleph.Board do
   def compose(placements, _width, _height) do
     Enum.flat_map(placements, fn {panel, data, rect} ->
       panel
-      |> Panel.render_scroll(data, rect)
+      |> safe_rows(data, rect)
       |> Enum.with_index()
       |> Enum.flat_map(fn {row, i} -> row_cells(row, rect.x, rect.y + i) end)
     end)
   end
+
+  # A panel render must NEVER crash the cockpit — it's a long-running TTY app where one raise (a bad
+  # row shape, a NotLoaded assoc) would take the whole screen down, silently under the alt-screen. So
+  # a raise degrades THAT panel to an error row and is logged (the bug still surfaces via the crash
+  # log), while every other panel paints. This is why per-renderer catch-alls aren't needed: a
+  # missing clause stays a loud failure — just a survivable, recorded one, not a dead cockpit.
+  defp safe_rows(panel, data, rect) do
+    Panel.render_scroll(panel, data, rect)
+  rescue
+    e ->
+      Aleph.CrashLog.append(
+        "panel render error: #{inspect(panel)}",
+        Exception.format(:error, e, __STACKTRACE__)
+      )
+
+      [[{"⚠ #{panel_name(panel)} render error — see #{Aleph.CrashLog.path()}", :error}]]
+  end
+
+  defp panel_name(panel) when is_atom(panel), do: panel |> Atom.to_string() |> String.split(".") |> List.last()
+  defp panel_name(panel), do: inspect(panel)
 
   # Walk a row's runs left-to-right, emitting one cell per grapheme with the run's colours.
   defp row_cells(row, x0, y) do

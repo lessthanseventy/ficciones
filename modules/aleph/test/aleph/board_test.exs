@@ -9,6 +9,18 @@ defmodule SanitizeProbe do
   def render(text, _rect) when is_binary(text), do: [[{text, :normal}]]
 end
 
+# A panel whose render/2 raises — a stand-in for any render-path footgun (a bad row shape, a
+# NotLoaded assoc). The board must never let it take the whole cockpit down.
+defmodule BoomProbe do
+  @moduledoc false
+  @behaviour Aleph.Panel
+
+  @impl true
+  def topics(_), do: []
+  @impl true
+  def render(_data, _rect), do: raise("kaboom")
+end
+
 defmodule Aleph.BoardTest do
   @moduledoc """
   The slice-1 render proof: the panel → styled-rows → composed-cells path is correct without a
@@ -511,6 +523,18 @@ defmodule Aleph.BoardTest do
       assert Enum.any?(cells, &(&1.x == 3 and &1.y == 2))
       # every cell carries a codepoint and colours
       assert Enum.all?(cells, &(is_integer(&1.ch) and is_integer(&1.fg) and is_integer(&1.bg)))
+    end
+
+    test "a panel that raises degrades to an error row, never crashing the cockpit" do
+      rect = %{x: 0, y: 0, w: 30, h: 3}
+      good = {Roster, %{sessions: @roster}, %{x: 0, y: 5, w: 30, h: 5}}
+
+      # compose must not raise even though BoomProbe.render/2 does — and the other panel still paints.
+      cells = Board.compose([{BoomProbe, %{}, rect}, good], 80, 24)
+
+      assert is_list(cells) and cells != []
+      # the surviving panel still rendered (Roster's header row exists somewhere)
+      assert Enum.any?(cells, &(&1.y == 5))
     end
 
     test "control bytes in panel content are never emitted to the terminal" do
