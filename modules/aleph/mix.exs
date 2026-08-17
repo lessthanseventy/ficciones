@@ -44,6 +44,7 @@ defmodule Aleph.MixProject do
       # and ensure_termbox_resize_stub/1).
       compile: [
         &ensure_raxol_kitty_parser/1,
+        &ensure_raxol_paste_parser/1,
         &ensure_termbox_resize_stub/1,
         "compile",
         &ensure_termbox_nif/1
@@ -186,6 +187,100 @@ defmodule Aleph.MixProject do
 
           File.write!(path, patched)
           Mix.shell().info("[aleph] patched raxol InputParser with Kitty CSI-u decode")
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  # raxol_terminal 2.6.1's InputParser ships a LEGACY bracketed-paste handler in parse_one/1 that
+  # collapses a whole \e[200~…\e[201~ paste into ONE :paste event via :binary.split — fragile when
+  # the input buffer flushes mid-paste (a partial paste then decodes as individual keystrokes, the
+  # exact bug this patch fixes). aleph wants paste-start/paste-end as SEPARATE events so its paste
+  # buffer can collect the content between them and forward it as one block. deps/ is gitignored, so
+  # this self-heals the patch onto the dep source before compile (idempotent — a
+  # "Bracketed-paste markers" comment marker). It removes the legacy parse_one clause (which would
+  # otherwise shadow the new clauses) and inserts 200/201 clauses at the head of
+  # parse_csi_tilde_one/1's case — the SAME function the kitty CSI-u patch extends. The host-side
+  # bracketed-paste mode that PRODUCES these sequences is enabled in Aleph.Cockpit itself
+  # (\e[?2004h — no dep patch); this only teaches the parser to decode the markers.
+  @paste_parser Path.join([
+                  Mix.Project.deps_path(),
+                  "raxol_terminal",
+                  "lib",
+                  "raxol",
+                  "terminal",
+                  "ansi",
+                  "input_parser.ex"
+                ])
+
+  # The bracketed-paste clauses inserted at the head of parse_csi_tilde_one/1's `case`. CSI-tilde
+  # n=200/201 (terminator ~) — the markers ghostty wraps a paste in once aleph enables \e[?2004h on
+  # the host tty. Surfaced as distinct paste-start/paste-end events (data.phase) so the cockpit's
+  # paste buffer collects the content between them and forwards it as one block.
+  @paste_csi_tilde_clauses """
+      # Bracketed-paste markers (CSI-tilde n=200/201): aleph enables \e[?2004h on the host tty, so
+      # ghostty wraps a paste in \e[200~…\e[201~. Surfaced as distinct paste-start/paste-end events
+      # so the cockpit's paste buffer collects the content between them and forwards it as one block.
+      {[200], ?~, rest} ->
+        {%Event{type: :paste, data: %{phase: :start}}, rest}
+
+      {[201], ?~, rest} ->
+        {%Event{type: :paste, data: %{phase: :end}}, rest}
+
+  """
+
+  # The legacy parse_one/1 bracketed-paste clause this patch removes (it would shadow the new
+  # clauses — \e[200~ is matched in parse_one before it ever reaches parse_csi_tilde_one). Replaced
+  # with the empty string; the trailing blank line is consumed so no double blank is left behind.
+  @legacy_paste_clause """
+    # Bracketed paste: ESC [ 200 ~
+    defp parse_one(<<27, 91, 50, 48, 48, 126, rest::binary>>) do
+      case :binary.split(rest, <<27, 91, 50, 48, 49, 126>>) do
+        [pasted, remaining] ->
+          {%Event{type: :paste, data: %{text: pasted}}, remaining}
+
+        [_no_end] ->
+          {%Event{type: :paste, data: %{text: rest}}, <<>>}
+      end
+    end
+
+  """
+
+  defp ensure_raxol_paste_parser(_args) do
+    path = @paste_parser
+
+    case File.read(path) do
+      {:ok, src} ->
+        if String.contains?(src, "Bracketed-paste markers") do
+          :ok
+        else
+          # Each anchor is checked individually and a miss RAISES: a soft warning here would let a
+          # raxol bump ship a green build with an unpatched (or half-patched) parser, silently
+          # regressing bracketed paste back to per-keystroke decoding. Nothing is written unless both
+          # replacements landed.
+          patched =
+            src
+            |> replace_anchor!(
+              "legacy bracketed-paste parse_one clause",
+              @legacy_paste_clause,
+              ""
+            )
+            |> replace_anchor!(
+              "parse_csi_tilde_one case head",
+              "  defp parse_csi_tilde_one(data) do\n    case parse_csi_params(data) do\n",
+              "  defp parse_csi_tilde_one(data) do\n    case parse_csi_params(data) do\n" <>
+                @paste_csi_tilde_clauses
+            )
+
+          File.write!(path, patched)
+          Mix.shell().info("[aleph] patched raxol InputParser with bracketed-paste markers")
+
+          # `mix compile` won't recompile an already-built hex dep, so without this the parser
+          # would keep the stale beam (the legacy single-:paste handler) while the source carries
+          # the new clauses. Force recompile now; runs once (idempotent), not every build.
+          Mix.Task.rerun("deps.compile", ["raxol_terminal", "--force"])
         end
 
       _ ->

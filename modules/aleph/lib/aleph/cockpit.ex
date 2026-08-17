@@ -54,6 +54,12 @@ defmodule Aleph.Cockpit do
   @kitty_enable "\e[>1u"
   @kitty_disable "\e[<u"
 
+  # Bracketed paste: enable (\e[?2004h) at init so ghostty wraps a paste in \e[200~…\e[201~,
+  # disable (\e[?2004l) at teardown. Without it a paste reaches raxol's InputParser one char at a
+  # time and every newline submits; with it the cockpit's paste buffer forwards the whole block.
+  @paste_enable "\e[?2004h"
+  @paste_disable "\e[?2004l"
+
   @doc "Start the cockpit and block until the operator quits — the entry point `mix aleph.run` calls."
   @spec run() :: :ok
   def run do
@@ -110,6 +116,9 @@ defmodule Aleph.Cockpit do
         # see mix.exs) instead of degrading to a bare \r. Popped in teardown; harmless on a
         # non-Kitty host (the push is simply ignored).
         IO.write(@kitty_enable)
+        # Enable bracketed paste (\e[?2004h) so ghostty wraps a paste in \e[200~…\e[201~ and the
+        # cockpit's paste buffer can forward it as one block instead of per-keystroke decoding.
+        IO.write(@paste_enable)
 
         state =
           render(%{
@@ -121,6 +130,7 @@ defmodule Aleph.Cockpit do
             threads: [],
             subscribed_thread: nil,
             leader_pending?: false,
+            paste_buffer: nil,
             input: nil,
             flash: nil,
             scrolls: %{},
@@ -152,6 +162,34 @@ defmodule Aleph.Cockpit do
     state = refresh_size(state)
     resize_focused_terminal(state)
     {:noreply, render(state)}
+  end
+
+  def handle_cast({:dispatch, %Event{type: :paste, data: %{phase: :start}}}, state) do
+    # A paste began: start collecting. A fresh buffer even if one was somehow already open.
+    {:noreply, %{state | paste_buffer: Aleph.PasteBuffer.start()}}
+  end
+
+  def handle_cast({:dispatch, %Event{type: :paste, data: %{phase: :end}}}, state) do
+    # A paste ended: forward the whole buffer to the center terminal wrapped back in the markers
+    # (tmux passes bracketed paste through; pi honors it as one multi-line paste). No center
+    # terminal (a non-terminal space) → the paste is dropped, never leaked as stray keys.
+    buffer = state.paste_buffer
+    state = %{state | paste_buffer: nil}
+
+    if buffer != nil do
+      with term when is_pid(term) <- center_terminal(state) do
+        Terminal.feed(term, Aleph.PasteBuffer.finish(buffer))
+      end
+    end
+
+    {:noreply, state}
+  end
+
+  # While a paste is open, content keys accumulate into the buffer (a newline stays \n, NOT
+  # :enter) instead of dispatching to the keymap — so a paste never submits mid-block. Must
+  # precede the normal :key clause.
+  def handle_cast({:dispatch, %Event{type: :key, data: key}}, %{paste_buffer: buffer} = state) when not is_nil(buffer) do
+    {:noreply, %{state | paste_buffer: Aleph.PasteBuffer.accumulate(buffer, key)}}
   end
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
@@ -740,7 +778,7 @@ defmodule Aleph.Cockpit do
     # Pop Kitty while still ON the alt screen (the spec gives main and alternate screens
     # INDEPENDENT keyboard-flag stacks, so the pop must land on the screen the push landed on).
     # Straight to /dev/tty, not stdout — the io server may already be winding down on a crash.
-    _ = File.write("/dev/tty", @kitty_disable)
+    _ = File.write("/dev/tty", @kitty_disable <> @paste_disable)
 
     # Each step in its own try: a wedged Driver stop (it can exceed its 500ms) must never skip
     # tb_shutdown — that skip leaves the shell in alt-screen + mouse-reporting, needing `reset`.
@@ -765,7 +803,7 @@ defmodule Aleph.Cockpit do
   # stack), mouse reporting off, leave alt screen, show cursor. Idempotent — run/0 also calls this
   # after a DOWN, so even a killed GenServer leaves a working shell, not `;5u` keystroke garbage.
   defp restore_host_tty do
-    _ = File.write("/dev/tty", @kitty_disable <> "\e[?1000;1002;1003;1006l\e[?1049l\e[?25h")
+    _ = File.write("/dev/tty", @kitty_disable <> @paste_disable <> "\e[?1000;1002;1003;1006l\e[?1049l\e[?25h")
     :ok
   end
 
