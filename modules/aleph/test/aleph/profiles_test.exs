@@ -62,6 +62,10 @@ defmodule Aleph.ProfilesTest do
       assert p.sandbox["network"]["allowAllUnixSockets"] == true
     end
 
+    test "drives on glm-5.2 — an orchestrator, not flash" do
+      assert Profiles.fetch("tlon").model == %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
+    end
+
     test "unknown profile → nil" do
       assert Profiles.fetch("nope") == nil
     end
