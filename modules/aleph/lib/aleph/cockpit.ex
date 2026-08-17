@@ -704,7 +704,7 @@ defmodule Aleph.Cockpit do
     # MANOS_RELOAD_CMD: how manos/reload respawns pi in place — `--continue` resumes the most-recent
     # session (the one being killed), so a reload keeps the thread across the restart.
     reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
-    env_flags = [reload_cmd] |> Enum.map_join(" ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
+    env_flags = Enum.map_join([reload_cmd], " ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
     # aleph draws the Tlön header + window tabs itself, so tmux's OWN chrome is silenced — chained
     # onto the one `new-session` with `\;` because the launcher must stay a single foreground command
     # (spawn_harness execs it via `env`, no shell sequencing). Window 0 is named `pi` so the tab strip

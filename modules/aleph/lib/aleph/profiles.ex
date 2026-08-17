@@ -125,8 +125,7 @@ defmodule Aleph.Profiles do
         }
   def render(%Profile{} = p, base_settings, base_mcp) do
     exts =
-      (base_settings["extensions"] || [])
-      |> Enum.reject(fn e -> Enum.any?(p.drop_extensions, &String.contains?(e, &1)) end)
+      Enum.reject(base_settings["extensions"] || [], fn e -> Enum.any?(p.drop_extensions, &String.contains?(e, &1)) end)
 
     settings =
       base_settings

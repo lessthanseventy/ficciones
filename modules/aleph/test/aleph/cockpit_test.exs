@@ -100,7 +100,9 @@ defmodule Aleph.CockpitTest do
 
     test "MANOS_RELOAD_CMD carries the config dir so a manos/reload respawn stays on-profile" do
       cmd = Cockpit.profile_launcher(@profile)
-      assert cmd =~ "MANOS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")} mise exec -- pi --continue"
+
+      assert cmd =~
+               "MANOS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")} mise exec -- pi --continue"
     end
 
     test "a profile with a persona adds --append-system-prompt; without one, none" do

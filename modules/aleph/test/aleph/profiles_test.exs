@@ -43,7 +43,9 @@ defmodule Aleph.ProfilesTest do
 
       assert r.settings["defaultModel"] == "deepseek-v4-pro"
       assert r.settings["defaultThinkingLevel"] == "high"
-      assert Profiles.render(%Profile{name: "t"}, @base_settings, @base_mcp).settings["defaultModel"] == "deepseek-v4-flash"
+
+      assert Profiles.render(%Profile{name: "t"}, @base_settings, @base_mcp).settings["defaultModel"] ==
+               "deepseek-v4-flash"
     end
 
     test "sandbox passes through untouched" do
