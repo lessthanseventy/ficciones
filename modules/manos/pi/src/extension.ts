@@ -14,17 +14,36 @@ import { join } from "node:path";
 import { renderBrief, type Dossier } from "./brief.ts";
 import { FunesClient, FunesUnreachable, type FunesConfig } from "./mcp.ts";
 import { detectCorrection } from "./recall.ts";
+import { buildExtractionPrompt, deltaSince, parseExtraction, serializeDelta } from "./capture.ts";
+import { completeText } from "./llm.ts";
 import type { ExtensionAPI, ExtensionContext } from "./pi.ts";
 
-// The total-recall noise knob: ~/.pi/agent/funes-recall.json. correctionDetection defaults ON
-// (the flake seeds the file with defaults + a comment). A missing/broken file → defaults, so the
-// adapter never fails to load over config.
-function correctionEnabled(): boolean {
+// The cheap model that runs cadence extraction out-of-band (ollama-cloud). Flash: efficient MoE,
+// large enough context for a bounded delta, cheap enough to run every few turns.
+const CAPTURE_MODEL = "deepseek-v4-flash";
+
+interface RecallConfig {
+  correctionDetection: boolean;
+  boundaryCapture: boolean;
+  captureEveryTurns: number;
+}
+
+const RECALL_DEFAULTS: RecallConfig = { correctionDetection: true, boundaryCapture: true, captureEveryTurns: 8 };
+
+// The total-recall noise knob: ~/.pi/agent/funes-recall.json (flake-seeded with defaults + a
+// comment). A missing/broken file → defaults, so the adapter never fails to load over config.
+function readRecallConfig(): RecallConfig {
   try {
     const raw = readFileSync(join(homedir(), ".pi/agent/funes-recall.json"), "utf-8");
-    return (JSON.parse(raw) as { correctionDetection?: boolean }).correctionDetection !== false;
+    const c = JSON.parse(raw) as Partial<RecallConfig>;
+    const n = c.captureEveryTurns;
+    return {
+      correctionDetection: c.correctionDetection !== false,
+      boundaryCapture: c.boundaryCapture !== false,
+      captureEveryTurns: typeof n === "number" && n > 0 ? Math.floor(n) : RECALL_DEFAULTS.captureEveryTurns,
+    };
   } catch {
-    return true;
+    return { ...RECALL_DEFAULTS };
   }
 }
 
@@ -65,13 +84,63 @@ export default function manos(pi: ExtensionAPI): void {
   // with the clock, so a rendered-string compare would re-display on time alone, not on change.
   let lastDossierKey: string | null = null;
 
-  // Correction detection (total-recall slice D): read the knob once at start; track the last
-  // correction we proposed so a retry of the same prompt doesn't re-file the same pending habit.
-  let correctionOn = true;
+  // Total-recall state (slices C/D): the noise knob, read once at start; the last correction we
+  // proposed (dedup); and the cadence-capture bookkeeping — a watermark into the entry list (how
+  // far we've captured), a turn counter, and a re-entrancy guard so a compaction flush and a turn
+  // tick can't double-capture the same delta.
+  let recall: RecallConfig = { ...RECALL_DEFAULTS };
   let lastProposedCorrection: string | null = null;
+  let watermark = 0;
+  let turnCount = 0;
+  let capturing = false;
+
+  // Capture the delta since the watermark (bounded — a few turns, never the full window): extract
+  // durable facts out-of-band via a cheap model, bank them DERIVED, raise any open questions. The
+  // watermark advances before the await so a concurrent tick doesn't re-capture; the whole thing is
+  // best-effort — a failed extraction or bank must never disturb the session. funes' secret scan
+  // (slice B) rejects any credential, which throws and is dropped here.
+  const runCapture = async (ctx: ExtensionContext): Promise<void> => {
+    if (!client || !recall.boundaryCapture || capturing) return;
+    let entries;
+    try {
+      entries = ctx.sessionManager.buildContextEntries();
+    } catch {
+      return;
+    }
+    const { slice, nextWatermark } = deltaSince(entries, watermark);
+    const delta = serializeDelta(slice);
+    watermark = nextWatermark;
+    if (!delta.trim()) return;
+
+    capturing = true;
+    try {
+      const { facts, questions } = parseExtraction(await completeText(CAPTURE_MODEL, buildExtractionPrompt(delta)));
+      for (const f of facts) {
+        try {
+          await client.bankFact(f.text, f.kind);
+        } catch {
+          /* a rejected fact (e.g. a secret) is dropped, never retried */
+        }
+      }
+      for (const q of questions) {
+        try {
+          await client.raiseQuestion(q);
+        } catch {
+          /* best-effort */
+        }
+      }
+      if (facts.length || questions.length) {
+        ctx.ui.setStatus(STATUS_KEY, `funes: captured ${facts.length} fact(s), ${questions.length} question(s)`);
+      }
+    } catch {
+      // extraction is a nicety; a failure never interrupts the session
+    } finally {
+      capturing = false;
+    }
+  };
 
   pi.on("session_start", async (_event, ctx) => {
-    correctionOn = correctionEnabled();
+    recall = readRecallConfig();
     if (!client) {
       ctx.ui.setStatus(STATUS_KEY, "funes: not wired (need FUNES_MCP_URL / FUNES_THREAD / FUNES_AUTHOR)");
       return;
@@ -93,7 +162,7 @@ export default function manos(pi: ExtensionAPI): void {
       // If this turn's prompt reads as a correction, propose it as a pending habit — the operator
       // approves (or drops) it in the Tlön panel. Best-effort: a failure here must never fail the
       // turn, and we surface it quietly rather than as an error toast (a proposal is not a problem).
-      if (correctionOn) {
+      if (recall.correctionDetection) {
         const habit = detectCorrection(event.prompt ?? "");
         if (habit && habit !== lastProposedCorrection) {
           lastProposedCorrection = habit;
@@ -127,6 +196,21 @@ export default function manos(pi: ExtensionAPI): void {
     } catch {
       // The footer is a nicety; a failed refresh must never interrupt or fail a turn.
     }
+    // Cadence capture (slice C): every Nth turn, flush the delta. Bounded input, so it never
+    // overflows the cheap extractor however full the frontier context is.
+    turnCount += 1;
+    if (recall.boundaryCapture && turnCount % recall.captureEveryTurns === 0) {
+      await runCapture(ctx);
+    }
+  });
+
+  // The delta flush at the boundaries the cadence might miss: right before the context is compacted
+  // (so the about-to-be-lost tail is captured), and best-effort at session end.
+  pi.on("session_before_compact", async (_event, ctx) => {
+    await runCapture(ctx);
+  });
+  pi.on("session_shutdown", async (_event, ctx) => {
+    await runCapture(ctx);
   });
 }
 

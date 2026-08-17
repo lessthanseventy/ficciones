@@ -220,12 +220,19 @@
                 showUsage = false;
               };
 
-              # funes total-recall's noise knob (design: funes-total-recall). When a user message
-              # reads as a correction ("don't do that", "use X instead"), manos/pi proposes it as a
-              # PENDING funes habit to review in the Tlön panel — never auto-applied. Default on; set
-              # false to silence it. Owned like the other pi config; the adapter defaults if absent.
+              # funes total-recall's knobs (design: funes-total-recall). Owned like the other pi
+              # config; the adapter defaults if absent.
+              #   correctionDetection — a user message that reads as a correction ("don't do that",
+              #     "use X instead") is proposed as a PENDING funes habit to review in the Tlön panel
+              #     (never auto-applied).
+              #   boundaryCapture — every `captureEveryTurns` turns, and at compaction/shutdown,
+              #     manos/pi extracts durable facts from ONLY the delta since the last capture (a
+              #     cheap out-of-band model call — bounded input, never the full context) and banks
+              #     them DERIVED. Set false to disable all automatic fact capture.
               piRecallJson = builtins.toJSON {
                 correctionDetection = true;
+                boundaryCapture = true;
+                captureEveryTurns = 8;
               };
             in
             {

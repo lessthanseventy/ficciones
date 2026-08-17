@@ -103,6 +103,18 @@ export class FunesClient {
     await this.#callTool("propose_habit", rationale ? { text, rationale } : { text });
   }
 
+  // Bank a DERIVED fact from cadence capture (total-recall slice C). No from_message → funes banks
+  // it `derived` (the low-authority lane automation is allowed to fill). funes' own secret scan
+  // (slice B) rejects a credential here, which surfaces as a thrown FunesRejected the caller drops.
+  async bankFact(text: string, kind: "learned" | "decision"): Promise<void> {
+    await this.#callTool("bank_fact", { text, kind });
+  }
+
+  // Raise an open question surfaced by capture — a known unknown for the successor.
+  async raiseQuestion(text: string): Promise<void> {
+    await this.#callTool("raise_question", { text });
+  }
+
   async #callTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     const { body } = await this.#post({
       jsonrpc: "2.0",

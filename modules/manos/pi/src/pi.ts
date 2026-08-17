@@ -13,9 +13,16 @@ export interface ExtensionUI {
   notify(message: string, level?: "info" | "warning" | "error"): void;
 }
 
+// The session reader capture needs — the running context entries, same source /consult serializes
+// (buildContextEntries). Typed to just what capture.ts consumes.
+export interface SessionManager {
+  buildContextEntries(): Array<{ message?: { role?: string; content?: unknown } }>;
+}
+
 export interface ExtensionContext {
   ui: ExtensionUI;
   cwd: string;
+  sessionManager: SessionManager;
 }
 
 export interface SessionStartEvent {
@@ -54,4 +61,8 @@ export interface ExtensionAPI {
     ) => BeforeAgentStartResult | undefined | Promise<BeforeAgentStartResult | undefined>,
   ): void;
   on(event: "turn_end", handler: (event: unknown, ctx: ExtensionContext) => void | Promise<void>): void;
+  // Boundary hooks for total-recall capture: before the context is compacted (the key moment to
+  // flush the delta) and at session end (best-effort final flush).
+  on(event: "session_before_compact", handler: (event: unknown, ctx: ExtensionContext) => void | Promise<void>): void;
+  on(event: "session_shutdown", handler: (event: unknown, ctx: ExtensionContext) => void | Promise<void>): void;
 }
