@@ -12,9 +12,11 @@ this module is Track B's agent side, and the spec's boundaries govern it.
 pi API — so *any* harness can be a citizen of a thread. manos holds **one adapter per harness**, each
 a thin bridge from that harness's lifecycle to funes' one sovereign channel:
 
-- **`pi/`** — the pi adapter (built). A TypeScript extension for `pi`
-  (`github.com/earendil-works/pi`): register at session start, brief before the agent runs, show
-  funes state in the footer. pi is the harness for codex / glm / kimi / any model that speaks it.
+- **`pi/`** — the pi adapter (built). Two TypeScript extensions for `pi`
+  (`github.com/earendil-works/pi`): `extension.ts` registers at session start, briefs before
+  the agent runs, and shows funes state in the widget; `footer.ts` replaces pi's thin default
+  footer with a dense 2-line statusline (full model name, context bar, I/O, branch, statuses).
+  pi is the harness for codex / glm / kimi / any model that speaks it.
 - **`claude-code/`** — the Claude Code adapter (built). Same two doors, adapted to Claude Code's own
   mechanisms: the MCP tools via `mcpServers.funes` `type:http` with a **`headersHelper`**
   (`scripts/funes-cli.sh token`) that mints a FRESH token per connect — so unlike pi's static bearer,
