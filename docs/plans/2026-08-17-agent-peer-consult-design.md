@@ -231,6 +231,16 @@ fights the token/session model is exactly what this pass is for:
 - **Unknown/duplicate peer.** `peer` is `Staff.agent_by_name`. On an unknown or ambiguous name, refuse
   (like `CloseThread`'s missing-id refusal) rather than guess.
 
-Open questions for the review (surface/UX, not session-model — the mechanics above settle the model):
-should the consult render as a distinct kind in the peer's brief ("asked you something", not ambient
-chatter), and should a consult auto-close when answered?
+**Resolved after review (2026-08-17):**
+
+- **Distinct kind in the peer's brief — BUILT.** The ask renders as "<caller> is consulting you —
+  reply to answer" in the peer's chatter (both `Funes.MCP.Brief` and the pi `brief.ts`), and the
+  `coordinate-via-funes` skill tells the peer to answer with a `reply_to` on the ask. Load-bearing:
+  without the explicit reply affordance, the round-trip the bridge exists for wouldn't fire. No
+  schema change — the message already carries `consult_id`/`origin_thread_id`; the renderer flags an
+  ask as `consult: true`.
+- **Auto-close on answer — REJECTED, stays parked.** The mirror is a bidirectional bridge for the
+  life of the consult; auto-closing on the first reply would sever the caller's follow-up (nothing
+  to mirror through). A consult is a conversation, not a request/response — "done" when it's done,
+  like a Slack thread. If lifecycle is ever wanted, it must be explicit (a close verb) or
+  inactivity-based, never first-answer.

@@ -136,14 +136,16 @@ defmodule Funes.MCP.Brief do
     }
   end
 
-  @doc "A message on the thread."
+  @doc "A message on the thread. A consult ASK (consult_id set, not a mirror) is flagged so a
+  consumer can render it as a request for an answer, not ambient chatter."
   def message(%Message{} = m) do
     %{
       "id" => m.id,
       "author" => m.author,
       "body" => m.body,
       "reply_to" => m.reply_to,
-      "at" => at(m.created_at)
+      "at" => at(m.created_at),
+      "consult" => m.consult_id != nil and m.mirrored == false
     }
   end
 

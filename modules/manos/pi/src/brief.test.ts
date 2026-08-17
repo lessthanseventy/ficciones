@@ -308,4 +308,17 @@ describe("renderBrief — the honest brief (pi doc §2b)", () => {
     expect(out).toContain("andrew");
     expect(out).toContain("start with the drain race");
   });
+
+  test("a consult ask renders as a request for an answer, not ambient chatter", () => {
+    const out = renderBrief(
+      dossier({
+        chatter: [
+          { id: 1, author: "pi", body: "is this design sound?", reply_to: null, at: minsAgo(5), consult: true },
+        ],
+      }),
+      NOW,
+    );
+    expect(out).toContain("pi is consulting you — reply to answer");
+    expect(out).toContain("is this design sound?");
+  });
 });

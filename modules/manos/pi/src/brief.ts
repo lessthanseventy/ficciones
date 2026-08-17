@@ -61,6 +61,8 @@ export interface ChatterMessage {
   body: string;
   reply_to: number | null;
   at: string | null;
+  // A consult ASK (consult_id set, not a mirror) — render it as a request for an answer.
+  consult?: boolean;
 }
 
 export interface Question {
@@ -158,7 +160,7 @@ export function renderBrief(d: Dossier, now: Date = new Date(), model?: string):
 
   if (d.chatter.length > 0) {
     lines.push("", "## Recent chatter");
-    for (const m of d.chatter.slice(-CHATTER_TAIL)) lines.push(`- ${m.author}: ${m.body}`);
+    for (const m of d.chatter.slice(-CHATTER_TAIL)) lines.push(renderChatter(m));
   }
 
   // A standing nudge, not state — the one behavior that keeps a thread from going cold. The
@@ -172,6 +174,13 @@ export function renderBrief(d: Dossier, now: Date = new Date(), model?: string):
   );
 
   return lines.join("\n");
+}
+
+// A consult ask is a request for an answer, not ambient chatter — make the reply affordance
+// explicit so the round-trip the bridge exists for actually fires.
+function renderChatter(m: ChatterMessage): string {
+  if (m.consult) return `- 📨 ${m.author} is consulting you — reply to answer: ${m.body}`;
+  return `- ${m.author}: ${m.body}`;
 }
 
 // The default case FAILS CLOSED: `opinion`, or any certainty funes emits that we don't

@@ -27,8 +27,15 @@ judgment you keep in your own context dies with you.
   and `/fresh [model]` commands (manos/consult) delegate a question to another model —
   `/consult` with your recent session as context, `/fresh` as a clean one-shot. They're
   human-invoked (pi refuses them mid-turn), so ask the operator to run one rather than
-  improvising a way to reach a peer yourself. A live `consult_peer` tool for waking a
-  running coworker session is designed, not yet built (docs/plans/2026-08-17-agent-peer-consult-design.md).
+  improvising a way to reach a peer yourself.
+- **Ask a coworker directly with `consult_peer(peer, prompt)`.** It delivers an ask to the
+  peer's thread; the peer's answer is mirrored back to your own thread, so you read it in
+  your dossier. Address the peer by agent name, never a thread id.
+- **When a coworker consults YOU, answer with a `reply_to`.** Your brief renders a consult
+  ask as "<caller> is consulting you — reply to answer". Answer it by posting on your thread
+  with `post_message(body, reply_to: <the ask's message id>)` — the `reply_to` is what the
+  mirror keys on to carry your answer back to the caller. A consult is a conversation, not a
+  one-shot: keep replying with `reply_to` until it's done.
 - **Never route yourself through operator-only UI to reach a coworker.** You cannot press
   the cockpit's keybindings; reaching claude by typing into another window's terminal is a
   raw hack, not a capability. Delegate through `/consult`, post on your thread, or ask the
