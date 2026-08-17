@@ -56,18 +56,32 @@ A regex/entropy scan in `bank_fact` (and `post_message`?) that refuses obvious s
 tokens, SSH keys, `AKIA…`, high-entropy blobs) before they land. Cheap, high safety — and it guards
 the *automated* capture below from banking a leaked key it read in a buffer.
 
-### C. Boundary auto-capture (manos/pi) — effort M
-On **compaction** and **session shutdown**, the pi extension runs one extraction pass (cheap model):
-"what durable facts / decisions / questions surfaced this session?" → banks them **derived** (with
-`check_cmd` when reproducible) + records a `work_landed`/handoff **event** summarizing the session.
-One LLM call per boundary — low noise, high value. Unit-test the prompt-building + response-parsing;
-the live extraction is the eye-test.
+### API constraint (spiked 2026-08-17)
+The pi extension API **exposes boundary hooks** (`session_before_compact`, `session_compact`,
+`session_shutdown`, `turn_end`, `message_end`) but **NO out-of-band LLM/inference call** — an
+extension cannot run its own extraction pass. It *can* inject content via `ui.sendMessage` /
+`appendEntry` (the `before_agent_start` brief already does). So auto-EXTRACTION must be
+**agent-self-capture**: the extension injects a "capture now" instruction and the in-session model
+(which already holds the funes tools) does the banking. `FunesClient` (mcp.ts) already has a generic
+`#callTool`, so any funes write the extension itself needs (e.g. `propose_habit`) is a thin method.
 
-### D. Active capture: background review + correction detection (manos/pi) — effort M–L
-- **Background review** every N turns / M tool-calls: extract lessons/failures → derived facts.
-- **Correction detection**: "don't do that" / "use X instead" / "actually, …" patterns →
-  `propose_habit` (PENDING, for approval — the provenance-safe path). The pattern match is pure +
-  unit-tested; the classify-borderline-cases step (optional) is an LLM call.
+### C. Boundary auto-capture (manos/pi) — effort M — NEEDS LIVE PI
+On `session_before_compact`, inject a capture instruction: "before this context is compacted, bank
+any durable facts/decisions and raise any open questions via your funes tools." The agent extracts
+using the tools + provenance it already has (lands `derived`, never `stated`). **Open unknown that
+needs a real pi session to resolve:** whether a message injected at `session_before_compact` actually
+gets an agent turn to act on *before* the compaction runs, and that `session_shutdown` is too late to
+run a turn (so shutdown capture likely isn't viable — before_compact is the hook). This is the
+human's eye-test, not a headless build.
+
+### D. Active capture (manos/pi)
+- **Correction detection — effort S, BUILDABLE + VERIFIABLE NOW (no LLM):** pattern-match user
+  messages ("don't do that", "use X instead", "no, actually …") in a `message_end`/`session_user`
+  hook → the extension calls `FunesClient.proposeHabit(...)` directly. Lands a PENDING habit you
+  approve in the Tlön panel (slice 4) — closing the loop: your corrections auto-populate the habits
+  queue. Pure detector is unit-tested; noise is real, so it lands WITH slice E's mute knob.
+- **Background review — effort M, needs the same injection path as C** (agent-self-capture every N
+  turns). Same live-pi unknown; sequence it after C proves the injection timing works.
 
 ### E. Noise control (config + aleph) — effort S
 A `~/.pi/agent/funes-recall.json` (owned like `provider-failover.json`): toggles + intervals for
