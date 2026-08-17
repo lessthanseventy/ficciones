@@ -61,7 +61,7 @@ export default function manos(pi: ExtensionAPI): void {
       await client.connect();
       const dossier = (await client.getDossier()) as Dossier;
       updateWidget(ctx, dossier);
-      return { message: { customType: "funes-brief", content: renderBrief(dossier, new Date()), display: true } };
+      return { message: { customType: "funes-brief", content: renderBrief(dossier, new Date(), env.PI_MODEL), display: true } };
     } catch (err) {
       surface(ctx, err);
       return;

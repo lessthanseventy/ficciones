@@ -106,12 +106,15 @@ const OPERATOR = "andrew";
 
 const CHATTER_TAIL = 5;
 
-export function renderBrief(d: Dossier, now: Date = new Date()): string {
+export function renderBrief(d: Dossier, now: Date = new Date(), model?: string): string {
   const lines: string[] = [];
 
   const goal = d.north_star ?? "(untitled thread)";
   lines.push(`# Brief: ${goal}`);
   lines.push(`Lead: ${d.lead ?? "unstaffed"}  ·  thread ${d.thread_id}`);
+  // The session states who it is, so a model signs its commits with its OWN name and can't
+  // copy a wrong one from an example. AGENTS.md "commit as who you are" reads from here.
+  if (model) lines.push(`You are ${model} (pi).`);
   lines.push(staleness(d, now));
 
   if (d.todos.shown.length > 0) {
