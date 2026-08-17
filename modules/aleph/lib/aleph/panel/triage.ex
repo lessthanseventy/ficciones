@@ -1,0 +1,76 @@
+defmodule Aleph.Panel.Triage do
+  @moduledoc """
+  TRIAGE — the cross-thread view of what needs attention RIGHT NOW: open blockers across
+  all threads, failed checks, and unassigned threads. A thin view over the funes Board;
+  re-renders on threads and sessions topics (any thread's state may have changed).
+
+  Where DOSSIER shows one thread's brief in depth, TRIAGE shows ALL threads' trouble spots
+  at a glance — the "what's on fire" summary the operator sees without focusing a thread.
+
+  Data is `%{blockers, failed_checks, unassigned}` where each is a list of
+  `%{thread_title, summary, count}` entries, capped at 5 with a `more` count.
+  """
+  @behaviour Aleph.Panel
+
+  import Aleph.Panel, only: [line: 2, blank: 0]
+
+  alias Funes.Bus
+
+  @impl Aleph.Panel
+  def topics(_assigns), do: [Bus.threads_topic(), Bus.sessions_topic()]
+
+  @impl Aleph.Panel
+  def render(data, rect) do
+    header = [line("TRIAGE", :header), blank()]
+    body = triage_rows(data, rect.w)
+    Aleph.Panel.clip(header ++ body, rect)
+  end
+
+  defp triage_rows(%{blockers: [], failed_checks: [], unassigned: []}, _w) do
+    [line("all clear", :dim)]
+  end
+
+  defp triage_rows(data, w) do
+    blockers_section(data.blockers, w) ++
+      checks_section(data.failed_checks, w) ++
+      unassigned_section(data.unassigned, w)
+  end
+
+  defp blockers_section([], _w), do: []
+
+  defp blockers_section(blockers, w) do
+    items = Enum.map(blockers, &blocker_row(&1, w))
+    more = more_line(blockers)
+    [line("BLOCKERS", :label) | items] ++ more
+  end
+
+  defp checks_section([], _w), do: []
+
+  defp checks_section(checks, w) do
+    items = Enum.map(checks, &check_row(&1, w))
+    more = more_line(checks)
+    [line("FAILED CHECKS", :label) | items] ++ more
+  end
+
+  defp unassigned_section([], _w), do: []
+
+  defp unassigned_section(threads, w) do
+    items = Enum.map(threads, &unassigned_row(&1, w))
+    [line("UNASSIGNED", :label) | items]
+  end
+
+  defp blocker_row(%{thread_title: title, summary: summary}, _w) do
+    [{"✗ ", :label}, {title, :accent}, {": ", :dim}, {summary, :normal}]
+  end
+
+  defp check_row(%{thread_title: title, cmd: cmd}, _w) do
+    [{"✗ ", :label}, {title, :accent}, {": ", :dim}, {cmd, :normal}]
+  end
+
+  defp unassigned_row(%{title: title}, _w) do
+    [{"○ ", :dim}, {title, :normal}]
+  end
+
+  defp more_line(%{shown: _shown, more: more}) when more > 0, do: [line("+#{more} more", :dim)]
+  defp more_line(_), do: []
+end
