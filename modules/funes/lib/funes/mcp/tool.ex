@@ -647,3 +647,45 @@ defmodule Funes.MCP.Tool.ConsultPeer do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.ProposeHabit do
+  @moduledoc """
+  Propose a HABIT — how you should WORK with the operator (a durable working preference,
+  not a fact about the world and not a task step). It lands PENDING: the operator approves
+  it in aleph before it joins the always-loaded set every session reads. Distinct from a
+  `stated` constraint (his verbatim words, which you cannot author) — a habit is YOUR
+  proposal, promoted only by his approval. There is deliberately no `approve_habit` tool:
+  an agent cannot approve its own suggestion.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Dossier
+  alias Funes.MCP
+
+  schema do
+    field :text, :string,
+      required: true,
+      description: "The working habit, imperative — e.g. 'run mise run check before proposing a commit'"
+
+    field :rationale, :string, description: "Why it's worth adopting"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+
+    case Dossier.propose_habit(%{
+           text: params[:text],
+           rationale: Map.get(params, :rationale),
+           proposed_by: identity.agent,
+           source_thread_id: identity.thread_id
+         }) do
+      {:ok, habit} ->
+        {:reply, Response.json(Response.tool(), %{"habit_id" => habit.id, "state" => habit.state}), frame}
+
+      {:error, changeset} ->
+        {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+    end
+  end
+end

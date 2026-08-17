@@ -16,6 +16,7 @@ defmodule Funes.Dossier do
   alias Funes.Bus
   alias Funes.Event
   alias Funes.Fact
+  alias Funes.Habit
   alias Funes.Issue
   alias Funes.Message
   alias Funes.Question
@@ -295,4 +296,46 @@ defmodule Funes.Dossier do
 
     %{shown: shown, more: total - length(shown)}
   end
+
+  @doc """
+  Propose a HABIT (roadmap: pi-synthesis slice 2) — the agent's suggestion for how to work
+  with the operator, distinct from a `stated` constraint (his verbatim words). It lands
+  `pending`; the operator promotes it via `approve_habit/1`. `{:ok, habit}` or `{:error, cs}`.
+  """
+  def propose_habit(attrs) do
+    attrs |> Habit.propose_changeset() |> Repo.insert() |> Bus.announce(:habit_proposed)
+  end
+
+  @doc """
+  Approve a pending habit — state approved, `approved_at` stamped, and it joins the always-
+  loaded set (`approved_habits/0`). This is the OPERATOR's act: it is deliberately NOT an
+  agent-facing MCP tool (only `propose_habit` is), so an agent cannot approve its own
+  proposal — the gate is architectural, not a runtime author check. Called from aleph /
+  iex. `{:ok, habit}` or `{:error, changeset}`.
+  """
+  def approve_habit(%Habit{} = habit) do
+    habit |> Habit.approve_changeset() |> Repo.update() |> Bus.announce(:habit_approved)
+  end
+
+  @doc "Reject a pending habit — the operator declines it; it never joins the always-loaded set."
+  def reject_habit(%Habit{} = habit) do
+    habit |> Habit.reject_changeset() |> Repo.update() |> Bus.announce(:habit_rejected)
+  end
+
+  @doc """
+  The always-loaded approved habits — machine-wide, newest first. Mirrors
+  `always_loaded_constraints/0`: the operator-approved "how to work" preferences every
+  session reads at start, served over the channel by `Resource.Habits`.
+  """
+  def approved_habits do
+    Repo.all(from h in Habit, where: h.state == "approved", order_by: [desc: h.id])
+  end
+
+  @doc "Habits awaiting review — the operator's queue, newest first (the aleph/iex review read)."
+  def pending_habits do
+    Repo.all(from h in Habit, where: h.state == "pending", order_by: [desc: h.id])
+  end
+
+  @doc "A habit by id, or nil — the load path for `approve_habit`/`reject_habit`."
+  def habit(id), do: Repo.get(Habit, id)
 end

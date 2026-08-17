@@ -8,6 +8,7 @@ defmodule Funes.DossierTest do
   alias Funes.Dossier
   alias Funes.Event
   alias Funes.Fact
+  alias Funes.Habit
   alias Funes.Issue
   alias Funes.Repo
 
@@ -449,6 +450,98 @@ defmodule Funes.DossierTest do
         Channel.post(%{thread_id: thread.id, author: "Andrew", body: "tabs, not splits"})
 
       assert {:ok, _fact} = Dossier.bank_stated_fact(message, %{kind: "constraint"})
+    end
+  end
+
+  describe "propose_habit/1 — an agent's suggestion for HOW to work, pending review" do
+    # A third axis beside FACTS (memory) and skills (procedures): a HABIT is how the
+    # agent should work with the operator, agent-PROPOSED and human-APPROVED — distinct
+    # from a `stated` constraint (his verbatim words). It lands pending; approval promotes
+    # it into the always-loaded set (approved_habits/0, mirroring the constraints).
+    test "lands pending, machine-wide, reads back through SQLite" do
+      {:ok, habit} =
+        Dossier.propose_habit(%{
+          text: "run mise run check before proposing a commit",
+          rationale: "the green-before-commit gate",
+          proposed_by: "glm-5.2"
+        })
+
+      reloaded = Repo.get!(Habit, habit.id)
+      assert reloaded.text == "run mise run check before proposing a commit"
+      assert reloaded.rationale == "the green-before-commit gate"
+      assert reloaded.state == "pending"
+      assert reloaded.proposed_by == "glm-5.2"
+      assert reloaded.source_thread_id == nil
+      assert reloaded.approved_at == nil
+      assert %DateTime{} = reloaded.created_at
+    end
+
+    test "records the proposing thread when one is in scope — provenance, not scope" do
+      {:ok, thread} = Channel.open_thread(%{title: "wiring pi extensions"})
+
+      {:ok, habit} =
+        Dossier.propose_habit(%{
+          text: "prefer the Claude bucket",
+          proposed_by: "glm-5.2",
+          source_thread_id: thread.id
+        })
+
+      assert Repo.get!(Habit, habit.id).source_thread_id == thread.id
+    end
+
+    test "text and proposed_by are required" do
+      assert {:error, cs} = Dossier.propose_habit(%{proposed_by: "glm-5.2"})
+      assert %{text: _} = errors_on(cs)
+
+      assert {:error, cs} = Dossier.propose_habit(%{text: "do the thing"})
+      assert %{proposed_by: _} = errors_on(cs)
+    end
+
+    test "state is a closed set — SQLite's CHECK refuses anything else" do
+      {:ok, habit} = Dossier.propose_habit(%{text: "x", proposed_by: "a"})
+
+      assert_raise Ecto.ConstraintError, fn ->
+        habit |> Ecto.Changeset.change(state: "maybe") |> Repo.update()
+      end
+    end
+
+    test "source_thread_id must point at a real thread — the FK is the DB's guard" do
+      assert_raise Ecto.ConstraintError, fn ->
+        Dossier.propose_habit(%{text: "x", proposed_by: "a", source_thread_id: 999_999})
+      end
+    end
+  end
+
+  describe "approve_habit/1 & reject_habit/1 — the operator's gate (never an agent tool)" do
+    test "approve stamps approved_at and flips state; approved_habits then loads it" do
+      {:ok, habit} = Dossier.propose_habit(%{text: "prefer the Claude bucket", proposed_by: "glm-5.2"})
+      assert Dossier.approved_habits() == []
+
+      {:ok, approved} = Dossier.approve_habit(habit)
+      assert approved.state == "approved"
+      assert %DateTime{} = approved.approved_at
+
+      assert Enum.map(Dossier.approved_habits(), & &1.text) == ["prefer the Claude bucket"]
+    end
+
+    test "reject flips state and keeps it out of the approved set" do
+      {:ok, habit} = Dossier.propose_habit(%{text: "a bad idea", proposed_by: "glm-5.2"})
+      {:ok, rejected} = Dossier.reject_habit(habit)
+      assert rejected.state == "rejected"
+      assert Dossier.approved_habits() == []
+    end
+  end
+
+  describe "approved_habits/0 & pending_habits/0 — the always-loaded set and the review queue" do
+    test "approved_habits returns only approved (newest first); pending_habits only pending" do
+      {:ok, h1} = Dossier.propose_habit(%{text: "first", proposed_by: "a"})
+      {:ok, h2} = Dossier.propose_habit(%{text: "second", proposed_by: "a"})
+      {:ok, _h3} = Dossier.propose_habit(%{text: "third-pending", proposed_by: "a"})
+      {:ok, _} = Dossier.approve_habit(h1)
+      {:ok, _} = Dossier.approve_habit(h2)
+
+      assert Enum.map(Dossier.approved_habits(), & &1.text) == ["second", "first"]
+      assert Enum.map(Dossier.pending_habits(), & &1.text) == ["third-pending"]
     end
   end
 

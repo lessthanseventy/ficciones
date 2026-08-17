@@ -81,6 +81,7 @@ defmodule Funes.MCP.ServerTest do
                "open_thread",
                "close_thread",
                "consult_peer",
+               "propose_habit",
                "get_dossier",
                "get_facts",
                "get_messages"
@@ -469,7 +470,7 @@ defmodule Funes.MCP.ServerTest do
       post(token, session, request(3, "resources/list"))
 
     uris = resources |> Enum.map(& &1["uri"]) |> Enum.sort()
-    assert uris == ["funes://constraints", "funes://dossier"]
+    assert uris == ["funes://constraints", "funes://dossier", "funes://habits"]
 
     {200, _, %{"result" => %{"contents" => [dossier]}}} =
       post(token, session, request(4, "resources/read", %{"uri" => "funes://dossier"}))

@@ -11,6 +11,7 @@ defmodule Funes.MCP.Brief do
 
   alias Funes.Event
   alias Funes.Fact
+  alias Funes.Habit
   alias Funes.Issue
   alias Funes.Message
   alias Funes.Question
@@ -146,6 +147,21 @@ defmodule Funes.MCP.Brief do
       "reply_to" => m.reply_to,
       "at" => at(m.created_at),
       "consult" => m.consult_id != nil and m.mirrored == false
+    }
+  end
+
+  @doc """
+  A HABIT — how the agent should work with the operator. `state` distinguishes an approved,
+  always-loaded preference from one still `pending` review; a cut without a count lies, and a
+  pending habit is not an approved one.
+  """
+  def habit(%Habit{} = h) do
+    %{
+      "id" => h.id,
+      "text" => h.text,
+      "rationale" => h.rationale,
+      "state" => h.state,
+      "at" => at(h.created_at)
     }
   end
 

@@ -45,3 +45,27 @@ defmodule Funes.MCP.Resource.Constraints do
     {:reply, Response.json(Response.resource(), constraints), frame}
   end
 end
+
+defmodule Funes.MCP.Resource.Habits do
+  @moduledoc """
+  The always-loaded approved habits (roadmap: pi-synthesis slice 2): the operator-approved
+  "how to work with Andrew" preferences every session reads at start, machine-wide, beside
+  the constraints. Mirrors `Resource.Constraints` but for a different provenance — a habit is
+  agent-PROPOSED (`propose_habit`) and human-APPROVED, whereas a constraint is his verbatim
+  words. Served to ANY agent over the channel, which is what keeps the set agent-agnostic.
+  """
+  use Anubis.Server.Component,
+    type: :resource,
+    uri: "funes://habits",
+    mime_type: "application/json"
+
+  alias Anubis.Server.Response
+  alias Funes.Dossier
+  alias Funes.MCP
+
+  @impl true
+  def read(_params, frame) do
+    habits = Enum.map(Dossier.approved_habits(), &MCP.Brief.habit/1)
+    {:reply, Response.json(Response.resource(), habits), frame}
+  end
+end

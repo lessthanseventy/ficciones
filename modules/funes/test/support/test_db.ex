@@ -9,14 +9,16 @@ defmodule Funes.TestDB do
   """
   alias Funes.Repo
 
-  # fact → thread+session, event/issue/message → thread, session → agent+thread,
+  # fact → thread+session, event/issue/message/habit → thread, session → agent+thread,
   # thread → agent. So: the leaf rows, then message/session, then thread, then agent.
+  # habit.source_thread_id → thread, so it clears with the other thread-children.
   @ordered [
     Funes.Fact,
     Funes.Event,
     Funes.Issue,
     Funes.Todo,
     Funes.Question,
+    Funes.Habit,
     Funes.Message,
     Funes.Session,
     Funes.Thread,

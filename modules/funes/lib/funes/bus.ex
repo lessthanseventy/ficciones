@@ -15,11 +15,13 @@ defmodule Funes.Bus do
                               issues, assignment/close (feeds IN SCOPE)
     * `funes:threads`       — thread lifecycle: opened, closed, assigned (the list)
     * `funes:sessions`      — session start/end (feeds the IN FLIGHT roster)
+    * `funes:habits`        — habit proposed/approved/rejected (the operator's review queue)
 
   ## Events (the envelope every subscriber matches)
     `{:message_posted, message}` · `{:fact_banked, fact}` · `{:event_recorded, event}`
     `{:issue_raised, issue}` · `{:issue_resolved, issue}` · `{:todo_added, todo}`
     `{:todo_completed, todo}` · `{:question_raised, q}` · `{:question_resolved, q}`
+    `{:habit_proposed, h}` · `{:habit_approved, h}` · `{:habit_rejected, h}`
     `{:thread_opened, thread}`
     `{:thread_closed, thread}` · `{:thread_assigned, thread}` · `{:session_started, s}`
     `{:session_ended, s}`
@@ -30,11 +32,13 @@ defmodule Funes.Bus do
   def thread_topic(id), do: "funes:thread:#{id}"
   def threads_topic, do: "funes:threads"
   def sessions_topic, do: "funes:sessions"
+  def habits_topic, do: "funes:habits"
 
   def subscribe_messages, do: sub(messages_topic())
   def subscribe_thread(id), do: sub(thread_topic(id))
   def subscribe_threads, do: sub(threads_topic())
   def subscribe_sessions, do: sub(sessions_topic())
+  def subscribe_habits, do: sub(habits_topic())
 
   # A consumer that follows the *focused* thread drops the old topic on a switch.
   def unsubscribe_thread(id), do: Phoenix.PubSub.unsubscribe(@pubsub, thread_topic(id))
@@ -61,6 +65,13 @@ defmodule Funes.Bus do
              :question_resolved
            ] do
     publish(thread_topics(thread_id), event)
+  end
+
+  # Habits are machine-wide (no thread_id key of their own), so they ride their own topic
+  # plus the topic of the thread that PROPOSED them (source_thread_id, for provenance) when
+  # there was one — letting the cockpit's review surface and that thread both hear it.
+  def broadcast({tag, %Funes.Habit{} = habit} = event) when tag in [:habit_proposed, :habit_approved, :habit_rejected] do
+    publish([habits_topic() | thread_topics(habit.source_thread_id)], event)
   end
 
   def broadcast({tag, thread} = event) when tag in [:thread_opened, :thread_closed, :thread_assigned] do
