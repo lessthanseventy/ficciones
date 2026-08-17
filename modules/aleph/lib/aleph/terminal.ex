@@ -73,7 +73,7 @@ defmodule Aleph.Terminal do
   def mouse_modes(term), do: GenServer.call(term, :mouse_modes)
 
   @doc """
-  A single left-button mouse event (`:press` / `:motion` / `:release`) over the embedded terminal at
+  A single left-button mouse event (`:press` / `:move` (a drag, raxol's motion atom) / `:release`) over the embedded terminal at
   0-indexed local cell `(x, y)`, forwarded to the PTY when the running program tracks the mouse (tmux
   with `mouse on`), `:ignored` otherwise. Sent as separate events (not an atomic click) so a
   press → drag → release becomes a tmux text selection; a plain click is a press then release with no
@@ -240,8 +240,9 @@ defmodule Aleph.Terminal do
   @doc false
   def sgr_mouse_bytes(action, button, mods, x, y) do
     # +32 is the SGR motion bit — a drag (button held while moving) vs a plain press. tmux needs it
-    # to extend a selection rather than start a new one.
-    cb = sgr_cb(button) + sgr_mods(mods) + if(action == :motion, do: 32, else: 0)
+    # to extend a selection rather than start a new one. `:move` is raxol's motion atom; `:motion`
+    # kept for tolerance against a rename (mirrors the cockpit's guard).
+    cb = sgr_cb(button) + sgr_mods(mods) + if(action in [:move, :motion], do: 32, else: 0)
     suffix = if action == :release, do: "m", else: "M"
     "\e[<#{cb};#{trunc(x) + 1};#{trunc(y) + 1}#{suffix}"
   end

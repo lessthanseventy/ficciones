@@ -60,6 +60,12 @@ defmodule Aleph.Cockpit do
   @paste_enable "\e[?2004h"
   @paste_disable "\e[?2004l"
 
+  # Button-motion mouse tracking (\e[?1002h): report mouse MOTION while a button is held, not just
+  # press/release. The raxol Driver enables only 1000 (button) + 1006 (SGR); without 1002 ghostty
+  # sends nothing during a drag, so a Tlön text selection only highlights on mouseup. Enabled here
+  # (additive to the Driver's modes, written after it starts); teardown's reset already clears 1002.
+  @mouse_motion_enable "\e[?1002h"
+
   @doc "Start the cockpit and block until the operator quits — the entry point `mix aleph.run` calls."
   @spec run() :: :ok
   def run do
@@ -119,6 +125,9 @@ defmodule Aleph.Cockpit do
         # Enable bracketed paste (\e[?2004h) so ghostty wraps a paste in \e[200~…\e[201~ and the
         # cockpit's paste buffer can forward it as one block instead of per-keystroke decoding.
         IO.write(@paste_enable)
+        # Enable button-motion tracking (\e[?1002h) so a drag streams motion, not just press/release
+        # — the Tlön selection highlights live instead of only on mouseup. See @mouse_motion_enable.
+        IO.write(@mouse_motion_enable)
 
         state =
           render(%{
@@ -229,8 +238,10 @@ defmodule Aleph.Cockpit do
   # A left drag/release over the terminal body: forwarded to the PTY so tmux does the selecting (and
   # copies on release). Routed per-event by position — no drag state — so a motion that leaves the
   # terminal simply stops forwarding. Anywhere else, a drag/release is not a gesture aleph acts on.
+  # `:move` is the atom raxol's InputParser emits for a button-motion SGR report; `:motion` is
+  # accepted too so a raxol rename can't silently kill the live-drag forwarding.
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: sx, y: sy, button: :left, action: action}}}, state)
-      when action in [:motion, :release] do
+      when action in [:move, :motion, :release] do
     {x, y} = {Mouse.to_cell(sx), Mouse.to_cell(sy)}
     forward_terminal_mouse(Mouse.hit_panel(state.placements, x, y), action, x, y, state)
     {:noreply, state}
