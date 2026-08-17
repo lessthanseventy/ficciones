@@ -1,83 +1,36 @@
-// manos/lsp — give the agent the same language intelligence the editor has, on demand
-// (five tools backed by real LSP servers — see adapters.ts). Called when needed, not on
-// every save; `mix format` already covers formatting via manos/fmt.
+// manos/lsp — the pi shim for the manos-lspd sidecar. Registers the same five LSP tools
+// (hover/definition/references/symbols/diagnostics) with identical names/schemas, and
+// forwards each call over a Unix socket to the long-lived daemon that owns the warm
+// LspClient pool. Models see zero change; a pi restart leaves the servers warm.
 //
-// line/col are 1-based (editor convention); converted to 0-based for the protocol. One
-// LspClient per (adapter, project root), reused for the life of the pi session.
+// line/col are 1-based (editor convention); the daemon converts to 0-based for the protocol.
 
-import type { ExtensionAPI } from "./pi.ts";
+import type { ExtensionAPI, ToolResult } from "./pi.ts";
 import { Type } from "./pi.ts";
-import { adapterForFile, type LanguageAdapter } from "./adapters.ts";
-import { LspClient, LspError, type LspPosition } from "./client.ts";
-import type { ToolResult } from "./pi.ts";
+import { LspdClient, LspdConnectionError } from "./socket.ts";
 
 export default function lsp(pi: ExtensionAPI): void {
-  // Cached servers: one per (adapter name, project root). Lives for the session.
-  const clients = new Map<string, LspClient>();
+  const client = new LspdClient();
 
-  function clientFor(file: string): { client: LspClient; adapter: LanguageAdapter; key: string } {
-    const adapter = adapterForFile(file);
-    if (!adapter) throw new LspError(`no LSP adapter for ${file} (unknown extension)`);
-    const root = adapter.rootFor(file);
-    if (!root) throw new LspError(`no project root for ${file} (no ${adapter.name} marker found)`);
-    const key = `${adapter.name}:${root}`;
-    let client = clients.get(key);
-    if (!client) {
-      client = new LspClient(adapter.command, adapter.args, root);
-      // Fire-and-forget: this races the first real request, but LSP servers queue
-      // requests until initialized, so it's safe.
-      client.initialize().catch(() => {
-        // A failed init leaves a client that never sent `initialized` — every request on it
-        // would hang or error forever. Evict it so the next call spawns a fresh one (and
-        // surfaces a real error) instead of reusing a permanently-wedged connection.
-        client!.dispose();
-        clients.delete(key);
-      });
-      clients.set(key, client);
-    }
-    return { client, adapter, key };
-  }
-
-  // Drop a cached server so the next call spawns a fresh one.
-  function evict(key: string): void {
-    const dead = clients.get(key);
-    if (dead) {
-      dead.dispose();
-      clients.delete(key);
-    }
-  }
-
-  const pos = (p: Record<string, unknown>): LspPosition => ({
-    line: Math.max(0, (Number(p.line) ?? 1) - 1),
-    character: Math.max(0, (Number(p.col) ?? 1) - 1),
-  });
-
-  const run = async (
-    params: Record<string, unknown>,
-    fn: (client: LspClient, file: string) => Promise<string>,
-  ): Promise<ToolResult> => {
+  const run = async (params: Record<string, unknown>, method: Parameters<LspdClient["request"]>[0]): Promise<ToolResult> => {
     const file = String(params.path ?? "");
     if (!file) return { content: [{ type: "text", text: "missing `path`" }], isError: true };
-    let key: string | undefined;
     try {
-      const c = clientFor(file);
-      key = c.key;
-      const text = await fn(c.client, file);
+      const text = await client.request(method, params);
       return { content: [{ type: "text", text }] };
     } catch (err) {
-      const msg = err instanceof LspError ? err.message : err instanceof Error ? err.message : String(err);
-      // A timeout means the server took the connection but never answered — usually its process
-      // is alive while an internal worker has crashed (e.g. Expert's intermittent Unicode-stdio
-      // bug: XPGenLSP.Buffer dies on startup, so no request is ever served). Reusing that wedged
-      // server just times out again. Evict it so the NEXT call spawns a fresh one — the crash is
-      // flaky, so a respawn usually succeeds — and tell the agent it's worth retrying.
-      if (key && /timed out/.test(msg)) {
-        evict(key);
-        return {
-          content: [{ type: "text", text: `lsp: ${msg} — the language server stopped responding (it may have crashed on startup); it has been restarted, so retry this tool.` }],
-          isError: true,
-        };
+      // A dead socket means the daemon isn't up — self-heal (spawn + retry once). A normal
+      // LSP error (ok:false) or a hung-daemon timeout is surfaced as-is, no respawn.
+      if (err instanceof LspdConnectionError) {
+        try {
+          const text = await client.selfHeal(method, params);
+          return { content: [{ type: "text", text }] };
+        } catch (err2) {
+          const msg = err2 instanceof Error ? err2.message : String(err2);
+          return { content: [{ type: "text", text: `lspd unavailable — ${msg} (mise run lspd:restart)` }], isError: true };
+        }
       }
+      const msg = err instanceof Error ? err.message : String(err);
       return { content: [{ type: "text", text: `lsp: ${msg}` }], isError: true };
     }
   };
@@ -93,30 +46,30 @@ export default function lsp(pi: ExtensionAPI): void {
     name: "hover",
     description: "LSP hover: the type/signature/doc at a (path, line, col). 1-based line/col. Routes to the file's language server (Expert for Elixir, typescript-language-server for TS, …).",
     parameters: PosParam,
-    execute: (_id, p) => run(p, (c, f) => c.hover(f, pos(p))),
+    execute: (_id, p) => run(p, "hover"),
   });
   pi.registerTool({
     name: "definition",
     description: "LSP go-to-definition: where the symbol at (path, line, col) is defined. Returns file:line:col locations. 1-based line/col.",
     parameters: PosParam,
-    execute: (_id, p) => run(p, (c, f) => c.definition(f, pos(p))),
+    execute: (_id, p) => run(p, "definition"),
   });
   pi.registerTool({
     name: "references",
     description: "LSP references: everywhere the symbol at (path, line, col) is referenced. Returns file:line:col locations. 1-based line/col.",
     parameters: PosParam,
-    execute: (_id, p) => run(p, (c, f) => c.references(f, pos(p))),
+    execute: (_id, p) => run(p, "references"),
   });
   pi.registerTool({
     name: "symbols",
     description: "LSP document symbols: the outline of a file (functions, types, modules, …) with their positions.",
     parameters: PathParam,
-    execute: (_id, p) => run(p, (c, f) => c.documentSymbol(f)),
+    execute: (_id, p) => run(p, "symbols"),
   });
   pi.registerTool({
     name: "diagnostics",
     description: "LSP diagnostics: the server's published errors/warnings for a file (incremental, file-scoped — cheaper and finer than a full mix compile / tsc). May be empty until the server has indexed the doc.",
     parameters: PathParam,
-    execute: (_id, p) => run(p, (c, f) => Promise.resolve(c.diagnostics(f))),
+    execute: (_id, p) => run(p, "diagnostics"),
   });
 }

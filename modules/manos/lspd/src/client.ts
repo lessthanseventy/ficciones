@@ -289,10 +289,25 @@ function stringifyLocations(result: unknown): string {
 
 function stringifySymbols(result: unknown): string {
   if (!result || !Array.isArray(result)) return "(no symbols)";
-  const syms = result as Array<{ name: string; kind: number; range?: { start: LspPosition }; children?: unknown[] }>;
+  const syms = result as Array<DocumentSymbol>;
   if (syms.length === 0) return "(no symbols)";
-  // DocumentSymbol kinds: 1=File,2=Module,3=Namespace,5=Class,6=Method,12=Function,13=Field,14=Property…
-  return syms.map((s) => `${symKind(s.kind)} ${s.name}${s.range ? ` (${s.range.start.line + 1}:${s.range.start.character + 1})` : ""}`).join("\n");
+  return syms.map((s) => renderSymbol(s, 0)).join("\n");
+}
+
+// A DocumentSymbol nests its members (a module's functions, a class's methods) as
+// `children` — recurse so the outline shows them, indented, not just the top level.
+function renderSymbol(s: DocumentSymbol, depth: number): string {
+  const pad = "  ".repeat(depth);
+  const line = `${pad}${symKind(s.kind)} ${s.name}${s.range ? ` (${s.range.start.line + 1}:${s.range.start.character + 1})` : ""}`;
+  const children = (s.children ?? []).map((c) => renderSymbol(c, depth + 1)).join("\n");
+  return children ? `${line}\n${children}` : line;
+}
+
+interface DocumentSymbol {
+  name: string;
+  kind: number;
+  range?: { start: LspPosition };
+  children?: DocumentSymbol[];
 }
 
 function symKind(k: number): string {
