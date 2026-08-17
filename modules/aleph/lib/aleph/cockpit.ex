@@ -62,7 +62,12 @@ defmodule Aleph.Cockpit do
         ref = Process.monitor(pid)
 
         receive do
-          {:DOWN, ^ref, :process, ^pid, _reason} -> restore_host_tty()
+          {:DOWN, ^ref, :process, ^pid, reason} ->
+            restore_host_tty()
+            # Capture a crashed exit: the alt-screen otherwise swallows it (the operator sees the
+            # cockpit vanish with "nothing printed"). A NIF segfault kills the BEAM before this runs,
+            # but every Elixir-level crash lands here with its stacktrace.
+            log_crash(reason)
         end
 
       {:error, {:tb_init_failed, code}} ->
@@ -728,5 +733,38 @@ defmodule Aleph.Cockpit do
   defp restore_host_tty do
     _ = File.write("/dev/tty", @kitty_disable <> "\e[?1000;1002;1003;1006l\e[?1049l\e[?25h")
     :ok
+  end
+
+  @doc false
+  # A formatted crash report for a non-normal DOWN reason, or nil for a clean quit — so a normal
+  # operator quit doesn't spam the log. Pure; the IO is in log_crash/1.
+  @spec crash_report(term()) :: String.t() | nil
+  def crash_report(reason) when reason in [:normal, :shutdown], do: nil
+  def crash_report({:shutdown, _}), do: nil
+  def crash_report(reason), do: Exception.format_exit(reason)
+
+  # Append a crashed exit (reason + stacktrace) to a crash log and echo it to stderr AFTER the tty
+  # is restored — so the death lands on the main screen and on disk, not swallowed by the alt-screen.
+  # The path is $XDG_CACHE_HOME/aleph/crash.log (else ~/.cache/aleph/crash.log). Best-effort: a
+  # failure to write the log must never mask the original crash.
+  defp log_crash(reason) do
+    case crash_report(reason) do
+      nil ->
+        :ok
+
+      report ->
+        path = crash_log_path()
+        stamp = DateTime.to_iso8601(DateTime.utc_now())
+        _ = File.mkdir_p(Path.dirname(path))
+        _ = File.write(path, "=== aleph crash #{stamp} ===\n#{report}\n\n", [:append])
+        IO.puts(:stderr, "aleph crashed (logged to #{path}):\n#{report}")
+    end
+  rescue
+    _ -> :ok
+  end
+
+  defp crash_log_path do
+    cache = System.get_env("XDG_CACHE_HOME") || Path.join(System.user_home!() || "/tmp", ".cache")
+    Path.join([cache, "aleph", "crash.log"])
   end
 end

@@ -63,6 +63,20 @@ defmodule Aleph.CockpitTest do
     end
   end
 
+  describe "crash_report/1: only a real crash gets logged" do
+    test "a clean quit (:normal / :shutdown) produces no report" do
+      assert Cockpit.crash_report(:normal) == nil
+      assert Cockpit.crash_report(:shutdown) == nil
+      assert Cockpit.crash_report({:shutdown, :quit}) == nil
+    end
+
+    test "a crash reason is formatted into a report (with the stacktrace, when present)" do
+      report = Cockpit.crash_report({%RuntimeError{message: "boom"}, []})
+      assert is_binary(report)
+      assert report =~ "boom"
+    end
+  end
+
   describe "tlon_launcher/1: the Tlön window-0 command carries the machine identity" do
     # tmux runs window 0's command in the SERVER's environment, NOT the launching client shell's,
     # so the FUNES_* exports must ride into the session via `-e` or pi comes up "not wired". This
