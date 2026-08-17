@@ -98,16 +98,17 @@ defmodule Aleph.Profiles do
   }
 
   # The registry. Tlön: self-contained (no funes MCP), the funes-brief extension (manos/pi) dropped,
-  # sandboxed. Driver model is glm-5.2 (ollama-cloud) — a capable ORCHESTRATOR that stays lean by
+  # sandboxed. Driver model is glm-5.1 (ollama-cloud) — a capable ORCHESTRATOR that stays lean by
   # delegating heavy/cheap work to workers via /consult and spawned tabs (route those to LOCAL
   # qwen3-coder / flash to keep the flat cloud plan cool). Not flash: flash context-overflowed on real
-  # builds. Not the pro/max tier: mid-tier hedges the plan's usage caps. See design §orchestrator.
+  # builds. Not the pro/max tier: mid-tier hedges the plan's usage caps. glm-5.1 not 5.2 because 5.2
+  # was 500ing on ollama.com (provider outage, 2026-08-17); flip back to glm-5.2 once it recovers.
   @profiles [
     %Profile{
       name: "tlon",
       drop_extensions: ["/manos/pi/"],
       mcp: :none,
-      model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
+      model: %{provider: "ollama-cloud", model: "glm-5.1", thinking: "medium"},
       sandbox: @tlon_sandbox
     }
   ]
