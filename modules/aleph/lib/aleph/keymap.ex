@@ -16,9 +16,11 @@ defmodule Aleph.Keymap do
   under the disambiguate mode the cockpit arms on the host.)
 
   `state` is the slice of cockpit state keys touch: `active_key`, `focused_id`, `threads`,
-  `center_live?` (derived per keypress by the cockpit — true when a live terminal is in the center),
-  `leader_pending?` (the prefix is armed), and `input` (the title-typing modal). A `key_event` is
-  the `Raxol.Core.Events.Event` `data` map, e.g. `%{key: :up}` or `%{key: :char, char: "j"}`.
+  `center_live?` (derived per keypress by the cockpit — true when a live terminal is in the
+  center), `composer_thread_id` (also derived per keypress — the thread the `c` verb composes
+  onto: the focused thread, or the machine thread in Tlön), `leader_pending?` (the prefix is
+  armed), and `input` (the typing modal). A `key_event` is the `Raxol.Core.Events.Event` `data`
+  map, e.g. `%{key: :up}` or `%{key: :char, char: "j"}`.
 
   Effects:
 
@@ -118,10 +120,12 @@ defmodule Aleph.Keymap do
 
   defp command(%{key: :char, char: "n"}, state), do: {%{state | input: %{kind: :new_thread, buffer: ""}}, :repaint}
 
-  # `c` — the composer: post to the FOCUSED thread as the operator. No focused thread (empty board)
-  # → nothing to post on. Bare `c` only (modifiers nil): Ctrl+C is unbound (never a quit) and must
-  # not open a composer. Reachable bare in a nav-default space or via the leader from a terminal.
-  defp command(%{key: :char, char: "c"} = k, %{focused_id: id} = state)
+  # `c` — the composer: post to the thread `composer_thread_id` (the focused thread in Comms/
+  # Sessions, the machine thread in Tlön — resolved per keypress by the cockpit, like center_live?).
+  # nil (empty board / no machine thread) → nothing to post on. Bare `c` only (modifiers nil):
+  # Ctrl+C is unbound (never a quit) and must not open a composer. Bare in a nav space or via the
+  # leader from a terminal.
+  defp command(%{key: :char, char: "c"} = k, %{composer_thread_id: id} = state)
        when not is_nil(id) and not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt),
        do: {%{state | input: %{kind: :compose, thread_id: id, buffer: ""}}, :repaint}
 

@@ -16,19 +16,23 @@ defmodule Aleph.KeymapTest do
   alias Aleph.Keymap
 
   # The slice of cockpit state the keymap reads. Threads are anything with an `.id`.
-  # `center_live?` is derived per keypress by the cockpit; here it's set explicitly per test.
+  # `center_live?` and `composer_thread_id` are derived per keypress by the cockpit; here they're
+  # set explicitly per test (`composer_thread_id` defaults to the focused thread).
   defp state(overrides \\ %{}) do
-    Map.merge(
-      %{
-        active_key: :sessions,
-        focused_id: 2,
-        threads: [%{id: 1}, %{id: 2}, %{id: 3}],
-        center_live?: false,
-        leader_pending?: false,
-        input: nil
-      },
-      overrides
-    )
+    base =
+      Map.merge(
+        %{
+          active_key: :sessions,
+          focused_id: 2,
+          threads: [%{id: 1}, %{id: 2}, %{id: 3}],
+          center_live?: false,
+          leader_pending?: false,
+          input: nil
+        },
+        overrides
+      )
+
+    Map.put_new(base, :composer_thread_id, base.focused_id)
   end
 
   defp key(k, opts \\ []), do: Enum.into(opts, %{key: k})
@@ -271,6 +275,13 @@ defmodule Aleph.KeymapTest do
     test "c with no focused thread is a no-op" do
       s = state(%{focused_id: nil, threads: []})
       assert {^s, :none} = Keymap.handle(char("c"), s)
+    end
+
+    test "in Tlön, c composes onto the MACHINE thread, not a stale project focused_id" do
+      # The cockpit derives composer_thread_id from the machine thread in Tlön (a per-keypress
+      # injection), so a focused_id carried over from Comms must not receive the post.
+      s = state(%{active_key: :tlon, focused_id: 2, composer_thread_id: 99})
+      assert {%{input: %{kind: :compose, thread_id: 99, buffer: ""}}, :repaint} = Keymap.handle(char("c"), s)
     end
 
     test "c forwards to the terminal when one is live (use ^B c to open a composer)" do

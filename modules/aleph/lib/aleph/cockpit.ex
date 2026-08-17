@@ -152,12 +152,16 @@ defmodule Aleph.Cockpit do
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
     # Any keypress clears a prior flash (a spawn/create result), so it shows until you act again.
-    # `center_live?` is derived per keypress (is a live terminal in the center right now?) and handed
-    # to the keymap so it knows whether to forward to the PTY or run nav bindings as bare keys. It
-    # is NOT stored — dropped on the way back; the cockpit keeps only `leader_pending?`.
-    keymap_state = Map.put(%{state | flash: nil}, :center_live?, center_terminal(state) != nil)
+    # `center_live?` and `composer_thread_id` are derived per keypress and handed to the keymap so
+    # it knows whether to forward to the PTY / which thread `c` targets. They are NOT stored —
+    # dropped on the way back; the cockpit keeps only `leader_pending?`.
+    keymap_state =
+      %{state | flash: nil}
+      |> Map.put(:center_live?, center_terminal(state) != nil)
+      |> Map.put(:composer_thread_id, composer_thread_id(state))
+
     {next, effect} = Keymap.handle(key, keymap_state)
-    next = reset_scrolls(state, Map.delete(next, :center_live?))
+    next = reset_scrolls(state, Map.drop(next, [:center_live?, :composer_thread_id]))
     apply_effect(effect, next)
   end
 
@@ -521,6 +525,20 @@ defmodule Aleph.Cockpit do
   defp center_terminal(%{active_key: :sessions} = state), do: state |> focused() |> terminal_for()
   defp center_terminal(%{active_key: :tlon}), do: machine_terminal()
   defp center_terminal(_state), do: nil
+
+  # The thread `c` composes onto, derived per keypress (like center_live?): the focused project
+  # thread in Comms/Sessions; in Tlön the MACHINE thread — the operator working the box posts to
+  # the machine coworker, never a stale project thread id carried over from Comms. nil (no thread)
+  # makes `c` a no-op.
+  defp composer_thread_id(%{active_key: :tlon}), do: machine_thread_id()
+  defp composer_thread_id(state), do: state.focused_id
+
+  defp machine_thread_id do
+    case Channel.machine_thread() do
+      %{id: id} -> id
+      _ -> nil
+    end
+  end
 
   defp terminal_for(nil), do: nil
   defp terminal_for(%{id: id}), do: Sessions.terminal(id)
