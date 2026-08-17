@@ -125,6 +125,22 @@ defmodule Funes.DossierTest do
         })
       end
     end
+
+    test "refuses text carrying a credential — the ledger never stores a secret (slice B)", %{
+      thread: thread
+    } do
+      assert {:error, cs} =
+               Dossier.bank_fact(%{
+                 thread_id: thread.id,
+                 kind: "learned",
+                 text: "the prod key is AKIAIOSFODNN7EXAMPLE",
+                 provenance: "derived"
+               })
+
+      assert %{text: [msg]} = errors_on(cs)
+      assert msg =~ "secret"
+      assert Repo.aggregate(Fact, :count, :id) == 0
+    end
   end
 
   describe "the reproducibility axis (§4)" do
