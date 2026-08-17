@@ -75,6 +75,11 @@ defmodule Aleph.CockpitTest do
       assert is_binary(report)
       assert report =~ "boom"
     end
+
+    test "crash_summary takes the first non-blank report line (for the filed issue's title)" do
+      assert Cockpit.crash_summary("\n** (RuntimeError) boom\n    at foo.ex:1\n") ==
+               "** (RuntimeError) boom"
+    end
   end
 
   describe "tlon_launcher/1: the Tlön window-0 command carries the machine identity" do

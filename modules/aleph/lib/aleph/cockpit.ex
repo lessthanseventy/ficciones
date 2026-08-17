@@ -701,8 +701,36 @@ defmodule Aleph.Cockpit do
       report ->
         Aleph.CrashLog.append("aleph crash", report)
         IO.puts(:stderr, "aleph crashed (logged to #{Aleph.CrashLog.path()}):\n#{report}")
+        file_crash_issue(report)
     end
   rescue
     _ -> :ok
+  end
+
+  @doc false
+  @spec crash_summary(String.t()) :: String.t()
+  def crash_summary(report) do
+    report |> String.split("\n", trim: true) |> List.first("a cockpit crash") |> String.slice(0, 120)
+  end
+
+  # A crashed cockpit files a funes issue on the machine thread — its own failures become tracked,
+  # triageable work in the system it renders, not just a log line. Deduped against the thread's open
+  # issues so a crash loop files one, not a hundred. Best-effort: no funes (down, or the crash took
+  # it too) just means the crash log is the only record.
+  defp file_crash_issue(report) do
+    summary = "aleph crashed: " <> crash_summary(report)
+
+    with %{id: id} = thread <- Channel.machine_thread(),
+         false <- crash_issue_open?(thread, summary) do
+      Funes.Dossier.raise_issue(%{thread_id: id, summary: summary, evidence: report, found_by: "aleph"})
+    end
+  rescue
+    _ -> :ok
+  catch
+    _, _ -> :ok
+  end
+
+  defp crash_issue_open?(thread, summary) do
+    thread |> Funes.Dossier.open_issues_for_thread() |> Enum.any?(&(&1.summary == summary))
   end
 end
