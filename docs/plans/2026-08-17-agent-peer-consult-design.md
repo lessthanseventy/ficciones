@@ -77,28 +77,51 @@ narrow and precise.
  agent-invocable tool that reaches a *running peer session* and gets a direct answer. Everything else
  exists and is findable; that one live-peer hop is missing. The routing bug below is
  independent: even with `/consult` in hand, telling an agent to "escalate to claude via `Ctrl+Space o`"
- was unactionable because that is operator-only UI.
+ was unactionable because that is operator-only UI — never route an agent through operator-only
+ keybindings, a routing-design bug on its own.
 
-- **The routing was a human affordance.** "Escalate design calls to claude via `Ctrl+Space o`" is an
-  *aleph operator keybinding* — pi lives inside the Tlön pane and cannot press the cockpit's own keys.
-  Never route an agent through operator-only UI; that is a routing-design bug.
-- **`/consult` is a model, not a coworker.** `manos/consult` spawns a transient `pi -p` one-shot
-  (`minimax-m3` default) — a fresh brain, no memory of the running claude session, no access to the
-  thread's live state beyond what the transcript carries. Good for a second *opinion*; useless for
-  *delegating to the person who's mid-task*.
-- **funes is async, thread-bound, and address-by-connection.** An agent posts to its OWN thread
-  (identity rides the token; thread params were deliberately removed). It cannot post to a peer's
-  thread, and delivery is durable-not-live. The wake machinery exists (`Funes.Switchboard` + `Mentions`,
-  `@mention` → poke the addressed recipient) but is **off by default and not presence-gated** — its own
-  moduledoc says it should not auto-poke real panes until presence exists.
+### 2b — The design: `consult_peer` as the third deliberate cross-thread verb
 
-### 2b — Options
+`OpenThread` and `CloseThread` are the only two tools that act off the connection's own thread —
+`CloseThread`'s moduledoc calls itself "the sanctioned exception to 'no tool takes a thread
+parameter'." `consult_peer` is the third such verb, and it earns the exception for the same reason
+the other two do: the act is inherently about *another* thread, and there is no thread to misdirect
+because the caller never names one.
 
-| Option | What it is | Verdict |
-|---|---|---|
-| **A · `consult_peer` funes tool** | New MCP tool: `consult_peer(peer, prompt)` → funes posts to the peer's *thread* with an `@mention`, and the switchboard (once presence-gated) wakes that peer's live session. Agent-invocable, reuses `Mentions` + `Switchboard`. | **Recommended.** Reuses existing machinery; a peer who is *offline* degrades honestly to an async thread note (no invented liveness). |
-| **B · cross-session route** | A tool funes routes to a *live* session by presence, blocking for a reply. | Most "chat-like", but requires productionizing the off-by-default switchboard + a presence arbiter first — the larger build. Land after A. |
-| **C · legitimize the tmux hack** | A manos tool that `tmux send-keys` a prompt into claude's window and reads back. | Rejects: it's the raw terminal hack, couples manos to aleph's tmux layout, and bypasses funes' single-writer/durability discipline. Good as a *last-resort* escape hatch, never the surface. |
+**Tool shape**
+
+```
+consult_peer(peer: agent_name, prompt: string) → {consult_id, peer_thread_id}
+```
+
+**How it resolves without fighting the token/session model**
+
+- The call authenticates as the caller via the connection token → frame binds (caller_thread,
+  caller_agent, caller_session). `consult_peer` reads ONLY that — no peer thread id comes from the
+  call, so misdirection is unrepresentable, the same rule PostMessage's no-thread-param enforces.
+- `peer` is an **agent name** (`Staff.agent_by_name/1`), never a thread id. funes resolves the peer's
+  current thread from its live session (`Staff.live_session` / `threads_for`). The caller asks for a
+  *coworker*, not a thread — how a human would address them.
+- funes (the single writer) creates the consult as a `Channel.post` on the peer's thread, authored by
+  the **caller's real agent identity** (`caller_agent`). No adapter writes cross-thread directly; the
+  write is mediated by funes exactly like `post_message` is, just to a resolved target thread. The
+  adapter stays a client of the channel.
+
+**Two delivery modes, one contract**
+
+- **Durable (works today):** the consult is a normal message on the peer's thread; the peer sees it on
+  its next dossier refresh (or the switchboard's `@mention` wake if that lands). No liveness is
+  invented — an offline peer finds the consult waiting, which is honest.
+- **Live wake (the optimization, presence-gated):** when the switchboard is presence-gated, the
+  delivered consult pokes the peer's live session (the `Funes.Switchboard` + `Funes.Mentions`
+  machinery exists for exactly this). The tool's *contract* is durable delivery; the wake is a latency
+  improvement on top, never assumed.
+
+**Boundary cost**
+
+One new export in `lib/funes.ex` (a `Consult` context, or a `Channel`-adjacent function) plus a new
+`Funes.MCP.Tool.ConsultPeer` component and the `consult_peer` directTool. That is the whole surface —
+and it is the reviewed, deliberate widening this file's history is for.
 
 ### 2c — Discoverability (the operator's "point at the surface" fix)
 
@@ -117,3 +140,26 @@ surface creeps only on purpose, reviewed in this file's history." It also needs 
 switchboard to actually wake a live peer, which the switchboard's own moduledoc flags as not-yet.
 So the sequence is: (1) ship attribution (done), (2) get sign-off on A's surface widening, (3) land
 presence-gating, (4) build `consult_peer` + name it in the brief/skill. This doc is step 2's artifact.
+
+### 2e — Review checks (for the second set of eyes)
+
+Before anyone builds this, verify each against the codebase — a `consult_peer` that *looks* right but
+fights the token/session model is exactly what this pass is for:
+
+- **Author / misdirection.** The consult must be authored by the CALLER's real agent identity, and the
+  caller must never pass a thread id — only a peer *agent name*. If `consult_peer` lets a caller post
+  to an arbitrary thread, or as the operator/peer, it breaks both the misdirection rule and the
+  single-writer discipline. Reject.
+- **Single-writer.** The cross-thread write must go through `Funes.Channel.post` (or a new `Consult`
+  context that itself calls the channel) — never a direct schema write from the tool. The new export
+  must live inside the `lib/funes.ex` boundary, not widen it accidentally.
+- **Presence honesty.** The tool must not claim the peer read, will answer, or is live. Delivery is
+  durable; a wake is gated on presence-gating landing. Any "answered"/"read" claim is invented.
+- **Offline degradation.** A consult to an agent with no live session must land durably and be
+  readable later — never a dropped message or a false failure.
+- **Unknown/duplicate peer.** `peer` is `Staff.agent_by_name`. On an unknown or ambiguous name, refuse
+  (like `CloseThread`'s missing-id refusal) rather than guess.
+
+Known open questions for the review: should the consult appear in the peer's brief as a distinct kind
+(so it reads as "asked you something", not ambient chatter), and should a consult ever auto-close when
+answered? Both are surface/UX choices that don't change the token/session mechanics above.
