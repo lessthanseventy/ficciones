@@ -188,7 +188,17 @@ defmodule Aleph.Cockpit do
     dispatch_click(Mouse.hit_panel(state.placements, x, y), x, y, state)
   end
 
-  # Any other mouse event (release, right/middle button, motion) is not handled yet.
+  # A left drag/release over the terminal body: forwarded to the PTY so tmux does the selecting (and
+  # copies on release). Routed per-event by position — no drag state — so a motion that leaves the
+  # terminal simply stops forwarding. Anywhere else, a drag/release is not a gesture aleph acts on.
+  def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: sx, y: sy, button: :left, action: action}}}, state)
+      when action in [:motion, :release] do
+    {x, y} = {Mouse.to_cell(sx), Mouse.to_cell(sy)}
+    forward_terminal_mouse(Mouse.hit_panel(state.placements, x, y), action, x, y, state)
+    {:noreply, state}
+  end
+
+  # Any other mouse event (right/middle button, motion with no button) is not handled.
   def handle_cast({:dispatch, %Event{type: :mouse}}, state), do: {:noreply, state}
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
@@ -312,7 +322,7 @@ defmodule Aleph.Cockpit do
       offset = if tabs == [], do: 0, else: 1
 
       with term when is_pid(term) <- center_terminal(state) do
-        Terminal.click(term, clamp_cell(x - rect.x, rect.w), clamp_cell(local_y - offset, rect.h))
+        Terminal.mouse(term, :press, clamp_cell(x - rect.x, rect.w), clamp_cell(local_y - offset, rect.h))
       end
 
       {:noreply, state}
@@ -331,6 +341,24 @@ defmodule Aleph.Cockpit do
   end
 
   defp select_tlon_window(_tab), do: :ok
+
+  # A drag/release over the terminal body (below the tab strip) → the PTY, shifted up by the tab row;
+  # anywhere else is ignored. Mirrors dispatch_click's body branch so a click and a drag agree on
+  # where the terminal starts.
+  defp forward_terminal_mouse({Panel.Terminal, data, rect}, action, x, y, state) do
+    offset = if tabs_of(data) == [], do: 0, else: 1
+    local_y = y - rect.y
+
+    if local_y >= offset do
+      with term when is_pid(term) <- center_terminal(state) do
+        Terminal.mouse(term, action, clamp_cell(x - rect.x, rect.w), clamp_cell(local_y - offset, rect.h))
+      end
+    end
+
+    :ok
+  end
+
+  defp forward_terminal_mouse(_hit, _action, _x, _y, _state), do: :ok
 
   defp apply_pick(nil, state), do: {:noreply, state}
 

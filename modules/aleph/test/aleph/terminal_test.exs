@@ -85,6 +85,10 @@ defmodule Aleph.TerminalTest do
       assert Terminal.sgr_mouse_bytes(:press, :left, [], 0, 0) == "\e[<0;1;1M"
       assert Terminal.sgr_mouse_bytes(:release, :left, [], 0, 0) == "\e[<0;1;1m"
 
+      # A drag is a motion (Cb + the +32 motion bit) — tmux extends the selection instead of
+      # starting a new one. Left (0) + motion (32) = 32.
+      assert Terminal.sgr_mouse_bytes(:motion, :left, [], 5, 2) == "\e[<32;6;3M"
+
       # Modifier bits: shift +4, alt +8, ctrl +16 (ctrl+click at cell 7,3 -> Cb 16).
       assert Terminal.sgr_mouse_bytes(:press, :left, [:ctrl], 7, 3) == "\e[<16;8;4M"
     end

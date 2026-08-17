@@ -73,12 +73,13 @@ defmodule Aleph.Terminal do
   def mouse_modes(term), do: GenServer.call(term, :mouse_modes)
 
   @doc """
-  A left click over the embedded terminal at 0-indexed local cell `(x, y)`: forwarded to the
-  PTY as a press+release pair when the running program tracks the mouse (tmux with `mouse on`,
-  a TUI hit-testing its own regions), `:ignored` otherwise — an untracked click is cockpit
-  chrome, not program input.
+  A single left-button mouse event (`:press` / `:motion` / `:release`) over the embedded terminal at
+  0-indexed local cell `(x, y)`, forwarded to the PTY when the running program tracks the mouse (tmux
+  with `mouse on`), `:ignored` otherwise. Sent as separate events (not an atomic click) so a
+  press → drag → release becomes a tmux text selection; a plain click is a press then release with no
+  motion between.
   """
-  def click(term, x, y), do: GenServer.call(term, {:click, x, y})
+  def mouse(term, action, x, y), do: GenServer.call(term, {:mouse, action, x, y})
 
   @doc """
   Encode a `Ghostty.KeyEvent` to the bytes the embedded terminal would send to its PTY, WITHOUT
@@ -176,8 +177,8 @@ defmodule Aleph.Terminal do
     {:reply, route_wheel(Terminal.mouse_modes(state.term), direction, n, x, y, state), state}
   end
 
-  def handle_call({:click, x, y}, _from, state) do
-    {:reply, route_click(Terminal.mouse_modes(state.term), x, y, state), state}
+  def handle_call({:mouse, action, x, y}, _from, state) do
+    {:reply, route_mouse(Terminal.mouse_modes(state.term), action, x, y, state), state}
   end
 
   def handle_call({:key, event}, _from, state) do
@@ -214,18 +215,15 @@ defmodule Aleph.Terminal do
     :scrolled
   end
 
-  # A left click: press+release forwarded when the program tracks the mouse (tmux `mouse on`, a
-  # TUI picking a pane/window) — both halves, since SGR apps expect the pair. Untracked → the
-  # click is chrome, not input; the cockpit decides what (if anything) it means.
-  defp route_click(%{tracking: true} = modes, x, y, state) do
-    for action <- [:press, :release] do
-      emit(state.pty, forward_mouse(modes, action, :left, [], x, y, state.term))
-    end
-
+  # A single left-button event forwarded when the program tracks the mouse (tmux `mouse on`): press
+  # on button-down, motion while dragging, release on button-up — tmux stitches them into a text
+  # selection. Untracked → chrome, not input; the cockpit decides what (if anything) it means.
+  defp route_mouse(%{tracking: true} = modes, action, x, y, state) do
+    emit(state.pty, forward_mouse(modes, action, :left, [], x, y, state.term))
     :forwarded
   end
 
-  defp route_click(%{tracking: false}, _x, _y, _state), do: :ignored
+  defp route_mouse(%{tracking: false}, _action, _x, _y, _state), do: :ignored
 
   # SGR (what tmux/modern TUIs request) is hand-rolled from cell coords: the ghostty NIF's
   # input_mouse expects PIXEL positions (a hardcoded 10x20 grid), so handing it cells landed
@@ -241,7 +239,9 @@ defmodule Aleph.Terminal do
   # +4 shift +8 alt +16 ctrl. aleph's x,y are 0-indexed cells (clamped by the cockpit), so +1.
   @doc false
   def sgr_mouse_bytes(action, button, mods, x, y) do
-    cb = sgr_cb(button) + sgr_mods(mods)
+    # +32 is the SGR motion bit — a drag (button held while moving) vs a plain press. tmux needs it
+    # to extend a selection rather than start a new one.
+    cb = sgr_cb(button) + sgr_mods(mods) + if(action == :motion, do: 32, else: 0)
     suffix = if action == :release, do: "m", else: "M"
     "\e[<#{cb};#{trunc(x) + 1};#{trunc(y) + 1}#{suffix}"
   end
