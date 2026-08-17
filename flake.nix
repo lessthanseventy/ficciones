@@ -280,10 +280,11 @@
                 settings = {
                   email = "andrew@lessthanseventy.com";
                   # base_url = "https://vault.example.tld";  # ← self-hosted Vaultwarden goes here
-                  # pinentry-tty (pure stdin/stdout) — curses EOF'd inside ghostty (the rbw-agent
-                  # daemon couldn't attach curses to the terminal). Needs GPG_TTY set in shell init;
-                  # if this still EOFs, switch to a GUI pinentry (pinentry-gnome3/qt — no tty needed).
-                  pinentry = pkgs.pinentry-tty;
+                  # pinentry-qt — a self-contained GUI dialog. Terminal pinentries (curses/tty) EOF'd
+                  # because the rbw-agent daemon has no controlling tty; a GUI prompt sidesteps that
+                  # and needs no GPG_TTY. qt (not gnome3) because this box is Hyprland/Qt (qt6ct +
+                  # kvantum in .zprofile) — pinentry-gnome3 needs GNOME's gcr-prompter service.
+                  pinentry = pkgs.pinentry-qt;
                   lock_timeout = 3600;
                 };
               };
@@ -340,8 +341,10 @@
               # The ollama defaults are seeded with `//=` (set-only-if-absent), NOT `=`: pi
               # persists your runtime model switch (Ctrl+P) back into this same file, and we must
               # not stomp it on every home:switch. So this picks the default the FIRST time and
-              # then defers to you. defaultProvider is ollama-cloud/glm-5.2 — works the moment
-              # OLLAMA_API_KEY is set, no GPU or pull needed. Flip to "ollama"/"qwen3-coder" here
+              # then defers to you. defaultProvider is ollama-cloud/deepseek-v4-flash — the efficient
+              # MoE default that drains the short rate-limit window far slower than a reasoning model
+              # (glm-5.2's thinking tokens trip it mid-session; see `mise run ollama:usage` to watch).
+              # Works the moment OLLAMA_API_KEY is set, no GPU or pull needed. Flip to "ollama"/"qwen3-coder" here
               # (or just switch in-session) to drive a local model instead. enabledModels is the
               # Ctrl+P cycle ring — every id from models.json so all are one keystroke away.
               home.activation.manosWiring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -359,10 +362,10 @@
                    | .skills = ((.skills // []) + [$skills] | unique)
                    | .packages = ((.packages // []) + ["pi-mcp-adapter"] | unique)
                    | .defaultProvider //= "ollama-cloud"
-                   | .defaultModel //= "glm-5.2"
+                   | .defaultModel //= "deepseek-v4-flash"
                    | .defaultThinkingLevel //= "medium"
                    | .retry.enabled //= true
-                   | .enabledModels //= ["glm-5.2","glm-5.1","deepseek-v4-pro","deepseek-v4-flash","kimi-k2.7-code","minimax-m3","qwen3-coder"]' \
+                   | .enabledModels //= ["deepseek-v4-flash","glm-5.2","glm-5.1","deepseek-v4-pro","kimi-k2.7-code","minimax-m3","qwen3-coder"]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
               '';
 
