@@ -1,5 +1,13 @@
 # Agent-to-agent consult — when pi wanted a second opinion from claude
 
+> **Superseded 2026-08-17 — the build this review prescribed has shipped.** The step sequence it
+> set (3: land presence-gating, 4: build `consult_peer` + the answer mirror) is done in `9df5c2b`
+> (the switchboard), `03d326e` + `79ec9be` (a live `Aleph.Arbiter` over the embedded terminals and
+> engine-credit presence), `61a552b` (`Funes.Consult.consult_peer/3` + the `consult_peer` tool), and
+> `ac9f86c` (a consult ask rendered distinctly in the peer's brief). Every review check in §2e holds
+> against the implementation — verified 2026-08-17. Keep this doc for the reasoning (especially the
+> mirror's echo guard and the tie-break rule); build nothing from its "to do" framing.
+
 Written 2026-08-17, opening thread 11 (Tlön). Trigger: a deepseek-v4-flash pi session, facing a
 design call it was told to "escalate to claude", could not reach a *running* claude session through
 any first-class path, so it fell back to typing `tmux send-keys` into claude's window. It worked, and that is

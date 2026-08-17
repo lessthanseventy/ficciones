@@ -1,5 +1,13 @@
 # Tlön as a self-contained workspace — and the three ways agents reach other agents
 
+> **Status 2026-08-17 — mechanism 3 shipped, mechanism 2 open.** The three-agent-mechanisms
+> framing below is the load-bearing part and stands. Mechanism 3 (`consult_peer`, the
+> funes-mediated coworker consult) is done — `61a552b`, `ac9f86c` — and mechanism 1 is the
+> normal Tlön move. Mechanism 2 (a model-callable `consult` TOOL returning its answer
+> mid-turn-safe, promoted from the human `/consult`/`/fresh` commands) is the one open item:
+> `manos/consult` still registers only `registerCommand`, so the refuse-mid-turn limit §2d
+> describes still holds.
+
 Written 2026-08-17 (branch `dogfood-kitty-keys`). Settles what Tlön *is* after live use, and
 untangles three mechanisms that had been collapsed into one ("consult"). The trigger: the Tlön
 center had accumulated seed cruft, six duplicate machine threads, and a pile of zombie sessions,
@@ -76,9 +84,10 @@ pi plans → **spawns windows** to build (1), **consults a model** for a smarter
 
 1. **Cleanup + find-or-create — DONE.** Cruft wiped (`aleph:reset:db`); find-or-create verified
    (one stable open Tlön thread, reused across restarts; zombies self-reap).
-2. **aleph renders window tabs + tmux `status off`.** Clean tab strip in the Tlön header; needs a
-   ghostty eye-test.
+2. **aleph renders window tabs + tmux `status off` — DONE.** Clean tab strip in the Tlön header
+   (`2efd711`), the workspace made a plain tmux session (`383b735`).
 3. **Generalize Tlön spawning.** `^o` claude (interactive) + a `claude -p` discrete-build path + a
    plain-terminal-window verb — all inside Tlön's tmux.
-4. **Make model-consult agent-invocable** (mechanism 2). Promote `/consult`/`/fresh` from human-only
-   slash commands to a tool a model can call mid-turn, with a context-level argument.
+4. **Make model-consult agent-invocable — OPEN** (mechanism 2). Promote `/consult`/`/fresh` from
+   human-only slash commands to a tool a model can call mid-turn, with a context-level argument.
+   `consult_peer` (mechanism 3) is built; this is the distinct model-delegate surface, still not.
