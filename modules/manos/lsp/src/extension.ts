@@ -1,23 +1,9 @@
-// manos/lsp — give the agent the same language intelligence the editor has, on demand.
-// Five pi tools backed by real LSP servers (Expert for Elixir, typescript-language-server
-// for TS, nil for Nix, bash-language-server for shell, vscode-json-language-server for
-// JSON — see adapters.ts):
+// manos/lsp — give the agent the same language intelligence the editor has, on demand
+// (five tools backed by real LSP servers — see adapters.ts). Called when needed, not on
+// every save; `mix format` already covers formatting via manos/fmt.
 //
-//   hover(path, line, col)        type/signature/doc at a position
-//   definition(path, line, col)   where a symbol is defined (file:line:col)
-//   references(path, line, col)   where a symbol is referenced
-//   symbols(path)                 the document's outline (functions/types/…)
-//   diagnostics(path)             the server's published errors/warnings for a file
-//
-// The agent calls these WHEN IT NEEDS them — not on every save (a project-wide compile per
-// edit is too heavy; the spirit is "don't leave broken code around," and `mix format`
-// already covers formatting on save via manos/fmt). LSP gives what bash+mix can't: type
-// info, definitions, references, incremental file-scoped diagnostics.
-//
-// line/col are 1-based (editor convention); converted to 0-based for the protocol. A
-// missing server binary surfaces as a clear error, never a hang (every request has a
-// timeout in the client). One LspClient per (adapter, project root), reused for the life
-// of the pi session — LSP servers are long-lived and index once per project.
+// line/col are 1-based (editor convention); converted to 0-based for the protocol. One
+// LspClient per (adapter, project root), reused for the life of the pi session.
 
 import type { ExtensionAPI } from "./pi.ts";
 import { Type } from "./pi.ts";
@@ -38,9 +24,8 @@ export default function lsp(pi: ExtensionAPI): void {
     let client = clients.get(key);
     if (!client) {
       client = new LspClient(adapter.command, adapter.args, root);
-      // initialize before caching so a bad spawn fails fast, not on the first request.
-      // Fire-and-forget the init: the first real request awaits openDoc/the call, which
-      // races the init — but LSP servers queue requests until initialized, so this is safe.
+      // Fire-and-forget: this races the first real request, but LSP servers queue
+      // requests until initialized, so it's safe.
       client.initialize().catch(() => {
         /* a failed init surfaces on the next request via a disposed/errored client */
       });

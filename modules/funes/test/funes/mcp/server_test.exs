@@ -429,7 +429,6 @@ defmodule Funes.MCP.ServerTest do
         provenance: "derived"
       })
 
-    # -- helpers ---------------------------------------------------------------
     {:ok, _} =
       Dossier.bank_fact(%{
         kind: "constraint",

@@ -1,24 +1,21 @@
 #!/usr/bin/env bash
 # scripts/aleph-reap.sh — reap a stale `aleph:run` cockpit so a fresh launch can bind.
 #
-# aleph's in-process funes world listens on 4041 (distinct from the always-up
-# funes.service on 4040 — two funes worlds, two DBs, one box). A cockpit that lost its
-# TTY, or was backgrounded and forgotten, keeps holding 4041 and the next
-# `mise run aleph:run` dies with `:eaddrinuse`. This guard runs before the launch and
-# clears that stale listener.
+# aleph's in-process funes world listens on 4041 (funes.service uses 4040 — two worlds,
+# one box). A cockpit that lost its TTY keeps holding 4041, and the next `aleph:run`
+# dies with :eaddrinuse; this clears that stale listener before launch.
 #
-# It kills ONLY the process LISTENING on the port (a beam.smp) — NOT tmux clients that
-# merely hold an inherited fd (ss lists those too; killing them would murder the user's
-# tmux). It also reaps any orphaned `mise run aleph:run` wrapper left hanging on a dead
-# beam child (mise doesn't always exit when its beam is killed — seen 2026-08-16), while
-# never touching the CURRENT invocation's own process tree.
+# Kills ONLY the process LISTENING on the port (ss also lists tmux clients holding an
+# inherited fd — killing those would murder the user's tmux). Also reaps orphaned
+# `mise run aleph:run` wrappers left hanging on a dead beam child (mise doesn't always
+# exit when its beam is killed), without touching this invocation's own process tree.
 #
 # Safe to run any time; a free port is a no-op. Override the port with FUNES_MCP_PORT.
 set -euo pipefail
 
 PORT="${FUNES_MCP_PORT:-4041}"
 
-# --- 1. reap the port listener -----------------------------------------------------------
+# 1. reap the port listener
 # ss -tlnH "sport = :N" prints one line per listening socket with users:(("comm",pid=N,...)).
 # Grab the listener pids (the first pid= in each line is the socket owner).
 mapfile -t pids < <(ss -tlnH "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u || true)
@@ -39,10 +36,10 @@ if [ "${#pids[@]}" -gt 0 ]; then
   done
 fi
 
-# --- 2. reap orphaned mise/mix wrappers for THIS task -----------------------------------
+# 2. reap orphaned mise/mix wrappers for THIS task
 # A `mise run aleph:run` whose beam child just died (step 1) can hang on the dead child.
-# Kill any such wrapper that is NOT an ancestor of this shell — so the invoking mise is
-# never touched. (Matches the stale-cockpit mise wrapper and any stray `mix aleph.run`.)
+# Kill any such wrapper that is NOT an ancestor of this shell, so the invoking mise is
+# never touched.
 ancestors=" $$"
 p="${PPID:-0}"
 while [ "$p" -gt 1 ] 2>/dev/null; do
@@ -75,7 +72,7 @@ if [ -n "$orphans" ]; then
   done <<<"$orphans"
 fi
 
-# --- 3. confirm --------------------------------------------------------------------------
+# 3. confirm
 if ss -tlnH "sport = :$PORT" 2>/dev/null | grep -q .; then
   echo "aleph-reap: WARNING — port $PORT still held after reap:" >&2
   ss -tlnp "sport = :$PORT" 2>/dev/null | sed 's/^/  /' >&2

@@ -161,11 +161,9 @@ export function renderBrief(d: Dossier, now: Date = new Date()): string {
   return lines.join("\n");
 }
 
-// A fact, rendered by its read-time certainty — the marker is the honesty. A hunch is
-// labelled a hunch and told to be re-checked; it never appears as a bare assertion. The
-// default FAILS CLOSED: an `opinion`, OR any certainty funes ever emits that we don't
+// The default case FAILS CLOSED: `opinion`, or any certainty funes emits that we don't
 // model, degrades to the least-authoritative rendering — never an unmarked line, which
-// would launder an unknown into apparent truth (the one thing this file exists to prevent).
+// would launder an unknown into apparent truth.
 function renderFact(f: Fact): string {
   switch (f.certainty) {
     case "stated":

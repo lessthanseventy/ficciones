@@ -22,21 +22,17 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
 
-      # pi (github.com/earendil-works/pi) — the agent harness manos plugs into. It is NOT a
-      # build toolchain (those are erlang/elixir/bun in mise); it is a program the human
-      # runs, so Nix owns it and it lives in the home profile. pi ships no nixpkgs package
-      # and no flake, so we wrap its prebuilt, bun-compiled linux-x64 release binary. The
-      # tarball is a whole tree — the ELF loads sibling node_modules (native .node addons),
-      # a theme dir and a wasm blob — so we install all of it and symlink bin/pi.
+      # pi (github.com/earendil-works/pi) — the agent harness manos plugs into; a program
+      # the human runs (not a build toolchain), so Nix owns it in the home profile. No
+      # nixpkgs package/flake, so we wrap the prebuilt bun-compiled linux-x64 tarball whole
+      # (ELF + sibling node_modules native addons + theme + wasm) and symlink bin/pi.
       #
-      # CRITICAL: a `bun build --compile` binary carries its app bundle as a trailer appended
-      # AFTER the ELF, found by byte offset. patchelf AND strip both rewrite the ELF and
-      # displace that trailer — after which bun no longer detects the embedded app and the
-      # binary degrades to the bare bun CLI (observed: `pi` printed bun's help). So we must
-      # NOT patch or strip it. On Arch (this box) the system glibc loader at /lib64 runs it
-      # as-is. The eventual NixOS box has no such loader and CANNOT patchelf a bun binary —
-      # it needs a wrapper that invokes the store ld-linux without touching the bytes (or
-      # nix-ld). Deferred with metal (adopt Nix gradually), tracked here rather than lost.
+      # CRITICAL: a `bun build --compile` binary appends its app bundle as a trailer AFTER
+      # the ELF, found by byte offset. patchelf/strip rewrite the ELF and displace that
+      # trailer, so bun stops detecting the embedded app and degrades to the bare bun CLI
+      # (observed: `pi` printed bun's help) — never patch or strip it. Arch's system glibc
+      # loader runs it as-is; a NixOS box has no such loader and would need a wrapper that
+      # invokes the store ld-linux without touching the bytes (or nix-ld) — deferred, tracked here.
       pi = pkgs.stdenv.mkDerivation rec {
         pname = "pi-coding-agent";
         version = "0.84.2";
@@ -76,18 +72,16 @@
       # derivation below.
       packages.${system}.pi = pi;
 
-      # funes is an Elixir/OTP app; day-to-day dev runs through mise (matching the box's
-      # toolchain). This shell is the reproducible equivalent: Elixir, plus sqlite3 for the
-      # 2am repair path. A `mix release` package is a later step — SQLite is the truth, so
-      # nothing is lost by packaging the runtime later.
+      # funes is Elixir/OTP; day-to-day dev runs through mise. This shell is the
+      # reproducible equivalent — Elixir + sqlite3 for the 2am repair path. A `mix
+      # release` package is a later step.
       devShells.${system}.default = pkgs.mkShell {
         packages = [ pkgs.beamPackages.elixir_1_18 pkgs.sqlite ];
       };
 
-      # The gradual-adoption path: home-manager on the existing Arch install.
-      # `home-manager switch --flake .#personalbox` applies the profile without touching the
-      # OS. It carries the AI-aware env — pi the harness, plus the manos wiring that makes a
-      # pi session a funes citizen — so the whole loop reproduces from this flake.
+      # The gradual-adoption path: home-manager on the existing Arch install, applied
+      # without touching the OS. Carries pi + the manos wiring that makes a pi session a
+      # funes citizen.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         modules = [
@@ -97,43 +91,33 @@
           (
             { lib, ... }:
             let
-              # The live repo path — pi loads the REAL extension/skills so a dev edit is
-              # picked up (not a stale store snapshot via `self`). Single-user machine: the
-              # home dir already fixes this location.
+              # Hardcoded, not `self`: pi loads the REAL extension/skills so a dev edit is
+              # picked up, not a stale store snapshot. Single-user machine, fixed home dir.
               repo = "/home/andrew/projects/ficciones";
               manosExtension = "${repo}/modules/manos/pi/src/extension.ts";
-              # consult — /consult (rich, with session context) and /fresh (thin one-shot):
-              # delegate a question to a different model and hand the answer back. The vision
-              # case (a text-only main model delegating a screenshot to minimax-m3) is the
-              # first use; a general "second opinion" is the same mechanism.
+              # consult — /consult and /fresh: delegate a question to a different model
+              # (e.g. a text-only model delegating a screenshot to minimax-m3) and return
+              # the answer.
               consultExtension = "${repo}/modules/manos/consult/src/extension.ts";
-              # fmt — the agent's format-on-save: mix format any .ex/.exs the edit/write tools
-              # touch, so `mix format --check-formatted` in the gate can't fail for an
-              # agent-written file. No typecheck here (too heavy per-save); diagnostics are
-              # the LSP stack's job, surfaced on demand.
+              # fmt — format-on-save (mix format) so `mix format --check-formatted` in the
+              # gate never fails on agent-written files. No typecheck here (too heavy per-save).
               fmtExtension = "${repo}/modules/manos/fmt/src/extension.ts";
-              # lsp — LSP-backed agent tools (hover/definition/references/symbols/diagnostics)
-              # over Expert (Elixir), typescript-language-server, nil (Nix), bash-ls, json-ls.
-              # See modules/manos/lsp/AGENTS.md. The servers are installed via home.packages
-              # above (pkgs.expert / typescript-language-server / nil / bash-language-server /
-              # vscode-json-languageserver) so the next box gets them.
+              # lsp — LSP-backed agent tools over Expert/tsserver/nil/bash-ls/json-ls;
+              # servers installed via home.packages below so the next box gets them. See
+              # modules/manos/lsp/AGENTS.md.
               lspExtension = "${repo}/modules/manos/lsp/src/extension.ts";
               manosSkillsGlob = "${repo}/modules/manos/skills/*";
 
-              # funes' self-contained release, built locally by `mise run funes:release`
-              # (capability-map move #1; nix builds this same release later — move A). The
-              # service below runs it headless; `funes:console`/`:restart` drive the same
-              # bin/funes, so node + cookie agree via the release's own env.sh.
+              # funes' self-contained release (`mise run funes:release`). The service below
+              # runs it headless; `funes:console`/`:restart` drive the same bin/funes, so
+              # node + cookie agree via the release's own env.sh.
               funesRel = "${repo}/modules/funes/_build/prod/rel/funes";
 
-              # funes' MCP server, for pi-mcp-adapter (door 2 — the model's funes tool calls).
-              # The URL is env-interpolated by the adapter at connect time. The auth header is
-              # a `!command` (pi-mcp-adapter §headers): the adapter runs it at connect and uses
-              # stdout as the header value. funes-cli.sh bearer mints a FRESH token against the
-              # FUNES_MCP_URL origin's /mint — same world as /mcp, survives a restart / token-
-              # model change / secret regeneration (the literal-tmux stale-401 fix). No frozen
-              # FUNES_TOKEN. pi-scoped path (~/.pi/agent/mcp.json), no collision with a global
-              # ~/.config/mcp/mcp.json a user might keep.
+              # funes' MCP server for pi-mcp-adapter. Auth header is a `!command`
+              # (pi-mcp-adapter §headers): funes-cli.sh bearer mints a FRESH token per
+              # connect against FUNES_MCP_URL's /mint, so it survives a restart/model
+              # change/secret regen — no frozen FUNES_TOKEN. pi-scoped path avoids
+              # colliding with a global ~/.config/mcp/mcp.json.
               funesMcpJson = builtins.toJSON {
                 mcpServers.funes = {
                   url = "\${FUNES_MCP_URL}";
@@ -143,18 +127,13 @@
                 };
               };
 
-              # pi's provider config (docs.ollama.com/integrations/pi → ~/.pi/agent/models.json).
-              # We OWN this file like mcp.json — it is machine config, not something pi writes to
-              # (pi's own UI-added models land in the separate models-store.json). Two providers,
-              # both OpenAI-compatible:
-              #   ollama       — the LOCAL daemon (localhost:11434). apiKey "ollama" is a placeholder
-              #                  the daemon ignores; models here must be pulled (`ollama pull …`).
-              #   ollama-cloud — ollama.com directly. The one door the OLLAMA_API_KEY opens: pi sends
-              #                  the key itself (\${OLLAMA_API_KEY} → pi env-interpolates it, so no
-              #                  secret lands in the nix store), and cloud model ids are BARE — no
-              #                  ":cloud" suffix (that suffix is only for the local-daemon signin path).
-              # The cloud list is a curated coding set from ollama.com/search?c=cloud (Aug 2026);
-              # add/remove ids freely — this file is the single source of truth for what pi offers.
+              # pi's provider config (~/.pi/agent/models.json) — we OWN this file like
+              # mcp.json (pi's UI-added models land in a separate models-store.json
+              # instead). Two OpenAI-compatible providers: ollama (local daemon, apiKey
+              # "ollama" is a placeholder the daemon ignores) and ollama-cloud (apiKey
+              # env-interpolated by pi as \${OLLAMA_API_KEY} so the secret never lands in
+              # the nix store; cloud model ids are BARE — no ":cloud" suffix, that's only
+              # for the local-daemon signin path).
               piModelsJson = builtins.toJSON {
                 providers = {
                   ollama = {
@@ -168,17 +147,15 @@
                     api = "openai-completions";
                     apiKey = "\${OLLAMA_API_KEY}";
                     models = [
-                      { id = "glm-5.2"; }          # Z.ai flagship, long-horizon, 976K ctx (default)
-                      { id = "glm-5.1"; }          # leads SWE-Bench Pro — strongest pure agentic-coding
-                      { id = "deepseek-v4-pro"; }  # frontier MoE, three reasoning modes
-                      { id = "deepseek-v4-flash"; } # efficient MoE, 1M ctx — the cheap/fast everyday tier
-                      { id = "kimi-k2.7-code"; }   # Moonshot coding-specialized, ~30% fewer thinking tokens
-                      # kimi-k3 removed: ollama.com serves it as EXTRA usage (HTTP 402), not
-                      # included in the $20 plan — it bills per-token on top. Keep it out so it
-                      # can't be selected by accident. Re-add only if you deliberately want to pay.
-                      # native multimodal — the one cloud model that takes images, so the
-                      # `input` field is declared and it's the vision target for a /consult
-                      # subagent (text-only models like glm-5.2 delegate screenshots here).
+                      { id = "glm-5.2"; }
+                      { id = "glm-5.1"; }
+                      { id = "deepseek-v4-pro"; }
+                      { id = "deepseek-v4-flash"; }
+                      { id = "kimi-k2.7-code"; }
+                      # kimi-k3 excluded: ollama.com bills it as EXTRA usage (HTTP 402), not
+                      # covered by the plan — kept out so it can't be selected by accident.
+                      # minimax-m3: the one cloud model taking images (`input` declared) — the
+                      # vision target for /consult (text-only models delegate screenshots here).
                       { id = "minimax-m3"; input = [ "text" "image" ]; }
                     ];
                   };
@@ -191,17 +168,11 @@
               home.stateVersion = "25.05";
               programs.home-manager.enable = true;
 
-              # tmux — a first-class stack citizen, flake-managed (adopted from the standalone
-              # ~/.config/tmux/tmux.conf repo). Trimmed to what the aleph/Tlön stack needs: mouse,
-              # extended-keys (shift+enter round-trips), resurrect+continuum (the Tlön persistence
-              # fable's literal-tmux design relies on), yank (OSC 52/wl-copy), tmux-thumbs (hint-
-              # label copy for paths/commit-hashes/IDs the agent workflow surfaces). Dropped the
-              # chrome that churned alongside the embedded pi: gitmux/tmux-cpu/tmux-battery (status
-              # scripts rerunning every status-interval), tmux-which-key, -floating, -autoreload,
-              # -mode-indicator, -prefix-highlight, -notify, -pain-control, -better-mouse-mode,
-              # -open, -fzf-url, extrakto, -sensible. Lean status bar (session + window tabs, no
-              # scripts) — load-bearing in Tlön for seeing/clicking the pi⇄claude windows. The old
-              # file is backed up on `home:switch` by the -b flag.
+              # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
+              # repo), trimmed to what aleph/Tlön needs: mouse, extended-keys, resurrect+
+              # continuum (Tlön's literal-tmux persistence), yank, tmux-thumbs. Dropped the
+              # status-script chrome (gitmux/cpu/battery) that churned alongside embedded
+              # pi. Old file backed up on `home:switch` via the -b flag.
               programs.tmux = {
                 enable = true;
                 shortcut = "b"; # Ctrl+B prefix (aleph's leader is Ctrl+Space, so no clash)
@@ -259,10 +230,10 @@
                 '';
               };
 
-              # rbw — Bitwarden CLI with an unlock agent; secrets stay in the vault, not plaintext
-              # dotfiles or the nix store. Config here is non-secret/declarative; master password +
-              # vault stay with Bitwarden. Needs `rbw unlock` once per session to warm the agent —
-              # a locked vault yields an empty key for the non-interactive Tlön pi spawn.
+              # rbw — Bitwarden CLI with an unlock agent, for interactive password management.
+              # Config here is non-secret/declarative; master password + vault stay with Bitwarden.
+              # Machine secrets (OLLAMA_API_KEY) use agenix, not rbw — rbw needs an interactive unlock,
+              # wrong for a non-interactive spawn.
               programs.rbw = {
                 enable = true;
                 settings = {
@@ -276,22 +247,15 @@
                 };
               };
 
-              # pi — the harness (byte-preserved bun binary, above). watchexec backs
-              # scripts/watch.sh's change-triggered test runner (runs-on-change, debounce,
-              # .gitignore-aware, restart-on-supersede); declared here so the next box has
-              # it, not left to whatever the OS happens to ship.
-              #
-              # LSP servers for the manos/lsp agent extension (hover/definition/references/
-              # diagnostics as pi tools). Flake-managed so the next box gets them, not left to
-              # mason or ~/.local/bin. typescript-language-server wraps tsserver; nil is the
-              # Nix LSP; bash-language-server for shell; vscode-json-languageserver for JSON.
-              # Expert (the Elixir LSP, expert-lsp.org — NOT elixir-ls) is the one exception:
-              # it isn't in the pinned nixpkgs yet (added upstream after 2026-08-13), so for
-              # now it's installed outside the flake (~/.local/bin/expert) and the adapter
-              # spawns it from PATH. When the flake's nixpkgs moves past expert's addition,
-              # add pkgs.expert here and it's fully flake-managed. The adapter registry in
-              # modules/manos/lsp/src/adapters.ts spawns these by name — adding a language is
-              # an adapter object + (usually) a package here.
+              # pi (byte-preserved bun binary, above). watchexec backs scripts/watch.sh's
+              # change-triggered test runner. LSP servers for manos/lsp
+              # (hover/definition/references/diagnostics as pi tools) — flake-managed so
+              # the next box gets them. Expert (the Elixir LSP, expert-lsp.org — NOT
+              # elixir-ls) is the exception: not yet in the pinned nixpkgs, so it's
+              # installed outside the flake (~/.local/bin/expert) and the adapter spawns it
+              # from PATH; add pkgs.expert here once nixpkgs catches up. The adapter
+              # registry in modules/manos/lsp/src/adapters.ts spawns these by name — adding
+              # a language is an adapter object + usually a package here.
               home.packages = [
                 pi
                 pkgs.watchexec
@@ -324,18 +288,15 @@
 
               # manos into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in
-              # idempotently, seeding {} if absent. This is the declarative install replacing
-              # the hand-edit in modules/manos/AGENTS.md.
+              # idempotently, seeding {} if absent.
               #
-              # The ollama defaults are seeded with `//=` (set-only-if-absent), NOT `=`: pi
-              # persists your runtime model switch (Ctrl+P) back into this same file, and we must
-              # not stomp it on every home:switch. So this picks the default the FIRST time and
-              # then defers to you. defaultProvider is ollama-cloud/deepseek-v4-flash — the efficient
-              # MoE default that drains the short rate-limit window far slower than a reasoning model
-              # (glm-5.2's thinking tokens trip it mid-session; see `mise run ollama:usage` to watch).
-              # Works the moment OLLAMA_API_KEY is set, no GPU or pull needed. Flip to "ollama"/"qwen3-coder" here
-              # (or just switch in-session) to drive a local model instead. enabledModels is the
-              # Ctrl+P cycle ring — every id from models.json so all are one keystroke away.
+              # Defaults use `//=` (set-only-if-absent), NOT `=`: pi persists your runtime
+              # model switch (Ctrl+P) back into this file, so we must not stomp it on every
+              # home:switch — this only picks the default the FIRST time. defaultProvider is
+              # ollama-cloud/deepseek-v4-flash: the efficient MoE default drains the short
+              # rate-limit window slower than a reasoning model (glm-5.2's thinking tokens
+              # trip it mid-session; `mise run ollama:usage` watches this). enabledModels is
+              # the Ctrl+P cycle ring — every id from models.json.
               home.activation.manosWiring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 PI_DIR="$HOME/.pi/agent"
                 SETTINGS="$PI_DIR/settings.json"
@@ -358,16 +319,13 @@
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
               '';
 
-              # The always-up sovereign channel (capability-map move #1) as a headless
-              # systemd --user service: nothing registers or briefs if the channel isn't
-              # up, and until now that was a hand-run iex. A self-contained release
-              # (`mise run funes:release`) means ExecStart is one absolute path with no
-              # toolchain on PATH. ExecStartPre migrates first — funes never serves on a
-              # schema it can't repair (its 2am law). LOOPBACK-only, on the REAL XDG db
-              # (FUNES_DB unset → ~/.local/share/funes/wb.db). Node name + cookie come from
-              # the release's own env.sh, so `funes:console`/`:restart` reach THIS node.
-              # Build the release before the first `home:switch` that starts it;
-              # `mise run funes:restart` redeploys a funes change.
+              # The always-up sovereign channel as a headless systemd --user service. A
+              # self-contained release (`mise run funes:release`) means ExecStart is one
+              # absolute path with no toolchain on PATH. ExecStartPre migrates first —
+              # funes never serves on a schema it can't repair. LOOPBACK-only, on the REAL
+              # XDG db (FUNES_DB unset → ~/.local/share/funes/wb.db). Node name + cookie
+              # come from the release's own env.sh, so `funes:console`/`:restart` reach
+              # THIS node. Build the release before the first `home:switch` that starts it.
               systemd.user.services.funes = {
                 Unit = {
                   Description = "funes — the always-up sovereign MCP channel (loopback)";

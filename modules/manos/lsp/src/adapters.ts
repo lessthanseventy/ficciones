@@ -1,14 +1,10 @@
 // The language adapter registry — the pluggable seam. Adding a language is one object here:
-// { name, command (the LSP server spawn), the file extensions it owns, how to find its
-// project root, and optional init options }. The extension routes a file to its adapter by
-// extension; the LspClient spawns/reuses the adapter's server per project root.
+// { name, command, the extensions it owns, how to find its project root, serverPackage }.
+// The extension routes a file to its adapter by extension; LspClient spawns/reuses the
+// adapter's server per project root. If a server binary isn't on PATH, the tool surfaces a
+// clear error rather than hanging.
 //
-// Servers: Expert (https://expert-lsp.org) for Elixir — the new standard Elixir LSP, NOT
-// elixir-ls. typescript-language-server for TS/JS (wraps tsserver). nil for Nix,
-// bash-language-server for shell, vscode-json-language-server for JSON — these three are
-// registered so the pattern is concrete and adding them is "install the server," not "wire
-// a new language." If a server binary isn't on PATH, the tool surfaces a clear error
-// (server not found) rather than hanging.
+// Expert (expert-lsp.org) is the Elixir server here — the current standard, not elixir-ls.
 
 import * as fs from "node:fs";
 import * as path from "node:path";

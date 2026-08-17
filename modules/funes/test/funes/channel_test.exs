@@ -54,7 +54,6 @@ defmodule Funes.ChannelTest do
     end
 
     test "a thread and a body are the only required fields (§5b)", %{thread: thread} do
-      # Missing body.
       assert {:error, changeset} = Channel.post(%{thread_id: thread.id, author: "sandra"})
       assert %{body: _} = errors_on(changeset)
 

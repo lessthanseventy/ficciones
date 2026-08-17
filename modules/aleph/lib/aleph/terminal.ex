@@ -113,17 +113,10 @@ defmodule Aleph.Terminal do
 
     term_opts = [cols: cols, rows: rows] ++ Keyword.take(opts, @theme_opts)
     {:ok, term} = Terminal.start_link(term_opts)
-    # Enable the Kitty keyboard protocol (CSI > 1 u = push flag level 1, disambiguate) on the
-    # emulator so `input_key` encodes shifted/modified keys the way a host ghostty does — pi's TUI
-    # decodes Kitty sequences (\e[13;2u for shift+enter, \e[118;5u for ctrl+v). Without this the
-    # embedded VT defaults to modifyOtherKeys and pi's shift+enter (newline), ctrl+v (image paste),
-    # and ctrl+shift+v/c (copy/paste) bindings silently misfire. The flag lives in the emulator
-    # (terminal→app key encoding only); it does not touch the host tty or pi's rendering.
-    # MUST stay byte-identical to Aleph.Cockpit's @kitty_enable (the host-side half of the same
-    # round-trip): host and emulator diverging on the pushed flag level silently breaks it.
-    # `kitty: false` opts out for children that DON'T decode CSI-u — the Tlön tmux client needs
-    # a legacy \x02 for its Ctrl+B prefix, not \e[98;5u (tmux ignores extended keys by default);
-    # apps under tmux negotiate their own key encoding with tmux.
+    # Kitty protocol (CSI >1u) so pi's shift+enter/ctrl+v decode correctly; without it they
+    # silently misfire under modifyOtherKeys. Must stay byte-identical to Cockpit's @kitty_enable
+    # (host side of the same round-trip). kitty: false for children like the Tlön tmux client that
+    # expect legacy Ctrl+B (\x02), not CSI-u.
     if Keyword.get(opts, :kitty, true), do: Terminal.write(term, @kitty_enable)
     {:ok, pty} = PTY.start_link(cmd: cmd, args: args, cols: cols, rows: rows)
 
@@ -207,11 +200,8 @@ defmodule Aleph.Terminal do
     {:reply, :ok, %{state | cols: cols, rows: rows}}
   end
 
-  # --- the wheel forward-vs-scroll branch (design: keep the Ghostty/mouse detail here, not the cockpit) ---
-
-  # Dispatched on whether the embedded program enabled mouse tracking — the two branches land on
-  # their own function heads (house rule). The full `modes` map is threaded into the forward branch
-  # so it can encode in the negotiated format (SGR vs legacy).
+  # Function-head dispatch on tracking mode (house rule); `modes` threaded through so the forward
+  # branch can encode in the negotiated format (SGR vs legacy).
   defp route_wheel(%{tracking: true} = modes, direction, _n, x, y, state) do
     emit(state.pty, forward_mouse(modes, :press, wheel_button(direction), [], x, y, state.term))
     :forwarded
@@ -237,17 +227,9 @@ defmodule Aleph.Terminal do
 
   defp route_click(%{tracking: false}, _x, _y, _state), do: :ignored
 
-  # Forward a mouse event to the PTY in the encoding the embedded program negotiated. SGR
-  # (CSI ?1006 — what tmux and every modern TUI requests) is encoded in CELL space here; the
-  # rare non-SGR mode (legacy xterm/urxvt) falls back to the ghostty NIF.
-  #
-  # Why SGR is hand-rolled: the ghostty NIF's `input_mouse` expects PIXEL positions — it divides
-  # x,y by a hardcoded 10×20 cell-pixel grid (screen 800×600) to recover cells. aleph lives in cell
-  # space (no pixels), so every event it handed the NIF landed at a fixed wrong cell: a wheel at
-  # cell (40,12) encoded as (5,1). tmux then scrolled the pane under (5,1), not the one under the
-  # cursor — the wheel looked dead. Encoding SGR directly from cells fixes the common path; the
-  # NIF fallback keeps legacy-mode programs working (its pixel assumption still misplaces coords
-  # there, but legacy mouse is rare and tmux is SGR).
+  # SGR (what tmux/modern TUIs request) is hand-rolled from cell coords: the ghostty NIF's
+  # input_mouse expects PIXEL positions (a hardcoded 10x20 grid), so handing it cells landed
+  # events at the wrong pane. Legacy mode still falls back to the NIF (rare; still pixel-based).
   defp forward_mouse(%{sgr: true}, action, button, mods, x, y, _term),
     do: {:ok, sgr_mouse_bytes(action, button, mods, x, y)}
 

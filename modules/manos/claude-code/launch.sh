@@ -1,29 +1,24 @@
 #!/usr/bin/env bash
 # mise run funes:claude [thread-id] — launch Claude Code as a funes citizen.
+# No thread-id: open a fresh thread. A numeric thread-id: join that thread (resume across
+# a /clear).
 #
-# No thread-id: open a FRESH thread (titled from cwd + branch). A numeric thread-id:
-# JOIN that thread (resume a task's thread across a /clear). Andrew's choice (B).
+# The funes MCP server (Door 1) and brief hook (Door 2) are scoped to THIS session via
+# `--mcp-config`/`--settings`, not installed into ~/.claude, so a normal `claude` stays
+# untouched.
 #
-# The funes MCP server (Door 1) and the brief hook (Door 2) are scoped to THIS session
-# via `--mcp-config` / `--settings`, NOT installed into ~/.claude — so a normal `claude`
-# stays untouched and never sees a funes server it can't authenticate. Everything is
-# computed at launch (no hardcoded paths on disk), so it works from any box/checkout.
-#
-# The token is NEVER frozen. The MCP server uses a `headersHelper` (`scripts/funes-cli.sh
-# token`) that mints a FRESH token for (FUNES_THREAD, FUNES_AUTHOR) on every
-# connect/reconnect by POSTing to the /mint endpoint at the FUNES_MCP_URL origin — so auth
-# hits the right world (aleph's 4041 or the service's 4040) and survives a funes restart,
-# a token-model change, or a secret regeneration (the literal-tmux stale-401 fix).
+# The token is never frozen: the MCP server's `headersHelper` mints a fresh token per
+# connect/reconnect (POST /mint at FUNES_MCP_URL's origin), so auth survives a funes
+# restart, a token-model change, or a secret regeneration.
 set -euo pipefail
 
 adapter="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$adapter/../../.." && pwd)"
 cli="$repo/scripts/funes-cli.sh"
 
-# Identity handed in by the environment (aleph's Tlön claude pane exports the FUNES_* block
-# before exec'ing this launcher): keep it — the identity was ensured by the CALLING funes
-# node, and per-connect mint targets FUNES_MCP_URL's origin, so the token is always minted
-# in the same world that serves /mcp. No static bearer, no wrong-world split.
+# If the environment already carries a funes identity (e.g. aleph's Tlön pane exported it
+# before exec'ing this launcher), keep it as-is — per-connect minting targets FUNES_MCP_URL's
+# origin, so the token is always minted in the same world that serves /mcp.
 if [ -z "${FUNES_MCP_URL:-}" ] || [ -z "${FUNES_THREAD:-}" ] || [ -z "${FUNES_AUTHOR:-}" ]; then
   # Optional leading numeric thread-id → join; otherwise open a fresh thread.
   join_id=""

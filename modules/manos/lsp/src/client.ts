@@ -1,16 +1,11 @@
-// A minimal LSP client over stdio — the base protocol (Content-Length framing) on top of
-// JSON-RPC. One LspClient per (adapter, project root): spawned once, initialized, then
-// reused for every request on a file under that root. The extension holds a cache of them.
+// A minimal LSP client over stdio — Content-Length-framed JSON-RPC. One LspClient per
+// (adapter, project root): spawned once, initialized, then reused for every request under
+// that root; the extension holds the cache.
 //
-// Deliberately small, not a general LSP framework: it does the initialize handshake,
-// textDocument/didOpen, and the four requests we expose (hover/definition/references/
-// documentSymbol). publishDiagnostics notifications are collected per-file so the
-// `diagnostics` tool can return them without a round-trip. Every request has a timeout —
-// an LSP server must never hang the agent. Any failure throws; the extension turns it into
-// a tool error string, never a silent hang.
-//
-// See https://microsoft.github.io/language-server-protocol/ for the protocol. We target
-// the 3.17 request/response shapes; servers broadly agree.
+// Deliberately small, not a general LSP framework: initialize, textDocument/didOpen, and
+// the four requests we expose. publishDiagnostics notifications are collected per-file so
+// `diagnostics` can return them without a round-trip. Every request has a timeout — an LSP
+// server must never hang the agent; any failure throws.
 
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import * as fs from "node:fs";
@@ -156,8 +151,6 @@ export class LspClient {
     this.#proc.kill("SIGTERM");
   }
 
-  // ── the JSON-RPC base protocol ─────────────────────────────────────────────────────
-
   #onData(chunk: string): void {
     this.#buf += chunk;
     // Parse as many complete frames as the buffer holds.
@@ -227,8 +220,6 @@ export class LspClient {
     this.#proc.stdin.write(frame);
   }
 }
-
-// ── helpers ───────────────────────────────────────────────────────────────────────────
 
 function uri(absPath: string): string {
   return "file://" + absPath;

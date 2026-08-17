@@ -125,11 +125,11 @@ defmodule Funes.MCP.Spawn do
 
   defp exports(thread, agent, _token) do
     # No FUNES_TOKEN in the block: a frozen token strands the pane the moment the token
-    # model changes or the world secret regenerates (the 2026-08-16 literal-tmux stale-401).
-    # The adapter mints a fresh token per connect against this URL's origin (POST /mint),
-    # so identity travels as the stable, format-agnostic (FUNES_THREAD, FUNES_AUTHOR,
-    # FUNES_MCP_URL). The `:token` in this function's return is kept for callers/tests
-    # that want a one-shot token, but it is not frozen into any pane's env.
+    # model changes or the world secret regenerates. The adapter mints a fresh token
+    # per connect against this URL's origin (POST /mint), so identity travels as the
+    # stable, format-agnostic (FUNES_THREAD, FUNES_AUTHOR, FUNES_MCP_URL). The `:token`
+    # in this function's return is kept for callers/tests that want a one-shot token,
+    # but it is not frozen into any pane's env.
     port = Application.get_env(:funes, :mcp_port, 4040)
 
     """

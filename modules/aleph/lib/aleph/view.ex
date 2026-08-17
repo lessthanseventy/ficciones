@@ -41,11 +41,10 @@ defmodule Aleph.View do
     right_x = center_x + center_w + 1
     right_w = max(w - right_x, 1)
 
-    # Each column holds a stack of *sections*, and every section is its own bordered box (the
-    # switcher is a box, the thread list is a box, …) — so sections read as defined regions. A
-    # section is a bare panel module (data resolved by `data_for/2`) or a `{panel, read_key}`
-    # surface pair (data read straight from `reads[key]` — how Tlön's two Terminal panes get
-    # distinct data). Wide viewports get three columns; narrow ones collapse to one stacked column.
+    # Each column holds a stack of *sections*, each its own bordered box, so sections read as
+    # defined regions. A section is a bare panel module (data resolved by `data_for/2`) or a
+    # `{panel, read_key}` pair reading straight from `reads[key]` — how Tlön's two Terminal panes
+    # get distinct data. Wide viewports get three columns; narrow ones collapse to one.
     columns =
       case layout_for(w) do
         :wide ->

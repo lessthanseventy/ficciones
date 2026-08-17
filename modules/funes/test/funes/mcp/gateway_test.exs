@@ -1,9 +1,8 @@
 defmodule Funes.MCP.GatewayTest do
-  # The /mint endpoint (Funes.MCP.Gateway) — the structural fix for the literal-tmux
-  # stale-401: an adapter mints a fresh token per connect against its FUNES_MCP_URL
-  # origin, so a pane is never stranded by a token-model change or a secret
-  # regeneration. Proven END TO END over the wire (Bandit serves the Gateway on a real
-  # loopback port, :httpc posts) — the same harness server_test uses.
+  # The /mint endpoint (Funes.MCP.Gateway): an adapter mints a fresh token per connect
+  # against its FUNES_MCP_URL origin, so a pane is never stranded by a token-model
+  # change or a secret regeneration. Proven END TO END over the wire (Bandit serves the
+  # Gateway on a real loopback port, :httpc posts) — the same harness server_test uses.
   use ExUnit.Case, async: false
 
   alias Funes.Channel

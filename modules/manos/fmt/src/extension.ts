@@ -1,21 +1,14 @@
-// manos/fmt — the agent's format-on-save. pi's `tool_result` middleware fires after every
-// tool call; this extension watches `edit`/`write` and, when the touched file is an
-// `.ex`/`.exs` inside a mix project, runs `mix format <file>` in that project's root so the
-// file is always styler-compliant the instant the agent writes it. The `mix format
-// --check-formatted` gate can then never fail for an agent-written file.
+// manos/fmt — the agent's format-on-save. Watches `edit`/`write` tool results and, when the
+// touched file is `.ex`/`.exs` inside a mix project, runs `mix format <file>` so
+// `mix format --check-formatted` can never fail for an agent-written file. See
+// modules/manos/fmt/AGENTS.md.
 //
-// Best-effort and invisible: a format failure never fails the edit (the tool_result is
-// returned unchanged), and mix format is a no-op on already-compliant code. The one race:
-// if mix format reformats a file the model just wrote, the model's NEXT edit's oldText (from
-// its pre-format memory) can mismatch the formatted disk. The natural recovery is a re-read
-// — and the model re-reads before editing files it didn't just write anyway. Net-positive:
-// it eliminates the recurring format-check failure for the cost of a rare, self-recovering
-// retry. See modules/manos/fmt/AGENTS.md.
+// Best-effort and invisible: a format failure never fails the edit. One race: if mix format
+// reformats a file the model just wrote, its next edit's oldText (pre-format memory) can
+// mismatch disk — self-recovers on the model's next re-read.
 //
-// Only Elixir is formatted here — it's the only language in the stack whose gate runs a
-// formatter (`mix format --check-formatted` in funes:check / aleph:check). TypeScript has no
-// formatter in its gate (manos:consult:check is typecheck + tests), so there's nothing to
-// auto-format for .ts. Diagnostics/typecheck for .ts is the LSP stack's job, not this one.
+// Only Elixir is formatted — it's the only language whose gate runs a formatter check
+// (funes:check / aleph:check). TypeScript's gate has no formatter, so nothing to do here.
 
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";

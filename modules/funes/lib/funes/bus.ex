@@ -26,19 +26,17 @@ defmodule Funes.Bus do
   """
   @pubsub Funes.PubSub
 
-  # --- topics ---
   def messages_topic, do: "funes:messages"
   def thread_topic(id), do: "funes:thread:#{id}"
   def threads_topic, do: "funes:threads"
   def sessions_topic, do: "funes:sessions"
 
-  # --- subscribe ---
   def subscribe_messages, do: sub(messages_topic())
   def subscribe_thread(id), do: sub(thread_topic(id))
   def subscribe_threads, do: sub(threads_topic())
   def subscribe_sessions, do: sub(sessions_topic())
 
-  # --- unsubscribe (a consumer that follows the *focused* thread drops the old topic on a switch) ---
+  # A consumer that follows the *focused* thread drops the old topic on a switch.
   def unsubscribe_thread(id), do: Phoenix.PubSub.unsubscribe(@pubsub, thread_topic(id))
 
   defp sub(topic), do: Phoenix.PubSub.subscribe(@pubsub, topic)

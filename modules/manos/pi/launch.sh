@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# pi model launcher + funes citizenship (capability-map move #3 backfill). The `pi:*`
-# mise tasks pass a fixed --provider/--model/[--thinking]; an optional trailing numeric
-# thread-id JOINs that funes thread (else a fresh one is opened). Everything after is
-# passed through to pi (e.g. `-- 42 -p "one-shot"` joins 42; `-- -p "…"` opens fresh).
+# pi model launcher + funes citizenship. The `pi:*` mise tasks pass a fixed
+# --provider/--model/[--thinking]; an optional trailing numeric thread-id joins that funes
+# thread (else a fresh one is opened). Everything after is passed through to pi.
 #
-# Identity flows the pi way: this exports the full FUNES_* block (a STATIC bearer), and
-# pi's manos extension reads it at session_start to register. If the funes channel isn't
-# up, pi still launches — just not as a funes citizen (never held hostage to funes).
+# This exports the FUNES_* block and pi's manos extension reads it at session_start to
+# register. If the funes channel isn't up, pi still launches — just not as a funes citizen.
 set -euo pipefail
 
 adapter="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -43,10 +43,9 @@ defmodule Aleph.Space do
       %__MODULE__{
         key: :comms,
         label: "Comms",
-        # The chorus (all threads, one feed) IS the center now, so the threads leave the left —
-        # navigating them lives in the feed (the focused thread's block is highlighted). The left
-        # carries who's live (IN FLIGHT), the useful sidebar for a chat: presence, not a list the
-        # middle already shows.
+        # The chorus IS the center now, so thread navigation lives in the feed (the focused
+        # thread's block is highlighted) and the left carries presence (IN FLIGHT) instead of a
+        # list the middle already shows.
         surface: [Chorus],
         left: [Roster],
         right: [Dossier]
@@ -61,14 +60,9 @@ defmodule Aleph.Space do
         right: [Dossier]
       },
       %__MODULE__{
-        # Tlön — the META space: the machine/stack as a whole, not a project. The center is
-        # LITERAL tmux: an embedded client attached to the standing `tlon` session, so the
-        # machine workspace gets tmux's own windows/tabs, mouse, resurrect/plugins and the
-        # user's config — and it SURVIVES aleph restarts (the session outlives the client).
-        # pi lives in window 0 (spawned with the session); claude is a lazily-summoned window
-        # (`Ctrl+Space o`), so entering Tlön never drains the scarce bucket by itself. The left is
-        # STACK (recent ficciones commits); the right is TOOLS (installed versions). The
-        # multi-section surface machinery (a LIST here) stays for future split centers.
+        # Tlön: the center is literal tmux — an embedded client on the standing `tlon` session, so
+        # it survives aleph restarts. pi lives in window 0; claude is lazily summoned (Ctrl+Space
+        # o), so entering Tlön alone never drains the scarce bucket.
         key: :tlon,
         label: "Tlön",
         surface: [{Terminal, :machine}],

@@ -1,26 +1,12 @@
-// manos/consult — delegate a question to a DIFFERENT model, then hand its answer back to
-// the main session. Two slash commands, one spawn path, the v1 "/consult" pattern:
+// manos/consult — delegate a question to a different model, then hand its answer back to
+// the main session via sendUserMessage. /consult includes the recent session transcript as
+// context (a rich second opinion); /fresh is a clean one-shot with just the prompt.
 //
-//   /consult [model] <prompt>   — RICH: the delegate receives the recent session transcript
-//                                  as context, so it can review what's happened and opine.
-//                                  "Review the current session and any relevant info."
-//   /fresh   [model] <prompt>   — THIN: no session context, just the prompt — a clean
-//                                  one-shot, the `pi -p "…"` shape. Good for a second
-//                                  opinion that shouldn't be biased by the session, and
-//                                  for vision (a text-only main model delegates a
-//                                  screenshot to a multimodal one without dragging context).
-//
-// Both spawn a transient `pi -p --no-session --model <id>` (a one-shot that writes no
-// session file, registers no funes thread — the manos adapter stays quiet because the
-// spawn passes no FUNES_* env). The delegate's output is injected via sendUserMessage so
-// the main agent sees it and reacts — the same loop v1 had.
+// Both spawn a transient `pi -p --no-session --model <id>` with no FUNES_* env, so the
+// manos adapter stays quiet and no funes thread is registered by the delegate.
 //
 // Default model is `minimax-m3` (the one cloud model declared image-capable in flake.nix),
-// so the common case — "I just pasted a screenshot the main model can't see" — works with
-// no model arg: `/fresh read /tmp/pi-clipboard-….png and describe it`.
-//
-// The extension holds NO state and adds NO npm dependency. It re-enters the running pi
-// binary to spawn the delegate (the same re-entry trick pi's own subagent example uses).
+// so a bare `/fresh describe this` works for a pasted screenshot with no model arg.
 
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
@@ -35,10 +21,8 @@ import type {
   ToolResultPatch,
 } from "./pi.ts";
 
-// Pure helpers are exported inline (see `export function` below) and pinned by
-// delegate.test.ts — the spawn/inject and vision-fetch seams are side-effects, but
-// arg-parsing, text-extraction, transcript rendering, and the image-omission detector
-// are pure decisions worth pinning.
+// Pure helpers below are exported and pinned by delegate.test.ts; the spawn/inject and
+// vision-fetch seams are side-effects and untested here.
 
 const DEFAULT_MODEL = "minimax-m3";
 const PROVIDER = "ollama-cloud";
@@ -61,10 +45,7 @@ const KNOWN_MODELS = [
 // without footing the whole history. The most recent turns win (we slice from the tail).
 const MAX_TRANSCRIPT_CHARS = 20_000;
 
-// Tools the delegate may use. /consult gets read+grep+bash so it can review relevant files
-// (the "any relevant info" half of v1); /fresh gets the same — the thin/thick axis is
-// CONTEXT, not tools. (A future /ask with no tools could slot in if a truly bare one-shot
-// is wanted; not now.)
+// Both commands get the same tools — the thin/thick axis is context, not tools.
 const DELEGATE_TOOLS = "read,grep,bash";
 
 export default function consult(pi: ExtensionAPI): void {
@@ -82,18 +63,13 @@ export default function consult(pi: ExtensionAPI): void {
   pi.registerCommand("consult", consultOpts);
   pi.registerCommand("fresh", freshOpts);
 
-  // The auto-vision hook: when a text-only main model (e.g. glm-5.2) calls `read` on an
-  // image, pi's read tool returns "Current model does not support images. The image will be
-  // omitted from this request." — the model would then hallucinate or stall. This handler
-  // catches that result, sends the image straight to a multimodal model (minimax-m3, the one
-  // cloud model declared image-capable in flake.nix) as a single vision API call, and swaps
-  // the omission text for a real textual description. The model never learns a new tool —
-  // you just paste, and the screenshot gets described.
+  // Auto-vision: transparently delegate image reads a text-only model can't ingest. See
+  // onToolResult below.
   pi.on("tool_result", (event, ctx) => onToolResult(event, ctx));
 }
 
-// The shared path: parse [model] <prompt>, build the task (with or without transcript),
-// spawn the delegate, inject its output back as a user message.
+// Shared path for /consult and /fresh: parse args, build the task, spawn the delegate,
+// inject its output back as a user message.
 async function delegate(
   pi: ExtensionAPI,
   args: string,
@@ -125,9 +101,8 @@ async function delegate(
       ctx.ui.notify(`/${verb} ${model}: delegate returned no output.`, "warning");
       return;
     }
-    // Hand the answer back: inject as a user message so it lands in the transcript AND
-    // triggers the main agent to react to it. Framed so it's clear this is a consult,
-    // not something the operator typed.
+    // Inject as a user message so it lands in the transcript and triggers the main agent
+    // to react; the [/verb model] prefix marks it as a delegate, not operator input.
     pi.sendUserMessage(`[/${verb} ${model}] ${prompt}\n\n${trimmed}`);
   } catch (err) {
     ctx.ui.setStatus("consult", "");
@@ -150,10 +125,7 @@ export function parseArgs(args: string): { model: string; prompt: string } {
   return { model: DEFAULT_MODEL, prompt: trimmed };
 }
 
-// Render the recent session as a transcript the delegate can review. User + assistant text
-// only — tool calls and their results are dropped (they're noise for a "review my session"
-// consult; the text turns carry the arc). Our own previously-injected consult/fresh
-// messages are skipped so the transcript doesn't recurse into prior delegations.
+// Pull entries from the session manager and hand them to the pure renderer below.
 function serializeSession(ctx: ExtensionCommandContext): string {
   let entries: SessionEntry[];
   try {
@@ -211,18 +183,14 @@ export function extractText(content: unknown): string {
   return parts.join("\n").trim();
 }
 
-// ── auto-vision: transparent image delegation ───────────────────────────────────────────
-//
-// When a text-only main model calls `read` on an image, pi's read tool emits a result whose
-// text block is "Read image file [image/png]\n[Current model does not support images. The
-// image will be omitted from this request.]". The tool_result middleware below catches that,
-// sends the image to a multimodal model as a single vision API call, and swaps the omission
-// text for the description. The model never learns a new tool — pasting just works.
+// Auto-vision: pi's read tool emits "Read image file [image/png]\n[Current model does not
+// support images. The image will be omitted from this request.]" when a text-only model
+// reads an image. The tool_result middleware below catches that marker, sends the image to
+// a multimodal model as a single vision API call, and swaps the omission text for the
+// description — the model never learns a new tool, pasting just works.
 
-// The prompt sent to the vision model. Two shapes: a TARGETED prompt when we can read
-// the user's framing ("they asked X — describe what's relevant, plus the full screen"), and
-// a GENERIC fallback when the screenshot was pasted with no words. Kept here (not inlined)
-// so the wording is pinned by tests and tweakable in one place.
+// Two shapes: TARGETED when we can read the user's framing, GENERIC when the screenshot
+// was pasted with no words. Kept here (not inlined) so wording is pinned by tests.
 const VISION_PROMPT_GENERIC =
   "Describe this screenshot precisely for another AI agent that cannot see it. " +
   "Cover: overall layout and structure, ALL visible text (verbatim where readable), " +
@@ -272,9 +240,8 @@ function stripImagePaths(text: string): string {
     .trim();
 }
 
-// The tool_result middleware. Returns a content patch that replaces the omission text with
-// the vision model's description, or undefined to leave the result untouched (non-image reads,
-// or a delegate re-entry we deliberately skip to avoid recursion).
+// Returns a content patch replacing the omission text with the vision model's description,
+// or undefined to leave non-image reads (or a delegate re-entry) untouched.
 async function onToolResult(
   event: ToolResultEvent,
   ctx: ExtensionContext,
@@ -361,11 +328,9 @@ export function inferMime(omitText: string, imgPath: string): string {
   }
 }
 
-// Send the image straight to the multimodal model as a single vision chat-completions call
-// — no pi spawn (a pure image description needs no agent loop, no tools, no session). The
-// ollama-cloud OpenAI-compatible endpoint takes a data: URL in an image_url content block.
+// A direct vision chat-completions call — no pi spawn needed for a pure image description.
 // minimax-m3 is a reasoning model, so `content` can come back empty when thinking eats the
-// budget; fall back to the `reasoning` field in that case and surface it as the description.
+// budget; fall back to the `reasoning` field in that case.
 async function describeImage(
   absPath: string,
   mime: string,
@@ -411,9 +376,8 @@ async function describeImage(
   return out;
 }
 
-// Spawn a transient `pi -p --no-session --model <id>` one-shot and capture its stdout (the
-// delegate's answer). Re-enters the running pi binary via the same argv trick pi's own
-// subagent example uses — robust whether pi is launched as a bun bundle or via PATH.
+// Spawn a transient `pi -p --no-session --model <id>` one-shot and capture its stdout.
+// Re-enters the running pi binary — robust whether pi is a bun bundle or on PATH.
 function runPi(model: string, task: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const inv = getPiInvocation([
@@ -429,9 +393,8 @@ function runPi(model: string, task: string): Promise<string> {
     ]);
     const proc = spawn(inv.command, inv.args, {
       stdio: ["ignore", "pipe", "pipe"],
-      // Mark the subagent so our own tool_result hook skips it — a delegate's image reads
-      // stay as-is, preventing delegation from chaining (a /consult to a text-only model
-      // that reads an image would otherwise re-delegate to minimax-m3, and so on).
+      // Marks the subagent so our own tool_result hook skips it — prevents delegation
+      // from chaining (a delegate reading an image would otherwise re-delegate too).
       env: { ...process.env, PI_CONSULT_DELEGATE: "1" },
     });
     let stdout = "";

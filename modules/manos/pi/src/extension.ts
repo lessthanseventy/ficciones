@@ -1,15 +1,11 @@
-// manos — the pi adapter (pi doc §2b). The three lifecycle seams that make a pi session
-// a citizen of its funes thread:
+// manos — the pi adapter (pi doc §2b). Three lifecycle hooks make a pi session a citizen
+// of its funes thread: session_start registers (claims the pane, supersedes any zombie
+// predecessor); before_agent_start injects the rendered dossier as the honest brief
+// (aleph §3b: briefed from funes state, never a raw replay); turn_end refreshes the footer.
 //
-//   session_start      → register (claim the pane, supersede any zombie predecessor)
-//   before_agent_start → get_dossier → render the honest brief → inject it, so the
-//                        agent wakes already knowing its goal, learnings and blockers
-//                        (aleph §3b's thesis: briefed from funes state, never a raw replay)
-//   turn_end           → refresh the footer widget with live funes state
-//
-// The extension holds NO state and touches NO SQLite. It calls funes' channel through
-// its own MCP client (mcp.ts); when funes is unreachable it surfaces the failure and
-// does nothing else — no retry queue, no spill file (AGENTS.md, pi doc §2a).
+// Holds no state, touches no SQLite — calls funes through its own MCP client (mcp.ts).
+// When funes is unreachable it surfaces the failure and does nothing else: no retry queue,
+// no spill file (AGENTS.md, pi doc §2a).
 
 import { env } from "node:process";
 import { renderBrief, type Dossier } from "./brief.ts";
@@ -19,12 +15,10 @@ import type { ExtensionAPI, ExtensionContext } from "./pi.ts";
 const STATUS_KEY = "funes";
 const WIDGET_KEY = "funes";
 
-// Identity travels in the spawn (pi doc §2d): the arbiter — the human, for these slices —
-// exports FUNES_MCP_URL (the endpoint), FUNES_THREAD and FUNES_AUTHOR (the binding). No
-// FUNES_TOKEN — the client mints a fresh token per connect against the URL's origin
-// (POST /mint), so a pane survives a token-model change or a secret regeneration (the
-// literal-tmux stale-401 fix). Missing any of the three means this pane was not spawned
-// as a funes citizen; the adapter stays quiet rather than guessing.
+// Identity travels in the spawn (pi doc §2d): FUNES_MCP_URL/THREAD/AUTHOR. No FUNES_TOKEN
+// — the client mints a fresh token per connect against the URL's origin, so a pane survives
+// a token-model change or secret regeneration. Missing any of the three means this pane
+// wasn't spawned as a funes citizen; the adapter stays quiet rather than guessing.
 function readConfig(): FunesConfig | null {
   const url = env.FUNES_MCP_URL;
   const thread = env.FUNES_THREAD;
@@ -42,10 +36,9 @@ function identityLabel(): string {
 export default function manos(pi: ExtensionAPI): void {
   const config = readConfig();
 
-  // One client for this pane's lifetime — connect() is guarded, so every hook can await
-  // it and only the first does the handshake. register binds the session to the TOKEN, so
-  // the model's own tool calls (through pi-mcp-adapter, a separate connection, same token)
-  // resolve this same session and keep it warm.
+  // One client for this pane's lifetime — connect() is guarded so only the first hook does
+  // the handshake. register binds the session to the TOKEN, so the model's own tool calls
+  // (a separate connection, same token) resolve this same session.
   const client = config ? new FunesClient(config) : null;
 
   pi.on("session_start", async (_event, ctx) => {

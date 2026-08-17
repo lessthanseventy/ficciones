@@ -39,11 +39,9 @@ defmodule Aleph.Cockpit do
   # emit mouse events, which the Driver translates into Event{type: :mouse, data: %{x, y, button}}.
   @tb_input_esc_mouse 5
 
-  # The standing Tlön machine coworkers' funes agent names — stable, distinct identities so
-  # restarts reuse the same agents and they never collide with a project thread's harness. Both
-  # panes are citizens of the SAME machine thread: pi is the always-on workhorse, claude the
-  # deliberate escalation (spawned lazily on first focus — entering Tlön must not drain the
-  # scarce bucket by itself).
+  # Stable identities for Tlön's two machine coworkers, so restarts reuse the same agents (no
+  # collision with a project thread's harness). Both share the machine thread: pi always-on,
+  # claude a lazy escalation spawned on first focus, so entering Tlön alone never drains the bucket.
   @machine_agent "pi-machine"
   @machine_claude_agent "claude-machine"
 
@@ -103,18 +101,12 @@ defmodule Aleph.Cockpit do
         # through this cockpit, whoever started them.
         Sessions.observe(self())
 
-        # Enable the Kitty keyboard protocol's disambiguate mode on the host tty (CSI > 1 u =
-        # push flags, set disambiguate). A host like ghostty then sends \e[13;2u for shift+enter
-        # (and \e[<cp>;<mods>u for other modified keys) instead of a bare \r that drops the
-        # modifier. Plain keys keep their legacy form (enter stays \r, ctrl+v stays \x16), so
-        # nothing else changes. raxol's InputParser (self-healed with CSI-u decode — see mix.exs)
-        # turns the sequence into %{key: :enter, shift: true}, and the tmux-style keymap forwards
-        # it to the embedded terminal, which (its own Kitty protocol armed) encodes a real shifted
-        # enter. Popped in teardown (\e[<u). On a host without Kitty support the push is ignored
-        # and shift+enter degrades to a bare \r — no regression.
+        # Enable Kitty keyboard disambiguate mode (CSI >1u) on the host tty so shift+enter etc.
+        # arrive with modifiers intact (raxol's self-healed InputParser decodes \e[<cp>;<mods>u —
+        # see mix.exs) instead of degrading to a bare \r. Popped in teardown; harmless on a
+        # non-Kitty host (the push is simply ignored).
         IO.write(@kitty_enable)
 
-        # --- input + resize from the termbox Driver (GenServer casts) ---
         state =
           render(%{
             driver: driver,
@@ -140,15 +132,9 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # termbox2's `tb_init` enables DECCKM (application cursor keys, `ESC[?1h` — see termbox2.h's
-  # ENTER_KEYPAD cap), which makes arrow keys arrive as SS3 (`ESC O A`). Raxol's ANSI
-  # `InputParser` decodes CSI arrows (`ESC [ A`) but not SS3 ones, so under DECCKM every arrow
-  # --- Funes.Bus events (plain messages) → reload + repaint ---
-
-  # mis-parses (to Alt+O + a stray char) and the cockpit never sees `:up`/`:down` — only `j`/`k`
-  # worked. Reset DECCKM to normal cursor keys so arrows come through as CSI, which the parser
-  # handles. Written to `/dev/tty` because that's the fd termbox drives (not necessarily stdout);
-  # termbox's own shutdown sends the same reset, so this only brings it forward to boot.
+  # termbox2's tb_init enables DECCKM (application cursor keys), so arrows arrive as SS3 (ESC O A)
+  # instead of CSI — raxol's InputParser only decodes CSI arrows, so under DECCKM :up/:down never
+  # fired (only j/k worked). Reset on /dev/tty (the fd termbox drives) so arrows come through as CSI.
   defp normalize_cursor_keys do
     # Best-effort: if /dev/tty can't be written we simply keep termbox's default cursor-key mode.
     _ = File.write("/dev/tty", "\e[?1l")
@@ -223,23 +209,18 @@ defmodule Aleph.Cockpit do
     Process.send_after(self(), :tick, @tick_ms)
     # A pending coalesced :render is now redundant (this tick paints); drop the flag so it no-ops.
     state = %{state | render_scheduled?: false}
-    # Re-sync + re-read the terminal size every tick, so a missed SIGWINCH self-corrects within a
-    # tick: refresh_size calls tb_resize/0, which re-queries the size via ioctl independent of any
-    # signal, so the layout can't strand at the old size.
+    # Re-sync every tick so a missed SIGWINCH self-corrects: refresh_size re-queries via ioctl,
+    # independent of any signal.
     state = refresh_size(state)
-    # And re-fit the center PTY to the center region — a terminal spawned *between* window resizes
-    # (a new session, the Tlön coworker) starts at 80x24 and would otherwise fill only part of the
-    # panel until the next resize. `Terminal.resize` is a no-op when the size is unchanged, so this
-    # only actually reflows the child when it needs to.
+    # Re-fit the center PTY too: a terminal spawned between resizes starts at 80x24 and would
+    # otherwise fill only part of the panel. Terminal.resize no-ops when size is unchanged.
     resize_focused_terminal(state)
     {:noreply, render(state)}
   end
 
-  # An embedded session terminal moved (new output, bell, or the child exited). Rendering
-  # per-event gave native-latency output but starved input during streaming — the mailbox
-  # flooded with terminal events, each doing a full render, and key casts queued behind.
-  # Coalesce: arm a single :render on a short timer; once armed, subsequent terminal events
-  # are a cheap no-op. Output draws within one frame (@render_coalesce_ms), input lands now.
+  # Rendering per :updated event gave native-latency output but starved input during streaming
+  # (the mailbox flooded with terminal events, each doing a full render, key casts queued behind).
+  # Coalesce: arm one :render on a short timer; further events until it fires are cheap no-ops.
   def handle_info({Terminal, _pid, _event}, state), do: {:noreply, schedule_render(state)}
 
   # The coalesced render: clear the armed flag and paint. A :render that arrives with the
@@ -262,10 +243,9 @@ defmodule Aleph.Cockpit do
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
   end
 
-  # Operator-relevant Bus events become native desktop notifications: an OSC 777 escape on the
-  # host tty, which ghostty (Linux and macOS alike) raises natively and only when unfocused —
-  # the terminal owns focus policy, aleph just says what happened. Best-effort: a host that
-  # ignores OSC 777 ignores the bytes. Aleph.Notify decides+formats (pure); this is the edge.
+  # Operator-relevant Bus events become native desktop notifications via an OSC 777 escape —
+  # ghostty (Linux and macOS) raises it as a real notification, and only when unfocused (the
+  # terminal owns focus policy). Best-effort: a host that ignores OSC 777 ignores the bytes.
   defp desktop_notify(tag, row) do
     with {title, body} <- Aleph.Notify.for_event(tag, row) do
       _ = File.write("/dev/tty", Aleph.Notify.osc(title, body))
@@ -273,8 +253,6 @@ defmodule Aleph.Cockpit do
 
     :ok
   end
-
-  # --- mouse routing (the Cockpit interprets Aleph.Mouse's pure decisions) ---
 
   defp dispatch_wheel(nil, _b, _x, _y, state), do: {:noreply, state}
 
@@ -314,7 +292,6 @@ defmodule Aleph.Cockpit do
   # Clicking the center terminal: forwarded to the PTY when the embedded program tracks the
   # mouse — tmux (`mouse on`) selects the pane/window under the cursor, a TUI hit-tests its own
   # regions. Untracked (a plain shell) → no-op; the terminal already owns the keys when live.
-  # (A future drag-select for copy hooks here; see the tmux-style-input plan §Deferred.)
   defp dispatch_click({Panel.Terminal, _data, rect}, x, y, state) do
     with term when is_pid(term) <- center_terminal(state) do
       Terminal.click(term, clamp_cell(x - rect.x, rect.w), clamp_cell(y - rect.y, rect.h))
@@ -349,12 +326,9 @@ defmodule Aleph.Cockpit do
 
   defp reset_scrolls(_prev, next), do: next
 
-  # --- interpret the reducer's effect (`Aleph.Keymap`) ---
-
   # State transitions live in the pure `Aleph.Keymap`; the Cockpit only runs the side effect it
-  # asks for — repaint, quit, or forward a key to the focused tmux pane.
+  # asks for — repaint, quit, or forward a key to the focused terminal.
   defp apply_effect(:repaint, state), do: {:noreply, render(state)}
-  # --- render ---
   defp apply_effect(:none, state), do: {:noreply, state}
   defp apply_effect(:quit, state), do: quit(state)
 
@@ -445,14 +419,10 @@ defmodule Aleph.Cockpit do
   defp char_key(<<cp>>) when cp in ?0..?9, do: String.to_existing_atom("digit_#{<<cp>>}")
   defp char_key(_c), do: :unidentified
 
-  # The Kitty encoder needs the base (unshifted) codepoint to build `\e[<cp>;<mods>u` for a
-  # modified printable (ctrl+v → \e[118;5u, ctrl+shift+c → \e[99;6u). Without it, `input_key`
-  # drops the modifier and emits the bare utf8 char (ctrl+v → "v"), so pi's ctrl+v / shift+enter
-  # bindings misfire. Letters use the lowercase codepoint; anything else uses its own codepoint.
-  # KNOWN LIMIT: only letters are recoverable — a shifted SYMBOL (shift+2 arriving as "@") keeps
-  # its shifted codepoint because the host keyboard layout is gone by this layer. No current
-  # binding hits that path (the Kitty disambiguate path delivers base codepoints itself); if one
-  # ever does, the fix belongs host-side, not here.
+  # The Kitty encoder needs the unshifted codepoint to build \e[<cp>;<mods>u for a modified
+  # printable (ctrl+v → \e[118;5u); without it modifiers are dropped (ctrl+v → "v"). Letters use
+  # their lowercase codepoint. KNOWN LIMIT: a shifted symbol (shift+2 → "@") can't be recovered
+  # here (the host keyboard layout is gone by this layer) — no current binding hits that path.
   defp unshifted_codepoint(c) do
     c |> String.downcase() |> String.to_charlist() |> List.first() || 0
   end
@@ -543,12 +513,9 @@ defmodule Aleph.Cockpit do
   defp stack_read(:tlon), do: %{commits: Aleph.Stack.commits(), tools: Aleph.Stack.tools()}
   defp stack_read(_key), do: %{commits: [], tools: []}
 
-  # The Tlön machine coworker — a pi session working ON the box, a funes citizen on a persistent
-  # "machine" thread so its work (issues it files, checks it runs) is remembered and triageable.
-  # pi (not claude) by design: Tlön is meta/triage/machine work, the flat-bucket workhorse — claude
-  # stays the deliberate escalation for implementing code (AGENTS.md routing). Spawned once on first
-  # Tlön entry and reused (keyed `:machine`, decoupled from the funes thread id); the fast path is a
-  # bare registry lookup on every render.
+  # The Tlön machine coworker: a pi session working ON the box on a persistent "machine" thread
+  # (so its work is triageable). pi by design — Tlön is meta/machine work, claude stays the
+  # deliberate escalation (AGENTS.md routing). Spawned once, reused via registry lookup.
   defp machine_terminal do
     case Sessions.terminal(:machine) do
       pid when is_pid(pid) -> pid
@@ -562,9 +529,8 @@ defmodule Aleph.Cockpit do
   @tlon_session "tlon"
 
   # Find-or-create the machine coworker's identity, then spawn the Tlön center: an embedded
-  # tmux client attached to the standing session (created with pi as window 0 if absent — an
-  # aleph restart re-attaches to the running pi instead of spawning another). The machine
-  # thread is `scope: "machine"` (see the thread_scope migration and the tlon-isolation plan).
+  # tmux client attached to the standing session (pi as window 0 if absent) — an aleph restart
+  # re-attaches to the running pi instead of spawning another.
   defp spawn_machine_coworker do
     with {:ok, exports} <- machine_exports(@machine_agent),
          # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
@@ -614,12 +580,9 @@ defmodule Aleph.Cockpit do
     nil
   end
 
-  # Claude joins the SAME machine thread as pi (two voices, one thread — the escalation reads
-  # the coworker's context) as a new tmux window. Its window command carries its OWN identity
-  # exports (author claude-machine), overriding the session's pi identity. No FUNES_TOKEN is
-  # frozen into the env — the claude launcher's headersHelper mints a fresh token per connect
-  # against the FUNES_MCP_URL origin's /mint, so it always hits aleph's world (not the service
-  # node's) and survives a restart / model change / secret regeneration.
+  # Claude joins the SAME machine thread as pi (two voices, one thread) as a new tmux window,
+  # carrying its own identity exports (claude-machine). No FUNES_TOKEN is frozen into the env —
+  # headersHelper mints a fresh token per connect, so it survives a restart/model change/secret rotation.
   defp summon_claude_window do
     launcher = Application.get_env(:aleph, :machine_claude_launcher, "mise run funes:claude")
 
@@ -712,11 +675,9 @@ defmodule Aleph.Cockpit do
     restore_host_tty()
   end
 
-  # Everything a dead cockpit could have left armed, force-disarmed in one idempotent write:
-  # Kitty pop (covers the main screen's stack — a pop on an empty stack is a no-op per spec),
-  # every mouse-reporting mode off, leave the alt screen, show the cursor. Safe to run twice —
-  # run/0 also fires it after the DOWN, so even a teardown that never ran (a brutal kill of the
-  # GenServer) still hands the operator a working shell instead of `;5u` keystroke garbage.
+  # Force-disarm everything a dead cockpit could have left armed: Kitty pop (no-op on an empty
+  # stack), mouse reporting off, leave alt screen, show cursor. Idempotent — run/0 also calls this
+  # after a DOWN, so even a killed GenServer leaves a working shell, not `;5u` keystroke garbage.
   defp restore_host_tty do
     _ = File.write("/dev/tty", @kitty_disable <> "\e[?1000;1002;1003;1006l\e[?1049l\e[?25h")
     :ok

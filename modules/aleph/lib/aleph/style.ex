@@ -10,11 +10,9 @@ defmodule Aleph.Style do
 
   @bg 0x000000
 
-  # 80s phosphor green (#33FF00) is the body — content/strings, the bulk of the surface. Amber
-  # (#FFB000) is the *chrome* — titles, labels, warm dots — where it pops instead of tiring the
-  # eye everywhere. Pink flags the agents, burnt orange draws the structure, and a deep violet
-  # wash marks selection. A CRT "cyber hacker" surface on black. The dark hex (`@sel`) is a
-  # background, where deep colour reads best.
+  # Green is the body (content/strings); amber is reserved for chrome (titles, labels, warm dots)
+  # so it pops instead of tiring the eye everywhere. Pink flags agents, burnt orange marks
+  # structure, violet marks selection.
   @sel 0x5B00AE
 
   # The two canonical phosphors: green #33FF00 (body) and amber #FFB000 (chrome).

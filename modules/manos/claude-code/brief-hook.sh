@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # Claude Code SessionStart hook — Door 2 of the claude-code manos adapter (the brief).
+# Claude Code adds this hook's stdout to the session context on start/resume/clear. If the
+# session carries a funes identity (FUNES_THREAD), render that thread's brief so a fresh or
+# /clear'd context re-orients from funes instead of from nothing.
 #
-# On session start/resume/clear, Claude Code adds a command hook's plain stdout to the
-# session context. If this session carries a funes identity (FUNES_THREAD, exported by
-# `mise run funes:claude`), render that thread's brief — the same Board.in_scope → Brief
-# the get_dossier MCP tool serves — so a fresh or /clear'd context re-orients from funes
-# instead of from nothing.
-#
-# It NEVER blocks the session: no funes identity, a down channel, or a missing thread is
-# a silent no-op (exit 0, no output). The hook reads its JSON on stdin and ignores it.
+# Never blocks the session: no identity, a down channel, or a missing thread is a silent
+# no-op (exit 0, no output). Reads its JSON on stdin and ignores it.
 set -euo pipefail
 
 thread="${FUNES_THREAD:-}"

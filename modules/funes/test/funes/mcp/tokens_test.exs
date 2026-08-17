@@ -1,9 +1,9 @@
 defmodule Funes.MCP.TokensTest do
   # The identity seam (pi doc §2a): a token binds an MCP connection to its (thread, agent), so
-  # identity is a property of the connection, never a call parameter. STATELESS + signed
-  # (amended 2026-08-16): the token IS its claims (HMAC over thread/agent), so it survives a node
-  # restart — the aleph hub restarts constantly and must not 401 every session. The live session
-  # is resolved at read time, so a token never grants a stale one.
+  # identity is a property of the connection, never a call parameter. STATELESS + signed: the
+  # token IS its claims (HMAC over thread/agent), so it survives a node restart — the aleph hub
+  # restarts constantly and must not 401 every session. The live session is resolved at read
+  # time, so a token never grants a stale one.
   use ExUnit.Case, async: false
 
   alias Funes.Channel
