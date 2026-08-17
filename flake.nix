@@ -253,6 +253,27 @@
                 '';
               };
 
+              # rbw — a Bitwarden CLI with an unlock *agent*, so secrets live in the vault instead
+              # of plaintext dotfiles or the nix store. This is the machine's secret-fetch tool: the
+              # config here (email, server, pinentry) is non-secret and declarative; the master
+              # password + vault stay with Bitwarden. mise resolves OLLAMA_API_KEY via `rbw get`
+              # (see mise.toml [env]), which is why the key no longer lives in ~/.config/mise.
+              #
+              # Server is bitwarden.com for now — set `base_url` to a self-hosted Vaultwarden later
+              # (rbw speaks the same API) and nothing else changes. pinentry-curses works in any
+              # terminal (ghostty, a tmux pane) — swap to pinentry-gnome3/qt for a GUI prompt.
+              # Operational contract: `rbw unlock` once per session so the agent is warm; the
+              # non-interactive Tlön pi spawn can't prompt, so a locked vault yields an empty key.
+              programs.rbw = {
+                enable = true;
+                settings = {
+                  email = "andrew@lessthanseventy.com";
+                  # base_url = "https://vault.example.tld";  # ← self-hosted Vaultwarden goes here
+                  pinentry = pkgs.pinentry-curses;
+                  lock_timeout = 3600;
+                };
+              };
+
               # pi — the harness (byte-preserved bun binary, above). watchexec backs
               # scripts/watch.sh's change-triggered test runner (runs-on-change, debounce,
               # .gitignore-aware, restart-on-supersede); declared here so the next box has
