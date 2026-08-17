@@ -16,11 +16,48 @@ defmodule Aleph.Panel.StatusBar do
   # {keycap, label} pairs — keycaps lit in amber, labels dim. The tmux-style model: the center
   # owns the keys by default, so aleph's commands are reached through the ^B leader. (In a
   # nav-default space — no live terminal — these are also bare; the hints name the universal path.)
-  @hints [{"^␣", "aleph"}, {"^␣n", "new"}, {"^␣⏎", "spawn"}, {"^␣Tab", "space"}, {"^␣↑↓", "thread"}, {"^␣q", "quit"}]
+  @hints [
+    {"^␣", "aleph"},
+    {"^␣n", "new"},
+    {"^␣c", "post"},
+    {"^␣⏎", "spawn"},
+    {"^␣Tab", "space"},
+    {"^␣↑↓", "thread"},
+    {"^␣q", "quit"}
+  ]
   @leader_hints [{"^␣ …", :header}, {"  prefix armed — Esc cancels", :dim}]
 
   @impl Panel
   def topics(_assigns), do: []
+
+  # Composer mode: the info line becomes the prompt over the ACTIVE line of the buffer (the last
+  # line — where the cursor is), and the hints name the three composer keys. A multiline body's
+  # earlier lines are dropped from this single visible line; the posted message keeps them all.
+  @impl Panel
+  def render(%{input: %{kind: :compose, buffer: buffer}}, rect) do
+    line = buffer |> String.split("\n") |> List.last()
+
+    prompt = [
+      {" COMPOSE ", :tab},
+      {"  ", :normal},
+      {"▸ ", :accent},
+      {line, :normal},
+      {"▎", :accent}
+    ]
+
+    hints = [
+      {"⏎", :header},
+      {" post", :dim},
+      {"   ", :dim},
+      {"⇧⏎", :header},
+      {" newline", :dim},
+      {"  ", :dim},
+      {"Esc", :header},
+      {" cancel", :dim}
+    ]
+
+    Panel.clip([prompt, hints], rect)
+  end
 
   # Title input mode: the info line becomes the prompt (a caret marks the cursor), and the
   # hints line names only the two keys that do anything while typing.

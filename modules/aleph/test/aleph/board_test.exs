@@ -393,6 +393,22 @@ defmodule Aleph.BoardTest do
       chip = Enum.find(info, fn {t, s} -> s == :tab and t =~ "Sessions" end)
       assert chip, "space should render as a :tab chip"
     end
+
+    test "composing shows the buffer as the prompt and the composer hints" do
+      data = status(%{input: %{kind: :compose, thread_id: 2, buffer: "ship it"}})
+      assert [info, hints] = StatusBar.render(data, %{x: 0, y: 0, w: 120, h: 2})
+      assert text(info) =~ "COMPOSE"
+      assert text(info) =~ "ship it"
+      assert text(hints) =~ "post"
+      assert text(hints) =~ "newline"
+    end
+
+    test "composing a multiline body shows the ACTIVE line (the cursor is on the last line)" do
+      data = status(%{input: %{kind: :compose, thread_id: 2, buffer: "first\nsecond"}})
+      assert [info, _hints] = StatusBar.render(data, %{x: 0, y: 0, w: 120, h: 2})
+      assert text(info) =~ "second"
+      refute text(info) =~ "first"
+    end
   end
 
   describe "border box" do

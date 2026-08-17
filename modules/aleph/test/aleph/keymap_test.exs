@@ -262,6 +262,81 @@ defmodule Aleph.KeymapTest do
     end
   end
 
+  describe "composing a message — the `c` verb + composer mode" do
+    test "c (bare, nav context) opens a composer on the focused thread" do
+      assert {%{input: %{kind: :compose, thread_id: 2, buffer: ""}}, :repaint} =
+               Keymap.handle(char("c"), state())
+    end
+
+    test "c with no focused thread is a no-op" do
+      s = state(%{focused_id: nil, threads: []})
+      assert {^s, :none} = Keymap.handle(char("c"), s)
+    end
+
+    test "c forwards to the terminal when one is live (use ^B c to open a composer)" do
+      s = state(%{center_live?: true})
+      assert {^s, {:forward, %{key: :char, char: "c"}}} = Keymap.handle(char("c"), s)
+    end
+
+    test "^B c opens a composer even when a terminal is live" do
+      s = state(%{center_live?: true, focused_id: 2})
+
+      assert {%{input: %{kind: :compose, thread_id: 2, buffer: ""}, leader_pending?: false}, :repaint} =
+               via_leader(char("c"), s)
+    end
+
+    test "printable keys accumulate into the buffer, not acted on locally" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "sh"}})
+      assert {%{input: %{buffer: "shi"}}, :repaint} = Keymap.handle(char("i"), s)
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "shi"}})
+      assert {%{input: %{buffer: "ship"}}, :repaint} = Keymap.handle(char("p"), s2)
+    end
+
+    test "binding letters are captured as text while composing (q does not quit)" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "the "}})
+      assert {%{input: %{buffer: "the q"}}, :repaint} = Keymap.handle(char("q"), s)
+    end
+
+    test "backspace deletes the last character" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "ship"}})
+      assert {%{input: %{buffer: "shi"}}, :repaint} = Keymap.handle(key(:backspace), s)
+    end
+
+    test "Shift+Enter inserts a newline instead of submitting" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one"}})
+      assert {%{input: %{buffer: "one\n"}}, :repaint} = Keymap.handle(key(:enter, shift: true), s)
+
+      # a printable key after the newline lands on the second line
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\n"}})
+      assert {%{input: %{buffer: "one\nt"}}, :repaint} = Keymap.handle(char("t"), s2)
+    end
+
+    test "Shift+Enter in a title still submits (no newlines in thread titles)" do
+      s = state(%{input: %{kind: :new_thread, buffer: "fable"}})
+      assert {%{input: nil}, {:create_thread, "fable"}} = Keymap.handle(key(:enter, shift: true), s)
+    end
+
+    test "Enter on a non-empty buffer posts {:post_message, thread_id, body} and leaves input mode" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "shipped"}})
+      assert {%{input: nil}, {:post_message, 2, "shipped"}} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Enter on a multiline buffer posts the whole body (newlines intact)" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo"}})
+      assert {%{input: nil}, {:post_message, 2, "one\ntwo"}} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Enter on an empty buffer cancels (never posts a blank message)" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: ""}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Esc cancels the composer, posting nothing" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "half typed"}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+  end
+
   describe "unknown keys" do
     test "an unbound key in a nav-default space is a no-op" do
       s = state()

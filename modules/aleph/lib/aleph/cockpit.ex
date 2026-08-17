@@ -353,6 +353,22 @@ defmodule Aleph.Cockpit do
     end
   end
 
+  # The `c` verb landed: post the composer's body to the focused thread AS THE OPERATOR (config
+  # `:funes, :operator`), so a posted message is the human's voice, not an agent's. The Bus
+  # announce repaints the chorus live, so the message lands visibly; a failure flashes in the footer.
+  defp apply_effect({:post_message, thread_id, body}, state) do
+    operator = Application.get_env(:funes, :operator, "andrew")
+
+    case Channel.post(%{thread_id: thread_id, author: operator, body: body}) do
+      {:ok, _message} -> {:noreply, render(%{state | flash: "posted"})}
+      {:error, _changeset} -> {:noreply, render(%{state | flash: "couldn't post — is the thread open?"})}
+    end
+  rescue
+    e -> {:noreply, render(%{state | flash: "post failed: #{Exception.message(e)}"})}
+  catch
+    :exit, reason -> {:noreply, render(%{state | flash: "post failed: #{inspect(reason)}"})}
+  end
+
   # The `Enter` verb landed: enter-or-spawn on the focused thread. The result flashes in the footer.
   defp apply_effect({:enter_or_spawn, thread_id}, state),
     do: {:noreply, render(%{state | flash: enter_or_spawn(thread_id, state)})}

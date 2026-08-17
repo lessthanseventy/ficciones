@@ -28,13 +28,16 @@ defmodule Aleph.Keymap do
     * `{:create_thread, title}` — open a new thread AND spawn a session onto it (the `n` verb).
     * `{:enter_or_spawn, thread_id}` — spawn a session onto an existing focused thread if it has
       none, else no-op (the `Enter` verb — the `s` verb's replacement).
+    * `{:post_message, thread_id, body}` — post the composer's body to the focused thread as the
+      operator (the `c` verb).
     * `:toggle_pane` — summon-or-cycle the Tlön tmux windows (pi ⇄ claude; the `o` verb,
       Tlön only — claude's window is created lazily on first summon).
     * `:none` — nothing to do.
 
-  `state.input` is `nil` normally, or `%{kind: :new_thread, buffer: String.t()}` while the operator
-  is typing a title — a modal that captures EVERY key (so `q` types a "q", it does not quit) until
-  Enter submits or Esc cancels.
+  `state.input` is `nil` normally, or `%{kind: :new_thread, buffer: String.t()}` (the `n` verb) or
+  `%{kind: :compose, thread_id, buffer: String.t()}` (the `c` verb) while the operator is typing — a
+  modal that captures EVERY key (so `q` types a "q", it does not quit) until Enter submits or Esc
+  cancels. In the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
   """
 
   alias Aleph.Space
@@ -45,21 +48,30 @@ defmodule Aleph.Keymap do
           | {:forward, map()}
           | {:create_thread, String.t()}
           | {:enter_or_spawn, term()}
+          | {:post_message, term(), String.t()}
           | :toggle_pane
           | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
   @spec handle(map(), map()) :: {map(), effect()}
 
-  # --- title input mode: a MODAL — every key belongs to the buffer until Enter/Esc, so a
-  # binding letter (q, s, tab) types its character instead of firing. Must come first. ---
+  # --- input mode: a MODAL — every key belongs to the buffer until Enter/Esc, so a binding
+  # letter (q, s, tab) types its character instead of firing. Must come first. ---
   def handle(%{key: :escape}, %{input: %{}} = state), do: {%{state | input: nil}, :repaint}
 
-  # Enter submits — but an empty title creates nothing (cancel), never a blank thread.
+  # Shift+Enter in the composer inserts a newline (a multiline body) instead of submitting. Must
+  # precede the plain-Enter clauses — %{key: :enter, shift: true} also matches %{key: :enter}.
+  def handle(%{key: :enter, shift: true}, %{input: %{kind: :compose, buffer: buffer} = input} = state),
+    do: {%{state | input: %{input | buffer: buffer <> "\n"}}, :repaint}
+
+  # Enter submits — but an empty buffer creates/posts nothing (cancel), never a blank thread/message.
   def handle(%{key: :enter}, %{input: %{buffer: ""}} = state), do: {%{state | input: nil}, :repaint}
 
   def handle(%{key: :enter}, %{input: %{kind: :new_thread, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:create_thread, buffer}}
+
+  def handle(%{key: :enter}, %{input: %{kind: :compose, thread_id: id, buffer: buffer}} = state),
+    do: {%{state | input: nil}, {:post_message, id, buffer}}
 
   def handle(%{key: :backspace}, %{input: %{buffer: buffer} = input} = state),
     do: {%{state | input: %{input | buffer: String.slice(buffer, 0..-2//1)}}, :repaint}
@@ -105,6 +117,13 @@ defmodule Aleph.Keymap do
   defp command(%{key: :char, char: "q"}, state), do: {state, :quit}
 
   defp command(%{key: :char, char: "n"}, state), do: {%{state | input: %{kind: :new_thread, buffer: ""}}, :repaint}
+
+  # `c` — the composer: post to the FOCUSED thread as the operator. No focused thread (empty board)
+  # → nothing to post on. Bare `c` only (modifiers nil): Ctrl+C is unbound (never a quit) and must
+  # not open a composer. Reachable bare in a nav-default space or via the leader from a terminal.
+  defp command(%{key: :char, char: "c"} = k, %{focused_id: id} = state)
+       when not is_nil(id) and not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt),
+       do: {%{state | input: %{kind: :compose, thread_id: id, buffer: ""}}, :repaint}
 
   # Enter on a focused thread → enter-or-spawn: spawn a session if it has none, else no-op. The
   # replacement for the old `s` verb — creating a thread and spawning are one action (`n` already
