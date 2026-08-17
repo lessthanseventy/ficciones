@@ -105,6 +105,7 @@ defmodule Aleph.Cockpit do
     Bus.subscribe_sessions()
     Bus.subscribe_threads()
     Bus.subscribe_messages()
+    Bus.subscribe_habits()
 
     case :termbox2_nif.tb_init() do
       0 ->
@@ -278,6 +279,12 @@ defmodule Aleph.Cockpit do
              :session_ended
            ] do
     desktop_notify(tag, row)
+    {:noreply, render(state)}
+  end
+
+  # Habit review events refresh the Habits panel (Tlön). No desktop notification — a proposed
+  # habit is a quiet queue entry for review, not an interrupt.
+  def handle_info({tag, _row}, state) when tag in [:habit_proposed, :habit_approved, :habit_rejected] do
     {:noreply, render(state)}
   end
 
@@ -597,6 +604,7 @@ defmodule Aleph.Cockpit do
       health: health_read(state.active_key),
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :comms, do: triage_read(threads)),
+      habits: habits_read(state.active_key),
       scrolls: state.scrolls,
       input: state.input,
       flash: state.flash,
@@ -696,6 +704,11 @@ defmodule Aleph.Cockpit do
   end
 
   defp health_read(_key), do: nil
+
+  # HABITS reads are only gathered on Tlön — the machine-wide review queue (pending) and the
+  # always-loaded set (approved). Machine-wide, so not keyed on a focused thread.
+  defp habits_read(:tlon), do: %{pending: Dossier.pending_habits(), approved: Dossier.approved_habits()}
+  defp habits_read(_key), do: nil
 
   # LOGBOOK reads are only gathered on Tlön — the machine thread's issues + recent messages,
   # the shared notebook for notes and observations about the env.

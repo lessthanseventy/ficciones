@@ -15,6 +15,7 @@ defmodule Aleph.Space do
 
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
+  alias Aleph.Panel.Habits
   alias Aleph.Panel.Health
   alias Aleph.Panel.Logbook
   alias Aleph.Panel.Roster
@@ -73,7 +74,9 @@ defmodule Aleph.Space do
         label: "Tlön",
         surface: [{Terminal, :machine}],
         left: [Stack],
-        right: [Health, Logbook],
+        # HABITS — how the machine works with Andrew (funes' habits axis) — belongs on the
+        # meta/machine lens beside Health and the Logbook.
+        right: [Health, Logbook, Habits],
         # Self-contained coworker: the "tlon" profile (no funes MCP, funes-brief extension dropped,
         # sandboxed). See Aleph.Profiles.
         coworker: "tlon"

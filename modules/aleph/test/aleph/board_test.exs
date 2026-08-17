@@ -70,6 +70,7 @@ defmodule Aleph.BoardTest do
         terminal: :no_session,
         health: nil,
         logbook: nil,
+        habits: nil,
         triage: %{blockers: %{shown: [], more: 0}, failed_checks: %{shown: [], more: 0}, unassigned: []}
       },
       overrides

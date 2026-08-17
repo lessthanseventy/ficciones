@@ -124,6 +124,7 @@ defmodule Aleph.View do
   def data_for(Panel.Health, r), do: r.health
   def data_for(Panel.Logbook, r), do: r.logbook
   def data_for(Panel.Triage, r), do: r.triage
+  def data_for(Panel.Habits, r), do: r.habits
   def data_for(_other, _r), do: nil
 
   # Inject the panel's current scroll offset into scrollable panels' data (nil data left alone —
