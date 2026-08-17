@@ -65,12 +65,47 @@
           mainProgram = "pi";
         };
       };
+
+      # Expert — the Elixir LSP (expert-lsp.org, NOT elixir-ls). Not in nixpkgs, so we fetch the
+      # prebuilt release binary (a self-contained burrito BEAM) and install it byte-for-byte — same
+      # treatment as pi/bun above: no strip, no ELF rewrite (Arch's system glibc runs it as-is;
+      # patching would break the embedded runtime). It's a bare binary, not an archive → dontUnpack.
+      expert = pkgs.stdenv.mkDerivation rec {
+        pname = "expert";
+        version = "0.1.8";
+
+        src = pkgs.fetchurl {
+          url = "https://github.com/expert-lsp/expert/releases/download/v${version}/expert_linux_amd64";
+          hash = "sha256-yvDe1U6D8xjP5lnirD3R8tLnGhwaPCirMpBHWVT9mu4=";
+        };
+
+        dontUnpack = true;
+        dontStrip = true;
+        dontPatchELF = true;
+        dontPatchShebangs = true;
+
+        installPhase = ''
+          runHook preInstall
+          install -Dm755 $src $out/bin/expert
+          runHook postInstall
+        '';
+
+        meta = {
+          description = "Expert — the Elixir language server (prebuilt burrito release binary, unpatched)";
+          homepage = "https://github.com/expert-lsp/expert";
+          platforms = [ "x86_64-linux" ];
+          sourceProvenance = [ pkgs.lib.sourceTypes.binaryNativeCode ];
+          mainProgram = "expert";
+        };
+      };
     in
     {
       # Exposed as a build target so it can be verified (`nix build .#pi`) without touching
       # the system — the same way funes' package will be. home-manager consumes the same
       # derivation below.
-      packages.${system}.pi = pi;
+      packages.${system} = {
+        inherit pi expert;
+      };
 
       # funes is Elixir/OTP; day-to-day dev runs through mise. This shell is the
       # reproducible equivalent — Elixir + sqlite3 for the 2am repair path. A `mix
@@ -252,15 +287,14 @@
 
               # pi (byte-preserved bun binary, above). watchexec backs scripts/watch.sh's
               # change-triggered test runner. LSP servers for manos/lsp
-              # (hover/definition/references/diagnostics as pi tools) — flake-managed so
-              # the next box gets them. Expert (the Elixir LSP, expert-lsp.org — NOT
-              # elixir-ls) is the exception: not yet in the pinned nixpkgs, so it's
-              # installed outside the flake (~/.local/bin/expert) and the adapter spawns it
-              # from PATH; add pkgs.expert here once nixpkgs catches up. The adapter
-              # registry in modules/manos/lsp/src/adapters.ts spawns these by name — adding
-              # a language is an adapter object + usually a package here.
+              # (hover/definition/references/diagnostics as pi tools) — ALL flake-managed now so
+              # the next box gets them, including Expert (the Elixir LSP, expert-lsp.org — NOT
+              # elixir-ls; the `expert` derivation above fetches its release binary since it's not
+              # in nixpkgs). The adapter registry in modules/manos/lsp/src/adapters.ts spawns these
+              # by name — adding a language is an adapter object + usually a package here.
               home.packages = [
                 pi
+                expert
                 pkgs.watchexec
                 pkgs.typescript-language-server
                 pkgs.nil
