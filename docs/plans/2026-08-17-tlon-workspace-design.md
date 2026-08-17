@@ -1,12 +1,14 @@
 # Tlön as a self-contained workspace — and the three ways agents reach other agents
 
-> **Status 2026-08-17 — mechanism 3 shipped, mechanism 2 open.** The three-agent-mechanisms
-> framing below is the load-bearing part and stands. Mechanism 3 (`consult_peer`, the
-> funes-mediated coworker consult) is done — `61a552b`, `ac9f86c` — and mechanism 1 is the
-> normal Tlön move. Mechanism 2 (a model-callable `consult` TOOL returning its answer
-> mid-turn-safe, promoted from the human `/consult`/`/fresh` commands) is the one open item:
-> `manos/consult` still registers only `registerCommand`, so the refuse-mid-turn limit §2d
-> describes still holds.
+> **Status 2026-08-17 — mechanisms 2 and 3 shipped.** The three-agent-mechanisms framing below
+> is the load-bearing part and stands. Mechanism 3 (`consult_peer`, the funes-mediated coworker
+> consult) is done — `61a552b`, `ac9f86c` — and mechanism 1 is the normal Tlön move. Mechanism 2
+> (a model-callable `consult` TOOL returning its answer mid-turn-safe, promoted from the human
+> `/consult`/`/fresh` commands) shipped in `6d657b8`: `manos/consult` now `registerTool`s a
+> `consult` tool that runs the same `pi -p` delegate but returns-as-result instead of
+> `sendUserMessage`, dissolving the refuse-mid-turn limit §2d described. The commands stay the
+> human doors; the tool is the model's. The remaining open item is Work-sequence #3 (generalize
+> Tlön spawning), a mechanism-1 nicety, not a cross-agent mechanism.
 
 Written 2026-08-17 (branch `dogfood-kitty-keys`). Settles what Tlön *is* after live use, and
 untangles three mechanisms that had been collapsed into one ("consult"). The trigger: the Tlön
@@ -88,6 +90,7 @@ pi plans → **spawns windows** to build (1), **consults a model** for a smarter
    (`2efd711`), the workspace made a plain tmux session (`383b735`).
 3. **Generalize Tlön spawning.** `^o` claude (interactive) + a `claude -p` discrete-build path + a
    plain-terminal-window verb — all inside Tlön's tmux.
-4. **Make model-consult agent-invocable — OPEN** (mechanism 2). Promote `/consult`/`/fresh` from
-   human-only slash commands to a tool a model can call mid-turn, with a context-level argument.
-   `consult_peer` (mechanism 3) is built; this is the distinct model-delegate surface, still not.
+4. **Make model-consult agent-invocable — DONE** (`6d657b8`, mechanism 2). `manos/consult` now
+   `registerTool`s a `consult` tool the model calls mid-turn: the same `pi -p` delegate as
+   `/consult`/`/fresh`, but returning the answer as the tool result (mid-turn-safe) with a
+   `context: none|transcript` argument. The slash commands stay the human doors.
