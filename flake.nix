@@ -395,7 +395,10 @@
                        #                       parts of scripts/watch.sh. Self-installs its skill;
                        #                       test it inside aleph's embedded pane, and note its
                        #                       spawn/PTY tools may need sandbox/permission allowlisting.
-                       + ["pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:pi-cc-header","npm:@lincoln504/pi-research","npm:pi-interactive-shell"] | unique)
+                       #   pi-retry          → zero-dep stall-watchdog + transient-error retry,
+                       #                       stronger than settings.retry.enabled alone; matters
+                       #                       over flaky ollama.com cloud + multi-provider failover.
+                       + ["pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:pi-cc-header","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry"] | unique)
                    | .defaultProvider //= "ollama-cloud"
                    | .defaultModel //= "deepseek-v4-flash"
                    | .defaultThinkingLevel //= "medium"
