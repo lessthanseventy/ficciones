@@ -4,8 +4,13 @@
 // in what we rely on is a change to THIS file. Type-only — erased at runtime.
 //
 // Sources: pi docs/extensions.md §ExtensionContext, §ExtensionCommandContext,
-// §pi.registerCommand, §pi.sendUserMessage. The session-reader is ctx.sessionManager
-// .buildContextEntries() (the active branch with compaction applied).
+// §pi.registerCommand, §pi.sendUserMessage, §registerTool. The session-reader is
+// ctx.sessionManager.buildContextEntries() (the active branch with compaction applied).
+//
+// typebox is the one import we take from a pi-bundled package (the schema lib pi uses for
+// tool parameters — a peer dep, not bundled), matching manos/lsp. The rest is hand-declared.
+
+import { Type } from "typebox";
 
 export interface ExtensionUI {
   setStatus(key: string, text: string): void;
@@ -51,6 +56,32 @@ export interface CommandOptions {
   handler: (args: string, ctx: ExtensionCommandContext) => void | Promise<void>;
 }
 
+// A registered tool's execute context. Unlike lsp's (cwd/ui/signal only), the consult tool
+// needs sessionManager too: context:"transcript" reads the live session the same way the
+// /consult command does. pi puts sessionManager on the base ExtensionContext, so it's here.
+export interface ToolExecuteContext {
+  cwd: string;
+  ui: ExtensionUI;
+  signal?: AbortSignal;
+  sessionManager: SessionManager;
+}
+
+// What a tool returns — a text result (isError distinguishes a failure the model should see).
+export interface ToolResult {
+  content: Array<{ type: "text"; text: string }>;
+  isError?: boolean;
+}
+
+export interface ToolHandler {
+  execute: (
+    toolCallId: string,
+    params: Record<string, unknown>,
+    signal: AbortSignal,
+    onUpdate: unknown,
+    ctx: ToolExecuteContext,
+  ) => Promise<ToolResult>;
+}
+
 // A read tool result that pi emits when the model can't ingest images — the text block pi's
 // read tool returns verbatim: "Read image file [image/png]\n[Current model does not support
 // images. The image will be omitted from this request.]". The auto-delegation hook keys on
@@ -73,6 +104,16 @@ export interface ToolResultPatch {
 
 export interface ExtensionAPI {
   registerCommand(name: string, options: CommandOptions): void;
+  // Register a model-callable tool. The consult tool uses this to give the model the same
+  // delegate as /consult, but returning the answer AS the tool result (mid-turn-safe — no
+  // sendUserMessage turn to stack). See pi docs/extensions.md §registerTool.
+  registerTool(opts: {
+    name: string;
+    label?: string;
+    description: string;
+    parameters: ReturnType<typeof Type.Object>;
+    execute: ToolHandler["execute"];
+  }): void;
   // Inject a user message into the conversation and trigger a turn — how the delegate's
   // output is handed back to the main model (it appears in the transcript and the main
   // agent responds to it). See pi docs §pi.sendUserMessage.
@@ -85,3 +126,5 @@ export interface ExtensionAPI {
     handler: (event: ToolResultEvent, ctx: ExtensionContext) => ToolResultPatch | undefined | Promise<ToolResultPatch | undefined>,
   ): void;
 }
+
+export { Type };

@@ -11,12 +11,16 @@
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { Type } from "./pi.ts";
 import type {
   CommandOptions,
   ExtensionAPI,
   ExtensionCommandContext,
   ExtensionContext,
   SessionEntry,
+  SessionManager,
+  ToolExecuteContext,
+  ToolResult,
   ToolResultEvent,
   ToolResultPatch,
 } from "./pi.ts";
@@ -62,6 +66,21 @@ export default function consult(pi: ExtensionAPI): void {
 
   pi.registerCommand("consult", consultOpts);
   pi.registerCommand("fresh", freshOpts);
+
+  // Mechanism 2 (tlon-workspace-design §2): the SAME delegate as /consult, but a tool the
+  // MODEL calls mid-turn. The command hands its answer back via sendUserMessage (a new turn,
+  // hence the mid-turn refusal); the tool RETURNS the answer as its result — no new turn, so
+  // it's mid-turn-safe by construction, dissolving that limit. Same engine, two doors.
+  pi.registerTool({
+    name: "consult",
+    description:
+      "Ask a different (or smarter) model for a second opinion and get its answer back " +
+      "immediately as this tool's result. Use it to escalate a hard call to a stronger model " +
+      "or get a fresh perspective mid-task. `context: transcript` (default) shows the peer your " +
+      "recent session; `context: none` is a clean one-shot.",
+    parameters: CONSULT_TOOL_PARAMS,
+    execute: consultToolExecute,
+  });
 
   // Auto-vision: transparently delegate image reads a text-only model can't ingest. See
   // onToolResult below.
@@ -125,8 +144,93 @@ export function parseArgs(args: string): { model: string; prompt: string } {
   return { model: DEFAULT_MODEL, prompt: trimmed };
 }
 
-// Pull entries from the session manager and hand them to the pure renderer below.
-function serializeSession(ctx: ExtensionCommandContext): string {
+export type ToolArgs =
+  | { ok: true; model: string; context: "none" | "transcript"; prompt: string }
+  | { ok: false; error: string };
+
+// The consult TOOL's named params (vs the command's positional [model] <prompt> string).
+// Because the model passes `model` as a distinct field — not a leading token that could be
+// prose — an explicit unknown model is a hard error, not the command's silent fall-through to
+// the default. `context` defaults to "transcript" (the /consult behavior); "none" is /fresh.
+// Pure + exported so the validation rules are pinned by tests, independent of the tool runtime.
+export function parseToolArgs(params: Record<string, unknown>): ToolArgs {
+  const prompt = typeof params.prompt === "string" ? params.prompt.trim() : "";
+  if (!prompt) return { ok: false, error: "consult: `prompt` is required." };
+
+  let model = DEFAULT_MODEL;
+  const m = params.model;
+  if (m !== undefined && m !== null && m !== "") {
+    if (typeof m !== "string" || !KNOWN_MODELS.includes(m)) {
+      return {
+        ok: false,
+        error: `consult: unknown model "${String(m)}" — known models: ${KNOWN_MODELS.join(", ")}.`,
+      };
+    }
+    model = m;
+  }
+
+  const context = params.context === "none" ? "none" : "transcript";
+  return { ok: true, model, context, prompt };
+}
+
+const CONSULT_TOOL_PARAMS = Type.Object({
+  prompt: Type.String({ description: "The question to ask the consulted model." }),
+  model: Type.Optional(
+    Type.String({
+      description: `Which model to consult (default ${DEFAULT_MODEL}). One of: ${KNOWN_MODELS.join(", ")}.`,
+    }),
+  ),
+  context: Type.Optional(
+    Type.Union([Type.Literal("none"), Type.Literal("transcript")], {
+      description:
+        "How much of your session the peer sees: 'transcript' (your recent session — a rich " +
+        "second opinion, the default) or 'none' (a clean one-shot with just the prompt).",
+    }),
+  ),
+});
+
+// The tool's engine is the command's engine: build the task (optionally with the session
+// transcript), run the same transient `pi -p` delegate, and RETURN its output as the result —
+// no sendUserMessage, no isIdle() refusal (returning-as-result is mid-turn-safe). `signal` is
+// the model's turn-abort: Esc kills the delegate mid-flight.
+async function consultToolExecute(
+  _id: string,
+  params: Record<string, unknown>,
+  signal: AbortSignal,
+  _onUpdate: unknown,
+  ctx: ToolExecuteContext,
+): Promise<ToolResult> {
+  const parsed = parseToolArgs(params);
+  if (!parsed.ok) return { content: [{ type: "text", text: parsed.error }], isError: true };
+  const { model, context, prompt } = parsed;
+
+  const contextBlock = context === "transcript" ? serializeSession(ctx) : "";
+  const task = contextBlock ? `${contextBlock}\n\n---\n\n${prompt}` : prompt;
+
+  ctx.ui.setStatus("consult", `consult ${model}: running…`);
+  try {
+    const out = await runPi(model, task, signal);
+    ctx.ui.setStatus("consult", "");
+    const trimmed = out.trim();
+    if (!trimmed) {
+      return { content: [{ type: "text", text: `consult ${model}: delegate returned no output.` }], isError: true };
+    }
+    return { content: [{ type: "text", text: trimmed }] };
+  } catch (err) {
+    ctx.ui.setStatus("consult", "");
+    return {
+      content: [
+        { type: "text", text: `consult ${model} failed: ${err instanceof Error ? err.message : String(err)}` },
+      ],
+      isError: true,
+    };
+  }
+}
+
+// Pull entries from the session manager and hand them to the pure renderer below. Typed on
+// just the session-reader so BOTH the command ctx and the tool ctx (both carry sessionManager)
+// can build context the same way.
+function serializeSession(ctx: { sessionManager: SessionManager }): string {
   let entries: SessionEntry[];
   try {
     entries = ctx.sessionManager.buildContextEntries();
@@ -378,7 +482,7 @@ async function describeImage(
 
 // Spawn a transient `pi -p --no-session --model <id>` one-shot and capture its stdout.
 // Re-enters the running pi binary — robust whether pi is a bun bundle or on PATH.
-function runPi(model: string, task: string): Promise<string> {
+function runPi(model: string, task: string, signal?: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {
     const inv = getPiInvocation([
       "--provider",
@@ -397,6 +501,19 @@ function runPi(model: string, task: string): Promise<string> {
       // from chaining (a delegate reading an image would otherwise re-delegate too).
       env: { ...process.env, PI_CONSULT_DELEGATE: "1" },
     });
+    // The consult TOOL passes the model's turn-abort signal so Esc kills the delegate
+    // mid-flight; the slash commands pass none. Listener is removed on settle so a completed
+    // delegate leaks nothing.
+    const onAbort = () => proc.kill();
+    if (signal) {
+      if (signal.aborted) {
+        proc.kill();
+        reject(new Error("consult cancelled"));
+        return;
+      }
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+    const cleanup = () => signal?.removeEventListener("abort", onAbort);
     let stdout = "";
     let stderr = "";
     proc.stdout?.on("data", (d: Buffer) => {
@@ -405,8 +522,12 @@ function runPi(model: string, task: string): Promise<string> {
     proc.stderr?.on("data", (d: Buffer) => {
       stderr += d.toString();
     });
-    proc.on("error", reject);
+    proc.on("error", (err) => {
+      cleanup();
+      reject(err);
+    });
     proc.on("close", (code) => {
+      cleanup();
       if (code === 0) resolve(stdout);
       else {
         const tail = stderr.trim().slice(0, 500);

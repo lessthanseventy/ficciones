@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   parseArgs,
+  parseToolArgs,
   extractText,
   serializeEntries,
   isImageOmittedResult,
@@ -264,5 +265,61 @@ describe("extractUserFraming — the operator's words around the paste", () => {
   test("no user entries → null", () => {
     expect(extractUserFraming([])).toBeNull();
     expect(extractUserFraming([a("just an assistant")])).toBeNull();
+  });
+});
+
+// ── parseToolArgs: the model-invocable `consult` tool's params ────────────────────────────
+// Mechanism 2 (tlon-workspace-design §2): the same delegate as /consult, but a TOOL a model
+// calls mid-turn. Unlike the slash command (which peels a bare [model] token off a string),
+// the tool takes named params — so validation is stricter: an explicit unknown model is an
+// error, not a silent downgrade to the default.
+
+describe("parseToolArgs — the consult tool's named params", () => {
+  test("prompt only → default model, transcript context", () => {
+    expect(parseToolArgs({ prompt: "am I on track?" })).toEqual({
+      ok: true,
+      model: "minimax-m3",
+      context: "transcript",
+      prompt: "am I on track?",
+    });
+  });
+
+  test("an explicit known model is used", () => {
+    expect(parseToolArgs({ prompt: "review this", model: "glm-5.2" })).toEqual({
+      ok: true,
+      model: "glm-5.2",
+      context: "transcript",
+      prompt: "review this",
+    });
+  });
+
+  test("context: none is honored (a clean one-shot, the /fresh behavior)", () => {
+    expect(parseToolArgs({ prompt: "q", context: "none" })).toEqual({
+      ok: true,
+      model: "minimax-m3",
+      context: "none",
+      prompt: "q",
+    });
+  });
+
+  test("an explicit unknown model is an ERROR (not a silent downgrade)", () => {
+    const r = parseToolArgs({ prompt: "q", model: "gpt-9" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("gpt-9");
+  });
+
+  test("a missing/empty prompt is an error", () => {
+    expect(parseToolArgs({}).ok).toBe(false);
+    expect(parseToolArgs({ prompt: "   " }).ok).toBe(false);
+  });
+
+  test("prompt is trimmed", () => {
+    const r = parseToolArgs({ prompt: "  spaced  " });
+    expect(r.ok && r.prompt).toBe("spaced");
+  });
+
+  test("an empty-string model falls back to the default (treated as absent)", () => {
+    const r = parseToolArgs({ prompt: "q", model: "" });
+    expect(r).toEqual({ ok: true, model: "minimax-m3", context: "transcript", prompt: "q" });
   });
 });
