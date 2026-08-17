@@ -205,7 +205,13 @@
                 extraConfig = ''
                   # Extended keys so shift+enter etc. round-trip to apps under tmux (the kitty-
                   # protocol gap the worklist flagged). Apps negotiate their own encoding above this.
+                  # csi-u format: pi (and other Kitty-keyboard apps) decode CSI-u most reliably;
+                  # pi probes `tmux show -gv extended-keys-format` at startup and warns when it's
+                  # the tmux default `xterm`. The Tlön center is a real `tmux attach` into the
+                  # user's session, so this is the one line the workbench needs the user's tmux to
+                  # carry. Requires tmux 3.5+; this box runs 3.7b.
                   set -s extended-keys on
+                  set -g extended-keys-format csi-u
                   set -as terminal-features 'xterm*:extkeys'
 
                   # Vi mode for the prompt line + copy mode.
@@ -310,26 +316,6 @@
                    | .retry.enabled //= true
                    | .enabledModels //= ["glm-5.2","glm-5.1","deepseek-v4-pro","deepseek-v4-flash","kimi-k2.7-code","minimax-m3","qwen3-coder"]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
-              '';
-
-              # tmux extended-keys-format — MERGED into the user's tmux.conf, not owned (same
-              # pattern as manosWiring: the repo doesn't own the file's body). pi probes
-              # `tmux show -gv extended-keys-format` at startup and warns when it's the tmux
-              # default `xterm`; with `csi-u` tmux forwards modified keys in Kitty/CSI-u form,
-              # which pi (and other Kitty-keyboard apps) decode most reliably. The Tlön center
-              # is a real `tmux attach` into the user's session, so this is the one line the
-              # workbench needs the user's tmux to carry. Idempotent append-only — never edits
-              # or clobbers existing config; last-wins tmux semantics make position irrelevant.
-              # Requires tmux 3.5+; this box runs 3.7b. Apply live after switch with
-              # `tmux set-option -g extended-keys-format csi-u` (or restart tmux).
-              home.activation.tmuxCsiU = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-                TMUX_DIR="$HOME/.config/tmux"
-                TMUX_CONF="$TMUX_DIR/tmux.conf"
-                run mkdir -p "$TMUX_DIR"
-                [ -f "$TMUX_CONF" ] || run touch "$TMUX_CONF"
-                if ! grep -q 'extended-keys-format[[:space:]]\+csi-u' "$TMUX_CONF"; then
-                  printf '\n# Added by ficciones home-manager — pi decodes csi-u best (tmux 3.5+).\nset -g extended-keys-format csi-u\n' >> "$TMUX_CONF"
-                fi
               '';
 
               # The always-up sovereign channel (capability-map move #1) as a headless
