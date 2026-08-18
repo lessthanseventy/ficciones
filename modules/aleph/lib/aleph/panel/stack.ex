@@ -4,7 +4,12 @@ defmodule Aleph.Panel.Stack do
   status, working-tree summary, recent `ficciones` commits (newest first), and git status.
   Health (services, system metrics, tools) lives in the HEALTH panel next door.
 
-  Data is `%{branch, dirty, ahead, behind, status_summary, commits: [%{hash, subject, time, author}]}`.
+  Data is `%{branch, dirty, ahead, behind, status_summary, commits: [%{hash, subject, relative, date, author, agent?}]}`.
+  Each commit prints on two rows — `hash  author  relative (date)` then the full subject indented
+  below — so the subject isn't chopped to whatever's left of a one-line timestamp/author prefix.
+  `author` is the `Co-Authored-By` model when the commit has one (pink, `agent? == true`) rather
+  than the human's git identity every dogfood commit is pushed under — a plain human commit
+  (no trailer) shows the git author instead, in label amber.
   """
   @behaviour Aleph.Panel
 
@@ -31,7 +36,7 @@ defmodule Aleph.Panel.Stack do
     body =
       case commits do
         [] -> [line("no git history", :dim)]
-        cs -> Enum.map(cs, &commit_row/1)
+        cs -> Enum.flat_map(cs, &commit_row/1)
       end
 
     Aleph.Panel.clip(header ++ [branch_line | status_line ++ body], rect)
@@ -74,11 +79,16 @@ defmodule Aleph.Panel.Stack do
     [{"  ", :dim} | joined]
   end
 
-  defp commit_row(%{hash: hash, subject: subject, time: time, author: author}) do
-    short_author = short(author)
-    [{hash <> " ", :dim}, {time <> " ", :dim}, {short_author <> " ", :accent}, {subject, :normal}]
-  end
+  defp commit_row(%{hash: hash, subject: subject, relative: relative, date: date, author: author, agent?: agent?}) do
+    author_style = if agent?, do: :accent, else: :label
 
-  defp short(nil), do: "?"
-  defp short(name), do: name |> String.split() |> List.first() |> to_string()
+    meta = [
+      {hash <> "  ", :dim},
+      {author <> "  ", author_style},
+      {relative, :dim},
+      {" (" <> date <> ")", :dim}
+    ]
+
+    [meta, [{"  " <> subject, :normal}]]
+  end
 end

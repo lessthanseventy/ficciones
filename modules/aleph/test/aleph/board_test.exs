@@ -135,16 +135,28 @@ defmodule Aleph.BoardTest do
       assert text(active) =~ "Comms"
     end
 
-    test "stack (Tlön): header then branch then one row per commit, hash dimmed" do
+    test "stack (Tlön): header then branch then two rows per commit (meta line, then subject), hash dimmed" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
-      commits = [%{hash: "bc86cc8", subject: "funes: open_thread / close_thread", time: "2h ago", author: "andrew"}]
+
+      commits = [
+        %{
+          hash: "bc86cc8",
+          subject: "funes: open_thread / close_thread",
+          relative: "2 hours ago",
+          date: "Nov 24 10:00",
+          author: "andrew",
+          agent?: false
+        }
+      ]
+
       data = %{branch: "main", dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: commits}
-      assert [header, _blank, branch, row] = Stack.render(data, rect)
+      assert [header, _blank, branch, meta, subject] = Stack.render(data, rect)
       assert text(header) == "STACK"
       assert text(branch) =~ "main"
-      assert text(row) =~ "bc86cc8"
-      assert text(row) =~ "open_thread"
-      assert Enum.any?(row, fn {t, s} -> s == :dim and t =~ "bc86cc8" end)
+      assert text(meta) =~ "bc86cc8"
+      assert text(meta) =~ "2 hours ago"
+      assert text(subject) =~ "open_thread"
+      assert Enum.any?(meta, fn {t, s} -> s == :dim and t =~ "bc86cc8" end)
     end
 
     test "stack (Tlön): ahead/behind tracking and dirty status" do

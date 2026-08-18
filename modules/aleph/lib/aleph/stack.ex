@@ -15,13 +15,57 @@ defmodule Aleph.Stack do
     {"tmux", ["-V"]}
   ]
 
-  @doc "Recent `ficciones` commits as `[%{hash, subject, time, author}]`, newest first (best-effort, fresh)."
+  @doc """
+  Recent `ficciones` commits as `[%{hash, subject, author, agent?, relative, date}]`, newest
+  first (best-effort, fresh). `date` is a short absolute stamp ("Nov 24 14:32", from git).
+
+  `author` prefers the commit's `Co-Authored-By:` trailer over `%an` (the git identity) — per
+  the repo's commit convention (root `AGENTS.md`), an agent-authored commit is still pushed
+  under the human's git identity, so `%an` alone would credit every dogfood commit to the human
+  who happened to be at the keyboard instead of the model that actually wrote it. `agent?` is
+  true when a trailer was found, so the panel can style attribution differently for "a model
+  wrote this" vs "a human wrote this".
+
+  `relative` ("5 minutes ago") is computed here, NOT by git's own `%ar` — git buckets each
+  commit against the exact second it's asked, so commits with different sub-minute offsets
+  flip to the next bucket at different, apparently-random wall-clock moments as the panel
+  re-renders. `relative_time/2` instead rounds "now" down to the current minute first, so
+  every commit's bucket is computed against the same anchor and they all advance together,
+  exactly on the minute.
+  """
   def commits(dir \\ ".", n \\ 8) do
-    case cmd("git", ["-C", dir, "log", "--format=#{format()}", "-n", Integer.to_string(n)]) do
-      {:ok, out} -> out |> String.split("\n", trim: true) |> Enum.map(&parse_commit/1)
-      :error -> []
+    case cmd("git", ["-C", dir, "log", "--format=#{format()}", date_format(), "-n", Integer.to_string(n)]) do
+      {:ok, out} ->
+        now = System.os_time(:second)
+        out |> String.split("\n", trim: true) |> Enum.map(&parse_commit(&1, now))
+
+      :error ->
+        []
     end
   end
+
+  @doc """
+  "5 minutes ago"-style relative time, rounded against `now` truncated to the current minute
+  (see `commits/2` doc) so a batch of commits all advance a bucket in lockstep. `nil` timestamp
+  (unparseable `%at`) yields "?".
+  """
+  def relative_time(nil, _now), do: "?"
+
+  def relative_time(timestamp, now) do
+    anchor = div(now, 60) * 60
+    diff = max(anchor - timestamp, 0)
+
+    cond do
+      diff < 60 -> "just now"
+      diff < 3_600 -> plural(div(diff, 60), "minute")
+      diff < 86_400 -> plural(div(diff, 3_600), "hour")
+      diff < 604_800 -> plural(div(diff, 86_400), "day")
+      true -> plural(div(diff, 604_800), "week")
+    end
+  end
+
+  defp plural(1, unit), do: "1 #{unit} ago"
+  defp plural(n, unit), do: "#{n} #{unit}s ago"
 
   @doc "Current branch name, or nil if not in a git repo."
   def branch(dir \\ ".") do
@@ -236,14 +280,52 @@ defmodule Aleph.Stack do
     end
   end
 
-  # -- format: hash<tab>relative_time<tab>author_name<tab>subject
-  defp format, do: "%h%x09%ar%x09%an%x09%s"
+  # -- format: hash<tab>author_date_unix<tab>short_date<tab>git_author<tab>subject<tab>co_authors
+  # The trailer placeholder needs git >= 2.31; older git just prints it literally as the last
+  # field, which co_author/1 below then fails to split on "<" and falls back to the git author.
+  defp format, do: "%h%x09%at%x09%ad%x09%an%x09%s%x09%(trailers:key=Co-Authored-By,valueonly,separator=%x2C)"
+  defp date_format, do: "--date=format:%b %d %H:%M"
 
-  defp parse_commit(line) do
-    case String.split(line, "\t", parts: 4) do
-      [hash, time, author, subject] -> %{hash: hash, time: time, author: author, subject: subject}
-      [hash, subject] -> %{hash: hash, time: "?", author: "?", subject: subject}
-      [hash] -> %{hash: hash, time: "?", author: "?", subject: ""}
+  defp parse_commit(line, now) do
+    case String.split(line, "\t", parts: 6) do
+      [hash, ts, date, git_author, subject, trailer] ->
+        timestamp = to_integer(ts)
+
+        {author, agent?} =
+          case co_authors(trailer) do
+            nil -> {git_author, false}
+            names -> {names, true}
+          end
+
+        %{
+          hash: hash,
+          relative: relative_time(timestamp, now),
+          date: date,
+          author: author,
+          agent?: agent?,
+          subject: subject
+        }
+
+      [hash, subject] ->
+        %{hash: hash, relative: "?", date: "?", author: "?", agent?: false, subject: subject}
+
+      [hash] ->
+        %{hash: hash, relative: "?", date: "?", author: "?", agent?: false, subject: ""}
+    end
+  end
+
+  # "Model Name <email>, Other Model <email>" -> "Model Name + Other Model", or nil if there's
+  # no trailer (a plain human commit).
+  defp co_authors(""), do: nil
+
+  defp co_authors(trailer) do
+    trailer
+    |> String.split(",")
+    |> Enum.map(fn entry -> entry |> String.trim() |> String.split("<", parts: 2) |> List.first() |> String.trim() end)
+    |> Enum.reject(&(&1 == ""))
+    |> case do
+      [] -> nil
+      names -> Enum.join(names, " + ")
     end
   end
 
