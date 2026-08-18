@@ -71,6 +71,7 @@ defmodule Aleph.BoardTest do
         health: nil,
         logbook: nil,
         habits: nil,
+        settings: nil,
         triage: %{blockers: %{shown: [], more: 0}, failed_checks: %{shown: [], more: 0}, unassigned: []}
       },
       overrides

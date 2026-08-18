@@ -32,6 +32,9 @@ defmodule Aleph.Keymap do
       none, else no-op (the `Enter` verb — the `s` verb's replacement).
     * `{:post_message, thread_id, body}` — post the composer's body to the focused thread as the
       operator (the `c` verb).
+    * `{:cycle_coworker_model, profile}` — advance the active space's coworker driver model one
+      step round `Aleph.Profiles.model_ring/0` and persist it (the `m` verb — the SETTINGS knob;
+      only in a space with a coworker).
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer: String.t()}` (the `n` verb) or
@@ -49,6 +52,7 @@ defmodule Aleph.Keymap do
           | {:create_thread, String.t()}
           | {:enter_or_spawn, term()}
           | {:post_message, term(), String.t()}
+          | {:cycle_coworker_model, String.t()}
           | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
@@ -125,6 +129,17 @@ defmodule Aleph.Keymap do
   defp command(%{key: :char, char: "c"} = k, %{composer_thread_id: id} = state)
        when not is_nil(id) and not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt),
        do: {%{state | input: %{kind: :compose, thread_id: id, buffer: ""}}, :repaint}
+
+  # `m` — cycle the active space's coworker driver model (the SETTINGS panel's one verb). Only
+  # in a space WITH a coworker (elsewhere there's nothing to point the ring at), and bare `m`
+  # only, same modifier discipline as `c`.
+  defp command(%{key: :char, char: "m"} = k, %{active_key: key} = state)
+       when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt) do
+    case Space.fetch(key).coworker do
+      nil -> {state, :none}
+      profile -> {state, {:cycle_coworker_model, profile}}
+    end
+  end
 
   # Enter on a focused thread → enter-or-spawn: spawn a session if it has none, else no-op. The
   # replacement for the old `s` verb — creating a thread and spawning are one action (`n` already

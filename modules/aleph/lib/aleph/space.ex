@@ -19,6 +19,7 @@ defmodule Aleph.Space do
   alias Aleph.Panel.Health
   alias Aleph.Panel.Logbook
   alias Aleph.Panel.Roster
+  alias Aleph.Panel.Settings
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
@@ -73,7 +74,9 @@ defmodule Aleph.Space do
         key: :tlon,
         label: "Tlön",
         surface: [{Terminal, :machine}],
-        left: [Stack],
+        # SETTINGS under the Stack: the operator's in-app knobs (coworker driver model, `m` to
+        # cycle) — the meta space is where you tune the machine, so its controls live here.
+        left: [Stack, Settings],
         # HABITS — how the machine works with Andrew (funes' habits axis) — belongs on the
         # meta/machine lens beside Health and the Logbook.
         right: [Health, Logbook, Habits],

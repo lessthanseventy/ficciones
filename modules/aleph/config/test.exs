@@ -1,5 +1,9 @@
 import Config
 
+# Point the operator settings file away from the real ~/.config so the box's own overrides can
+# never leak into test assertions; Aleph.Config tests pass explicit paths.
+config :aleph, config_path: "/nonexistent/aleph-test-config.json"
+
 config :funes, start_mcp: false
 
 # aleph's own tests exercise the pure render path (panels → lines → composition) headlessly,

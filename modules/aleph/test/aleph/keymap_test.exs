@@ -338,6 +338,35 @@ defmodule Aleph.KeymapTest do
     end
   end
 
+  describe "the `m` verb — cycle the coworker driver model (the SETTINGS knob)" do
+    test "in a coworker space (Tlön), bare `m` emits the cycle effect for that profile" do
+      s = state(%{active_key: :tlon})
+      assert {^s, {:cycle_coworker_model, "tlon"}} = Keymap.handle(char("m"), s)
+    end
+
+    test "reachable via the leader from inside the live terminal" do
+      s = state(%{active_key: :tlon, center_live?: true})
+      assert {%{leader_pending?: false}, {:cycle_coworker_model, "tlon"}} = via_leader(char("m"), s)
+    end
+
+    test "in a space without a coworker, `m` is a no-op" do
+      s = state(%{active_key: :sessions})
+      assert {^s, :none} = Keymap.handle(char("m"), s)
+    end
+
+    test "a modified m (Ctrl+M / Alt+M) never fires the settings verb" do
+      s = state(%{active_key: :tlon})
+      assert {^s, :none} = Keymap.handle(char("m", ctrl: true), s)
+      assert {^s, :none} = Keymap.handle(char("m", alt: true), s)
+    end
+
+    test "with a live terminal and no leader, `m` types into the terminal like any key" do
+      s = state(%{active_key: :tlon, center_live?: true})
+      k = char("m")
+      assert {^s, {:forward, ^k}} = Keymap.handle(k, s)
+    end
+  end
+
   describe "unknown keys" do
     test "an unbound key in a nav-default space is a no-op" do
       s = state()

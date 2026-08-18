@@ -115,7 +115,8 @@ defmodule Aleph.Panel.StatusBar do
 
   defp hints_row, do: hints_row(@hints)
 
-  # Tlön's center is two machine panes, so it alone carries the other-pane verb.
+  # Tlön alone carries the settings verb — the only space with a coworker to point it at.
+  defp hints_for("Tlön"), do: @hints ++ [{"^␣m", "driver"}]
   defp hints_for(_space), do: @hints
 
   defp hints_row(hints) do

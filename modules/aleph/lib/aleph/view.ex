@@ -28,7 +28,8 @@ defmodule Aleph.View do
     Panel.Stack,
     Panel.Health,
     Panel.Logbook,
-    Panel.Triage
+    Panel.Triage,
+    Panel.Settings
   ]
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
@@ -125,6 +126,7 @@ defmodule Aleph.View do
   def data_for(Panel.Logbook, r), do: r.logbook
   def data_for(Panel.Triage, r), do: r.triage
   def data_for(Panel.Habits, r), do: r.habits
+  def data_for(Panel.Settings, r), do: r.settings
   def data_for(_other, _r), do: nil
 
   # Inject the panel's current scroll offset into scrollable panels' data (nil data left alone —

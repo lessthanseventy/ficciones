@@ -498,6 +498,20 @@ defmodule Aleph.Cockpit do
   defp apply_effect({:enter_or_spawn, thread_id}, state),
     do: {:noreply, render(%{state | flash: enter_or_spawn(thread_id, state)})}
 
+  # The `m` verb landed: advance the coworker's driver model one step round the ring and persist
+  # it (Aleph.Config). Honest about scope: the RUNNING coworker keeps its model — the override
+  # applies wherever Profiles.fetch flows on the next spawn (aleph:reset, or kill the pi window).
+  defp apply_effect({:cycle_coworker_model, profile_name}, state) do
+    current = Profiles.fetch(profile_name)
+    next = Profiles.next_model(current && current.model)
+    Aleph.Config.put_coworker_model(profile_name, next)
+
+    {:noreply,
+     render(%{state | flash: "coworker driver → #{next.provider}/#{next.model} — applies on next spawn (aleph:reset)"})}
+  rescue
+    e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
+  end
+
   # `enter_or_spawn`: if the focused thread already has a live session, it's already the center —
   # nothing to do (you're already working there). Otherwise spawn one onto it. The replacement for
   # the old bare `s` verb — one `spawn_onto/2` path, reached via `n` (new thread) or `Enter` (existing).
@@ -607,6 +621,7 @@ defmodule Aleph.Cockpit do
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :comms, do: triage_read(threads)),
       habits: habits_read(state.active_key),
+      settings: settings_read(state.active_key),
       scrolls: state.scrolls,
       input: state.input,
       flash: state.flash,
@@ -711,6 +726,23 @@ defmodule Aleph.Cockpit do
   # always-loaded set (approved). Machine-wide, so not keyed on a focused thread.
   defp habits_read(:tlon), do: %{pending: Dossier.pending_habits(), approved: Dossier.approved_habits()}
   defp habits_read(_key), do: nil
+
+  # SETTINGS reads: the active space's coworker driver (override merged by Profiles.fetch) + the
+  # ring the `m` verb cycles. Any space with a coworker gets the panel's data; spaces without one
+  # get nil (the panel renders nothing).
+  defp settings_read(key) do
+    with profile_name when is_binary(profile_name) <- Space.fetch(key).coworker,
+         %Profile{} = p <- Profiles.fetch(profile_name) do
+      %{
+        profile: profile_name,
+        model: p.model,
+        ring: Profiles.model_ring(),
+        override?: Aleph.Config.coworker_model(profile_name) != nil
+      }
+    else
+      _ -> nil
+    end
+  end
 
   # LOGBOOK reads are only gathered on Tlön — the machine thread's issues + recent messages,
   # the shared notebook for notes and observations about the env.

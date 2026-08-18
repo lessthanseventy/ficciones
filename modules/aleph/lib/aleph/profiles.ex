@@ -174,9 +174,49 @@ defmodule Aleph.Profiles do
     }
   ]
 
-  @doc "Look a profile up by name, or nil."
+  # The coworker-driver ring the SETTINGS panel cycles (leader `m` in a coworker space) —
+  # every entry a sound driver for a delegating orchestrator. Claude-first per the standing
+  # decision (lean on the $100 plan; multi-account fails over to ollama.com glm when it caps);
+  # the ollama entries are the one-keystroke "stop burning Claude" escape while the
+  # Claude-via-pi billing question (extra-usage vs plan) is still open.
+  @model_ring [
+    %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"},
+    %{provider: "anthropic", model: "claude-opus-4-8", thinking: "medium"},
+    %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
+    %{provider: "ollama-cloud", model: "kimi-k2.7-code", thinking: "medium"},
+    %{provider: "ollama-cloud", model: "deepseek-v4-pro", thinking: "high"}
+  ]
+
+  @doc """
+  Look a profile up by name, or nil. The operator's runtime override (`Aleph.Config`
+  `coworkers.<name>.model` — what the SETTINGS panel writes) is merged over the compiled
+  `model`, so it flows everywhere the profile does: the materialised settings.json AND the
+  launcher's `--model` flag, on the next coworker spawn.
+  """
   @spec fetch(String.t()) :: Profile.t() | nil
-  def fetch(name), do: Enum.find(@profiles, &(&1.name == name))
+  def fetch(name) do
+    with %Profile{} = p <- Enum.find(@profiles, &(&1.name == name)) do
+      case Aleph.Config.coworker_model(name) do
+        nil -> p
+        override -> %{p | model: override}
+      end
+    end
+  end
+
+  @doc "The model ring the settings verb cycles through, Claude-first."
+  @spec model_ring() :: [map()]
+  def model_ring, do: @model_ring
+
+  @doc "The ring entry after `current` (matched on provider+model), wrapping; unknown → the ring head."
+  @spec next_model(map() | nil) :: map()
+  def next_model(current) do
+    i = Enum.find_index(@model_ring, &(&1.provider == current[:provider] and &1.model == current[:model]))
+
+    case i do
+      nil -> hd(@model_ring)
+      i -> Enum.at(@model_ring, rem(i + 1, length(@model_ring)))
+    end
+  end
 
   @doc """
   Pure: profile + the base `settings.json`/`mcp.json` maps → the files the profile's config dir needs.

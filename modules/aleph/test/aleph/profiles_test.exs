@@ -121,6 +121,37 @@ defmodule Aleph.ProfilesTest do
     test "unknown profile → nil" do
       assert Profiles.fetch("nope") == nil
     end
+
+    test "an operator override (Aleph.Config) is merged over the compiled model" do
+      dir = Path.join(System.tmp_dir!(), "aleph-prof-cfg-#{System.unique_integer([:positive])}")
+      path = Path.join(dir, "config.json")
+      Aleph.Config.put_coworker_model("tlon", %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}, path)
+
+      previous = Application.get_env(:aleph, :config_path)
+      Application.put_env(:aleph, :config_path, path)
+
+      on_exit(fn ->
+        Application.put_env(:aleph, :config_path, previous)
+        File.rm_rf!(dir)
+      end)
+
+      assert Profiles.fetch("tlon").model == %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
+    end
+  end
+
+  describe "the model ring — what the settings `m` verb cycles" do
+    test "claude-first, and every entry names a provider the base config knows" do
+      assert [%{provider: "anthropic", model: "claude-sonnet-5"} | _] = Profiles.model_ring()
+      assert Enum.all?(Profiles.model_ring(), &(&1.provider in ["anthropic", "ollama-cloud"]))
+    end
+
+    test "next_model advances and wraps; unknown or nil restarts at the head" do
+      [first, second | _] = Profiles.model_ring()
+      assert Profiles.next_model(first) == second
+      assert Profiles.next_model(List.last(Profiles.model_ring())) == first
+      assert Profiles.next_model(nil) == first
+      assert Profiles.next_model(%{provider: "x", model: "y"}) == first
+    end
   end
 
   describe "materialise!/2 — writes the config dir from a base" do
