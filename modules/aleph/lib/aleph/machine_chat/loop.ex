@@ -2,31 +2,41 @@ defmodule Aleph.MachineChat.Loop do
   @moduledoc """
   The termbox host loop for the Tlön machine-chat tab — a minimal cousin of `Aleph.Cockpit` that
   paints ONE panel (`Aleph.Transcript`) full-screen and drives it from two inputs: a db poll and
-  stdin keys (via `Raxol.Terminal.Driver`). All logical state lives in the pure
+  stdin keys/wheel (via `Raxol.Terminal.Driver`). All logical state lives in the pure
   `Aleph.MachineChat.Host`; this module owns only the TTY, the poll timer, and the geometry-aware
   scroll (which `Host`, being pure, can't compute). Not unit-tested — it grabs the TTY (aleph's law:
   test the pure seams, run the loop live).
 
   It's a READER: a separate OS process from the cockpit, so it can't share the node-local
   `Funes.Bus`; it polls `Funes.Channel.machine_threads/1` off the shared `FUNES_DB` instead.
+
+  Rendering is COALESCED like the cockpit: a scroll event only updates the (cheaply clamped) offset
+  and arms a single `:render`, so a fast wheel-burst collapses into one paint per frame instead of
+  flooding the mailbox with a full transcript render each. The scroll offset is clamped per-event
+  against the `max_scroll` cached by the last paint, so over-scrolling past the bottom is discarded
+  rather than piling up (which used to make scrolling back feel stuck).
   """
   use GenServer
 
   alias Aleph.Board
   alias Aleph.MachineChat.Host
-  alias Aleph.Panel
   alias Aleph.Transcript
   alias Funes.Channel
   alias Raxol.Core.Events.Event
 
   # Poll cadence for new messages — live enough for a conversation, cheap against a quiet WAL.
   @poll_ms 700
+  # Coalesce a burst of scroll/poll events into ONE paint on this cadence (~120fps), so fast
+  # scrolling stays smooth instead of serializing a full render per event (the cockpit's trick).
+  @render_coalesce_ms 8
   @tb_output_truecolor 5
   # TB_INPUT_ESC (1) | TB_INPUT_MOUSE (4) = 5: ESC-sequence parsing AND mouse reporting, so the
   # raxol Driver emits wheel events we scroll on (the cockpit's proven input mode).
   @tb_input_esc_mouse 5
   # Lines a single wheel notch scrolls — the usual terminal step.
   @wheel_lines 3
+  # Unclipped render height — render the transcript this tall once, then window it by the offset.
+  @max_rows 10_000
 
   # Force-disarm anything a crash could leave on the host tty: mouse reporting off, leave alt screen,
   # show cursor. Idempotent, straight to /dev/tty so it runs even as the io server winds down.
@@ -69,12 +79,14 @@ defmodule Aleph.MachineChat.Loop do
           h: max(:termbox2_nif.tb_height(), 1),
           view: Host.new(),
           scroll: 0,
-          follow?: true
+          max_scroll: 0,
+          follow?: true,
+          render_armed?: false
         }
 
         # Load the first frame immediately, then settle into the poll cadence.
         send(self(), :poll)
-        {:ok, render(state)}
+        {:ok, paint(state)}
 
       other ->
         {:stop, {:tb_init_failed, other}}
@@ -92,8 +104,13 @@ defmodule Aleph.MachineChat.Loop do
   def handle_info(:poll, state) do
     Process.send_after(self(), :poll, @poll_ms)
     view = Host.merge(state.view, poll_blocks(state))
-    {:noreply, render(%{refresh_size(state) | view: view})}
+    {:noreply, schedule_render(%{refresh_size(state) | view: view})}
   end
+
+  # The coalesced paint. A `:render` that arrives already disarmed (a later event painted first) is a
+  # no-op, so a burst never double-paints.
+  def handle_info(:render, %{render_armed?: false} = state), do: {:noreply, state}
+  def handle_info(:render, state), do: {:noreply, paint(%{state | render_armed?: false})}
 
   # The input Driver died — we can't take keys anymore, so stop; terminate/2 restores the tty.
   def handle_info({:EXIT, pid, reason}, %{driver: pid} = state), do: {:stop, reason, state}
@@ -101,44 +118,45 @@ defmodule Aleph.MachineChat.Loop do
 
   @impl true
   def handle_cast({:dispatch, %Event{type: :resize}}, state) do
-    {:noreply, render(refresh_size(state))}
+    {:noreply, schedule_render(refresh_size(state))}
   end
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
     dispatch(action_for(key), state)
   end
 
-  # The wheel scrolls the transcript a few lines; scrolling up drops tail-follow (render/1 re-arms it
-  # at the bottom), same as the keyboard scroll.
+  # The wheel scrolls the transcript a few lines — same offset path as the keys.
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{button: :wheel_up}}}, state),
-    do: {:noreply, render(%{state | scroll: max(state.scroll - @wheel_lines, 0), follow?: false})}
+    do: {:noreply, scroll_by(state, -@wheel_lines)}
 
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{button: :wheel_down}}}, state),
-    do: {:noreply, render(%{state | scroll: state.scroll + @wheel_lines})}
+    do: {:noreply, scroll_by(state, @wheel_lines)}
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
   # The machine chat is really ONE long conversation (the active machine thread dominates), so the
-  # arrow/jk keys SCROLL it — line-scroll is the thing you reach for. Page keys jump a screenful;
-  # g/Home and G/End/Enter snap to top and bottom (Enter re-arms tail-follow). `z` zooms the newest
-  # thread full-pane, `q` quits. Scrolling up drops tail-follow so new messages don't yank you back;
-  # reaching the bottom re-arms it (the clamp lives in render/1).
+  # arrow/jk keys SCROLL it. Page keys jump a screenful; g/Home and G/End/Enter snap to top and
+  # bottom (bottom re-arms tail-follow). `z` zooms the newest thread full-pane, `q` quits.
   defp dispatch(:ignore, state), do: {:noreply, state}
-  defp dispatch(:line_up, state), do: {:noreply, render(%{state | scroll: max(state.scroll - 1, 0), follow?: false})}
-  defp dispatch(:line_down, state), do: {:noreply, render(%{state | scroll: state.scroll + 1})}
-
-  defp dispatch(:page_up, state),
-    do: {:noreply, render(%{state | scroll: max(state.scroll - page(state), 0), follow?: false})}
-
-  defp dispatch(:page_down, state), do: {:noreply, render(%{state | scroll: state.scroll + page(state)})}
-  defp dispatch(:top, state), do: {:noreply, render(%{state | scroll: 0, follow?: false})}
-  defp dispatch(:bottom, state), do: {:noreply, render(%{state | follow?: true})}
+  defp dispatch(:line_up, state), do: {:noreply, scroll_by(state, -1)}
+  defp dispatch(:line_down, state), do: {:noreply, scroll_by(state, 1)}
+  defp dispatch(:page_up, state), do: {:noreply, scroll_by(state, -page(state))}
+  defp dispatch(:page_down, state), do: {:noreply, scroll_by(state, page(state))}
+  defp dispatch(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0, follow?: false})}
+  defp dispatch(:bottom, state), do: {:noreply, schedule_render(%{state | scroll: state.max_scroll, follow?: true})}
 
   # Logical actions the pure Host owns (zoom/unzoom/quit). `q` stops the loop; terminate/2 restores
   # the tty on the way out.
   defp dispatch(action, state) do
     view = Host.handle_key(state.view, action)
-    if view.quit, do: {:stop, :normal, %{state | view: view}}, else: {:noreply, render(%{state | view: view})}
+    if view.quit, do: {:stop, :normal, %{state | view: view}}, else: {:noreply, schedule_render(%{state | view: view})}
+  end
+
+  # Move the offset by `delta` lines, clamped to `[0, max_scroll]` using the cached bound so it's
+  # cheap (no render) and excess fast-scroll is discarded; reaching the bottom re-arms tail-follow.
+  defp scroll_by(state, delta) do
+    scroll = (state.scroll + delta) |> min(state.max_scroll) |> max(0)
+    schedule_render(%{state | scroll: scroll, follow?: scroll >= state.max_scroll})
   end
 
   defp action_for(%{key: :char, char: "j"}), do: :line_down
@@ -177,21 +195,29 @@ defmodule Aleph.MachineChat.Loop do
     :exit, _ -> state.view.blocks
   end
 
-  # Paint one full-screen Transcript panel, windowed by the scroll offset: clamp scroll to the
-  # content, re-pin to the bottom while following, and re-arm follow when a page-down reaches the end.
-  defp render(state) do
-    content_h = Panel.content_height(Transcript, state.view, state.w)
-    max_scroll = max(content_h - state.h, 0)
+  # Arm ONE coalesced paint if none is pending; further events until it fires just update state and
+  # see the flag set, so the mailbox drains cheaply and a single :render catches up.
+  defp schedule_render(%{render_armed?: true} = state), do: state
+
+  defp schedule_render(state) do
+    Process.send_after(self(), :render, @render_coalesce_ms)
+    %{state | render_armed?: true}
+  end
+
+  # Render the transcript ONCE at full height, cache the resulting scroll bound, then window the
+  # rows by the offset (re-pinned to the bottom while following) and blit them. One render per frame.
+  defp paint(state) do
+    rows = Transcript.render(state.view, %{x: 0, y: 0, w: state.w, h: @max_rows})
+    max_scroll = max(length(rows) - state.h, 0)
     scroll = if state.follow?, do: max_scroll, else: min(state.scroll, max_scroll)
-    state = %{state | scroll: scroll, follow?: state.follow? or scroll >= max_scroll}
 
-    rect = %{x: 0, y: 0, w: state.w, h: state.h}
-
-    [{Transcript, Map.put(state.view, :scroll, scroll), rect}]
-    |> Board.compose(state.w, state.h)
+    rows
+    |> Enum.drop(scroll)
+    |> Enum.take(state.h)
+    |> Board.rows_to_cells(%{x: 0, y: 0, w: state.w, h: state.h})
     |> Board.paint()
 
-    state
+    %{state | scroll: scroll, max_scroll: max_scroll, follow?: state.follow? or scroll >= max_scroll}
   end
 
   @impl true

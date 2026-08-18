@@ -48,6 +48,18 @@ defmodule Aleph.Board do
   defp panel_name(panel) when is_atom(panel), do: panel |> Atom.to_string() |> String.split(".") |> List.last()
   defp panel_name(panel), do: inspect(panel)
 
+  @doc """
+  Turn already-rendered rows into cells at the rect's offset — the guts of `compose/3` for a single
+  panel's rows, exposed so a caller that renders + windows rows itself (e.g. a scrolling loop) can
+  paint them without a second `render/2` pass.
+  """
+  @spec rows_to_cells([Panel.row()], Panel.rect()) :: [cell()]
+  def rows_to_cells(rows, %{x: x, y: y}) do
+    rows
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {row, i} -> row_cells(row, x, y + i) end)
+  end
+
   # Walk a row's runs left-to-right, emitting one cell per grapheme with the run's colours.
   defp row_cells(row, x0, y) do
     {cells, _x} =
