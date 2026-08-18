@@ -107,31 +107,43 @@ defmodule Aleph.MachineChat.Loop do
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
-  # PgUp/PgDn scroll the pane and toggle tail-follow; the rest are logical actions the pure Host owns.
-  # `q` stops the loop (terminate/2 restores the tty on the way out).
+  # The machine chat is really ONE long conversation (the active machine thread dominates), so the
+  # arrow/jk keys SCROLL it — line-scroll is the thing you reach for. Page keys jump a screenful;
+  # g/Home and G/End/Enter snap to top and bottom (Enter re-arms tail-follow). `z` zooms the newest
+  # thread full-pane, `q` quits. Scrolling up drops tail-follow so new messages don't yank you back;
+  # reaching the bottom re-arms it (the clamp lives in render/1).
   defp dispatch(:ignore, state), do: {:noreply, state}
+  defp dispatch(:line_up, state), do: {:noreply, render(%{state | scroll: max(state.scroll - 1, 0), follow?: false})}
+  defp dispatch(:line_down, state), do: {:noreply, render(%{state | scroll: state.scroll + 1})}
 
   defp dispatch(:page_up, state),
     do: {:noreply, render(%{state | scroll: max(state.scroll - page(state), 0), follow?: false})}
 
   defp dispatch(:page_down, state), do: {:noreply, render(%{state | scroll: state.scroll + page(state)})}
+  defp dispatch(:top, state), do: {:noreply, render(%{state | scroll: 0, follow?: false})}
+  defp dispatch(:bottom, state), do: {:noreply, render(%{state | follow?: true})}
 
+  # Logical actions the pure Host owns (zoom/unzoom/quit). `q` stops the loop; terminate/2 restores
+  # the tty on the way out.
   defp dispatch(action, state) do
     view = Host.handle_key(state.view, action)
     if view.quit, do: {:stop, :normal, %{state | view: view}}, else: {:noreply, render(%{state | view: view})}
   end
 
-  defp action_for(%{key: :char, char: "j"}), do: :down
-  defp action_for(%{key: :char, char: "k"}), do: :up
+  defp action_for(%{key: :char, char: "j"}), do: :line_down
+  defp action_for(%{key: :char, char: "k"}), do: :line_up
+  defp action_for(%{key: :char, char: "g"}), do: :top
+  defp action_for(%{key: :char, char: "G"}), do: :bottom
   defp action_for(%{key: :char, char: "z"}), do: :zoom
   defp action_for(%{key: :char, char: "q"}), do: :quit
   defp action_for(%{key: :char}), do: :ignore
-  defp action_for(%{key: :down}), do: :down
-  defp action_for(%{key: :up}), do: :up
-  defp action_for(%{key: k}) when k in [:enter, :space], do: :toggle
-  defp action_for(%{key: :escape}), do: :back
+  defp action_for(%{key: :down}), do: :line_down
+  defp action_for(%{key: :up}), do: :line_up
   defp action_for(%{key: :page_down}), do: :page_down
   defp action_for(%{key: :page_up}), do: :page_up
+  defp action_for(%{key: :home}), do: :top
+  defp action_for(%{key: k}) when k in [:end, :enter, :space], do: :bottom
+  defp action_for(%{key: :escape}), do: :back
   defp action_for(_key), do: :ignore
 
   # A page is one screenful minus a line of overlap, so a reader keeps their place across a jump.
