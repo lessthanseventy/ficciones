@@ -666,7 +666,7 @@
                        #                       enable via /unipi:notify-settings). Uses notify-send on
                        #                       Linux, so it needs a notification daemon (mako on
                        #                       Hyprland); NOT the OSC-9/777-through-ghostty path yet.
-                       + ["pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry","npm:@pi-unipi/notify"] | unique)
+                       + ["npm:pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry","npm:@pi-unipi/notify"] | unique)
                        # pi-cc-header dropped: its startup logo animation races the pi-tui
                        # first-paint (differential renderer establishes cursor/scroll state
                        # while the animation repaints above it), leaving the composer border
