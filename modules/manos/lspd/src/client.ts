@@ -34,7 +34,12 @@ export class LspClient {
   #buf = "";
   #nextId = 1;
   #pending = new Map<number, Pending>();
-  #open = new Set<string>(); // textDocument uris we've sent didOpen for
+  // textDocument uris we've sent didOpen for, with the on-disk identity of what we sent. The
+  // daemon outlives pi sessions, and per LSP an opened doc means "the CLIENT owns the text" —
+  // the server ignores disk from then on. With didChange unadvertised, a long-lived daemon
+  // would answer hover/references/impact against the text as of first open, forever. So each
+  // openDoc stats the file and, when disk moved on, closes + reopens with the fresh text.
+  #open = new Map<string, { mtimeMs: number; size: number }>();
   #diagnostics = new Map<string, Array<{ severity: number; message: string; range: { start: LspPosition; end: LspPosition } }>>();
   #disposed = false;
   #root: string;
@@ -78,16 +83,20 @@ export class LspClient {
     this.#notify("initialized", {});
   }
 
-  // Open a file in the server (idempotent — didOpen is sent once per uri). The server
-  // indexes it and emits publishDiagnostics, which we collect.
+  // Open a file in the server, re-opening when disk changed since we last sent it (see #open).
+  // Idempotent for an unchanged file: one didOpen per uri. The server indexes it and emits
+  // publishDiagnostics, which we collect.
   openDoc(absPath: string): void {
     const textDoc = uri(absPath);
-    if (this.#open.has(textDoc)) return;
+    const stat = fs.statSync(absPath);
+    const seen = this.#open.get(textDoc);
+    if (seen && seen.mtimeMs === stat.mtimeMs && seen.size === stat.size) return;
+    if (seen) this.#notify("textDocument/didClose", { textDocument: { uri: textDoc } });
     const text = fs.readFileSync(absPath, "utf-8");
     this.#notify("textDocument/didOpen", {
       textDocument: { uri: textDoc, languageId: langId(absPath), version: 1, text },
     });
-    this.#open.add(textDoc);
+    this.#open.set(textDoc, { mtimeMs: stat.mtimeMs, size: stat.size });
   }
 
   async hover(absPath: string, pos: LspPosition): Promise<string> {

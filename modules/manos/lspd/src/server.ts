@@ -59,9 +59,13 @@ function evict(key: string): void {
 }
 
 // line/col are 1-based (editor convention); converted to 0-based for the LSP protocol.
+// Number(undefined) is NaN, and NaN ?? 1 is still NaN (?? only catches null/undefined) — the
+// old fallback was dead and a missing coordinate produced {line: NaN}. Finite-check instead.
+const coord = (v: unknown): number => (Number.isFinite(Number(v)) ? Number(v) : 1);
+
 const pos = (p: Record<string, unknown>): LspPosition => ({
-  line: Math.max(0, (Number(p.line) ?? 1) - 1),
-  character: Math.max(0, (Number(p.col) ?? 1) - 1),
+  line: Math.max(0, coord(p.line) - 1),
+  character: Math.max(0, coord(p.col) - 1),
 });
 
 async function handle(req: LspdRequest): Promise<LspdResponse> {
@@ -125,7 +129,18 @@ export function start(port: string): net.Server {
   const server = net.createServer((sock) => {
     const dec = new Decoder();
     sock.on("data", (chunk: Buffer) => {
-      for (const msg of dec.push(chunk)) {
+      // A corrupt frame (bad length prefix, non-JSON body) throws from the decoder; that must
+      // cost the CLIENT its connection, never the shared daemon its life — every warm server
+      // dies with the process.
+      let msgs: unknown[];
+      try {
+        msgs = dec.push(chunk);
+      } catch (err) {
+        console.error(`manos-lspd: dropping connection on corrupt frame: ${String(err)}`);
+        sock.destroy();
+        return;
+      }
+      for (const msg of msgs) {
         const req = msg as LspdRequest;
         void handle(req).then((res) => {
           if (!sock.destroyed) sock.write(encode(res));
@@ -135,6 +150,12 @@ export function start(port: string): net.Server {
     sock.on("error", () => {
       /* a client dropped mid-request — nothing to do */
     });
+  });
+  // Without this an EADDRINUSE (two daemons racing the unlink+listen) is an UNCAUGHT throw —
+  // a crash-loop under systemd. Log and exit nonzero so supervision sees an honest failure.
+  server.on("error", (err) => {
+    console.error(`manos-lspd: listen failed on ${port}: ${String(err)}`);
+    process.exitCode = 1;
   });
   server.listen(port);
   return server;

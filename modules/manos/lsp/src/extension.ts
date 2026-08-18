@@ -108,6 +108,11 @@ export default function lsp(pi: ExtensionAPI): void {
     parameters: Type.Object({ ref: Type.Optional(Type.String({ description: "git ref to diff against (default HEAD)" })) }),
     execute: async (_id, p, _signal, _onUpdate, ctx): Promise<ToolResult> => {
       const ref = String((p as { ref?: unknown }).ref ?? "HEAD");
+      // `ref` sits where git parses OPTIONS (before the `--`): a model-supplied "-O/path" or
+      // "--ext-diff" would be honored as a flag. A real ref never starts with a dash.
+      if (ref.startsWith("-")) {
+        return { content: [{ type: "text", text: `impact: invalid ref ${JSON.stringify(ref)}` }], isError: true };
+      }
       let diff: string;
       try {
         diff = await gitDiff(ref, ctx.cwd);

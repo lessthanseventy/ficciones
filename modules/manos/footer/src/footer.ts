@@ -121,10 +121,9 @@ export default function footer(pi: ExtensionAPI): void {
           const ctxWindow = usage?.contextWindow ?? model?.contextWindow;
           const ctxPct = usage?.percent ?? 0;
           const ctxBarW = Math.min(10, Math.max(6, width - 40));
-          const ctxLabel =
-            ctxWindow && ctxPct !== null
-              ? `${contextBar(ctxPct, ctxBarW)} ${Math.round(ctxPct)}%/${fmtTokens(ctxWindow)}`
-              : "ctx ?";
+          const ctxLabel = ctxWindow
+            ? `${contextBar(ctxPct, ctxBarW)} ${Math.round(ctxPct)}%/${fmtTokens(ctxWindow)}`
+            : "ctx ?";
 
           // Session I/O + cache — one fold over the branch's assistant usages.
           const usages: UsageLike[] = [];

@@ -266,10 +266,15 @@
               #     manos/pi extracts durable facts from ONLY the delta since the last capture (a
               #     cheap out-of-band model call — bounded input, never the full context) and banks
               #     them DERIVED. Set false to disable all automatic fact capture.
+              #   captureModel — the out-of-band extractor. deepseek-v4-flash (ollama.com cloud)
+              #     by default; point at a LOCAL daemon model (e.g. qwen3-coder) to keep capture
+              #     deltas off the wire entirely — they are secret-redacted before egress either
+              #     way, but local means zero egress and zero cloud budget.
               piRecallJson = builtins.toJSON {
                 correctionDetection = true;
                 boundaryCapture = true;
                 captureEveryTurns = 8;
+                captureModel = "deepseek-v4-flash";
               };
 
               # ---- Seeded (write-once) pi plugin configs. The fable deep review found two

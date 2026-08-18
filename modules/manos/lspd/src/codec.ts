@@ -24,8 +24,15 @@ export function encode(msg: LspdRequest | LspdResponse): Buffer {
   return Buffer.concat([len, body]);
 }
 
+// Any frame claiming to be bigger than this is a corrupt prefix (or a client speaking the wrong
+// protocol), not a real message — without the cap the decoder would buffer toward 4GiB waiting
+// for a length that never arrives.
+const MAX_FRAME_BYTES = 16 * 1024 * 1024;
+
 // Accumulate chunks and yield complete messages. Handles a message split across chunks and
 // several messages arriving in one chunk — the two real-world cases on a streamed socket.
+// Throws on a corrupt frame (oversized length or non-JSON body) — the caller drops that
+// CONNECTION; the shared daemon must never die over one bad client.
 export class Decoder {
   #buf: Buffer = Buffer.alloc(0);
 
@@ -35,6 +42,7 @@ export class Decoder {
     for (;;) {
       if (this.#buf.length < 4) return out;
       const len = this.#buf.readUInt32BE(0);
+      if (len > MAX_FRAME_BYTES) throw new Error(`lspd codec: frame length ${len} exceeds ${MAX_FRAME_BYTES}`);
       if (this.#buf.length < 4 + len) return out;
       const body = this.#buf.subarray(4, 4 + len).toString("utf-8");
       this.#buf = this.#buf.subarray(4 + len);

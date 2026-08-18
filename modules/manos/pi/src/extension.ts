@@ -14,21 +14,28 @@ import { join } from "node:path";
 import { renderBrief, type Dossier } from "./brief.ts";
 import { FunesClient, FunesUnreachable, type FunesConfig } from "./mcp.ts";
 import { detectCorrection } from "./recall.ts";
-import { buildExtractionPrompt, deltaSince, parseExtraction, serializeDelta } from "./capture.ts";
+import { buildExtractionPrompt, deltaSince, parseExtraction, redactSecrets, serializeDelta } from "./capture.ts";
 import { completeText } from "./llm.ts";
 import type { ExtensionAPI, ExtensionContext } from "./pi.ts";
 
 // The cheap model that runs cadence extraction out-of-band (ollama-cloud). Flash: efficient MoE,
-// large enough context for a bounded delta, cheap enough to run every few turns.
+// large enough context for a bounded delta, cheap enough to run every few turns. Overridable via
+// funes-recall.json `captureModel` (e.g. a local-daemon model to keep deltas off the wire entirely).
 const CAPTURE_MODEL = "deepseek-v4-flash";
 
 interface RecallConfig {
   correctionDetection: boolean;
   boundaryCapture: boolean;
   captureEveryTurns: number;
+  captureModel: string;
 }
 
-const RECALL_DEFAULTS: RecallConfig = { correctionDetection: true, boundaryCapture: true, captureEveryTurns: 8 };
+const RECALL_DEFAULTS: RecallConfig = {
+  correctionDetection: true,
+  boundaryCapture: true,
+  captureEveryTurns: 8,
+  captureModel: CAPTURE_MODEL,
+};
 
 // The total-recall noise knob: ~/.pi/agent/funes-recall.json (flake-seeded with defaults + a
 // comment). A missing/broken file → defaults, so the adapter never fails to load over config.
@@ -41,6 +48,10 @@ function readRecallConfig(): RecallConfig {
       correctionDetection: c.correctionDetection !== false,
       boundaryCapture: c.boundaryCapture !== false,
       captureEveryTurns: typeof n === "number" && n > 0 ? Math.floor(n) : RECALL_DEFAULTS.captureEveryTurns,
+      captureModel:
+        typeof c.captureModel === "string" && c.captureModel.trim()
+          ? c.captureModel.trim()
+          : RECALL_DEFAULTS.captureModel,
     };
   } catch {
     return { ...RECALL_DEFAULTS };
@@ -95,10 +106,12 @@ export default function manos(pi: ExtensionAPI): void {
   let capturing = false;
 
   // Capture the delta since the watermark (bounded — a few turns, never the full window): extract
-  // durable facts out-of-band via a cheap model, bank them DERIVED, raise any open questions. The
-  // watermark advances before the await so a concurrent tick doesn't re-capture; the whole thing is
-  // best-effort — a failed extraction or bank must never disturb the session. funes' secret scan
-  // (slice B) rejects any credential, which throws and is dropped here.
+  // durable facts out-of-band via a cheap model, bank them DERIVED, raise any open questions.
+  // Re-entrancy is the `capturing` guard (a compaction flush and a turn tick can't double-run);
+  // the watermark advances ONLY after a successful extraction, so a failed call retries the same
+  // delta next flush instead of punching a permanent hole in the record. The outbound delta is
+  // secret-REDACTED before it leaves the box — funes' own scan guards the inbound bank one hop
+  // too late to stop egress. Best-effort throughout: a failure never disturbs the session.
   const runCapture = async (ctx: ExtensionContext): Promise<void> => {
     if (!client || !recall.boundaryCapture || capturing) return;
     let entries;
@@ -108,13 +121,18 @@ export default function manos(pi: ExtensionAPI): void {
       return;
     }
     const { slice, nextWatermark } = deltaSince(entries, watermark);
-    const delta = serializeDelta(slice);
-    watermark = nextWatermark;
-    if (!delta.trim()) return;
+    const delta = redactSecrets(serializeDelta(slice));
+    if (!delta.trim()) {
+      watermark = nextWatermark;
+      return;
+    }
 
     capturing = true;
     try {
-      const { facts, questions } = parseExtraction(await completeText(CAPTURE_MODEL, buildExtractionPrompt(delta)));
+      const { facts, questions } = parseExtraction(
+        await completeText(recall.captureModel, buildExtractionPrompt(delta)),
+      );
+      watermark = nextWatermark;
       for (const f of facts) {
         try {
           await client.bankFact(f.text, f.kind);

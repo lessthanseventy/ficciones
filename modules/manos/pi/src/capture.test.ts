@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { buildExtractionPrompt, deltaSince, parseExtraction, serializeDelta, type Entry } from "./capture.ts";
+import {
+  buildExtractionPrompt,
+  deltaSince,
+  parseExtraction,
+  redactSecrets,
+  serializeDelta,
+  type Entry,
+} from "./capture.ts";
 
 const user = (text: string): Entry => ({ message: { role: "user", content: text } });
 const asst = (text: string): Entry => ({ message: { role: "assistant", content: [{ type: "text", text }] } });
@@ -45,6 +52,31 @@ describe("buildExtractionPrompt — pins the JSON contract + the kind restrictio
     expect(p).toContain('{"facts":[{"text":"...","kind":"learned"}],"questions":["..."]}');
     expect(p).toContain('"learned" or "decision"');
     expect(p).toContain("### user\nhi");
+  });
+});
+
+describe("redactSecrets — outbound deltas never carry a credential off the box", () => {
+  test("replaces the funes-mirrored credential shapes with labelled placeholders", () => {
+    const delta =
+      "set AKIAIOSFODNN7EXAMPLE then ghp_0123456789012345678901234567890123456789 " +
+      "and sk-ant-abcdefghijklmnopqrstu";
+    const got = redactSecrets(delta);
+    expect(got).toContain("[REDACTED:aws-access-key]");
+    expect(got).toContain("[REDACTED:github-token]");
+    expect(got).toContain("[REDACTED:api-key-sk]");
+    expect(got).not.toContain("AKIAIOSFODNN7EXAMPLE");
+    expect(got).not.toContain("ghp_");
+    expect(got).not.toContain("sk-ant-");
+  });
+
+  test("redacts every occurrence, not just the first", () => {
+    const got = redactSecrets("AKIAIOSFODNN7EXAMPLE and again AKIAIOSFODNN7EXAMPLE");
+    expect(got.match(/\[REDACTED:aws-access-key\]/g)?.length).toBe(2);
+  });
+
+  test("leaves legitimate technical text alone — SHAs and hashes are facts, not secrets", () => {
+    const text = "commit 02562b0 fixed sha256-kG++eH pattern in flake.nix";
+    expect(redactSecrets(text)).toBe(text);
   });
 });
 

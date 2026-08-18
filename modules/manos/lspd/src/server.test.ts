@@ -43,6 +43,19 @@ describe("codec — length-prefixed JSON framing", () => {
     const dec = new Decoder();
     expect(dec.push(encode(res))).toEqual([res]);
   });
+
+  test("an absurd length prefix throws instead of buffering toward it forever", () => {
+    const corrupt = Buffer.alloc(8);
+    corrupt.writeUInt32BE(0xffffffff, 0);
+    expect(() => new Decoder().push(corrupt)).toThrow(/frame length/);
+  });
+
+  test("a non-JSON body throws (the caller drops the connection, not the daemon)", () => {
+    const body = Buffer.from("not json", "utf-8");
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(body.length, 0);
+    expect(() => new Decoder().push(Buffer.concat([len, body]))).toThrow();
+  });
 });
 
 // --- the daemon over a real socket (integration) ---

@@ -4,6 +4,10 @@
 // with the reasoning-model fallback consult learned the hard way (content can be empty when the
 // thinking budget is spent, so fall back to `reasoning`).
 
+// Never hang forever: a capture call with no deadline wedged the whole capture path once —
+// `capturing` stayed true, every later flush early-returned, and shutdown awaited the hang.
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 export async function completeText(model: string, prompt: string, signal?: AbortSignal): Promise<string> {
   const key = process.env.OLLAMA_API_KEY;
   if (!key) throw new Error("OLLAMA_API_KEY not set — can't run capture extraction");
@@ -11,7 +15,7 @@ export async function completeText(model: string, prompt: string, signal?: Abort
   const res = await fetch("https://ollama.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    signal,
+    signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
     body: JSON.stringify({
       model,
       max_tokens: 1024,

@@ -65,6 +65,32 @@ export function extractText(content: unknown): string {
   return parts.join("\n").trim();
 }
 
+// The same conservative credential shapes funes' write-path scanner (Funes.Secrets) refuses —
+// mirrored here because capture EGRESSES the raw delta to ollama.com before funes ever sees it:
+// the inbound bank_fact scan fires one network hop too late to stop a pasted key leaving the box.
+// Pattern-based, not entropy-based, for the same reason as the Elixir side (SHAs and hashes are
+// legitimate technical facts).
+const SECRET_PATTERNS: Array<[string, RegExp]> = [
+  ["aws-access-key", /\bAKIA[0-9A-Z]{16}\b/g],
+  ["api-key-sk", /\bsk-(?:ant-)?[A-Za-z0-9_-]{20,}/g],
+  ["github-token", /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b/g],
+  ["github-pat", /\bgithub_pat_[A-Za-z0-9_]{22,}/g],
+  ["google-api-key", /\bAIza[0-9A-Za-z_-]{35}\b/g],
+  ["slack-token", /\bxox[baprs]-[A-Za-z0-9-]{10,}/g],
+  ["private-key", /-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/g],
+];
+
+// Replace any obvious credential in an outbound delta with a labelled placeholder. Run BEFORE the
+// completion call — the redacted text still tells the extractor a credential was discussed, which
+// is itself a durable fact, without the credential ever leaving the machine.
+export function redactSecrets(text: string): string {
+  let out = text;
+  for (const [label, re] of SECRET_PATTERNS) {
+    out = out.replace(re, `[REDACTED:${label}]`);
+  }
+  return out;
+}
+
 // The extraction prompt: durable facts + open questions from the delta, as strict JSON. Kinds are
 // limited to learned/decision — a `constraint` is the operator's stated authority, never something
 // an extractor infers (that's the provenance line the whole design turns on).

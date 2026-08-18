@@ -19,8 +19,12 @@ import { Decoder, encode, type LspdRequest, type LspdResponse } from "../../lspd
 export class LspdConnectionError extends Error {}
 export class LspdTimeoutError extends Error {}
 
-// Must agree with the daemon's socketPath (modules/manos/lspd/src/server.ts).
+// Must agree with the daemon's rendezvous (modules/manos/lspd/src/server.ts) — including the
+// MANOS_LSPD_SOCK override the daemon honors; only the daemon reading it desynced the pair
+// (an overridden daemon listened on one path while every shim dialed the default).
 export function socketPath(): string {
+  const override = process.env.MANOS_LSPD_SOCK;
+  if (override) return override;
   const dir = process.env.XDG_RUNTIME_DIR ?? path.join(os.homedir(), ".pi");
   return path.join(dir, "manos-lspd.sock");
 }
@@ -36,6 +40,7 @@ interface Pending {
 export class LspdClient {
   #sock: net.Socket | null = null;
   #connecting: Promise<void> | null = null;
+  #healing: Promise<void> | null = null;
   #pending = new Map<number, Pending>();
   #nextId = 1;
   #decoder = new Decoder();
@@ -63,9 +68,17 @@ export class LspdClient {
   }
 
   // The backstop for a dead socket: spawn the daemon detached, wait for it to bind, retry.
+  // ONE heal in flight at a time — two tool calls hitting a dead socket concurrently would each
+  // spawn a daemon, and the second daemon's unlink+listen orphans (or EADDRINUSE-crashes) the
+  // first. Late arrivals await the same spawn-and-bind, then send their own request.
   async selfHeal(method: LspdRequest["method"], params: Record<string, unknown>): Promise<string> {
-    this.spawnDaemon();
-    await this.#waitForSocket(2_000);
+    this.#healing ??= (async () => {
+      this.spawnDaemon();
+      await this.#waitForSocket(2_000);
+    })().finally(() => {
+      this.#healing = null;
+    });
+    await this.#healing;
     return this.request(method, params);
   }
 
