@@ -811,7 +811,16 @@ defmodule Aleph.Cockpit do
     base = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
     dir = Profiles.config_dir(profile.name)
     prompt = if profile.system_prompt, do: " --append-system-prompt #{Path.join(dir, "system_prompt.md")}", else: ""
-    pi = "env PI_CODING_AGENT_DIR=#{dir} #{base}#{prompt}"
+    # The model MUST ride as a `--model` flag, not just settings.json `defaultModel`: pi resolves the
+    # settings default BEFORE pi-multi-account registers the `anthropic` provider, so a `defaultModel`
+    # of claude-* can't be found and pi silently falls back to the first models.json model (glm). The
+    # CLI flag is applied AFTER extensions load, so it sticks. Empirically verified 2026-08-17.
+    model =
+      case profile.model do
+        %{provider: prov, model: m, thinking: think} -> " --model #{prov}/#{m} --thinking #{think}"
+        _ -> ""
+      end
+    pi = "env PI_CODING_AGENT_DIR=#{dir} #{base}#{prompt}#{model}"
     # MANOS_RELOAD_CMD: how manos/reload respawns pi in place — `--continue` resumes the most-recent
     # session (the one being killed), so a reload keeps the thread across the restart.
     reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
