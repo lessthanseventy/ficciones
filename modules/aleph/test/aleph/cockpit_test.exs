@@ -191,4 +191,26 @@ defmodule Aleph.CockpitTest do
       assert Cockpit.parse_tlon_tabs("garbage\n1\t1\tpi\n") == [%{name: "pi", active?: true, index: "1"}]
     end
   end
+
+  # run/0's crash-recovery decision: a clean quit ends; a crash relaunches the cockpit in place
+  # (funes + the session terminals stay supervised), unless it's crash-looping.
+  describe "resurrect_decision/3 — what run/0 does after the cockpit goes DOWN" do
+    test "a clean quit (:normal / :shutdown) ends the session, never resurrects" do
+      assert Cockpit.resurrect_decision(:normal, 0, 10) == :quit
+      assert Cockpit.resurrect_decision(:shutdown, 2, 10) == :quit
+    end
+
+    test "a crash relaunches, counting the strike" do
+      assert Cockpit.resurrect_decision({:badmatch, nil}, 0, 50) == {:resurrect, 1}
+      assert Cockpit.resurrect_decision({:badmatch, nil}, 1, 50) == {:resurrect, 2}
+    end
+
+    test "too many rapid crashes in a row stay down instead of spinning the terminal" do
+      assert Cockpit.resurrect_decision({:badmatch, nil}, 2, 50) == {:stop, 3}
+    end
+
+    test "a cockpit that stayed up a while resets the strike count — an isolated crash still heals" do
+      assert Cockpit.resurrect_decision({:badmatch, nil}, 2, 30_000) == {:resurrect, 1}
+    end
+  end
 end

@@ -68,6 +68,12 @@ defmodule Aleph.Cockpit do
   # new-session per frame = a spawn storm whenever the coworker can't start). Back off.
   @machine_spawn_backoff_ms 5_000
 
+  # Crash recovery (see run/0): relaunch the cockpit in place after a crash, but give up after
+  # @resurrect_max_fails crashes in a row so a persistent bad state can't spin the terminal. A run
+  # that survived @resurrect_healthy_ms is treated as healthy — its next crash starts the count over.
+  @resurrect_max_fails 3
+  @resurrect_healthy_ms 5_000
+
   # The empty Stack shape non-Tlön spaces (and a not-yet-probed Tlön) render.
   @empty_stack %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
 
@@ -90,18 +96,25 @@ defmodule Aleph.Cockpit do
 
   @doc "Start the cockpit and block until the operator quits — the entry point `mix aleph.run` calls."
   @spec run() :: :ok
-  def run do
-    # Unlinked + monitored: a cockpit crash surfaces here as a clean DOWN, not a linked exit that
-    # takes the task process down before it can restore the terminal.
+  def run, do: run(0)
+
+  # `strikes` = consecutive rapid crashes so far. The cockpit is an unlinked, monitored GenServer —
+  # its crash surfaces here as a clean DOWN (a linked exit would kill this task before it restored
+  # the terminal). funes (Repo/Bus) and the session terminals are supervised and keep running, so a
+  # crash relaunches a FRESH cockpit in place — a reconnect, not a cold boot — unless it's looping.
+  defp run(strikes) do
     case GenServer.start(__MODULE__, %{}) do
       {:ok, pid} ->
         ref = Process.monitor(pid)
+        started = System.monotonic_time(:millisecond)
 
         receive do
           {:DOWN, ^ref, :process, ^pid, reason} ->
             restore_host_tty()
-            # Capture a crashed exit — the alt-screen otherwise swallows it silently.
+            # Capture a crashed exit — the alt-screen otherwise swallows it silently. (No-op on a
+            # clean quit, so a normal `q` never spams the log.)
             log_crash(reason)
+            act_on(resurrect_decision(reason, strikes, System.monotonic_time(:millisecond) - started))
         end
 
       {:error, {:tb_init_failed, code}} ->
@@ -116,6 +129,34 @@ defmodule Aleph.Cockpit do
         IO.puts(:stderr, "aleph failed to start: #{inspect(reason)}")
         :ok
     end
+  end
+
+  @doc false
+  # The recovery decision after a cockpit goes DOWN. Pure so it's unit-tested without a TTY:
+  #   :quit              — a clean operator quit (:normal / :shutdown), end the session.
+  #   {:resurrect, n}    — a crash; relaunch, now on strike n.
+  #   {:stop, n}         — the nth crash in a row hit the ceiling; stay down.
+  # `crash_report/1` is the clean-vs-crash oracle (nil = normal/shutdown). A run that lasted at
+  # least @resurrect_healthy_ms resets the strike count, so an isolated crash always heals.
+  def resurrect_decision(reason, prev_strikes, alive_ms) do
+    if is_nil(crash_report(reason)) do
+      :quit
+    else
+      strikes = if alive_ms >= @resurrect_healthy_ms, do: 1, else: prev_strikes + 1
+      if strikes >= @resurrect_max_fails, do: {:stop, strikes}, else: {:resurrect, strikes}
+    end
+  end
+
+  defp act_on(:quit), do: :ok
+
+  defp act_on({:stop, n}) do
+    IO.puts(:stderr, "aleph crashed #{n}× in a row — staying down. Trace: #{Aleph.CrashLog.path()}")
+    :ok
+  end
+
+  defp act_on({:resurrect, n}) do
+    IO.puts(:stderr, "aleph crashed — recovering in place… (#{n}/#{@resurrect_max_fails})")
+    run(n)
   end
 
   @impl true
