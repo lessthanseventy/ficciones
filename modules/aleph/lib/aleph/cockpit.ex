@@ -893,8 +893,10 @@ defmodule Aleph.Cockpit do
   # `new-session -A` = attach-or-create; pi becomes window 0's command on first creation only.
   #
   # The coworker's pi runs from its profile's config dir (`PI_CODING_AGENT_DIR`) — its own
-  # settings/mcp/sandbox — so Tlön is self-contained with NO funes env plumbing: the profile's empty
-  # mcp.json (no funes server) and dropped funes-brief extension are the whole sever. A persona, if
+  # settings/mcp/sandbox. The machine identity minted above (`machine_exports`) is exported into the
+  # launch env, and Tlön's profile mcp.json binds funes to it on the MACHINE scope (Aleph.Profiles
+  # @tlon_funes_mcp) — so the coworker's work lands on the machine thread the LOGBOOK renders, walled
+  # off from project threads by the DB scope CHECK (self-contained by SCOPE, not by severance). A persona, if
   # the profile has one, rides as `--append-system-prompt <file>`. Both the config dir and the persona
   # flag travel into `MANOS_RELOAD_CMD` so a manos/reload respawn stays on-profile. (Paths are the
   # single-user machine's — no spaces/quotes — so they sit inside the launcher's quoting bare.)

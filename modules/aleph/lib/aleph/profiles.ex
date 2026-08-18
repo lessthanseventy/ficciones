@@ -256,8 +256,39 @@ defmodule Aleph.Profiles do
   # restart even before the flake registers it into the base config (which needs a home:switch).
   @footer_extension "#{@repo}/modules/manos/footer/src/footer.ts"
 
-  # The registry. Tlön: self-contained (no funes MCP), the funes-brief extension (manos/pi) dropped,
-  # the generic footer added back, sandboxed. Driver model is CLAUDE-FIRST: claude-sonnet-5 via the
+  # Tlön's funes MCP — the same in-process funes the cockpit runs, but the connection's identity
+  # (already minted for the MACHINE thread by `machine_exports` and exported into the launch env)
+  # binds every token to scope "machine" via `funes-cli.sh bearer` (mints from FUNES_THREAD/AUTHOR).
+  # So the coworker's posts/facts/dones/habits land on the machine thread — the one the Tlön space's
+  # LOGBOOK + dossier panels already render — and NEVER on a project thread (DB scope CHECK). This
+  # is what makes Tlön "self-contained WITH its own dossier/logbook" instead of amnesiac; it reverses
+  # the old mcp:none sever, whose real problem was the coworker posting into an UNRENDERED project
+  # thread (see docs/plans/2026-08-18-tlon-own-memory-design.md). directTools = the machine-work
+  # record/read verbs; excludeTools cuts the boundary-crossers — `consult_peer` (asks OTHER local
+  # coworker agents) and `open_thread`/`close_thread` (cross-thread) would break self-containment.
+  # (Model-to-model consultation stays available separately via /consult+/fresh — manos/consult, a
+  # different package that spawns a no-funes delegate, so it's kept, not dropped.)
+  @tlon_funes_mcp %{
+    "funes" => %{
+      "url" => "${FUNES_MCP_URL}",
+      "headers" => %{"Authorization" => "!#{@repo}/scripts/funes-cli.sh bearer"},
+      "directTools" => [
+        "post_message",
+        "bank_fact",
+        "raise_issue",
+        "record_done",
+        "record_check",
+        "get_dossier",
+        "propose_habit"
+      ],
+      "excludeTools" => ["register", "consult_peer", "open_thread", "close_thread"]
+    }
+  }
+
+  # The registry. Tlön: a MACHINE-SCOPE funes citizen (@tlon_funes_mcp) — its own dossier/logbook on
+  # the machine thread, isolated from project threads by scope; the funes adapter (manos/pi) kept so
+  # its brief + every-8-turn auto-capture point at that thread; the footer added; sandboxed. Driver
+  # model is CLAUDE-FIRST: claude-sonnet-5 via the
   # native `anthropic` provider (pi-multi-account owns the OAuth; auth.json is symlinked from base, so
   # the /login done for the CLI serves the coworker too). Sonnet not Opus: this is a delegating
   # ORCHESTRATOR — it drives tools and farms heavy/cheap work to workers (/consult, spawned tabs routed
@@ -271,9 +302,9 @@ defmodule Aleph.Profiles do
   @profiles [
     %Profile{
       name: "tlon",
-      drop_extensions: ["/manos/pi/"],
+      drop_extensions: [],
       add_extensions: [@footer_extension],
-      mcp: :none,
+      mcp: @tlon_funes_mcp,
       model: %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"},
       sandbox: @tlon_sandbox,
       permissions: @tlon_permissions

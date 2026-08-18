@@ -104,12 +104,26 @@ defmodule Aleph.ProfilesTest do
     end
   end
 
-  describe "the tlon profile — self-contained + sandboxed" do
-    test "no funes MCP, drops the funes-brief extension, sockets allowed in the sandbox" do
+  describe "the tlon profile — machine-scope funes citizen + sandboxed" do
+    test "wires funes on the machine scope, keeps the manos/pi adapter, sockets allowed in the sandbox" do
       p = Profiles.fetch("tlon")
-      assert p.mcp == :none
-      assert p.drop_extensions == ["/manos/pi/"]
+      # Not severed: a funes server whose token binds to the machine thread (via the env
+      # funes-cli.sh mints from), so Tlön gets its OWN dossier/logbook without a project bleed.
+      assert %{"funes" => funes} = p.mcp
+      assert funes["url"] == "${FUNES_MCP_URL}"
+      assert funes["headers"]["Authorization"] =~ "funes-cli.sh bearer"
+      # The manos/pi funes adapter (brief + auto-capture) is KEPT now that it points at the machine thread.
+      assert p.drop_extensions == []
       assert p.sandbox["network"]["allowAllUnixSockets"] == true
+    end
+
+    test "cuts the boundary-crossing funes tools (self-containment) but keeps the record/read verbs" do
+      funes = Profiles.fetch("tlon").mcp["funes"]
+      # consult_peer (ask other local coworkers) + open/close_thread (cross-thread) break isolation.
+      for cut <- ["consult_peer", "open_thread", "close_thread"], do: assert(cut in funes["excludeTools"])
+      # its own machine-work loop stays: post/bank/record/dossier/habit.
+      for kept <- ["post_message", "bank_fact", "record_done", "get_dossier", "propose_habit"],
+          do: assert(kept in funes["directTools"])
     end
 
     test "adds the generic footer back (its own package, not swept up by the manos/pi drop)" do
@@ -199,8 +213,11 @@ defmodule Aleph.ProfilesTest do
       assert dir == Path.join(root, "tlon")
 
       settings = Jason.decode!(File.read!(Path.join(dir, "settings.json")))
-      refute Enum.any?(settings["extensions"], &String.contains?(&1, "/manos/pi/"))
-      assert Jason.decode!(File.read!(Path.join(dir, "mcp.json"))) == %{"mcpServers" => %{}}
+      # the manos/pi funes adapter is KEPT now (brief + auto-capture pointed at the machine thread)
+      assert Enum.any?(settings["extensions"], &String.contains?(&1, "/manos/pi/"))
+      mcp = Jason.decode!(File.read!(Path.join(dir, "mcp.json")))
+      assert mcp["mcpServers"]["funes"]["url"] == "${FUNES_MCP_URL}"
+      assert "consult_peer" in mcp["mcpServers"]["funes"]["excludeTools"]
       assert Jason.decode!(File.read!(Path.join(dir, "sandbox.json")))["enabled"] == true
       # permission-system fail-closes to "ask" without a config in PI_CODING_AGENT_DIR, so the
       # coworker gets its own config in the nested extension dir
