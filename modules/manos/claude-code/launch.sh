@@ -47,12 +47,19 @@ fi
 mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headersHelper\":\"$cli token\"}}}"
 settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}]}}"
 
+# The funes-citizen protocol, as a system prompt. Without it Claude Code treats a teammate's message
+# (injected into its input as "[funes thread #N] <author>: ...") like the human talking and answers in
+# its own window — which no one else can see, so the reply is lost and the peer is never woken. Spell
+# out that a reply is a post_message tool call that @-mentions the sender.
+sys_prompt="You are a funes citizen posting as \"$FUNES_AUTHOR\" on thread #$FUNES_THREAD, working alongside other agents. Messages from teammates arrive in your input prefixed \"[funes thread #N] <author>:\" — these are from other agents, NOT the human operator, and your terminal output is invisible to them. To reply so the sender actually receives it and takes their turn, call the funes post_message tool and @-mention the sender by handle (for example @pi-machine); answering only in your own window reaches no one."
+
 if [ "${FUNES_LAUNCH_DRYRUN:-}" = "1" ]; then
   printf 'identity: FUNES_THREAD=%s FUNES_AUTHOR=%s\n' "$FUNES_THREAD" "$FUNES_AUTHOR"
   printf 'mcp-config: %s\n' "$mcp_json"
   printf 'settings:   %s\n' "$settings_json"
-  printf 'exec: claude --permission-mode auto --mcp-config <…> --settings <…> %s\n' "$*"
+  printf 'system:     %s\n' "$sys_prompt"
+  printf 'exec: claude --permission-mode auto --append-system-prompt <…> --mcp-config <…> --settings <…> %s\n' "$*"
   exit 0
 fi
 
-exec claude --permission-mode auto --mcp-config "$mcp_json" --settings "$settings_json" "$@"
+exec claude --permission-mode auto --append-system-prompt "$sys_prompt" --mcp-config "$mcp_json" --settings "$settings_json" "$@"
