@@ -53,13 +53,13 @@ defmodule Aleph.ProfilesTest do
                %{"enabled" => true}
     end
 
-    test "automode passes through untouched" do
+    test "permissions pass through untouched" do
       assert Profiles.render(
-               %Profile{name: "t", automode: %{"autoMode" => %{"enabled" => true}}},
+               %Profile{name: "t", permissions: %{"yoloMode" => true}},
                @base_settings,
                @base_mcp
-             ).automode ==
-               %{"autoMode" => %{"enabled" => true}}
+             ).permissions ==
+               %{"yoloMode" => true}
     end
 
     test "add_extensions appends on top of the base (a coworker-specific / not-yet-flake-registered extension)" do
@@ -119,14 +119,20 @@ defmodule Aleph.ProfilesTest do
       refute Enum.any?(p.add_extensions, &String.contains?(&1, "/manos/pi/"))
     end
 
-    test "carries a pi-automode policy — classifier on the flat ollama bucket, not the Claude driver" do
-      p = Profiles.fetch("tlon")
-      auto = p.automode["autoMode"]
-      assert auto["enabled"] == true
-      # the classifier must NOT be the coworker's scarce Claude driver — a one-token filter belongs
-      # on the flat ollama bucket
-      assert auto["classifierModel"] == "ollama-cloud/deepseek-v4-flash"
-      refute auto["classifierModel"] =~ "anthropic"
+    test "carries a per-coworker permission policy — yolo (autonomous), but sudo + secrets stay denied" do
+      perms = Profiles.fetch("tlon").permissions
+      # autonomous coworker: asks auto-approve so an unattended agent never stalls...
+      assert perms["yoloMode"] == true
+      # ...but yolo is deny-preserving, so the fence holds: no unattended sudo, no credential reads,
+      # and the catastrophic-command floor (deny is the one verdict yolo cannot re-permit)
+      assert perms["permission"]["bash"]["sudo *"] == "deny"
+      assert perms["permission"]["bash"]["rm -rf /*"] == "deny"
+      assert perms["permission"]["bash"]["mkfs*"] == "deny"
+      assert perms["permission"]["path"]["*.env"] == "deny"
+      assert perms["permission"]["path"]["~/.ssh/*"] == "deny"
+      assert perms["permission"]["path"]["~/.pi/agent/auth.json"] == "deny"
+      # the point of all this: normal work just runs
+      assert perms["permission"]["*"] == "allow"
     end
 
     test "drives Claude-first — sonnet as the delegating orchestrator, not glm" do
@@ -196,9 +202,11 @@ defmodule Aleph.ProfilesTest do
       refute Enum.any?(settings["extensions"], &String.contains?(&1, "/manos/pi/"))
       assert Jason.decode!(File.read!(Path.join(dir, "mcp.json"))) == %{"mcpServers" => %{}}
       assert Jason.decode!(File.read!(Path.join(dir, "sandbox.json")))["enabled"] == true
-      # pi-automode reads automode.json from PI_CODING_AGENT_DIR, so the coworker needs its own copy
-      auto = Jason.decode!(File.read!(Path.join(dir, "automode.json")))
-      assert auto["autoMode"]["classifierModel"] == "ollama-cloud/deepseek-v4-flash"
+      # permission-system fail-closes to "ask" without a config in PI_CODING_AGENT_DIR, so the
+      # coworker gets its own config in the nested extension dir
+      perms = Jason.decode!(File.read!(Path.join(dir, "extensions/pi-permission-system/config.json")))
+      assert perms["yoloMode"] == true
+      assert perms["permission"]["bash"]["sudo *"] == "deny"
       # the shared files are symlinks back to the base — one credential store, one model catalog,
       # one failover policy (so pi-multi-account fails this coworker's Claude over to ollama.com glm)
       assert File.read_link!(Path.join(dir, "auth.json")) == Path.join(base, "auth.json")

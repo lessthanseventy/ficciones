@@ -29,7 +29,7 @@ defmodule Aleph.Profile do
             model: nil,
             system_prompt: nil,
             sandbox: nil,
-            automode: nil
+            permissions: nil
 
   @type t :: %__MODULE__{
           name: String.t(),
@@ -39,7 +39,7 @@ defmodule Aleph.Profile do
           model: %{provider: String.t(), model: String.t(), thinking: String.t()} | nil,
           system_prompt: String.t() | nil,
           sandbox: map() | nil,
-          automode: map() | nil
+          permissions: map() | nil
         }
 end
 
@@ -55,7 +55,8 @@ defmodule Aleph.Profiles do
         settings.json     profile-specific — base settings with extensions dropped + model overridden
         mcp.json          profile-specific — the profile's MCP servers (`{}` = self-contained)
         sandbox.json      profile-specific — pi-sandbox allowlist (only if profile.sandbox)
-        automode.json     profile-specific — pi-automode guardrail policy (only if profile.automode)
+        extensions/pi-permission-system/config.json
+                          profile-specific — permission policy + yoloMode (only if profile.permissions)
         system_prompt.md  profile-specific — the persona (only if profile.system_prompt)
         tmux.conf         profile-specific — the persistence-free config its private tmux
                           server (`tmux -L aleph-<name>`) boots from (see `socket/1`)
@@ -149,28 +150,55 @@ defmodule Aleph.Profiles do
     }
   }
 
-  # The Tlön coworker's pi-automode policy (`automode.json`). pi-automode reads it from
-  # `PI_CODING_AGENT_DIR` — the SAME reason sandbox.json is per-profile — so the coworker needs
-  # its OWN copy; the flake's `~/.pi/agent/automode.json` governs only the interactive agent, not
-  # this redirected config dir. It matters MORE here: Tlön runs autonomously, so a permission
-  # prompt with no human watching would just stall it. Precedence is deny/ask → hard_deny →
-  # classifier; the classifier is a one-token filter on ollama-cloud/deepseek-v4-flash (the FLAT
-  # ollama bucket, never the coworker's scarce Claude driver). In-cwd edits + read-only tools are
-  # silent (bounded by @tlon_sandbox's write allowlist); bash still classifies. Mirrors the flake's
-  # `piAutomodeJson` on purpose — profiles are self-contained by design, so the policy lives in both
-  # config dirs rather than being shared. See [[pi-automode-guardrail]].
-  @tlon_automode %{
-    "autoMode" => %{
-      "enabled" => true,
-      "classifierModel" => "ollama-cloud/deepseek-v4-flash",
-      "classifierReasoningLevel" => "low",
-      "classifyReadOnlyTools" => false,
-      "allowInsideWorkingDirectory" => true,
-      "fastClassifierMaxTokens" => 512,
-      "allow" => ["$defaults"],
-      "protectedPaths" => ["$defaults"],
-      "soft_deny" => ["$defaults"],
-      "hard_deny" => ["$defaults"]
+  # The Tlön coworker's pi-permission-system policy (`extensions/pi-permission-system/config.json`).
+  # permission-system reads its "global" config from `PI_CODING_AGENT_DIR` and FAIL-CLOSES to
+  # "ask everything" when the file is absent — the same reason sandbox.json is per-profile — so the
+  # coworker needs its OWN copy; the flake seeds only `~/.pi/agent`, the interactive agent's dir.
+  #
+  # This is the per-coworker knob: the interactive agent (flake seed) keeps `ask` for the rare
+  # sudo/ambiguous call because a HUMAN is there to answer. Tlön runs AUTONOMOUSLY, so an `ask`
+  # would just hang it — `yoloMode: true` auto-approves asks instead (no prompts, no stalls). yolo
+  # is deny-PRESERVING, so the fence still holds: `sudo *` and the secret paths are `deny` (not
+  # `ask`), so even under yolo the coworker cannot sudo unattended or touch credentials. Everything
+  # else inside the sandbox's write allowlist just runs. See [[pi-permission-system-per-coworker]].
+  @tlon_permissions %{
+    "yoloMode" => true,
+    "permissionReviewLog" => true,
+    "permission" => %{
+      "*" => "allow",
+      # bash: routine runs; sudo + the catastrophic-and-never-legitimate commands are DENY (terminal,
+      # so they hold even under yolo — deny is the one thing yolo can't re-permit). This deterministic
+      # floor is intentionally NARROW: it is the last line, not the whole defense. The nuanced middle
+      # (novel/ambiguous bash) is the manos bash-judge authorizer-link's job. See [[pi-bash-judge]].
+      "bash" => %{
+        "*" => "allow",
+        "sudo *" => "deny",
+        "rm -rf /" => "deny",
+        "rm -rf /*" => "deny",
+        "rm -rf --no-preserve-root*" => "deny",
+        "mkfs*" => "deny",
+        "dd of=/dev/*" => "deny",
+        "dd if=* of=/dev/*" => "deny",
+        ":(){*" => "deny",
+        "chmod -R 777 /*" => "deny",
+        "chown -R * /" => "deny",
+        "curl * | sh" => "deny",
+        "curl * | bash" => "deny",
+        "wget * | sh" => "deny",
+        "wget * | bash" => "deny"
+      },
+      "external_directory" => "allow",
+      "path" => %{
+        "*" => "allow",
+        "*.env" => "deny",
+        "*.env.*" => "deny",
+        "*.env.example" => "allow",
+        "*.key" => "deny",
+        "*.pem" => "deny",
+        "~/.aws/*" => "deny",
+        "~/.ssh/*" => "deny",
+        "~/.pi/agent/auth.json" => "deny"
+      }
     }
   }
 
@@ -199,7 +227,7 @@ defmodule Aleph.Profiles do
       mcp: :none,
       model: %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"},
       sandbox: @tlon_sandbox,
-      automode: @tlon_automode
+      permissions: @tlon_permissions
     }
   ]
 
@@ -249,13 +277,13 @@ defmodule Aleph.Profiles do
 
   @doc """
   Pure: profile + the base `settings.json`/`mcp.json` maps → the files the profile's config dir needs.
-  Returns `%{settings: map, mcp: map, sandbox: map | nil, automode: map | nil, system_prompt: binary | nil}`.
+  Returns `%{settings: map, mcp: map, sandbox: map | nil, permissions: map | nil, system_prompt: binary | nil}`.
   """
   @spec render(Profile.t(), map(), map()) :: %{
           settings: map(),
           mcp: map(),
           sandbox: map() | nil,
-          automode: map() | nil,
+          permissions: map() | nil,
           system_prompt: String.t() | nil
         }
   def render(%Profile{} = p, base_settings, base_mcp) do
@@ -279,7 +307,7 @@ defmodule Aleph.Profiles do
         servers when is_map(servers) -> %{"mcpServers" => servers}
       end
 
-    %{settings: settings, mcp: mcp, sandbox: p.sandbox, automode: p.automode, system_prompt: p.system_prompt}
+    %{settings: settings, mcp: mcp, sandbox: p.sandbox, permissions: p.permissions, system_prompt: p.system_prompt}
   end
 
   defp apply_model(settings, nil), do: settings
@@ -328,7 +356,15 @@ defmodule Aleph.Profiles do
     write_json!(Path.join(dir, "mcp.json"), r.mcp)
 
     if r.sandbox, do: write_json!(Path.join(dir, "sandbox.json"), r.sandbox)
-    if r.automode, do: write_json!(Path.join(dir, "automode.json"), r.automode)
+
+    # pi-permission-system reads its "global" config from PI_CODING_AGENT_DIR and fail-closes to
+    # "ask everything" when absent — so the coworker gets its OWN config in the nested extension dir.
+    if r.permissions do
+      pdir = Path.join(dir, "extensions/pi-permission-system")
+      File.mkdir_p!(pdir)
+      write_json!(Path.join(pdir, "config.json"), r.permissions)
+    end
+
     if r.system_prompt, do: File.write!(Path.join(dir, "system_prompt.md"), r.system_prompt)
     File.write!(Path.join(dir, "tmux.conf"), @coworker_tmux_conf)
 

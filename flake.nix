@@ -277,42 +277,6 @@
                 captureModel = "deepseek-v4-flash";
               };
 
-              # pi-automode (@czottmann): Claude-Code-style auto mode — a guardrail that ends
-              # prompt-fatigue by auto-approving safe tool calls instead of asking. Precedence:
-              # permissions.deny/ask -> deterministic hard_deny -> two-stage LLM classifier.
-              # It is a guardrail, NOT a sandbox (in-process) — pi-sandbox stays the OS boundary
-              # below it; this only decides which agent tool calls need a human. Owned like
-              # models.json: the extension READS this policy (runtime denial-tracking is separate
-              # in-memory state; the per-project disable is `.pi/automode.local.json`, never this
-              # global file), so a read-only store symlink is safe.
-              #   classifierModel — ollama-cloud/deepseek-v4-flash: the classifier is a one-token
-              #     filter, so it rides the FLAT ollama.com bucket, never the scarce Claude plan —
-              #     and reuses the efficient-MoE default that drains the rate-limit window slowest
-              #     (see manosWiring's defaultModel). classifierReasoningLevel low: a guardrail
-              #     wants a fast verdict, not deliberation.
-              #   classifyReadOnlyTools false — read/grep/find/ls skip the classifier entirely
-              #     (the bulk of the old prompts), and allowInsideWorkingDirectory true adds a
-              #     deterministic silent-allow for the file tools (write/edit) INSIDE the cwd:
-              #     in-project edits are the agent's normal work and pi-sandbox already bounds
-              #     writes to the projects tree. Flip allowInsideWorkingDirectory to false to make
-              #     every edit route through the classifier. bash(...) always classifies.
-              #   $defaults keeps the extension's shipped allow/deny/protected lists as the base;
-              #     add machine-specific rules to these arrays as they surface.
-              piAutomodeJson = builtins.toJSON {
-                autoMode = {
-                  enabled = true;
-                  classifierModel = "ollama-cloud/deepseek-v4-flash";
-                  classifierReasoningLevel = "low";
-                  classifyReadOnlyTools = false;
-                  allowInsideWorkingDirectory = true;
-                  fastClassifierMaxTokens = 512;
-                  allow = [ "$defaults" ];
-                  protectedPaths = [ "$defaults" ];
-                  soft_deny = [ "$defaults" ];
-                  hard_deny = [ "$defaults" ];
-                };
-              };
-
               # ---- Seeded (write-once) pi plugin configs. The fable deep review found two
               # plugins silently active on baked-in defaults; these make the machine policy
               # explicit. Seeded, NOT owned as home.file symlinks: each of these files is
@@ -383,9 +347,26 @@
                     "~/.aws/*" = "deny";
                     "~/.pi/agent/auth.json" = "deny";
                   };
+                  # Routine bash runs; the interactive agent ASKS on sudo (a human is here to answer).
+                  # The catastrophic-and-never-legitimate commands are DENY (terminal) — a deterministic
+                  # floor under the manos bash-judge link that reviews the nuanced middle. Deliberately
+                  # narrow; the judge, not this list, is the real coverage for novel commands.
                   bash = {
                     "*" = "allow";
                     "sudo *" = "ask";
+                    "rm -rf /" = "deny";
+                    "rm -rf /*" = "deny";
+                    "rm -rf --no-preserve-root*" = "deny";
+                    "mkfs*" = "deny";
+                    "dd of=/dev/*" = "deny";
+                    "dd if=* of=/dev/*" = "deny";
+                    ":(){*" = "deny";
+                    "chmod -R 777 /*" = "deny";
+                    "chown -R * /" = "deny";
+                    "curl * | sh" = "deny";
+                    "curl * | bash" = "deny";
+                    "wget * | sh" = "deny";
+                    "wget * | bash" = "deny";
                   };
                   external_directory = "allow";
                 };
@@ -544,10 +525,6 @@
               # funes total-recall's noise knob (correction→habit proposals) — owned; adapter reads it.
               home.file.".pi/agent/funes-recall.json".text = piRecallJson;
 
-              # pi-automode's guardrail policy — owned like models.json (the extension reads it;
-              # the per-project disable lives in `.pi/automode.local.json`, not here).
-              home.file.".pi/agent/automode.json".text = piAutomodeJson;
-
               # manos into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in
               # idempotently, seeding {} if absent.
@@ -604,11 +581,7 @@
                        #                       enable via /unipi:notify-settings). Uses notify-send on
                        #                       Linux, so it needs a notification daemon (mako on
                        #                       Hyprland); NOT the OSC-9/777-through-ghostty path yet.
-                       #   automode          → Claude-Code-style auto mode: auto-approves safe tool
-                       #                       calls (read-only fast path + classifier) so pi stops
-                       #                       prompting. Policy in automode.json above; classifier
-                       #                       runs on the flat ollama bucket, not Claude.
-                       + ["pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:pi-cc-header","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry","npm:@pi-unipi/notify","npm:@czottmann/pi-automode"] | unique)
+                       + ["pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:pi-cc-header","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry","npm:@pi-unipi/notify"] | unique)
                    | .defaultProvider //= "ollama-cloud"
                    | .defaultModel //= "deepseek-v4-flash"
                    | .defaultThinkingLevel //= "medium"
