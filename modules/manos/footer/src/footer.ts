@@ -89,100 +89,122 @@ export default function footer(pi: ExtensionAPI): void {
   pi.on("session_start", async (_event, ctx) => {
     ctx.ui.setFooter((tui, theme, footerData) => {
       const unsubBranch = footerData.onBranchChange(() => tui.requestRender());
-      // Extension statuses are reactive through the footer render — no extra sub needed,
-      // but force a re-render if statuses change.
-      // footerData.getExtensionStatuses() already reflects live setStatus() calls.
 
-      let cachedWidth: number | undefined;
-      let cachedLines: string[] | undefined;
+      // Deferred render kick: the initial setFooter factory can race pi's startup layout
+      // (the differential renderer establishes cursor/scroll state while the footer's first
+      // paint lands) leaving the footer blank until a later full redraw. Two extra render
+      // requests shortly after mount give it a chance to self-heal onto an already-settled
+      // layout instead of staying frozen on a missed first paint.
+      setTimeout(() => tui.requestRender(), 50);
+      setTimeout(() => tui.requestRender(), 200);
+
+      // Extension statuses are reactive through the footer render — no extra sub needed,
+      // getExtensionStatuses() already reflects live setStatus() calls on every render.
 
       return {
         dispose: unsubBranch,
-        invalidate() {
-          cachedWidth = undefined;
-          cachedLines = undefined;
-        },
+        invalidate() {},
         render(width: number): string[] {
-          // Cache-bust on width change; content changes are handled by invalidate
-          // or by tui.requestRender() from reactive subscriptions.
-          if (cachedLines && cachedWidth === width) return cachedLines;
-          cachedWidth = width;
+          // NO caching here — pi's main-screen renderer is DIFFERENTIAL: a row is only
+          // repainted when its string changes from the previous frame. A cached line that
+          // ever missed one paint (a mount-frame positioning slip, observed live) would be
+          // frozen wrong forever, since an unchanged cached string never re-enters the diff
+          // range to self-heal. Recomputing every call matches the built-in FooterComponent
+          // (also uncached) and costs nothing — a string-fold over the branch's usages.
 
-          const lines: string[] = [];
+          // Each line built independently and defensively: a throw computing one (an
+          // unregistered theme color key, an upstream API shape drift, ...) must not take
+          // the other line down with it or vanish with no trace — a visible "failed" stub
+          // + a stderr trace beats a footer line that's just silently gone.
+          const line1 = safeLine("line1", () => buildLine1(width));
+          const line2 = safeLine("line2", () => buildLine2(width));
 
-          // ── Line 1: model · provider │ context │ I/O ────────────────────
-          const model = ctx.model;
-          const modelId = model?.id ?? "no-model";
-          const provider = model?.provider ?? "";
-          const thinking = pi.getThinkingLevel();
+          return [line1, line2];
 
-          // Context usage
-          const usage = ctx.getContextUsage();
-          const ctxWindow = usage?.contextWindow ?? model?.contextWindow;
-          const ctxPct = usage?.percent ?? 0;
-          const ctxBarW = Math.min(10, Math.max(6, width - 40));
-          const ctxLabel = ctxWindow
-            ? `${contextBar(ctxPct, ctxBarW)} ${Math.round(ctxPct)}%/${fmtTokens(ctxWindow)}`
-            : "ctx ?";
-
-          // Session I/O + cache — one fold over the branch's assistant usages.
-          const usages: UsageLike[] = [];
-          for (const e of ctx.sessionManager.getBranch()) {
-            if (e.type === "message" && e.message.role === "assistant") {
-              usages.push((e.message as AssistantMessage).usage);
+          function safeLine(tag: string, build: () => string): string {
+            try {
+              return build();
+            } catch (err) {
+              console.error(`manos/footer: ${tag} render failed:`, err);
+              return theme.fg("dim", `footer: ${tag} failed (see stderr)`);
             }
           }
-          const totals = accumulateUsage(usages);
-          const ioParts = [`↑${fmtTokens(totals.input)}`, `↓${fmtTokens(totals.output)}`];
-          // Cache reuse: only worth showing once cache is actually in play, else it reads
-          // as a permanent 0% on providers/sessions that don't cache.
-          if (totals.cacheRead > 0 || totals.cacheWrite > 0) {
-            ioParts.push(`↺${cacheHitPct(totals.input, totals.cacheRead, totals.cacheWrite)}%`);
+
+          // ── Line 1: model · provider │ context │ I/O ────────────────────
+          function buildLine1(width: number): string {
+            const model = ctx.model;
+            const modelId = model?.id ?? "no-model";
+            const provider = model?.provider ?? "";
+            const thinking = pi.getThinkingLevel();
+
+            // Context usage
+            const usage = ctx.getContextUsage();
+            const ctxWindow = usage?.contextWindow ?? model?.contextWindow;
+            const ctxPct = usage?.percent ?? 0;
+            const ctxBarW = Math.min(10, Math.max(6, width - 40));
+            const ctxLabel = ctxWindow
+              ? `${contextBar(ctxPct, ctxBarW)} ${Math.round(ctxPct)}%/${fmtTokens(ctxWindow)}`
+              : "ctx ?";
+
+            // Session I/O + cache — one fold over the branch's assistant usages.
+            const usages: UsageLike[] = [];
+            for (const e of ctx.sessionManager.getBranch()) {
+              if (e.type === "message" && e.message.role === "assistant") {
+                usages.push((e.message as AssistantMessage).usage);
+              }
+            }
+            const totals = accumulateUsage(usages);
+            const ioParts = [`↑${fmtTokens(totals.input)}`, `↓${fmtTokens(totals.output)}`];
+            // Cache reuse: only worth showing once cache is actually in play, else it reads
+            // as a permanent 0% on providers/sessions that don't cache.
+            if (totals.cacheRead > 0 || totals.cacheWrite > 0) {
+              ioParts.push(`↺${cacheHitPct(totals.input, totals.cacheRead, totals.cacheWrite)}%`);
+            }
+            const costStr = fmtCost(totals.cost);
+            if (costStr) ioParts.push(costStr);
+            const ioLabel = ioParts.join(" ");
+
+            const thinkLabel = thinking !== "off" ? ` · ${thinking}` : "";
+
+            const left =
+              theme.fg("accent", `${modelId}`) +
+              theme.fg("dim", `${provider ? ` · ${provider}` : ""}${thinkLabel}`);
+            const right = theme.fg("muted", `${ctxLabel} │ ${ioLabel}`);
+
+            const pad = Math.max(1, width - visibleWidth(left) - visibleWidth(right));
+            return truncateToWidth(left + " ".repeat(pad) + right, width);
           }
-          const costStr = fmtCost(totals.cost);
-          if (costStr) ioParts.push(costStr);
-          const ioLabel = ioParts.join(" ");
-
-          const thinkLabel = thinking !== "off" ? ` · ${thinking}` : "";
-
-          const line1Left = theme.fg("accent", `${modelId}`) + theme.fg("dim", `${provider ? ` · ${provider}` : ""}${thinkLabel}`);
-          const line1Right = theme.fg("muted", `${ctxLabel} │ ${ioLabel}`);
-
-          const pad1 = Math.max(1, width - visibleWidth(line1Left) - visibleWidth(line1Right));
-          lines.push(truncateToWidth(line1Left + " ".repeat(pad1) + line1Right, width));
 
           // ── Line 2: cwd (branch) │ statuses ──────────────────────────────
-          const branch = footerData.getGitBranch();
-          const cwd = fmtCwd(ctx.cwd);
+          function buildLine2(width: number): string {
+            const branch = footerData.getGitBranch();
+            const cwd = fmtCwd(ctx.cwd);
 
-          // Shrink cwd to fit: keep at least branch + "…"
-          const branchStr = branch ? ` (${branch})` : "";
-          const locBase = `${cwd}${branchStr}`;
+            // Shrink cwd to fit: keep at least branch + "…"
+            const branchStr = branch ? ` (${branch})` : "";
+            const locBase = `${cwd}${branchStr}`;
 
-          // Extension statuses — funes, sandbox, etc.
-          const statuses = footerData.getExtensionStatuses();
-          const statusParts: string[] = [];
-          statuses.forEach((text, key) => {
-            // Both funes and sandbox statuses are self-describing — the text
-            // already reads as "funes: registered..." or "🔒 Sandbox: 12 domains...".
-            // Other keys get the key as prefix for context.
-            const label = key === "funes" || key === "sandbox" ? text : `${key}: ${text}`;
-            statusParts.push(label);
-          });
-          const statusStr = statusParts.length > 0 ? statusParts.join(" │ ") : "";
+            // Extension statuses — funes, sandbox, etc.
+            const statuses = footerData.getExtensionStatuses();
+            const statusParts: string[] = [];
+            statuses.forEach((text, key) => {
+              // Both funes and sandbox statuses are self-describing — the text
+              // already reads as "funes: registered..." or "🔒 Sandbox: 12 domains...".
+              // Other keys get the key as prefix for context.
+              const label = key === "funes" || key === "sandbox" ? text : `${key}: ${text}`;
+              statusParts.push(label);
+            });
+            const statusStr = statusParts.length > 0 ? statusParts.join(" │ ") : "";
 
-          const line2Left = theme.fg("dim", locBase);
-          const line2Right = statusStr ? theme.fg("dim", statusStr) : "";
+            const left = theme.fg("dim", locBase);
+            const right = statusStr ? theme.fg("dim", statusStr) : "";
 
-          if (line2Right) {
-            const pad2 = Math.max(1, width - visibleWidth(line2Left) - visibleWidth(line2Right));
-            lines.push(truncateToWidth(line2Left + " ".repeat(pad2) + line2Right, width));
-          } else {
-            lines.push(truncateToWidth(line2Left, width));
+            if (right) {
+              const pad = Math.max(1, width - visibleWidth(left) - visibleWidth(right));
+              return truncateToWidth(left + " ".repeat(pad) + right, width);
+            }
+            return truncateToWidth(left, width);
           }
-
-          cachedLines = lines;
-          return lines;
         },
       };
     });
