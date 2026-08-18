@@ -240,11 +240,14 @@
               #   maxRecheckIntervalMs — keep the 600000 (10 min) default: this is already the
               #     ceiling the docs recommend ("raise to probe less, never to trust a
               #     provider's estimate") — nothing here calls for probing less often.
+              # showUsage ON (was off "so it does not fight manos/footer"): the whole routing
+              # doctrine is lean-on-Claude-until-it-caps, which needs the per-account cap
+              # readout visible. If it visually fights the footer, flip back — one line.
               piFailoverJson = builtins.toJSON {
                 enabled = true;
                 includeQwen = false;
                 includeCursor = false;
-                showUsage = false;
+                showUsage = true;
                 providerOrder = [ "anthropic" "openai-codex" "qwen" "ollama" ];
                 preferredModels = { ollama = [ "glm-5.1:cloud" "glm-5.2:cloud" ]; };
                 preserveInterruptedContext = true;
@@ -268,6 +271,102 @@
                 boundaryCapture = true;
                 captureEveryTurns = 8;
               };
+
+              # ---- Seeded (write-once) pi plugin configs. The fable deep review found two
+              # plugins silently active on baked-in defaults; these make the machine policy
+              # explicit. Seeded, NOT owned as home.file symlinks: each of these files is
+              # runtime-writable by its plugin (/sandbox-allow persists grants, the permission
+              # TUI persists session rules, /unipi:notify-settings edits its own file), so a
+              # read-only store symlink would break those flows. The seed lands only when the
+              # file is absent; delete a file + home:switch to re-seed it.
+
+              # pi-sandbox: was ENABLED with built-in defaults (enabled=true is baked into the
+              # extension even with no sandbox.json). Explicit policy instead, modeled on the
+              # Tlön coworker sandbox (Aleph.Profiles): unix sockets + local binding so
+              # manos-lspd/tmux/agent-browser work, writes scoped to the projects tree + caches,
+              # the repo host allowlist, secret files deny-listed (denyWrite is a hard block).
+              piSandboxSeed = pkgs.writeText "pi-sandbox-seed.json" (builtins.toJSON {
+                enabled = true;
+                network = {
+                  allowLocalBinding = true;
+                  allowAllUnixSockets = true;
+                  allowedDomains = [
+                    "github.com"
+                    "*.github.com"
+                    "*.githubusercontent.com"
+                    "hex.pm"
+                    "*.hex.pm"
+                    "registry.npmjs.org"
+                    "mise.jdx.dev"
+                    "ollama.com"
+                    "registry.ollama.ai"
+                    "cache.nixos.org"
+                    "channels.nixos.org"
+                    "nixos.org"
+                  ];
+                };
+                filesystem = {
+                  allowWrite = [ "/home/andrew/projects" "/tmp" "$XDG_RUNTIME_DIR" "~/.pi" "~/.cache" "~/.local" ];
+                  allowRead = [
+                    "/home/andrew/projects"
+                    "/nix/store"
+                    "~/.nix-profile"
+                    "~/.config"
+                    "~/.local"
+                    "~/.pi"
+                    "~/.cache"
+                  ];
+                  # Keep the upstream deny-/home posture: anything in home OUTSIDE the
+                  # allowRead carve-outs prompts (grantable), it does not silently pass.
+                  denyRead = [ "/home" ];
+                  denyWrite = [ ".env" ".env.*" "*.pem" "*.key" ];
+                };
+              });
+
+              # pi-permission-system: with NO config every surface defaults to `ask` (least
+              # privilege) — a wall of prompts on a single-owner box. Policy: allow by default,
+              # hard path-denies on credential files (the path surface gates ALL tools + bash +
+              # MCP and cannot be overridden per-tool), sudo asks. pi-sandbox above stays the
+              # actual isolation layer; this layer is the credential tripwire.
+              piPermissionSeed = pkgs.writeText "pi-permission-seed.json" (builtins.toJSON {
+                permission = {
+                  "*" = "allow";
+                  path = {
+                    "*" = "allow";
+                    "*.env" = "deny";
+                    "*.env.*" = "deny";
+                    "*.env.example" = "allow";
+                    "*.pem" = "deny";
+                    "*.key" = "deny";
+                    "~/.ssh/*" = "deny";
+                    "~/.aws/*" = "deny";
+                    "~/.pi/agent/auth.json" = "deny";
+                  };
+                  bash = {
+                    "*" = "allow";
+                    "sudo *" = "ask";
+                  };
+                  external_directory = "allow";
+                };
+              });
+
+              # pi-interactive-shell: defer=true keeps its large tool schema out of every
+              # system prompt until enable_interactive_shell is called — context is the scarce
+              # resource on the Claude bucket. aleph owns coworker spawning; this tool stays
+              # for vim/psql/ssh overlays.
+              piInteractiveShellSeed = pkgs.writeText "pi-interactive-shell-seed.json" (builtins.toJSON {
+                defer = true;
+              });
+
+              # @pi-unipi/notify: suppress native toasts while the pi window is focused (you
+              # are already looking at it). Event toggles (permission_request etc.) stay with
+              # /unipi:notify-settings — the plugin edits this same file.
+              unipiNotifySeed = pkgs.writeText "unipi-notify-seed.json" (builtins.toJSON {
+                native = {
+                  enabled = true;
+                  suppressWhenFocused = true;
+                };
+              });
             in
             {
               home.username = "andrew";
@@ -472,6 +571,22 @@
                    | .retry.provider.maxRetries //= 0
                    | .enabledModels //= ["deepseek-v4-flash","glm-5.2","glm-5.1","deepseek-v4-pro","kimi-k2.7-code","minimax-m3","qwen3-coder"]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
+              '';
+
+              # Seed the runtime-writable plugin configs (see the *Seed bindings above): install
+              # only when absent, so plugin-persisted grants/settings are never stomped.
+              home.activation.piPluginSeeds = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                seed() {
+                  if [ ! -f "$2" ]; then
+                    run mkdir -p "$(dirname "$2")"
+                    run install -m 0644 "$1" "$2"
+                    echo "piPluginSeeds: seeded $2"
+                  fi
+                }
+                seed ${piSandboxSeed} "$HOME/.pi/agent/sandbox.json"
+                seed ${piPermissionSeed} "$HOME/.pi/agent/extensions/pi-permission-system/config.json"
+                seed ${piInteractiveShellSeed} "$HOME/.pi/agent/interactive-shell.json"
+                seed ${unipiNotifySeed} "$HOME/.unipi/config/notify/config.json"
               '';
 
               # The always-up sovereign channel as a headless systemd --user service. A
