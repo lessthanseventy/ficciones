@@ -110,8 +110,12 @@ defmodule Aleph.ProfilesTest do
       refute Enum.any?(p.add_extensions, &String.contains?(&1, "/manos/pi/"))
     end
 
-    test "drives on a capable glm — an orchestrator, not flash" do
-      assert Profiles.fetch("tlon").model == %{provider: "ollama-cloud", model: "glm-5.1", thinking: "medium"}
+    test "drives Claude-first — sonnet as the delegating orchestrator, not glm" do
+      assert Profiles.fetch("tlon").model == %{
+               provider: "anthropic",
+               model: "claude-sonnet-5",
+               thinking: "medium"
+             }
     end
 
     test "unknown profile → nil" do
@@ -126,7 +130,8 @@ defmodule Aleph.ProfilesTest do
       File.mkdir_p!(base)
       File.write!(Path.join(base, "settings.json"), Jason.encode!(@base_settings))
       File.write!(Path.join(base, "mcp.json"), Jason.encode!(@base_mcp))
-      for f <- ~w(auth.json models.json models-store.json), do: File.write!(Path.join(base, f), "{}")
+      for f <- ~w(auth.json models.json models-store.json provider-failover.json),
+          do: File.write!(Path.join(base, f), "{}")
       on_exit(fn -> File.rm_rf!(tmp) end)
       %{base: base, root: Path.join(tmp, "profiles")}
     end
@@ -139,8 +144,11 @@ defmodule Aleph.ProfilesTest do
       refute Enum.any?(settings["extensions"], &String.contains?(&1, "/manos/pi/"))
       assert Jason.decode!(File.read!(Path.join(dir, "mcp.json"))) == %{"mcpServers" => %{}}
       assert Jason.decode!(File.read!(Path.join(dir, "sandbox.json")))["enabled"] == true
-      # the shared files are symlinks back to the base — one credential store, one model catalog
+      # the shared files are symlinks back to the base — one credential store, one model catalog,
+      # one failover policy (so pi-multi-account fails this coworker's Claude over to ollama.com glm)
       assert File.read_link!(Path.join(dir, "auth.json")) == Path.join(base, "auth.json")
+      assert File.read_link!(Path.join(dir, "provider-failover.json")) ==
+               Path.join(base, "provider-failover.json")
     end
 
     test "idempotent — a second materialise re-links without error", %{base: base, root: root} do

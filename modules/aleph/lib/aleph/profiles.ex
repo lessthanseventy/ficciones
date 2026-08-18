@@ -57,6 +57,7 @@ defmodule Aleph.Profiles do
         auth.json      ↳ symlink to ~/.pi/agent/auth.json       (shared credentials)
         models.json    ↳ symlink to ~/.pi/agent/models.json     (shared model catalog)
         models-store.json ↳ symlink                             (shared)
+        provider-failover.json ↳ symlink                        (shared failover policy — Claude→glm)
         sessions/         its own — each coworker resumes its own thread (reload --continue)
 
   Idempotent + self-healing: re-materialised every cockpit start, so editing a profile + restarting
@@ -127,18 +128,24 @@ defmodule Aleph.Profiles do
   @footer_extension "#{@repo}/modules/manos/footer/src/footer.ts"
 
   # The registry. Tlön: self-contained (no funes MCP), the funes-brief extension (manos/pi) dropped,
-  # the generic footer added back, sandboxed. Driver model is glm-5.1 (ollama-cloud) — a capable ORCHESTRATOR that stays lean by
-  # delegating heavy/cheap work to workers via /consult and spawned tabs (route those to LOCAL
-  # qwen3-coder / flash to keep the flat cloud plan cool). Not flash: flash context-overflowed on real
-  # builds. Not the pro/max tier: mid-tier hedges the plan's usage caps. glm-5.1 not 5.2 because 5.2
-  # was 500ing on ollama.com (provider outage, 2026-08-17); flip back to glm-5.2 once it recovers.
+  # the generic footer added back, sandboxed. Driver model is CLAUDE-FIRST: claude-sonnet-5 via the
+  # native `anthropic` provider (pi-multi-account owns the OAuth; auth.json is symlinked from base, so
+  # the /login done for the CLI serves the coworker too). Sonnet not Opus: this is a delegating
+  # ORCHESTRATOR — it drives tools and farms heavy/cheap work to workers (/consult, spawned tabs routed
+  # to LOCAL qwen3-coder / flash), so Sonnet's tool-use is plenty and its lighter cap burn keeps the
+  # coworker ON Claude far longer before failover (the whole point of "lean on Claude"). When Claude
+  # DOES cap, pi-multi-account fails over down its providerOrder (anthropic → … → ollama) to ollama.com's
+  # cloud glm — see the base provider-failover.json (flake `piFailoverJson`: preferredModels.ollama =
+  # glm-*:cloud, the `:cloud` suffix routing to ollama.com not localhost) which materialise! shares into
+  # the profile, and the `ollama` api-key account seeded into auth.json. Flip to claude-opus-4-8 if you
+  # want the driver itself maxed (burns the cap faster → earlier glm fallback).
   @profiles [
     %Profile{
       name: "tlon",
       drop_extensions: ["/manos/pi/"],
       add_extensions: [@footer_extension],
       mcp: :none,
-      model: %{provider: "ollama-cloud", model: "glm-5.1", thinking: "medium"},
+      model: %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"},
       sandbox: @tlon_sandbox
     }
   ]
@@ -217,8 +224,11 @@ defmodule Aleph.Profiles do
     if r.sandbox, do: write_json!(Path.join(dir, "sandbox.json"), r.sandbox)
     if r.system_prompt, do: File.write!(Path.join(dir, "system_prompt.md"), r.system_prompt)
 
-    # Shared, from the base: one credential store, one model catalog. Relink each time (idempotent).
-    for f <- ~w(auth.json models.json models-store.json) do
+    # Shared, from the base: one credential store, one model catalog, one failover policy. The
+    # provider-failover.json symlink is what lets pi-multi-account fail this coworker's Claude over to
+    # ollama.com glm — without it multi-account would write a fresh default here and miss preferredModels.
+    # Relink each time (idempotent).
+    for f <- ~w(auth.json models.json models-store.json provider-failover.json) do
       link = Path.join(dir, f)
       _ = File.rm(link)
       _ = File.ln_s(Path.join(base, f), link)

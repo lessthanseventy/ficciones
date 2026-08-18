@@ -213,11 +213,19 @@
               # stays in rotation as the fallback. showUsage off so it doesn't fight
               # manos/footer's statusline — flip true if you want the per-account Claude-cap
               # readout and it doesn't clash. Claude OAuth is `/login`, the human's one-time step.
+              # providerOrder is anthropic-first, ollama LAST — Claude is the driver, the flat ollama.com
+              # plan is the fallback when Claude caps. preferredModels.ollama pins the fallback to
+              # ollama.com's cloud glm: the `:cloud` suffix is what routes multi-account's request to
+              # https://ollama.com/v1 instead of the local daemon (it discovers the ollama account from
+              # auth.json's `ollama` api-key entry, NOT from models.json). glm-5.1 ahead of 5.2 (5.2 was
+              # 500ing on ollama.com, 2026-08-17); both listed so it hops to 5.2 if 5.1 is unavailable.
               piFailoverJson = builtins.toJSON {
                 enabled = true;
                 includeQwen = false;
                 includeCursor = false;
                 showUsage = false;
+                providerOrder = [ "anthropic" "openai-codex" "qwen" "ollama" ];
+                preferredModels = { ollama = [ "glm-5.1:cloud" "glm-5.2:cloud" ]; };
               };
 
               # funes total-recall's knobs (design: funes-total-recall). Owned like the other pi
@@ -426,6 +434,11 @@
                    | .defaultModel //= "deepseek-v4-flash"
                    | .defaultThinkingLevel //= "medium"
                    | .retry.enabled //= true
+                   # pi-multi-account recommends zeroing the SDK per-provider retries so a capped
+                   # account fails over IMMEDIATELY instead of retry-spinning before the switch.
+                   # (No apostrophes in this comment: it rides inside a bash single-quoted jq string;
+                   # an apostrophe would close the quote and silently truncate the program.)
+                   | .retry.provider.maxRetries //= 0
                    | .enabledModels //= ["deepseek-v4-flash","glm-5.2","glm-5.1","deepseek-v4-pro","kimi-k2.7-code","minimax-m3","qwen3-coder"]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
               '';
