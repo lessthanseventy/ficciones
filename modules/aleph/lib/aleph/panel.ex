@@ -43,6 +43,16 @@ defmodule Aleph.Panel do
   @spec blank() :: row()
   def blank, do: []
 
+  @doc """
+  A horizontal rule: a row of `─` `w` graphemes wide, in `:separator` style — the section
+  divider inside a panel's own body (distinct from `Panel.Rule`, the `│` gutter BETWEEN panels).
+  Width is fixed at build time since `clip/2` truncates by width anyway, not measured against
+  the caller's rect — pass the panel's content width (rect.w, or a narrower column width).
+  """
+  @spec rule(pos_integer()) :: row()
+  def rule(w) when w > 0, do: [{String.duplicate("─", w), :separator}]
+  def rule(_w), do: []
+
   # A tall stand-in for "unclipped height" — panels render into this then we window the rows.
   # 10k covers any realistic panel (a dossier, a long chat) without allocating meaningfully more.
   @max_rows 10_000

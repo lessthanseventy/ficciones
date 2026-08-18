@@ -135,7 +135,7 @@ defmodule Aleph.BoardTest do
       assert text(active) =~ "Comms"
     end
 
-    test "stack (Tlön): header then branch then two rows per commit (meta line, then subject), hash dimmed" do
+    test "stack (Tlön): header then branch then two rows per commit (subject, then meta line), hash dimmed" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
 
       commits = [
@@ -150,7 +150,7 @@ defmodule Aleph.BoardTest do
       ]
 
       data = %{branch: "main", dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: commits}
-      assert [header, _blank, branch, meta, subject] = Stack.render(data, rect)
+      assert [header, _blank, _label, branch, _rule, _commits_label, subject, meta] = Stack.render(data, rect)
       assert text(header) == "STACK"
       assert text(branch) =~ "main"
       assert text(meta) =~ "bc86cc8"
@@ -189,7 +189,7 @@ defmodule Aleph.BoardTest do
     test "stack (Tlön): honest when there is no git history" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
       data = %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: []}
-      assert [_header, _blank, branch, empty] = Stack.render(data, rect)
+      assert [_header, _blank, _label, branch, _rule, _commits_label, empty] = Stack.render(data, rect)
       assert text(branch) =~ "no branch"
       assert text(empty) =~ "no git history"
     end

@@ -1,46 +1,67 @@
 defmodule Aleph.Panel.Stack do
   @moduledoc """
   STACK — the machine's own changelog for the Tlön space: the current branch with tracking
-  status, working-tree summary, recent `ficciones` commits (newest first), and git status.
-  Health (services, system metrics, tools) lives in the HEALTH panel next door.
+  status, working-tree summary, recent `ficciones` commits (newest first), and the files that
+  have been moving lately. Health (services, system metrics, tools) lives in the HEALTH panel
+  next door.
 
-  Data is `%{branch, dirty, ahead, behind, status_summary, commits: [%{hash, subject, relative, date, author, agent?}]}`.
-  Each commit prints on two rows — `hash  author  relative (date)` then the full subject indented
-  below — so the subject isn't chopped to whatever's left of a one-line timestamp/author prefix.
-  `author` is the `Co-Authored-By` model when the commit has one (pink, `agent? == true`) rather
-  than the human's git identity every dogfood commit is pushed under — a plain human commit
-  (no trailer) shows the git author instead, in label amber.
+  Data is `%{branch, dirty, ahead, behind, status_summary, commits: [%{hash, subject, relative,
+  date, author, agent?}], files: [path]}`. Three labeled sections (BRANCH, COMMITS, FILES),
+  each separated by a `Panel.rule/1` divider so the eye has somewhere to land in a panel this
+  dense — bare blank-line spacing reads as one long undifferentiated column.
+
+  Each commit prints on two rows — the full subject first, then `hash  author  relative (date)`
+  indented below — so the subject (what changed) reads first and the attribution is secondary,
+  glanceable context rather than the lead. `author` is padded to a fixed column so the relative
+  time lines up down the list instead of ragging on name length. `author` is the
+  `Co-Authored-By` model when the commit has one (pink, `agent? == true`) rather than the
+  human's git identity every dogfood commit is pushed under — a plain human commit (no trailer)
+  shows the git author instead, in label amber.
   """
   @behaviour Aleph.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Aleph.Panel, only: [line: 2, blank: 0, rule: 1]
+
+  # Author column width: enough for "Claude Opus 4.8" (a full model name) without ragging the
+  # relative-time column too far right on a narrow panel.
+  @author_col 16
 
   @impl Aleph.Panel
   def topics(_assigns), do: []
 
   @impl Aleph.Panel
   def render(
-        %{branch: branch, dirty: dirty, ahead: ahead, behind: behind, status_summary: summary, commits: commits},
+        %{branch: branch, dirty: dirty, ahead: ahead, behind: behind, status_summary: summary, commits: commits} = data,
         rect
       ) do
     header = [line("STACK", :header), blank()]
-    branch_line = branch_row(branch, dirty, ahead, behind)
+    divider = [rule(rect.w)]
 
-    status_line =
-      case summary do
-        nil -> []
-        s when s.staged == 0 and s.unstaged == 0 and s.untracked == 0 -> []
-        s -> [status_row(s)]
+    branch_section =
+      [line("BRANCH", :label), branch_row(branch, dirty, ahead, behind)] ++ status_rows(summary)
+
+    commits_section =
+      [line("COMMITS", :label)] ++
+        case commits do
+          [] -> [line("  no git history", :dim)]
+          cs -> Enum.flat_map(cs, &commit_row/1)
+        end
+
+    files_section =
+      case Map.get(data, :files, []) do
+        [] -> []
+        files -> divider ++ [line("FILES", :label)] ++ Enum.map(files, &file_row/1)
       end
 
-    body =
-      case commits do
-        [] -> [line("no git history", :dim)]
-        cs -> Enum.flat_map(cs, &commit_row/1)
-      end
+    rows =
+      header ++ branch_section ++ divider ++ commits_section ++ files_section
 
-    Aleph.Panel.clip(header ++ [branch_line | status_line ++ body], rect)
+    Aleph.Panel.clip(rows, rect)
   end
+
+  defp status_rows(nil), do: []
+  defp status_rows(s) when s.staged == 0 and s.unstaged == 0 and s.untracked == 0, do: []
+  defp status_rows(s), do: [status_row(s)]
 
   defp branch_row(nil, _dirty, _ahead, _behind), do: [{"  no branch", :dim}]
 
@@ -74,7 +95,6 @@ defmodule Aleph.Panel.Stack do
         if summary.untracked > 0, do: [{"?" <> Integer.to_string(summary.untracked), :dim} | ps], else: ps
       end)
 
-    # Join with spaces
     joined = Enum.intersperse(parts, {" ", :dim})
     [{"  ", :dim} | joined]
   end
@@ -83,12 +103,14 @@ defmodule Aleph.Panel.Stack do
     author_style = if agent?, do: :accent, else: :label
 
     meta = [
-      {hash <> "  ", :dim},
-      {author <> "  ", author_style},
+      {"  " <> hash <> "  ", :dim},
+      {String.pad_trailing(author, @author_col), author_style},
       {relative, :dim},
       {" (" <> date <> ")", :dim}
     ]
 
-    [meta, [{"  " <> subject, :normal}]]
+    [[{"  " <> subject, :normal}], meta]
   end
+
+  defp file_row(path), do: [{"  ", :dim}, {path, :normal}]
 end

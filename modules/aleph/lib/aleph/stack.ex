@@ -67,6 +67,19 @@ defmodule Aleph.Stack do
   defp plural(1, unit), do: "1 #{unit} ago"
   defp plural(n, unit), do: "#{n} #{unit}s ago"
 
+  @doc """
+  Recently touched files, most-recent first, deduped across the last `commits` commits, capped
+  to `n` (best-effort, `[]` outside a git repo or on failure). Reads `git log --name-only`
+  across a window rather than just the latest commit so a quiet stretch still shows something —
+  the point is "what's been moving lately", not strictly "what changed last commit".
+  """
+  def recent_files(dir \\ ".", commits \\ 20, n \\ 6) do
+    case cmd("git", ["-C", dir, "log", "--name-only", "--format=", "-n", Integer.to_string(commits)]) do
+      {:ok, out} -> out |> String.split("\n", trim: true) |> Enum.uniq() |> Enum.take(n)
+      :error -> []
+    end
+  end
+
   @doc "Current branch name, or nil if not in a git repo."
   def branch(dir \\ ".") do
     case cmd("git", ["-C", dir, "branch", "--show-current"]) do
@@ -315,13 +328,21 @@ defmodule Aleph.Stack do
   end
 
   # "Model Name <email>, Other Model <email>" -> "Model Name + Other Model", or nil if there's
-  # no trailer (a plain human commit).
+  # no trailer (a plain human commit). Trailing parentheticals like "(1M context)" are stripped
+  # from each name — panel real estate, not identity.
   defp co_authors(""), do: nil
 
   defp co_authors(trailer) do
     trailer
     |> String.split(",")
-    |> Enum.map(fn entry -> entry |> String.trim() |> String.split("<", parts: 2) |> List.first() |> String.trim() end)
+    |> Enum.map(fn entry ->
+      entry
+      |> String.trim()
+      |> String.split("<", parts: 2)
+      |> List.first()
+      |> String.trim()
+      |> String.replace(~r/\s*\([^)]*\)\s*$/, "")
+    end)
     |> Enum.reject(&(&1 == ""))
     |> case do
       [] -> nil
