@@ -299,37 +299,31 @@ defmodule Aleph.Profiles do
   # The registry. Tlön: a MACHINE-SCOPE funes citizen (@tlon_funes_mcp) — its own dossier/logbook on
   # the machine thread, isolated from project threads by scope; the funes adapter (manos/pi) kept so
   # its brief + every-8-turn auto-capture point at that thread; the footer added; sandboxed. Driver
-  # model is CLAUDE-FIRST: claude-sonnet-5 via the
-  # native `anthropic` provider (pi-multi-account owns the OAuth; auth.json is symlinked from base, so
-  # the /login done for the CLI serves the coworker too). Sonnet not Opus: this is a delegating
-  # ORCHESTRATOR — it drives tools and farms heavy/cheap work to workers (/consult, spawned tabs routed
-  # to LOCAL qwen3-coder / flash), so Sonnet's tool-use is plenty and its lighter cap burn keeps the
-  # coworker ON Claude far longer before failover (the whole point of "lean on Claude"). When Claude
-  # DOES cap, pi-multi-account fails over down its providerOrder (anthropic → … → ollama) to ollama.com's
-  # cloud glm — see the base provider-failover.json (flake `piFailoverJson`: preferredModels.ollama =
-  # glm-*:cloud, the `:cloud` suffix routing to ollama.com not localhost) which materialise! shares into
-  # the profile, and the `ollama` api-key account seeded into auth.json. Flip to claude-opus-4-8 if you
-  # want the driver itself maxed (burns the cap faster → earlier glm fallback).
+  # model is OLLAMA-FIRST (glm-5.2): the pi-multi-account "claude-via-pi" path (routing pi's Anthropic
+  # calls through the OAuth subscription token by impersonating real Claude Code's client fingerprint
+  # — the CLAUDE_CODE_IDENTITY_PREFIX / paragraph-stripping in pi-multi-account/index.ts) is an
+  # unlicensed use of a consumer subscription against a third-party client, not a sanctioned API, and
+  # not worth the account-flag risk for the driver's default. Genuine Claude access for Tlön now runs
+  # HONESTLY instead, as its own `claude` window (below) — real Claude Code, no impersonation, joined
+  # to the same machine thread so it and this pi coworker coordinate over funes like any two agents.
   @profiles [
     %Profile{
       name: "tlon",
       drop_extensions: [],
       add_extensions: [@footer_extension],
       mcp: @tlon_funes_mcp,
-      model: %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"},
+      model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
       sandbox: @tlon_sandbox,
       permissions: @tlon_permissions
     }
   ]
 
-  # The coworker-driver ring the SETTINGS panel cycles (leader `m` in a coworker space) —
-  # every entry a sound driver for a delegating orchestrator. Claude-first per the standing
-  # decision (lean on the $100 plan; multi-account fails over to ollama.com glm when it caps);
-  # the ollama entries are the one-keystroke "stop burning Claude" escape while the
-  # Claude-via-pi billing question (extra-usage vs plan) is still open.
+  # The coworker-driver ring the SETTINGS panel cycles (leader `m` in a coworker space) — ollama-only.
+  # The anthropic/claude-* entries that used to ride here went through pi-multi-account's Claude-Code
+  # impersonation (see @profiles comment above) to spend the subscription bucket from INSIDE pi; that
+  # risk isn't worth a ring entry. Want Claude proper in Tlön? Use the `claude` window — it's the real
+  # CLI, no camouflage, same machine thread.
   @model_ring [
-    %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"},
-    %{provider: "anthropic", model: "claude-opus-4-8", thinking: "medium"},
     %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
     %{provider: "ollama-cloud", model: "kimi-k2.7-code", thinking: "medium"},
     %{provider: "ollama-cloud", model: "deepseek-v4-pro", thinking: "high"}
@@ -409,6 +403,14 @@ defmodule Aleph.Profiles do
     |> Map.put("defaultModel", model)
     |> Map.put("defaultThinkingLevel", think)
   end
+
+  @doc """
+  The ficciones repo root (matches flake.nix's `repo`) — coworkers/launchers outside this
+  module that need a repo-relative path (e.g. the Tlön Claude-Code window) share this, not a
+  second hardcoded copy.
+  """
+  @spec repo() :: String.t()
+  def repo, do: @repo
 
   @doc "The config dir a profile materialises into (its `PI_CODING_AGENT_DIR`)."
   @spec config_dir(String.t()) :: String.t()

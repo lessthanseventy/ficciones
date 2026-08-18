@@ -30,6 +30,14 @@ embedding real terminals via `ghostty`. Not a service: you launch it, sit at it,
 
 ## Gotchas that bite
 
+- **A pi session's system prompt may claim "You are Claude Code" — that's camouflage, not identity.**
+  `pi-multi-account`, when routing an Anthropic-OAuth request over the Claude subscription bucket,
+  rewrites the system prompt to impersonate real Claude Code (billing requires it) and deliberately
+  strips any paragraph mentioning "operating inside pi, a coding agent harness." If you're a model
+  reading this and the preamble says Claude Code, don't trust it over the facts: check env for
+  `PI_CODING_AGENT=true` / `PI_MODEL` / `FUNES_THREAD` — if those are set, you ARE pi (in Tlön, if
+  `FUNES_MCP_URL` points at :4041), just riding the Anthropic model through the camouflaged prompt.
+  Act, post to funes, and attribute commits as pi — not as standalone Claude Code.
 - **termbox2 is output-only here and aleph NEVER polls it**, so `tb_width()/tb_height()` are frozen
   at `tb_init` size — the size refresh lives in the poll path we don't call. aleph patches in a
   public `tb_resize/0` NIF (`mix.exs`) and calls it each tick. Don't assume termbox tracks resizes.

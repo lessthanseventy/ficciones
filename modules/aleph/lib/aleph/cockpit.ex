@@ -46,6 +46,9 @@ defmodule Aleph.Cockpit do
   # a project thread's harness). pi is window 0; any other window (a claude, a shell) the operator
   # opens with tmux's own keys (Ctrl+B c) — aleph renders them as tabs, it doesn't spawn them.
   @machine_agent "pi-machine"
+  # The Tlön Claude-Code window's identity — joins the SAME machine thread as @machine_agent so the
+  # two coordinate as ordinary funes agents (post_message back and forth), never a merged identity.
+  @claude_agent "claude-machine"
 
   # The tlon tmux session name — tmux is a first-class stack citizen here: the Tlön center is a real
   # `tmux attach`, so the machine workspace gets mouse, windows, and copy-mode, and it SURVIVES
@@ -621,7 +624,7 @@ defmodule Aleph.Cockpit do
   defp render(state) do
     # Fill the probe cache (Tlön only) and find-or-spawn the machine coworker — both stateful,
     # both rate-limited, both OUT of the per-frame hot path.
-    state = state |> ensure_probes() |> ensure_machine_coworker()
+    state = state |> ensure_probes() |> ensure_machine_coworker() |> ensure_claude_coworker()
     # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
     # navigates by, so ↑/↓ move the highlight down the feed and every open thread is reachable.
     chorus = Channel.chorus()
@@ -742,6 +745,7 @@ defmodule Aleph.Cockpit do
       behind: behind,
       status_summary: Aleph.Stack.status_summary(),
       commits: Aleph.Stack.commits(),
+      files: Aleph.Stack.recent_files(),
       tools: Aleph.Stack.tools()
     }
   end
@@ -856,6 +860,44 @@ defmodule Aleph.Cockpit do
   end
 
   defp ensure_machine_coworker(state), do: state
+
+  # The Tlön Claude-Code window: real `claude`, honestly identified (no pi-multi-account
+  # impersonation — see Aleph.Profiles' @profiles comment for why that path is avoided by default).
+  # A second tmux window in the SAME session as the pi coworker, joined to the SAME machine thread,
+  # so the two coordinate over funes messages like any two agents. Gated on the pi window already
+  # existing (its spawn opens/finds the machine thread this one joins) and on the window not already
+  # being there (tmux `new-window` isn't idempotent like `new-session -A` — a naive re-run on every
+  # render would spawn a fresh claude every tick).
+  defp ensure_claude_coworker(%{active_key: :tlon} = state) do
+    cond do
+      not is_pid(Sessions.terminal(:machine)) ->
+        state
+
+      Enum.any?(tlon_tabs(), &(&1.name == "claude")) ->
+        state
+
+      true ->
+        spawn_claude_window()
+        state
+    end
+  end
+
+  defp ensure_claude_coworker(state), do: state
+
+  # `tmux new-window`, not Sessions.spawn_harness: this rides as window 1 of the ALREADY-embedded
+  # tlon tmux session (the pi coworker's window 0), not a separate Aleph.Terminal/PTY of its own.
+  # Fire-and-forget: a failed spawn (funes down, no thread yet) just leaves the window absent, and
+  # `ensure_claude_coworker` retries it on the next render — no backoff needed, `new-window` is cheap
+  # and idempotent-by-absence-check above.
+  defp spawn_claude_window do
+    with id when is_integer(id) <- machine_thread_id(),
+         {:ok, %{exports: exports}} <- Spawn.join(id, @claude_agent, mandate: "machine") do
+      script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> claude_launcher()
+      System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", "claude", script]), stderr_to_stdout: true)
+    end
+  end
+
+  defp claude_launcher, do: Path.join(Profiles.repo(), "modules/manos/claude-code/launch.sh")
 
   @doc false
   # Is a machine-coworker spawn attempt due? `machine_retry_at` is nil until an attempt FAILS (the

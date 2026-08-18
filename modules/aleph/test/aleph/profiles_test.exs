@@ -149,16 +149,20 @@ defmodule Aleph.ProfilesTest do
       assert perms["permission"]["*"] == "allow"
     end
 
-    test "drives Claude-first — sonnet as the delegating orchestrator, not glm" do
+    test "drives ollama-first (glm-5.2) — no pi-multi-account Claude impersonation by default" do
       assert Profiles.fetch("tlon").model == %{
-               provider: "anthropic",
-               model: "claude-sonnet-5",
+               provider: "ollama-cloud",
+               model: "glm-5.2",
                thinking: "medium"
              }
     end
 
     test "unknown profile → nil" do
       assert Profiles.fetch("nope") == nil
+    end
+
+    test "repo/0 is the ficciones root — the single path the Tlön claude-code window shares, not a second copy" do
+      assert Profiles.repo() =~ ~r{ficciones$}
     end
 
     test "an operator override (Aleph.Config) is merged over the compiled model" do
@@ -179,9 +183,9 @@ defmodule Aleph.ProfilesTest do
   end
 
   describe "the model ring — what the settings `m` verb cycles" do
-    test "claude-first, and every entry names a provider the base config knows" do
-      assert [%{provider: "anthropic", model: "claude-sonnet-5"} | _] = Profiles.model_ring()
-      assert Enum.all?(Profiles.model_ring(), &(&1.provider in ["anthropic", "ollama-cloud"]))
+    test "ollama-only — the anthropic-via-pi impersonation path isn't a ring entry" do
+      assert [%{provider: "ollama-cloud", model: "glm-5.2"} | _] = Profiles.model_ring()
+      assert Enum.all?(Profiles.model_ring(), &(&1.provider == "ollama-cloud"))
     end
 
     test "next_model advances and wraps; unknown or nil restarts at the head" do
