@@ -10,17 +10,18 @@ defmodule Aleph.MachineChat.Loop do
   It's a READER: a separate OS process from the cockpit, so it can't share the node-local
   `Funes.Bus`; it polls `Funes.Channel.machine_threads/1` off the shared `FUNES_DB` instead.
 
+  SLACK-STYLE: episodes read newest-at-the-BOTTOM (the poll reverses funes' newest-first order), the
+  view lands at the bottom and TAIL-FOLLOWS new activity, and you scroll UP for history. Scrolling up
+  releases the follow so nothing yanks you back; returning to the bottom re-arms it.
+
   Two MODES, keyed on whether an episode is zoomed:
-    * LIST — a compact list of episodes (folded threads). `j/k` (or `↑↓`) move the selection,
-      `Enter` folds/unfolds it inline, `z` zooms it to a full-pane read. Wheel/PgUp/PgDn scroll the
-      list when it overflows.
+    * LIST — a compact list of episodes (folded threads), newest last. `j/k` (or `↑↓`) move the
+      selection, `Enter` folds/unfolds it inline, `z` zooms it to a full-pane read.
     * ZOOM — one episode filling the pane. `j/k`, arrows, wheel, and PgUp/PgDn scroll it; `Esc`
       returns to the list. `g`/`G` (Home/End) snap to top/bottom; `q` quits from either mode.
 
   Rendering is COALESCED like the cockpit: an event only updates the (cheaply clamped) offset/state
-  and arms a single `:render`, so a fast wheel-burst collapses into one paint per frame. The offset
-  is clamped per-event against the `max_scroll` cached by the last paint, so over-scroll is discarded
-  rather than piling up.
+  and arms a single `:render`, so a fast wheel-burst collapses into one paint per frame.
   """
   use GenServer
 
@@ -84,6 +85,7 @@ defmodule Aleph.MachineChat.Loop do
           view: Host.new(),
           scroll: 0,
           max_scroll: 0,
+          follow?: true,
           render_armed?: false
         }
 
@@ -107,6 +109,8 @@ defmodule Aleph.MachineChat.Loop do
   def handle_info(:poll, state) do
     Process.send_after(self(), :poll, @poll_ms)
     view = Host.merge(state.view, poll_blocks(state))
+    # While following, the selection sticks to the newest episode (the last block, at the bottom).
+    view = if state.follow?, do: %{view | selected: max(length(view.blocks) - 1, 0)}, else: view
     {:noreply, schedule_render(%{refresh_size(state) | view: view})}
   end
 
@@ -139,35 +143,35 @@ defmodule Aleph.MachineChat.Loop do
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
-  # LIST mode: j/k move the episode selection, Enter folds/unfolds it, z zooms it to a full read.
-  # Page/g/G scroll the list itself for when expanded episodes overflow the pane.
-  defp list_key(:next, state), do: host(state, :down)
-  defp list_key(:prev, state), do: host(state, :up)
+  # LIST mode: j/k move the episode selection (releasing tail-follow), Enter folds/unfolds it, z
+  # zooms it to a full read landing at its newest message. Page/g/G scroll the list itself.
+  defp list_key(:next, state), do: host(%{state | follow?: false}, :down)
+  defp list_key(:prev, state), do: host(%{state | follow?: false}, :up)
   defp list_key(:enter, state), do: host(state, :toggle)
-  defp list_key(:zoom, state), do: host(state, :zoom, reset_scroll: true)
+  defp list_key(:zoom, state), do: host(state, :zoom, land_bottom: true)
   defp list_key(:pgdn, state), do: {:noreply, scroll_by(state, page(state))}
   defp list_key(:pgup, state), do: {:noreply, scroll_by(state, -page(state))}
-  defp list_key(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0})}
-  defp list_key(:bottom, state), do: {:noreply, schedule_render(%{state | scroll: state.max_scroll})}
+  defp list_key(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0, follow?: false})}
+  defp list_key(:bottom, state), do: {:noreply, schedule_render(%{state | follow?: true})}
   defp list_key(:quit, state), do: {:stop, :normal, state}
   defp list_key(_other, state), do: {:noreply, state}
 
-  # ZOOM mode: everything scrolls the episode; Esc returns to the list.
+  # ZOOM mode: everything scrolls the episode; Esc returns to the list (landing at its bottom).
   defp zoom_key(:next, state), do: {:noreply, scroll_by(state, 1)}
   defp zoom_key(:prev, state), do: {:noreply, scroll_by(state, -1)}
   defp zoom_key(:pgdn, state), do: {:noreply, scroll_by(state, page(state))}
   defp zoom_key(:pgup, state), do: {:noreply, scroll_by(state, -page(state))}
-  defp zoom_key(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0})}
-  defp zoom_key(:bottom, state), do: {:noreply, schedule_render(%{state | scroll: state.max_scroll})}
-  defp zoom_key(:back, state), do: host(state, :back, reset_scroll: true)
+  defp zoom_key(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0, follow?: false})}
+  defp zoom_key(:bottom, state), do: {:noreply, schedule_render(%{state | follow?: true})}
+  defp zoom_key(:back, state), do: host(state, :back, land_bottom: true)
   defp zoom_key(:quit, state), do: {:stop, :normal, state}
   defp zoom_key(_other, state), do: {:noreply, state}
 
-  # Run a pure Host action, optionally resetting the scroll (entering/leaving a zoom swaps the whole
-  # content, so start it at the top), then arm a paint.
+  # Run a pure Host action, optionally landing at the bottom (tail-follow on) — entering/leaving a
+  # zoom swaps the whole content, and Slack-style you want the newest in view — then arm a paint.
   defp host(state, action, opts \\ []) do
     view = Host.handle_key(state.view, action)
-    next = if opts[:reset_scroll], do: %{state | view: view, scroll: 0}, else: %{state | view: view}
+    next = if opts[:land_bottom], do: %{state | view: view, follow?: true}, else: %{state | view: view}
     {:noreply, schedule_render(next)}
   end
 
@@ -190,10 +194,12 @@ defmodule Aleph.MachineChat.Loop do
   defp intent(_key), do: :ignore
 
   # Move the offset by `delta` lines, clamped to `[0, max_scroll]` using the cached bound so it's
-  # cheap (no render) and excess fast-scroll is discarded.
+  # cheap (no render) and excess fast-scroll is discarded. Scrolling UP releases tail-follow; paint
+  # re-arms it when the offset reaches the bottom again.
   defp scroll_by(state, delta) do
     scroll = (state.scroll + delta) |> min(state.max_scroll) |> max(0)
-    schedule_render(%{state | scroll: scroll})
+    follow? = if delta < 0, do: false, else: state.follow?
+    schedule_render(%{state | scroll: scroll, follow?: follow?})
   end
 
   # A page is one screenful minus a line of overlap, so a reader keeps their place across a jump.
@@ -206,10 +212,11 @@ defmodule Aleph.MachineChat.Loop do
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
   end
 
-  # Read the machine-thread blocks; a transient read failure keeps the last good frame rather than
-  # crashing the tab — a stale but readable transcript is the right failure mode for a glance tab.
+  # Read the machine-thread blocks, REVERSED to newest-last (Slack order); a transient read failure
+  # keeps the last good frame (already reversed) rather than crashing — a stale but readable
+  # transcript is the right failure mode for a glance tab.
   defp poll_blocks(state) do
-    Channel.machine_threads()
+    Enum.reverse(Channel.machine_threads())
   rescue
     _ -> state.view.blocks
   catch
@@ -226,19 +233,21 @@ defmodule Aleph.MachineChat.Loop do
   end
 
   # Render the transcript ONCE at full height, cache the resulting scroll bound, then window the rows
-  # by the (clamped) offset and blit them. One render per frame.
+  # by the offset — pinned to the bottom while following — and blit them. When the content is shorter
+  # than the pane it BOTTOM-ANCHORS (blank rows padded above), so a short list/episode sits at the
+  # bottom edge, Slack-style, instead of floating at the top. One render per frame.
   defp paint(state) do
     rows = Transcript.render(state.view, %{x: 0, y: 0, w: state.w, h: @max_rows})
     max_scroll = max(length(rows) - state.h, 0)
-    scroll = min(state.scroll, max_scroll)
+    scroll = if state.follow?, do: max_scroll, else: min(state.scroll, max_scroll)
+    windowed = rows |> Enum.drop(scroll) |> Enum.take(state.h)
+    top_pad = List.duplicate([], max(state.h - length(windowed), 0))
 
-    rows
-    |> Enum.drop(scroll)
-    |> Enum.take(state.h)
+    (top_pad ++ windowed)
     |> Board.rows_to_cells(%{x: 0, y: 0, w: state.w, h: state.h})
     |> Board.paint()
 
-    %{state | scroll: scroll, max_scroll: max_scroll}
+    %{state | scroll: scroll, max_scroll: max_scroll, follow?: state.follow? or scroll >= max_scroll}
   end
 
   @impl true

@@ -47,14 +47,13 @@ defmodule Aleph.Transcript do
     end
   end
 
-  # LIST: a title row, then one foldable block per machine thread.
+  # LIST: one foldable block per machine thread (no standing title — the tmux tab already says
+  # `chat`, and a floating title reads oddly once the list bottom-anchors).
   def render(%{blocks: blocks} = data, rect) do
-    header = [line("TLÖN · machine chat", :header), blank()]
-
     body =
       case blocks do
         [] ->
-          [line("no machine thread yet", :dim)]
+          [line("no machine threads yet", :dim)]
 
         bs ->
           bs
@@ -62,7 +61,7 @@ defmodule Aleph.Transcript do
           |> Enum.flat_map(fn {block, i} -> block_rows(block, i, data, rect.w) end)
       end
 
-    Panel.clip(header ++ body, rect)
+    Panel.clip(body, rect)
   end
 
   # A thread block reads as one EPISODE: the `▸/▾ title` header carries its participants, message
