@@ -219,6 +219,27 @@
               # https://ollama.com/v1 instead of the local daemon (it discovers the ollama account from
               # auth.json's `ollama` api-key entry, NOT from models.json). glm-5.1 ahead of 5.2 (5.2 was
               # 500ing on ollama.com, 2026-08-17); both listed so it hops to 5.2 if 5.1 is unavailable.
+              # The five below were left implicit (extension defaults) until this pass — made
+              # explicit so a defaults change upstream can't silently retune failover behavior
+              # underneath us. All five are kept AT their documented default; this is a
+              # "declare the decision" pass, not a behavior change.
+              #   preserveInterruptedContext — keep true: rewrites the turn that triggered a
+              #     failover into a verbatim handoff record instead of dropping it, so a
+              #     mid-turn Claude→ollama switch doesn't lose the reasoning/tool-call trail.
+              #     Exactly the continuity this rotation exists to provide.
+              #   routeCompactionToHealthyAccount — keep true: if context needs compacting
+              #     while the active account is rate-limited, generate the summary on the
+              #     healthy fallback instead of hanging on the dead one.
+              #   autoContinue — keep true: queues a continuation prompt after a switch so a
+              #     long run doesn't stall waiting for a human to notice and re-type. Matches
+              #     "lean on Claude, don't babysit it" — see [[claude-plan-preferred-bucket]].
+              #   cooldownMs — keep the 6h default: only used when a provider gives no reset
+              #     metadata of its own (Anthropic/Codex normally do). With just two real
+              #     accounts in rotation (anthropic, ollama), a rare 6h miss just means staying
+              #     on ollama longer, not getting stuck.
+              #   maxRecheckIntervalMs — keep the 600000 (10 min) default: this is already the
+              #     ceiling the docs recommend ("raise to probe less, never to trust a
+              #     provider's estimate") — nothing here calls for probing less often.
               piFailoverJson = builtins.toJSON {
                 enabled = true;
                 includeQwen = false;
@@ -226,6 +247,11 @@
                 showUsage = false;
                 providerOrder = [ "anthropic" "openai-codex" "qwen" "ollama" ];
                 preferredModels = { ollama = [ "glm-5.1:cloud" "glm-5.2:cloud" ]; };
+                preserveInterruptedContext = true;
+                routeCompactionToHealthyAccount = true;
+                autoContinue = true;
+                cooldownMs = 21600000;
+                maxRecheckIntervalMs = 600000;
               };
 
               # funes total-recall's knobs (design: funes-total-recall). Owned like the other pi
