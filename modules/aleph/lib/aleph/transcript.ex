@@ -1,0 +1,153 @@
+defmodule Aleph.Transcript do
+  @moduledoc """
+  The Tlön machine-chat renderer — machine-scope threads (`Funes.Channel.machine_threads/1`) as
+  **foldable blocks**, each with its messages turn-grouped Slack-style. A pure
+  `view_state → [row]` function in the `Aleph.Panel` row model (`{text, style}` runs), so it is
+  headlessly testable and slots straight into the cockpit as a panel (the same renderer the Tlön
+  `chat` tab drives via db-polling — the "one renderer, two surfaces" seam).
+
+  `view_state` is
+  `%{blocks: [%{thread: %{id, title}, messages: [%{author, body, created_at}]}], selected: idx,
+  folded: MapSet(thread_id), zoom: thread_id | nil}`.
+
+  - A **folded** thread renders as one `▸ title  (n)` row; an **expanded** one as `▾ title (n)`
+    then its turn-grouped messages. The **selected** block's title carries `:selected`.
+  - **zoom** collapses the surface to a single thread, expanded, full-pane.
+  - Inside a block: consecutive messages from one author share a coloured `author  HH:MM` header;
+    a change of author (or a >5-minute gap) opens a new turn; a day rollover drops a dated rule.
+
+  Each author gets a stable truecolor (`{:rgb, fg, bg}` run style) so a speaker is scannable down
+  the column — known coworkers hand-picked, any other voice hashed onto the palette.
+  """
+  @behaviour Aleph.Panel
+
+  import Aleph.Panel, only: [line: 2, blank: 0]
+
+  alias Aleph.Panel
+
+  # A spread of distinct truecolor foregrounds for unknown/hashed voices, plus hand-picked slots
+  # for the known coworkers — carried in spirit from the Pass 1 stream palette.
+  @palette [0x5FAFFF, 0xFFAF5F, 0x87FF87, 0xFF87D7, 0xD7AFFF, 0x5FD7D7, 0xFFD75F, 0xFF8787]
+  @known %{"pi-machine" => 0xFF87D7, "claude-machine" => 0x5FD7FF, "andrew" => 0xFFD75F}
+
+  @impl Panel
+  def topics(_assigns), do: []
+
+  @impl Panel
+  # ZOOM: one thread, expanded, filling the pane. A zoomed thread that has since vanished (rotated
+  # out from under the cursor) falls back to the list rather than a blank screen.
+  def render(%{zoom: id} = data, rect) when not is_nil(id) do
+    case Enum.find(data.blocks, &(&1.thread.id == id)) do
+      nil ->
+        render(%{data | zoom: nil}, rect)
+
+      block ->
+        header = [line("◄ #{title(block)}  ·  zoomed (esc)", :header), blank()]
+        Panel.clip(header ++ message_rows(block.messages, rect.w), rect)
+    end
+  end
+
+  # LIST: a title row, then one foldable block per machine thread.
+  def render(%{blocks: blocks} = data, rect) do
+    header = [line("TLÖN · machine chat", :header), blank()]
+
+    body =
+      case blocks do
+        [] ->
+          [line("no machine thread yet", :dim)]
+
+        bs ->
+          bs
+          |> Enum.with_index()
+          |> Enum.flat_map(fn {block, i} -> block_rows(block, i, data, rect.w) end)
+      end
+
+    Panel.clip(header ++ body, rect)
+  end
+
+  # A thread block: the `▸/▾ title (n)` header (selected → highlighted), then its messages unless
+  # folded, then a trailing blank so blocks read apart.
+  defp block_rows(block, index, data, w) do
+    folded? = MapSet.member?(data.folded, block.thread.id)
+    arrow = if folded?, do: "▸", else: "▾"
+    title_style = if index == data.selected, do: :selected, else: :header
+    head = [{"#{arrow} ", :accent}, {title(block), title_style}, {"  (#{length(block.messages)})", :dim}]
+    msgs = if folded?, do: [], else: message_rows(block.messages, w)
+
+    [head | msgs] ++ [blank()]
+  end
+
+  defp title(%{thread: %{title: title}}), do: title || "untitled"
+
+  # A thread's messages, turn-grouped: fold the (last author, last timestamp) cursor through them,
+  # emitting day dividers, turn headers, and indented bodies.
+  defp message_rows(messages, w) do
+    {rows, _cursor} =
+      Enum.reduce(messages, {[], %{author: nil, at: nil}}, fn message, {rows, cursor} ->
+        {new_rows, cursor} = message_rows(message, cursor, w)
+        {rows ++ new_rows, cursor}
+      end)
+
+    rows
+  end
+
+  defp message_rows(%{author: author, body: body, created_at: at}, cursor, w) do
+    day? = day_divider?(cursor.at, at)
+    turn? = day? or author != cursor.author or gap?(cursor.at, at)
+
+    lead =
+      cond do
+        day? -> if(cursor.author, do: [blank()], else: []) ++ [day_divider(at, w), blank()]
+        turn? and cursor.author -> [blank()]
+        true -> []
+      end
+
+    head = if turn?, do: [header_row(author, at)], else: []
+    {lead ++ head ++ body_rows(body, w), %{author: author, at: at}}
+  end
+
+  # A turn header: the coloured author name, a gap, then a dim `HH:MM`.
+  defp header_row(author, at), do: [{author, author_style(author)}, {"  ", :dim}, {time(at), :dim}]
+
+  # The body wrapped to the column (preserving the author's paragraph breaks) with a hanging
+  # two-space indent, so author names stay a scannable left edge.
+  defp body_rows(body, w) do
+    width = max(w - 2, 1)
+
+    (body || "")
+    |> String.split("\n")
+    |> Enum.flat_map(&Aleph.Text.wrap(&1, width))
+    |> Enum.map(&line("  " <> &1, :normal))
+  end
+
+  # A centred, dimmed date rule filling the column (`──── Fri, 15 Aug ────`).
+  defp day_divider(%DateTime{} = at, w) do
+    label = " " <> Calendar.strftime(at, "%a, %-d %b") <> " "
+    pad = max(max(w, 20) - String.length(label), 2)
+    left = div(pad, 2)
+    [{String.duplicate("─", left) <> label <> String.duplicate("─", pad - left), :separator}]
+  end
+
+  # A new day since the last message (or the first message) warrants a date rule; a non-`DateTime`
+  # timestamp can't be compared, so it never triggers one.
+  defp day_divider?(nil, %DateTime{}), do: true
+
+  defp day_divider?(%DateTime{} = last, %DateTime{} = at),
+    do: Date.compare(DateTime.to_date(at), DateTime.to_date(last)) != :eq
+
+  defp day_divider?(_last, _at), do: false
+
+  # More than five minutes since the last message re-anchors a fresh header, even from one speaker.
+  defp gap?(%DateTime{} = last, %DateTime{} = at), do: DateTime.diff(at, last) > 300
+  defp gap?(_last, _at), do: false
+
+  # A stable per-author truecolor run style: the hand-picked slot for a known coworker, else a hash
+  # onto the palette so a new voice still lands on its own colour and keeps it.
+  defp author_style(author) do
+    fg = Map.get_lazy(@known, author, fn -> Enum.at(@palette, rem(:erlang.phash2(author), length(@palette))) end)
+    {:rgb, fg, Aleph.Style.bg()}
+  end
+
+  defp time(%DateTime{} = at), do: Calendar.strftime(at, "%H:%M")
+  defp time(_at), do: "--:--"
+end

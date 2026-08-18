@@ -1015,11 +1015,12 @@ defmodule Aleph.Cockpit do
 
   defp ensure_third_coworker(state), do: state
 
-  # The `chat` tab (the third Tlön window): a read-only, Slack-style transcript of the machine
-  # thread, so the pi/claude tabs can stay their raw harness selves. NOT a coworker — no funes
-  # identity, no wake-loop entry (Aleph.Mention doesn't know it); it just tails the db the cockpit
-  # writes. Gated like the claude window: pi up (so a machine thread exists to read), window absent
-  # (`new-window` isn't idempotent), retried each render — a failed open just leaves the tab missing.
+  # The `chat` tab (the third Tlön window): the INTERACTIVE machine-chat — machine-scope threads as
+  # foldable blocks with author-turn grouping (fold/zoom/scroll), so the pi/claude tabs can stay
+  # their raw harness selves. NOT a coworker — no funes identity, no wake-loop entry (Aleph.Mention
+  # doesn't know it); it just polls the db the cockpit writes. Gated like the claude window: pi up
+  # (so a machine thread exists to read), window absent (`new-window` isn't idempotent), retried each
+  # render — a failed open just leaves the tab missing.
   defp ensure_log_window(%{active_key: :tlon} = state) do
     cond do
       not is_pid(safe_terminal(:machine)) -> state
@@ -1030,13 +1031,13 @@ defmodule Aleph.Cockpit do
 
   defp ensure_log_window(state), do: state
 
-  # Open the `chat` window running `mix aleph.machine_log` from the aleph project (where mise/mix
+  # Open the `chat` window running `mix aleph.machine_chat` from the aleph project (where mise/mix
   # resolve). It inherits the tlon session's `FUNES_DB`, so it reads the SAME db the cockpit writes —
   # the whole point of the poll-the-db design (a separate process can't share the in-node Bus).
   # Fire-and-forget: a failed spawn leaves the tab absent and the next render retries.
   defp spawn_log_window do
     dir = Path.join(Profiles.repo(), "modules/aleph")
-    script = "export TERM=xterm-256color\ncd #{dir}\nexec mise exec -- mix aleph.machine_log"
+    script = "export TERM=xterm-256color\ncd #{dir}\nexec mise exec -- mix aleph.machine_chat"
     System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", "chat", script]), stderr_to_stdout: true)
   end
 

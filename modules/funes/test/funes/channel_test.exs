@@ -227,6 +227,30 @@ defmodule Funes.ChannelTest do
       assert Enum.map(loud_block.messages, & &1.body) == ["latest"]
       assert Enum.find(blocks, &(&1.thread.id == fresh.id)).messages == []
     end
+
+    test "machine_threads/0 — one block per MACHINE thread (incl. closed rotations), project excluded" do
+      {:ok, m1} = Channel.open_thread(%{title: "Tlön · aug 16", scope: "machine"})
+      {:ok, _} = Channel.post(%{thread_id: m1.id, author: "pi-machine", body: "old turn"})
+      {:ok, project} = Channel.open_thread(%{title: "real work"})
+      {:ok, _} = Channel.post(%{thread_id: project.id, author: "andrew", body: "not meta"})
+      {:ok, m2} = Channel.open_thread(%{title: "Tlön · aug 17", scope: "machine"})
+      {:ok, _} = Channel.post(%{thread_id: m2.id, author: "claude-machine", body: "newest turn"})
+      # a rotation closes the older machine thread — it must still surface as history
+      {:ok, _} = Channel.close_thread(m1)
+
+      blocks = Channel.machine_threads()
+      titles = Enum.map(blocks, & &1.thread.title)
+
+      # both machine threads appear, closed one included; the project thread never does
+      assert "Tlön · aug 16" in titles
+      assert "Tlön · aug 17" in titles
+      refute "real work" in titles
+      # most-recent-activity first: the newer machine thread leads
+      assert List.first(titles) == "Tlön · aug 17"
+      # the block carries the thread's own messages, chat order
+      m1_block = Enum.find(blocks, &(&1.thread.id == m1.id))
+      assert Enum.map(m1_block.messages, & &1.body) == ["old turn"]
+    end
   end
 
   describe "the state CHECK is the DB's own guard" do

@@ -64,6 +64,25 @@ defmodule Funes.Channel do
     Repo.one(from t in Thread, where: t.state == "open" and t.scope == ^@machine_scope, order_by: [desc: t.id], limit: 1)
   end
 
+  @doc """
+  ALL machine-scope threads as THREAD BLOCKS — the Tlön machine-chat surface (aleph's `chat` tab).
+  Like `chorus/1` but scoped to `machine` and WITHOUT the open-only filter: a rotated (closed)
+  machine thread must still surface as history, so the chat can fold it below the current one.
+  Each block carries the thread's recent messages (chat order within), most-recent-activity FIRST.
+  `[%{thread, messages}]`.
+  """
+  def machine_threads(per_thread \\ 20) do
+    by_thread = 300 |> recent_across() |> Enum.group_by(& &1.thread_id)
+
+    from(t in Thread, where: t.scope == ^@machine_scope)
+    |> Repo.all()
+    |> Enum.map(fn t ->
+      messages = by_thread |> Map.get(t.id, []) |> Enum.take(-per_thread)
+      %{thread: t, messages: messages}
+    end)
+    |> Enum.sort_by(&sort_key/1, :desc)
+  end
+
   @doc "A thread by id, or nil — the load path for the cross-thread `close_thread` verb."
   def thread(id), do: Repo.get(Thread, id)
 
