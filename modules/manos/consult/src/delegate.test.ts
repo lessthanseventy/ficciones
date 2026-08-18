@@ -8,7 +8,11 @@ import {
   inferMime,
   buildVisionPrompt,
   extractUserFraming,
+  initConsultStream,
+  reduceConsultEvent,
+  consultResult,
 } from "./extension.ts";
+import type { ConsultStreamState } from "./extension.ts";
 import type { SessionEntry, ToolResultEvent } from "./pi.ts";
 
 // ── parseArgs: [model] <prompt> ──────────────────────────────────────────────────────────
@@ -321,5 +325,90 @@ describe("parseToolArgs — the consult tool's named params", () => {
   test("an empty-string model falls back to the default (treated as absent)", () => {
     const r = parseToolArgs({ prompt: "q", model: "" });
     expect(r).toEqual({ ok: true, model: "minimax-m3", context: "transcript", prompt: "q" });
+  });
+});
+
+// ── reduceConsultEvent: fold pi's `--mode json` NDJSON stream into live state ─────────────
+// The delegate now runs `pi --mode json` (not `-p`), which emits one JSON event per line as
+// it works, so we can stream the peer's answer instead of buffering it to the end. These
+// tests pin the event semantics: which events add visible text, which count as thinking, how
+// the final answer is captured, and how a mid-stream error surfaces.
+
+describe("reduceConsultEvent — the streaming event reducer", () => {
+  // Replay a sequence of events through the reducer from a fresh state.
+  const run = (events: unknown[]): ConsultStreamState =>
+    events.reduce<ConsultStreamState>(reduceConsultEvent, initConsultStream());
+
+  const msgStart = (role: string) => ({ type: "message_start", message: { role } });
+  const textDelta = (delta: string) => ({
+    type: "message_update",
+    assistantMessageEvent: { type: "text_delta", contentIndex: 1, delta },
+  });
+  const thinkingDelta = (delta: string) => ({
+    type: "message_update",
+    assistantMessageEvent: { type: "thinking_delta", contentIndex: 0, delta },
+  });
+  const msgEnd = (text: string, extra: Record<string, unknown> = {}) => ({
+    type: "message_end",
+    message: { role: "assistant", content: [{ type: "text", text }], ...extra },
+  });
+
+  test("text_delta events accumulate into the visible stream", () => {
+    const s = run([msgStart("assistant"), textDelta("Hello"), textDelta(", world")]);
+    expect(s.visible).toBe("Hello, world");
+    expect(s.phase).toBe("answering");
+  });
+
+  test("thinking_delta counts toward liveness but is not shown as answer text", () => {
+    const s = run([msgStart("assistant"), thinkingDelta("hmm let me think")]);
+    expect(s.visible).toBe("");
+    expect(s.thinkingChars).toBe("hmm let me think".length);
+    expect(s.phase).toBe("thinking");
+  });
+
+  test("message_end captures the completed answer as finalText", () => {
+    const s = run([msgStart("assistant"), textDelta("streamed"), msgEnd("the final answer")]);
+    expect(s.finalText).toBe("the final answer");
+    expect(consultResult(s)).toBe("the final answer");
+  });
+
+  test("a new assistant message resets the visible buffer (tool-call turn → answer turn)", () => {
+    // The peer narrates ("let me check"), the message ends, a tool runs, then a fresh
+    // assistant message streams the real answer — the live view shows the CURRENT message.
+    const s = run([
+      msgStart("assistant"),
+      textDelta("let me check the file"),
+      msgEnd("let me check the file"),
+      msgStart("assistant"),
+      textDelta("found it: the bug is X"),
+    ]);
+    expect(s.visible).toBe("found it: the bug is X");
+    // finalText is still the last COMPLETED message until the second one ends.
+    expect(s.finalText).toBe("let me check the file");
+  });
+
+  test("consultResult prefers finalText but falls back to a partial stream (killed mid-answer)", () => {
+    const partial = run([msgStart("assistant"), textDelta("half an ans")]);
+    expect(partial.finalText).toBe("");
+    expect(consultResult(partial)).toBe("half an ans");
+  });
+
+  test("an errored/aborted message_end surfaces the error", () => {
+    const s = run([
+      msgStart("assistant"),
+      msgEnd("", { stopReason: "error", errorMessage: "provider 500" }),
+    ]);
+    expect(s.error).toBe("provider 500");
+  });
+
+  test("unknown / irrelevant events pass through unchanged", () => {
+    const before = initConsultStream();
+    const after = run([{ type: "session", id: "x" }, { type: "turn_start" }, "not-an-object", null]);
+    expect(after).toEqual(before);
+  });
+
+  test("a user message_start does not reset assistant state", () => {
+    const s = run([msgStart("assistant"), textDelta("answer"), msgStart("user")]);
+    expect(s.visible).toBe("answer");
   });
 });

@@ -2,8 +2,10 @@
 // the main session via sendUserMessage. /consult includes the recent session transcript as
 // context (a rich second opinion); /fresh is a clean one-shot with just the prompt.
 //
-// Both spawn a transient `pi -p --no-session --model <id>` with no FUNES_* env, so the
-// manos adapter stays quiet and no funes thread is registered by the delegate.
+// Both spawn a transient `pi --mode json --no-session --model <id>` with no FUNES_* env, so
+// the manos adapter stays quiet and no funes thread is registered by the delegate. `--mode
+// json` (not `-p`) makes pi emit one JSON event per line AS IT WORKS, so the peer's answer
+// streams in token-by-token instead of arriving in one lump when the delegate exits.
 //
 // Default model is `minimax-m3` (the one cloud model declared image-capable in flake.nix),
 // so a bare `/fresh describe this` works for a pasted screenshot with no model arg.
@@ -23,6 +25,7 @@ import type {
   ToolResult,
   ToolResultEvent,
   ToolResultPatch,
+  ToolUpdateCallback,
 } from "./pi.ts";
 
 // Pure helpers below are exported and pinned by delegate.test.ts; the spawn/inject and
@@ -111,9 +114,15 @@ async function delegate(
   const contextBlock = withContext ? serializeSession(ctx) : "";
   const task = contextBlock ? `${contextBlock}\n\n---\n\n${prompt}` : prompt;
 
+  // A slash command has no live tool-result box to stream into, but a status heartbeat still
+  // tells the operator the delegate is alive (thinking → streaming) rather than silently hung.
+  const startedAt = Date.now();
+  const onProgress = (s: ConsultStreamState) =>
+    ctx.ui.setStatus("consult", consultHeartbeat(`/${verb} ${model}`, s, startedAt));
+
   ctx.ui.setStatus("consult", `/${verb} ${model}: running…`);
   try {
-    const out = await runPi(model, task);
+    const out = await runPi(model, task, undefined, onProgress);
     ctx.ui.setStatus("consult", "");
     const trimmed = out.trim();
     if (!trimmed) {
@@ -197,7 +206,7 @@ async function consultToolExecute(
   _id: string,
   params: Record<string, unknown>,
   signal: AbortSignal,
-  _onUpdate: unknown,
+  onUpdate: ToolUpdateCallback,
   ctx: ToolExecuteContext,
 ): Promise<ToolResult> {
   const parsed = parseToolArgs(params);
@@ -207,9 +216,18 @@ async function consultToolExecute(
   const contextBlock = context === "transcript" ? serializeSession(ctx) : "";
   const task = contextBlock ? `${contextBlock}\n\n---\n\n${prompt}` : prompt;
 
+  // Stream the peer's answer into the tool's live result box as it arrives, and keep a status
+  // heartbeat going during the (possibly long) reasoning pause before the first answer token —
+  // so the operator sees it's alive, not hung, the whole way through.
+  const startedAt = Date.now();
+  const onProgress = (s: ConsultStreamState) => {
+    if (s.visible) onUpdate?.({ content: [{ type: "text", text: s.visible }] });
+    ctx.ui.setStatus("consult", consultHeartbeat(`consult ${model}`, s, startedAt));
+  };
+
   ctx.ui.setStatus("consult", `consult ${model}: running…`);
   try {
-    const out = await runPi(model, task, signal);
+    const out = await runPi(model, task, signal, onProgress);
     ctx.ui.setStatus("consult", "");
     const trimmed = out.trim();
     if (!trimmed) {
@@ -480,9 +498,98 @@ async function describeImage(
   return out;
 }
 
-// Spawn a transient `pi -p --no-session --model <id>` one-shot and capture its stdout.
-// Re-enters the running pi binary — robust whether pi is a bun bundle or on PATH.
-function runPi(model: string, task: string, signal?: AbortSignal): Promise<string> {
+// ── consult streaming: reduce pi's `--mode json` NDJSON event stream ─────────────────────
+// `pi --mode json` emits one JSON event per line as the delegate runs. We fold that stream
+// into a small state: the CURRENT assistant message's streamed text (for a live, in-progress
+// tool-result update), the last COMPLETED assistant message's text (the authoritative final
+// answer — matching `-p`'s "last assistant message" semantics), a cumulative thinking-char
+// count (a liveness signal during a long reasoning pause, before any answer token), the phase,
+// and any error. Pure + exported so the event semantics are pinned by tests, independent of
+// the spawn/stream plumbing below.
+
+export type ConsultPhase = "thinking" | "answering";
+
+export interface ConsultStreamState {
+  visible: string; // current assistant message's streamed text (resets each new message)
+  finalText: string; // last COMPLETED assistant message's text — what runPi returns
+  thinkingChars: number; // reasoning tokens seen so far — a "still alive" signal
+  phase: ConsultPhase;
+  error: string | null; // set when an assistant message ends in error/aborted
+}
+
+export function initConsultStream(): ConsultStreamState {
+  return { visible: "", finalText: "", thinkingChars: 0, phase: "thinking", error: null };
+}
+
+// Fold one parsed event into the stream state, returning the next state (never mutates).
+// Unknown or irrelevant events (and non-objects) pass through unchanged.
+export function reduceConsultEvent(state: ConsultStreamState, event: unknown): ConsultStreamState {
+  if (!event || typeof event !== "object") return state;
+  const ev = event as Record<string, unknown>;
+
+  // A fresh assistant message begins: reset the visible buffer so the live view shows THIS
+  // message streaming (not a pile-up across tool-call turns), and reset the phase to thinking.
+  if (ev.type === "message_start") {
+    const role = (ev.message as { role?: string } | undefined)?.role;
+    return role === "assistant" ? { ...state, visible: "", phase: "thinking" } : state;
+  }
+
+  if (ev.type === "message_update") {
+    const ame = ev.assistantMessageEvent as { type?: string; delta?: unknown } | undefined;
+    if (!ame) return state;
+    if (ame.type === "text_start") return { ...state, phase: "answering" };
+    if (ame.type === "text_delta" && typeof ame.delta === "string") {
+      return { ...state, phase: "answering", visible: state.visible + ame.delta };
+    }
+    if (ame.type === "thinking_delta" && typeof ame.delta === "string") {
+      return { ...state, thinkingChars: state.thinkingChars + ame.delta.length };
+    }
+    return state;
+  }
+
+  // An assistant message completed: its text blocks are the authoritative answer (last one
+  // wins — the peer may narrate + call tools before its final turn). Capture an error stop too.
+  if (ev.type === "message_end") {
+    const msg = ev.message as
+      | { role?: string; content?: unknown; stopReason?: string; errorMessage?: string }
+      | undefined;
+    if (msg?.role !== "assistant") return state;
+    const text = extractText(msg.content);
+    const error =
+      msg.stopReason === "error" || msg.stopReason === "aborted"
+        ? msg.errorMessage || `delegate ${msg.stopReason}`
+        : state.error;
+    return { ...state, finalText: text || state.finalText, error };
+  }
+
+  return state;
+}
+
+// The answer runPi returns: the last completed assistant message if we saw one, else the live
+// buffer — a delegate killed mid-stream still yields whatever it had produced.
+export function consultResult(state: ConsultStreamState): string {
+  return state.finalText || state.visible;
+}
+
+// A one-line status string for the delegate's progress: elapsed seconds plus what it's doing.
+// During the reasoning pause (before any answer text) it reads "thinking… Ns" so a long,
+// silent wait still shows life; once tokens flow it reads "streaming… Ns · N chars". `label`
+// is the caller's prefix (e.g. "consult glm-5.2" or "/consult glm-5.2"). Pure + exported.
+export function consultHeartbeat(label: string, state: ConsultStreamState, startedAtMs: number): string {
+  const secs = Math.max(0, Math.round((Date.now() - startedAtMs) / 1000));
+  if (state.visible) return `${label}: streaming… ${secs}s · ${state.visible.length} chars`;
+  return `${label}: thinking… ${secs}s`;
+}
+
+// Spawn a transient `pi --mode json --no-session --model <id>` one-shot and stream its output.
+// Re-enters the running pi binary — robust whether pi is a bun bundle or on PATH. `onProgress`
+// (optional) is called as the peer's answer streams in, throttled; it returns the final text.
+function runPi(
+  model: string,
+  task: string,
+  signal?: AbortSignal,
+  onProgress?: (state: ConsultStreamState) => void,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const inv = getPiInvocation([
       "--provider",
@@ -490,7 +597,8 @@ function runPi(model: string, task: string, signal?: AbortSignal): Promise<strin
       "--model",
       model,
       "--no-session",
-      "-p",
+      "--mode",
+      "json",
       "--tools",
       DELEGATE_TOOLS,
       task,
@@ -514,10 +622,38 @@ function runPi(model: string, task: string, signal?: AbortSignal): Promise<strin
       signal.addEventListener("abort", onAbort, { once: true });
     }
     const cleanup = () => signal?.removeEventListener("abort", onAbort);
-    let stdout = "";
+
+    let state = initConsultStream();
+    let buf = "";
     let stderr = "";
+    let lastEmit = 0;
+    // text_delta fires dozens of times a second; throttle the (render-triggering) progress
+    // callback to ~12Hz, and always flush a final one on close.
+    const emit = (force: boolean) => {
+      if (!onProgress) return;
+      const now = Date.now();
+      if (!force && now - lastEmit < 80) return;
+      lastEmit = now;
+      onProgress(state);
+    };
+
     proc.stdout?.on("data", (d: Buffer) => {
-      stdout += d.toString();
+      // pi emits newline-delimited JSON; buffer partial lines across chunk boundaries.
+      buf += d.toString();
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        let event: unknown;
+        try {
+          event = JSON.parse(line);
+        } catch {
+          continue; // ignore any non-JSON noise on stdout
+        }
+        state = reduceConsultEvent(state, event);
+      }
+      emit(false);
     });
     proc.stderr?.on("data", (d: Buffer) => {
       stderr += d.toString();
@@ -528,11 +664,24 @@ function runPi(model: string, task: string, signal?: AbortSignal): Promise<strin
     });
     proc.on("close", (code) => {
       cleanup();
-      if (code === 0) resolve(stdout);
-      else {
-        const tail = stderr.trim().slice(0, 500);
-        reject(new Error(`pi exited ${code}${tail ? `: ${tail}` : ""}`));
+      emit(true);
+      // A completed assistant message is the answer, even if pi exited non-zero afterward.
+      if (state.finalText) {
+        resolve(state.finalText);
+        return;
       }
+      if (state.error) {
+        reject(new Error(state.error));
+        return;
+      }
+      // No completed message but we streamed something (e.g. killed mid-answer) — better than
+      // nothing. Otherwise it's a real failure: surface the exit code + stderr tail.
+      if (state.visible) {
+        resolve(state.visible);
+        return;
+      }
+      const tail = stderr.trim().slice(0, 500);
+      reject(new Error(`pi exited ${code ?? "?"}${tail ? `: ${tail}` : ""}`));
     });
   });
 }

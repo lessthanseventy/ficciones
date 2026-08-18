@@ -72,12 +72,22 @@ export interface ToolResult {
   isError?: boolean;
 }
 
+// The live-progress callback pi hands a tool's execute: call it with a partial ToolResult to
+// stream output into the tool's on-screen box before the final result lands. pi's own bash
+// tool uses this to show a command's output as it runs; we use it to stream the consulted
+// model's answer token-by-token. Source: pi's AgentToolUpdateCallback / the built-in bash
+// tool's `onUpdate({ content })` usage in dist/core/tools/bash.js.
+export type ToolUpdateCallback = (update: {
+  content: Array<{ type: "text"; text: string }>;
+  details?: unknown;
+}) => void;
+
 export interface ToolHandler {
   execute: (
     toolCallId: string,
     params: Record<string, unknown>,
     signal: AbortSignal,
-    onUpdate: unknown,
+    onUpdate: ToolUpdateCallback,
     ctx: ToolExecuteContext,
   ) => Promise<ToolResult>;
 }
