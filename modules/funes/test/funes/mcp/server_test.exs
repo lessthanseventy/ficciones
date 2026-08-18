@@ -80,6 +80,7 @@ defmodule Funes.MCP.ServerTest do
                "recheck_fact",
                "open_thread",
                "close_thread",
+               "switch_thread",
                "consult_peer",
                "propose_habit",
                "get_dossier",

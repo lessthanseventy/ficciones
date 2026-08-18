@@ -610,6 +610,43 @@ defmodule Funes.MCP.Tool.CloseThread do
   end
 end
 
+defmodule Funes.MCP.Tool.SwitchThread do
+  @moduledoc """
+  Move THIS connection onto another thread — the coordination act behind episode ROTATION. Mints a
+  fresh token bound to `{thread_id, this agent}` and returns it; the adapter re-handshakes with it,
+  so the agent's WARM session is untouched (its LLM cache stays) — only WHERE its posts land moves.
+  The fourth deliberate cross-thread verb (after open/close_thread, consult_peer): it takes a thread
+  id BY DESIGN. A missing thread (or agent) is refused — never mint against a guess.
+
+  Minting here grants no access on its own — the same as `/mint` (127.0.0.1-only): the bearer still
+  has to re-connect and `register`. So this is the SIGNAL half of the switch; the adapter that holds
+  the connection performs the re-handshake with the returned token.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.MCP.Identity
+  alias Funes.MCP.Spawn
+
+  schema do
+    field :thread_id, :integer, required: true, description: "The thread to move this connection onto"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    agent = Identity.from_frame(frame).agent
+
+    case Spawn.mint_for(params[:thread_id], agent) do
+      {:ok, token} ->
+        {:reply, Response.json(Response.tool(), %{"thread_id" => params[:thread_id], "token" => token}), frame}
+
+      {:error, reason} ->
+        {:reply, Response.error(Response.tool(), "cannot switch to thread #{params[:thread_id]}: #{inspect(reason)}"),
+         frame}
+    end
+  end
+end
+
 defmodule Funes.MCP.Tool.ConsultPeer do
   @moduledoc """
   Ask a peer agent a question — the third DELIBERATE cross-thread verb (after
