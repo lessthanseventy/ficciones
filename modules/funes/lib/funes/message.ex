@@ -45,6 +45,21 @@ defmodule Funes.Message do
       :mirrored
     ])
     |> validate_required([:thread_id, :author, :body])
+    |> validate_no_secret(:body)
     |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
+  end
+
+  # The channel is §4's PRIMARY capture path and messages are FTS-indexed + searchable, so the
+  # total-recall slice-B guard applies here as much as to facts — scanning only `fact.text` left
+  # the main door open (a posted `AKIA…` persisted, searchable, and bank_stated_fact's scan fired
+  # one layer too late, after the message row already stored the credential).
+  defp validate_no_secret(changeset, field) do
+    case Funes.Secrets.scan(get_field(changeset, field)) do
+      :ok ->
+        changeset
+
+      {:secret, label} ->
+        add_error(changeset, field, "looks like a secret (#{label}); funes does not store credentials")
+    end
   end
 end

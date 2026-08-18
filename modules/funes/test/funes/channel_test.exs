@@ -40,6 +40,22 @@ defmodule Funes.ChannelTest do
       %{thread: thread}
     end
 
+    test "a body carrying an obvious credential is refused — the channel is a capture path too",
+         %{thread: thread} do
+      {:error, changeset} =
+        Channel.post(%{
+          thread_id: thread.id,
+          author: "sandra",
+          body: "use AKIAIOSFODNN7EXAMPLE for the deploy"
+        })
+
+      assert {"looks like a secret (AWS access key); funes does not store credentials", _} =
+               changeset.errors[:body]
+
+      # and nothing persisted — the guard fires before the row exists, not one layer later
+      assert Repo.aggregate(Message, :count, :id) == 0
+    end
+
     test "a posted message is immediately a durable row (§4/§5b capture path)", %{thread: thread} do
       {:ok, message} =
         Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "look at this"})

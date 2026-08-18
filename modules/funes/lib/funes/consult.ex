@@ -123,16 +123,23 @@ defmodule Funes.Consult do
   # never writes cross-thread directly. The ask IS the consult root: its own id becomes the
   # consult_id (guaranteed unique, and within SQLite's signed-integer range — a random 64-bit
   # id overflows it).
+  # One transaction for the post + the consult_id stamp: a crash between the two used to leave
+  # an orphan ask (consult_id NULL — an ordinary-looking message, the consult root lost). A
+  # rolled-back post's Bus announce is the only residue now, and readers re-query on announce.
   defp create_ask(caller, thread, prompt) do
-    with {:ok, ask} <-
-           Channel.post(%{
-             thread_id: thread.id,
-             author: caller.agent,
-             body: prompt,
-             origin_thread_id: caller.thread_id
-           }) do
-      {:ok, ask} = Repo.update(Ecto.Changeset.change(ask, consult_id: ask.id))
-      {:ok, ask}
-    end
+    Repo.transaction(fn ->
+      with {:ok, ask} <-
+             Channel.post(%{
+               thread_id: thread.id,
+               author: caller.agent,
+               body: prompt,
+               origin_thread_id: caller.thread_id
+             }),
+           {:ok, stamped} <- Repo.update(Ecto.Changeset.change(ask, consult_id: ask.id)) do
+        stamped
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 end
