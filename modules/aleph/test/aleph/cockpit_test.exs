@@ -89,6 +89,13 @@ defmodule Aleph.CockpitTest do
       assert Cockpit.crash_summary("\n** (RuntimeError) boom\n    at foo.ex:1\n") ==
                "** (RuntimeError) boom"
     end
+
+    test "crash_issue_open? reads the capped %{shown, more} shape open_issues_for_thread returns" do
+      issues = %{shown: [%{summary: "aleph crashed: boom"}], more: 3}
+      assert Cockpit.crash_issue_open?(issues, "aleph crashed: boom")
+      refute Cockpit.crash_issue_open?(issues, "aleph crashed: other")
+      refute Cockpit.crash_issue_open?(%{shown: [], more: 0}, "aleph crashed: boom")
+    end
   end
 
   describe "profile_launcher/1: the Tlön window-0 command runs pi from its profile's config dir" do

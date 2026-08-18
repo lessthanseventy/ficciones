@@ -1029,7 +1029,7 @@ defmodule Aleph.Cockpit do
     summary = "aleph crashed: " <> crash_summary(report)
 
     with %{id: id} = thread <- Channel.machine_thread(),
-         false <- crash_issue_open?(thread, summary) do
+         false <- crash_issue_open?(Dossier.open_issues_for_thread(thread), summary) do
       Dossier.raise_issue(%{thread_id: id, summary: summary, evidence: report, found_by: "aleph"})
     end
   rescue
@@ -1038,7 +1038,11 @@ defmodule Aleph.Cockpit do
     _, _ -> :ok
   end
 
-  defp crash_issue_open?(thread, summary) do
-    thread |> Dossier.open_issues_for_thread() |> Enum.any?(&(&1.summary == summary))
-  end
+  @doc false
+  # Dedupe against the thread's open issues. open_issues_for_thread returns the capped
+  # `%{shown, more}` shape, NOT a bare list — enumerating the map raised here, the rescue above
+  # swallowed it, and a crashed cockpit silently never filed its issue. Public + tested so the
+  # shape contract can't silently regress again.
+  @spec crash_issue_open?(%{shown: [map()]}, String.t()) :: boolean()
+  def crash_issue_open?(%{shown: shown}, summary), do: Enum.any?(shown, &(&1.summary == summary))
 end
