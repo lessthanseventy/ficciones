@@ -1039,6 +1039,13 @@ defmodule Aleph.Cockpit do
     dir = Path.join(Profiles.repo(), "modules/aleph")
     script = "export TERM=xterm-256color\ncd #{dir}\nexec mise exec -- mix aleph.machine_chat"
     System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", "chat", script]), stderr_to_stdout: true)
+    # chat is the primary Tlön surface, so seat it as tab 1: move it below base-index, then renumber
+    # so it becomes the first window and pi/claude shift to 2/3.
+    System.cmd("tmux", tlon_tmux(["move-window", "-s", "#{@tlon_session}:chat", "-t", "#{@tlon_session}:0"]),
+      stderr_to_stdout: true
+    )
+
+    System.cmd("tmux", tlon_tmux(["move-window", "-r", "-t", "#{@tlon_session}:0"]), stderr_to_stdout: true)
   end
 
   # `tmux new-window`, not Sessions.spawn_harness: this rides as window 1 of the ALREADY-embedded

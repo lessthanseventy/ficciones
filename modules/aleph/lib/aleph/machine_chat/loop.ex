@@ -1,53 +1,49 @@
 defmodule Aleph.MachineChat.Loop do
   @moduledoc """
   The termbox host loop for the Tlön machine-chat tab — a minimal cousin of `Aleph.Cockpit` that
-  paints ONE panel (`Aleph.Transcript`) full-screen and drives it from two inputs: a db poll and
-  stdin keys/wheel (via `Raxol.Terminal.Driver`). All logical state lives in the pure
-  `Aleph.MachineChat.Host`; this module owns only the TTY, the poll timer, and the geometry-aware
-  scroll (which `Host`, being pure, can't compute). Not unit-tested — it grabs the TTY (aleph's law:
-  test the pure seams, run the loop live).
+  paints the `Aleph.Transcript` feed plus a bottom COMPOSER, driven by a db poll and stdin
+  keys/wheel (via `Raxol.Terminal.Driver`). Pure logical state lives in `Aleph.MachineChat.Host`;
+  this module owns the TTY, the poll timer, the scroll, and the composer. Not unit-tested — it grabs
+  the TTY (aleph's law: test the pure seams, run the loop live).
 
-  It's a READER: a separate OS process from the cockpit, so it can't share the node-local
-  `Funes.Bus`; it polls `Funes.Channel.machine_threads/1` off the shared `FUNES_DB` instead.
+  It's a READER for the feed (polls `Funes.Channel.machine_threads/1` off the shared `FUNES_DB`,
+  since the node-local `Funes.Bus` isn't reachable cross-process) but a WRITER for the composer: it
+  posts as the operator straight through `Channel`, and wakes any @-mentioned coworker itself by
+  `tmux send-keys` (reusing the pure `Aleph.Mention` routing) — the cockpit only wakes agents for
+  messages on ITS own bus, which it never sees from here.
 
-  SLACK-STYLE: episodes read newest-at-the-BOTTOM (the poll reverses funes' newest-first order), the
-  view lands at the bottom and TAIL-FOLLOWS new activity, and you scroll UP for history. Scrolling up
-  releases the follow so nothing yanks you back; returning to the bottom re-arms it.
+  Two MODES:
+    * COMPOSE (default) — the bottom box has focus. Type; `Enter` starts a NEW thread/task (opens a
+      machine-scope funes thread titled by what you typed, posts it as you, wakes any @-mention);
+      `Backspace` edits; `Esc` clears the box, or drops to BROWSE when it's already empty.
+    * BROWSE — `j/k` (or `↑↓`) select an episode, `Enter` folds/unfolds it, `z` zooms it to a read,
+      `Esc` unzooms or returns to COMPOSE, `i` jumps straight back to COMPOSE.
 
-  Two MODES, keyed on whether an episode is zoomed:
-    * LIST — a compact list of episodes (folded threads), newest last. `j/k` (or `↑↓`) move the
-      selection, `Enter` folds/unfolds it inline, `z` zooms it to a full-pane read.
-    * ZOOM — one episode filling the pane. `j/k`, arrows, wheel, and PgUp/PgDn scroll it; `Esc`
-      returns to the list. `g`/`G` (Home/End) snap to top/bottom; `q` quits from either mode.
-
-  Rendering is COALESCED like the cockpit: an event only updates the (cheaply clamped) offset/state
-  and arms a single `:render`, so a fast wheel-burst collapses into one paint per frame.
+  Either mode scrolls the feed (wheel, PgUp/PgDn, and — outside typing — arrows/g/G). Slack-style:
+  episodes read newest-at-the-bottom, the feed lands at the bottom and tail-follows, bottom-anchored
+  above the composer. Rendering is coalesced (one paint per ~8ms frame).
   """
   use GenServer
 
   alias Aleph.Board
   alias Aleph.MachineChat.Host
+  alias Aleph.Mention
   alias Aleph.Transcript
   alias Funes.Channel
   alias Raxol.Core.Events.Event
 
-  # Poll cadence for new messages — live enough for a conversation, cheap against a quiet WAL.
   @poll_ms 700
-  # Coalesce a burst of scroll/poll events into ONE paint on this cadence (~120fps).
   @render_coalesce_ms 8
   @tb_output_truecolor 5
-  # TB_INPUT_ESC (1) | TB_INPUT_MOUSE (4) = 5: ESC-sequence parsing AND mouse reporting (wheel).
   @tb_input_esc_mouse 5
-  # Lines a single wheel notch scrolls — the usual terminal step.
   @wheel_lines 3
-  # Unclipped render height — render the transcript this tall once, then window it by the offset.
   @max_rows 10_000
+  # Rows reserved at the bottom for the composer: a rule + the input line.
+  @box_rows 2
 
-  # Force-disarm anything a crash could leave on the host tty: mouse reporting off, leave alt screen,
-  # show cursor. Idempotent, straight to /dev/tty so it runs even as the io server winds down.
   @restore "\e[?1000;1002;1003;1006l\e[?1049l\e[?25h"
 
-  @doc "Start the tab and block until the operator quits (`q`) — the entry point the Mix task calls."
+  @doc "Start the tab and block until the operator quits — the entry point the Mix task calls."
   @spec run() :: :ok
   def run do
     case GenServer.start(__MODULE__, %{}) do
@@ -70,8 +66,6 @@ defmodule Aleph.MachineChat.Loop do
   def init(_opts) do
     case :termbox2_nif.tb_init() do
       0 ->
-        # Trap exits so a crash anywhere runs terminate/2, restoring the tty (else the pane is left
-        # in alt-screen + mouse mode until a manual `reset`).
         Process.flag(:trap_exit, true)
         :termbox2_nif.tb_set_output_mode(@tb_output_truecolor)
         :termbox2_nif.tb_set_input_mode(@tb_input_esc_mouse)
@@ -86,10 +80,11 @@ defmodule Aleph.MachineChat.Loop do
           scroll: 0,
           max_scroll: 0,
           follow?: true,
-          render_armed?: false
+          render_armed?: false,
+          mode: :compose,
+          input: ""
         }
 
-        # Load the first frame immediately, then settle into the poll cadence.
         send(self(), :poll)
         {:ok, paint(state)}
 
@@ -98,8 +93,7 @@ defmodule Aleph.MachineChat.Loop do
     end
   end
 
-  # termbox2's tb_init enables application cursor keys (DECCKM) → arrows arrive as SS3, which raxol's
-  # InputParser doesn't decode; reset on /dev/tty so they come through as CSI and :up/:down fire.
+  # termbox2's tb_init enables DECCKM; reset on /dev/tty so arrows arrive as CSI, not SS3.
   defp normalize_cursor_keys do
     _ = File.write("/dev/tty", "\e[?1l")
     :ok
@@ -109,32 +103,21 @@ defmodule Aleph.MachineChat.Loop do
   def handle_info(:poll, state) do
     Process.send_after(self(), :poll, @poll_ms)
     view = Host.merge(state.view, poll_blocks(state))
-    # While following, the selection sticks to the newest episode (the last block, at the bottom).
     view = if state.follow?, do: %{view | selected: max(length(view.blocks) - 1, 0)}, else: view
     {:noreply, schedule_render(%{refresh_size(state) | view: view})}
   end
 
-  # The coalesced paint. A `:render` that arrives already disarmed (a later event painted first) is a
-  # no-op, so a burst never double-paints.
   def handle_info(:render, %{render_armed?: false} = state), do: {:noreply, state}
   def handle_info(:render, state), do: {:noreply, paint(%{state | render_armed?: false})}
-
-  # The input Driver died — we can't take keys anymore, so stop; terminate/2 restores the tty.
   def handle_info({:EXIT, pid, reason}, %{driver: pid} = state), do: {:stop, reason, state}
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true
-  def handle_cast({:dispatch, %Event{type: :resize}}, state) do
-    {:noreply, schedule_render(refresh_size(state))}
-  end
+  def handle_cast({:dispatch, %Event{type: :resize}}, state), do: {:noreply, schedule_render(refresh_size(state))}
 
-  # Keys route by MODE: no zoom → list navigation; zoomed → scroll the episode.
-  def handle_cast({:dispatch, %Event{type: :key, data: key}}, %{view: %{zoom: nil}} = state),
-    do: list_key(intent(key), state)
+  def handle_cast({:dispatch, %Event{type: :key, data: key}}, %{mode: :compose} = state), do: compose_key(key, state)
+  def handle_cast({:dispatch, %Event{type: :key, data: key}}, state), do: browse_key(intent(key), state)
 
-  def handle_cast({:dispatch, %Event{type: :key, data: key}}, state), do: zoom_key(intent(key), state)
-
-  # The wheel scrolls the current view (list or episode) in either mode.
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{button: :wheel_up}}}, state),
     do: {:noreply, scroll_by(state, -@wheel_lines)}
 
@@ -143,45 +126,53 @@ defmodule Aleph.MachineChat.Loop do
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
-  # LIST mode: j/k move the episode selection (releasing tail-follow), Enter folds/unfolds it, z
-  # zooms it to a full read landing at its newest message. Page/g/G scroll the list itself.
-  defp list_key(:next, state), do: host(%{state | follow?: false}, :down)
-  defp list_key(:prev, state), do: host(%{state | follow?: false}, :up)
-  defp list_key(:enter, state), do: host(state, :toggle)
-  defp list_key(:zoom, state), do: host(state, :zoom, land_bottom: true)
-  defp list_key(:pgdn, state), do: {:noreply, scroll_by(state, page(state))}
-  defp list_key(:pgup, state), do: {:noreply, scroll_by(state, -page(state))}
-  defp list_key(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0, follow?: false})}
-  defp list_key(:bottom, state), do: {:noreply, schedule_render(%{state | follow?: true})}
-  defp list_key(:quit, state), do: {:stop, :normal, state}
-  defp list_key(_other, state), do: {:noreply, state}
+  # COMPOSE: printable keys build the task text; Enter kicks it off; Esc clears or drops to browse.
+  defp compose_key(%{key: :char, char: c}, state), do: {:noreply, schedule_render(%{state | input: state.input <> c})}
+  defp compose_key(%{key: :space}, state), do: {:noreply, schedule_render(%{state | input: state.input <> " "})}
+  defp compose_key(%{key: :backspace}, state), do: {:noreply, schedule_render(backspace(state))}
+  defp compose_key(%{key: :enter}, state), do: {:noreply, schedule_render(submit(state))}
+  defp compose_key(%{key: :escape}, %{input: ""} = state), do: {:noreply, schedule_render(%{state | mode: :browse})}
+  defp compose_key(%{key: :escape}, state), do: {:noreply, schedule_render(%{state | input: ""})}
 
-  # ZOOM mode: everything scrolls the episode; Esc returns to the list (landing at its bottom).
-  defp zoom_key(:next, state), do: {:noreply, scroll_by(state, 1)}
-  defp zoom_key(:prev, state), do: {:noreply, scroll_by(state, -1)}
-  defp zoom_key(:pgdn, state), do: {:noreply, scroll_by(state, page(state))}
-  defp zoom_key(:pgup, state), do: {:noreply, scroll_by(state, -page(state))}
-  defp zoom_key(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0, follow?: false})}
-  defp zoom_key(:bottom, state), do: {:noreply, schedule_render(%{state | follow?: true})}
-  defp zoom_key(:back, state), do: host(state, :back, land_bottom: true)
-  defp zoom_key(:quit, state), do: {:stop, :normal, state}
-  defp zoom_key(_other, state), do: {:noreply, state}
+  defp compose_key(%{key: k}, state) when k in [:up, :down, :page_up, :page_down, :home, :end],
+    do: {:noreply, scroll_key(k, state)}
 
-  # Run a pure Host action, optionally landing at the bottom (tail-follow on) — entering/leaving a
-  # zoom swaps the whole content, and Slack-style you want the newest in view — then arm a paint.
-  defp host(state, action, opts \\ []) do
-    view = Host.handle_key(state.view, action)
-    next = if opts[:land_bottom], do: %{state | view: view, follow?: true}, else: %{state | view: view}
-    {:noreply, schedule_render(next)}
-  end
+  defp compose_key(_key, state), do: {:noreply, state}
 
-  # Raw key → a mode-neutral intent the list/zoom handlers interpret.
+  # BROWSE splits on whether an episode is zoomed: zoomed → scroll it; list → select/fold/zoom.
+  defp browse_key(intent, %{view: %{zoom: z}} = state) when not is_nil(z), do: browse_zoom(intent, state)
+  defp browse_key(intent, state), do: browse_list(intent, state)
+
+  defp browse_list(:next, state), do: {:noreply, host_view(state, :down)}
+  defp browse_list(:prev, state), do: {:noreply, host_view(state, :up)}
+  defp browse_list(:enter, state), do: {:noreply, host_view(state, :toggle)}
+  defp browse_list(:zoom, state), do: {:noreply, host_view(%{state | follow?: true}, :zoom)}
+  defp browse_list(:back, state), do: {:noreply, schedule_render(%{state | mode: :compose})}
+  defp browse_list(:compose, state), do: {:noreply, schedule_render(%{state | mode: :compose})}
+  defp browse_list(:pgdn, state), do: {:noreply, scroll_by(state, page(state))}
+  defp browse_list(:pgup, state), do: {:noreply, scroll_by(state, -page(state))}
+  defp browse_list(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0, follow?: false})}
+  defp browse_list(:bottom, state), do: {:noreply, schedule_render(%{state | follow?: true})}
+  defp browse_list(_other, state), do: {:noreply, state}
+
+  defp browse_zoom(:back, state), do: {:noreply, host_view(%{state | follow?: true}, :back)}
+  defp browse_zoom(:next, state), do: {:noreply, scroll_by(state, 1)}
+  defp browse_zoom(:prev, state), do: {:noreply, scroll_by(state, -1)}
+  defp browse_zoom(:pgdn, state), do: {:noreply, scroll_by(state, page(state))}
+  defp browse_zoom(:pgup, state), do: {:noreply, scroll_by(state, -page(state))}
+  defp browse_zoom(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0, follow?: false})}
+  defp browse_zoom(:bottom, state), do: {:noreply, schedule_render(%{state | follow?: true})}
+  defp browse_zoom(_other, state), do: {:noreply, state}
+
+  defp host_view(state, action), do: schedule_render(%{state | view: Host.handle_key(state.view, action)})
+
+  # Raw key → a browse-mode intent.
   defp intent(%{key: :char, char: "j"}), do: :next
   defp intent(%{key: :char, char: "k"}), do: :prev
   defp intent(%{key: :char, char: "g"}), do: :top
   defp intent(%{key: :char, char: "G"}), do: :bottom
   defp intent(%{key: :char, char: "z"}), do: :zoom
-  defp intent(%{key: :char, char: "q"}), do: :quit
+  defp intent(%{key: :char, char: "i"}), do: :compose
   defp intent(%{key: :char}), do: :ignore
   defp intent(%{key: :down}), do: :next
   defp intent(%{key: :up}), do: :prev
@@ -193,28 +184,72 @@ defmodule Aleph.MachineChat.Loop do
   defp intent(%{key: :end}), do: :bottom
   defp intent(_key), do: :ignore
 
-  # Move the offset by `delta` lines, clamped to `[0, max_scroll]` using the cached bound so it's
-  # cheap (no render) and excess fast-scroll is discarded. Scrolling UP releases tail-follow; paint
-  # re-arms it when the offset reaches the bottom again.
+  # Kick off a new thread/task from the composer text: open a machine-scope funes thread titled by
+  # it, post it as the operator, wake any @-mentioned coworker, then clear and land at the bottom so
+  # the fresh episode is in view. Failures just clear the box rather than crash the tab.
+  defp submit(%{input: input} = state) do
+    text = String.trim(input)
+    if text == "", do: state, else: do_submit(state, text)
+  rescue
+    _ -> %{state | input: ""}
+  catch
+    :exit, _ -> %{state | input: ""}
+  end
+
+  defp do_submit(state, text) do
+    author = Application.get_env(:funes, :operator, "andrew")
+
+    case Channel.open_thread(%{title: text, scope: "machine"}) do
+      {:ok, thread} ->
+        Channel.post(%{thread_id: thread.id, author: author, body: text})
+        wake_mentions(author, text, thread.id)
+        %{state | input: "", follow?: true}
+
+      _ ->
+        %{state | input: ""}
+    end
+  end
+
+  # Wake each @-mentioned coworker by injecting the message as a turn into its tmux window — the same
+  # send-keys the cockpit does, but from here (our post is on our own bus, which the cockpit can't
+  # see). $TMUX points at the tlon server, so a bare `tmux` targets the right session.
+  defp wake_mentions(author, body, thread_id) do
+    for {window, text} <- Mention.route(%{author: author, body: body, thread_id: thread_id}) do
+      System.cmd("tmux", ["send-keys", "-t", "tlon:#{window}", "-l", text], stderr_to_stdout: true)
+      System.cmd("tmux", ["send-keys", "-t", "tlon:#{window}", "Enter"], stderr_to_stdout: true)
+    end
+
+    :ok
+  rescue
+    _ -> :ok
+  end
+
+  defp backspace(%{input: input} = state), do: %{state | input: String.slice(input, 0, max(String.length(input) - 1, 0))}
+
+  # Arrow/page/home/end while composing scroll the feed (they aren't text).
+  defp scroll_key(:up, state), do: scroll_by(state, -1)
+  defp scroll_key(:down, state), do: scroll_by(state, 1)
+  defp scroll_key(:page_up, state), do: scroll_by(state, -page(state))
+  defp scroll_key(:page_down, state), do: scroll_by(state, page(state))
+  defp scroll_key(:home, state), do: schedule_render(%{state | scroll: 0, follow?: false})
+  defp scroll_key(:end, state), do: schedule_render(%{state | follow?: true})
+
   defp scroll_by(state, delta) do
     scroll = (state.scroll + delta) |> min(state.max_scroll) |> max(0)
     follow? = if delta < 0, do: false, else: state.follow?
     schedule_render(%{state | scroll: scroll, follow?: follow?})
   end
 
-  # A page is one screenful minus a line of overlap, so a reader keeps their place across a jump.
-  defp page(state), do: max(state.h - 2, 1)
+  defp page(state), do: max(feed_h(state) - 1, 1)
 
-  # Re-query termbox's size (it only re-learns in the poll path aleph never calls, so tb_resize/0
-  # must sync first — see mix.exs and the cockpit's refresh_size).
+  defp feed_h(state), do: max(state.h - @box_rows, 1)
+
   defp refresh_size(state) do
     :termbox2_nif.tb_resize()
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
   end
 
-  # Read the machine-thread blocks, REVERSED to newest-last (Slack order); a transient read failure
-  # keeps the last good frame (already reversed) rather than crashing — a stale but readable
-  # transcript is the right failure mode for a glance tab.
+  # Newest-last (Slack order); a transient read failure keeps the last good frame (already reversed).
   defp poll_blocks(state) do
     Enum.reverse(Channel.machine_threads())
   rescue
@@ -223,8 +258,6 @@ defmodule Aleph.MachineChat.Loop do
     :exit, _ -> state.view.blocks
   end
 
-  # Arm ONE coalesced paint if none is pending; further events until it fires just update state and
-  # see the flag set, so the mailbox drains cheaply and a single :render catches up.
   defp schedule_render(%{render_armed?: true} = state), do: state
 
   defp schedule_render(state) do
@@ -232,23 +265,38 @@ defmodule Aleph.MachineChat.Loop do
     %{state | render_armed?: true}
   end
 
-  # Render the transcript ONCE at full height, cache the resulting scroll bound, then window the rows
-  # by the offset — pinned to the bottom while following — and blit them. When the content is shorter
-  # than the pane it BOTTOM-ANCHORS (blank rows padded above), so a short list/episode sits at the
-  # bottom edge, Slack-style, instead of floating at the top. One render per frame.
+  # Render the feed into the top rows (bottom-anchored, pinned to the newest while following) and the
+  # composer into the reserved bottom rows. One render per frame.
   defp paint(state) do
+    feed_h = feed_h(state)
     rows = Transcript.render(state.view, %{x: 0, y: 0, w: state.w, h: @max_rows})
-    max_scroll = max(length(rows) - state.h, 0)
+    max_scroll = max(length(rows) - feed_h, 0)
     scroll = if state.follow?, do: max_scroll, else: min(state.scroll, max_scroll)
-    windowed = rows |> Enum.drop(scroll) |> Enum.take(state.h)
-    top_pad = List.duplicate([], max(state.h - length(windowed), 0))
+    windowed = rows |> Enum.drop(scroll) |> Enum.take(feed_h)
+    top_pad = List.duplicate([], max(feed_h - length(windowed), 0))
 
-    (top_pad ++ windowed)
-    |> Board.rows_to_cells(%{x: 0, y: 0, w: state.w, h: state.h})
-    |> Board.paint()
+    feed_cells = Board.rows_to_cells(top_pad ++ windowed, %{x: 0, y: 0, w: state.w, h: feed_h})
+    box_cells = state |> composer_rows() |> Board.rows_to_cells(%{x: 0, y: feed_h, w: state.w, h: @box_rows})
 
+    Board.paint(feed_cells ++ box_cells)
     %{state | scroll: scroll, max_scroll: max_scroll, follow?: state.follow? or scroll >= max_scroll}
   end
+
+  # The composer: a rule then the input line — the task text with a cursor in COMPOSE, a hint in
+  # BROWSE.
+  defp composer_rows(%{mode: :compose, input: "", w: w}) do
+    [rule(w), [{"  ＋ new task — type and press Enter · Esc to browse", :dim}]]
+  end
+
+  defp composer_rows(%{mode: :compose, input: input, w: w}) do
+    [rule(w), [{"  ＋ ", :accent}, {input, :normal}, {"▌", :accent}]]
+  end
+
+  defp composer_rows(%{mode: :browse, w: w}) do
+    [rule(w), [{"  ── browse ──  j/k select · z read · Esc/i compose", :dim}]]
+  end
+
+  defp rule(w), do: [{String.duplicate("─", max(w, 1)), :separator}]
 
   @impl true
   def terminate(_reason, state), do: teardown(state)
