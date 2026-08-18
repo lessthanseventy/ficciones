@@ -105,6 +105,17 @@ defmodule Aleph.Profiles do
   #     writes its .expert index, edits land in the repo
   #   * allowedDomains — the hosts this repo's bash tasks reach (mirrors the machine sandbox allowlist)
   # See [[pi-sandbox-manos-allowlist]]. NOT model API calls (pi's own process, not bash).
+  #
+  # bash runs under `bwrap --unshare-net`, so `127.0.0.1` inside a bash call is the coworker's OWN
+  # empty netns, NOT the host's. Tlön's funes is at `FUNES_MCP_URL` = http://127.0.0.1:4041/mcp, so
+  # `curl`ing it, `ss -tlnp`, and `mise run funes:doctor|logs` ALWAYS fail here regardless of whether
+  # funes is up — `allowLocalBinding` only permits binding within that netns, and the socat proxy that
+  # carries external traffic refuses loopback targets with a 403. There is no bash route, by design.
+  # The @tlon_funes_mcp tools are unaffected: pi opens that connection from its own process, outside
+  # bubblewrap (same reason model API calls work). This matters more for Tlön than for the
+  # interactive agent — it runs autonomously, so a bash probe returning 000 with nobody to correct it
+  # is how a coworker talks itself into "funes is down" and stops posting. Use the funes tools; a
+  # bash probe cannot answer the question.
   @tlon_sandbox %{
     "enabled" => true,
     "network" => %{

@@ -299,7 +299,10 @@
               # runtime-writable by its plugin (/sandbox-allow persists grants, the permission
               # TUI persists session rules, /unipi:notify-settings edits its own file), so a
               # read-only store symlink would break those flows. The seed lands only when the
-              # file is absent; delete a file + home:switch to re-seed it.
+              # file is absent; delete a file + home:switch to re-seed it. EXCEPT sandbox.json,
+              # which is force-installed on every switch (see the activation script for why) — it
+              # is still a real file, not a symlink, so /sandbox-allow can write to it; it just
+              # doesn't survive a switch, and project/session grants are the supported path.
 
               # pi-sandbox: was ENABLED with built-in defaults (enabled=true is baked into the
               # extension even with no sandbox.json). Explicit policy instead, modeled on the
@@ -596,6 +599,14 @@
               # model choice), so a read-only symlink would break it. jq unions our keys in
               # idempotently, seeding {} if absent.
               #
+              # `.extensions` is PRUNE-then-add, not pure union: every path under modules/manos/
+              # is ours, so a plain `+ [...] | unique` union let a renamed/deleted module path
+              # (e.g. the old modules/manos/pi/src/footer.ts, moved to modules/manos/footer/ in
+              # 2bd34cc) accumulate forever — pi kept trying to load a file that no longer
+              # existed on every subsequent home:switch. Dropping every modules/manos/ entry
+              # before re-adding the current six makes a rename/removal self-heal instead of
+              # leaving dead paths behind.
+              #
               # Defaults use `//=` (set-only-if-absent), NOT `=`: pi persists your runtime
               # model switch (Ctrl+P) back into this file, so we must not stomp it on every
               # home:switch — this only picks the default the FIRST time. defaultProvider is
@@ -615,8 +626,10 @@
                   --arg ext4 "${lspExtension}" \
                   --arg ext5 "${reloadExtension}" \
                   --arg ext6 "${footerExtension}" \
+                  --arg manosDir "${repo}/modules/manos/" \
                   --arg skills "${manosSkillsGlob}" \
-                  '.extensions = ((.extensions // []) + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
+                  '.extensions = (((.extensions // []) | map(select(startswith($manosDir) | not)))
+                       + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
                    | .packages = ((.packages // [])
                        # pi auto-installs these npm extensions on launch. The npm: prefix
@@ -672,7 +685,28 @@
                     echo "piPluginSeeds: seeded $2"
                   fi
                 }
-                seed ${piSandboxSeed} "$HOME/.pi/agent/sandbox.json"
+                # sandbox.json is OWNED, not seeded — it is the one config whose absence BREAKS pi's
+                # bash tool outright rather than degrading it. pi-sandbox's DEFAULT_CONFIG denies
+                # /home and its allowRead is only ["." "~/.config" "~/.local" "Library"] — which does
+                # NOT cover ~/.pi, where pi installs the extension's own node_modules. With a falsy
+                # allowLocalBinding (also unset in the defaults) sandbox-runtime enforces bind() via
+                # `vendor/seccomp/<arch>/apply-seccomp`, but that helper lives under ~/.pi, so it is
+                # never bind-mounted into the namespace and exec fails ENOENT even though the binary
+                # is present and fine on disk. Net: an absent file is not "unconfigured", it is
+                # "configured to a profile that cannot run here" — every bash call dies with a bare
+                # `apply-seccomp: No such file or directory` (127) naming nothing about sandboxing.
+                # The allowRead below carries ~/.pi, which is what keeps this working. Write-once
+                # seeding also let this file silently drift to a 12-domain ancestor of the list below
+                # (which broke `mise` installs: sh.rustup.rs had dropped out). Grants have their own
+                # homes, so stomping this one costs nothing: at a sandbox prompt choose "Allow for
+                # this project" (-> ./.pi/sandbox.json, merged over this file) or session, NOT "Allow
+                # for all projects" (-> here, overwritten on the next home:switch).
+                force() {
+                  run mkdir -p "$(dirname "$2")"
+                  run install -m 0644 "$1" "$2"
+                  echo "piPluginSeeds: installed (owned) $2"
+                }
+                force ${piSandboxSeed} "$HOME/.pi/agent/sandbox.json"
                 seed ${piPermissionSeed} "$HOME/.pi/agent/extensions/pi-permission-system/config.json"
                 seed ${piInteractiveShellSeed} "$HOME/.pi/agent/interactive-shell.json"
                 seed ${unipiNotifySeed} "$HOME/.unipi/config/notify/config.json"
