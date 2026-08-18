@@ -73,11 +73,11 @@ defmodule Funes.MCP.Tokens do
     _ -> a == b
   end
 
-  defp encode(map), do: map |> Jason.encode!() |> Base.url_encode64(padding: false)
+  defp encode(map), do: map |> JSON.encode!() |> Base.url_encode64(padding: false)
 
   defp decode(payload) do
     with {:ok, json} <- Base.url_decode64(payload, padding: false) do
-      Jason.decode(json)
+      JSON.decode(json)
     end
   end
 

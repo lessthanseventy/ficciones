@@ -54,18 +54,18 @@ defmodule Funes.MCP.Gateway do
   defp mint(%Plug.Conn{method: "POST"} = conn) do
     with {:ok, body, conn} <- read_body(conn),
          {:ok, %{"thread_id" => thread_id, "agent" => agent}}
-         when is_integer(thread_id) and is_binary(agent) <- Jason.decode(body),
+         when is_integer(thread_id) and is_binary(agent) <- JSON.decode(body),
          {:ok, token} <- Spawn.mint_for(thread_id, agent) do
       conn
       |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode!(%{token: token}))
+      |> send_resp(200, JSON.encode!(%{token: token}))
     else
       _ ->
         # Any malformed body, missing/typed-wrong field, or no-such-(thread, agent)
         # is a 400 — the adapter surfaces it, never a frozen-token fallback.
         conn
         |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "mint failed — malformed body or no such (thread, agent)"}))
+        |> send_resp(400, JSON.encode!(%{error: "mint failed — malformed body or no such (thread, agent)"}))
         |> halt()
     end
   end
@@ -73,7 +73,7 @@ defmodule Funes.MCP.Gateway do
   defp mint(conn) do
     conn
     |> put_resp_content_type("application/json")
-    |> send_resp(405, Jason.encode!(%{error: "POST required"}))
+    |> send_resp(405, JSON.encode!(%{error: "POST required"}))
     |> halt()
   end
 end
