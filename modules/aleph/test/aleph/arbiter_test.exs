@@ -24,16 +24,16 @@ defmodule Aleph.ArbiterTest do
     # Aleph.Sessions is wedged/torn-down. The raw GenServer.call exits (:noproc / :timeout),
     # which used to propagate up and kill the hub — the ISSUES line
     # `GenServer.call(Aleph.Sessions, {:terminal, :machine}, 5000)`.
-    Supervisor.terminate_child(Aleph.Supervisor, Aleph.Sessions)
-    on_exit(fn -> Supervisor.restart_child(Aleph.Supervisor, Aleph.Sessions) end)
+    Supervisor.terminate_child(Aleph.Supervisor, Sessions)
+    on_exit(fn -> Supervisor.restart_child(Aleph.Supervisor, Sessions) end)
 
     assert Arbiter.wake(%{thread_id: 8802}, "hi") == {:error, :no_terminal}
   end
 
   test "spawn degrades to {:error, :sessions_down} when Sessions is down, never a crash" do
     exports = ~s(export FUNES_THREAD="8803")
-    Supervisor.terminate_child(Aleph.Supervisor, Aleph.Sessions)
-    on_exit(fn -> Supervisor.restart_child(Aleph.Supervisor, Aleph.Sessions) end)
+    Supervisor.terminate_child(Aleph.Supervisor, Sessions)
+    on_exit(fn -> Supervisor.restart_child(Aleph.Supervisor, Sessions) end)
 
     assert Arbiter.spawn(exports) == {:error, :sessions_down}
   end

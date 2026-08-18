@@ -712,6 +712,8 @@ defmodule Aleph.Cockpit do
       |> ensure_machine_coworker()
       |> ensure_claude_coworker()
       |> ensure_third_coworker()
+      |> ensure_log_window()
+
     # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
     # navigates by, so ↑/↓ move the highlight down the feed and every open thread is reachable.
     chorus = Channel.chorus()
@@ -1012,6 +1014,31 @@ defmodule Aleph.Cockpit do
   end
 
   defp ensure_third_coworker(state), do: state
+
+  # The `chat` tab (the third Tlön window): a read-only, Slack-style transcript of the machine
+  # thread, so the pi/claude tabs can stay their raw harness selves. NOT a coworker — no funes
+  # identity, no wake-loop entry (Aleph.Mention doesn't know it); it just tails the db the cockpit
+  # writes. Gated like the claude window: pi up (so a machine thread exists to read), window absent
+  # (`new-window` isn't idempotent), retried each render — a failed open just leaves the tab missing.
+  defp ensure_log_window(%{active_key: :tlon} = state) do
+    cond do
+      not is_pid(safe_terminal(:machine)) -> state
+      Enum.any?(tlon_tabs(), &(&1.name == "chat")) -> state
+      true -> spawn_log_window() && state
+    end
+  end
+
+  defp ensure_log_window(state), do: state
+
+  # Open the `chat` window running `mix aleph.machine_log` from the aleph project (where mise/mix
+  # resolve). It inherits the tlon session's `FUNES_DB`, so it reads the SAME db the cockpit writes —
+  # the whole point of the poll-the-db design (a separate process can't share the in-node Bus).
+  # Fire-and-forget: a failed spawn leaves the tab absent and the next render retries.
+  defp spawn_log_window do
+    dir = Path.join(Profiles.repo(), "modules/aleph")
+    script = "export TERM=xterm-256color\ncd #{dir}\nexec mise exec -- mix aleph.machine_log"
+    System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", "chat", script]), stderr_to_stdout: true)
+  end
 
   # `tmux new-window`, not Sessions.spawn_harness: this rides as window 1 of the ALREADY-embedded
   # tlon tmux session (the pi coworker's window 0), not a separate Aleph.Terminal/PTY of its own.
