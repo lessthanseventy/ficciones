@@ -22,8 +22,11 @@ defmodule Aleph.MachineChat.Loop do
   # Poll cadence for new messages — live enough for a conversation, cheap against a quiet WAL.
   @poll_ms 700
   @tb_output_truecolor 5
-  # TB_INPUT_ESC (1): keep ESC-sequence parsing (arrows/esc) but no mouse — this tab doesn't select.
-  @tb_input_esc 1
+  # TB_INPUT_ESC (1) | TB_INPUT_MOUSE (4) = 5: ESC-sequence parsing AND mouse reporting, so the
+  # raxol Driver emits wheel events we scroll on (the cockpit's proven input mode).
+  @tb_input_esc_mouse 5
+  # Lines a single wheel notch scrolls — the usual terminal step.
+  @wheel_lines 3
 
   # Force-disarm anything a crash could leave on the host tty: mouse reporting off, leave alt screen,
   # show cursor. Idempotent, straight to /dev/tty so it runs even as the io server winds down.
@@ -56,7 +59,7 @@ defmodule Aleph.MachineChat.Loop do
         # in alt-screen + mouse mode until a manual `reset`).
         Process.flag(:trap_exit, true)
         :termbox2_nif.tb_set_output_mode(@tb_output_truecolor)
-        :termbox2_nif.tb_set_input_mode(@tb_input_esc)
+        :termbox2_nif.tb_set_input_mode(@tb_input_esc_mouse)
         normalize_cursor_keys()
         {:ok, driver} = Raxol.Terminal.Driver.start_link(dispatcher_pid: self())
 
@@ -104,6 +107,14 @@ defmodule Aleph.MachineChat.Loop do
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
     dispatch(action_for(key), state)
   end
+
+  # The wheel scrolls the transcript a few lines; scrolling up drops tail-follow (render/1 re-arms it
+  # at the bottom), same as the keyboard scroll.
+  def handle_cast({:dispatch, %Event{type: :mouse, data: %{button: :wheel_up}}}, state),
+    do: {:noreply, render(%{state | scroll: max(state.scroll - @wheel_lines, 0), follow?: false})}
+
+  def handle_cast({:dispatch, %Event{type: :mouse, data: %{button: :wheel_down}}}, state),
+    do: {:noreply, render(%{state | scroll: state.scroll + @wheel_lines})}
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
