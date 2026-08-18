@@ -631,7 +631,12 @@
                   '.extensions = (((.extensions // []) | map(select(startswith($manosDir) | not)))
                        + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
-                   | .packages = ((.packages // [])
+                   # .packages is likewise PRUNE-then-add: a pure union (the old form) can add
+                   # a package but never remove one, so dropping pi-cc-header from the array
+                   # below did not un-install it from an already-switched machine — it just
+                   # sat in settings.json forever. Strip known-retired packages by name before
+                   # re-adding the current set, so retiring a package here actually retires it.
+                   | .packages = (((.packages // []) | map(select(. != "npm:pi-cc-header" and . != "pi-cc-header")))
                        # pi auto-installs these npm extensions on launch. The npm: prefix
                        # matches what `pi install` persists, so `unique` dedupes against a
                        # hand-installed copy instead of doubling it.
