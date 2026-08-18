@@ -37,10 +37,14 @@ defmodule Aleph.Keymap do
       only in a space with a coworker).
     * `:none` — nothing to do.
 
-  `state.input` is `nil` normally, or `%{kind: :new_thread, buffer: String.t()}` (the `n` verb) or
-  `%{kind: :compose, thread_id, buffer: String.t()}` (the `c` verb) while the operator is typing — a
+  `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb) or
+  `%{kind: :compose, thread_id, buffer, cursor}` (the `c` verb) while the operator is typing — a
   modal that captures EVERY key (so `q` types a "q", it does not quit) until Enter submits or Esc
-  cancels. In the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
+  cancels. `cursor` is a grapheme offset into `buffer` (not always the end — Left/Right/Up/Down/
+  Home/End move it, Ctrl+P/Ctrl+N alias Up/Down for hosts that don't deliver arrow keys, and
+  Ctrl+A/Ctrl+E/Ctrl+U/Ctrl+K/Ctrl+W are readline's line-editing reflexes), and every
+  edit (typing, Backspace, Shift+Enter's newline) acts AT the cursor, like a normal text box. In
+  the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
   """
 
   alias Aleph.Space
@@ -62,10 +66,11 @@ defmodule Aleph.Keymap do
   # letter (q, s, tab) types its character instead of firing. Must come first. ---
   def handle(%{key: :escape}, %{input: %{}} = state), do: {%{state | input: nil}, :repaint}
 
-  # Shift+Enter in the composer inserts a newline (a multiline body) instead of submitting. Must
-  # precede the plain-Enter clauses — %{key: :enter, shift: true} also matches %{key: :enter}.
-  def handle(%{key: :enter, shift: true}, %{input: %{kind: :compose, buffer: buffer} = input} = state),
-    do: {%{state | input: %{input | buffer: buffer <> "\n"}}, :repaint}
+  # Shift+Enter in the composer inserts a newline (a multiline body) instead of submitting, AT
+  # the cursor (not always the end — Up/Down can have moved it off the last line). Must precede
+  # the plain-Enter clauses — %{key: :enter, shift: true} also matches %{key: :enter}.
+  def handle(%{key: :enter, shift: true}, %{input: %{kind: :compose} = input} = state),
+    do: {%{state | input: insert_at(input, "\n")}, :repaint}
 
   # Enter submits — but an empty buffer creates/posts nothing (cancel), never a blank thread/message.
   def handle(%{key: :enter}, %{input: %{buffer: ""}} = state), do: {%{state | input: nil}, :repaint}
@@ -76,13 +81,61 @@ defmodule Aleph.Keymap do
   def handle(%{key: :enter}, %{input: %{kind: :compose, thread_id: id, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:post_message, id, buffer}}
 
-  def handle(%{key: :backspace}, %{input: %{buffer: buffer} = input} = state),
-    do: {%{state | input: %{input | buffer: String.slice(buffer, 0..-2//1)}}, :repaint}
+  # Backspace deletes the grapheme BEFORE the cursor (not always the buffer's last char — the
+  # cursor can sit mid-buffer once Up/Down/Left/Right have moved it). A cursor at 0 is a no-op.
+  def handle(%{key: :backspace}, %{input: %{}} = state),
+    do: {%{state | input: delete_before_cursor(state.input)}, :repaint}
 
-  def handle(%{key: :char, char: c}, %{input: %{buffer: buffer} = input} = state) when is_binary(c),
-    do: {%{state | input: %{input | buffer: buffer <> c}}, :repaint}
+  # Left/Right move the cursor a grapheme; Home/End jump to the start/end of the CURRENT line (not
+  # the whole buffer) — the usual text-box contract for a multiline composer.
+  def handle(%{key: :left}, %{input: %{}} = state), do: {%{state | input: move_cursor(state.input, -1)}, :repaint}
+  def handle(%{key: :right}, %{input: %{}} = state), do: {%{state | input: move_cursor(state.input, 1)}, :repaint}
+  def handle(%{key: :home}, %{input: %{}} = state), do: {%{state | input: cursor_home(state.input)}, :repaint}
+  def handle(%{key: :end}, %{input: %{}} = state), do: {%{state | input: cursor_end(state.input)}, :repaint}
 
-  # Any other key while typing (arrows, function keys) is ignored, not acted on.
+  # Up/Down move a line, preserving column where possible — a no-op on a single-line buffer
+  # (`new_thread`'s title). Ctrl+P/Ctrl+N are the readline aliases (previous/next line — the same
+  # keys readline's history recall uses): some hosts (a nested tmux/SSH hop) don't deliver arrow
+  # keys reliably, so this box always has a working up/down. MUST precede the generic char clause
+  # below — %{key: :char, char: "p"} also matches a bare "p" keystroke.
+  def handle(%{key: :up}, %{input: %{}} = state), do: {%{state | input: move_line(state.input, -1)}, :repaint}
+  def handle(%{key: :down}, %{input: %{}} = state), do: {%{state | input: move_line(state.input, 1)}, :repaint}
+
+  def handle(%{key: :char, char: "p", ctrl: true}, %{input: %{}} = state),
+    do: {%{state | input: move_line(state.input, -1)}, :repaint}
+
+  def handle(%{key: :char, char: "n", ctrl: true}, %{input: %{}} = state),
+    do: {%{state | input: move_line(state.input, 1)}, :repaint}
+
+  # Ctrl+A/Ctrl+E: the emacs/readline aliases for Home/End (current line, not the whole buffer) —
+  # some hosts deliver these more reliably than the Home/End keycaps, and they're the muscle
+  # memory a shell/readline already trained. MUST precede the generic char clause below, same
+  # reason as Ctrl+P/Ctrl+N.
+  def handle(%{key: :char, char: "a", ctrl: true}, %{input: %{}} = state),
+    do: {%{state | input: cursor_home(state.input)}, :repaint}
+
+  def handle(%{key: :char, char: "e", ctrl: true}, %{input: %{}} = state),
+    do: {%{state | input: cursor_end(state.input)}, :repaint}
+
+  # Ctrl+U: readline's unix-line-discard — kill from the start of the CURRENT line to the cursor.
+  # Ctrl+K: readline's kill-line — kill from the cursor to the END of the current line (free to
+  # bind now that Ctrl+P/Ctrl+N took over up/down). Ctrl+W: unix-word-rubout — kill the word
+  # behind the cursor. All three are the "undo what I just typed" reflexes a shell trains.
+  def handle(%{key: :char, char: "u", ctrl: true}, %{input: %{}} = state),
+    do: {%{state | input: kill_to_line_start(state.input)}, :repaint}
+
+  def handle(%{key: :char, char: "k", ctrl: true}, %{input: %{}} = state),
+    do: {%{state | input: kill_to_line_end(state.input)}, :repaint}
+
+  def handle(%{key: :char, char: "w", ctrl: true}, %{input: %{}} = state),
+    do: {%{state | input: kill_word_backward(state.input)}, :repaint}
+
+  # Printable keys insert AT the cursor, not append — so typing after moving the cursor lands
+  # where you moved it, like a normal text box.
+  def handle(%{key: :char, char: c}, %{input: %{}} = state) when is_binary(c),
+    do: {%{state | input: insert_at(state.input, c)}, :repaint}
+
+  # Any other key while typing (function keys, …) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
 
   # --- leader pending: Ctrl+Space was pressed; the next key is an aleph command. ---
@@ -119,7 +172,8 @@ defmodule Aleph.Keymap do
   # space, or via the Ctrl+Space leader from inside a running terminal. ---
   defp command(%{key: :char, char: "q"}, state), do: {state, :quit}
 
-  defp command(%{key: :char, char: "n"}, state), do: {%{state | input: %{kind: :new_thread, buffer: ""}}, :repaint}
+  defp command(%{key: :char, char: "n"}, state),
+    do: {%{state | input: %{kind: :new_thread, buffer: "", cursor: 0}}, :repaint}
 
   # `c` — the composer: post to the thread `composer_thread_id` (the focused thread in Comms/
   # Sessions, the machine thread in Tlön — resolved per keypress by the cockpit, like center_live?).
@@ -128,7 +182,7 @@ defmodule Aleph.Keymap do
   # leader from a terminal.
   defp command(%{key: :char, char: "c"} = k, %{composer_thread_id: id} = state)
        when not is_nil(id) and not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt),
-       do: {%{state | input: %{kind: :compose, thread_id: id, buffer: ""}}, :repaint}
+       do: {%{state | input: %{kind: :compose, thread_id: id, buffer: "", cursor: 0}}, :repaint}
 
   # `m` — cycle the active space's coworker driver model (the SETTINGS panel's one verb). Only
   # in a space WITH a coworker (elsewhere there's nothing to point the ring at), and bare `m`
@@ -180,5 +234,141 @@ defmodule Aleph.Keymap do
     i = Enum.find_index(ids, &(&1 == state.focused_id)) || 0
     new_id = Enum.at(ids, min(max(i + dir, 0), length(ids) - 1))
     {%{state | focused_id: new_id}, :repaint}
+  end
+
+  # --- input-buffer cursor math (graphemes, not bytes) — what makes the composer/new-thread box
+  # behave like a normal text field instead of an append-only log. `input.cursor` defaults to the
+  # buffer's end when absent (a state built before this field existed, or by an older test),
+  # matching the old append-always behaviour exactly until something actually moves the cursor.
+
+  defp cursor_of(%{cursor: c}), do: c
+  defp cursor_of(%{buffer: buffer}), do: String.length(buffer)
+
+  # `Map.merge/2`, NOT the `%{input | ...}` update syntax — that raises KeyError when :cursor is
+  # absent (an older test's literal input map, built before this field existed), and this must
+  # tolerate that same as `cursor_of/1` does.
+  defp insert_at(%{buffer: buffer} = input, text) do
+    cursor = cursor_of(input)
+    {before, aft} = split_at(buffer, cursor)
+    Map.merge(input, %{buffer: before <> text <> aft, cursor: cursor + String.length(text)})
+  end
+
+  defp delete_before_cursor(%{buffer: buffer} = input) do
+    cursor = cursor_of(input)
+
+    if cursor <= 0 do
+      Map.put(input, :cursor, 0)
+    else
+      {before, aft} = split_at(buffer, cursor)
+      Map.merge(input, %{buffer: String.slice(before, 0..-2//1) <> aft, cursor: cursor - 1})
+    end
+  end
+
+  defp move_cursor(%{buffer: buffer} = input, delta) do
+    cursor = (cursor_of(input) + delta) |> max(0) |> min(String.length(buffer))
+    Map.put(input, :cursor, cursor)
+  end
+
+  # Home/End act on the CURRENT line of a multiline buffer, not the whole thing — the line is
+  # whatever's between the nearest "\n" before/after the cursor (buffer edges stand in when there
+  # isn't one).
+  defp cursor_home(%{buffer: buffer} = input), do: Map.put(input, :cursor, line_start_offset(buffer, cursor_of(input)))
+
+  # The offset where the CURRENT line begins — shared by Home/Ctrl+A and Ctrl+U (kill-to-line-start
+  # needs the same boundary Home jumps the cursor to).
+  defp line_start_offset(buffer, cursor) do
+    {before, _} = split_at(buffer, cursor)
+    line = before |> String.split("\n") |> List.last()
+    cursor - String.length(line)
+  end
+
+  # Ctrl+U: delete everything on the current line from its start up to the cursor. `before` is
+  # buffer[0, cursor) already (from split_at), so slicing it to `start` (also measured from 0)
+  # keeps everything before the line, drops everything the line had typed so far.
+  defp kill_to_line_start(%{buffer: buffer} = input) do
+    cursor = cursor_of(input)
+    start = line_start_offset(buffer, cursor)
+    {before, aft} = split_at(buffer, cursor)
+    Map.merge(input, %{buffer: String.slice(before, 0, start) <> aft, cursor: start})
+  end
+
+  # Ctrl+W: delete the word behind the cursor — readline's unix-word-rubout. Walk `before`
+  # backwards past trailing whitespace, then past the run of non-whitespace (the word), and keep
+  # whatever's left.
+  defp kill_word_backward(%{buffer: buffer} = input) do
+    cursor = cursor_of(input)
+    {before, aft} = split_at(buffer, cursor)
+
+    {_ws, rest} =
+      before |> String.graphemes() |> Enum.reverse() |> Enum.split_while(&(&1 in [" ", "\t", "\n"]))
+
+    {_word, kept_reversed} = Enum.split_while(rest, &(&1 not in [" ", "\t", "\n"]))
+    kept = kept_reversed |> Enum.reverse() |> Enum.join()
+    Map.merge(input, %{buffer: kept <> aft, cursor: String.length(kept)})
+  end
+
+  defp cursor_end(%{buffer: buffer} = input), do: Map.put(input, :cursor, line_end_offset(buffer, cursor_of(input)))
+
+  # The offset where the CURRENT line ends — shared by End/Ctrl+E and Ctrl+K (kill-to-line-end
+  # needs the same boundary End jumps the cursor to).
+  defp line_end_offset(buffer, cursor) do
+    {_, aft} = split_at(buffer, cursor)
+
+    line =
+      case String.split(aft, "\n", parts: 2) do
+        [first, _] -> first
+        [first] -> first
+      end
+
+    cursor + String.length(line)
+  end
+
+  # Ctrl+K: delete everything on the current line from the cursor to its end (readline's
+  # kill-line), leaving the cursor where it was.
+  defp kill_to_line_end(%{buffer: buffer} = input) do
+    cursor = cursor_of(input)
+    end_offset = line_end_offset(buffer, cursor)
+    {before, aft} = split_at(buffer, end_offset)
+    kept_before = String.slice(before, 0, cursor)
+    Map.put(input, :buffer, kept_before <> aft)
+  end
+
+  # Up/Down: move to the same COLUMN one line up/down (clamped to that line's length), the usual
+  # text-editor contract. No line in that direction (top/bottom already) → no-op.
+  defp move_line(%{buffer: buffer} = input, dir) do
+    lines = String.split(buffer, "\n")
+    {line_idx, col} = line_position(lines, cursor_of(input))
+    target_idx = line_idx + dir
+
+    if target_idx < 0 or target_idx >= length(lines) do
+      input
+    else
+      target_line = Enum.at(lines, target_idx)
+      new_col = min(col, String.length(target_line))
+      Map.put(input, :cursor, line_start(lines, target_idx) + new_col)
+    end
+  end
+
+  # Which line the cursor is on and its column within that line, walking lines left-to-right.
+  defp line_position(lines, cursor) do
+    Enum.reduce_while(lines, {0, cursor}, fn line, {idx, remaining} ->
+      len = String.length(line)
+
+      if remaining <= len,
+        do: {:halt, {idx, remaining}},
+        else: {:cont, {idx + 1, remaining - len - 1}}
+    end)
+  end
+
+  # The cursor offset where `lines[target_idx]` begins — the sum of every earlier line's length
+  # plus its trailing "\n".
+  defp line_start(lines, target_idx) do
+    lines |> Enum.take(target_idx) |> Enum.reduce(0, fn line, acc -> acc + String.length(line) + 1 end)
+  end
+
+  defp split_at(buffer, cursor) do
+    graphemes = String.graphemes(buffer)
+    {before, aft} = Enum.split(graphemes, cursor)
+    {Enum.join(before), Enum.join(aft)}
   end
 end

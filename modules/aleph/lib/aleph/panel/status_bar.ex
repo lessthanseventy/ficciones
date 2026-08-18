@@ -30,19 +30,21 @@ defmodule Aleph.Panel.StatusBar do
   @impl Panel
   def topics(_assigns), do: []
 
-  # Composer mode: the info line becomes the prompt over the ACTIVE line of the buffer (the last
-  # line — where the cursor is), and the hints name the three composer keys. A multiline body's
-  # earlier lines are dropped from this single visible line; the posted message keeps them all.
+  # Composer mode: the info line becomes the prompt over the CURRENT line of the buffer (the one
+  # the cursor is on — not always the last, once Up/Down have moved it), split at the cursor so the
+  # marker lands where it actually is, and the hints name the four composer keys. A multiline
+  # body's other lines are dropped from this single visible line; the posted message keeps them all.
   @impl Panel
-  def render(%{input: %{kind: :compose, buffer: buffer}}, rect) do
-    line = buffer |> String.split("\n") |> List.last()
+  def render(%{input: %{kind: :compose} = input}, rect) do
+    {before, after_} = cursor_split(input)
 
     prompt = [
       {" COMPOSE ", :tab},
       {"  ", :normal},
       {"▸ ", :accent},
-      {line, :normal},
-      {"▎", :accent}
+      {before, :normal},
+      {"▎", :accent},
+      {after_, :normal}
     ]
 
     hints = [
@@ -52,6 +54,9 @@ defmodule Aleph.Panel.StatusBar do
       {"⇧⏎", :header},
       {" newline", :dim},
       {"  ", :dim},
+      {"←→↑↓", :header},
+      {" move", :dim},
+      {"  ", :dim},
       {"Esc", :header},
       {" cancel", :dim}
     ]
@@ -59,19 +64,32 @@ defmodule Aleph.Panel.StatusBar do
     Panel.clip([prompt, hints], rect)
   end
 
-  # Title input mode: the info line becomes the prompt (a caret marks the cursor), and the
-  # hints line names only the two keys that do anything while typing.
+  # Title input mode: the info line becomes the prompt, split at the cursor (a caret marks it),
+  # and the hints line names only the keys that do anything while typing.
   @impl Panel
-  def render(%{input: %{kind: :new_thread, buffer: buffer}}, rect) do
+  def render(%{input: %{kind: :new_thread} = input}, rect) do
+    {before, after_} = cursor_split(input)
+
     prompt = [
       {" NEW THREAD ", :tab},
       {"  ", :normal},
       {"▸ ", :accent},
-      {buffer, :normal},
-      {"▎", :accent}
+      {before, :normal},
+      {"▎", :accent},
+      {after_, :normal}
     ]
 
-    hints = [{"⏎", :header}, {" create", :dim}, {"   ", :dim}, {"Esc", :header}, {" cancel", :dim}]
+    hints = [
+      {"⏎", :header},
+      {" create", :dim},
+      {"   ", :dim},
+      {"←→", :header},
+      {" move", :dim},
+      {"  ", :dim},
+      {"Esc", :header},
+      {" cancel", :dim}
+    ]
+
     Panel.clip([prompt, hints], rect)
   end
 
@@ -111,6 +129,24 @@ defmodule Aleph.Panel.StatusBar do
     ]
 
     Panel.clip([justify(left, right, rect.w), hints_row(hints_for(space))], rect)
+  end
+
+  # The CURRENT line of a (possibly multiline) input buffer, split into the text before/after the
+  # cursor — what the composer's single visible line renders around the `▎` marker. `cursor`
+  # defaults to the buffer's end when absent (a state from before this field existed), matching
+  # the old always-at-the-end rendering.
+  defp cursor_split(%{buffer: buffer} = input) do
+    cursor = Map.get(input, :cursor, String.length(buffer))
+    {before, aft} = buffer |> String.graphemes() |> Enum.split(cursor)
+    before_line = before |> Enum.join() |> String.split("\n") |> List.last()
+
+    after_line =
+      aft
+      |> Enum.join()
+      |> String.split("\n", parts: 2)
+      |> List.first()
+
+    {before_line, after_line}
   end
 
   defp hints_row, do: hints_row(@hints)

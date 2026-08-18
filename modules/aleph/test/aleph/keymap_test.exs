@@ -336,6 +336,101 @@ defmodule Aleph.KeymapTest do
       s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "half typed"}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
     end
+
+    test "Left/Right move the cursor, and typing inserts there instead of at the end" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "sip", cursor: 1}})
+      assert {%{input: %{buffer: "ship", cursor: 2}}, :repaint} = Keymap.handle(char("h"), s)
+
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "ship", cursor: 2}})
+      assert {%{input: %{cursor: 1}}, :repaint} = Keymap.handle(key(:left), s2)
+
+      s3 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "ship", cursor: 1}})
+      assert {%{input: %{cursor: 2}}, :repaint} = Keymap.handle(key(:right), s3)
+    end
+
+    test "Left/Right clamp at the buffer's edges" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "hi", cursor: 0}})
+      assert {%{input: %{cursor: 0}}, :repaint} = Keymap.handle(key(:left), s)
+
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "hi", cursor: 2}})
+      assert {%{input: %{cursor: 2}}, :repaint} = Keymap.handle(key(:right), s2)
+    end
+
+    test "backspace deletes BEFORE the cursor, not always the buffer's last character" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "ship", cursor: 2}})
+      assert {%{input: %{buffer: "sip", cursor: 1}}, :repaint} = Keymap.handle(key(:backspace), s)
+    end
+
+    test "backspace at the start of the buffer is a no-op" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "ship", cursor: 0}})
+      assert {%{input: %{buffer: "ship", cursor: 0}}, :repaint} = Keymap.handle(key(:backspace), s)
+    end
+
+    test "Home/End jump to the start/end of the CURRENT line, not the whole buffer" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 5}})
+      assert {%{input: %{cursor: 4}}, :repaint} = Keymap.handle(key(:home), s)
+
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 4}})
+      assert {%{input: %{cursor: 7}}, :repaint} = Keymap.handle(key(:end), s2)
+    end
+
+    test "Up/Down move a line, preserving column where possible" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 6}})
+      assert {%{input: %{cursor: 2}}, :repaint} = Keymap.handle(key(:up), s)
+
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 1}})
+      assert {%{input: %{cursor: 5}}, :repaint} = Keymap.handle(key(:down), s2)
+    end
+
+    test "Up/Down clamp the column to a shorter target line" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "a\nlong line", cursor: 8}})
+      assert {%{input: %{cursor: 1}}, :repaint} = Keymap.handle(key(:up), s)
+    end
+
+    test "Up/Down are a no-op at the buffer's top/bottom line" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 1}})
+      assert {%{input: %{cursor: 1}}, :repaint} = Keymap.handle(key(:up), s)
+
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 5}})
+      assert {%{input: %{cursor: 5}}, :repaint} = Keymap.handle(key(:down), s2)
+    end
+
+    test "Ctrl+P/Ctrl+N alias Up/Down — hosts that swallow arrow keys still get vertical movement" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 6}})
+      assert {%{input: %{cursor: 2}}, :repaint} = Keymap.handle(char("p", ctrl: true), s)
+
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 1}})
+      assert {%{input: %{cursor: 5}}, :repaint} = Keymap.handle(char("n", ctrl: true), s2)
+    end
+
+    test "typing after moving the cursor with Ctrl+P lands where the cursor moved, not at the end" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 6}})
+      {moved, :repaint} = Keymap.handle(char("p", ctrl: true), s)
+      assert {%{input: %{buffer: "onXe\ntwo", cursor: 3}}, :repaint} = Keymap.handle(char("X"), moved)
+    end
+
+    test "Ctrl+A/Ctrl+E alias Home/End on the current line" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 5}})
+      assert {%{input: %{cursor: 4}}, :repaint} = Keymap.handle(char("a", ctrl: true), s)
+
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 4}})
+      assert {%{input: %{cursor: 7}}, :repaint} = Keymap.handle(char("e", ctrl: true), s2)
+    end
+
+    test "Ctrl+U kills from the start of the current line to the cursor, leaving other lines intact" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 6}})
+      assert {%{input: %{buffer: "one\no", cursor: 4}}, :repaint} = Keymap.handle(char("u", ctrl: true), s)
+    end
+
+    test "Ctrl+K kills from the cursor to the end of the current line, cursor unmoved" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "one\ntwo", cursor: 5}})
+      assert {%{input: %{buffer: "one\nt", cursor: 5}}, :repaint} = Keymap.handle(char("k", ctrl: true), s)
+    end
+
+    test "Ctrl+W kills the word behind the cursor, past trailing whitespace" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "post the update ", cursor: 16}})
+      assert {%{input: %{buffer: "post the ", cursor: 9}}, :repaint} = Keymap.handle(char("w", ctrl: true), s)
+    end
   end
 
   describe "the `m` verb — cycle the coworker driver model (the SETTINGS knob)" do
