@@ -706,7 +706,12 @@ defmodule Aleph.Cockpit do
   defp render(state) do
     # Fill the probe cache (Tlön only) and find-or-spawn the machine coworker — both stateful,
     # both rate-limited, both OUT of the per-frame hot path.
-    state = state |> ensure_probes() |> ensure_machine_coworker() |> ensure_claude_coworker()
+    state =
+      state
+      |> ensure_probes()
+      |> ensure_machine_coworker()
+      |> ensure_claude_coworker()
+      |> ensure_third_coworker()
     # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
     # navigates by, so ↑/↓ move the highlight down the feed and every open thread is reachable.
     chorus = Channel.chorus()
@@ -982,16 +987,46 @@ defmodule Aleph.Cockpit do
 
   defp ensure_claude_coworker(state), do: state
 
+  # An optional THIRD coworker for experiments (`$TLON_THIRD_AGENT="handle:window"`, off by default):
+  # a second Claude-Code window on its own funes identity, to break the two-body agree/disagree
+  # dynamic. Same gating as the claude window (pi up, its own window absent); `Aleph.Mention` picks
+  # up the same env so the third joins the wake-loop.
+  defp ensure_third_coworker(%{active_key: :tlon} = state) do
+    case Aleph.Mention.third_agent() do
+      %{author: author, window: window} ->
+        cond do
+          not is_pid(safe_terminal(:machine)) ->
+            state
+
+          Enum.any?(tlon_tabs(), &(&1.name == window)) ->
+            state
+
+          true ->
+            spawn_agent_window(author, window)
+            state
+        end
+
+      nil ->
+        state
+    end
+  end
+
+  defp ensure_third_coworker(state), do: state
+
   # `tmux new-window`, not Sessions.spawn_harness: this rides as window 1 of the ALREADY-embedded
   # tlon tmux session (the pi coworker's window 0), not a separate Aleph.Terminal/PTY of its own.
   # Fire-and-forget: a failed spawn (funes down, no thread yet) just leaves the window absent, and
   # `ensure_claude_coworker` retries it on the next render — no backoff needed, `new-window` is cheap
   # and idempotent-by-absence-check above.
-  defp spawn_claude_window do
+  defp spawn_claude_window, do: spawn_agent_window(@claude_agent, "claude")
+
+  # Open a Claude-Code window named `window` on the machine thread as funes `agent`. The claude and
+  # the experiment third voice both ride this — same launcher, distinct identity + tab label.
+  defp spawn_agent_window(agent, window) do
     with id when is_integer(id) <- machine_thread_id(),
-         {:ok, %{exports: exports}} <- Spawn.join(id, @claude_agent, mandate: "machine") do
+         {:ok, %{exports: exports}} <- Spawn.join(id, agent, mandate: "machine") do
       script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> claude_launcher()
-      System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", "claude", script]), stderr_to_stdout: true)
+      System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", window, script]), stderr_to_stdout: true)
     end
   end
 
