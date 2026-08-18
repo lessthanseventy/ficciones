@@ -58,6 +58,51 @@ defmodule Aleph.InputParserTest do
     refute event.data[:shift]
   end
 
+  describe "modified cursor keys with multi-digit modifiers (the numlock-arrow dep-patch)" do
+    # With Num Lock (or Caps Lock) on, ghostty under Kitty tags EVERY key with the lock modifier —
+    # num_lock is bit 128, so a plain Up arrives as \e[1;129A (mods = 1 + 128), not \e[A. raxol's
+    # dedicated modified-arrow clause pattern-matches a SINGLE modifier byte, so a multi-digit mods
+    # field falls through and the arrow is dropped — arrows did nothing whenever Num Lock was on.
+    # The patch adds a parse_csi_tilde_one clause that reads the numeric modifier and masks lock
+    # bits (decode_modifier keys off bits 1/2/4 only). If it regresses, arrows die under Num Lock.
+    test "a plain Up under Num Lock (\\e[1;129A) decodes to :up with no modifiers" do
+      [event] = InputParser.parse("\e[1;129A")
+      assert event.type == :key
+      assert event.data.key == :up
+      refute event.data[:ctrl]
+      refute event.data[:shift]
+      refute event.data[:alt]
+    end
+
+    test "Down under Num Lock (\\e[1;129B) decodes to :down" do
+      assert [%{data: %{key: :down}}] = InputParser.parse("\e[1;129B")
+    end
+
+    test "ctrl+Up under Num Lock (\\e[1;133A = 1+4+128) keeps ctrl, masks the lock bit" do
+      [event] = InputParser.parse("\e[1;133A")
+      assert event.data.key == :up
+      assert event.data.ctrl == true
+      refute event.data[:shift]
+    end
+
+    test "Left/Right/Home/End under Num Lock decode correctly (\\e[1;129 D/C/H/F)" do
+      assert [%{data: %{key: :left}}] = InputParser.parse("\e[1;129D")
+      assert [%{data: %{key: :right}}] = InputParser.parse("\e[1;129C")
+      assert [%{data: %{key: :home}}] = InputParser.parse("\e[1;129H")
+      assert [%{data: %{key: :end}}] = InputParser.parse("\e[1;129F")
+    end
+
+    test "a plain Up with Num Lock off (\\e[A) still decodes to :up — no regression" do
+      assert [%{data: %{key: :up}}] = InputParser.parse("\e[A")
+    end
+
+    test "single-digit ctrl+Up (\\e[1;5A) still decodes to ctrl+up via the legacy clause" do
+      [event] = InputParser.parse("\e[1;5A")
+      assert event.data.key == :up
+      assert event.data.ctrl == true
+    end
+  end
+
   describe "bracketed paste markers (the raxol paste dep-patch)" do
     # aleph enables \e[?2004h on the host tty, so ghostty wraps a paste in \e[200~…\e[201~. The
     # self-healed InputParser surfaces the markers as paste-start/paste-end events and the content

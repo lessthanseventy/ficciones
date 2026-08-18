@@ -277,6 +277,22 @@
                 captureModel = "deepseek-v4-flash";
               };
 
+              # pi's keybindings (~/.pi/agent/keybindings.json) — owned like models.json; pi
+              # only reads it (user config, applied by `/reload`). Andrew never model-cycles, so
+              # reclaim Ctrl+P/N — pi binds them to app.model.cycleForward / app.session filters
+              # by default. Two contexts, both wanted ("Both"):
+              #   * In the editor, Ctrl+P/N walk prompt history (readline reflex). pi's docs give
+              #     this exact remap as THE way to override model-cycling in-editor without
+              #     touching Ctrl+P inside selectors (keybindings.md §"TUI Editor Cursor Movement").
+              #   * In a list/selector (the `/` command palette, model picker), Ctrl+P/N alias
+              #     Up/Down so the same fingers move the selection. Arrows stay bound too.
+              piKeybindingsJson = builtins.toJSON {
+                "tui.editor.historyPrevious" = "ctrl+p";
+                "tui.editor.historyNext" = "ctrl+n";
+                "tui.select.up" = [ "up" "ctrl+p" ];
+                "tui.select.down" = [ "down" "ctrl+n" ];
+              };
+
               # ---- Seeded (write-once) pi plugin configs. The fable deep review found two
               # plugins silently active on baked-in defaults; these make the machine policy
               # explicit. Seeded, NOT owned as home.file symlinks: each of these files is
@@ -571,6 +587,10 @@
 
               # funes total-recall's noise knob (correction→habit proposals) — owned; adapter reads it.
               home.file.".pi/agent/funes-recall.json".text = piRecallJson;
+
+              # pi keybindings — owned like models.json (pi reads, never writes it). Reclaims
+              # Ctrl+P/N from model-cycling for history + selector nav; see piKeybindingsJson.
+              home.file.".pi/agent/keybindings.json".text = piKeybindingsJson;
 
               # manos into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in

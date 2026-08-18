@@ -109,6 +109,17 @@ defmodule Aleph.MixProject do
 
   # The CSI-u clauses inserted at the head of parse_csi_tilde_one/1's `case`.
   @kitty_csi_u_clauses """
+      # Modified cursor/arrow keys via CSI params: ESC [ 1 ; <mods> <A|B|C|D|F|H|P|Q|R|S>. The
+      # dedicated parse_one clause only matches a SINGLE-BYTE modifier, so a MULTI-DIGIT mods field
+      # falls through to here — and a lock modifier produces exactly that: with Num Lock on, ghostty
+      # (under \e[>1u Kitty) tags every key with num_lock (128), so a plain Up arrives as \e[1;129A,
+      # not \e[A, and was silently dropped (arrows did nothing whenever Num Lock/Caps Lock was on).
+      # decode_modifier keys off bits 1/2/4 only, so lock bits (num_lock=128, caps_lock=64) read as
+      # "no modifier" — a plain Up stays a plain Up, ctrl+Up (\e[1;133A = 4+128) stays ctrl+Up.
+      {[1, mods], final, rest} when final in [65, 66, 67, 68, 70, 72, 80, 81, 82, 83] ->
+        {shift, alt, ctrl} = decode_modifier(mods)
+        {key_event(csi_letter_to_key(final), shift: shift, alt: alt, ctrl: ctrl), rest}
+
       # Kitty keyboard protocol CSI-u: ESC [ <codepoint> [ ; <mods> [ ; <event> ] ] u.
       # Enabled by Aleph.Cockpit writing \e[>1u (disambiguate) on the host tty. Modified keys
       # with no legacy form — shift+enter (\e[13;2u), ctrl+enter (\e[13;5u), shift+tab
