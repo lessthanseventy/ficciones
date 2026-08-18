@@ -150,6 +150,28 @@ defmodule Aleph.CockpitTest do
     end
   end
 
+  describe "machine_spawn_due?/2: the Tlön coworker backoff gate" do
+    test "a fresh cockpit (no prior failure) is due — even though BEAM monotonic time is NEGATIVE" do
+      # The bug: machine_retry_at started at 0 and the guard was `now < retry_at`. BEAM monotonic
+      # time starts as a large NEGATIVE number, so `now < 0` was ALWAYS true and the spawn line was
+      # never reached — Tlön could never start its coworker. The "no backoff pending" sentinel must
+      # be honoured regardless of the sign of `now`.
+      now = System.monotonic_time(:millisecond)
+      assert now < 0, "precondition: this box's monotonic clock is negative (#{now})"
+      assert Cockpit.machine_spawn_due?(nil, now)
+    end
+
+    test "a pending backoff still in the future is NOT due" do
+      now = System.monotonic_time(:millisecond)
+      refute Cockpit.machine_spawn_due?(now + 5_000, now)
+    end
+
+    test "an elapsed backoff is due again" do
+      now = System.monotonic_time(:millisecond)
+      assert Cockpit.machine_spawn_due?(now - 1, now)
+    end
+  end
+
   describe "parse_tlon_tabs/1: the workspace's windows as tab data" do
     test "each `<active>\\t<index>\\t<name>` line becomes a tab — active flagged, index kept" do
       out = "1\t1\tpi\n0\t2\tclaude\n0\t3\tterm\n"

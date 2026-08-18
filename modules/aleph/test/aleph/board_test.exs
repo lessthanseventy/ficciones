@@ -313,7 +313,7 @@ defmodule Aleph.BoardTest do
 
     test "terminal panel shows a placeholder when there is no session" do
       rows = Terminal.render(:no_session, %{x: 0, y: 0, w: 40, h: 4})
-      assert Enum.map_join(rows, "\n", &text/1) =~ "press s to spawn"
+      assert Enum.map_join(rows, "\n", &text/1) =~ "Enter to spawn"
     end
 
     test "chorus renders a block per thread — empty threads included, focus + replies marked" do

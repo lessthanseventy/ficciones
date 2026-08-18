@@ -24,7 +24,7 @@ defmodule Aleph.Panel.Terminal do
 
   @impl Aleph.Panel
   def render(:no_session, rect) do
-    Aleph.Panel.clip([line("no live session — press s to spawn one here", :dim)], rect)
+    Aleph.Panel.clip([line("no live session — Enter to spawn one here", :dim)], rect)
   end
 
   def render(%{cells: cells} = render_state, rect) do

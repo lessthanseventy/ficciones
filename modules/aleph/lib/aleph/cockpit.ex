@@ -168,7 +168,7 @@ defmodule Aleph.Cockpit do
             stack: nil,
             health: nil,
             probed_at: 0,
-            machine_retry_at: 0
+            machine_retry_at: nil
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -849,13 +849,21 @@ defmodule Aleph.Cockpit do
 
     cond do
       is_pid(Sessions.terminal(:machine)) -> state
-      now < state.machine_retry_at -> state
+      not machine_spawn_due?(state.machine_retry_at, now) -> state
       is_pid(spawn_machine_coworker()) -> state
       true -> %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
     end
   end
 
   defp ensure_machine_coworker(state), do: state
+
+  @doc false
+  # Is a machine-coworker spawn attempt due? `machine_retry_at` is nil until an attempt FAILS (the
+  # "no backoff pending" sentinel — try now), then a future monotonic timestamp for @machine_spawn_backoff_ms.
+  # It MUST be nil, not 0: BEAM monotonic time starts large-NEGATIVE, so `now < 0` reads as "still
+  # backing off" forever and the coworker never spawns (regression — f861c84).
+  def machine_spawn_due?(nil = _retry_at, _now), do: true
+  def machine_spawn_due?(retry_at, now), do: now >= retry_at
 
   # Materialise the Tlön space's coworker profile, find-or-create the machine identity, then spawn
   # the Tlön center: an embedded tmux client attached to the standing session (pi as window 0 if
