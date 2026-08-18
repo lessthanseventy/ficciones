@@ -52,12 +52,15 @@ defmodule Aleph.Stack do
     end
   end
 
-  # One nix-env call, shared by nix_generation and nix_behind — halves the subprocess
-  # fork per health_read. Returns {current_gen, behind_count} or {nil, nil} on failure.
-  # nix-env --list-generations prints one gen per line; the current gen is marked "(current)".
-  # "Behind" = how many generations have a higher number than the current one (rollback gap).
-  # Tries home-manager first (common on non-NixOS), then the system profile.
-  defp nix_generation_and_behind do
+  @doc """
+  One nix-env call for both readings: `{current_gen, behind_count}`, or `{nil, nil}` on failure.
+  nix-env --list-generations prints one gen per line; the current gen is marked "(current)".
+  "Behind" = how many generations have a higher number than the current one (rollback gap).
+  Tries home-manager first (common on non-NixOS), then the system profile. This is the single
+  most expensive probe in the health battery — callers should destructure this, not call
+  `nix_generation/0` + `nix_behind/0` (each runs the full sweep again).
+  """
+  def nix_status do
     Enum.reduce_while(nix_profile_paths(), {nil, nil}, fn path, _acc ->
       case cmd("nix-env", ["--list-generations", "--profile", path]) do
         {:ok, out} ->
@@ -98,10 +101,10 @@ defmodule Aleph.Stack do
   end
 
   @doc "Current nix generation number, or nil. Best-effort: nil if nix isn't available."
-  def nix_generation, do: elem(nix_generation_and_behind(), 0)
+  def nix_generation, do: elem(nix_status(), 0)
 
   @doc "How many generations behind the current one is. 0 means current, nil if unknown."
-  def nix_behind, do: elem(nix_generation_and_behind(), 1)
+  def nix_behind, do: elem(nix_status(), 1)
 
   @doc "Disk usage percentage for the root filesystem (best-effort)."
   def disk_pct do
@@ -209,9 +212,13 @@ defmodule Aleph.Stack do
     end
   end
 
-  @doc "Whether the funes always-up service is reachable on :4040."
+  # 150ms, down from 500: loopback either connects or refuses in microseconds; the timeout only
+  # matters when the port is black-holed, where it bounds how long the cockpit's probe blocks.
+  @funes_probe_timeout_ms 150
+
+  @doc "Whether the funes always-up service is reachable on :4040 (the systemd service, NOT aleph's own 4041 world)."
   def funes_up? do
-    case :gen_tcp.connect(~c"127.0.0.1", 4040, [], 500) do
+    case :gen_tcp.connect(~c"127.0.0.1", 4040, [], @funes_probe_timeout_ms) do
       {:ok, socket} ->
         :gen_tcp.close(socket)
         true

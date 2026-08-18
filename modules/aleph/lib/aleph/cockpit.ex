@@ -54,6 +54,20 @@ defmodule Aleph.Cockpit do
   # there resurrect/continuum would restore a torn-down coworker with stale identity/env.
   @tlon_session "tlon"
 
+  # Tlön probe cadence: the Stack/Health reads fork subprocesses (git ×~6, nix-env, df, tmux)
+  # and open a TCP probe — far too heavy to run per render (a streaming terminal coalesces to
+  # ~125 renders/sec, and one nix-env alone exceeds the whole 8ms window; renders serialized
+  # and starved input). Probes are CACHED in cockpit state and refreshed at most this often,
+  # on the tick; every other render (keys, Bus events, terminal frames) reads the cache.
+  @probe_ms 2_000
+
+  # A failed machine-coworker spawn must not retry on every render (materialise + tmux
+  # new-session per frame = a spawn storm whenever the coworker can't start). Back off.
+  @machine_spawn_backoff_ms 5_000
+
+  # The empty Stack shape non-Tlön spaces (and a not-yet-probed Tlön) render.
+  @empty_stack %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
+
   # Kitty keyboard protocol: push flags + set disambiguate (CSI > 1 u) at init, pop (CSI < u)
   # at teardown. See the init comment for the full shifted-key round-trip.
   @kitty_enable "\e[>1u"
@@ -150,7 +164,11 @@ defmodule Aleph.Cockpit do
             flash: nil,
             scrolls: %{},
             placements: [],
-            render_scheduled?: false
+            render_scheduled?: false,
+            stack: nil,
+            health: nil,
+            probed_at: 0,
+            machine_retry_at: 0
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -294,6 +312,9 @@ defmodule Aleph.Cockpit do
     Process.send_after(self(), :tick, @tick_ms)
     # A pending coalesced :render is now redundant (this tick paints); drop the flag so it no-ops.
     state = %{state | render_scheduled?: false}
+    # Expire the cached Tlön probes on the probe cadence — render refills them lazily (and only
+    # when Tlön is the active space), so the subprocess battery runs at @probe_ms, never per frame.
+    state = maybe_expire_probes(state)
     # Re-sync every tick so a missed SIGWINCH self-corrects: refresh_size re-queries via ioctl,
     # independent of any signal.
     state = refresh_size(state)
@@ -598,6 +619,9 @@ defmodule Aleph.Cockpit do
   end
 
   defp render(state) do
+    # Fill the probe cache (Tlön only) and find-or-spawn the machine coworker — both stateful,
+    # both rate-limited, both OUT of the per-frame hot path.
+    state = state |> ensure_probes() |> ensure_machine_coworker()
     # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
     # navigates by, so ↑/↓ move the highlight down the feed and every open thread is reachable.
     chorus = Channel.chorus()
@@ -616,8 +640,8 @@ defmodule Aleph.Cockpit do
       chorus: chorus,
       terminal: terminal_read(state, focused),
       machine: machine_read(state),
-      stack: stack_read(state.active_key),
-      health: health_read(state.active_key),
+      stack: state.stack || @empty_stack,
+      health: state.health,
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :comms, do: triage_read(threads)),
       habits: habits_read(state.active_key),
@@ -651,10 +675,11 @@ defmodule Aleph.Cockpit do
 
   defp terminal_read(_state, _focused), do: :no_session
 
-  # The Tlön center's read: the embedded tmux client (find-or-created on entry). tmux owns the
-  # windows inside it; aleph just renders the attached client.
+  # The Tlön center's read: the embedded tmux client. Lookup only — the find-or-spawn lives in
+  # ensure_machine_coworker (render's stateful preamble), so a failing spawn can back off
+  # instead of re-materialising the profile and re-issuing tmux new-session every frame.
   defp machine_read(%{active_key: :tlon}) do
-    case render_state_of(machine_terminal()) do
+    case render_state_of(Sessions.terminal(:machine)) do
       %{} = render_state -> Map.put(render_state, :tabs, tlon_tabs())
       other -> other
     end
@@ -668,7 +693,7 @@ defmodule Aleph.Cockpit do
   # The terminal that owns the keys, by space: Sessions → the focused thread's session; Tlön →
   # the embedded tmux client. nil elsewhere.
   defp center_terminal(%{active_key: :sessions} = state), do: state |> focused() |> terminal_for()
-  defp center_terminal(%{active_key: :tlon}), do: machine_terminal()
+  defp center_terminal(%{active_key: :tlon}), do: Sessions.terminal(:machine)
   defp center_terminal(_state), do: nil
 
   # The thread `c` composes onto, derived per keypress (like center_live?): the focused project
@@ -688,39 +713,55 @@ defmodule Aleph.Cockpit do
   defp terminal_for(nil), do: nil
   defp terminal_for(%{id: id}), do: Sessions.terminal(id)
 
-  # The STACK reads are only gathered on Tlön (git log + version probes are wasted elsewhere).
-  # Branch, dirty status, ahead/behind, status summary, and enriched commits.
-  defp stack_read(:tlon) do
+  # Expire cached probes once @probe_ms has passed; render's ensure_probes refills lazily.
+  defp maybe_expire_probes(state) do
+    if System.monotonic_time(:millisecond) - state.probed_at >= @probe_ms do
+      %{state | stack: nil, health: nil}
+    else
+      state
+    end
+  end
+
+  # Fill the probe cache when Tlön is active and the cache is cold. Elsewhere the probes stay
+  # nil — git/nix/df/tmux forks are wasted on spaces that never show them.
+  defp ensure_probes(%{active_key: :tlon, stack: nil} = state) do
+    %{state | stack: stack_read(), health: health_read(), probed_at: System.monotonic_time(:millisecond)}
+  end
+
+  defp ensure_probes(state), do: state
+
+  # The STACK read: branch, dirty status, ahead/behind, status summary, enriched commits.
+  # One ahead_behind call, destructured — it forks a git per call.
+  defp stack_read do
+    {ahead, behind} = Aleph.Stack.ahead_behind()
+
     %{
       branch: Aleph.Stack.branch(),
       dirty: Aleph.Stack.dirty?(),
-      ahead: elem(Aleph.Stack.ahead_behind(), 0),
-      behind: elem(Aleph.Stack.ahead_behind(), 1),
+      ahead: ahead,
+      behind: behind,
       status_summary: Aleph.Stack.status_summary(),
       commits: Aleph.Stack.commits(),
       tools: Aleph.Stack.tools()
     }
   end
 
-  defp stack_read(_key),
-    do: %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
+  # The HEALTH read. One nix_status call for gen+behind — nix-env --list-generations is the
+  # single most expensive probe in the battery; calling it once matters.
+  defp health_read do
+    {nix_gen, nix_behind} = Aleph.Stack.nix_status()
 
-  # HEALTH reads are only gathered on Tlön — system probes are wasted elsewhere.
-  # Tools are read here (merged into Health from the old Tools panel).
-  defp health_read(:tlon) do
     %{
       funes_up: Aleph.Stack.funes_up?(),
       tlon_up: Aleph.Stack.tlon_up?(),
-      nix_gen: Aleph.Stack.nix_generation(),
-      nix_behind: Aleph.Stack.nix_behind(),
+      nix_gen: nix_gen,
+      nix_behind: nix_behind,
       disk_pct: Aleph.Stack.disk_pct(),
       mem_pct: Aleph.Stack.mem_pct(),
       load_avg: Aleph.Stack.load_avg(),
       tools: Aleph.Stack.tools()
     }
   end
-
-  defp health_read(_key), do: nil
 
   # HABITS reads are only gathered on Tlön — the machine-wide review queue (pending) and the
   # always-loaded set (approved). Machine-wide, so not keyed on a focused thread.
@@ -800,13 +841,21 @@ defmodule Aleph.Cockpit do
 
   # The Tlön machine coworker: a pi session working ON the box on a persistent "machine" thread
   # (so its work is triageable). pi by design — Tlön is meta/machine work, claude stays the
-  # deliberate escalation (AGENTS.md routing). Spawned once, reused via registry lookup.
-  defp machine_terminal do
-    case Sessions.terminal(:machine) do
-      pid when is_pid(pid) -> pid
-      nil -> spawn_machine_coworker()
+  # deliberate escalation (AGENTS.md routing). Find-or-spawned here (render's stateful preamble),
+  # with a backoff: a failed spawn used to retry the whole materialise+tmux pipeline on EVERY
+  # render — a spawn storm whenever the coworker couldn't start.
+  defp ensure_machine_coworker(%{active_key: :tlon} = state) do
+    now = System.monotonic_time(:millisecond)
+
+    cond do
+      is_pid(Sessions.terminal(:machine)) -> state
+      now < state.machine_retry_at -> state
+      is_pid(spawn_machine_coworker()) -> state
+      true -> %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
     end
   end
+
+  defp ensure_machine_coworker(state), do: state
 
   # Materialise the Tlön space's coworker profile, find-or-create the machine identity, then spawn
   # the Tlön center: an embedded tmux client attached to the standing session (pi as window 0 if

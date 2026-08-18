@@ -26,7 +26,12 @@ defmodule Aleph.Terminal do
   exactly when the screen changed; `{:exited, status}` when the child ends. A dedicated, long-lived
   terminal per session (not a pool — a session's screen is its own and continuous).
   """
-  use GenServer
+  # :temporary — a crashed terminal must STAY dead: the default :permanent restart re-execs the
+  # harness (a second pi, or another tmux client) with the same opts, but Aleph.Sessions only
+  # monitors the ORIGINAL pid, so the restarted one is an orphan the registry can't see — and
+  # the operator's next Enter spawns yet another. Dead session, no ghost row; respawn is the
+  # operator's Enter (exactly what Sessions' moduledoc promises).
+  use GenServer, restart: :temporary
 
   alias Ghostty.MouseEvent
   alias Ghostty.PTY
