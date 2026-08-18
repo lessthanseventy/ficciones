@@ -295,26 +295,66 @@
                 network = {
                   allowLocalBinding = true;
                   allowAllUnixSockets = true;
+                  # Derived from real Claude + pi session history — the dev-infra hosts this machine's
+                  # agents actually reach. An allowlist (not "*") stays the network fence; extend it
+                  # from the transcripts when a new infra host appears. Twin of aleph @tlon_sandbox.
                   allowedDomains = [
+                    # source control + package registries
                     "github.com"
                     "*.github.com"
                     "*.githubusercontent.com"
                     "hex.pm"
                     "*.hex.pm"
+                    "hexdocs.pm"
+                    "*.hexdocs.pm"
                     "registry.npmjs.org"
-                    "mise.jdx.dev"
-                    "ollama.com"
-                    "registry.ollama.ai"
-                    "cache.nixos.org"
-                    "channels.nixos.org"
-                    "nixos.org"
-                    # dev toolchains fetched under mise (global config pins rust=nightly). Trusted
-                    # infra; the fs write-scope + permission-system credential denies stay the fence.
-                    "sh.rustup.rs"
-                    "static.rust-lang.org"
+                    "www.npmjs.com"
+                    "*.npmjs.com"
                     "crates.io"
                     "static.crates.io"
                     "index.crates.io"
+                    # toolchains + system package infra
+                    "*.jdx.dev"
+                    "sh.rustup.rs"
+                    "static.rust-lang.org"
+                    "cache.nixos.org"
+                    "channels.nixos.org"
+                    "nixos.org"
+                    # AI / agent infra
+                    "anthropic.com"
+                    "*.anthropic.com"
+                    "claude.com"
+                    "*.claude.com"
+                    "claude.ai"
+                    "ollama.com"
+                    "*.ollama.com"
+                    "registry.ollama.ai"
+                    "pi.dev"
+                    "modelcontextprotocol.io"
+                    "*.huggingface.co"
+                    # language + framework + tool docs
+                    "elixirforum.com"
+                    "www.phoenixframework.org"
+                    "expert-lsp.org"
+                    "www.typescriptlang.org"
+                    "react.dev"
+                    "pnpm.io"
+                    "playwright.dev"
+                    "ghostty.org"
+                    "agent-browser.dev"
+                    # docs / badges / assets / a11y
+                    "img.shields.io"
+                    "deepwiki.com"
+                    "www.w3.org"
+                    "dequeuniversity.com"
+                    "fonts.googleapis.com"
+                    "fonts.gstatic.com"
+                    # notifications
+                    "ntfy.sh"
+                    "herdr.dev"
+                    # andrew's own app (Phoenix LiveView)
+                    "myelin.us"
+                    "www.myelin.us"
                   ];
                 };
                 filesystem = {
