@@ -250,10 +250,11 @@
               programs.home-manager.enable = true;
 
               # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
-              # repo), trimmed to what aleph/Tlön needs: mouse, extended-keys, resurrect+
-              # continuum (Tlön's literal-tmux persistence), yank, tmux-thumbs. Dropped the
-              # status-script chrome (gitmux/cpu/battery) that churned alongside embedded
-              # pi. Old file backed up on `home:switch` via the -b flag.
+              # repo): mouse, extended-keys, resurrect+continuum (ANDREW's session persistence
+              # — coworkers run on their own `-L aleph-<profile>` servers with a persistence-
+              # free config, see Aleph.Profiles), yank, tmux-thumbs. Dropped the status-script
+              # chrome (gitmux/cpu/battery) that churned alongside embedded pi. Old file backed
+              # up on `home:switch` via the -b flag.
               programs.tmux = {
                 enable = true;
                 shortcut = "b"; # Ctrl+B prefix (aleph's leader is Ctrl+Space, so no clash)
@@ -299,12 +300,16 @@
                   bind l select-pane -R
                   bind r source-file ~/.config/tmux/tmux.conf \; display "Config reloaded!"
 
-                  # Tlön persistence: resurrect + continuum restore the standing session across
-                  # reboots, with the agent panes in the allowlist so they come back.
+                  # Persistence is for ANDREW's tmux only. Coworkers (Tlön's pi, future ones) run on
+                  # their own per-profile tmux servers (tmux -L aleph-<profile>, persistence-free
+                  # config from Aleph.Profiles) and come up FRESH every rebuild — agent harnesses are
+                  # deliberately NOT in @resurrect-processes: auto-relaunching an agent at restore
+                  # hands it stale identity/env (the old torn-down-coworker trap) and silently burns
+                  # model budget.
                   set -g @continuum-restore 'on'
                   set -g @continuum-save-interval '10'
                   set -g @resurrect-capture-pane-contents 'on'
-                  set -g @resurrect-processes 'pi claude "mise exec -- pi" "mise run funes:claude" iex mix nvim vim'
+                  set -g @resurrect-processes 'iex mix nvim vim'
 
                   # tmux-thumbs: hint-label copy — prefix+F fires hint labels on all visible text.
                   set -g @thumbs-key F

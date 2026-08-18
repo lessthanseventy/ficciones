@@ -48,8 +48,10 @@ defmodule Aleph.Cockpit do
   @machine_agent "pi-machine"
 
   # The tlon tmux session name — tmux is a first-class stack citizen here: the Tlön center is a real
-  # `tmux attach`, so the machine workspace gets the user's tmux config, mouse, windows, and
-  # resurrect/continuum persistence, and it SURVIVES aleph restarts.
+  # `tmux attach`, so the machine workspace gets mouse, windows, and copy-mode, and it SURVIVES
+  # aleph restarts. It runs on its OWN tmux server though (`tmux -L aleph-tlon`, config from the
+  # profile's persistence-free tmux.conf — Aleph.Profiles.socket/1), NOT the user's default server:
+  # there resurrect/continuum would restore a torn-down coworker with stale identity/env.
   @tlon_session "tlon"
 
   # Kitty keyboard protocol: push flags + set disambiguate (CSI > 1 u) at init, pop (CSI < u)
@@ -401,7 +403,7 @@ defmodule Aleph.Cockpit do
 
   # Select a Tlön tmux window by the clicked tab's index; nil (a click past the tabs) is a no-op.
   defp select_tlon_window(%{index: idx}) do
-    System.cmd("tmux", ["select-window", "-t", "#{@tlon_session}:#{idx}"], stderr_to_stdout: true)
+    System.cmd("tmux", tlon_tmux(["select-window", "-t", "#{@tlon_session}:#{idx}"]), stderr_to_stdout: true)
     :ok
   end
 
@@ -820,24 +822,20 @@ defmodule Aleph.Cockpit do
         %{provider: prov, model: m, thinking: think} -> " --model #{prov}/#{m} --thinking #{think}"
         _ -> ""
       end
+
     pi = "env PI_CODING_AGENT_DIR=#{dir} #{base}#{prompt}#{model}"
     # MANOS_RELOAD_CMD: how manos/reload respawns pi in place — `--continue` resumes the most-recent
     # session (the one being killed), so a reload keeps the thread across the restart.
     reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
     env_flags = Enum.map_join([reload_cmd], " ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
-    # aleph draws the Tlön header + window tabs itself, so tmux's OWN chrome is silenced — chained
-    # onto the one `new-session` with `\;` because the launcher must stay a single foreground command
-    # (spawn_harness execs it via `env`, no shell sequencing). Window 0 is named `pi` so the tab strip
-    # has a clean label. `status off` alone leaves a themed multi-line status (a user's tmux theme can
-    # render it regardless), so we also blank `status-format[0]` and disable `pane-border-status` — the
-    # session owns its own chrome, no dependency on the user's tmux theme cooperating.
-    # The mouse-drag text selection's highlight (tmux copy-mode `mode-style`) — a readable
-    # blue-grey selection instead of tmux's default yellow-on-black.
-    "tmux new-session -A -s #{@tlon_session} -n pi #{env_flags} '#{pi}'" <>
-      " \\; set-option -t #{@tlon_session} status off" <>
-      " \\; set-option -t #{@tlon_session} 'status-format[0]' ''" <>
-      " \\; set-option -t #{@tlon_session} pane-border-status off" <>
-      " \\; set-option -t #{@tlon_session} mode-style 'bg=#3b4261,fg=#c0caf5'"
+    # The coworker's PRIVATE tmux server: `-L aleph-<profile>` + the profile's persistence-free
+    # tmux.conf (`-f` applies on server creation; an already-running server keeps its config, and
+    # `aleph:reset` kills the server). That conf also owns the chrome-off options (status off,
+    # blank status-format, pane-border-status off — aleph draws the Tlön header + tab strip itself)
+    # and the readable copy-mode mode-style, so the launcher stays one plain `new-session`.
+    # Window 0 is named `pi` so the tab strip has a clean label.
+    "tmux -L #{Profiles.socket(profile.name)} -f #{Path.join(dir, "tmux.conf")}" <>
+      " new-session -A -s #{@tlon_session} -n pi #{env_flags} '#{pi}'"
   end
 
   # POSIX single-quote: escape embedded quotes as '\'' so the value survives the shell verbatim.
@@ -849,13 +847,17 @@ defmodule Aleph.Cockpit do
   defp tlon_tabs do
     case System.cmd(
            "tmux",
-           ["list-windows", "-t", @tlon_session, "-F", "\#{window_active}\t\#{window_index}\t\#{window_name}"],
+           tlon_tmux(["list-windows", "-t", @tlon_session, "-F", "\#{window_active}\t\#{window_index}\t\#{window_name}"]),
            stderr_to_stdout: true
          ) do
       {out, 0} -> parse_tlon_tabs(out)
       _ -> []
     end
   end
+
+  # Every tmux call about the Tlön coworker targets its private server (`-L aleph-<profile>`),
+  # never the user's default one.
+  defp tlon_tmux(args), do: ["-L", Profiles.socket(Space.fetch(:tlon).coworker)] ++ args
 
   @doc false
   # `window_active` is "1" for the current window, "0" otherwise; each line is

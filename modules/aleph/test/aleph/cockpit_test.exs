@@ -98,6 +98,12 @@ defmodule Aleph.CockpitTest do
       assert Cockpit.profile_launcher(@profile) =~ "new-session -A -s tlon"
     end
 
+    test "runs on the coworker's PRIVATE tmux server with the profile's persistence-free config" do
+      cmd = Cockpit.profile_launcher(@profile)
+      assert cmd =~ "tmux -L #{Aleph.Profiles.socket("tlon")} "
+      assert cmd =~ "-f #{Aleph.Profiles.config_dir("tlon")}/tmux.conf"
+    end
+
     test "points pi at the profile's config dir and wires NO funes env (self-contained)" do
       cmd = Cockpit.profile_launcher(@profile)
       assert cmd =~ "PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")}"
@@ -124,13 +130,16 @@ defmodule Aleph.CockpitTest do
       assert Cockpit.profile_launcher(@profile) =~ "mise exec -- pi"
     end
 
-    test "silences tmux's own chrome — aleph draws the Tlön header itself" do
+    test "chrome-off + copy-mode style live in the profile tmux.conf now, not chained set-options" do
       cmd = Cockpit.profile_launcher(@profile)
       assert cmd =~ "new-session -A -s tlon -n pi"
-      assert cmd =~ "\\; set-option -t tlon status off"
-      assert cmd =~ "\\; set-option -t tlon 'status-format[0]' ''"
-      assert cmd =~ "\\; set-option -t tlon pane-border-status off"
-      assert cmd =~ "\\; set-option -t tlon mode-style 'bg=#3b4261,fg=#c0caf5'"
+      refute cmd =~ "set-option"
+
+      conf = Aleph.Profiles.tmux_conf()
+      assert conf =~ "set -g status off"
+      assert conf =~ "set -g 'status-format[0]' ''"
+      assert conf =~ "set -g pane-border-status off"
+      assert conf =~ "set -g mode-style 'bg=#3b4261,fg=#c0caf5'"
     end
   end
 

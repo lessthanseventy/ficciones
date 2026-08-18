@@ -130,8 +130,10 @@ defmodule Aleph.ProfilesTest do
       File.mkdir_p!(base)
       File.write!(Path.join(base, "settings.json"), Jason.encode!(@base_settings))
       File.write!(Path.join(base, "mcp.json"), Jason.encode!(@base_mcp))
+
       for f <- ~w(auth.json models.json models-store.json provider-failover.json),
           do: File.write!(Path.join(base, f), "{}")
+
       on_exit(fn -> File.rm_rf!(tmp) end)
       %{base: base, root: Path.join(tmp, "profiles")}
     end
@@ -147,8 +149,27 @@ defmodule Aleph.ProfilesTest do
       # the shared files are symlinks back to the base — one credential store, one model catalog,
       # one failover policy (so pi-multi-account fails this coworker's Claude over to ollama.com glm)
       assert File.read_link!(Path.join(dir, "auth.json")) == Path.join(base, "auth.json")
+
       assert File.read_link!(Path.join(dir, "provider-failover.json")) ==
                Path.join(base, "provider-failover.json")
+    end
+
+    test "writes the coworker's persistence-free tmux.conf — fresh on rebuild, never resurrected",
+         %{base: base, root: root} do
+      dir = Profiles.materialise!(Profiles.fetch("tlon"), base: base, root: root)
+      conf = File.read!(Path.join(dir, "tmux.conf"))
+      # the interactive bits travel with the coworker...
+      assert conf =~ "set -g mouse on"
+      assert conf =~ "set -s extended-keys on"
+      assert conf =~ "set -g mode-style"
+      # ...the persistence plugins deliberately do NOT
+      refute conf =~ "resurrect"
+      refute conf =~ "continuum"
+    end
+
+    test "the socket name is per-profile, so no coworker shares the user's default server" do
+      assert Profiles.socket("tlon") == "aleph-tlon"
+      assert Profiles.socket("desk") == "aleph-desk"
     end
 
     test "idempotent — a second materialise re-links without error", %{base: base, root: root} do
