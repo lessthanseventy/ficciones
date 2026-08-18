@@ -19,6 +19,25 @@ defmodule Aleph.ArbiterTest do
     assert Arbiter.wake(%{thread_id: 999_999}, "hi") == {:error, :no_terminal}
   end
 
+  test "wake degrades to {:error, :no_terminal} when Sessions is down, never a crash" do
+    # Reproduces the hub crash: a pi→claude wake actuated through the switchboard while
+    # Aleph.Sessions is wedged/torn-down. The raw GenServer.call exits (:noproc / :timeout),
+    # which used to propagate up and kill the hub — the ISSUES line
+    # `GenServer.call(Aleph.Sessions, {:terminal, :machine}, 5000)`.
+    Supervisor.terminate_child(Aleph.Supervisor, Aleph.Sessions)
+    on_exit(fn -> Supervisor.restart_child(Aleph.Supervisor, Aleph.Sessions) end)
+
+    assert Arbiter.wake(%{thread_id: 8802}, "hi") == {:error, :no_terminal}
+  end
+
+  test "spawn degrades to {:error, :sessions_down} when Sessions is down, never a crash" do
+    exports = ~s(export FUNES_THREAD="8803")
+    Supervisor.terminate_child(Aleph.Supervisor, Aleph.Sessions)
+    on_exit(fn -> Supervisor.restart_child(Aleph.Supervisor, Aleph.Sessions) end)
+
+    assert Arbiter.spawn(exports) == {:error, :sessions_down}
+  end
+
   test "wake writes the sanitized prompt + Enter into the thread's terminal" do
     # cat echoes stdin, so a wake that reaches the PTY reappears on the screen.
     {:ok, term} = Sessions.ensure(8801, cmd: "/bin/cat", cols: 40, rows: 4)

@@ -285,10 +285,18 @@ defmodule Aleph.Cockpit do
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
+  # A posted message may @-mention a Tlön coworker — wake it by injecting the message as a turn
+  # into its tmux window. Routed before the general repaint clause. Best-effort: a window that
+  # isn't up yet is skipped (the coworker is never spawned just to deliver a mention).
   @impl true
+  def handle_info({:message_posted, row}, state) do
+    desktop_notify(:message_posted, row)
+    mention_notify(row)
+    {:noreply, render(state)}
+  end
+
   def handle_info({tag, row}, state)
       when tag in [
-             :message_posted,
              :fact_banked,
              :event_recorded,
              :issue_raised,
@@ -360,6 +368,34 @@ defmodule Aleph.Cockpit do
       _ = File.write("/dev/tty", Aleph.Notify.osc(title, body))
     end
 
+    :ok
+  end
+
+  # @-mention delivery: a posted message naming a Tlön coworker (`@pi-machine` / `@claude-machine`)
+  # is injected as a turn into that coworker's tmux window, so a cold pane gets woken instead of
+  # silently accumulating an unread thread. Pure routing lives in Aleph.Mention; this is the edge —
+  # best-effort tmux send-keys, never a crash on a missing window.
+  defp mention_notify(row) do
+    for {window, text} <- Aleph.Mention.route(row),
+        index = tlon_window_index(window),
+        not is_nil(index) do
+      inject_turn(index, text)
+    end
+
+    :ok
+  end
+
+  # The tmux window index for a named coworker window, from the live session (nil if not up).
+  defp tlon_window_index(name) do
+    Enum.find_value(tlon_tabs(), fn %{name: n, index: index} -> if n == name, do: index end)
+  end
+
+  # Inject `text` as a submitted turn into window `index`: literal text, then the Enter key — so a
+  # multiline body flattened to one line reaches the coworker's input as a single message.
+  defp inject_turn(index, text) do
+    target = "#{@tlon_session}:#{index}"
+    _ = System.cmd("tmux", tlon_tmux(["send-keys", "-l", "-t", target, text]), stderr_to_stdout: true)
+    _ = System.cmd("tmux", tlon_tmux(["send-keys", "-t", target, "Enter"]), stderr_to_stdout: true)
     :ok
   end
 
@@ -540,7 +576,7 @@ defmodule Aleph.Cockpit do
   # nothing to do (you're already working there). Otherwise spawn one onto it. The replacement for
   # the old bare `s` verb — one `spawn_onto/2` path, reached via `n` (new thread) or `Enter` (existing).
   defp enter_or_spawn(thread_id, state) do
-    case Sessions.terminal(thread_id) do
+    case safe_terminal(thread_id) do
       pid when is_pid(pid) -> "already live — type to use it, Ctrl+Space for aleph"
       nil -> spawn_onto(thread_id, state)
     end
@@ -556,7 +592,7 @@ defmodule Aleph.Cockpit do
 
     case Spawn.join(thread_id, agent) do
       {:ok, %{exports: exports}} ->
-        case Sessions.spawn_harness(thread_id, exports, cols: cols, rows: rows) do
+        case safe_spawn_harness(thread_id, exports, cols: cols, rows: rows) do
           {:ok, _pid} -> "session live — type to use it, Ctrl+Space for aleph"
           {:error, reason} -> "spawn failed: #{inspect(reason)}"
         end
@@ -682,7 +718,7 @@ defmodule Aleph.Cockpit do
   # ensure_machine_coworker (render's stateful preamble), so a failing spawn can back off
   # instead of re-materialising the profile and re-issuing tmux new-session every frame.
   defp machine_read(%{active_key: :tlon}) do
-    case render_state_of(Sessions.terminal(:machine)) do
+    case render_state_of(safe_terminal(:machine)) do
       %{} = render_state -> Map.put(render_state, :tabs, tlon_tabs())
       other -> other
     end
@@ -693,10 +729,26 @@ defmodule Aleph.Cockpit do
   defp render_state_of(nil), do: :no_session
   defp render_state_of(term), do: Terminal.render_state(term)
 
+  # Sessions is supervised (Aleph.Supervisor) but the cockpit is NOT — a `Sessions.terminal/1`
+  # against a torn-down registry raises `(EXIT) no process`, which used to propagate up through
+  # render and kill the cockpit, wedging all input (Enter went nowhere). Degrade to nil so a dead
+  # registry just reads as "no session"; the supervisor restarts it on its own.
+  defp safe_terminal(thread_id) do
+    Sessions.terminal(thread_id)
+  catch
+    :exit, _ -> nil
+  end
+
+  defp safe_spawn_harness(thread_id, exports, opts) do
+    Sessions.spawn_harness(thread_id, exports, opts)
+  catch
+    :exit, _ -> {:error, :sessions_down}
+  end
+
   # The terminal that owns the keys, by space: Sessions → the focused thread's session; Tlön →
   # the embedded tmux client. nil elsewhere.
   defp center_terminal(%{active_key: :sessions} = state), do: state |> focused() |> terminal_for()
-  defp center_terminal(%{active_key: :tlon}), do: Sessions.terminal(:machine)
+  defp center_terminal(%{active_key: :tlon}), do: safe_terminal(:machine)
   defp center_terminal(_state), do: nil
 
   # The thread `c` composes onto, derived per keypress (like center_live?): the focused project
@@ -714,7 +766,7 @@ defmodule Aleph.Cockpit do
   end
 
   defp terminal_for(nil), do: nil
-  defp terminal_for(%{id: id}), do: Sessions.terminal(id)
+  defp terminal_for(%{id: id}), do: safe_terminal(id)
 
   # Expire cached probes once @probe_ms has passed; render's ensure_probes refills lazily.
   defp maybe_expire_probes(state) do
@@ -852,7 +904,7 @@ defmodule Aleph.Cockpit do
     now = System.monotonic_time(:millisecond)
 
     cond do
-      is_pid(Sessions.terminal(:machine)) -> state
+      is_pid(safe_terminal(:machine)) -> state
       not machine_spawn_due?(state.machine_retry_at, now) -> state
       is_pid(spawn_machine_coworker()) -> state
       true -> %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
@@ -870,7 +922,7 @@ defmodule Aleph.Cockpit do
   # render would spawn a fresh claude every tick).
   defp ensure_claude_coworker(%{active_key: :tlon} = state) do
     cond do
-      not is_pid(Sessions.terminal(:machine)) ->
+      not is_pid(safe_terminal(:machine)) ->
         state
 
       Enum.any?(tlon_tabs(), &(&1.name == "claude")) ->
@@ -917,7 +969,7 @@ defmodule Aleph.Cockpit do
          {:ok, _dir} <- materialise_profile(profile),
          {:ok, exports} <- machine_exports(@machine_agent),
          # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
-         {:ok, pid} <- Sessions.spawn_harness(:machine, exports, launcher: profile_launcher(profile), kitty: false) do
+         {:ok, pid} <- safe_spawn_harness(:machine, exports, launcher: profile_launcher(profile), kitty: false) do
       pid
     else
       _error -> nil

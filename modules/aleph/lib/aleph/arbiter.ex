@@ -18,7 +18,7 @@ defmodule Aleph.Arbiter do
 
   @impl Funes.Arbiter
   def wake(%{thread_id: thread_id}, prompt) do
-    case Sessions.terminal(thread_id) do
+    case safe_terminal(thread_id) do
       nil -> {:error, :no_terminal}
       term -> Terminal.feed(term, sanitize(prompt) <> "\r")
     end
@@ -28,8 +28,26 @@ defmodule Aleph.Arbiter do
   def spawn(exports) do
     case thread_id(exports) do
       nil -> {:error, :no_thread_in_exports}
-      thread_id -> Sessions.spawn_harness(thread_id, exports)
+      thread_id -> safe_spawn_harness(thread_id, exports)
     end
+  end
+
+  # Sessions is supervised, the switchboard is not: a `Sessions.terminal/1` against a wedged or
+  # torn-down registry exits (`:noproc`, or a 5s `:timeout` while `{:ensure}` blocks spawning a
+  # terminal) and that exit used to propagate up and kill the hub — the ISSUES-panel
+  # `GenServer.call(Aleph.Sessions, {:terminal, :machine}, 5000)`. Degrade to nil / {:error, ...}
+  # so the switchboard leaves the message a pending durable row and retries once Sessions is live,
+  # mirroring the cockpit's own `safe_terminal/1` guard.
+  defp safe_terminal(thread_id) do
+    Sessions.terminal(thread_id)
+  catch
+    :exit, _ -> nil
+  end
+
+  defp safe_spawn_harness(thread_id, exports) do
+    Sessions.spawn_harness(thread_id, exports)
+  catch
+    :exit, _ -> {:error, :sessions_down}
   end
 
   @doc "Collapse a prompt to one clean line — control bytes → spaces, runs collapsed, trimmed."

@@ -51,8 +51,8 @@ if [ "${FUNES_LAUNCH_DRYRUN:-}" = "1" ]; then
   printf 'identity: FUNES_THREAD=%s FUNES_AUTHOR=%s\n' "$FUNES_THREAD" "$FUNES_AUTHOR"
   printf 'mcp-config: %s\n' "$mcp_json"
   printf 'settings:   %s\n' "$settings_json"
-  printf 'exec: claude --mcp-config <…> --settings <…> %s\n' "$*"
+  printf 'exec: claude --permission-mode auto --mcp-config <…> --settings <…> %s\n' "$*"
   exit 0
 fi
 
-exec claude --mcp-config "$mcp_json" --settings "$settings_json" "$@"
+exec claude --permission-mode auto --mcp-config "$mcp_json" --settings "$settings_json" "$@"
