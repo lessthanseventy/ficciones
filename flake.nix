@@ -395,13 +395,13 @@
                        # pi auto-installs these npm extensions on launch. The npm: prefix
                        # matches what `pi install` persists, so `unique` dedupes against a
                        # hand-installed copy instead of doubling it.
-                       #   web-search        → Ollama's search API (reuses OLLAMA_API_KEY, the
+                       #   web-search        → the Ollama search API (reuses OLLAMA_API_KEY, the
                        #                       ollama.com plan we already pay for).
                        #   agent-browser     → browser-automation tool (may want a system
                        #                       chromium — see verify note).
                        #   multi-account     → Anthropic OAuth + cap-aware failover/rotation;
                        #                       replaces pi-anthropic-auth. Config + rationale in
-                       #                       provider-failover.json below. `/login` is human's.
+                       #                       provider-failover.json below. `/login` stays manual (human).
                        #   permission-system → tool-permission enforcement (pairs with sandbox).
                        #   pi-sandbox        → sandboxed bash; installed by hand, captured here.
                        #   cc-header         → Claude-Code-style startup banner + status line.
@@ -411,7 +411,7 @@
                        #                       long builds without non-interactive-tty trip-ups;
                        #                       Monitor/Hands-free modes can retire the brittle
                        #                       parts of scripts/watch.sh. Self-installs its skill;
-                       #                       test it inside aleph's embedded pane, and note its
+                       #                       test it inside the aleph embedded pane, and note its
                        #                       spawn/PTY tools may need sandbox/permission allowlisting.
                        #   pi-retry          → zero-dep stall-watchdog + transient-error retry,
                        #                       stronger than settings.retry.enabled alone; matters
