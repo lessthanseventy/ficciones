@@ -111,13 +111,15 @@ defmodule Aleph.CockpitTest do
       assert cmd =~ "-f #{Aleph.Profiles.config_dir("tlon")}/tmux.conf"
     end
 
-    test "points pi at the profile's config dir and wires NO funes env (self-contained)" do
+    test "points pi at the profile's config dir and carries the funes identity into the session env" do
       cmd = Cockpit.profile_launcher(@profile)
       assert cmd =~ "PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")}"
-      # The whole funes sever lives in the profile's config (empty mcp.json, dropped funes-brief
-      # extension) — no FUNES_* plumbing in the launcher, so MANOS_RELOAD_CMD is the only `-e`.
-      refute cmd =~ "FUNES_"
-      assert length(Regex.scan(~r/(^|\s)-e /, cmd)) == 1
+      # The tlon coworker is a funes citizen (machine scope, @tlon_funes_mcp reads ${FUNES_MCP_URL}),
+      # so the identity is `-e`'d into the tmux SESSION env — durable across a pi respawn, not just
+      # pi's one-shot process env. (Supersedes the old "self-contained, no funes env" design.)
+      assert cmd =~ ~s(-e FUNES_MCP_URL="$FUNES_MCP_URL")
+      assert cmd =~ ~s(-e FUNES_AUTHOR="$FUNES_AUTHOR")
+      assert cmd =~ "MANOS_RELOAD_CMD="
     end
 
     test "MANOS_RELOAD_CMD carries the config dir so a manos/reload respawn stays on-profile" do
@@ -189,6 +191,18 @@ defmodule Aleph.CockpitTest do
 
     test "a malformed line is dropped, not guessed" do
       assert Cockpit.parse_tlon_tabs("garbage\n1\t1\tpi\n") == [%{name: "pi", active?: true, index: "1"}]
+    end
+  end
+
+  # The Tlön pi identity must reach the tmux SESSION env, not just pi's one-shot process env, or a
+  # continuum/--continue respawn comes up with ${FUNES_MCP_URL} empty and the funes MCP never wires
+  # ("Tool not found"). These -e flags put it in the session env, durable across respawns.
+  describe "funes_identity_flags/0 — durable FUNES_* wiring for the tlon session" do
+    test "emits -e VAR=\"$VAR\" for each funes identity var so bash expands current values" do
+      flags = Cockpit.funes_identity_flags()
+      assert flags =~ ~s(-e FUNES_MCP_URL="$FUNES_MCP_URL")
+      assert flags =~ ~s(-e FUNES_THREAD="$FUNES_THREAD")
+      assert flags =~ ~s(-e FUNES_AUTHOR="$FUNES_AUTHOR")
     end
   end
 

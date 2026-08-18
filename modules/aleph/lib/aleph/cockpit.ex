@@ -74,6 +74,11 @@ defmodule Aleph.Cockpit do
   @resurrect_max_fails 3
   @resurrect_healthy_ms 5_000
 
+  # The funes identity the Tlön pi needs to wire its MCP client (`${FUNES_MCP_URL}` in the profile's
+  # mcp.json + the bearer minted for FUNES_THREAD/FUNES_AUTHOR). Carried into the tmux SESSION env so
+  # it survives a respawn — see funes_identity_flags/0.
+  @funes_identity_env ~w(FUNES_MCP_URL FUNES_THREAD FUNES_AUTHOR FUNES_DB)
+
   # The empty Stack shape non-Tlön spaces (and a not-yet-probed Tlön) render.
   @empty_stack %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
 
@@ -1061,7 +1066,21 @@ defmodule Aleph.Cockpit do
     # and the readable copy-mode mode-style, so the launcher stays one plain `new-session`.
     # Window 0 is named `pi` so the tab strip has a clean label.
     "tmux -L #{Profiles.socket(profile.name)} -f #{Path.join(dir, "tmux.conf")}" <>
-      " new-session -A -s #{@tlon_session} -n pi #{env_flags} '#{pi}'"
+      " new-session -A -s #{@tlon_session} -n pi #{funes_identity_flags()} #{env_flags} '#{pi}'"
+  end
+
+  @doc false
+  # `-e FUNES_X="$FUNES_X"` for each identity var. The Tlön pi's MCP wiring reads `${FUNES_MCP_URL}`
+  # (profile mcp.json) and mints a bearer for FUNES_THREAD/FUNES_AUTHOR — but spawn_harness only
+  # `export`s those in pi's ONE-SHOT launch shell, so they live in pi's PROCESS env alone. A
+  # continuum/`--continue` restore, a `respawn-pane`, or a reload in a clean shell then boots with
+  # `${FUNES_MCP_URL}` empty → the funes server never registers ("Tool not found", never the 404 the
+  # adapter self-heals). Putting them in the tmux SESSION env via `-e` makes the identity durable
+  # across respawns; `-e` also refreshes on `new-session -A`, so an aleph restart re-freshes a stale
+  # identity instead of stranding it (the wired-wrong case aleph:reset used to be needed for). bash
+  # sourced the exports first, so it expands the values here into the current literal ones.
+  def funes_identity_flags do
+    Enum.map_join(@funes_identity_env, " ", fn var -> ~s(-e #{var}="$#{var}") end)
   end
 
   # POSIX single-quote: escape embedded quotes as '\'' so the value survives the shell verbatim.
