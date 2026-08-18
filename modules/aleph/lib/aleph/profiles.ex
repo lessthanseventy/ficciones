@@ -91,6 +91,8 @@ defmodule Aleph.Profiles do
   set -s default-terminal tmux-256color
   set -g history-limit 50000
   set -g mouse on
+  set -g base-index 1
+  set -g pane-base-index 1
   set -g mode-keys vi
   set -g status off
   set -g 'status-format[0]' ''
