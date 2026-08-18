@@ -10,11 +10,17 @@ defmodule Aleph.MachineChat.Loop do
   It's a READER: a separate OS process from the cockpit, so it can't share the node-local
   `Funes.Bus`; it polls `Funes.Channel.machine_threads/1` off the shared `FUNES_DB` instead.
 
-  Rendering is COALESCED like the cockpit: a scroll event only updates the (cheaply clamped) offset
-  and arms a single `:render`, so a fast wheel-burst collapses into one paint per frame instead of
-  flooding the mailbox with a full transcript render each. The scroll offset is clamped per-event
-  against the `max_scroll` cached by the last paint, so over-scrolling past the bottom is discarded
-  rather than piling up (which used to make scrolling back feel stuck).
+  Two MODES, keyed on whether an episode is zoomed:
+    * LIST — a compact list of episodes (folded threads). `j/k` (or `↑↓`) move the selection,
+      `Enter` folds/unfolds it inline, `z` zooms it to a full-pane read. Wheel/PgUp/PgDn scroll the
+      list when it overflows.
+    * ZOOM — one episode filling the pane. `j/k`, arrows, wheel, and PgUp/PgDn scroll it; `Esc`
+      returns to the list. `g`/`G` (Home/End) snap to top/bottom; `q` quits from either mode.
+
+  Rendering is COALESCED like the cockpit: an event only updates the (cheaply clamped) offset/state
+  and arms a single `:render`, so a fast wheel-burst collapses into one paint per frame. The offset
+  is clamped per-event against the `max_scroll` cached by the last paint, so over-scroll is discarded
+  rather than piling up.
   """
   use GenServer
 
@@ -26,12 +32,10 @@ defmodule Aleph.MachineChat.Loop do
 
   # Poll cadence for new messages — live enough for a conversation, cheap against a quiet WAL.
   @poll_ms 700
-  # Coalesce a burst of scroll/poll events into ONE paint on this cadence (~120fps), so fast
-  # scrolling stays smooth instead of serializing a full render per event (the cockpit's trick).
+  # Coalesce a burst of scroll/poll events into ONE paint on this cadence (~120fps).
   @render_coalesce_ms 8
   @tb_output_truecolor 5
-  # TB_INPUT_ESC (1) | TB_INPUT_MOUSE (4) = 5: ESC-sequence parsing AND mouse reporting, so the
-  # raxol Driver emits wheel events we scroll on (the cockpit's proven input mode).
+  # TB_INPUT_ESC (1) | TB_INPUT_MOUSE (4) = 5: ESC-sequence parsing AND mouse reporting (wheel).
   @tb_input_esc_mouse 5
   # Lines a single wheel notch scrolls — the usual terminal step.
   @wheel_lines 3
@@ -80,7 +84,6 @@ defmodule Aleph.MachineChat.Loop do
           view: Host.new(),
           scroll: 0,
           max_scroll: 0,
-          follow?: true,
           render_armed?: false
         }
 
@@ -121,11 +124,13 @@ defmodule Aleph.MachineChat.Loop do
     {:noreply, schedule_render(refresh_size(state))}
   end
 
-  def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
-    dispatch(action_for(key), state)
-  end
+  # Keys route by MODE: no zoom → list navigation; zoomed → scroll the episode.
+  def handle_cast({:dispatch, %Event{type: :key, data: key}}, %{view: %{zoom: nil}} = state),
+    do: list_key(intent(key), state)
 
-  # The wheel scrolls the transcript a few lines — same offset path as the keys.
+  def handle_cast({:dispatch, %Event{type: :key, data: key}}, state), do: zoom_key(intent(key), state)
+
+  # The wheel scrolls the current view (list or episode) in either mode.
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{button: :wheel_up}}}, state),
     do: {:noreply, scroll_by(state, -@wheel_lines)}
 
@@ -134,46 +139,62 @@ defmodule Aleph.MachineChat.Loop do
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
-  # The machine chat is really ONE long conversation (the active machine thread dominates), so the
-  # arrow/jk keys SCROLL it. Page keys jump a screenful; g/Home and G/End/Enter snap to top and
-  # bottom (bottom re-arms tail-follow). `z` zooms the newest thread full-pane, `q` quits.
-  defp dispatch(:ignore, state), do: {:noreply, state}
-  defp dispatch(:line_up, state), do: {:noreply, scroll_by(state, -1)}
-  defp dispatch(:line_down, state), do: {:noreply, scroll_by(state, 1)}
-  defp dispatch(:page_up, state), do: {:noreply, scroll_by(state, -page(state))}
-  defp dispatch(:page_down, state), do: {:noreply, scroll_by(state, page(state))}
-  defp dispatch(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0, follow?: false})}
-  defp dispatch(:bottom, state), do: {:noreply, schedule_render(%{state | scroll: state.max_scroll, follow?: true})}
+  # LIST mode: j/k move the episode selection, Enter folds/unfolds it, z zooms it to a full read.
+  # Page/g/G scroll the list itself for when expanded episodes overflow the pane.
+  defp list_key(:next, state), do: host(state, :down)
+  defp list_key(:prev, state), do: host(state, :up)
+  defp list_key(:enter, state), do: host(state, :toggle)
+  defp list_key(:zoom, state), do: host(state, :zoom, reset_scroll: true)
+  defp list_key(:pgdn, state), do: {:noreply, scroll_by(state, page(state))}
+  defp list_key(:pgup, state), do: {:noreply, scroll_by(state, -page(state))}
+  defp list_key(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0})}
+  defp list_key(:bottom, state), do: {:noreply, schedule_render(%{state | scroll: state.max_scroll})}
+  defp list_key(:quit, state), do: {:stop, :normal, state}
+  defp list_key(_other, state), do: {:noreply, state}
 
-  # Logical actions the pure Host owns (zoom/unzoom/quit). `q` stops the loop; terminate/2 restores
-  # the tty on the way out.
-  defp dispatch(action, state) do
+  # ZOOM mode: everything scrolls the episode; Esc returns to the list.
+  defp zoom_key(:next, state), do: {:noreply, scroll_by(state, 1)}
+  defp zoom_key(:prev, state), do: {:noreply, scroll_by(state, -1)}
+  defp zoom_key(:pgdn, state), do: {:noreply, scroll_by(state, page(state))}
+  defp zoom_key(:pgup, state), do: {:noreply, scroll_by(state, -page(state))}
+  defp zoom_key(:top, state), do: {:noreply, schedule_render(%{state | scroll: 0})}
+  defp zoom_key(:bottom, state), do: {:noreply, schedule_render(%{state | scroll: state.max_scroll})}
+  defp zoom_key(:back, state), do: host(state, :back, reset_scroll: true)
+  defp zoom_key(:quit, state), do: {:stop, :normal, state}
+  defp zoom_key(_other, state), do: {:noreply, state}
+
+  # Run a pure Host action, optionally resetting the scroll (entering/leaving a zoom swaps the whole
+  # content, so start it at the top), then arm a paint.
+  defp host(state, action, opts \\ []) do
     view = Host.handle_key(state.view, action)
-    if view.quit, do: {:stop, :normal, %{state | view: view}}, else: {:noreply, schedule_render(%{state | view: view})}
+    next = if opts[:reset_scroll], do: %{state | view: view, scroll: 0}, else: %{state | view: view}
+    {:noreply, schedule_render(next)}
   end
+
+  # Raw key → a mode-neutral intent the list/zoom handlers interpret.
+  defp intent(%{key: :char, char: "j"}), do: :next
+  defp intent(%{key: :char, char: "k"}), do: :prev
+  defp intent(%{key: :char, char: "g"}), do: :top
+  defp intent(%{key: :char, char: "G"}), do: :bottom
+  defp intent(%{key: :char, char: "z"}), do: :zoom
+  defp intent(%{key: :char, char: "q"}), do: :quit
+  defp intent(%{key: :char}), do: :ignore
+  defp intent(%{key: :down}), do: :next
+  defp intent(%{key: :up}), do: :prev
+  defp intent(%{key: k}) when k in [:enter, :space], do: :enter
+  defp intent(%{key: :escape}), do: :back
+  defp intent(%{key: :page_down}), do: :pgdn
+  defp intent(%{key: :page_up}), do: :pgup
+  defp intent(%{key: :home}), do: :top
+  defp intent(%{key: :end}), do: :bottom
+  defp intent(_key), do: :ignore
 
   # Move the offset by `delta` lines, clamped to `[0, max_scroll]` using the cached bound so it's
-  # cheap (no render) and excess fast-scroll is discarded; reaching the bottom re-arms tail-follow.
+  # cheap (no render) and excess fast-scroll is discarded.
   defp scroll_by(state, delta) do
     scroll = (state.scroll + delta) |> min(state.max_scroll) |> max(0)
-    schedule_render(%{state | scroll: scroll, follow?: scroll >= state.max_scroll})
+    schedule_render(%{state | scroll: scroll})
   end
-
-  defp action_for(%{key: :char, char: "j"}), do: :line_down
-  defp action_for(%{key: :char, char: "k"}), do: :line_up
-  defp action_for(%{key: :char, char: "g"}), do: :top
-  defp action_for(%{key: :char, char: "G"}), do: :bottom
-  defp action_for(%{key: :char, char: "z"}), do: :zoom
-  defp action_for(%{key: :char, char: "q"}), do: :quit
-  defp action_for(%{key: :char}), do: :ignore
-  defp action_for(%{key: :down}), do: :line_down
-  defp action_for(%{key: :up}), do: :line_up
-  defp action_for(%{key: :page_down}), do: :page_down
-  defp action_for(%{key: :page_up}), do: :page_up
-  defp action_for(%{key: :home}), do: :top
-  defp action_for(%{key: k}) when k in [:end, :enter, :space], do: :bottom
-  defp action_for(%{key: :escape}), do: :back
-  defp action_for(_key), do: :ignore
 
   # A page is one screenful minus a line of overlap, so a reader keeps their place across a jump.
   defp page(state), do: max(state.h - 2, 1)
@@ -204,12 +225,12 @@ defmodule Aleph.MachineChat.Loop do
     %{state | render_armed?: true}
   end
 
-  # Render the transcript ONCE at full height, cache the resulting scroll bound, then window the
-  # rows by the offset (re-pinned to the bottom while following) and blit them. One render per frame.
+  # Render the transcript ONCE at full height, cache the resulting scroll bound, then window the rows
+  # by the (clamped) offset and blit them. One render per frame.
   defp paint(state) do
     rows = Transcript.render(state.view, %{x: 0, y: 0, w: state.w, h: @max_rows})
     max_scroll = max(length(rows) - state.h, 0)
-    scroll = if state.follow?, do: max_scroll, else: min(state.scroll, max_scroll)
+    scroll = min(state.scroll, max_scroll)
 
     rows
     |> Enum.drop(scroll)
@@ -217,7 +238,7 @@ defmodule Aleph.MachineChat.Loop do
     |> Board.rows_to_cells(%{x: 0, y: 0, w: state.w, h: state.h})
     |> Board.paint()
 
-    %{state | scroll: scroll, max_scroll: max_scroll, follow?: state.follow? or scroll >= max_scroll}
+    %{state | scroll: scroll, max_scroll: max_scroll}
   end
 
   @impl true

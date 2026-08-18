@@ -8,7 +8,8 @@ defmodule Aleph.TranscriptTest do
 
   defp m(author, body, at \\ ~U[2026-08-18 14:30:00Z]), do: %{author: author, body: body, created_at: at}
 
-  defp block(title, id, messages), do: %{thread: %{id: id, title: title}, messages: messages}
+  defp block(title, id, messages, state \\ "open"),
+    do: %{thread: %{id: id, title: title, state: state}, messages: messages}
 
   defp view(blocks, opts \\ []) do
     %{
@@ -85,6 +86,21 @@ defmodule Aleph.TranscriptTest do
     assert Enum.any?(body, &(&1 =~ "bbb"))
     refute Enum.any?(body, &(&1 =~ "aaa"))
     assert Enum.any?(body, &(&1 =~ "B"))
+  end
+
+  test "a folded episode header shows its participants and message count" do
+    msgs = [m("pi", "hi"), m("claude", "yo"), m("pi", "more")]
+    rows = Transcript.render(view([block("Debate", 1, msgs)], folded: MapSet.new([1])), rect())
+    header = rows |> texts() |> Enum.find(&(&1 =~ "Debate"))
+
+    assert header =~ "pi"
+    assert header =~ "claude"
+    assert header =~ "(3)"
+  end
+
+  test "a closed episode is marked closed in its header" do
+    rows = Transcript.render(view([block("Done thing", 1, [m("pi", "x")], "closed")], folded: MapSet.new([1])), rect())
+    assert Enum.any?(texts(rows), &(&1 =~ "Done thing" and &1 =~ "closed"))
   end
 
   test "a long body wraps to the rect width across multiple rows" do

@@ -6,10 +6,10 @@ defmodule Aleph.MachineChat.HostTest do
   defp block(id), do: %{thread: %{id: id, title: "t#{id}"}, messages: []}
 
   describe "merge/2 — folding across polls" do
-    test "the newest thread is expanded and older ones folded by default" do
+    test "every thread is folded by default — the chat opens as a compact episode list" do
       state = Host.merge(Host.new(), [block(3), block(2), block(1)])
 
-      refute MapSet.member?(state.folded, 3)
+      assert MapSet.member?(state.folded, 3)
       assert MapSet.member?(state.folded, 2)
       assert MapSet.member?(state.folded, 1)
     end
@@ -64,13 +64,13 @@ defmodule Aleph.MachineChat.HostTest do
       assert state.selected == 2
     end
 
-    test ":toggle folds and unfolds the selected block", %{state: state} do
-      # selected is the newest (index 0), which starts expanded
-      folded_once = Host.handle_key(state, :toggle)
-      assert MapSet.member?(folded_once.folded, 3)
-
-      unfolded = Host.handle_key(folded_once, :toggle)
+    test ":toggle unfolds and re-folds the selected block", %{state: state} do
+      # every block starts folded (the compact list), so the first toggle expands the selection
+      unfolded = Host.handle_key(state, :toggle)
       refute MapSet.member?(unfolded.folded, 3)
+
+      refolded = Host.handle_key(unfolded, :toggle)
+      assert MapSet.member?(refolded.folded, 3)
     end
 
     test ":toggle is a no-op while zoomed", %{state: state} do

@@ -8,7 +8,7 @@ defmodule Aleph.MachineChat.Host do
     - `blocks`    — the `Funes.Channel.machine_threads/1` read model (most-recent-activity first).
     - `selected`  — index of the highlighted block.
     - `folded`    — the effective folded set (thread ids), computed each merge from `overrides` + the
-      default (newest thread expanded, older ones folded).
+      default (ALL folded — the chat opens as a compact episode list you scan and open).
     - `overrides` — the user's explicit fold choices (`thread_id => folded?`), which survive a poll:
       a manual expand/collapse always wins over the default, even as threads rotate.
     - `zoom`      — the thread id shown full-pane, or `nil`.
@@ -89,13 +89,12 @@ defmodule Aleph.MachineChat.Host do
   def handle_key(state, :quit), do: %{state | quit: true}
   def handle_key(state, _other), do: state
 
-  # The effective folded set: for each thread, the user's override if any, else the default —
-  # only the newest (index 0, most-recent activity) thread is expanded.
+  # The effective folded set: for each thread, the user's override if any, else the default (folded)
+  # — so the chat opens as a compact list of episode titles you expand or zoom into.
   defp folded_set(blocks, overrides) do
     blocks
-    |> Enum.with_index()
-    |> Enum.filter(fn {block, index} -> Map.get(overrides, thread_id(block), index != 0) end)
-    |> MapSet.new(fn {block, _index} -> thread_id(block) end)
+    |> Enum.filter(fn block -> Map.get(overrides, thread_id(block), true) end)
+    |> MapSet.new(&thread_id/1)
   end
 
   defp selected_thread_id(state), do: state.blocks |> Enum.at(state.selected) |> thread_id()

@@ -65,16 +65,37 @@ defmodule Aleph.Transcript do
     Panel.clip(header ++ body, rect)
   end
 
-  # A thread block: the `▸/▾ title (n)` header (selected → highlighted), then its messages unless
-  # folded, then a trailing blank so blocks read apart.
+  # A thread block reads as one EPISODE: the `▸/▾ title` header carries its participants, message
+  # count, and open/closed state (selected → highlighted, closed → dimmed), then its messages unless
+  # folded, then a trailing blank so episodes read apart.
   defp block_rows(block, index, data, w) do
     folded? = MapSet.member?(data.folded, block.thread.id)
+    closed? = block.thread.state == "closed"
     arrow = if folded?, do: "▸", else: "▾"
-    title_style = if index == data.selected, do: :selected, else: :header
-    head = [{"#{arrow} ", :accent}, {title(block), title_style}, {"  (#{length(block.messages)})", :dim}]
+
+    title_style =
+      cond do
+        index == data.selected -> :selected
+        closed? -> :dim
+        true -> :header
+      end
+
+    head = [{"#{arrow} ", :accent}, {title(block), title_style}, {meta(block, closed?), :dim}]
     msgs = if folded?, do: [], else: message_rows(block.messages, w)
 
     [head | msgs] ++ [blank()]
+  end
+
+  # The dim `· pi·claude · (3) · closed` suffix on an episode header — who's in it, how many
+  # messages, and whether it's resolved.
+  defp meta(block, closed?) do
+    who =
+      case block.messages |> Enum.map(& &1.author) |> Enum.uniq() do
+        [] -> ""
+        authors -> "  " <> Enum.join(authors, "·")
+      end
+
+    who <> "  (#{length(block.messages)})" <> if(closed?, do: "  · closed", else: "")
   end
 
   defp title(%{thread: %{title: title}}), do: title || "untitled"
