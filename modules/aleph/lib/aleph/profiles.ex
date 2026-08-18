@@ -28,7 +28,8 @@ defmodule Aleph.Profile do
             mcp: :base,
             model: nil,
             system_prompt: nil,
-            sandbox: nil
+            sandbox: nil,
+            automode: nil
 
   @type t :: %__MODULE__{
           name: String.t(),
@@ -37,7 +38,8 @@ defmodule Aleph.Profile do
           mcp: :base | :none | map(),
           model: %{provider: String.t(), model: String.t(), thinking: String.t()} | nil,
           system_prompt: String.t() | nil,
-          sandbox: map() | nil
+          sandbox: map() | nil,
+          automode: map() | nil
         }
 end
 
@@ -53,6 +55,7 @@ defmodule Aleph.Profiles do
         settings.json     profile-specific — base settings with extensions dropped + model overridden
         mcp.json          profile-specific — the profile's MCP servers (`{}` = self-contained)
         sandbox.json      profile-specific — pi-sandbox allowlist (only if profile.sandbox)
+        automode.json     profile-specific — pi-automode guardrail policy (only if profile.automode)
         system_prompt.md  profile-specific — the persona (only if profile.system_prompt)
         tmux.conf         profile-specific — the persistence-free config its private tmux
                           server (`tmux -L aleph-<name>`) boots from (see `socket/1`)
@@ -146,6 +149,31 @@ defmodule Aleph.Profiles do
     }
   }
 
+  # The Tlön coworker's pi-automode policy (`automode.json`). pi-automode reads it from
+  # `PI_CODING_AGENT_DIR` — the SAME reason sandbox.json is per-profile — so the coworker needs
+  # its OWN copy; the flake's `~/.pi/agent/automode.json` governs only the interactive agent, not
+  # this redirected config dir. It matters MORE here: Tlön runs autonomously, so a permission
+  # prompt with no human watching would just stall it. Precedence is deny/ask → hard_deny →
+  # classifier; the classifier is a one-token filter on ollama-cloud/deepseek-v4-flash (the FLAT
+  # ollama bucket, never the coworker's scarce Claude driver). In-cwd edits + read-only tools are
+  # silent (bounded by @tlon_sandbox's write allowlist); bash still classifies. Mirrors the flake's
+  # `piAutomodeJson` on purpose — profiles are self-contained by design, so the policy lives in both
+  # config dirs rather than being shared. See [[pi-automode-guardrail]].
+  @tlon_automode %{
+    "autoMode" => %{
+      "enabled" => true,
+      "classifierModel" => "ollama-cloud/deepseek-v4-flash",
+      "classifierReasoningLevel" => "low",
+      "classifyReadOnlyTools" => false,
+      "allowInsideWorkingDirectory" => true,
+      "fastClassifierMaxTokens" => 512,
+      "allow" => ["$defaults"],
+      "protectedPaths" => ["$defaults"],
+      "soft_deny" => ["$defaults"],
+      "hard_deny" => ["$defaults"]
+    }
+  }
+
   # The dense statusline (manos/footer) — its OWN package, not manos/pi, so dropping the funes
   # adapter doesn't take the footer with it. Added explicitly so Tlön shows it at the next cockpit
   # restart even before the flake registers it into the base config (which needs a home:switch).
@@ -170,7 +198,8 @@ defmodule Aleph.Profiles do
       add_extensions: [@footer_extension],
       mcp: :none,
       model: %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"},
-      sandbox: @tlon_sandbox
+      sandbox: @tlon_sandbox,
+      automode: @tlon_automode
     }
   ]
 
@@ -220,12 +249,13 @@ defmodule Aleph.Profiles do
 
   @doc """
   Pure: profile + the base `settings.json`/`mcp.json` maps → the files the profile's config dir needs.
-  Returns `%{settings: map, mcp: map, sandbox: map | nil, system_prompt: binary | nil}`.
+  Returns `%{settings: map, mcp: map, sandbox: map | nil, automode: map | nil, system_prompt: binary | nil}`.
   """
   @spec render(Profile.t(), map(), map()) :: %{
           settings: map(),
           mcp: map(),
           sandbox: map() | nil,
+          automode: map() | nil,
           system_prompt: String.t() | nil
         }
   def render(%Profile{} = p, base_settings, base_mcp) do
@@ -249,7 +279,7 @@ defmodule Aleph.Profiles do
         servers when is_map(servers) -> %{"mcpServers" => servers}
       end
 
-    %{settings: settings, mcp: mcp, sandbox: p.sandbox, system_prompt: p.system_prompt}
+    %{settings: settings, mcp: mcp, sandbox: p.sandbox, automode: p.automode, system_prompt: p.system_prompt}
   end
 
   defp apply_model(settings, nil), do: settings
@@ -298,6 +328,7 @@ defmodule Aleph.Profiles do
     write_json!(Path.join(dir, "mcp.json"), r.mcp)
 
     if r.sandbox, do: write_json!(Path.join(dir, "sandbox.json"), r.sandbox)
+    if r.automode, do: write_json!(Path.join(dir, "automode.json"), r.automode)
     if r.system_prompt, do: File.write!(Path.join(dir, "system_prompt.md"), r.system_prompt)
     File.write!(Path.join(dir, "tmux.conf"), @coworker_tmux_conf)
 

@@ -53,6 +53,15 @@ defmodule Aleph.ProfilesTest do
                %{"enabled" => true}
     end
 
+    test "automode passes through untouched" do
+      assert Profiles.render(
+               %Profile{name: "t", automode: %{"autoMode" => %{"enabled" => true}}},
+               @base_settings,
+               @base_mcp
+             ).automode ==
+               %{"autoMode" => %{"enabled" => true}}
+    end
+
     test "add_extensions appends on top of the base (a coworker-specific / not-yet-flake-registered extension)" do
       r =
         Profiles.render(
@@ -108,6 +117,16 @@ defmodule Aleph.ProfilesTest do
       assert Enum.any?(p.add_extensions, &String.ends_with?(&1, "/modules/manos/footer/src/footer.ts"))
       # and the footer path does NOT match the funes-adapter drop, so it isn't a fight
       refute Enum.any?(p.add_extensions, &String.contains?(&1, "/manos/pi/"))
+    end
+
+    test "carries a pi-automode policy — classifier on the flat ollama bucket, not the Claude driver" do
+      p = Profiles.fetch("tlon")
+      auto = p.automode["autoMode"]
+      assert auto["enabled"] == true
+      # the classifier must NOT be the coworker's scarce Claude driver — a one-token filter belongs
+      # on the flat ollama bucket
+      assert auto["classifierModel"] == "ollama-cloud/deepseek-v4-flash"
+      refute auto["classifierModel"] =~ "anthropic"
     end
 
     test "drives Claude-first — sonnet as the delegating orchestrator, not glm" do
@@ -177,6 +196,9 @@ defmodule Aleph.ProfilesTest do
       refute Enum.any?(settings["extensions"], &String.contains?(&1, "/manos/pi/"))
       assert Jason.decode!(File.read!(Path.join(dir, "mcp.json"))) == %{"mcpServers" => %{}}
       assert Jason.decode!(File.read!(Path.join(dir, "sandbox.json")))["enabled"] == true
+      # pi-automode reads automode.json from PI_CODING_AGENT_DIR, so the coworker needs its own copy
+      auto = Jason.decode!(File.read!(Path.join(dir, "automode.json")))
+      assert auto["autoMode"]["classifierModel"] == "ollama-cloud/deepseek-v4-flash"
       # the shared files are symlinks back to the base — one credential store, one model catalog,
       # one failover policy (so pi-multi-account fails this coworker's Claude over to ollama.com glm)
       assert File.read_link!(Path.join(dir, "auth.json")) == Path.join(base, "auth.json")
