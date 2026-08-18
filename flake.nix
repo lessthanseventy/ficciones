@@ -308,6 +308,13 @@
                     "cache.nixos.org"
                     "channels.nixos.org"
                     "nixos.org"
+                    # dev toolchains fetched under mise (global config pins rust=nightly). Trusted
+                    # infra; the fs write-scope + permission-system credential denies stay the fence.
+                    "sh.rustup.rs"
+                    "static.rust-lang.org"
+                    "crates.io"
+                    "static.crates.io"
+                    "index.crates.io"
                   ];
                 };
                 filesystem = {

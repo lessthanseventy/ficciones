@@ -121,7 +121,15 @@ defmodule Aleph.Profiles do
         "registry.ollama.ai",
         "cache.nixos.org",
         "channels.nixos.org",
-        "nixos.org"
+        "nixos.org",
+        # dev toolchains the coworker fetches under mise (global config pins rust=nightly, so mise
+        # wants rustup even for aleph work, whose NIFs are otherwise precompiled). Trusted infra, not
+        # exfil targets — the fs write-scope + permission-system credential denies stay the real fence.
+        "sh.rustup.rs",
+        "static.rust-lang.org",
+        "crates.io",
+        "static.crates.io",
+        "index.crates.io"
       ]
     },
     "filesystem" => %{
