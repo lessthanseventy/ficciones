@@ -6,15 +6,13 @@ defmodule Funes.MCP.Gateway do
 
   ## Why /mint exists
 
-  A pane's `FUNES_TOKEN` used to be frozen into its env at spawn time. That stranded
-  the pane the moment the token model changed or the world secret regenerated — the
-  literal-tmux Tlön pane survives an aleph restart, but its frozen token didn't
-  survive the 2026-08-16 stateless-HMAC amendment, so the next `register` 401'd as
-  "stale or unminted." The fix is structural, not a re-mint patch: **no token is
-  frozen.** An adapter mints a fresh token on every connect against the SAME origin
-  as its `FUNES_MCP_URL` (so it always hits the right world — aleph's `.dev` world on
-  4041, or the always-up service's XDG world on 4040), and identity travels as the
-  stable, format-agnostic `(FUNES_THREAD, FUNES_AUTHOR, FUNES_MCP_URL)`.
+  A pane's `FUNES_TOKEN` is never frozen into its env at spawn time — a frozen token
+  would strand the pane the moment the token model changes or the world secret
+  regenerates, since a long-lived pane can outlive either even across an aleph
+  restart. Instead, an adapter mints a fresh token on every connect against the SAME
+  origin as its `FUNES_MCP_URL` (so it always hits the right world — aleph's `.dev`
+  world on 4041, or the always-up service's XDG world on 4040), and identity travels
+  as the stable, format-agnostic `(FUNES_THREAD, FUNES_AUTHOR, FUNES_MCP_URL)`.
 
   `/mint` is the endpoint that makes that possible. It takes `{"thread_id", "agent"}`
   and returns `{"token"}`, minting with THIS node's world secret — the same secret

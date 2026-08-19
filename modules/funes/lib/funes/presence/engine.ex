@@ -10,7 +10,7 @@ defmodule Funes.Presence.Engine do
   from naming a vendor, so which engine is spent (Claude's five-hour window, an ollama
   flat plan that never is) lives entirely in the backend, chosen by config
   `:funes, :engine_presence`, defaulting to `Available` — absent config, every engine is
-  available, so the wake behaves exactly as before it was wired (degrade honestly). The
+  available, so the wake is gated on warmth alone (degrade honestly). The
   switchboard's `recipients/1` excludes a session whose engine is clocked out.
   """
   @callback clocked_out?(agent :: Funes.Agent.t()) :: boolean()
@@ -26,7 +26,7 @@ defmodule Funes.Presence.Engine.Available do
   @moduledoc """
   The default engine-presence backend: nothing is ever clocked out. A machine that has
   not wired a credit/rate-limit signal still runs the whole design — the wake is gated on
-  warmth alone, exactly as before. Local models are first-class (§8), and a flat-plan
+  warmth alone. Local models are first-class (§8), and a flat-plan
   engine that never clocks out is precisely this.
   """
   @behaviour Funes.Presence.Engine

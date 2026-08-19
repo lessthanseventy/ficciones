@@ -7,8 +7,7 @@ defmodule Funes.Staff do
 
   Deliberately out of scope, and deferred (§3b/§10): presence ("clocked out" is
   derived from the engine, asked live), routing/cover, the night shift, engine
-  resolution, and the PubSub wake. This step builds only the model those layers
-  will stand on — the recipient identity step 2's wake was waiting for.
+  resolution, and the PubSub wake.
   """
   import Ecto.Query
 

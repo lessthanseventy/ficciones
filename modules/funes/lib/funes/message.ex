@@ -50,9 +50,8 @@ defmodule Funes.Message do
   end
 
   # The channel is §4's PRIMARY capture path and messages are FTS-indexed + searchable, so the
-  # total-recall slice-B guard applies here as much as to facts — scanning only `fact.text` left
-  # the main door open (a posted `AKIA…` persisted, searchable, and bank_stated_fact's scan fired
-  # one layer too late, after the message row already stored the credential).
+  # total-recall slice-B guard applies here as much as to facts — a secret in a message would
+  # persist and be searchable exactly like one in a fact.
   defp validate_no_secret(changeset, field) do
     case Funes.Secrets.scan(get_field(changeset, field)) do
       :ok ->

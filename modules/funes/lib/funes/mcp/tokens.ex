@@ -4,20 +4,19 @@ defmodule Funes.MCP.Tokens do
   (thread, agent) so every tool reads identity from the connection's claims, never from a call
   parameter — banking onto the wrong thread is unrepresentable rather than merely discouraged.
 
-  **STATELESS and restart-surviving (amended 2026-08-16).** A token IS its claims: an HMAC over
+  **STATELESS and restart-surviving.** A token IS its claims: an HMAC over
   `(thread_id, agent_id, agent)` signed with the per-world key (`Funes.MCP.Secret`). `resolve/1`
   verifies the signature and decodes — no in-memory registry, so a token stays valid across a node
-  restart. This overturns the original "deliberately ephemeral, dies with the node" design, which
-  was right for the always-up service (rare restart) but wrong for the **aleph dogfood hub**, which
-  restarts constantly during development and would 401 every spawned session on each restart.
+  restart, which matters on the **aleph dogfood hub**: it restarts constantly during development,
+  and a registry-backed token would 401 every spawned session on each restart.
 
-  The concern that retired the registry — "a stale grant that outlives its session is the zombie
-  problem wearing a lanyard" — is handled by the SESSION model, not the token lifetime: `resolve`
-  attaches the CURRENT live session for (thread, agent) via `Staff.live_session/2`, and the partial
-  unique index guarantees at most one. So a token from a dead session resolves to whoever is live
-  now (or to no session), never resurrects a zombie. Forgery is out of scope on a single-human
-  loopback machine (§8: how a machine authenticates is local configuration), and the HMAC still
-  means only a holder of the world's key can mint.
+  A stale grant that outlives its session is the zombie problem wearing a lanyard — handled by the
+  SESSION model, not the token lifetime: `resolve` attaches the CURRENT live session for (thread,
+  agent) via `Staff.live_session/2`, and the partial unique index guarantees at most one. So a
+  token from a dead session resolves to whoever is live now (or to no session), never resurrects a
+  zombie. Forgery is out of scope on a single-human loopback machine (§8: how a machine
+  authenticates is local configuration), and the HMAC still means only a holder of the world's key
+  can mint.
   """
   alias Funes.Agent
   alias Funes.MCP.Secret

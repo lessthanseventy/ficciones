@@ -24,14 +24,14 @@ defmodule Funes.Switchboard do
   1. **Coalescing.** A backlog wakes each pane ONCE, never once per message — a
      resumed thread with fifty undelivered messages is one nudge, not fifty turns
      (`drain/0` dedups panes; also §5b's noise rule).
-  2. **Warmth-gating (built).** A session idle longer than the prompt cache stays
+  2. **Warmth-gating.** A session idle longer than the prompt cache stays
      warm (~1h, `:warmth_window_seconds`) is **cold** — a poke would pay a full
      transcript re-ingestion instead of a cheap resume, the "resumed an old thread
      and burned my whole allotment" footgun. `recipients/1` excludes cold sessions
      (treated like ended ones), and the switchboard bumps `last_active_at` as a
      session acts — on being woken and on authoring (§3b, the warmth window).
      The OTHER half of "clocked out" — an engine out of credits or past its
-     rate-limit window — is now wired too: `recipients/1` drops a session whose
+     rate-limit window — gates the wake too: `recipients/1` drops a session whose
      engine `Funes.Presence.Engine.clocked_out?/1` reports spent (a pluggable §8
      backend, defaulting to always-available). Both halves gate the wake before an
      auto-poking tmux backend replaces the default `Inert` arbiter.

@@ -61,7 +61,7 @@ defmodule Funes.Channel do
 
   @doc "Open PROJECT threads only, newest first — closed and machine-scope threads are omitted.
   The machine thread (the Tlön coworker) is filtered out of the project surfaces; reach it via
-  `machine_thread/0` or by id. (aleph Tlön isolation, 2026-08-16.)"
+  `machine_thread/0` or by id."
   def open_threads do
     Repo.all(from t in Thread, where: t.state == "open" and t.scope == ^@project_scope, order_by: [desc: t.id])
   end
@@ -72,9 +72,8 @@ defmodule Funes.Channel do
   `docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md`). Also the find-or-create lookup for
   the Tlön machine coworker, so it reuses a persistent thread across aleph restarts.
 
-  Oldest, NOT newest: B1.4 made every staffed leaf (thread 2, …) machine-scope too, so a
-  `[desc: t.id]` "latest machine thread" now returns a leaf, not the root — the fragility under the
-  2026-08-19 duplicate-delivery bug (`standing_thread_id` capturing a leaf). Leaves are always newer
+  Oldest, NOT newest: every staffed leaf thread is machine-scope too, so a `[desc: t.id]`
+  "latest machine thread" would return a leaf, not the root. Leaves are always newer
   than the root, so `[asc: t.id]` returns the root and only the root (until it is closed, which
   rotation/`clear-machine-threads` must not do).
   """
@@ -92,7 +91,7 @@ defmodule Funes.Channel do
   end
 
   @doc """
-  STAFFED machine-scope threads — B1.4's `ensure_thread_sessions` candidate list (aleph
+  STAFFED machine-scope threads — the `ensure_thread_sessions` candidate list (aleph
   cockpit.ex): every machine-scope thread with a lead, `%{id, lead, title}` per thread (`lead` is
   the staffed agent's name; the join makes it never nil). No open/closed filter and no ordering
   guarantee — the cockpit does its own dedup against live tmux windows and its own retry backoff.
@@ -109,12 +108,11 @@ defmodule Funes.Channel do
 
   @doc """
   Delete every MACHINE-scope thread and everything hanging off it — the clean-slate reset behind
-  `mise run aleph:clear-machine-threads` (B1.4's design doc: old machine threads are disposable).
+  `mise run aleph:clear-machine-threads` (old machine threads are disposable).
 
   Every table with a `thread_id` FK must be cleared before the threads themselves: SQLite's FKs
-  are `NO ACTION`, so a single surviving child row rejects the whole thread delete (the bug this
-  replaces cleared only `message` — a machine thread with a `session`/`fact`/`todo`/... blew up on
-  the thread delete and rolled the transaction back). Two wrinkles in the child sweep:
+  are `NO ACTION`, so a single surviving child row rejects the whole thread delete. Two wrinkles
+  in the child sweep:
 
     * `fact` references `session` (`fact.source_session_id`), so facts must be deleted BEFORE
       sessions, or the session delete trips that FK.
@@ -144,7 +142,7 @@ defmodule Funes.Channel do
   end
 
   @doc """
-  ALL machine-scope threads as THREAD BLOCKS — the Tlön machine-chat surface (aleph's `chat` tab).
+  ALL machine-scope threads as THREAD BLOCKS — aleph's Tlön machine-chat surface.
   Like `chorus/1` but scoped to `machine` and WITHOUT the open-only filter: a rotated (closed)
   machine thread must still surface as history, so the chat can fold it below the current one.
   Each block carries the thread's recent messages (chat order within), most-recent-activity FIRST.
@@ -193,7 +191,7 @@ defmodule Funes.Channel do
 
   @doc """
   The most recent message on `thread_id` authored by the configured operator (config `:operator`,
-  case-insensitive — see `Dossier.bank_stated_fact/2`), or nil. B1.4's opening-turn source: a
+  case-insensitive — see `Dossier.bank_stated_fact/2`), or nil. Opening-turn source: a
   freshly spawned per-thread window is woken with the operator's own words, verbatim, never an
   agent's paraphrase.
   """

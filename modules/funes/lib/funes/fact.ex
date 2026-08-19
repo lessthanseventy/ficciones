@@ -1,7 +1,6 @@
 defmodule Funes.Fact do
   @moduledoc """
-  A durable thing learned (spec §4): the ledger's successor, the judgement a system
-  cannot derive. One row is one claim with one `provenance` — `stated` (the owner
+  A durable thing learned (spec §4): the judgement a system cannot derive. One row is one claim with one `provenance` — `stated` (the owner
   said it, verbatim) or `derived` (we produced it) — and reproducibility rides a
   separate axis, `check_cmd`, the command that re-runs the claim. `kind` and
   `provenance` are closed sets the DB CHECKs; the schema does not mirror them.

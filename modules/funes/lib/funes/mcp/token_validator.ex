@@ -5,7 +5,8 @@ defmodule Funes.MCP.TokenValidator do
   carry the binding (thread, agent, session) every tool reads from its frame,
   plus the token itself so `register` can bind its session back here. `aud`
   mirrors the configured resource because anubis validates audience
-  unconditionally; there is no `exp` — a token dies with the node, not a clock.
+  unconditionally; there is no `exp` — validity rests on the HMAC signature
+  (`Funes.MCP.Tokens`), not a clock.
   """
   @behaviour Anubis.Server.Authorization.Validator
 

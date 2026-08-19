@@ -1,9 +1,8 @@
 defmodule Funes.Todo do
   @moduledoc """
   A plan step, thread-scoped (pi doc §5 slice 3, the activity axis). `done_at` NULL is
-  open, a timestamp is done — and the column is present FROM BIRTH, because the missing
-  `closed_at` that bit `issue` (a completion time bolted on later, never backfilled) is
-  the gap this schema refuses to repeat. Order is insertion order (`id`); there is no
+  open, a timestamp is done — and the column is present FROM BIRTH, the missing
+  completion time that bit `issue` must not recur. Order is insertion order (`id`); there is no
   order column — reordering is a later verb only if evidence demands it, never a field
   guessed at now.
 

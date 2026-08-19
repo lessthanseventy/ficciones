@@ -7,14 +7,12 @@ defmodule Funes.Application do
     # PubSub is always up — it is the switchboard's nudge and cheap to run, and the
     # test harness needs it so Channel.post can broadcast. The Repo is started
     # except under :test (the harness owns its lifecycle). The switchboard Server is
-    # opt-in (off by default): its presence-gating prerequisite now exists (BOTH
+    # opt-in (off by default): its presence-gating prerequisite exists (BOTH
     # warmth and engine-credit, see Funes.Switchboard), but the wake only pokes for
     # real once a deployment ALSO sets a non-Inert arbiter — so the dogfood hub
     # (aleph, topology A) flips :start_switchboard on, the prod service stays inert
     # until the service→tmux path is proven (see the tlön design doc). The MCP
     # channel is opt-in the same way: a node that serves agents flips :start_mcp on.
-    # The consult mirror is always-on: it only writes DB rows (never pokes a pane), so it
-    # is safe where the switchboard is deliberately opt-in.
     # The consult mirror is on by default (it only writes DB rows, never pokes a pane, so it
     # is safe where the switchboard is deliberately opt-in) — but the test harness turns it
     # off so the pure maybe_mirror tests don't double-fire.
@@ -37,7 +35,7 @@ defmodule Funes.Application do
   # binds no further than the machine.
   defp mcp_children do
     [
-      # Funes.MCP.Tokens is stateless now (signed tokens, no registry) — nothing to supervise.
+      # Funes.MCP.Tokens is stateless (signed tokens, no registry) — nothing to supervise.
       {Funes.MCP.Server, transport: :streamable_http},
       # The Gateway routes POST /mint (a fresh-token mint for an adapter's per-connect auth)
       # and forwards everything else to the anubis MCP transport. Loopback only — a personal

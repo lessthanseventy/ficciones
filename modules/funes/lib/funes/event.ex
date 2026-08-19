@@ -1,7 +1,7 @@
 defmodule Funes.Event do
   @moduledoc """
-  Append-only, what happened — for happenings with **no other home** (spec §4,
-  amended 2026-08-15). The closed `kind` the DB CHECKs is the outcomes and
+  Append-only, what happened — for happenings with **no other home** (spec §4).
+  The closed `kind` the DB CHECKs is the outcomes and
   judgements no other table records: `work_landed`, `command_approved`,
   `check_passed`, `handoff_opened`. A message and a session are NOT events — they
   are their own rows with their own timestamps, and the timeline derives them; an
