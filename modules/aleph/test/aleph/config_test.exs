@@ -42,4 +42,27 @@ defmodule Aleph.ConfigTest do
     File.write!(path, ~s({"coworkers":{"tlon":{"provider":"anthropic","model":"claude-opus-4-8"}}}))
     assert Config.coworker_model("tlon", path).thinking == "medium"
   end
+
+  test "default_coworker/1 reads the configured default, else claude-machine", %{path: path} do
+    :ok = Config.put_default_coworker("pi-machine", path)
+    assert Config.default_coworker(path) == "pi-machine"
+  end
+
+  test "default_coworker/1 falls back to claude-machine when unset", %{path: path} do
+    assert Config.default_coworker(path) == "claude-machine"
+  end
+
+  test "default_coworker/1 falls back to claude-machine on a corrupt file", %{path: path} do
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, "{not json")
+    assert Config.default_coworker(path) == "claude-machine"
+  end
+
+  test "put_default_coworker persists without disturbing coworker model overrides", %{path: path} do
+    :ok = Config.put_coworker_model("tlon", %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"}, path)
+    :ok = Config.put_default_coworker("pi-machine", path)
+
+    assert Config.default_coworker(path) == "pi-machine"
+    assert Config.coworker_model("tlon", path).model == "claude-sonnet-5"
+  end
 end

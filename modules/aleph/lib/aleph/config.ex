@@ -60,6 +60,23 @@ defmodule Aleph.Config do
     |> write!(path)
   end
 
+  @default_coworker "claude-machine"
+
+  @doc "The configured default coworker handle for new chat threads, or claude-machine."
+  @spec default_coworker(String.t()) :: String.t()
+  def default_coworker(path \\ path()) do
+    case read(path) do
+      %{"default_coworker" => h} when is_binary(h) and h != "" -> h
+      _ -> @default_coworker
+    end
+  end
+
+  @doc "Persist the default coworker handle."
+  @spec put_default_coworker(String.t(), String.t()) :: :ok
+  def put_default_coworker(handle, path \\ path()) when is_binary(handle) do
+    read(path) |> Map.put("default_coworker", handle) |> write!(path)
+  end
+
   # put_in/2 raises on a missing intermediate map; this seeds it.
   defp put_in_new(map, [k1, k2], value), do: Map.update(map, k1, %{k2 => value}, &Map.put(&1, k2, value))
 
