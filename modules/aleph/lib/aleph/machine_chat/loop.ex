@@ -227,7 +227,9 @@ defmodule Aleph.MachineChat.Loop do
   # send-keys the cockpit does, but from here (our post is on our own bus, which the cockpit can't
   # see). $TMUX points at the tlon server, so a bare `tmux` targets the right session.
   defp wake_mentions(author, body, thread_id) do
-    for {window, text} <- Mention.route(%{author: author, body: body, thread_id: thread_id}) do
+    lead = safe_thread_lead(thread_id)
+
+    for {window, text} <- Mention.route(%{author: author, body: body, thread_id: thread_id}, lead: lead) do
       System.cmd("tmux", ["send-keys", "-t", "tlon:#{window}", "-l", text], stderr_to_stdout: true)
       System.cmd("tmux", ["send-keys", "-t", "tlon:#{window}", "Enter"], stderr_to_stdout: true)
     end
@@ -235,6 +237,17 @@ defmodule Aleph.MachineChat.Loop do
     :ok
   rescue
     _ -> :ok
+  end
+
+  # A brand-new thread's lead has no live window yet (B1.4's spawn+inject is what wakes it) — but
+  # for a thread whose lead already has one (the standing coworkers), a bare operator reply must
+  # still reach them. Guarded so a Funes hiccup degrades to "wake nobody", never a crash.
+  defp safe_thread_lead(tid) do
+    Funes.thread_lead(tid)
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
   end
 
   defp backspace(%{input: input} = state), do: %{state | input: String.slice(input, 0, max(String.length(input) - 1, 0))}
