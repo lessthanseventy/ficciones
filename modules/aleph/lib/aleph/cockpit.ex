@@ -422,7 +422,9 @@ defmodule Aleph.Cockpit do
   # silently accumulating an unread thread. Pure routing lives in Aleph.Mention; this is the edge —
   # best-effort tmux send-keys, never a crash on a missing window.
   defp mention_notify(row) do
-    for {window, text} <- Aleph.Mention.route(row),
+    lead = thread_lead(row)
+
+    for {window, text} <- Aleph.Mention.route(row, lead: lead),
         index = tlon_window_index(window),
         not is_nil(index) do
       inject_turn(index, text)
@@ -430,6 +432,18 @@ defmodule Aleph.Cockpit do
 
     :ok
   end
+
+  # The funes handle of the coworker staffed on this message's thread (its lead), or nil.
+  # Read in-process (aleph boots funes); never crash the hub if the lookup fails.
+  defp thread_lead(%{thread_id: tid}) when not is_nil(tid) do
+    Funes.thread_lead(tid)
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
+  end
+
+  defp thread_lead(_), do: nil
 
   # The tmux window index for a named coworker window, from the live session (nil if not up).
   defp tlon_window_index(name) do

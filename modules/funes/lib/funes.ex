@@ -35,4 +35,7 @@ defmodule Funes do
       Thread,
       Message
     ]
+
+  @doc "The handle of the agent staffed on a thread (its lead), or nil."
+  defdelegate thread_lead(thread_id), to: Funes.Channel
 end

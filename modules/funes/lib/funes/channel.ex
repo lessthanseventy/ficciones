@@ -11,6 +11,7 @@ defmodule Funes.Channel do
   """
   import Ecto.Query
 
+  alias Funes.Agent
   alias Funes.Message
   alias Funes.Repo
   alias Funes.Thread
@@ -166,4 +167,15 @@ defmodule Funes.Channel do
   # higher id (newest message, else newest thread) leads. A total order, no created_at tie.
   defp sort_key(%{messages: [], thread: %Thread{id: id}}), do: {0, id}
   defp sort_key(%{messages: messages}), do: {1, List.last(messages).id}
+
+  @doc "The name of the agent staffed on `thread_id` (its lead), or nil if unassigned/absent."
+  def thread_lead(thread_id) do
+    Repo.one(
+      from t in Thread,
+        join: a in Agent,
+        on: a.id == t.agent_id,
+        where: t.id == ^thread_id,
+        select: a.name
+    )
+  end
 end

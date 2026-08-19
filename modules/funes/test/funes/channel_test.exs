@@ -8,6 +8,7 @@ defmodule Funes.ChannelTest do
   alias Funes.Channel
   alias Funes.Message
   alias Funes.Repo
+  alias Funes.Staff
   alias Funes.Thread
 
   setup do
@@ -299,6 +300,25 @@ defmodule Funes.ChannelTest do
 
       assert %Message{body: "verbatim"} = Channel.message(posted.id)
       assert Channel.message(999_999) == nil
+    end
+  end
+
+  describe "thread_lead/1" do
+    test "returns the name of the agent staffed on the thread" do
+      {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
+      {:ok, agent} = Staff.register_agent(%{name: "Sandra", mandate: "m", engine: "e"})
+      {:ok, _} = Staff.assign(thread, agent)
+
+      assert Channel.thread_lead(thread.id) == "Sandra"
+    end
+
+    test "returns nil for an unassigned thread" do
+      {:ok, thread} = Channel.open_thread(%{title: "no lead yet"})
+      assert Channel.thread_lead(thread.id) == nil
+    end
+
+    test "returns nil for a thread id that does not exist" do
+      assert Channel.thread_lead(999_999) == nil
     end
   end
 
