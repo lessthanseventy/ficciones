@@ -73,6 +73,12 @@ defmodule Aleph.Cockpit do
   # `ensure_thread_sessions`.
   @thread_spawn_backoff_ms 5_000
 
+  # How long to let a freshly-spawned per-thread window settle between typing its opening turn and
+  # sending Enter (B1.4's two-phase inject). A just-booted Claude Code TUI takes the text but
+  # swallows an Enter that arrives in the same burst; a beat later it submits cleanly. Tunable —
+  # bump it if the first turn still lands typed-but-unsent.
+  @opening_submit_delay_ms 1_200
+
   # Crash recovery (see run/0): relaunch the cockpit in place after a crash, but give up after
   # @resurrect_max_fails crashes in a row so a persistent bad state can't spin the terminal. A run
   # that survived @resurrect_healthy_ms is treated as healthy — its next crash starts the count over.
@@ -230,9 +236,11 @@ defmodule Aleph.Cockpit do
             # Per-thread spawn backoff (mirrors `machine_retry_at`) — thread_id => monotonic
             # retry-at, so a thread whose session keeps failing to spawn isn't retried every render.
             thread_spawn_retry: %{},
-            # Thread ids whose opening turn has already been injected — the two-phase inject's
-            # dedup (see `ensure_thread_sessions`): `new-window` first, the turn only on a LATER
-            # render once the window shows up live in `tlon_tabs()`.
+            # The two-phase opening-turn inject (see `ensure_thread_sessions`). `opening_text_at`:
+            # thread_id => monotonic ms when the turn's TEXT was typed into the fresh `t<id>`
+            # window; the Enter follows @opening_submit_delay_ms later so a booting TUI doesn't
+            # swallow it. `opening_injected`: thread ids already SUBMITTED (done, never re-touched).
+            opening_text_at: %{},
             opening_injected: MapSet.new()
           })
 
@@ -471,11 +479,28 @@ defmodule Aleph.Cockpit do
   end
 
   # Inject `text` as a submitted turn into window `index`: literal text, then the Enter key — so a
-  # multiline body flattened to one line reaches the coworker's input as a single message.
+  # multiline body flattened to one line reaches the coworker's input as a single message. Safe for
+  # a LONG-BOOTED window (the standing coworkers); a freshly-spawned harness needs the split form
+  # below (`inject_text`/`submit_turn`) so the Enter doesn't get swallowed in the same input burst.
   defp inject_turn(index, text) do
-    target = "#{@tlon_session}:#{index}"
-    _ = System.cmd("tmux", tlon_tmux(["send-keys", "-l", "-t", target, text]), stderr_to_stdout: true)
-    _ = System.cmd("tmux", tlon_tmux(["send-keys", "-t", target, "Enter"]), stderr_to_stdout: true)
+    inject_text(index, text)
+    submit_turn(index)
+  end
+
+  # Type literal `text` into window `index` WITHOUT submitting — the first half of a fresh-window
+  # inject, so the Enter can be sent on a later render once the TUI has settled.
+  defp inject_text(index, text) do
+    _ =
+      System.cmd("tmux", tlon_tmux(["send-keys", "-l", "-t", "#{@tlon_session}:#{index}", text]), stderr_to_stdout: true)
+
+    :ok
+  end
+
+  # Send Enter to window `index` — submits whatever's in its input. Split from `inject_text` so a
+  # just-booted Claude Code TUI gets the text and the Enter as separate bursts (a bundled Enter
+  # lands as a literal newline / gets swallowed, leaving the turn typed-but-unsent).
+  defp submit_turn(index) do
+    _ = System.cmd("tmux", tlon_tmux(["send-keys", "-t", "#{@tlon_session}:#{index}", "Enter"]), stderr_to_stdout: true)
     :ok
   end
 
@@ -1110,7 +1135,7 @@ defmodule Aleph.Cockpit do
         state
 
       Enum.any?(tabs, &(&1.name == window)) ->
-        maybe_inject_opening_turn(id, tabs, state)
+        maybe_inject_opening_turn(id, tabs, now, state)
 
       not claude_launched?(lead) ->
         state
@@ -1145,25 +1170,39 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  defp maybe_inject_opening_turn(id, tabs, state) do
-    if MapSet.member?(state.opening_injected, id) do
-      state
-    else
-      inject_opening_turn(id, tabs)
-      %{state | opening_injected: MapSet.put(state.opening_injected, id)}
+  # Two-phase, so a just-booted `t<id>` window submits its opening turn instead of leaving it typed
+  # but unsent: stage 1 types the text and records the moment; stage 2, once the text has settled
+  # for @opening_submit_delay_ms, sends Enter and marks the thread done. Ordered newest-first: the
+  # `opening_injected` (done) check must precede the `opening_text_at` (typed) check.
+  defp maybe_inject_opening_turn(id, tabs, now, state) do
+    cond do
+      MapSet.member?(state.opening_injected, id) ->
+        state
+
+      Map.has_key?(state.opening_text_at, id) ->
+        if now - state.opening_text_at[id] >= @opening_submit_delay_ms do
+          with index when not is_nil(index) <- window_index(tabs, "t#{id}"), do: submit_turn(index)
+          %{state | opening_injected: MapSet.put(state.opening_injected, id)}
+        else
+          state
+        end
+
+      true ->
+        inject_opening_text(id, tabs)
+        %{state | opening_text_at: Map.put(state.opening_text_at, id, now)}
     end
   end
 
-  # send-keys the thread's latest operator message into its just-appeared `t<id>` window, once.
-  # Best-effort on both reads: a window that vanished between the tabs snapshot and here, or a
-  # thread with no operator message yet, is silently skipped — never a crash on the render loop.
-  defp inject_opening_turn(id, tabs) do
+  # Type the thread's latest operator message into its just-appeared `t<id>` window (no Enter yet —
+  # stage 2 submits). Best-effort on both reads: a window that vanished between the tabs snapshot
+  # and here, or a thread with no operator message yet, is silently skipped — never a render crash.
+  defp inject_opening_text(id, tabs) do
     index = window_index(tabs, "t#{id}")
     message = Funes.latest_operator_message(id)
 
     if index && message do
       operator = Application.get_env(:funes, :operator, "andrew")
-      inject_turn(index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
+      inject_text(index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
     end
 
     :ok
@@ -1206,7 +1245,11 @@ defmodule Aleph.Cockpit do
     with id when is_integer(id) <- thread_id,
          {:ok, %{exports: exports}} <- Spawn.join(id, agent, mandate: "machine") do
       script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> claude_launcher()
-      System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", window, script]), stderr_to_stdout: true)
+      # `-d`: spawn the window in the background — a coworker starting (a standing claude/third, or
+      # a B1.4 per-thread session) must NOT yank the operator off whatever window they're on.
+      System.cmd("tmux", tlon_tmux(["new-window", "-d", "-t", @tlon_session, "-n", window, script]),
+        stderr_to_stdout: true
+      )
     end
   end
 
