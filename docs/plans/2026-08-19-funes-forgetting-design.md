@@ -74,17 +74,26 @@ Operator-`stated` constraints never decay — the permanent core. Today's
 `always_loaded_constraints/0` becomes the pinned floor of the working set; everything above it
 is ranked-and-budgeted.
 
-## Wiring (small; no storage change)
+## Wiring
 
-A **recall layer** in front of the existing reads (`Funes.Dossier`, `Funes.MCP.Brief`,
-`search_facts`). It scores candidates by `relevance × strength`, fills the budget from the top,
-returns the working set.
-- **Strength from the events table** we already have — compute on-read to start; make
-  incremental only if it's slow.
-- **Semantic:** embed fact text on write (ollama), store the vector; cosine at recall.
+Existing threads / DB rows are **disposable** (Andrew, 2026-08-19) — design toward the ideal
+schema and migrate freely; do not contort to preserve current data. Storage stays append-only as
+a *principle* (auditability, no silent loss), but the shape is ours to reshape.
+
+A **recall layer** (`Funes.Recall`) in front of the existing reads (`Funes.Dossier`,
+`Funes.MCP.Brief`, `search_facts`). It scores candidates by `relevance × strength`, fills the
+token budget from the top, returns the working set.
+- **Strength** (`Funes.Recall.Strength` — *built, 12 tests*) — decayed sum of signed touches,
+  from the events table; compute on-read first, materialize only if slow.
+- **Certainty** (`Funes.Recall.Certainty` — *built*) — perishable `:checked`, feeds display and
+  ranking.
+- **Semantic** (`Funes.Recall.Embedding` — *built: cosine + ollama `embed/1` over `:httpc`,
+  live-smoked*) — add a **first-class embedding vector column** on `fact`, embed-on-write in
+  `bank_fact`, cosine at recall, blended with FTS into the relevance term.
+- **Cited-and-used touch** — a **first-class** `cited` event kind + a light `reinforce` verb, so a
+  fact an agent actually acted on earns a positive touch (in scope now — was only deferred to dodge
+  a migration we're free to make).
 - **Budget** is a config knob; it is also the breaker's memory-cost lever.
-- **New capture verb (optional, later):** a "this fact was useful" reinforce touch. Rechecks +
-  creation + supersede already feed strength, so this can wait.
 
 ## Explicitly NOT doing
 
@@ -98,9 +107,18 @@ returns the working set.
 
 - Weight + half-life calibration (from real usage, not by feel).
 - On-read vs incremental strength materialization.
-- The optional `reinforce_fact` verb + how "cited-and-used" is detected (auto-infer vs explicit).
+- How "cited-and-used" is detected (auto-infer from a recall citation vs an explicit `reinforce`).
 - Whether the working set is assembled per-thread or office-wide (cross-thread shared recall —
   the "shared brain" axis; likely a later term once single-thread recall is proven).
+
+## Build status (2026-08-19, branch `funes-forgetting-engine`)
+
+**Done — pure cores, committed, funes suite green (244):** `Recall.Strength` (signed-touch decay),
+`Recall.Certainty` (verification half-life), `Recall.Embedding` (cosine + live ollama embed).
+**Next:** the `fact` embedding-vector migration + embed-on-write, the FTS×cosine relevance blend,
+the `Funes.Recall` working-set assembler (relevance × strength, pinned floor, token budget), the
+`cited` touch. **Handoffs for Andrew:** flip the flag to make the working set the *live*
+session-start memory; `home:switch` + live MCP smoke; review before merge to main.
 
 ## Relationship to the other office-standup features
 
