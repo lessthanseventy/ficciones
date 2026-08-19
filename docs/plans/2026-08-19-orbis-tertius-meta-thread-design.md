@@ -1,8 +1,11 @@
 # Orbis Tertius — the machine meta-thread & orchestrator
 
 Date: 2026-08-19
-Status: design agreed. Slices 1 (foundation), 2a (rollup panel), 2b (chat-tab strip), 3 (the
-tertius agent) + 4 (cross-thread read) landed; slice 5 (cadence) remains.
+Status: all 5 slices landed (foundation · dashboard · agent · cross-thread read · cadence). Tlön was
+also simplified to a three-window cast — **uqbar** (the console/doorway) · **hronir** (the builder,
+real Claude) · **tertius** (the center, the meta agent) — the nouns of "Tlön, Uqbar, Orbis Tertius."
+The standing pi worker was dropped; tertius is now the center coworker (the `tertius` profile,
+socket `aleph-tertius`, session `tlon`). Live eyeball pending after `aleph:reset`.
 
 ## Problem
 
@@ -120,7 +123,12 @@ Genuinely new:
    ONLY to a machine-scope connection (a project agent is refused; project/closed threads never leak
    in). Wired into tertius's profile (`@tertius_funes_mcp` = tlön's surface + `machine_overview`) and
    its persona points at it. Verified: funes 232/0, aleph 313/0, a live read of the dev DB.
-5. **Cadence** — wake tertius on the right triggers.
+5. **Cadence** *(done 2026-08-19)* — a machine LEAF closing (`:thread_closed`, machine-scope, not the
+   root) nudges the tertius center to run `machine_overview` + refresh the root rollup. Chosen because
+   `:thread_closed` reaches the cockpit globally (threads_topic), whereas `record_done`'s
+   `:event_recorded` is thread-scoped and doesn't — so a record_done-without-close trigger is a
+   documented follow-up (needs a funes Bus tweak). Plus `@tertius-machine` on demand (always). No
+   periodic loop.
 
 ## Verification
 
