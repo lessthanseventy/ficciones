@@ -51,4 +51,42 @@ defmodule Aleph.MentionTest do
     assert Mention.route(%{author: "andrew", body: "@claude-machine hi", thread_id: nil}) ==
              [{"claude", "[funes thread ?] andrew: @claude-machine hi"}]
   end
+
+  describe "route/2 with a thread lead (bare-reply wake)" do
+    test "a bare reply (no @-mention) wakes the thread's lead coworker" do
+      assert Mention.route(
+               %{author: "andrew", body: "who am i talking to?", thread_id: 9},
+               lead: "claude-machine"
+             ) == [{"claude", "[funes thread #9] andrew: who am i talking to?"}]
+    end
+
+    test "an explicit @-mention overrides the lead (directed, not the lead)" do
+      assert Mention.route(
+               %{author: "andrew", body: "@pi-machine you take this", thread_id: 9},
+               lead: "claude-machine"
+             ) == [{"pi", "[funes thread #9] andrew: @pi-machine you take this"}]
+    end
+
+    test "the lead is not woken by its own post (loop guard still holds)" do
+      assert Mention.route(
+               %{author: "claude-machine", body: "thinking out loud", thread_id: 9},
+               lead: "claude-machine"
+             ) == []
+    end
+
+    test "no lead and no mention wakes nobody (unchanged)" do
+      assert Mention.route(%{author: "andrew", body: "just talking", thread_id: 9}, lead: nil) == []
+    end
+
+    test "an unknown lead handle (not a coworker window) wakes nobody" do
+      assert Mention.route(%{author: "andrew", body: "hi", thread_id: 9}, lead: "ghost") == []
+    end
+
+    test "route/1 is unchanged (no lead = old behaviour)" do
+      assert Mention.route(%{author: "andrew", body: "just talking", thread_id: 1}) == []
+
+      assert Mention.route(%{author: "andrew", body: "@claude-machine hi", thread_id: 7}) ==
+               [{"claude", "[funes thread #7] andrew: @claude-machine hi"}]
+    end
+  end
 end

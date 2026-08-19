@@ -63,23 +63,43 @@ defmodule Aleph.Mention do
   end
 
   @doc """
-  The injection turns for a posted message: one per mentioned coworker EXCEPT the author's own
-  window (never echo a post back to its sender — that's the loop guard). Each is
-  `{window_name, text}`; the text is one line (newlines flattened) and carries the thread id so the
-  woken coworker can reply on the right thread even when its funes MCP isn't wired.
+  The injection turns for a posted message. With an explicit coworker `@`-mention, wakes each
+  mentioned coworker (except the author's own window — the loop guard). With NO coworker mention,
+  falls back to `opts[:lead]` — the thread's staffed lead coworker — so a bare operator reply
+  still reaches someone. Each turn is `{window_name, one_line_text}`.
   """
-  @spec route(map()) :: [{String.t(), String.t()}]
-  def route(%{author: author, body: body, thread_id: tid}) do
-    author_window = coworkers()[author]
-    one_line = String.replace(body || "", "\n", " ")
-    tid_str = if tid, do: "##{tid}", else: "?"
+  @spec route(map(), keyword()) :: [{String.t(), String.t()}]
+  def route(row, opts \\ [])
 
-    for {_handle, window} <- mentions(body), window != author_window do
-      {window, "[funes thread #{tid_str}] #{display_author(author)}: #{one_line}"}
+  def route(%{author: author, body: body, thread_id: tid}, opts) do
+    author_window = coworkers()[author]
+    targets = mention_targets(body, opts[:lead])
+
+    for_result =
+      for window <- targets, window != author_window do
+        {window, "[funes thread #{tid_str(tid)}] #{display_author(author)}: #{one_line(body)}"}
+      end
+
+    Enum.uniq(for_result)
+  end
+
+  def route(_, _), do: []
+
+  # The windows to wake: the explicitly @-mentioned coworkers, or — when none are named — the
+  # thread's lead coworker's window (nil / unknown lead → []).
+  defp mention_targets(body, lead) do
+    case mentions(body) do
+      [] -> lead |> lead_window() |> List.wrap()
+      ms -> Enum.map(ms, fn {_handle, window} -> window end)
     end
   end
 
-  def route(_), do: []
+  defp lead_window(nil), do: nil
+  defp lead_window(handle), do: coworkers()[handle]
+
+  defp one_line(body), do: String.replace(body || "", "\n", " ")
+  defp tid_str(nil), do: "?"
+  defp tid_str(tid), do: "##{tid}"
 
   # The sender label on the injected turn — the real handle, or "someone" under TLON_MENTION_LABEL=anon.
   defp display_author(author) do
