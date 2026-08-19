@@ -68,6 +68,11 @@ defmodule Aleph.Cockpit do
   # new-session per frame = a spawn storm whenever the coworker can't start). Back off.
   @machine_spawn_backoff_ms 5_000
 
+  # Same backoff, per-thread: a staffed machine thread whose `tmux new-window`/`Spawn.join`
+  # keeps failing (funes hiccup, a stale agent) must not retry on every render either — see
+  # `ensure_thread_sessions`.
+  @thread_spawn_backoff_ms 5_000
+
   # Crash recovery (see run/0): relaunch the cockpit in place after a crash, but give up after
   # @resurrect_max_fails crashes in a row so a persistent bad state can't spin the terminal. A run
   # that survived @resurrect_healthy_ms is treated as healthy — its next crash starts the count over.
@@ -217,7 +222,18 @@ defmodule Aleph.Cockpit do
             stack: nil,
             health: nil,
             probed_at: 0,
-            machine_retry_at: nil
+            machine_retry_at: nil,
+            # B1.4: the standing pi/claude coworker's own machine thread — captured once, at its
+            # first successful spawn (`ensure_machine_coworker`), so `ensure_thread_sessions` can
+            # tell it apart from an ordinary staffed machine thread it should spawn a session for.
+            standing_thread_id: nil,
+            # Per-thread spawn backoff (mirrors `machine_retry_at`) — thread_id => monotonic
+            # retry-at, so a thread whose session keeps failing to spawn isn't retried every render.
+            thread_spawn_retry: %{},
+            # Thread ids whose opening turn has already been injected — the two-phase inject's
+            # dedup (see `ensure_thread_sessions`): `new-window` first, the turn only on a LATER
+            # render once the window shows up live in `tlon_tabs()`.
+            opening_injected: MapSet.new()
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -446,8 +462,12 @@ defmodule Aleph.Cockpit do
   defp thread_lead(_), do: nil
 
   # The tmux window index for a named coworker window, from the live session (nil if not up).
-  defp tlon_window_index(name) do
-    Enum.find_value(tlon_tabs(), fn %{name: n, index: index} -> if n == name, do: index end)
+  defp tlon_window_index(name), do: window_index(tlon_tabs(), name)
+
+  # Same lookup against an already-fetched tabs list — for a caller (`ensure_thread_sessions`)
+  # that snapshot tlon_tabs() once for a whole render pass instead of forking `tmux` per thread.
+  defp window_index(tabs, name) do
+    Enum.find_value(tabs, fn %{name: n, index: index} -> if n == name, do: index end)
   end
 
   # Inject `text` as a submitted turn into window `index`: literal text, then the Enter key — so a
@@ -727,6 +747,7 @@ defmodule Aleph.Cockpit do
       |> ensure_claude_coworker()
       |> ensure_third_coworker()
       |> ensure_log_window()
+      |> ensure_thread_sessions()
 
     # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
     # navigates by, so ↑/↓ move the highlight down the feed and every open thread is reachable.
@@ -971,14 +992,29 @@ defmodule Aleph.Cockpit do
     now = System.monotonic_time(:millisecond)
 
     cond do
-      is_pid(safe_terminal(:machine)) -> state
-      not machine_spawn_due?(state.machine_retry_at, now) -> state
-      is_pid(spawn_machine_coworker()) -> state
-      true -> %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
+      is_pid(safe_terminal(:machine)) ->
+        state
+
+      not machine_spawn_due?(state.machine_retry_at, now) ->
+        state
+
+      true ->
+        case spawn_machine_coworker() do
+          pid when is_pid(pid) -> capture_standing_thread_id(state)
+          _ -> %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
+        end
     end
   end
 
   defp ensure_machine_coworker(state), do: state
+
+  # B1.4: stash the standing coworker's machine thread id, once, at its first successful spawn —
+  # the id `ensure_thread_sessions` excludes from its own spawn pass (the standing pi/claude
+  # coworker is not "a staffed machine thread it should spawn a session for", it already has one).
+  defp capture_standing_thread_id(%{standing_thread_id: nil} = state),
+    do: %{state | standing_thread_id: machine_thread_id()}
+
+  defp capture_standing_thread_id(state), do: state
 
   # The Tlön Claude-Code window: real `claude`, honestly identified (no pi-multi-account
   # impersonation — see Aleph.Profiles' @profiles comment for why that path is avoided by default).
@@ -1045,6 +1081,96 @@ defmodule Aleph.Cockpit do
 
   defp ensure_log_window(state), do: state
 
+  # B1.4: a staffed-but-session-less machine thread gets its own tmux window (`t<id>`), so a
+  # thread the operator opened outside the standing pi/claude coworkers gets a live coworker
+  # working IT specifically, not just accumulating unread messages. Two-phase, like the coworker
+  # windows: `new-window` first (this pass), the opening turn only injected on a LATER render once
+  # the window shows up live in `tlon_tabs()` — send-keys the instant `new-window` returns races
+  # the harness's own boot and the first turn lands on the floor.
+  #
+  # Restricted to claude-launched leads for B1 (`claude_launched?/1`) — `spawn_agent_window` runs
+  # `claude_launcher()`, so it is only correct for a claude-machine/third-agent lead.
+  # B1: pi-launched staffing is a follow-up.
+  defp ensure_thread_sessions(%{active_key: :tlon} = state) do
+    tabs = tlon_tabs()
+    now = System.monotonic_time(:millisecond)
+
+    Enum.reduce(Funes.staffed_machine_threads(), state, &ensure_thread_session(&1, tabs, now, &2))
+  end
+
+  defp ensure_thread_sessions(state), do: state
+
+  defp ensure_thread_session(%{id: id, lead: lead}, tabs, now, state) do
+    window = "t#{id}"
+
+    cond do
+      # The standing coworker's own thread — it already has a session (pi's/claude's window),
+      # just not one named `t<id>`. Never spawn a duplicate for it.
+      id == state.standing_thread_id ->
+        state
+
+      Enum.any?(tabs, &(&1.name == window)) ->
+        maybe_inject_opening_turn(id, tabs, state)
+
+      not claude_launched?(lead) ->
+        state
+
+      not thread_spawn_due?(state.thread_spawn_retry[id], now) ->
+        state
+
+      true ->
+        record_thread_spawn(spawn_agent_window(lead, window, id), state, id, now)
+    end
+  end
+
+  defp record_thread_spawn({_out, 0}, state, id, _now),
+    do: %{state | thread_spawn_retry: Map.delete(state.thread_spawn_retry, id)}
+
+  defp record_thread_spawn(_result, state, id, now),
+    do: %{state | thread_spawn_retry: Map.put(state.thread_spawn_retry, id, now + @thread_spawn_backoff_ms)}
+
+  # Is a per-thread session spawn attempt due? Mirrors `machine_spawn_due?/2` — nil means "no
+  # backoff pending, try now".
+  defp thread_spawn_due?(nil, _now), do: true
+  defp thread_spawn_due?(retry_at, now), do: now >= retry_at
+
+  # `spawn_agent_window` always runs claude_launcher() — correct only for a claude-machine lead or
+  # the optional third experiment agent (also claude-launched). A pi-led thread is skipped.
+  defp claude_launched?(lead), do: lead == @claude_agent or lead == third_agent_author()
+
+  defp third_agent_author do
+    case Aleph.Mention.third_agent() do
+      %{author: author} -> author
+      nil -> nil
+    end
+  end
+
+  defp maybe_inject_opening_turn(id, tabs, state) do
+    if MapSet.member?(state.opening_injected, id) do
+      state
+    else
+      inject_opening_turn(id, tabs)
+      %{state | opening_injected: MapSet.put(state.opening_injected, id)}
+    end
+  end
+
+  # send-keys the thread's latest operator message into its just-appeared `t<id>` window, once.
+  # Best-effort on both reads: a window that vanished between the tabs snapshot and here, or a
+  # thread with no operator message yet, is silently skipped — never a crash on the render loop.
+  defp inject_opening_turn(id, tabs) do
+    index = window_index(tabs, "t#{id}")
+    message = Funes.latest_operator_message(id)
+
+    if index && message do
+      operator = Application.get_env(:funes, :operator, "andrew")
+      inject_turn(index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
+    end
+
+    :ok
+  end
+
+  defp one_line(body), do: String.replace(body || "", "\n", " ")
+
   # Open the `chat` window running `mix aleph.machine_chat` from the aleph project (where mise/mix
   # resolve). It inherits the tlon session's `FUNES_DB`, so it reads the SAME db the cockpit writes —
   # the whole point of the poll-the-db design (a separate process can't share the in-node Bus).
@@ -1069,10 +1195,15 @@ defmodule Aleph.Cockpit do
   # and idempotent-by-absence-check above.
   defp spawn_claude_window, do: spawn_agent_window(@claude_agent, "claude")
 
-  # Open a Claude-Code window named `window` on the machine thread as funes `agent`. The claude and
-  # the experiment third voice both ride this — same launcher, distinct identity + tab label.
-  defp spawn_agent_window(agent, window) do
-    with id when is_integer(id) <- machine_thread_id(),
+  # Open a Claude-Code window named `window` on `thread_id` as funes `agent` — default
+  # `machine_thread_id()`, the standing coworkers' shared thread. The claude/third-experiment
+  # windows AND B1.4's per-thread windows (`ensure_thread_sessions`) all ride this: same launcher,
+  # distinct identity + tab label + (for B1.4) distinct thread, so `FUNES_THREAD` binds the harness
+  # to the thread it's actually meant to work on.
+  defp spawn_agent_window(agent, window, thread_id \\ machine_thread_id())
+
+  defp spawn_agent_window(agent, window, thread_id) do
+    with id when is_integer(id) <- thread_id,
          {:ok, %{exports: exports}} <- Spawn.join(id, agent, mandate: "machine") do
       script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> claude_launcher()
       System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", window, script]), stderr_to_stdout: true)
