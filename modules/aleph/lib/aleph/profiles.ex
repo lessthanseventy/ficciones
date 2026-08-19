@@ -69,6 +69,28 @@ defmodule Aleph.Profiles do
 
   Idempotent + self-healing: re-materialised every cockpit start, so editing a profile + restarting
   the cockpit is the whole loop — no `home:switch`.
+
+  ## The `tertius` coworker
+
+  One coworker profile today: `tertius`, the Tlön center — the Orbis Tertius meta agent
+  (`tertius-machine`), glm-5.2, bound to the root machine thread. Design:
+  `docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md`.
+
+  - **A machine-scope funes citizen, not severed.** Its funes MCP (`@tertius_funes_mcp`) binds every
+    token to scope `machine` (via the env `funes-cli.sh bearer` mints from), so its posts/facts/dones
+    land on the machine thread the cockpit renders, walled off from project threads by the DB scope
+    CHECK — self-contained by SCOPE, not by cutting the wire. `directTools` are the machine-work
+    record/read verbs plus `machine_overview` (the cross-leaf read); `excludeTools` cuts the
+    boundary-crossers (`consult_peer`, `open_thread`, `close_thread`). Model-to-model consultation
+    stays available separately via `/consult`+`/fresh` (manos/consult, a no-funes delegate).
+  - **glm-first driver, deliberately.** The `pi-multi-account` "claude-via-pi" path (routing pi's
+    Anthropic calls over the OAuth subscription by impersonating real Claude Code's client) is an
+    unlicensed use of a consumer subscription against a third-party client — not worth the
+    account-flag risk for the default. Genuine Claude runs HONESTLY as the separate `hronir` window
+    (real Claude Code, no impersonation), joined to the same root thread.
+  - **Sandboxed + yolo permissions.** pi-sandbox (`@tlon_sandbox`) + a per-coworker permission policy
+    (`@tlon_permissions`): `yoloMode` auto-approves asks so an autonomous coworker never stalls, but
+    yolo is deny-PRESERVING, so the catastrophic-command + secret-path floor still holds.
   """
   alias Aleph.Profile
 
@@ -269,18 +291,8 @@ defmodule Aleph.Profiles do
   # restart even before the flake registers it into the base config (which needs a home:switch).
   @footer_extension "#{@repo}/modules/manos/footer/src/footer.ts"
 
-  # Tlön's funes MCP — the same in-process funes the cockpit runs, but the connection's identity
-  # (already minted for the MACHINE thread by `machine_exports` and exported into the launch env)
-  # binds every token to scope "machine" via `funes-cli.sh bearer` (mints from FUNES_THREAD/AUTHOR).
-  # So the coworker's posts/facts/dones/habits land on the machine thread — the one the Tlön space's
-  # LOGBOOK + dossier panels already render — and NEVER on a project thread (DB scope CHECK). This
-  # is what makes Tlön "self-contained WITH its own dossier/logbook" instead of amnesiac; it reverses
-  # the old mcp:none sever, whose real problem was the coworker posting into an UNRENDERED project
-  # thread (see docs/plans/2026-08-18-tlon-own-memory-design.md). directTools = the machine-work
-  # record/read verbs; excludeTools cuts the boundary-crossers — `consult_peer` (asks OTHER local
-  # coworker agents) and `open_thread`/`close_thread` (cross-thread) would break self-containment.
-  # (Model-to-model consultation stays available separately via /consult+/fresh — manos/consult, a
-  # different package that spawns a no-funes delegate, so it's kept, not dropped.)
+  # The machine-scope funes surface (see § "The tertius coworker" in the moduledoc for why the tools
+  # are cut this way). Base tool set; `@tertius_funes_mcp` adds the cross-leaf read on top.
   @tlon_funes_mcp %{
     "funes" => %{
       "url" => "${FUNES_MCP_URL}",
@@ -298,21 +310,12 @@ defmodule Aleph.Profiles do
     }
   }
 
-  # tertius's funes surface (slice 4): the tlön machine-citizen tools PLUS `machine_overview` — the
-  # cross-leaf read (`Funes.MCP.Tool.MachineOverview`, machine-scope only) that lets the meta agent
-  # see every open leaf's brief (lead, next, blockers, chatter), not just its own thread. This is the
-  # one capability that separates the synthesizer from a self-contained worker; the rest mirrors tlön.
+  # tertius's surface: the base machine-citizen tools PLUS `machine_overview`
+  # (`Funes.MCP.Tool.MachineOverview`) — the cross-leaf read that separates the synthesizer from a
+  # self-contained worker.
   @tertius_funes_mcp update_in(@tlon_funes_mcp, ["funes", "directTools"], &(&1 ++ ["machine_overview"]))
 
-  # The Orbis Tertius meta agent's persona (slice 3) — materialised to `system_prompt.md` and passed
-  # as `--append-system-prompt`. tertius-machine is a glm pi window bound to the ROOT machine thread
-  # (the founding thread, `Funes.Channel.machine_thread/0`), the standing coworkers' shared home. Its
-  # job is the VANTAGE, not the work: read across the leaf threads and keep the root thread a live
-  # rollup of the whole Tlön space — briefings, conflicts, stalls, duplicated effort. It is NOT a
-  # second answerer: the leaves have their own leads (claude-machine, pi-machine); tertius stays quiet
-  # until @-mentioned or (slice 5) a synthesis trigger fires. Cross-thread READ of the leaves lands in
-  # slice 4; until then tertius posts to the root and reads its own dossier. See
-  # `docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md`.
+  # The tertius persona → `system_prompt.md` (`--append-system-prompt`). The vantage-not-worker role.
   @tertius_role """
   You are tertius-machine, the Orbis Tertius meta agent for the Tlön machine workspace — the
   "leader of leaders." Your home is the ROOT machine thread; that thread is the operator's single
@@ -345,11 +348,8 @@ defmodule Aleph.Profiles do
     }
   ]
 
-  # The coworker-driver ring the SETTINGS panel cycles (leader `m` in a coworker space) — ollama-only.
-  # The anthropic/claude-* entries that used to ride here went through pi-multi-account's Claude-Code
-  # impersonation (see @profiles comment above) to spend the subscription bucket from INSIDE pi; that
-  # risk isn't worth a ring entry. Want Claude proper in Tlön? Use the `claude` window — it's the real
-  # CLI, no camouflage, same machine thread.
+  # The coworker-driver ring the SETTINGS panel cycles (leader `m`) — ollama-only, no anthropic-via-pi
+  # (see the moduledoc for why). Claude proper is the `hronir` window.
   @model_ring [
     %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
     %{provider: "ollama-cloud", model: "kimi-k2.7-code", thinking: "medium"},
