@@ -72,25 +72,19 @@ defmodule Aleph.Profiles do
 
   ## The `tertius` coworker
 
-  One coworker profile today: `tertius`, the Tlön center — the Orbis Tertius meta agent
-  (`tertius-machine`), glm-5.2, bound to the root machine thread. Design:
+  One coworker profile: `tertius`, the Tlön center — the Orbis Tertius meta agent
+  (`tertius-machine`), glm-5.2, on the root machine thread. Design:
   `docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md`.
 
-  - **A machine-scope funes citizen, not severed.** Its funes MCP (`@tertius_funes_mcp`) binds every
-    token to scope `machine` (via the env `funes-cli.sh bearer` mints from), so its posts/facts/dones
-    land on the machine thread the cockpit renders, walled off from project threads by the DB scope
-    CHECK — self-contained by SCOPE, not by cutting the wire. `directTools` are the machine-work
-    record/read verbs plus `machine_overview` (the cross-leaf read); `excludeTools` cuts the
-    boundary-crossers (`consult_peer`, `open_thread`, `close_thread`). Model-to-model consultation
-    stays available separately via `/consult`+`/fresh` (manos/consult, a no-funes delegate).
-  - **glm-first driver, deliberately.** The `pi-multi-account` "claude-via-pi" path (routing pi's
-    Anthropic calls over the OAuth subscription by impersonating real Claude Code's client) is an
-    unlicensed use of a consumer subscription against a third-party client — not worth the
-    account-flag risk for the default. Genuine Claude runs HONESTLY as the separate `hronir` window
-    (real Claude Code, no impersonation), joined to the same root thread.
-  - **Sandboxed + yolo permissions.** pi-sandbox (`@tlon_sandbox`) + a per-coworker permission policy
-    (`@tlon_permissions`): `yoloMode` auto-approves asks so an autonomous coworker never stalls, but
-    yolo is deny-PRESERVING, so the catastrophic-command + secret-path floor still holds.
+  - **Machine-scope funes citizen.** Its MCP (`@tertius_funes_mcp`) binds every token to scope
+    `machine` (via `funes-cli.sh bearer`), so its posts/facts/dones stay on machine threads, off
+    project threads (DB scope CHECK). `directTools` are the record/read verbs + `machine_overview`
+    (the cross-leaf read); `excludeTools` cuts the cross-thread verbs (`consult_peer`, `open_thread`,
+    `close_thread`) for self-containment. Model-to-model consultation is `/consult`+`/fresh`.
+  - **Driver.** glm-5.2 (ollama). Real Claude is the `hronir` window, not a driver here.
+  - **Sandboxed + yolo permissions.** `@tlon_sandbox` + `@tlon_permissions`: `yoloMode` auto-approves
+    asks so an autonomous coworker never stalls, but yolo is deny-PRESERVING, so the
+    catastrophic-command + secret-path floor still holds.
   """
   alias Aleph.Profile
 
