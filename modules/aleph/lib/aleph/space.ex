@@ -68,22 +68,18 @@ defmodule Aleph.Space do
         right: [Dossier]
       },
       %__MODULE__{
-        # Tlön: the center is literal tmux — an embedded client on the standing `tlon` session, so
-        # it survives aleph restarts. pi lives in window 0; other windows (a claude, a shell) the
-        # operator opens with tmux's own keys (Ctrl+B c), which aleph renders as the tab strip.
+        # Tlön: the center is literal tmux — an embedded client on the standing `tlon` session, so it
+        # survives aleph restarts. The center coworker (tertius) is window 0; the builder (hronir) and
+        # console (uqbar) ride as further windows, which aleph renders as the tab strip.
         key: :tlon,
         label: "Tlön",
         surface: [{Terminal, :machine}],
-        # SETTINGS under the Stack: the operator's in-app knobs (coworker driver model, `m` to
-        # cycle) — the meta space is where you tune the machine, so its controls live here.
         left: [Stack, Settings],
-        # ORBIS — the machine-scoped rollup (Orbis Tertius slice 2): the leaves' lead/status/conflicts
-        # at a glance, in the slot the Logbook (a redundant mini-chat) held. HABITS — how the machine
-        # works with Andrew (funes' habits axis) — sits below it on the meta/machine lens.
+        # ORBIS — the machine rollup (leaves' lead/status/conflicts); HABITS — how the machine works
+        # with Andrew (funes' habits axis).
         right: [Health, Orbis, Habits],
-        # Self-contained coworker: the "tlon" profile (no funes MCP, funes-brief extension dropped,
-        # sandboxed). See Aleph.Profiles.
-        coworker: "tlon"
+        # The center coworker: the `tertius` profile (Orbis Tertius meta agent). See Aleph.Profiles.
+        coworker: "tertius"
       }
     ]
   end

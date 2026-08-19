@@ -104,9 +104,9 @@ defmodule Aleph.ProfilesTest do
     end
   end
 
-  describe "the tlon profile — machine-scope funes citizen + sandboxed" do
+  describe "the tertius (center) profile — machine-scope funes citizen + sandboxed" do
     test "wires funes on the machine scope, keeps the manos/pi adapter, sockets allowed in the sandbox" do
-      p = Profiles.fetch("tlon")
+      p = Profiles.fetch("tertius")
       # Not severed: a funes server whose token binds to the machine thread (via the env
       # funes-cli.sh mints from), so Tlön gets its OWN dossier/logbook without a project bleed.
       assert %{"funes" => funes} = p.mcp
@@ -118,7 +118,7 @@ defmodule Aleph.ProfilesTest do
     end
 
     test "cuts the boundary-crossing funes tools (self-containment) but keeps the record/read verbs" do
-      funes = Profiles.fetch("tlon").mcp["funes"]
+      funes = Profiles.fetch("tertius").mcp["funes"]
       # consult_peer (ask other local coworkers) + open/close_thread (cross-thread) break isolation.
       for cut <- ["consult_peer", "open_thread", "close_thread"], do: assert(cut in funes["excludeTools"])
       # its own machine-work loop stays: post/bank/record/dossier/habit.
@@ -127,14 +127,14 @@ defmodule Aleph.ProfilesTest do
     end
 
     test "adds the generic footer back (its own package, not swept up by the manos/pi drop)" do
-      p = Profiles.fetch("tlon")
+      p = Profiles.fetch("tertius")
       assert Enum.any?(p.add_extensions, &String.ends_with?(&1, "/modules/manos/footer/src/footer.ts"))
       # and the footer path does NOT match the funes-adapter drop, so it isn't a fight
       refute Enum.any?(p.add_extensions, &String.contains?(&1, "/manos/pi/"))
     end
 
     test "carries a per-coworker permission policy — yolo (autonomous), but sudo + secrets stay denied" do
-      perms = Profiles.fetch("tlon").permissions
+      perms = Profiles.fetch("tertius").permissions
       # autonomous coworker: asks auto-approve so an unattended agent never stalls...
       assert perms["yoloMode"] == true
       # ...but yolo is deny-preserving, so the fence holds: no unattended sudo, no credential reads,
@@ -150,7 +150,7 @@ defmodule Aleph.ProfilesTest do
     end
 
     test "drives ollama-first (glm-5.2) — no pi-multi-account Claude impersonation by default" do
-      assert Profiles.fetch("tlon").model == %{
+      assert Profiles.fetch("tertius").model == %{
                provider: "ollama-cloud",
                model: "glm-5.2",
                thinking: "medium"
@@ -168,7 +168,7 @@ defmodule Aleph.ProfilesTest do
     test "an operator override (Aleph.Config) is merged over the compiled model" do
       dir = Path.join(System.tmp_dir!(), "aleph-prof-cfg-#{System.unique_integer([:positive])}")
       path = Path.join(dir, "config.json")
-      Aleph.Config.put_coworker_model("tlon", %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}, path)
+      Aleph.Config.put_coworker_model("tertius", %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}, path)
 
       previous = Application.get_env(:aleph, :config_path)
       Application.put_env(:aleph, :config_path, path)
@@ -178,16 +178,13 @@ defmodule Aleph.ProfilesTest do
         File.rm_rf!(dir)
       end)
 
-      assert Profiles.fetch("tlon").model == %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
+      assert Profiles.fetch("tertius").model == %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
     end
   end
 
-  describe "the tertius profile — the Orbis Tertius meta agent (slice 3)" do
-    test "carries the meta-agent persona as its system_prompt, on a cheap glm driver" do
+  describe "the tertius profile — the Orbis Tertius meta agent (the center)" do
+    test "carries the meta-agent persona as its system_prompt (the vantage role)" do
       p = Profiles.fetch("tertius")
-      assert p.model == %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
-      # The persona is what distinguishes tertius from the tlon coworker — it must be present and
-      # spell out the vantage-not-worker role, or it's just a second glm coworker.
       assert p.system_prompt =~ "tertius-machine"
       assert p.system_prompt =~ "synthesis"
       assert p.system_prompt =~ "root"
@@ -197,11 +194,8 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.render(Profiles.fetch("tertius"), @base_settings, @base_mcp).system_prompt =~ "tertius-machine"
     end
 
-    test "gets the cross-leaf machine_overview read (slice 4) that the tlon worker does not" do
-      tertius = Profiles.fetch("tertius").mcp["funes"]["directTools"]
-      assert "machine_overview" in tertius
-      # ...and it's the ONE tool that separates the synthesizer from the self-contained worker.
-      refute "machine_overview" in Profiles.fetch("tlon").mcp["funes"]["directTools"]
+    test "gets the cross-leaf machine_overview read (slice 4) so it can see the leaves" do
+      assert "machine_overview" in Profiles.fetch("tertius").mcp["funes"]["directTools"]
     end
   end
 
@@ -236,8 +230,8 @@ defmodule Aleph.ProfilesTest do
     end
 
     test "writes settings/mcp/sandbox and symlinks the shared files", %{base: base, root: root} do
-      dir = Profiles.materialise!(Profiles.fetch("tlon"), base: base, root: root)
-      assert dir == Path.join(root, "tlon")
+      dir = Profiles.materialise!(Profiles.fetch("tertius"), base: base, root: root)
+      assert dir == Path.join(root, "tertius")
 
       settings = Jason.decode!(File.read!(Path.join(dir, "settings.json")))
       # the manos/pi funes adapter is KEPT now (brief + auto-capture pointed at the machine thread)
@@ -266,7 +260,7 @@ defmodule Aleph.ProfilesTest do
 
     test "writes the coworker's persistence-free tmux.conf — fresh on rebuild, never resurrected",
          %{base: base, root: root} do
-      dir = Profiles.materialise!(Profiles.fetch("tlon"), base: base, root: root)
+      dir = Profiles.materialise!(Profiles.fetch("tertius"), base: base, root: root)
       conf = File.read!(Path.join(dir, "tmux.conf"))
       # the interactive bits travel with the coworker...
       assert conf =~ "set -g mouse on"
@@ -283,8 +277,8 @@ defmodule Aleph.ProfilesTest do
     end
 
     test "idempotent — a second materialise re-links without error", %{base: base, root: root} do
-      Profiles.materialise!(Profiles.fetch("tlon"), base: base, root: root)
-      assert Profiles.materialise!(Profiles.fetch("tlon"), base: base, root: root) == Path.join(root, "tlon")
+      Profiles.materialise!(Profiles.fetch("tertius"), base: base, root: root)
+      assert Profiles.materialise!(Profiles.fetch("tertius"), base: base, root: root) == Path.join(root, "tertius")
     end
   end
 end

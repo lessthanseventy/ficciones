@@ -38,12 +38,12 @@ defmodule Aleph.MentionEnvTest do
 
       assert Mention.coworkers()["skeptic-machine"] == "skeptic"
 
-      assert Mention.route(%{author: "pi-machine", body: "@skeptic-machine weigh in", thread_id: 1}) ==
-               [{"skeptic", "[funes thread #1] pi-machine: @skeptic-machine weigh in"}]
+      assert Mention.route(%{author: "tertius-machine", body: "@skeptic-machine weigh in", thread_id: 1}) ==
+               [{"skeptic", "[funes thread #1] tertius-machine: @skeptic-machine weigh in"}]
 
       # And the base pair still works alongside it.
       assert Mention.route(%{author: "skeptic-machine", body: "@claude-machine you're stalling", thread_id: 1}) ==
-               [{"claude", "[funes thread #1] skeptic-machine: @claude-machine you're stalling"}]
+               [{"hronir", "[funes thread #1] skeptic-machine: @claude-machine you're stalling"}]
     end
   end
 
@@ -51,15 +51,15 @@ defmodule Aleph.MentionEnvTest do
     test "labels the injected turn 'someone' instead of the real handle" do
       System.put_env("TLON_MENTION_LABEL", "anon")
 
-      assert Mention.route(%{author: "pi-machine", body: "@claude-machine who are you", thread_id: 1}) ==
-               [{"claude", "[funes thread #1] someone: @claude-machine who are you"}]
+      assert Mention.route(%{author: "tertius-machine", body: "@claude-machine who are you", thread_id: 1}) ==
+               [{"hronir", "[funes thread #1] someone: @claude-machine who are you"}]
     end
 
     test "any other value keeps the real label" do
       System.put_env("TLON_MENTION_LABEL", "real")
 
-      assert Mention.route(%{author: "pi-machine", body: "@claude-machine hi", thread_id: 1}) ==
-               [{"claude", "[funes thread #1] pi-machine: @claude-machine hi"}]
+      assert Mention.route(%{author: "tertius-machine", body: "@claude-machine hi", thread_id: 1}) ==
+               [{"hronir", "[funes thread #1] tertius-machine: @claude-machine hi"}]
     end
   end
 end

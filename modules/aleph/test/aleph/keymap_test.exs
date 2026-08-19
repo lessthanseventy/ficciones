@@ -436,12 +436,12 @@ defmodule Aleph.KeymapTest do
   describe "the `m` verb — cycle the coworker driver model (the SETTINGS knob)" do
     test "in a coworker space (Tlön), bare `m` emits the cycle effect for that profile" do
       s = state(%{active_key: :tlon})
-      assert {^s, {:cycle_coworker_model, "tlon"}} = Keymap.handle(char("m"), s)
+      assert {^s, {:cycle_coworker_model, "tertius"}} = Keymap.handle(char("m"), s)
     end
 
     test "reachable via the leader from inside the live terminal" do
       s = state(%{active_key: :tlon, center_live?: true})
-      assert {%{leader_pending?: false}, {:cycle_coworker_model, "tlon"}} = via_leader(char("m"), s)
+      assert {%{leader_pending?: false}, {:cycle_coworker_model, "tertius"}} = via_leader(char("m"), s)
     end
 
     test "in a space without a coworker, `m` is a no-op" do

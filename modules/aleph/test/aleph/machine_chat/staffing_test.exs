@@ -9,7 +9,7 @@ defmodule Aleph.MachineChat.StaffingTest do
   alias Aleph.MachineChat.Staffing
 
   test "the first @-mentioned coworker wins over the default" do
-    assert Staffing.pick_coworker("@pi-machine do x", "claude-machine") == "pi-machine"
+    assert Staffing.pick_coworker("@tertius-machine do x", "claude-machine") == "tertius-machine"
   end
 
   test "no mention falls back to the default" do

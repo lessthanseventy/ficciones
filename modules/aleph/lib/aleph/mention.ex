@@ -1,13 +1,12 @@
 defmodule Aleph.Mention do
   @moduledoc """
-  @-mention routing — the point of the cockpit: pi and claude share one thread, and either can
-  address the other by name. A funes message that `@`-names a Tlön coworker wakes that coworker by
-  arriving as a turn in its tmux window (the Cockpit does the `tmux send-keys`; this module only
-  DECIDES who to wake and what to say). Pure, so it tests without a TTY or a live tmux.
+  @-mention routing — the Tlön coworkers share one thread and address each other by name. A funes
+  message that `@`-names a coworker wakes it by arriving as a turn in its tmux window (the Cockpit
+  does the `tmux send-keys`; this module only DECIDES who to wake and what to say). Pure, so it tests
+  without a TTY or a live tmux.
 
-  The mapping from a coworker's funes handle (its `FUNES_AUTHOR`) to its tmux window name is the
-  one piece of structural knowledge here — it must match the window names `spawn_machine_coworker`
-  (`pi`) and `spawn_claude_coworker` (`claude`) create.
+  The handle → window mapping (`@base_coworkers`) is the one piece of structural knowledge here — it
+  must match the window names the Cockpit's spawn code creates (`tertius`, `hronir`).
 
   ## Experiment knobs (env, off by default — see docs/tlon-experiments)
 
@@ -19,11 +18,9 @@ defmodule Aleph.Mention do
       thread.
   """
 
-  # funes handle → the tmux window name the coworker runs in. Keep in sync with the spawn code.
-  # `tertius-machine` is the Orbis Tertius meta agent (slice 3): a glm pi window on the ROOT thread
-  # that synthesizes across the leaves — woken by an explicit @-mention (never the bare-reply lead,
-  # which stays claude-machine), so it stays the quiet vantage, not a second answerer.
-  @base_coworkers %{"pi-machine" => "pi", "claude-machine" => "claude", "tertius-machine" => "tertius"}
+  # funes handle → the tmux window (tab) the coworker runs in. Keep in sync with the spawn code.
+  # tertius-machine (the meta agent) is the center; claude-machine is the builder, tab `hronir`.
+  @base_coworkers %{"claude-machine" => "hronir", "tertius-machine" => "tertius"}
 
   @doc "The optional third experiment coworker from `$TLON_THIRD_AGENT` (\"handle:window\"), or nil."
   @spec third_agent() :: %{author: String.t(), window: String.t()} | nil

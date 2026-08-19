@@ -141,7 +141,7 @@ defmodule Aleph.CockpitTest do
 
     test "chrome-off + copy-mode style live in the profile tmux.conf now, not chained set-options" do
       cmd = Cockpit.profile_launcher(@profile)
-      assert cmd =~ "new-session -A -s tlon -n pi"
+      assert cmd =~ "new-session -A -s tlon -n tertius"
       refute cmd =~ "set-option"
 
       conf = Aleph.Profiles.tmux_conf()

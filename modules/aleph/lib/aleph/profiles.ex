@@ -326,31 +326,13 @@ defmodule Aleph.Profiles do
   asked to synthesize — you are the vantage, not another voice in the room.
   """
 
-  # The registry. Tlön: a MACHINE-SCOPE funes citizen (@tlon_funes_mcp) — its own dossier/logbook on
-  # the machine thread, isolated from project threads by scope; the funes adapter (manos/pi) kept so
-  # its brief + every-8-turn auto-capture point at that thread; the footer added; sandboxed. Driver
-  # model is OLLAMA-FIRST (glm-5.2): the pi-multi-account "claude-via-pi" path (routing pi's Anthropic
-  # calls through the OAuth subscription token by impersonating real Claude Code's client fingerprint
-  # — the CLAUDE_CODE_IDENTITY_PREFIX / paragraph-stripping in pi-multi-account/index.ts) is an
-  # unlicensed use of a consumer subscription against a third-party client, not a sanctioned API, and
-  # not worth the account-flag risk for the driver's default. Genuine Claude access for Tlön now runs
-  # HONESTLY instead, as its own `claude` window (below) — real Claude Code, no impersonation, joined
-  # to the same machine thread so it and this pi coworker coordinate over funes like any two agents.
+  # The one coworker profile: `tertius`, the Tlön CENTER — the Orbis Tertius meta agent
+  # (`tertius-machine`, tab `tertius`), keying the tmux socket `aleph-tertius` and config dir. A
+  # machine-scope funes citizen (@tertius_funes_mcp: the machine-citizen surface + the machine_overview
+  # cross-leaf read), the @tertius_role persona, footer, sandbox, yolo permissions, glm-5.2 driver.
+  # Genuine Claude access is the honest `hronir` window (real Claude, no pi-multi-account
+  # impersonation), joined to the same root thread.
   @profiles [
-    %Profile{
-      name: "tlon",
-      drop_extensions: [],
-      add_extensions: [@footer_extension],
-      mcp: @tlon_funes_mcp,
-      model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
-      sandbox: @tlon_sandbox,
-      permissions: @tlon_permissions
-    },
-    # tertius — the Orbis Tertius meta agent (slices 3–4). tlön's machine-citizen surface (funes on the
-    # machine scope, footer, sandbox, yolo permissions) + a cheap glm driver + the @tertius_role
-    # persona + `machine_overview` (@tertius_funes_mcp), the cross-leaf read that makes it the
-    # root-thread synthesizer. Bound to the root at spawn (`Aleph.Cockpit.spawn_tertius_window`), not
-    # the space center — it rides the tlon tmux server as its own window.
     %Profile{
       name: "tertius",
       drop_extensions: [],
