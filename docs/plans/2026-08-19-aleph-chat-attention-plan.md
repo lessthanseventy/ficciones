@@ -219,6 +219,29 @@ The wake path touches tmux + a live coworker window, so it is out of the headles
 
 ## Phase 2 — Pick who joins (staffing picker on thread-create)
 
+> **Critical finding from Phase 1 live-verify (2026-08-19):** the Tlön **chat tab is a
+> separate process** — `mix aleph.machine_chat` (`lib/aleph/machine_chat/loop.ex`), its own
+> BEAM/tmux window — with its **own** wake path (`wake_mentions/3`, `loop.ex:216`) that calls
+> `Aleph.Mention.route/1` (mentions only). Phase 1 patched `Aleph.Cockpit.mention_notify`, a
+> DIFFERENT process the chat tab bypasses (comment at `loop.ex:214`: "our post is on our own
+> bus, which the cockpit can't see"). So Phase 1's lead-fallback does NOT run for anything typed
+> in the chat. Also `do_submit/2` (`loop.ex:199-211`) ALWAYS `Channel.open_thread(scope:
+> "machine")` — a new, unstaffed thread per message — so there is no lead to wake regardless.
+> **Two required Phase-2 tasks fall out of this:**
+> 1. **Bridge the chat wake path:** in `machine_chat/loop.ex` `wake_mentions/3`, resolve the
+>    thread's lead (`Funes.thread_lead/1`, added in Phase 1) and call `Aleph.Mention.route/2`
+>    with `lead:` — mirroring the cockpit change, so a bare reply in the chat wakes the lead.
+> 2. **Staff a lead on composer threads:** `do_submit/2` must assign the chosen coworker
+>    (`Funes.Staff.assign/2`) as the new thread's lead — otherwise `route/2` still finds no lead.
+>    This is the same "pick who joins" staffing below, applied to the machine-chat composer.
+>
+> Only once BOTH land does "type in the chat → someone answers" work end to end.
+>
+> **Note the Orbis↔Tlön wall is intentional** (Andrew, 2026-08-19): Orbis is project-scope,
+> Tlön machine-scope, isolated by the scope `CHECK` (+ the cockpit's `.dev` db on :4041).
+> Machine threads NEVER surface in Orbis — do not "fix" this; the reply/staffing work happens
+> inside Tlön/machine-chat, not by crossing the wall.
+
 **Needs its own detailed planning pass.** Scope:
 
 - **`lib/aleph/keymap.ex`:** the `n` verb currently jumps straight to `%{kind: :new_thread}` → `{:create_thread, title}` (keymap.ex:78, 175). Add a second modal step `%{kind: :pick_agent, title, choices, index}` entered after the title submits, and a new effect `{:create_thread_staffed, title, agent}`. Keep the reducer pure; unit-test the new key transitions in `test/aleph/keymap_test.exs`.

@@ -1,9 +1,14 @@
 # Aleph chat + attention layer — design
 
 **Date:** 2026-08-19
-**Status:** design (brainstormed with Andrew; not yet planned/implemented)
+**Status:** design (brainstormed with Andrew; Phase 1 shipped; architecture revised — see Revision B)
 **Author:** claude-machine (Tlön), with Andrew
 **Supersedes/extends:** `2026-08-15-aleph-tui-design.md`
+
+> **Revision B (2026-08-19, after the answering-model investigation) supersedes the 3-space
+> layout below.** Read Revision B at the bottom first — the space model changed (Sessions
+> dissolves; Orbis & Tlön each get `chat` + `sessions` windows). The attention model, staffing,
+> and reply→wake decisions above still hold; only the surface topology changed.
 
 ## Origin
 
@@ -172,3 +177,80 @@ Directing rule (Decision 6):
   coworker literally calls `propose_habit` for non-habits. Fix is coworker prompt/tool
   gating, not the aleph render path. Out of scope here but noted.
 - **Notifications.** OSC 9/777 "agent waiting on you" via ghostty — deferred (herdr-notifications).
+
+---
+
+# Revision B — space architecture (2026-08-19)
+
+After investigating how a Tlön coworker actually answers on a thread, two things forced a
+topology change.
+
+**The answering-model finding.** A coworker posts to the thread its token is bound to
+(`FUNES_THREAD`); `post_message` takes no thread arg — misdirection is unrepresentable by
+design. `switch_thread` exists but is only the *signal half* (mints a new token; the adapter
+re-handshake that would consume it isn't built), and pi doesn't even have the tool. So an
+agent answers on thread N only if it was **spawned bound to N** — the per-thread identity mint
+`Spawn.join(N, agent)` that the old Sessions space already does (`spawn_onto`), but that Tlön
+never wired in. → **A new chat thread gets its own session (Andrew's default). Warm-rotating an
+idle agent onto a new thread (the optimization) is deferred until the `switch_thread` adapter
+half exists.**
+
+**The topology change (Andrew).** *Sessions as its own space is overloaded.* Dissolve it. Give
+**each domain its own chat + its own session manager**, so the scope wall is total.
+
+## The revised spaces
+
+Two spaces, symmetric, each backed by its own tmux session with **two windows**:
+
+- **Orbis** (project / real) and **Tlön** (machine / dogfood). **No standalone Sessions space.**
+- Per space:
+  - **`chat`** — the thread front-door: browse threads, start new ones (pick who joins),
+    post/reply. (Today's `machine_chat`, generalized; Orbis gets one too.)
+  - **`sessions`** — a **session-manager index**: the space's threads + each one's session
+    status (staffed? live? warm? working / stuck?); selecting a row opens that session's
+    terminal; spawn / attend / kill from the index. NOT a bare tab-strip of PTYs — an index
+    that *opens into* terminals.
+- **Left rail stays global** — SPACES picker, the **COWORKERS attention roster** (who's working /
+  who's stuck, across both spaces), STACK / HEALTH.
+- **Two axes of movement:** *within* a space, flip `chat ↔ sessions`; *across* spaces, switch
+  `Orbis ↔ Tlön`.
+
+## Roster vs. index (they share one state)
+
+The left-rail **COWORKERS roster** is the *global ambient glance* ("who needs me, anywhere").
+The per-space **`sessions` index** is the *local workspace* you act in (attend / spawn / kill
+this space's sessions). Both derive from the same fused attention state (funes signals + PTY
+motion) — one is a readout, one is a control surface. The index must not just duplicate the
+roster; it adds per-thread session control the roster doesn't have.
+
+## How a chat thread becomes an answered thread (the core mechanic)
+
+1. In a space's `chat`, operator starts a thread and **picks who joins**.
+2. `Channel.open_thread(scope)` + `Funes.Staff.assign(thread, agent)` (the lead) +
+   spawn that coworker as a **session bound to thread N** (`Spawn.join(N, agent)` → a PTY whose
+   `FUNES_THREAD=N`). The session surfaces in this space's `sessions` index.
+3. The coworker, born on N, answers **on N** via its own token — no funes changes, no
+   `switch_thread` glue.
+4. `chat` shows the conversation + who's responding (roster state); "jump to the session" =
+   flip to `sessions` and open that thread's terminal.
+
+## Revised phasing (supersedes the plan's Phase 2–4 headings)
+
+- **B1 — the core mechanic:** chat composer staffs + spawns a coworker session bound to the new
+  thread, so "type in chat → chosen coworker answers on that thread" works end to end. Includes
+  the `wake_mentions`→`route/2` bridge finding from the plan.
+- **B2 — the `sessions` index window** (index-opens-into-terminals) per space.
+- **B3 — dissolve the Sessions space; give Orbis its own `chat` + `sessions`** (symmetry).
+- **B4 — the COWORKERS attention roster + fused state** (was Phase 3), feeding both roster and
+  index.
+- **Deferred — warm rotation** (`switch_thread` adapter half) once cold-spawn cost bites.
+
+## Open (to detail during B1 planning)
+
+- **How "pick who joins" works in the chat** — an explicit picker step, or `@handle` in the
+  composer message doubling as the staffing selector, or a default with override.
+- **Where the spawned session PTY lives** — a tmux window in the space's session vs. an embedded
+  ghostty terminal the index opens; ties into what the `sessions` index renders.
+- **Scope/rendering assumptions** that today hard-code one machine thread
+  (`Channel.machine_thread/0`, the LOGBOOK, `composer_thread_id`) need revisiting once threads
+  are many and per-thread-staffed.
