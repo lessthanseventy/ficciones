@@ -196,6 +196,13 @@ defmodule Aleph.ProfilesTest do
     test "render carries the persona through to the materialised files" do
       assert Profiles.render(Profiles.fetch("tertius"), @base_settings, @base_mcp).system_prompt =~ "tertius-machine"
     end
+
+    test "gets the cross-leaf machine_overview read (slice 4) that the tlon worker does not" do
+      tertius = Profiles.fetch("tertius").mcp["funes"]["directTools"]
+      assert "machine_overview" in tertius
+      # ...and it's the ONE tool that separates the synthesizer from the self-contained worker.
+      refute "machine_overview" in Profiles.fetch("tlon").mcp["funes"]["directTools"]
+    end
   end
 
   describe "the model ring — what the settings `m` verb cycles" do

@@ -1,8 +1,8 @@
 # Orbis Tertius — the machine meta-thread & orchestrator
 
 Date: 2026-08-19
-Status: design agreed. Slices 1 (foundation), 2a (rollup panel), 2b (chat-tab strip) + 3 (the
-tertius agent) landed; slices 4–5 (cross-thread read, cadence) remain.
+Status: design agreed. Slices 1 (foundation), 2a (rollup panel), 2b (chat-tab strip), 3 (the
+tertius agent) + 4 (cross-thread read) landed; slice 5 (cadence) remains.
 
 ## Problem
 
@@ -112,7 +112,14 @@ Genuinely new:
    fallback), so it's the quiet vantage, not a second answerer. Cross-thread READ of the leaves is
    still slice 4 — until then tertius posts to the root and reads its own dossier. Verified: aleph:check
    312/0 + a live eval of the launch string; the actual glm window is a live eyeball after `aleph:reset`.
-4. **Cross-thread read** — verify/extend funes so tertius sees the leaves.
+4. **Cross-thread read** *(done 2026-08-19)* — tertius can now see the leaves. `get_messages`/
+   `get_dossier` are self-thread by the "no tool takes a thread parameter" invariant, so rather than
+   break it: `Funes.Channel.open_machine_threads/0` + `Funes.Board.machine_overview/0` (each open
+   machine thread as a compact brief — lead, next, blockers, recent messages — from the same
+   `in_scope/1` aggregate) + a `machine_overview` MCP tool that takes NO thread param and is served
+   ONLY to a machine-scope connection (a project agent is refused; project/closed threads never leak
+   in). Wired into tertius's profile (`@tertius_funes_mcp` = tlön's surface + `machine_overview`) and
+   its persona points at it. Verified: funes 232/0, aleph 313/0, a live read of the dev DB.
 5. **Cadence** — wake tertius on the right triggers.
 
 ## Verification
