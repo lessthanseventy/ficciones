@@ -83,6 +83,15 @@ defmodule Funes.Channel do
   end
 
   @doc """
+  Every OPEN machine-scope thread, oldest-first (the root leads) — the leaf set the Orbis Tertius
+  meta agent reads across (`Funes.Board.machine_overview/0`). Open-only: the synthesis is over work
+  in flight, not the closed history.
+  """
+  def open_machine_threads do
+    Repo.all(from t in Thread, where: t.state == "open" and t.scope == ^@machine_scope, order_by: [asc: t.id])
+  end
+
+  @doc """
   STAFFED machine-scope threads — B1.4's `ensure_thread_sessions` candidate list (aleph
   cockpit.ex): every machine-scope thread with a lead, `%{id, lead, title}` per thread (`lead` is
   the staffed agent's name; the join makes it never nil). No open/closed filter and no ordering

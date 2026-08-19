@@ -48,6 +48,30 @@ defmodule Funes.Board do
     }
   end
 
+  @doc """
+  The machine META-view: every OPEN machine-scope thread (root + leaves) as a COMPACT brief — the
+  cross-leaf read the Orbis Tertius meta agent synthesizes from (design:
+  `docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md`). Each leaf is trimmed to the synthesis
+  essentials — lead, NEXT step, open BLOCKERS, and the message tail — drawn from the SAME `in_scope/1`
+  aggregate a single thread's dossier reads (one read model, not a second truth). Root-first (oldest
+  id). Machine-scope only, by construction: `Channel.open_machine_threads/0` never returns project
+  work, so this can't become a cross-scope peephole.
+  """
+  def machine_overview do
+    Enum.map(Channel.open_machine_threads(), fn thread ->
+      s = in_scope(thread)
+
+      %{
+        thread_id: thread.id,
+        title: thread.title,
+        lead: s.lead,
+        next: s.next && s.next.text,
+        blockers: Enum.map(s.blockers.shown, & &1.summary),
+        recent: Enum.map(s.chatter, &%{author: &1.author, body: &1.body})
+      }
+    end)
+  end
+
   # DONE is a MERGED view (pi doc §5): completed todos by their `done_at`, plus
   # `work_landed` events for outcomes never planned as a todo — merged by their OWN
   # timestamps, never copied into one another (the amended-§4 pattern). Each entry is

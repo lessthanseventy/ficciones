@@ -772,3 +772,36 @@ defmodule Funes.MCP.Tool.SearchFacts do
     {:reply, Response.json(Response.tool(), Search.facts(params[:query], params[:limit] || 10)), frame}
   end
 end
+
+defmodule Funes.MCP.Tool.MachineOverview do
+  @moduledoc """
+  The machine META-view: every OPEN machine thread as a compact brief (title, lead, next step,
+  open blockers, recent messages) — the cross-leaf read the Orbis Tertius meta agent synthesizes
+  from (design: docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md). Unlike the self-thread
+  reads it spans threads, yet it honours "no tool takes a thread parameter": it takes none, and is
+  served ONLY to a machine-scope connection — a project-scope agent is refused, so it reads across
+  the machine workspace without becoming a cross-scope peephole.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Board
+  alias Funes.Channel
+  alias Funes.MCP.Identity
+
+  schema do
+  end
+
+  @impl true
+  def execute(_params, frame) do
+    identity = Identity.from_frame(frame)
+
+    case Channel.thread(identity.thread_id) do
+      %{scope: "machine"} ->
+        {:reply, Response.json(Response.tool(), Board.machine_overview()), frame}
+
+      _ ->
+        {:reply, Response.error(Response.tool(), "machine_overview is for machine-scope threads only"), frame}
+    end
+  end
+end

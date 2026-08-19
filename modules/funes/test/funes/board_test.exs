@@ -150,4 +150,40 @@ defmodule Funes.BoardTest do
       assert scope.next == nil
     end
   end
+
+  describe "machine_overview/0 — the Orbis Tertius cross-leaf read" do
+    test "every OPEN machine thread as a compact brief; project + closed threads never leak in" do
+      {:ok, _root} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      {:ok, leaf} = Channel.open_thread(%{title: "reaper fix", scope: "machine"})
+      {:ok, _proj} = Channel.open_thread(%{title: "a project thread"})
+      {:ok, closed} = Channel.open_thread(%{title: "done leaf", scope: "machine"})
+      {:ok, _} = Channel.close_thread(closed)
+
+      {:ok, _agent} = Staff.register_agent(%{name: "claude-machine", mandate: "machine", engine: "claude"})
+      Funes.assign_lead(leaf.id, "claude-machine")
+      {:ok, _} = Dossier.add_todo(%{thread_id: leaf.id, text: "wire the reaper"})
+      {:ok, _} = Dossier.raise_issue(%{thread_id: leaf.id, summary: "port 4041 held"})
+      {:ok, _} = Channel.post(%{thread_id: leaf.id, author: "claude-machine", body: "on it"})
+
+      overview = Board.machine_overview()
+      titles = Enum.map(overview, & &1.title)
+      assert "Tlön" in titles
+      assert "reaper fix" in titles
+      # scope isolation (a machine agent never peeks at project work) + open-only
+      refute "a project thread" in titles
+      refute "done leaf" in titles
+
+      leaf_row = Enum.find(overview, &(&1.title == "reaper fix"))
+      assert leaf_row.lead == "claude-machine"
+      assert leaf_row.next == "wire the reaper"
+      assert "port 4041 held" in leaf_row.blockers
+      assert Enum.any?(leaf_row.recent, &(&1.body == "on it"))
+    end
+
+    test "root-first ordering — the founding thread (oldest id) leads the overview" do
+      {:ok, _root} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      {:ok, _leaf} = Channel.open_thread(%{title: "leaf", scope: "machine"})
+      assert [%{title: "Tlön"} | _] = Board.machine_overview()
+    end
+  end
 end
