@@ -2,7 +2,7 @@ defmodule Aleph.Space do
   @moduledoc """
   A **space** is a named lens over funes — *what's in the middle* and the panels around it — the
   unit the top-left switcher picks (design Addendum §B; renamed from "workspace," which collided
-  with tmux and Herdr). Each space is a different app over the same substrate: **Comms** (the
+  with tmux and Herdr). Each space is a different app over the same substrate: **Orbis** (the
   thread/message chorus, the default), **Sessions** (the live embedded-terminal view), and
   **Tlön** (the META space — the machine/stack as a whole, not a project). The `Aleph.Panel.Spaces`
   picker switches the active one; the center renders that space's `surface`.
@@ -41,7 +41,7 @@ defmodule Aleph.Space do
         }
 
   @doc """
-  The spaces the switcher offers, in picker order — **Comms first (the default)**. Deliberately
+  The spaces the switcher offers, in picker order — **Orbis first (the default)**. Deliberately
   hardcoded for now; the design ships one set and *designs toward* user config (§3). `surface` is
   the center; `left`/`right` the situational sidebars.
   """
@@ -49,8 +49,8 @@ defmodule Aleph.Space do
   def all do
     [
       %__MODULE__{
-        key: :comms,
-        label: "Comms",
+        key: :orbis,
+        label: "Orbis",
         # The chorus IS the center now, so thread navigation lives in the feed (the focused
         # thread's block is highlighted) and the left carries presence (IN FLIGHT) instead of a
         # list the middle already shows. TRIAGE below IN FLIGHT shows cross-thread trouble.
@@ -95,7 +95,7 @@ defmodule Aleph.Space do
   @spec prev(atom()) :: t()
   def prev(key), do: step(key, -1)
 
-  @doc "Look a space up by key; the first space (Comms) is the default."
+  @doc "Look a space up by key; the first space (Orbis) is the default."
   @spec fetch(atom()) :: t()
   def fetch(key), do: Enum.find(all(), List.first(all()), &(&1.key == key))
 

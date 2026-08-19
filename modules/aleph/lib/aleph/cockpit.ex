@@ -749,7 +749,7 @@ defmodule Aleph.Cockpit do
       stack: state.stack || @empty_stack,
       health: state.health,
       logbook: logbook_read(state.active_key),
-      triage: if(state.active_key == :comms, do: triage_read(threads)),
+      triage: if(state.active_key == :orbis, do: triage_read(threads)),
       habits: habits_read(state.active_key),
       settings: settings_read(state.active_key),
       scrolls: state.scrolls,
@@ -819,8 +819,8 @@ defmodule Aleph.Cockpit do
   defp center_terminal(_state), do: nil
 
   # The thread `c` composes onto, derived per keypress (like center_live?): the focused project
-  # thread in Comms/Sessions; in Tlön the MACHINE thread — the operator working the box posts to
-  # the machine coworker, never a stale project thread id carried over from Comms. nil (no thread)
+  # thread in Orbis/Sessions; in Tlön the MACHINE thread — the operator working the box posts to
+  # the machine coworker, never a stale project thread id carried over from Orbis. nil (no thread)
   # makes `c` a no-op.
   defp composer_thread_id(%{active_key: :tlon}), do: machine_thread_id()
   defp composer_thread_id(state), do: state.focused_id

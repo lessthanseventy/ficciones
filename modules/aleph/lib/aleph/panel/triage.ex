@@ -21,7 +21,7 @@ defmodule Aleph.Panel.Triage do
 
   @impl Aleph.Panel
   def render(nil, rect) do
-    Aleph.Panel.clip([line("TRIAGE", :header), blank(), line("switch to Comms", :dim)], rect)
+    Aleph.Panel.clip([line("TRIAGE", :header), blank(), line("switch to Orbis", :dim)], rect)
   end
 
   @impl Aleph.Panel

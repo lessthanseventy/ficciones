@@ -79,12 +79,12 @@ defmodule Aleph.KeymapTest do
 
     test "Shift-Tab moves to the previous space (wraps)" do
       assert {%{active_key: :tlon}, :repaint} =
-               Keymap.handle(key(:tab, shift: true), state(%{active_key: :comms}))
+               Keymap.handle(key(:tab, shift: true), state(%{active_key: :orbis}))
     end
 
     test "] is next, [ is previous" do
       assert {%{active_key: :tlon}, :repaint} = Keymap.handle(char("]"), state())
-      assert {%{active_key: :comms}, :repaint} = Keymap.handle(char("["), state())
+      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("["), state())
     end
 
     test "Down and j both move focus forward" do
@@ -120,9 +120,9 @@ defmodule Aleph.KeymapTest do
     end
 
     test "Enter outside the Sessions space is a no-op — the spawned terminal couldn't be seen" do
-      # In Comms the center renders the chorus and in Tlön the machine shell; a spawn from
+      # In Orbis the center renders the chorus and in Tlön the machine shell; a spawn from
       # either would start a live PTY the operator can't see or type into.
-      for space <- [:comms, :tlon] do
+      for space <- [:orbis, :tlon] do
         s = state(%{active_key: space})
         assert {^s, :none} = Keymap.handle(key(:enter), s)
       end
@@ -269,7 +269,7 @@ defmodule Aleph.KeymapTest do
 
     test "in Tlön, c composes onto the MACHINE thread, not a stale project focused_id" do
       # The cockpit derives composer_thread_id from the machine thread in Tlön (a per-keypress
-      # injection), so a focused_id carried over from Comms must not receive the post.
+      # injection), so a focused_id carried over from Orbis must not receive the post.
       s = state(%{active_key: :tlon, focused_id: 2, composer_thread_id: 99})
       assert {%{input: %{kind: :compose, thread_id: 99, buffer: ""}}, :repaint} = Keymap.handle(char("c"), s)
     end

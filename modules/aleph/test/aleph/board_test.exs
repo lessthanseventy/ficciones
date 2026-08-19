@@ -124,7 +124,7 @@ defmodule Aleph.BoardTest do
 
     test "spaces picker marks the active space" do
       rows =
-        Spaces.render(%{spaces: Aleph.Space.all(), active_key: :comms}, %{
+        Spaces.render(%{spaces: Aleph.Space.all(), active_key: :orbis}, %{
           x: 0,
           y: 0,
           w: 20,
@@ -132,7 +132,7 @@ defmodule Aleph.BoardTest do
         })
 
       active = Enum.find(rows, &(text(&1) =~ "▸"))
-      assert text(active) =~ "Comms"
+      assert text(active) =~ "Orbis"
     end
 
     test "stack (Tlön): header then branch then two rows per commit (subject, then meta line), hash dimmed" do
@@ -386,9 +386,9 @@ defmodule Aleph.BoardTest do
     end
 
     test "spaces: a space row switches to it" do
-      data = %{spaces: Aleph.Space.all(), active_key: :comms}
+      data = %{spaces: Aleph.Space.all(), active_key: :orbis}
       rect = %{x: 0, y: 0, w: 20, h: 10}
-      assert {:switch_space, :comms} = Spaces.pick(data, rect, 2)
+      assert {:switch_space, :orbis} = Spaces.pick(data, rect, 2)
       assert {:switch_space, :sessions} = Spaces.pick(data, rect, 3)
       assert Spaces.pick(data, rect, 0) == nil
     end
@@ -605,8 +605,8 @@ defmodule Aleph.BoardTest do
       end
     end
 
-    test "comms space centers the chorus feed, with the roster (not a thread list) at its side" do
-      placements = View.compose(reads(%{active_key: :comms}), 120, 40)
+    test "orbis space centers the chorus feed, with the roster (not a thread list) at its side" do
+      placements = View.compose(reads(%{active_key: :orbis}), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
       # the chorus (all threads, one feed) is the center; the roster is the left sidebar (presence),
       # and the redundant ThreadList is gone — the feed is the navigator now.

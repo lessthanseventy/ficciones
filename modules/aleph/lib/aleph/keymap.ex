@@ -10,7 +10,7 @@ defmodule Aleph.Keymap do
   (the terminal is "normal mode"); aleph's own commands are reached through a `Ctrl+Space` **leader**
   that arms the *next* key as an aleph command. NOT Ctrl+B: that's tmux's prefix, and the Tlön
   center is literal tmux — Ctrl+B forwards like any other key so `C-b 2` reaches the real thing.
-  When there's no live terminal (Comms' chorus, or a placeholder before a session spawns), aleph's
+  When there's no live terminal (Orbis' chorus, or a placeholder before a session spawns), aleph's
   nav bindings are **bare** — the same command table, reached without the prefix. One command
   table, two doors. (Ctrl+Space arrives as Kitty CSI-u `\\e[32;5u` → `%{key: :space, ctrl: true}`
   under the disambiguate mode the cockpit arms on the host.)
@@ -164,7 +164,7 @@ defmodule Aleph.Keymap do
   # you type into it immediately. (Ctrl+C lands here too → forwards as an interrupt, never a quit.)
   def handle(key, %{center_live?: true} = state), do: {state, {:forward, key}}
 
-  # No live terminal (Comms, or a placeholder before a session spawns) → aleph's nav bindings are
+  # No live terminal (Orbis, or a placeholder before a session spawns) → aleph's nav bindings are
   # bare — the same command table the leader reaches, just without the prefix.
   def handle(key, state), do: command(key, state)
 
@@ -175,7 +175,7 @@ defmodule Aleph.Keymap do
   defp command(%{key: :char, char: "n"}, state),
     do: {%{state | input: %{kind: :new_thread, buffer: "", cursor: 0}}, :repaint}
 
-  # `c` — the composer: post to the thread `composer_thread_id` (the focused thread in Comms/
+  # `c` — the composer: post to the thread `composer_thread_id` (the focused thread in Orbis/
   # Sessions, the machine thread in Tlön — resolved per keypress by the cockpit, like center_live?).
   # nil (empty board / no machine thread) → nothing to post on. Bare `c` only (modifiers nil):
   # Ctrl+C is unbound (never a quit) and must not open a composer. Bare in a nav space or via the
@@ -198,7 +198,7 @@ defmodule Aleph.Keymap do
   # Enter on a focused thread → enter-or-spawn: spawn a session if it has none, else no-op. The
   # replacement for the old `s` verb — creating a thread and spawning are one action (`n` already
   # does both), and "put a session on an existing thread" is this. Sessions space only: anywhere
-  # else the center can't show the spawned terminal (Comms renders the chorus, Tlön the machine
+  # else the center can't show the spawned terminal (Orbis renders the chorus, Tlön the machine
   # shell), so Enter would start a live PTY the operator can neither see nor type into.
   defp command(%{key: :enter}, %{active_key: :sessions, focused_id: id} = state) when not is_nil(id),
     do: {state, {:enter_or_spawn, id}}

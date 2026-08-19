@@ -1,6 +1,6 @@
 defmodule Aleph.Panel.Chorus do
   @moduledoc """
-  COMMS — the **chorus**: every voice (agents + the operator) heard together in one feed (design:
+  ORBIS — the **chorus**: every voice (agents + the operator) heard together in one feed (design:
   "slack for agents", the default space). Unlike `Conversation` (one thread's CHAT), this is a
   single rolling timeline across ALL threads: recent messages
   (`Funes.Channel.recent_across/1`), grouped into blocks by thread so each block reads as its own
@@ -26,7 +26,7 @@ defmodule Aleph.Panel.Chorus do
   @impl Aleph.Panel
   def render(%{blocks: blocks} = data, rect) do
     focused = data[:focused_id]
-    header = [line("COMMS · all threads", :header), blank()]
+    header = [line("ORBIS · all threads", :header), blank()]
 
     body =
       case blocks do
