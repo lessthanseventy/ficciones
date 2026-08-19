@@ -20,7 +20,10 @@ defmodule Aleph.Mention do
   """
 
   # funes handle → the tmux window name the coworker runs in. Keep in sync with the spawn code.
-  @base_coworkers %{"pi-machine" => "pi", "claude-machine" => "claude"}
+  # `tertius-machine` is the Orbis Tertius meta agent (slice 3): a glm pi window on the ROOT thread
+  # that synthesizes across the leaves — woken by an explicit @-mention (never the bare-reply lead,
+  # which stays claude-machine), so it stays the quiet vantage, not a second answerer.
+  @base_coworkers %{"pi-machine" => "pi", "claude-machine" => "claude", "tertius-machine" => "tertius"}
 
   @doc "The optional third experiment coworker from `$TLON_THIRD_AGENT` (\"handle:window\"), or nil."
   @spec third_agent() :: %{author: String.t(), window: String.t()} | nil
@@ -67,6 +70,13 @@ defmodule Aleph.Mention do
   mentioned coworker (except the author's own window — the loop guard). With NO coworker mention,
   falls back to `opts[:lead]` — the thread's staffed lead coworker — so a bare operator reply
   still reaches someone. Each turn is `{window_name, one_line_text}`.
+
+  `opts[:staffed_window]` (e.g. `"t9"`) redirects the lead onto its OWN per-thread window: on a
+  staffed thread (B1.4) the lead coworker runs in a `t<id>` window, not the standing handle→window
+  slot, so any target that resolves to the lead's standing window is rewritten onto it. Without it,
+  a staffed thread's turns would wake the STANDING coworker instead of the session working THAT
+  thread. The author-exclusion loop guard runs before the redirect (an agent's own post — its
+  standing window — is dropped first), so the thread's own session never wakes itself.
   """
   @spec route(map(), keyword()) :: [{String.t(), String.t()}]
   def route(row, opts \\ [])
@@ -74,16 +84,25 @@ defmodule Aleph.Mention do
   def route(%{author: author, body: body, thread_id: tid}, opts) do
     author_window = coworkers()[author]
     targets = mention_targets(body, opts[:lead])
+    lead_window = opts[:lead] && coworkers()[opts[:lead]]
+    staffed = opts[:staffed_window]
 
     for_result =
       for window <- targets, window != author_window do
-        {window, "[funes thread #{tid_str(tid)}] #{display_author(author)}: #{one_line(body)}"}
+        {redirect(window, lead_window, staffed),
+         "[funes thread #{tid_str(tid)}] #{display_author(author)}: #{one_line(body)}"}
       end
 
     Enum.uniq(for_result)
   end
 
   def route(_, _), do: []
+
+  # On a staffed thread the lead lives in its own `t<id>` window: rewrite any target that resolves
+  # to the lead's standing window onto it. nil staffed_window (standing thread / no per-thread
+  # session) = no redirect, the old handle→window target stands.
+  defp redirect(window, lead_window, staffed) when is_binary(staffed) and window == lead_window, do: staffed
+  defp redirect(window, _lead_window, _staffed), do: window
 
   # The windows to wake: the explicitly @-mentioned coworkers, or — when none are named — the
   # thread's lead coworker's window (nil / unknown lead → []).

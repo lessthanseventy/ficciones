@@ -34,6 +34,11 @@ defmodule Aleph.MachineChat.Loop do
   alias Funes.Channel
   alias Raxol.Core.Events.Event
 
+  # The claude coworker handle — the lead the cockpit staffs with its own `t<id>` session (B1.4),
+  # so this tab must not also wake the standing coworker for it. Keep in sync with
+  # `Aleph.Cockpit.@claude_agent`.
+  @claude_agent "claude-machine"
+
   @poll_ms 700
   @render_coalesce_ms 8
   @tb_output_truecolor 5
@@ -84,7 +89,8 @@ defmodule Aleph.MachineChat.Loop do
           follow?: true,
           render_armed?: false,
           mode: :compose,
-          input: ""
+          input: "",
+          rollup: nil
         }
 
         send(self(), :poll)
@@ -106,7 +112,7 @@ defmodule Aleph.MachineChat.Loop do
     Process.send_after(self(), :poll, @poll_ms)
     view = Host.merge(state.view, poll_blocks(state))
     view = if state.follow?, do: %{view | selected: max(length(view.blocks) - 1, 0)}, else: view
-    {:noreply, schedule_render(%{refresh_size(state) | view: view})}
+    {:noreply, schedule_render(%{refresh_size(state) | view: view, rollup: Aleph.Orbis.rollup()})}
   end
 
   def handle_info(:render, %{render_armed?: false} = state), do: {:noreply, state}
@@ -204,8 +210,14 @@ defmodule Aleph.MachineChat.Loop do
     case Channel.open_thread(%{title: text, scope: "machine"}) do
       {:ok, thread} ->
         Channel.post(%{thread_id: thread.id, author: author, body: text})
-        stage_lead(thread.id, text)
-        wake_mentions(author, text, thread.id)
+        lead = stage_lead(thread.id, text)
+
+        # The cockpit (a SEPARATE beam) spawns a dedicated `t<id>` session for a claude-launched
+        # lead and injects the opening turn ITSELF (B1.4 `ensure_thread_sessions`). Waking the
+        # standing coworker from here as well is the "both claudes answered" duplicate — so only
+        # wake from here for a lead the cockpit won't staff (a pi-led thread, B1's follow-up).
+        if !cockpit_staffs?(lead), do: wake_mentions(author, text, thread.id)
+
         %{state | input: "", follow?: true}
 
       _ ->
@@ -214,13 +226,25 @@ defmodule Aleph.MachineChat.Loop do
   end
 
   # Staff the picked coworker (the composer text's first @-mention, else the operator's
-  # configured default) as the new thread's lead. A staffing failure (an unregistered handle, a
-  # DB hiccup) raises up to `submit/1`'s rescue/catch, which just clears the box — the thread and
-  # its opening message are already durable either way.
+  # configured default) as the new thread's lead, returning the staged handle. A staffing failure
+  # (an unregistered handle, a DB hiccup) raises up to `submit/1`'s rescue/catch, which just clears
+  # the box — the thread and its opening message are already durable either way.
   defp stage_lead(thread_id, text) do
     handle = Staffing.pick_coworker(text, Config.default_coworker())
     Funes.assign_lead(thread_id, handle)
-    :ok
+    handle
+  end
+
+  # Does the cockpit spawn a per-thread `t<id>` session for this lead (so it owns the opening turn
+  # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.claude_launched?/1`: the claude coworker
+  # and the optional third experiment agent are claude-launched; a pi-led thread is not (B1).
+  defp cockpit_staffs?(lead), do: lead == @claude_agent or lead == third_agent_author()
+
+  defp third_agent_author do
+    case Mention.third_agent() do
+      %{author: author} -> author
+      nil -> nil
+    end
   end
 
   # Wake each @-mentioned coworker by injecting the message as a turn into its tmux window — the same
@@ -268,7 +292,12 @@ defmodule Aleph.MachineChat.Loop do
 
   defp page(state), do: max(feed_h(state) - 1, 1)
 
-  defp feed_h(state), do: max(state.h - @box_rows, 1)
+  # The feed shares the height with the composer (bottom) and — when there are machine threads — a
+  # one-row ORBIS rollup strip pinned at the top.
+  defp feed_h(state), do: max(state.h - @box_rows - strip_rows(state), 1)
+
+  defp strip_rows(%{rollup: %{summary: _}}), do: 1
+  defp strip_rows(_state), do: 0
 
   defp refresh_size(state) do
     :termbox2_nif.tb_resize()
@@ -291,9 +320,11 @@ defmodule Aleph.MachineChat.Loop do
     %{state | render_armed?: true}
   end
 
-  # Render the feed into the top rows (bottom-anchored, pinned to the newest while following) and the
-  # composer into the reserved bottom rows. One render per frame.
+  # Render the ORBIS strip into the top rows (when present), the feed below it (bottom-anchored,
+  # pinned to the newest while following), and the composer into the reserved bottom rows. One
+  # render per frame.
   defp paint(state) do
+    sh = strip_rows(state)
     feed_h = feed_h(state)
     rows = Transcript.render(state.view, %{x: 0, y: 0, w: state.w, h: @max_rows})
     max_scroll = max(length(rows) - feed_h, 0)
@@ -301,11 +332,21 @@ defmodule Aleph.MachineChat.Loop do
     windowed = rows |> Enum.drop(scroll) |> Enum.take(feed_h)
     top_pad = List.duplicate([], max(feed_h - length(windowed), 0))
 
-    feed_cells = Board.rows_to_cells(top_pad ++ windowed, %{x: 0, y: 0, w: state.w, h: feed_h})
-    box_cells = state |> composer_rows() |> Board.rows_to_cells(%{x: 0, y: feed_h, w: state.w, h: @box_rows})
+    strip_cells = strip_cells(state, sh)
+    feed_cells = Board.rows_to_cells(top_pad ++ windowed, %{x: 0, y: sh, w: state.w, h: feed_h})
+    box_cells = state |> composer_rows() |> Board.rows_to_cells(%{x: 0, y: sh + feed_h, w: state.w, h: @box_rows})
 
-    Board.paint(feed_cells ++ box_cells)
+    Board.paint(strip_cells ++ feed_cells ++ box_cells)
     %{state | scroll: scroll, max_scroll: max_scroll, follow?: state.follow? or scroll >= max_scroll}
+  end
+
+  # The ORBIS rollup strip: the same styled summary line the sidebar panel paints, so the two never
+  # drift, prefixed with a label. Absent when there are no machine threads.
+  defp strip_cells(_state, 0), do: []
+
+  defp strip_cells(%{rollup: %{summary: summary}, w: w}, sh) do
+    row = [{"  ORBIS · ", :accent}] ++ Aleph.Panel.Orbis.summary_row(summary)
+    Board.rows_to_cells([row], %{x: 0, y: 0, w: w, h: sh})
   end
 
   # The composer: a rule then the input line — the task text with a cursor in COMPOSE, a hint in

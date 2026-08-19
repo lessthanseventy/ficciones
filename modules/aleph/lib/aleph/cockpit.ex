@@ -49,6 +49,11 @@ defmodule Aleph.Cockpit do
   # The Tlön Claude-Code window's identity — joins the SAME machine thread as @machine_agent so the
   # two coordinate as ordinary funes agents (post_message back and forth), never a merged identity.
   @claude_agent "claude-machine"
+  # The Orbis Tertius meta agent (slice 3): a glm pi window on the ROOT machine thread whose job is
+  # to synthesize across the leaves, not answer as a lead. Its persona rides the `tertius` profile
+  # (Aleph.Profiles @tertius_role); its handle→window mapping lives in Aleph.Mention.
+  @tertius_agent "tertius-machine"
+  @tertius_profile "tertius"
 
   # The tlon tmux session name — tmux is a first-class stack citizen here: the Tlön center is a real
   # `tmux attach`, so the machine workspace gets mouse, windows, and copy-mode, and it SURVIVES
@@ -361,7 +366,7 @@ defmodule Aleph.Cockpit do
   @impl true
   def handle_info({:message_posted, row}, state) do
     desktop_notify(:message_posted, row)
-    mention_notify(row)
+    mention_notify(row, state)
     {:noreply, render(state)}
   end
 
@@ -445,17 +450,53 @@ defmodule Aleph.Cockpit do
   # is injected as a turn into that coworker's tmux window, so a cold pane gets woken instead of
   # silently accumulating an unread thread. Pure routing lives in Aleph.Mention; this is the edge —
   # best-effort tmux send-keys, never a crash on a missing window.
-  defp mention_notify(row) do
+  defp mention_notify(row, state) do
     lead = thread_lead(row)
 
-    for {window, text} <- Aleph.Mention.route(row, lead: lead),
-        index = tlon_window_index(window),
-        not is_nil(index) do
-      inject_turn(index, text)
-    end
+    case delivery_target(row, state, lead) do
+      :skip ->
+        :ok
 
-    :ok
+      {:route, staffed} ->
+        for {window, text} <- Aleph.Mention.route(row, lead: lead, staffed_window: staffed),
+            index = tlon_window_index(window),
+            not is_nil(index) do
+          inject_turn(index, text)
+        end
+
+        :ok
+    end
   end
+
+  # Which window a posted message wakes, and whether to wake at all. B1.4 gave every staffed
+  # machine thread its OWN `t<id>` window, so the standing-coworker handle→window map is no longer
+  # the whole story:
+  #   * the standing coworker's thread → route globally (`staffed_window: nil`); its lead already
+  #     runs in the base `claude`/`pi` window.
+  #   * a claude-led staffed thread that's live AND past its opening turn → route onto `t<id>`, so
+  #     replies reach the session working THAT thread — not the standing coworker (the B1.4 bug:
+  #     `andrew` posts on thread 2, both the `t2` session and the standing `claude` answered).
+  #   * a claude-led staffed thread mid-spawn / pre-opening → `:skip`: `ensure_thread_sessions`
+  #     owns the opening turn (two-phase, race-safe); waking here would double it.
+  #   * no staffed lead, or a pi-led thread (B1 spawns no window for it) → route globally, unchanged.
+  defp delivery_target(%{thread_id: tid}, state, lead) when is_integer(tid) do
+    standing = state.standing_thread_id || machine_thread_id()
+
+    cond do
+      tid == standing -> {:route, nil}
+      is_nil(lead) or not claude_launched?(lead) -> {:route, nil}
+      staffed_thread_ready?(tid, state) -> {:route, "t#{tid}"}
+      true -> :skip
+    end
+  end
+
+  defp delivery_target(_row, _state, _lead), do: {:route, nil}
+
+  # A claude-led staffed thread whose `t<id>` window is live and whose opening turn has already
+  # been submitted (`ensure_thread_sessions` set `opening_injected`) — so `mention_notify` may
+  # deliver subsequent turns straight to it without racing or doubling the opening.
+  defp staffed_thread_ready?(tid, state),
+    do: MapSet.member?(state.opening_injected, tid) and not is_nil(tlon_window_index("t#{tid}"))
 
   # The funes handle of the coworker staffed on this message's thread (its lead), or nil.
   # Read in-process (aleph boots funes); never crash the hub if the lookup fails.
@@ -770,6 +811,7 @@ defmodule Aleph.Cockpit do
       |> ensure_probes()
       |> ensure_machine_coworker()
       |> ensure_claude_coworker()
+      |> ensure_tertius_coworker()
       |> ensure_third_coworker()
       |> ensure_log_window()
       |> ensure_thread_sessions()
@@ -794,6 +836,7 @@ defmodule Aleph.Cockpit do
       machine: machine_read(state),
       stack: state.stack || @empty_stack,
       health: state.health,
+      orbis: orbis_read(state.active_key),
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :orbis, do: triage_read(threads)),
       habits: habits_read(state.active_key),
@@ -972,6 +1015,12 @@ defmodule Aleph.Cockpit do
 
   defp logbook_read(_key), do: nil
 
+  # ORBIS rollup (Orbis Tertius slice 2) — the machine-scoped vantage, gathered only on Tlön. The
+  # semantics live in `Aleph.Orbis` (shared with the `chat` tab's header strip) so a status rule
+  # never drifts between the two surfaces.
+  defp orbis_read(:tlon), do: Aleph.Orbis.rollup()
+  defp orbis_read(_key), do: nil
+
   # TRIAGE reads: cross-thread blockers, failed checks, and unassigned threads.
   # Gathers from all open threads — a funes Board aggregate.
   # Each section is `%{shown: [...], more: count}` so the panel can render "+N more".
@@ -1063,6 +1112,26 @@ defmodule Aleph.Cockpit do
   end
 
   defp ensure_claude_coworker(state), do: state
+
+  # The Orbis Tertius meta agent's window (slice 3): a glm pi bound to the ROOT machine thread,
+  # running the `tertius` profile's persona. Gated like the claude window — the pi center up (so the
+  # session + root thread exist), the `tertius` window not already present (`new-window` isn't
+  # idempotent) — and retried each render, so a failed open just leaves the tab missing.
+  defp ensure_tertius_coworker(%{active_key: :tlon} = state) do
+    cond do
+      not is_pid(safe_terminal(:machine)) ->
+        state
+
+      Enum.any?(tlon_tabs(), &(&1.name == "tertius")) ->
+        state
+
+      true ->
+        spawn_tertius_window()
+        state
+    end
+  end
+
+  defp ensure_tertius_coworker(state), do: state
 
   # An optional THIRD coworker for experiments (`$TLON_THIRD_AGENT="handle:window"`, off by default):
   # a second Claude-Code window on its own funes identity, to break the two-body agree/disagree
@@ -1234,6 +1303,25 @@ defmodule Aleph.Cockpit do
   # and idempotent-by-absence-check above.
   defp spawn_claude_window, do: spawn_agent_window(@claude_agent, "claude")
 
+  # Open the `tertius` window: the Orbis Tertius meta agent as a glm pi bound to the ROOT machine
+  # thread. Materialise its profile, mint its identity on the root (`Spawn.join`), then `new-window`
+  # on the tlon server running the profile's pi with those FUNES_* exports in scope — the same shape
+  # as `spawn_agent_window` (a claude window) but a pi launcher instead of claude, so its persona +
+  # cheap driver ride the profile. Best-effort via `with`: a missing profile, a funes hiccup, or no
+  # root thread yet returns without spawning, and the next render retries.
+  defp spawn_tertius_window do
+    with %Profile{} = profile <- Profiles.fetch(@tertius_profile),
+         {:ok, _dir} <- materialise_profile(profile),
+         id when is_integer(id) <- machine_thread_id(),
+         {:ok, %{exports: exports}} <- Spawn.join(id, @tertius_agent, mandate: "machine") do
+      script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> pi_command(profile)
+
+      System.cmd("tmux", tlon_tmux(["new-window", "-d", "-t", @tlon_session, "-n", "tertius", script]),
+        stderr_to_stdout: true
+      )
+    end
+  end
+
   # Open a Claude-Code window named `window` on `thread_id` as funes `agent` — default
   # `machine_thread_id()`, the standing coworkers' shared thread. The claude/third-experiment
   # windows AND B1.4's per-thread windows (`ensure_thread_sessions`) all ride this: same launcher,
@@ -1298,7 +1386,11 @@ defmodule Aleph.Cockpit do
   # the profile has one, rides as `--append-system-prompt <file>`. Both the config dir and the persona
   # flag travel into `MANOS_RELOAD_CMD` so a manos/reload respawn stays on-profile. (Paths are the
   # single-user machine's — no spaces/quotes — so they sit inside the launcher's quoting bare.)
-  def profile_launcher(%Profile{} = profile) do
+  # The bare `pi` invocation for a profile: its config dir as `PI_CODING_AGENT_DIR`, the persona (if
+  # any) as `--append-system-prompt`, and the driver as a `--model` flag. Shared by `profile_launcher`
+  # (which wraps it in the center's `new-session`) and `spawn_tertius_window` (which wraps it in a
+  # `new-window` on the tlon server) — one source for how a profile's pi is spelled.
+  defp pi_command(%Profile{} = profile) do
     base = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
     dir = Profiles.config_dir(profile.name)
     prompt = if profile.system_prompt, do: " --append-system-prompt #{Path.join(dir, "system_prompt.md")}", else: ""
@@ -1312,7 +1404,12 @@ defmodule Aleph.Cockpit do
         _ -> ""
       end
 
-    pi = "env PI_CODING_AGENT_DIR=#{dir} #{base}#{prompt}#{model}"
+    "env PI_CODING_AGENT_DIR=#{dir} #{base}#{prompt}#{model}"
+  end
+
+  def profile_launcher(%Profile{} = profile) do
+    pi = pi_command(profile)
+    dir = Profiles.config_dir(profile.name)
     # MANOS_RELOAD_CMD: how manos/reload respawns pi in place — `--continue` resumes the most-recent
     # session (the one being killed), so a reload keeps the thread across the restart.
     reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}

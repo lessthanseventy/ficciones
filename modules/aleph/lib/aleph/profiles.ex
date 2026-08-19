@@ -298,6 +298,26 @@ defmodule Aleph.Profiles do
     }
   }
 
+  # The Orbis Tertius meta agent's persona (slice 3) — materialised to `system_prompt.md` and passed
+  # as `--append-system-prompt`. tertius-machine is a glm pi window bound to the ROOT machine thread
+  # (the founding thread, `Funes.Channel.machine_thread/0`), the standing coworkers' shared home. Its
+  # job is the VANTAGE, not the work: read across the leaf threads and keep the root thread a live
+  # rollup of the whole Tlön space — briefings, conflicts, stalls, duplicated effort. It is NOT a
+  # second answerer: the leaves have their own leads (claude-machine, pi-machine); tertius stays quiet
+  # until @-mentioned or (slice 5) a synthesis trigger fires. Cross-thread READ of the leaves lands in
+  # slice 4; until then tertius posts to the root and reads its own dossier. See
+  # `docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md`.
+  @tertius_role """
+  You are tertius-machine, the Orbis Tertius meta agent for the Tlön machine workspace — the
+  "leader of leaders." Your home is the ROOT machine thread; that thread is the operator's single
+  vantage over every worker ("leaf") thread. You do NOT do the leaves' work — each leaf has its own
+  lead. Your job is synthesis: read across the leaves and keep the root thread a current rollup —
+  what is in flight, what is stalled or blocked, where leaves conflict or duplicate effort, and what
+  the operator should look at next. Post those briefings and flags to the root thread. Be terse and
+  high-signal; a rollup nobody reads is worse than none. Stay quiet unless you are @-mentioned or
+  asked to synthesize — you are the vantage, not another voice in the room.
+  """
+
   # The registry. Tlön: a MACHINE-SCOPE funes citizen (@tlon_funes_mcp) — its own dossier/logbook on
   # the machine thread, isolated from project threads by scope; the funes adapter (manos/pi) kept so
   # its brief + every-8-turn auto-capture point at that thread; the footer added; sandboxed. Driver
@@ -317,6 +337,21 @@ defmodule Aleph.Profiles do
       model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
       sandbox: @tlon_sandbox,
       permissions: @tlon_permissions
+    },
+    # tertius — the Orbis Tertius meta agent (slice 3). Same self-contained machine-citizen surface as
+    # tlon (funes on the machine scope, footer, sandbox, yolo permissions), a cheap glm driver, PLUS
+    # the @tertius_role persona that makes it the root-thread synthesizer. Bound to the root at spawn
+    # (`Aleph.Cockpit.spawn_tertius_window`), not the space center — it rides the tlon tmux server as
+    # its own window. Slice 4 will widen its funes read to the leaves.
+    %Profile{
+      name: "tertius",
+      drop_extensions: [],
+      add_extensions: [@footer_extension],
+      mcp: @tlon_funes_mcp,
+      model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
+      sandbox: @tlon_sandbox,
+      permissions: @tlon_permissions,
+      system_prompt: @tertius_role
     }
   ]
 

@@ -13,6 +13,13 @@ defmodule Aleph.MentionTest do
     assert Mention.mentions("hey @pi-machine") == [{"pi-machine", "pi"}]
   end
 
+  test "the tertius meta agent is a coworker: @tertius-machine wakes its window" do
+    assert Mention.mentions("@tertius-machine roll up the leaves") == [{"tertius-machine", "tertius"}]
+
+    assert Mention.route(%{author: "andrew", body: "@tertius-machine status?", thread_id: 1}) ==
+             [{"tertius", "[funes thread #1] andrew: @tertius-machine status?"}]
+  end
+
   test "a non-coworker @-handle is ignored (slack-style noise, not a route)" do
     assert Mention.mentions("@andrew nope") == []
   end
@@ -87,6 +94,48 @@ defmodule Aleph.MentionTest do
 
       assert Mention.route(%{author: "andrew", body: "@claude-machine hi", thread_id: 7}) ==
                [{"claude", "[funes thread #7] andrew: @claude-machine hi"}]
+    end
+  end
+
+  describe "route/2 with a staffed per-thread window (B1.4)" do
+    test "a bare reply on a staffed thread wakes ITS t<id> window, not the standing coworker" do
+      assert Mention.route(
+               %{author: "andrew", body: "tell me a joke", thread_id: 2},
+               lead: "claude-machine",
+               staffed_window: "t2"
+             ) == [{"t2", "[funes thread #2] andrew: tell me a joke"}]
+    end
+
+    test "an explicit @-mention of the lead on a staffed thread also lands on t<id>" do
+      assert Mention.route(
+               %{author: "andrew", body: "@claude-machine ping", thread_id: 2},
+               lead: "claude-machine",
+               staffed_window: "t2"
+             ) == [{"t2", "[funes thread #2] andrew: @claude-machine ping"}]
+    end
+
+    test "the staffed lead's own post wakes nobody (loop guard survives the redirect)" do
+      assert Mention.route(
+               %{author: "claude-machine", body: "thinking out loud", thread_id: 2},
+               lead: "claude-machine",
+               staffed_window: "t2"
+             ) == []
+    end
+
+    test "a mention of a DIFFERENT coworker is not redirected (only the lead's window moves)" do
+      assert Mention.route(
+               %{author: "andrew", body: "@pi-machine you take it", thread_id: 2},
+               lead: "claude-machine",
+               staffed_window: "t2"
+             ) == [{"pi", "[funes thread #2] andrew: @pi-machine you take it"}]
+    end
+
+    test "nil staffed_window is the standing-thread path (no redirect)" do
+      assert Mention.route(
+               %{author: "andrew", body: "tell me a joke", thread_id: 1},
+               lead: "claude-machine",
+               staffed_window: nil
+             ) == [{"claude", "[funes thread #1] andrew: tell me a joke"}]
     end
   end
 end

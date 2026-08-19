@@ -182,6 +182,22 @@ defmodule Aleph.ProfilesTest do
     end
   end
 
+  describe "the tertius profile — the Orbis Tertius meta agent (slice 3)" do
+    test "carries the meta-agent persona as its system_prompt, on a cheap glm driver" do
+      p = Profiles.fetch("tertius")
+      assert p.model == %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
+      # The persona is what distinguishes tertius from the tlon coworker — it must be present and
+      # spell out the vantage-not-worker role, or it's just a second glm coworker.
+      assert p.system_prompt =~ "tertius-machine"
+      assert p.system_prompt =~ "synthesis"
+      assert p.system_prompt =~ "root"
+    end
+
+    test "render carries the persona through to the materialised files" do
+      assert Profiles.render(Profiles.fetch("tertius"), @base_settings, @base_mcp).system_prompt =~ "tertius-machine"
+    end
+  end
+
   describe "the model ring — what the settings `m` verb cycles" do
     test "ollama-only — the anthropic-via-pi impersonation path isn't a ring entry" do
       assert [%{provider: "ollama-cloud", model: "glm-5.2"} | _] = Profiles.model_ring()
@@ -234,6 +250,11 @@ defmodule Aleph.ProfilesTest do
 
       assert File.read_link!(Path.join(dir, "provider-failover.json")) ==
                Path.join(base, "provider-failover.json")
+    end
+
+    test "a profile with a persona writes system_prompt.md (the tertius meta agent)", %{base: base, root: root} do
+      dir = Profiles.materialise!(Profiles.fetch("tertius"), base: base, root: root)
+      assert File.read!(Path.join(dir, "system_prompt.md")) =~ "tertius-machine"
     end
 
     test "writes the coworker's persistence-free tmux.conf — fresh on rebuild, never resurrected",
