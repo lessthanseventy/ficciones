@@ -346,6 +346,98 @@ defmodule Funes.ChannelTest do
     end
   end
 
+  describe "staffed_machine_threads/0 — B1.4's ensure_thread_sessions candidate list" do
+    test "returns machine-scope threads with a lead as %{id, lead, title}" do
+      {:ok, thread} = Channel.open_thread(%{title: "Tlön · thread A", scope: "machine"})
+      {:ok, agent} = Staff.register_agent(%{name: "claude-machine", mandate: "m", engine: "e"})
+      {:ok, _} = Staff.assign(thread, agent)
+
+      assert [%{id: id, lead: "claude-machine", title: "Tlön · thread A"}] = Channel.staffed_machine_threads()
+      assert id == thread.id
+    end
+
+    test "omits an unstaffed machine thread (no lead yet)" do
+      {:ok, _thread} = Channel.open_thread(%{title: "Tlön · unstaffed", scope: "machine"})
+      assert Channel.staffed_machine_threads() == []
+    end
+
+    test "omits a staffed PROJECT thread — machine scope only" do
+      {:ok, thread} = Channel.open_thread(%{title: "project work"})
+      {:ok, agent} = Staff.register_agent(%{name: "Sandra", mandate: "m", engine: "e"})
+      {:ok, _} = Staff.assign(thread, agent)
+
+      assert Channel.staffed_machine_threads() == []
+    end
+
+    test "includes a CLOSED machine thread, still staffed" do
+      {:ok, thread} = Channel.open_thread(%{title: "Tlön · rotated", scope: "machine"})
+      {:ok, agent} = Staff.register_agent(%{name: "pi-machine", mandate: "m", engine: "e"})
+      {:ok, _} = Staff.assign(thread, agent)
+      {:ok, _} = Channel.close_thread(thread)
+
+      assert [%{lead: "pi-machine"}] = Channel.staffed_machine_threads()
+    end
+  end
+
+  describe "latest_operator_message/1 — B1.4's opening-turn source" do
+    setup do
+      Application.put_env(:funes, :operator, "andrew")
+      on_exit(fn -> Application.delete_env(:funes, :operator) end)
+    end
+
+    test "returns the most recent message authored by the configured operator" do
+      {:ok, thread} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      {:ok, _} = Channel.post(%{thread_id: thread.id, author: "andrew", body: "first ask"})
+      {:ok, _} = Channel.post(%{thread_id: thread.id, author: "pi-machine", body: "on it"})
+      {:ok, latest} = Channel.post(%{thread_id: thread.id, author: "andrew", body: "second ask"})
+
+      assert %Message{id: id} = Channel.latest_operator_message(thread.id)
+      assert id == latest.id
+    end
+
+    test "matches the operator case-insensitively" do
+      {:ok, thread} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      {:ok, msg} = Channel.post(%{thread_id: thread.id, author: "Andrew", body: "shout-case"})
+
+      assert %Message{id: id} = Channel.latest_operator_message(thread.id)
+      assert id == msg.id
+    end
+
+    test "returns nil when the thread has no operator message" do
+      {:ok, thread} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      {:ok, _} = Channel.post(%{thread_id: thread.id, author: "pi-machine", body: "solo chatter"})
+
+      assert Channel.latest_operator_message(thread.id) == nil
+    end
+
+    test "returns nil for a thread id that does not exist" do
+      assert Channel.latest_operator_message(999_999) == nil
+    end
+  end
+
+  describe "clear_machine_threads/0 — the B1.4 clean-slate reset" do
+    test "deletes every machine-scope thread and its messages, leaving project threads alone" do
+      {:ok, m1} = Channel.open_thread(%{title: "Tlön · one", scope: "machine"})
+      {:ok, _} = Channel.post(%{thread_id: m1.id, author: "andrew", body: "gone"})
+      {:ok, m2} = Channel.open_thread(%{title: "Tlön · two", scope: "machine"})
+      {:ok, _} = Channel.close_thread(m2)
+      {:ok, project} = Channel.open_thread(%{title: "keep me"})
+      {:ok, _} = Channel.post(%{thread_id: project.id, author: "andrew", body: "stays"})
+
+      assert {:ok, %{threads: 2, messages: 1}} = Channel.clear_machine_threads()
+
+      assert Channel.machine_threads() == []
+      assert Repo.get(Thread, m1.id) == nil
+      assert Repo.get(Thread, m2.id) == nil
+      assert Repo.get(Thread, project.id)
+      assert project |> Channel.thread_messages() |> Enum.map(& &1.body) == ["stays"]
+    end
+
+    test "no-op (zero counts) when there are no machine threads" do
+      assert {:ok, %{threads: 0, messages: 0}} = Channel.clear_machine_threads()
+    end
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
   end

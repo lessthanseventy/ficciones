@@ -41,4 +41,10 @@ defmodule Funes do
 
   @doc "Staff a thread with an agent by handle — resolves the agent + thread and assigns."
   defdelegate assign_lead(thread_id, handle), to: Funes.Channel
+
+  @doc "Staffed machine-scope threads — B1.4's `ensure_thread_sessions` candidate list."
+  defdelegate staffed_machine_threads, to: Funes.Channel
+
+  @doc "The most recent operator-authored message on a thread, or nil — B1.4's opening-turn source."
+  defdelegate latest_operator_message(thread_id), to: Funes.Channel
 end

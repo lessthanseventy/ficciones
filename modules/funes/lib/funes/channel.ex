@@ -67,6 +67,38 @@ defmodule Funes.Channel do
   end
 
   @doc """
+  STAFFED machine-scope threads — B1.4's `ensure_thread_sessions` candidate list (aleph
+  cockpit.ex): every machine-scope thread with a lead, `%{id, lead, title}` per thread (`lead` is
+  the staffed agent's name; the join makes it never nil). No open/closed filter and no ordering
+  guarantee — the cockpit does its own dedup against live tmux windows and its own retry backoff.
+  """
+  def staffed_machine_threads do
+    Repo.all(
+      from t in Thread,
+        join: a in Agent,
+        on: a.id == t.agent_id,
+        where: t.scope == ^@machine_scope and not is_nil(t.agent_id),
+        select: %{id: t.id, lead: a.name, title: t.title}
+    )
+  end
+
+  @doc """
+  Delete every MACHINE-scope thread and its messages — the clean-slate reset behind
+  `mise run aleph:clear-machine-threads` (B1.4's design doc: old machine threads are disposable).
+  Messages are deleted first (the thread_id FK), then the threads, inside one transaction.
+  Returns `{:ok, %{threads: n, messages: m}}` so the caller can report what it cleared. NEVER
+  touches project-scope threads.
+  """
+  def clear_machine_threads do
+    Repo.transaction(fn ->
+      ids = Repo.all(from t in Thread, where: t.scope == ^@machine_scope, select: t.id)
+      {messages, _} = Repo.delete_all(from m in Message, where: m.thread_id in ^ids)
+      {threads, _} = Repo.delete_all(from t in Thread, where: t.id in ^ids)
+      %{threads: threads, messages: messages}
+    end)
+  end
+
+  @doc """
   ALL machine-scope threads as THREAD BLOCKS — the Tlön machine-chat surface (aleph's `chat` tab).
   Like `chorus/1` but scoped to `machine` and WITHOUT the open-only filter: a rotated (closed)
   machine thread must still surface as history, so the chat can fold it below the current one.
@@ -112,6 +144,23 @@ defmodule Funes.Channel do
     from(m in Message, where: m.thread_id == ^thread.id, order_by: [desc: m.id], limit: ^limit)
     |> Repo.all()
     |> Enum.reverse()
+  end
+
+  @doc """
+  The most recent message on `thread_id` authored by the configured operator (config `:operator`,
+  case-insensitive — see `Dossier.bank_stated_fact/2`), or nil. B1.4's opening-turn source: a
+  freshly spawned per-thread window is woken with the operator's own words, verbatim, never an
+  agent's paraphrase.
+  """
+  def latest_operator_message(thread_id) do
+    operator = :funes |> Application.get_env(:operator, "andrew") |> String.downcase()
+
+    Repo.one(
+      from m in Message,
+        where: m.thread_id == ^thread_id and fragment("lower(?)", m.author) == ^operator,
+        order_by: [desc: m.id],
+        limit: 1
+    )
   end
 
   @doc """
