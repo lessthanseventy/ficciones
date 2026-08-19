@@ -166,17 +166,21 @@ defmodule Funes.ChannelTest do
       refute "Tlön" in titles
     end
 
-    test "machine_thread/0 returns the latest open machine thread, or nil (find-or-create)" do
+    test "machine_thread/0 returns the ROOT (oldest open) machine thread, or nil (find-or-create)" do
       assert Channel.machine_thread() == nil
 
-      {:ok, m1} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
-      assert Channel.machine_thread().id == m1.id
+      {:ok, root} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      assert Channel.machine_thread().id == root.id
 
-      {:ok, m2} = Channel.open_thread(%{title: "Tlön 2", scope: "machine"})
-      assert Channel.machine_thread().id == m2.id
+      # A newer machine thread is a staffed LEAF (B1.4), not the root: the root is the oldest and
+      # stays the root. (A [desc: id] "latest" query would wrongly return the leaf here — the
+      # 2026-08-19 regression this guards.)
+      {:ok, _leaf} = Channel.open_thread(%{title: "Tlön · leaf", scope: "machine"})
+      assert Channel.machine_thread().id == root.id
 
-      {:ok, _} = Channel.close_thread(m2)
-      assert Channel.machine_thread().id == m1.id
+      # Only if the root itself closes does it fall through to the next-oldest open thread.
+      {:ok, _} = Channel.close_thread(root)
+      assert Channel.machine_thread().title == "Tlön · leaf"
     end
 
     test "recent_across/1 — the Comms chorus feed: messages from every thread, each tagged" do

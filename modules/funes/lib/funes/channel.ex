@@ -66,11 +66,20 @@ defmodule Funes.Channel do
     Repo.all(from t in Thread, where: t.state == "open" and t.scope == ^@project_scope, order_by: [desc: t.id])
   end
 
-  @doc "The latest open MACHINE-scope thread, or nil — the find-or-create lookup for the Tlön
-  machine coworker, so it reuses a persistent machine thread across aleph restarts instead of
-  opening one per boot."
+  @doc ~s"""
+  The ROOT machine thread — the OLDEST open machine-scope thread, or nil. The founding machine
+  thread: the standing coworkers' permanent home and the Orbis Tertius meta thread (design:
+  `docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md`). Also the find-or-create lookup for
+  the Tlön machine coworker, so it reuses a persistent thread across aleph restarts.
+
+  Oldest, NOT newest: B1.4 made every staffed leaf (thread 2, …) machine-scope too, so a
+  `[desc: t.id]` "latest machine thread" now returns a leaf, not the root — the fragility under the
+  2026-08-19 duplicate-delivery bug (`standing_thread_id` capturing a leaf). Leaves are always newer
+  than the root, so `[asc: t.id]` returns the root and only the root (until it is closed, which
+  rotation/`clear-machine-threads` must not do).
+  """
   def machine_thread do
-    Repo.one(from t in Thread, where: t.state == "open" and t.scope == ^@machine_scope, order_by: [desc: t.id], limit: 1)
+    Repo.one(from t in Thread, where: t.state == "open" and t.scope == ^@machine_scope, order_by: [asc: t.id], limit: 1)
   end
 
   @doc """
