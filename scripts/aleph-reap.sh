@@ -16,9 +16,12 @@ set -euo pipefail
 PORT="${FUNES_MCP_PORT:-4041}"
 
 # 1. reap the port listener
-# ss -tlnH "sport = :N" prints one line per listening socket with users:(("comm",pid=N,...)).
-# Grab the listener pids (the first pid= in each line is the socket owner).
-mapfile -t pids < <(ss -tlnH "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u || true)
+# ss -tlnpH "sport = :N" prints one line per listening socket with users:(("comm",pid=N,...)).
+# The -p is load-bearing: WITHOUT it ss omits the users:/pid= field entirely, so the grep below
+# finds nothing and this whole step silently no-ops (the port never gets freed, and step 3 then
+# fails the launch). Grab every pid on the line — an inherited listen fd (a coworker pi that
+# survived the tmux kill) shows up as an extra ("pi",pid=...) holder that must die too.
+mapfile -t pids < <(ss -tlnpH "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u || true)
 
 if [ "${#pids[@]}" -gt 0 ]; then
   for pid in "${pids[@]}"; do
