@@ -303,6 +303,30 @@ defmodule Funes.ChannelTest do
     end
   end
 
+  describe "assign_lead/2 — staffing by handle (aleph machine-chat's boundary call)" do
+    test "assigns the named agent to the thread when both exist" do
+      {:ok, thread} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      {:ok, _agent} = Staff.register_agent(%{name: "claude-machine", mandate: "m", engine: "e"})
+
+      assert {:ok, updated} = Channel.assign_lead(thread.id, "claude-machine")
+      assert updated.id == thread.id
+      assert Channel.thread_lead(thread.id) == "claude-machine"
+    end
+
+    test "errors, does not crash, when the handle has never registered as an agent" do
+      {:ok, thread} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+
+      assert Channel.assign_lead(thread.id, "ghost") == {:error, :no_agent}
+      assert Channel.thread_lead(thread.id) == nil
+    end
+
+    test "errors when the thread id does not exist" do
+      {:ok, _agent} = Staff.register_agent(%{name: "claude-machine", mandate: "m", engine: "e"})
+
+      assert Channel.assign_lead(999_999, "claude-machine") == {:error, :no_thread}
+    end
+  end
+
   describe "thread_lead/1" do
     test "returns the name of the agent staffed on the thread" do
       {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})

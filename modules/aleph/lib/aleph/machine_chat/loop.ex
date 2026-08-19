@@ -26,7 +26,9 @@ defmodule Aleph.MachineChat.Loop do
   use GenServer
 
   alias Aleph.Board
+  alias Aleph.Config
   alias Aleph.MachineChat.Host
+  alias Aleph.MachineChat.Staffing
   alias Aleph.Mention
   alias Aleph.Transcript
   alias Funes.Channel
@@ -202,12 +204,23 @@ defmodule Aleph.MachineChat.Loop do
     case Channel.open_thread(%{title: text, scope: "machine"}) do
       {:ok, thread} ->
         Channel.post(%{thread_id: thread.id, author: author, body: text})
+        stage_lead(thread.id, text)
         wake_mentions(author, text, thread.id)
         %{state | input: "", follow?: true}
 
       _ ->
         %{state | input: ""}
     end
+  end
+
+  # Staff the picked coworker (the composer text's first @-mention, else the operator's
+  # configured default) as the new thread's lead. A staffing failure (an unregistered handle, a
+  # DB hiccup) raises up to `submit/1`'s rescue/catch, which just clears the box — the thread and
+  # its opening message are already durable either way.
+  defp stage_lead(thread_id, text) do
+    handle = Staffing.pick_coworker(text, Config.default_coworker())
+    Funes.assign_lead(thread_id, handle)
+    :ok
   end
 
   # Wake each @-mentioned coworker by injecting the message as a turn into its tmux window — the same

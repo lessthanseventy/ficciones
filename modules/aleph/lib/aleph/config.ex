@@ -74,7 +74,7 @@ defmodule Aleph.Config do
   @doc "Persist the default coworker handle."
   @spec put_default_coworker(String.t(), String.t()) :: :ok
   def put_default_coworker(handle, path \\ path()) when is_binary(handle) do
-    read(path) |> Map.put("default_coworker", handle) |> write!(path)
+    path |> read() |> Map.put("default_coworker", handle) |> write!(path)
   end
 
   # put_in/2 raises on a missing intermediate map; this seeds it.

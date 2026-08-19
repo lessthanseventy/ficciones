@@ -38,4 +38,7 @@ defmodule Funes do
 
   @doc "The handle of the agent staffed on a thread (its lead), or nil."
   defdelegate thread_lead(thread_id), to: Funes.Channel
+
+  @doc "Staff a thread with an agent by handle — resolves the agent + thread and assigns."
+  defdelegate assign_lead(thread_id, handle), to: Funes.Channel
 end

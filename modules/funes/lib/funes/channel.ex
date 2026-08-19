@@ -14,6 +14,7 @@ defmodule Funes.Channel do
   alias Funes.Agent
   alias Funes.Message
   alias Funes.Repo
+  alias Funes.Staff
   alias Funes.Thread
 
   # The closed thread-scope set (CHECK-guarded in the DB — see the thread_scope migration).
@@ -167,6 +168,19 @@ defmodule Funes.Channel do
   # higher id (newest message, else newest thread) leads. A total order, no created_at tie.
   defp sort_key(%{messages: [], thread: %Thread{id: id}}), do: {0, id}
   defp sort_key(%{messages: messages}), do: {1, List.last(messages).id}
+
+  @doc """
+  Staff `thread_id` with the agent named `handle` — the aleph machine-chat staffing call, a single
+  clean boundary crossing over a resolve-then-assign. `{:ok, thread}` on success; `{:error,
+  :no_agent}` when the handle has never registered (a coworker not yet staffed — a no-op, not a
+  crash); `{:error, :no_thread}` when the thread id doesn't resolve.
+  """
+  def assign_lead(thread_id, handle) do
+    with %Agent{} = agent <- Staff.agent_by_name(handle) || {:error, :no_agent},
+         %Thread{} = thread <- thread(thread_id) || {:error, :no_thread} do
+      Staff.assign(thread, agent)
+    end
+  end
 
   @doc "The name of the agent staffed on `thread_id` (its lead), or nil if unassigned/absent."
   def thread_lead(thread_id) do
