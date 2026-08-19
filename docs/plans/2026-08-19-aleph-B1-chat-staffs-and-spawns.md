@@ -135,6 +135,20 @@ foundation is in but produces no visible change alone; B1.4 (below) is the fragi
 
 ## The live piece (needs Andrew-driven live verify) — B1.4
 
+> **Design simplification (Andrew, 2026-08-19): clean slate, no window-storm qualifier.** The old
+> machine threads are disposable — clear them first, so `ensure_thread_sessions` can spawn for ANY
+> staffed-but-session-less machine thread with **no `since` marker**. The only pre-existing thread
+> after the clear is the standing coworker thread (pi/claude), which is **excluded** because the
+> cockpit knows its id (the `:machine` terminal's bound thread — capture it in state at
+> `spawn_machine_coworker`, or resolve via `machine_thread_id()` at spawn time and stash it). Keep
+> the standing pi/claude and the embedded-center bootstrap AS-IS for B1 (retiring them for a
+> chat-first center is the Rev B endgame, not B1).
+>
+> **Clean-slate step (once, before turning B1.4 on):** close/delete the existing machine-scope
+> threads in the cockpit's `.dev` db (:4041). Prefer a small `mise`/mix helper or a funes call over
+> raw SQL; if none exists, add `mise run aleph:clear-machine-threads` (a tiny task that opens the
+> `.dev` Repo and deletes `scope=="machine"` threads + their messages). Andrew runs it live.
+
 ### Task B1.4: cockpit spawns a bound session for staffed-but-session-less threads
 
 **Files:** Modify `lib/aleph/cockpit.ex` (new `ensure_thread_sessions` pass + generalize
