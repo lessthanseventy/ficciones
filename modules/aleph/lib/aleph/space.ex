@@ -17,7 +17,7 @@ defmodule Aleph.Space do
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Habits
   alias Aleph.Panel.Health
-  alias Aleph.Panel.Logbook
+  alias Aleph.Panel.Orbis
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Settings
   alias Aleph.Panel.Stack
@@ -77,9 +77,10 @@ defmodule Aleph.Space do
         # SETTINGS under the Stack: the operator's in-app knobs (coworker driver model, `m` to
         # cycle) — the meta space is where you tune the machine, so its controls live here.
         left: [Stack, Settings],
-        # HABITS — how the machine works with Andrew (funes' habits axis) — belongs on the
-        # meta/machine lens beside Health and the Logbook.
-        right: [Health, Logbook, Habits],
+        # ORBIS — the machine-scoped rollup (Orbis Tertius slice 2): the leaves' lead/status/conflicts
+        # at a glance, in the slot the Logbook (a redundant mini-chat) held. HABITS — how the machine
+        # works with Andrew (funes' habits axis) — sits below it on the meta/machine lens.
+        right: [Health, Orbis, Habits],
         # Self-contained coworker: the "tlon" profile (no funes MCP, funes-brief extension dropped,
         # sandboxed). See Aleph.Profiles.
         coworker: "tlon"

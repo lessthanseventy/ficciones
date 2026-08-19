@@ -69,6 +69,7 @@ defmodule Aleph.BoardTest do
         chorus: [],
         terminal: :no_session,
         health: nil,
+        orbis: nil,
         logbook: nil,
         habits: nil,
         settings: nil,
