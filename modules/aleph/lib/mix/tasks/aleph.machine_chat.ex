@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Aleph.MachineChat do
   Keys: `↑↓`/`jk` move the selected block · `Enter`/`Space` fold↔unfold · `z` zoom · `Esc` back ·
   `PgUp`/`PgDn` scroll · `q` quit.
 
-  ## Why it POLLS the db (see also `aleph.machine_log`, which this supersedes)
+  ## Why it POLLS the db
 
   A SEPARATE OS process from the cockpit, so `Funes.Bus` (node-local `Phoenix.PubSub`) is out of
   reach; it reads the one thing the two share — the SQLite file at `FUNES_DB`, carried into the Tlön

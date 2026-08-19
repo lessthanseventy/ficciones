@@ -1,7 +1,7 @@
 defmodule Aleph.Terminal do
   @moduledoc """
   One live session as a REAL embedded terminal (design §4, replacing the laggy capture-pane view).
-  A GenServer that owns a `Ghostty.PTY` (a true `forkpty` running the harness — pi/claude get a
+  A GenServer that owns a `Ghostty.PTY` (a true `forkpty` running the harness — tertius/hronir get a
   real TTY) and a `Ghostty.Terminal` (Ghostty's own VT engine). It pumps the PTY's output into the
   emulator as it arrives, so the screen is live at native latency — no 500ms capture tick, no
   `send-keys` subprocess per key.

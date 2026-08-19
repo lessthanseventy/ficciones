@@ -34,7 +34,7 @@ defmodule Aleph.Mention do
     end
   end
 
-  @doc "The active handle → window map: the pi/claude base, plus `$TLON_THIRD_AGENT` if set."
+  @doc "The active handle → window map: the tertius/hronir base, plus `$TLON_THIRD_AGENT` if set."
   @spec coworkers() :: %{String.t() => String.t()}
   def coworkers do
     case third_agent() do
@@ -69,7 +69,7 @@ defmodule Aleph.Mention do
   still reaches someone. Each turn is `{window_name, one_line_text}`.
 
   `opts[:staffed_window]` (e.g. `"t9"`) redirects the lead onto its OWN per-thread window: on a
-  staffed thread (B1.4) the lead coworker runs in a `t<id>` window, not the standing handle→window
+  staffed thread the lead coworker runs in a `t<id>` window, not the standing handle→window
   slot, so any target that resolves to the lead's standing window is rewritten onto it. Without it,
   a staffed thread's turns would wake the STANDING coworker instead of the session working THAT
   thread. The author-exclusion loop guard runs before the redirect (an agent's own post — its

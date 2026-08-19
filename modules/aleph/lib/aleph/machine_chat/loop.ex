@@ -34,7 +34,7 @@ defmodule Aleph.MachineChat.Loop do
   alias Funes.Channel
   alias Raxol.Core.Events.Event
 
-  # The claude coworker handle — the lead the cockpit staffs with its own `t<id>` session (B1.4),
+  # The claude coworker handle — the lead the cockpit staffs with its own `t<id>` session,
   # so this tab must not also wake the standing coworker for it. Keep in sync with
   # `Aleph.Cockpit.@claude_agent`.
   @claude_agent "claude-machine"
@@ -213,9 +213,9 @@ defmodule Aleph.MachineChat.Loop do
         lead = stage_lead(thread.id, text)
 
         # The cockpit (a SEPARATE beam) spawns a dedicated `t<id>` session for a claude-launched
-        # lead and injects the opening turn ITSELF (B1.4 `ensure_thread_sessions`). Waking the
+        # lead and injects the opening turn ITSELF (`ensure_thread_sessions`). Waking the
         # standing coworker from here as well is the "both claudes answered" duplicate — so only
-        # wake from here for a lead the cockpit won't staff (a pi-led thread, B1's follow-up).
+        # wake from here for a lead the cockpit won't staff (a pi-led thread).
         if !cockpit_staffs?(lead), do: wake_mentions(author, text, thread.id)
 
         %{state | input: "", follow?: true}
@@ -237,7 +237,7 @@ defmodule Aleph.MachineChat.Loop do
 
   # Does the cockpit spawn a per-thread `t<id>` session for this lead (so it owns the opening turn
   # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.claude_launched?/1`: the claude coworker
-  # and the optional third experiment agent are claude-launched; a pi-led thread is not (B1).
+  # and the optional third experiment agent are claude-launched; a pi-led thread is not.
   defp cockpit_staffs?(lead), do: lead == @claude_agent or lead == third_agent_author()
 
   defp third_agent_author do
@@ -263,8 +263,8 @@ defmodule Aleph.MachineChat.Loop do
     _ -> :ok
   end
 
-  # A brand-new thread's lead has no live window yet (B1.4's spawn+inject is what wakes it) — but
-  # for a thread whose lead already has one (the standing coworkers), a bare operator reply must
+  # A brand-new thread's lead has no live window yet (the cockpit's spawn+inject is what wakes it) —
+  # but for a thread whose lead already has one (the standing coworkers), a bare operator reply must
   # still reach them. Guarded so a Funes hiccup degrades to "wake nobody", never a crash.
   defp safe_thread_lead(tid) do
     Funes.thread_lead(tid)

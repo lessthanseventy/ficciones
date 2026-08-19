@@ -1,8 +1,8 @@
 defmodule Aleph.Sessions do
   @moduledoc """
-  The live session terminals — one `Aleph.Terminal` per thread, the aleph hub's replacement for
-  tmux panes. A registry over a `DynamicSupervisor`: `ensure/2` starts a terminal for a thread (or
-  returns the existing one), `terminal/1` looks it up, `all/0` lists them (for the roster). A
+  The live session terminals — one `Aleph.Terminal` per thread. A registry over a
+  `DynamicSupervisor`: `ensure/2` starts a terminal for a thread (or returns the existing one),
+  `terminal/1` looks it up, `all/0` lists them (for the roster). A
   terminal that exits (the child process ended) is dropped, so the map is never stale — the
   §3 "ask, don't mirror" rule applied to sessions: a dead pane leaves no ghost row.
 

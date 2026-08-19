@@ -34,7 +34,7 @@ defmodule Aleph.Arbiter do
 
   # Sessions is supervised, the switchboard is not: a `Sessions.terminal/1` against a wedged or
   # torn-down registry exits (`:noproc`, or a 5s `:timeout` while `{:ensure}` blocks spawning a
-  # terminal) and that exit used to propagate up and kill the hub — the ISSUES-panel
+  # terminal), which would otherwise propagate up and kill the hub — the ISSUES-panel
   # `GenServer.call(Aleph.Sessions, {:terminal, :machine}, 5000)`. Degrade to nil / {:error, ...}
   # so the switchboard leaves the message a pending durable row and retries once Sessions is live,
   # mirroring the cockpit's own `safe_terminal/1` guard.

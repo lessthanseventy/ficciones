@@ -1,11 +1,9 @@
 defmodule Mix.Tasks.Aleph.ClearMachineThreads do
   @shortdoc "Clean-slate: delete every MACHINE-scope thread + its messages from the dev db"
   @moduledoc """
-  B1.4's clean-slate step (design doc: `2026-08-19-aleph-B1-chat-staffs-and-spawns.md`). The old
-  machine threads under the staffing experiment are disposable — clear them ONCE, by hand, before
-  `ensure_thread_sessions` starts spawning per-thread windows against `Funes.staffed_machine_threads/0`,
-  so the only pre-existing machine thread the cockpit finds afterward is the standing pi/claude
-  coworker's (opened fresh on the next `aleph:run`).
+  A clean-slate reset: machine threads are disposable, so clear them ONCE, by hand, so the only
+  pre-existing machine thread the cockpit finds afterward is the standing coworker's (opened fresh on
+  the next `aleph:run`) — not stale leaves that `ensure_thread_sessions` would spawn windows for.
 
   Boots funes as a READER (no MCP, no switchboard — this is a one-shot script, not a live
   service), against `FUNES_DB`, then deletes every `scope == "machine"` thread and its messages via

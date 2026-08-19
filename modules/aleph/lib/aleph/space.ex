@@ -1,11 +1,11 @@
 defmodule Aleph.Space do
   @moduledoc """
   A **space** is a named lens over funes — *what's in the middle* and the panels around it — the
-  unit the top-left switcher picks (design Addendum §B; renamed from "workspace," which collided
-  with tmux and Herdr). Each space is a different app over the same substrate: **Orbis** (the
-  thread/message chorus, the default), **Sessions** (the live embedded-terminal view), and
-  **Tlön** (the META space — the machine/stack as a whole, not a project). The `Aleph.Panel.Spaces`
-  picker switches the active one; the center renders that space's `surface`.
+  unit the top-left switcher picks (design Addendum §B). Each space is a different app over the
+  same substrate: **Orbis** (the thread/message chorus, the default), **Sessions** (the live
+  embedded-terminal view), and **Tlön** (the META space — the machine/stack as a whole, not a
+  project). The `Aleph.Panel.Spaces` picker switches the active one; the center renders that
+  space's `surface`.
 
   A surface is a LIST of sections stacked down the center (one per space today). A section is either a
   bare panel module (its data shaped by `Aleph.View.data_for/2`, like the sidebars) or a
@@ -36,7 +36,7 @@ defmodule Aleph.Space do
           left: [module()],
           right: [module()],
           # The name of the pi coworker profile this space spawns into its center, or nil for a space
-          # with no machine coworker (Aleph.Profiles). Tlön → "tlon".
+          # with no machine coworker (Aleph.Profiles). Tlön → "tertius".
           coworker: String.t() | nil
         }
 
