@@ -298,6 +298,16 @@ defmodule Aleph.KeymapTest do
       assert {%{input: %{buffer: "the q"}}, :repaint} = Keymap.handle(char("q"), s)
     end
 
+    test "a :space key event inserts a space (Kitty CSI-u Shift+Space has no char)" do
+      # Under [>1u disambiguation Shift+Space arrives as %{key: :space, shift: true} — no `char` —
+      # so it must not fall to the drop-everything catch-all. Plain space (a :char " ") still works.
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "two"}})
+      assert {%{input: %{buffer: "two "}}, :repaint} = Keymap.handle(key(:space, shift: true), s)
+
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "two"}})
+      assert {%{input: %{buffer: "two "}}, :repaint} = Keymap.handle(key(:space), s2)
+    end
+
     test "backspace deletes the last character" do
       s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "ship"}})
       assert {%{input: %{buffer: "shi"}}, :repaint} = Keymap.handle(key(:backspace), s)

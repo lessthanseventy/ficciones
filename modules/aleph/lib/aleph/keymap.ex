@@ -135,6 +135,12 @@ defmodule Aleph.Keymap do
   def handle(%{key: :char, char: c}, %{input: %{}} = state) when is_binary(c),
     do: {%{state | input: insert_at(state.input, c)}, :repaint}
 
+  # A space can arrive as %{key: :space} with no `char`: under [>1u disambiguation (which the cockpit
+  # enables) Kitty CSI-u reports Shift+Space as [32;2u → %{key: :space, shift: true}. A plain space
+  # is a printable %{key: :char, char: " "} caught above; this clause catches the modified form so it
+  # inserts instead of falling to the drop-everything catch-all below.
+  def handle(%{key: :space}, %{input: %{}} = state), do: {%{state | input: insert_at(state.input, " ")}, :repaint}
+
   # Any other key while typing (function keys, …) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
 
