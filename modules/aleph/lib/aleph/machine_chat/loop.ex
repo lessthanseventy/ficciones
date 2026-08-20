@@ -45,8 +45,10 @@ defmodule Aleph.MachineChat.Loop do
   @tb_input_esc_mouse 5
   @wheel_lines 3
   @max_rows 10_000
-  # Rows reserved at the bottom for the composer: a rule + the input line.
-  @box_rows 2
+  # Rows reserved at the bottom for the composer: a blank spacer, a rule, and the input line.
+  @box_rows 3
+  # Left/right gutter columns — the feed, strip, and composer inset from the pane edges to breathe.
+  @pad_x 2
 
   @restore "\e[?1000;1002;1003;1006l\e[?1049l\e[?25h"
 
@@ -124,6 +126,7 @@ defmodule Aleph.MachineChat.Loop do
   def handle_cast({:dispatch, %Event{type: :resize}}, state), do: {:noreply, schedule_render(refresh_size(state))}
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, %{mode: :compose} = state), do: compose_key(key, state)
+
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state), do: browse_key(intent(key), state)
 
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{button: :wheel_up}}}, state),
@@ -151,8 +154,10 @@ defmodule Aleph.MachineChat.Loop do
   defp browse_key(intent, %{view: %{zoom: z}} = state) when not is_nil(z), do: browse_zoom(intent, state)
   defp browse_key(intent, state), do: browse_list(intent, state)
 
-  defp browse_list(:next, state), do: {:noreply, host_view(state, :down)}
-  defp browse_list(:prev, state), do: {:noreply, host_view(state, :up)}
+  # Manual list nav takes control from tail-follow — else the next poll (which re-snaps the
+  # selection to the newest while `follow?`) yanks the cursor back to the bottom mid-browse.
+  defp browse_list(:next, state), do: {:noreply, host_view(%{state | follow?: false}, :down)}
+  defp browse_list(:prev, state), do: {:noreply, host_view(%{state | follow?: false}, :up)}
   defp browse_list(:enter, state), do: {:noreply, host_view(state, :toggle)}
   defp browse_list(:zoom, state), do: {:noreply, host_view(%{state | follow?: true}, :zoom)}
   defp browse_list(:back, state), do: {:noreply, schedule_render(%{state | mode: :compose})}
@@ -192,9 +197,8 @@ defmodule Aleph.MachineChat.Loop do
   defp intent(%{key: :end}), do: :bottom
   defp intent(_key), do: :ignore
 
-  # Kick off a new thread/task from the composer text: open a machine-scope funes thread titled by
-  # it, post it as the operator, wake any @-mentioned coworker, then clear and land at the bottom so
-  # the fresh episode is in view. Failures just clear the box rather than crash the tab.
+  # Submit the composer text: a reply into the zoomed thread, else a fresh thread/task. Failures
+  # just clear the box rather than crash the tab.
   defp submit(%{input: input} = state) do
     text = String.trim(input)
     if text == "", do: state, else: do_submit(state, text)
@@ -204,8 +208,27 @@ defmodule Aleph.MachineChat.Loop do
     :exit, _ -> %{state | input: ""}
   end
 
-  defp do_submit(state, text) do
-    author = Application.get_env(:funes, :operator, "andrew")
+  # A zoomed thread makes the composer a REPLY box (the "reply = read context" model); with nothing
+  # zoomed it opens a new thread.
+  defp do_submit(%{view: %{zoom: nil}} = state, text), do: submit_new(state, text)
+  defp do_submit(%{view: %{zoom: thread_id}} = state, text), do: submit_reply(state, thread_id, text)
+
+  # Reply straight into the zoomed thread and self-wake its lead/@-mentions. Unlike a new thread
+  # there's no cockpit staffing to defer to: the cockpit only wakes for messages on its own bus,
+  # which it never sees from our cross-process DB post — so we always wake here. Stays zoomed +
+  # follows so the reply lands in view.
+  defp submit_reply(state, thread_id, text) do
+    author = operator()
+    Channel.post(%{thread_id: thread_id, author: author, body: text})
+    wake_mentions(author, text, thread_id)
+    %{state | input: "", follow?: true}
+  end
+
+  # Kick off a new thread/task: open a machine-scope funes thread titled by the text, post it as the
+  # operator, wake any @-mentioned coworker, then clear and land at the bottom so the fresh episode
+  # is in view.
+  defp submit_new(state, text) do
+    author = operator()
 
     case Channel.open_thread(%{title: text, scope: "machine"}) do
       {:ok, thread} ->
@@ -224,6 +247,8 @@ defmodule Aleph.MachineChat.Loop do
         %{state | input: ""}
     end
   end
+
+  defp operator, do: Application.get_env(:funes, :operator, "andrew")
 
   # Staff the picked coworker (the composer text's first @-mention, else the operator's
   # configured default) as the new thread's lead, returning the staged handle. A staffing failure
@@ -247,13 +272,37 @@ defmodule Aleph.MachineChat.Loop do
     end
   end
 
+  # Which per-thread window a reply's wake must land on — mirrors `Aleph.Cockpit.delivery_target/3`.
+  # A claude-led STAFFED leaf runs the episode in its own `t<id>` window, so its reply must reach
+  # THAT session, not the lead's standing handle→window slot. The standing claude thread has no
+  # `t<id>` window, so the probe returns nil and routing falls back to the standing window — the same
+  # standing-vs-leaf split the cockpit makes. A reply is always past the opening turn (no mid-spawn
+  # `:skip` gate needed): a live window suffices. Pi-led / no-lead threads never get a `t<id>`.
+  defp staffed_window(lead, thread_id) do
+    window = "t#{thread_id}"
+    if cockpit_staffs?(lead) and window_live?(window), do: window
+  end
+
+  # Does a named window exist on the tlon server? ($TMUX points at it, so a bare `tmux` hits it.)
+  defp window_live?(window) do
+    case System.cmd("tmux", ["list-windows", "-t", "tlon", "-F", "#W"], stderr_to_stdout: true) do
+      {out, 0} -> window in String.split(out, "\n", trim: true)
+      _ -> false
+    end
+  rescue
+    _ -> false
+  catch
+    _, _ -> false
+  end
+
   # Wake each @-mentioned coworker by injecting the message as a turn into its tmux window — the same
   # send-keys the cockpit does, but from here (our post is on our own bus, which the cockpit can't
   # see). $TMUX points at the tlon server, so a bare `tmux` targets the right session.
   defp wake_mentions(author, body, thread_id) do
     lead = safe_thread_lead(thread_id)
+    opts = [lead: lead, staffed_window: staffed_window(lead, thread_id)]
 
-    for {window, text} <- Mention.route(%{author: author, body: body, thread_id: thread_id}, lead: lead) do
+    for {window, text} <- Mention.route(%{author: author, body: body, thread_id: thread_id}, opts) do
       System.cmd("tmux", ["send-keys", "-t", "tlon:#{window}", "-l", text], stderr_to_stdout: true)
       System.cmd("tmux", ["send-keys", "-t", "tlon:#{window}", "Enter"], stderr_to_stdout: true)
     end
@@ -326,41 +375,65 @@ defmodule Aleph.MachineChat.Loop do
   defp paint(state) do
     sh = strip_rows(state)
     feed_h = feed_h(state)
-    rows = Transcript.render(state.view, %{x: 0, y: 0, w: state.w, h: @max_rows})
+    cw = content_w(state)
+    rows = Transcript.render(state.view, %{x: 0, y: 0, w: cw, h: @max_rows})
     max_scroll = max(length(rows) - feed_h, 0)
     scroll = if state.follow?, do: max_scroll, else: min(state.scroll, max_scroll)
     windowed = rows |> Enum.drop(scroll) |> Enum.take(feed_h)
     top_pad = List.duplicate([], max(feed_h - length(windowed), 0))
 
     strip_cells = strip_cells(state, sh)
-    feed_cells = Board.rows_to_cells(top_pad ++ windowed, %{x: 0, y: sh, w: state.w, h: feed_h})
-    box_cells = state |> composer_rows() |> Board.rows_to_cells(%{x: 0, y: sh + feed_h, w: state.w, h: @box_rows})
+    feed_cells = Board.rows_to_cells(top_pad ++ windowed, %{x: @pad_x, y: sh, w: cw, h: feed_h})
+    box_cells = state |> composer_rows(cw) |> Board.rows_to_cells(%{x: @pad_x, y: sh + feed_h, w: cw, h: @box_rows})
 
     Board.paint(strip_cells ++ feed_cells ++ box_cells)
     %{state | scroll: scroll, max_scroll: max_scroll, follow?: state.follow? or scroll >= max_scroll}
   end
 
+  # The feed/composer content width: the pane less a gutter on each side.
+  defp content_w(state), do: max(state.w - 2 * @pad_x, 1)
+
   # The ORBIS rollup strip: the same styled summary line the sidebar panel paints, so the two never
   # drift, prefixed with a label. Absent when there are no machine threads.
   defp strip_cells(_state, 0), do: []
 
-  defp strip_cells(%{rollup: %{summary: summary}, w: w}, sh) do
-    row = [{"  ORBIS · ", :accent}] ++ Aleph.Panel.Orbis.summary_row(summary)
-    Board.rows_to_cells([row], %{x: 0, y: 0, w: w, h: sh})
+  defp strip_cells(%{rollup: %{summary: summary}} = state, sh) do
+    row = [{"ORBIS · ", :accent}] ++ Aleph.Panel.Orbis.summary_row(summary)
+    Board.rows_to_cells([row], %{x: @pad_x, y: 0, w: content_w(state), h: sh})
   end
 
-  # The composer: a rule then the input line — the task text with a cursor in COMPOSE, a hint in
-  # BROWSE.
-  defp composer_rows(%{mode: :compose, input: "", w: w}) do
-    [rule(w), [{"  ＋ new task — type and press Enter · Esc to browse", :dim}]]
+  # The composer: a blank spacer, a rule, then the input line — the task/reply text with a cursor in
+  # COMPOSE, a hint in BROWSE. A zoomed thread turns the prompt into a reply into that thread.
+  defp composer_rows(%{mode: :browse}, cw) do
+    [[], rule(cw), [{"── browse ──  j/k select · z read · Esc/i compose", :dim}]]
   end
 
-  defp composer_rows(%{mode: :compose, input: input, w: w}) do
-    [rule(w), [{"  ＋ ", :accent}, {input, :normal}, {"▌", :accent}]]
+  defp composer_rows(%{mode: :compose, input: ""} = state, cw) do
+    [[], rule(cw), [{compose_hint(state), :dim}]]
   end
 
-  defp composer_rows(%{mode: :browse, w: w}) do
-    [rule(w), [{"  ── browse ──  j/k select · z read · Esc/i compose", :dim}]]
+  defp composer_rows(%{mode: :compose, input: input} = state, cw) do
+    [[], rule(cw), [{compose_glyph(state), :accent}, {input, :normal}, {"▌", :accent}]]
+  end
+
+  # The empty-box prompt and the leading glyph both flip to a reply when a thread is zoomed.
+  defp compose_hint(state) do
+    case reply_title(state) do
+      nil -> "＋ new task — type and press Enter · Esc to browse"
+      title -> "↳ reply to #{title} — type and press Enter · Esc to browse"
+    end
+  end
+
+  defp compose_glyph(state), do: if(reply_title(state), do: "↳ ", else: "＋ ")
+
+  # The zoomed thread's title, or nil when nothing is zoomed (a new-task composer).
+  defp reply_title(%{view: %{zoom: nil}}), do: nil
+
+  defp reply_title(%{view: %{zoom: tid, blocks: blocks}}) do
+    case Enum.find(blocks, &match?(%{thread: %{id: ^tid}}, &1)) do
+      %{thread: %{title: title}} -> title || "untitled"
+      _ -> nil
+    end
   end
 
   defp rule(w), do: [{String.duplicate("─", max(w, 1)), :separator}]
