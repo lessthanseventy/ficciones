@@ -45,6 +45,44 @@ defmodule Aleph.Stack do
   end
 
   @doc """
+  A commit's diff as classified lines — `[%{text, kind}]` where `kind` is `:file` (a `diff --git`
+  header), `:hunk` (`@@ … @@`), `:add`/`:del` (a `+`/`-` line), `:meta` (the commit header, `index`,
+  `+++`/`---` file markers), or `:context`. `git show <hash>` for the Commits pane's `Enter` detail
+  in MAIN; the renderer colors off `kind` and stays dumb. Best-effort: `[]` outside a repo, on a
+  bad hash, or on failure — never a crash. `hash` is a discrete argv (no shell), so a listed short
+  hash can't inject.
+  """
+  def show(hash, dir \\ ".")
+  def show(nil, _dir), do: []
+  def show("", _dir), do: []
+
+  def show(hash, dir) do
+    case cmd("git", ["-C", dir, "show", "--no-color", hash]) do
+      {:ok, out} -> out |> String.split("\n") |> Enum.map(&classify_diff_line/1)
+      :error -> []
+    end
+  end
+
+  # Order matters: the "+++"/"---" file markers must be caught as :meta BEFORE the bare +/- add/del
+  # tests, and "diff --git" before the "-" test (it starts with "d", but be explicit).
+  defp classify_diff_line("diff --git" <> _ = l), do: %{text: l, kind: :file}
+  defp classify_diff_line("@@" <> _ = l), do: %{text: l, kind: :hunk}
+  defp classify_diff_line("+++" <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("---" <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("index " <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("new file" <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("deleted file" <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("rename " <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("similarity " <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("commit " <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("Author:" <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("Date:" <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("Merge:" <> _ = l), do: %{text: l, kind: :meta}
+  defp classify_diff_line("+" <> _ = l), do: %{text: l, kind: :add}
+  defp classify_diff_line("-" <> _ = l), do: %{text: l, kind: :del}
+  defp classify_diff_line(l), do: %{text: l, kind: :context}
+
+  @doc """
   "5 minutes ago"-style relative time, rounded against `now` truncated to the current minute
   (see `commits/2` doc) so a batch of commits all advance a bucket in lockstep. `nil` timestamp
   (unparseable `%at`) yields "?".
