@@ -14,6 +14,16 @@ if config_env() != :test do
   config :funes, Funes.Repo, database: database
 end
 
+# The forgetting-engine cutover flags (design: docs/plans/2026-08-19-funes-forgetting-design.md).
+# BOTH default OFF — the engine lands wired-dark and is flipped live via env, no rebuild:
+#   FUNES_EMBED_ON_WRITE=1  embeds each banked fact off the write path (needs ollama up).
+#   FUNES_RECALL=1          makes the token-budgeted working set the memory a dossier's LEARNINGS
+#                           reads. Flip AFTER a backfill (`mix funes.embed_backfill`) so semantic
+#                           relevance has vectors to rank by; until then recall is keyword+strength.
+config :funes,
+  embed_on_write: System.get_env("FUNES_EMBED_ON_WRITE") in ~w(1 true yes),
+  recall: [enabled: System.get_env("FUNES_RECALL") in ~w(1 true yes)]
+
 # The operator's handle — who the human IS on this machine's channel. Local
 # configuration, never identity in the design (§8); the same default aleph uses.
 # `Dossier.bank_stated_fact` trusts only this author for `stated` provenance.

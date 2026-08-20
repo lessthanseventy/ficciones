@@ -151,6 +151,52 @@ defmodule Funes.BoardTest do
     end
   end
 
+  describe "Board.in_scope/1 LEARNINGS — the recall read path (cutover flag)" do
+    setup do
+      on_exit(fn -> Application.delete_env(:funes, :recall) end)
+      :ok
+    end
+
+    test "off by default: LEARNINGS stays recency-ranked, unchanged" do
+      Application.delete_env(:funes, :recall)
+      {:ok, thread} = Channel.open_thread(%{title: "t"})
+      {:ok, _older} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "older", provenance: "derived"})
+      {:ok, _newer} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "newer", provenance: "derived"})
+
+      # Recency: newest first — the pre-cutout behavior, untouched with the flag off.
+      assert [%{text: "newer"}, %{text: "older"}] = Board.in_scope(thread).learnings.shown
+    end
+
+    test "on: LEARNINGS ranks by strength, not recency" do
+      Application.put_env(:funes, :recall, enabled: true)
+      {:ok, thread} = Channel.open_thread(%{title: "t"})
+
+      # `proven` is banked FIRST (older), `plain` second (newer) — recency would surface `plain`
+      # first, so an order that puts `proven` first proves strength drove the ranking.
+      {:ok, proven} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "proven", provenance: "derived"})
+      {:ok, _plain} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "plain", provenance: "derived"})
+      {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "check_passed", correlation: "fact:#{proven.id}"})
+
+      texts = Enum.map(Board.in_scope(thread).learnings.shown, & &1.text)
+      assert Enum.find_index(texts, &(&1 == "proven")) < Enum.find_index(texts, &(&1 == "plain"))
+    end
+
+    test "on: a below-budget fact falls out of context and is COUNTED, not silently cut" do
+      # A budget that fits ~one small fact (each is ~1 token) — the weaker one drops out of the
+      # working set but is still on disk (get_facts returns it); `more` must own the cut.
+      Application.put_env(:funes, :recall, enabled: true, budget: 1)
+      {:ok, thread} = Channel.open_thread(%{title: "t"})
+      {:ok, _a} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "aaaa", provenance: "derived"})
+      {:ok, b} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "bbbb", provenance: "derived"})
+      {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "check_passed", correlation: "fact:#{b.id}"})
+
+      learnings = Board.in_scope(thread).learnings
+      assert length(learnings.shown) == 1
+      assert hd(learnings.shown).text == "bbbb"
+      assert learnings.more == 1
+    end
+  end
+
   describe "machine_overview/0 — the Orbis Tertius cross-leaf read" do
     test "every OPEN machine thread as a compact brief; project + closed threads never leak in" do
       {:ok, _root} = Channel.open_thread(%{title: "Tlön", scope: "machine"})

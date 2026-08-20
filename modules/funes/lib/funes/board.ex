@@ -16,6 +16,7 @@ defmodule Funes.Board do
   alias Funes.Agent
   alias Funes.Channel
   alias Funes.Dossier
+  alias Funes.Recall
   alias Funes.Repo
   alias Funes.Thread
 
@@ -38,7 +39,7 @@ defmodule Funes.Board do
       # NEXT is derived, never stored (§5/§6): the head of the open todos, or nil.
       next: List.first(todos.shown),
       done: done_view(thread),
-      learnings: thread |> Dossier.facts_for_thread() |> rank_and_cut(),
+      learnings: learnings(thread),
       # UNKNOWNS beside FACTS — knowing what you don't know is first-class (§4a).
       unknowns: Dossier.open_questions_for_thread(thread),
       blockers: Dossier.open_issues_for_thread(thread),
@@ -84,6 +85,16 @@ defmodule Funes.Board do
     (todos ++ events)
     |> Enum.sort_by(& &1.at, {:desc, DateTime})
     |> rank_and_cut()
+  end
+
+  # LEARNINGS: the forgetting engine's token-budgeted working set when the recall read path is on
+  # (design: `docs/plans/2026-08-19-funes-forgetting-design.md`), else the recency top-five. The
+  # flag (`:recall`'s `:enabled`) is off until the cutover is flipped — same `%{shown, more}` shape
+  # either way, so `MCP.Brief` renders both blind to which fed it.
+  defp learnings(%Thread{} = thread) do
+    if Recall.read_enabled?(),
+      do: Recall.thread_learnings(thread),
+      else: thread |> Dossier.facts_for_thread() |> rank_and_cut()
   end
 
   # Cap a ranked list and COUNT the cut — never a silent truncation (§5/§6).

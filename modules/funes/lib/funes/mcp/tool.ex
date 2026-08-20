@@ -101,6 +101,7 @@ defmodule Funes.MCP.Tool.BankFact do
   alias Funes.Channel
   alias Funes.Dossier
   alias Funes.MCP
+  alias Funes.Recall
 
   schema do
     field :kind, :enum, values: ["decision", "constraint", "learned"], required: true
@@ -124,6 +125,7 @@ defmodule Funes.MCP.Tool.BankFact do
 
     case result do
       {:ok, fact} ->
+        Recall.maybe_embed_on_write(fact)
         payload = %{"fact_id" => fact.id, "provenance" => fact.provenance}
         {:reply, Response.json(Response.tool(), payload), frame}
 

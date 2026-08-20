@@ -124,12 +124,20 @@ token budget from the top, returns the working set.
 - `fact.embedding`/`embedding_model` columns (`VectorColumn`) + `store_embedding`/`embed_fact`;
   `reinforce_fact` (cited touch); `Search.matching_fact_ids/2`.
 
-**Remaining = INTEGRATION / cutover (reserved for Andrew — touches live write + read paths):**
-1. Call `embed_fact/1` after `bank_fact` (config-gated `embed_on_write`, default off) so facts get
-   embedded automatically. A one-off backfill embeds existing facts.
-2. Wire `working_set_for_thread` into the session-start brief / `get_dossier` behind a flag; flip it
-   to make the working set the live memory.
-3. `home:switch` + live MCP smoke; review before merge to main.
+**Cutover LANDED wired-dark (2026-08-20, `funes:check` green — 268 tests):**
+1. ✅ `Recall.maybe_embed_on_write/1` in `BankFact.execute` — gated by `:embed_on_write` (env
+   `FUNES_EMBED_ON_WRITE`, default off); embeds off the write path via a supervised
+   `Funes.TaskSupervisor` task so a slow/down ollama never blocks or fails `bank_fact`. One-off
+   backfill: `mix funes.embed_backfill` (embeds every NULL-vector fact; idempotent).
+2. ✅ `Recall.thread_learnings/1` wired into `Board.in_scope` LEARNINGS — gated by `:recall`'s
+   `:enabled` (env `FUNES_RECALL`, default off). On = the token-budgeted working set (relevance ×
+   strength) replaces the recency top-five; `more` counts what fell out of budget. Pinned
+   constraints stay in their always-loaded resource (the pinned floor), not folded into LEARNINGS.
+   `get_facts`/`search_facts` stay TOTAL — the deeper-search recovery path is untouched by design.
+
+**Remaining = flip live + verify (reserved for Andrew — touches the live channel + ollama):**
+3. `home:switch`, then flip live on the running node (no rebuild): `FUNES_EMBED_ON_WRITE=1` → run
+   `mix funes.embed_backfill` once → `FUNES_RECALL=1`; live MCP smoke; review before merge to main.
 
 ## Relationship to the other office-standup features
 

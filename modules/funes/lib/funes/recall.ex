@@ -111,6 +111,25 @@ defmodule Funes.Recall do
     |> assemble(budget: budget)
   end
 
+  @doc """
+  A thread's LEARNINGS as the recall read path serves them: the thread's own facts from the working
+  set (ranked by relevance × strength, cut to the token budget), shaped `%{shown, more}` like every
+  capped brief pane. The pinned operator constraints are dropped here — they are the always-loaded
+  floor, surfaced by their own resource, not a thread's learnings. `more` counts what fell out of
+  the budget (never off disk — `get_facts` still returns the total), never a silent cut.
+  """
+  @spec thread_learnings(Thread.t(), keyword()) :: %{shown: [Fact.t()], more: non_neg_integer()}
+  def thread_learnings(%Thread{} = thread, opts \\ []) do
+    shown =
+      thread
+      |> working_set_for_thread(opts)
+      |> Enum.reject(& &1.pinned?)
+      |> Enum.map(& &1.fact)
+
+    total = length(Dossier.facts_for_thread(thread))
+    %{shown: shown, more: max(total - length(shown), 0)}
+  end
+
   # The query's embedding: a precomputed `:query_embedding` (the test/cached path), else embed the
   # `:query` string via ollama, else nil (a session-start recall with no query → uniform relevance).
   defp query_vector(opts) do
@@ -170,6 +189,31 @@ defmodule Funes.Recall do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  @doc """
+  The embed-on-write gate (`:embed_on_write`, default off — the cutover flag, cf. the design doc).
+  When on, embed a freshly-banked fact OFF the write path: a supervised, unlinked task hits ollama
+  so a slow/down embedder never blocks the `bank_fact` reply, and its crash can't take the caller.
+  Returns the fact unchanged either way (a side effect on the write result, never load-bearing).
+  """
+  @spec maybe_embed_on_write(Fact.t()) :: Fact.t()
+  def maybe_embed_on_write(%Fact{} = fact) do
+    if embed_on_write?(),
+      do: Task.Supervisor.start_child(Funes.TaskSupervisor, fn -> embed_fact(fact) end)
+
+    fact
+  end
+
+  @doc "Is embed-on-write on? Off by default — flip `:embed_on_write` (env `FUNES_EMBED_ON_WRITE`)."
+  @spec embed_on_write?() :: boolean()
+  def embed_on_write?, do: Application.get_env(:funes, :embed_on_write, false) == true
+
+  @doc """
+  Is the recall read path on? Off by default — flip `:recall`'s `:enabled` (env `FUNES_RECALL`) to
+  make the token-budgeted working set the live memory a dossier's LEARNINGS reads.
+  """
+  @spec read_enabled?() :: boolean()
+  def read_enabled?, do: get_in(Application.get_env(:funes, :recall, []), [:enabled]) == true
 
   defp embedding_model, do: get_in(Application.get_env(:funes, :embedding, []), [:model]) || "nomic-embed-text"
 

@@ -17,7 +17,12 @@ defmodule Funes.Application do
     # is safe where the switchboard is deliberately opt-in) — but the test harness turns it
     # off so the pure maybe_mirror tests don't double-fire.
     children =
-      [{Phoenix.PubSub, name: Funes.PubSub}] ++
+      [
+        {Phoenix.PubSub, name: Funes.PubSub},
+        # Fire-and-forget best-effort work off the request path — today the embed-on-write embedder
+        # (Funes.Recall.maybe_embed_on_write): a crash or a slow ollama stays here, off bank_fact.
+        {Task.Supervisor, name: Funes.TaskSupervisor}
+      ] ++
         maybe(:start_repo, true, Funes.Repo) ++
         maybe(:start_consult_mirror, true, Funes.Consult.Mirror) ++
         maybe(:start_switchboard, false, Funes.Switchboard.Server) ++
