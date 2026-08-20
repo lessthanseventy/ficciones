@@ -7,20 +7,37 @@ defmodule Aleph.Tlon.Focus do
   this; nothing here touches the TTY.
 
   The 4-level nav (design §interaction model): `Ctrl+Space` toggles the terminal; `h`/`l` move a pane
-  up/down a column; `H`/`L` jump between columns; `Tab` cycles sections within a pane. `j`/`k` (the
-  item cursor) live with each pane's own list state, not here.
+  up/down a column; `H`/`L` jump between columns; `Tab` cycles sections within a pane; `j`/`k` move
+  the item cursor WITHIN the focused pane. Each pane remembers its own cursor (`cursors` is keyed by
+  pane), so moving away and back restores where you were. `Enter` opens the focused selection's
+  detail in MAIN (`detail?`), `Esc` closes it; `detail?` is a MODE, not a snapshot — the content is
+  always the focused pane's live cursor, so j/k re-resolves the detail as it moves (the lazygit feel).
 
-  `layout` is the shape the reducer navigates: `%{left: [pane], right: [pane], sections: %{pane => n}}`.
+  `layout` is the shape the reducer navigates:
+  `%{left: [pane], right: [pane], sections: %{pane => n}, counts: %{pane => n}}` — `counts` is the
+  item count per pane, what j/k clamps against (derived per keypress by the Cockpit from the reads).
   """
 
-  defstruct in_terminal?: true, column: :left, pane: 0, section: 0
+  defstruct in_terminal?: true, column: :left, pane: 0, section: 0, cursors: %{}, detail?: false
 
-  @type intent :: :toggle_terminal | :pane_next | :pane_prev | :col_left | :col_right | :section_next
+  @type intent ::
+          :toggle_terminal
+          | :pane_next
+          | :pane_prev
+          | :col_left
+          | :col_right
+          | :section_next
+          | :item_next
+          | :item_prev
+          | :open_detail
+          | :close_detail
   @type t :: %__MODULE__{
           in_terminal?: boolean(),
           column: :left | :right,
           pane: non_neg_integer(),
-          section: non_neg_integer()
+          section: non_neg_integer(),
+          cursors: %{optional(atom()) => non_neg_integer()},
+          detail?: boolean()
         }
 
   @doc "Initial focus: in the terminal, keys forwarding to tmux."
@@ -30,6 +47,17 @@ defmodule Aleph.Tlon.Focus do
   @doc "The pane key focus currently sits on, per `layout`."
   @spec focused_pane(t(), map()) :: atom() | nil
   def focused_pane(%__MODULE__{column: col, pane: i}, layout), do: Enum.at(column(layout, col), i)
+
+  @doc """
+  The focused pane's item cursor, clamped into `[0, count-1]` per `layout.counts` — so a list that
+  shrank beneath the stored cursor (a habit approved, a commit GC'd) reads a valid row, never past
+  the end. 0 when the pane is empty.
+  """
+  @spec cursor(t(), map()) :: non_neg_integer()
+  def cursor(%__MODULE__{} = s, layout) do
+    count = item_count(s, layout)
+    if count <= 0, do: 0, else: min(Map.get(s.cursors, focused_pane(s, layout), 0), count - 1)
+  end
 
   @doc "Advance the focus by an intent. A nav intent while in the terminal is a no-op (tmux owns the keys)."
   @spec handle(t(), map(), intent()) :: t()
@@ -44,6 +72,11 @@ defmodule Aleph.Tlon.Focus do
   def handle(%__MODULE__{} = s, layout, :section_next) do
     %{s | section: rem(s.section + 1, section_count(s, layout))}
   end
+
+  def handle(%__MODULE__{} = s, layout, :item_next), do: move_item(s, layout, +1)
+  def handle(%__MODULE__{} = s, layout, :item_prev), do: move_item(s, layout, -1)
+  def handle(%__MODULE__{} = s, _layout, :open_detail), do: %{s | detail?: true}
+  def handle(%__MODULE__{} = s, _layout, :close_detail), do: %{s | detail?: false}
 
   def handle(%__MODULE__{} = s, _layout, _unknown), do: s
 
@@ -61,9 +94,21 @@ defmodule Aleph.Tlon.Focus do
     %{s | column: col, pane: min(s.pane, max_i), section: 0}
   end
 
+  # Move the focused pane's cursor, clamped to its item count (no wrap — a list, not a carousel).
+  # The cursor is stored per pane, so each pane keeps its place.
+  defp move_item(s, layout, delta) do
+    pane = focused_pane(s, layout)
+    count = item_count(s, layout)
+    cur = Map.get(s.cursors, pane, 0)
+    next = if count <= 0, do: 0, else: cur |> Kernel.+(delta) |> max(0) |> min(count - 1)
+    %{s | cursors: Map.put(s.cursors, pane, next)}
+  end
+
   defp section_count(s, layout) do
     max(Map.get(layout[:sections] || %{}, focused_pane(s, layout), 1), 1)
   end
+
+  defp item_count(s, layout), do: Map.get(layout[:counts] || %{}, focused_pane(s, layout), 0)
 
   defp column(layout, :left), do: layout[:left] || []
   defp column(layout, :right), do: layout[:right] || []

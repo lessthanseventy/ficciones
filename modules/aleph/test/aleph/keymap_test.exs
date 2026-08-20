@@ -498,9 +498,10 @@ defmodule Aleph.KeymapTest do
         Map.merge(
           %{
             active_key: :tlon,
+            # counts: :a has 3 items, :b 2, :c 4 — what j/k clamps against.
             center_live?: true,
             focus: focus,
-            tlon_layout: %{left: [:a, :b], right: [:c], sections: %{}}
+            tlon_layout: %{left: [:a, :b], right: [:c], sections: %{}, counts: %{a: 3, b: 2, c: 4}}
           },
           overrides
         )
@@ -548,9 +549,34 @@ defmodule Aleph.KeymapTest do
       assert n2.focus.section == 0
     end
 
-    test "in nav mode, Esc returns to the terminal" do
+    test "in nav mode, j/k move the item cursor within the focused pane, clamped to its count" do
+      {n1, :repaint} = Keymap.handle(char("j"), tlon(nav_focus(%{column: :left, pane: 0})))
+      assert n1.focus.cursors[:a] == 1
+      {n2, :repaint} = Keymap.handle(char("k"), n1)
+      assert n2.focus.cursors[:a] == 0
+    end
+
+    test "in nav mode, Down/Up alias j/k for the item cursor" do
+      {n1, :repaint} = Keymap.handle(key(:down), tlon(nav_focus(%{column: :left, pane: 0})))
+      assert n1.focus.cursors[:a] == 1
+      {n2, :repaint} = Keymap.handle(key(:up), n1)
+      assert n2.focus.cursors[:a] == 0
+    end
+
+    test "in nav mode, Enter opens the focused selection's detail in MAIN" do
+      {next, :repaint} = Keymap.handle(key(:enter), tlon(nav_focus()))
+      assert next.focus.detail? == true
+    end
+
+    test "in nav mode with no detail open, Esc returns to the terminal" do
       {next, :repaint} = Keymap.handle(key(:escape), tlon(nav_focus()))
       assert next.focus.in_terminal? == true
+    end
+
+    test "in nav mode with a detail open, Esc closes the detail first (stays in nav)" do
+      {next, :repaint} = Keymap.handle(key(:escape), tlon(nav_focus(%{detail?: true})))
+      assert next.focus.detail? == false
+      assert next.focus.in_terminal? == false
     end
 
     test "in nav mode, q still quits" do

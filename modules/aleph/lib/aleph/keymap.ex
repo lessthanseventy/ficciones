@@ -240,11 +240,22 @@ defmodule Aleph.Keymap do
 
   defp handle_tlon(key, %{focus: %Focus{in_terminal?: true}} = state), do: {state, {:forward, key}}
 
+  # Esc steps back one level: close an open detail first, else drop out of nav into the terminal.
+  defp handle_tlon(%{key: :escape}, %{focus: %Focus{detail?: true}} = state),
+    do: {focus_intent(state, :close_detail), :repaint}
+
   defp handle_tlon(%{key: :escape}, state), do: {put_in(state.focus.in_terminal?, true), :repaint}
   defp handle_tlon(%{key: :char, char: "l"}, state), do: {focus_intent(state, :pane_next), :repaint}
   defp handle_tlon(%{key: :char, char: "h"}, state), do: {focus_intent(state, :pane_prev), :repaint}
   defp handle_tlon(%{key: :char, char: "L"}, state), do: {focus_intent(state, :col_right), :repaint}
   defp handle_tlon(%{key: :char, char: "H"}, state), do: {focus_intent(state, :col_left), :repaint}
+  # j/k move the item cursor within the focused pane; Enter opens its selection's detail in MAIN.
+  # (Leaves' Enter is a space-jump, not a detail — Phase 4 special-cases it ahead of this clause.)
+  defp handle_tlon(%{key: :char, char: "j"}, state), do: {focus_intent(state, :item_next), :repaint}
+  defp handle_tlon(%{key: :char, char: "k"}, state), do: {focus_intent(state, :item_prev), :repaint}
+  defp handle_tlon(%{key: :down}, state), do: {focus_intent(state, :item_next), :repaint}
+  defp handle_tlon(%{key: :up}, state), do: {focus_intent(state, :item_prev), :repaint}
+  defp handle_tlon(%{key: :enter}, state), do: {focus_intent(state, :open_detail), :repaint}
   defp handle_tlon(%{key: :tab}, state), do: {focus_intent(state, :section_next), :repaint}
   defp handle_tlon(%{key: :char, char: "q"}, state), do: {state, :quit}
   defp handle_tlon(%{key: :char, char: "]"}, state), do: switch(state, :next)
