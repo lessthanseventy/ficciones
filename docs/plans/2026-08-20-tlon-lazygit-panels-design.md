@@ -39,17 +39,25 @@ Tlön reworked:
 
 ### Interaction model (the crux — Tlön's center is a live tmux client that eats keys)
 
-- **Default focus = the terminal**; keys forward to tmux as today.
-- The existing **`Ctrl+Space` leader** moves focus OUT of the terminal into nav mode:
-  - `Ctrl+Space` then `1/2/3` → focus Commits / Memory / Leaves (or `Ctrl+Space Tab` cycles).
-  - `Ctrl+Space 0` or `Esc` → return focus to the terminal (resume forwarding).
-- A **focused side pane** owns `j/k` (move selection), `Enter` (open detail in MAIN), `Esc`
-  (close detail → terminal), plus per-pane action keys.
-- Detail views render in MAIN, temporarily replacing the terminal view; the tmux session keeps
-  running underneath (it just stops receiving keys while a pane is focused).
+CONFIRMED (Andrew, 2026-08-20): a **4-level spatial nav** — lazygit-ish with extras for the
+three-column shape (left sidebar · center terminal/MAIN · right sidebar).
 
-This reuses the leader that already exists (`Aleph.Keymap`, `Ctrl+Space`), so it composes with the
-tmux forwarding model instead of fighting it.
+- **`Ctrl+Space`** — TOGGLE in/out of the center terminal. In-terminal → keys forward to tmux
+  (today's behavior); out → nav mode, aleph owns keys. (Reuses the existing leader as a toggle.)
+- **`j`/`k`** — move the selection cursor WITHIN the focused pane's list.
+- **`Tab`** — cycle WITHIN a pane, across its sub-sections (e.g. Memory's coverage / floor /
+  habits). A single-list pane has nothing to cycle.
+- **`h`/`l`** — move to the prev/next pane UP/DOWN the current sidebar column.
+- **`H`/`L`** — jump BETWEEN the left and right sidebar columns.
+- **`Enter`** — open the selection's detail in MAIN (replaces the terminal view; tmux keeps
+  running underneath). **`Esc`** — close detail / step back toward the terminal.
+- Leaves **`Enter`** → switch to the Sessions space focused on that thread.
+
+Layout stays three columns. This is a pure focus STATE MACHINE (which column, which pane in it,
+which section, in-terminal?) — Phase 1 builds it as a tested reducer; render/tmux wiring hangs off
+it.
+
+Detail in MAIN (not a popup) and Leaves→Sessions are the confirmed answers to the open decisions.
 
 ## The panes
 
@@ -113,8 +121,17 @@ All pure reads or single writes; unit-tested in funes (no TTY).
 
 Phases 2–4 are independent once Phase 1 lands → parallelizable.
 
-## Open decisions to confirm
+## Decisions (resolved 2026-08-20)
 
-1. Pane focus: `Ctrl+Space` + number vs. `Ctrl+Space Tab` cycle (or both).
-2. Detail in MAIN (replaces terminal view) vs. a popup overlay over it.
-3. Leaves `Enter`: switch to Sessions space, or show the brief in MAIN and stay in Tlön.
+1. Pane focus: the 4-level `Ctrl+Space` toggle + `j/k` (item) · `Tab` (section) · `h/l` (pane in
+   column) · `H/L` (column) scheme above.
+2. Detail renders in MAIN, replacing the terminal view (Esc restores).
+3. Leaves `Enter` → switch to the Sessions space on that thread.
+
+## Layout: which pane goes where (proposed)
+
+- LEFT column: **Commits**, **Memory** (the panes you study/act on)
+- RIGHT column: **Leaves** (the overview/launcher)
+- CENTER: terminal, or the focused pane's detail (MAIN)
+- BOTTOM: status bar (Health)
+- Settings: modal (`Ctrl+Space ,`)
