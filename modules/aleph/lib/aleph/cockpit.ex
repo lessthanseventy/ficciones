@@ -21,6 +21,7 @@ defmodule Aleph.Cockpit do
   alias Aleph.Space
   alias Aleph.Terminal
   alias Aleph.Tlon.Focus
+  alias Aleph.Tlon.Settings
   alias Aleph.View
   alias Funes.Bus
   alias Funes.Channel
@@ -233,6 +234,9 @@ defmodule Aleph.Cockpit do
             focus: Focus.new(),
             paste_buffer: nil,
             input: nil,
+            # The Tlön settings modal (nil = closed). Persistent like `input`: the keymap opens it
+            # (`,`), navigates it, and the modal owns every key until dismissed.
+            modal: nil,
             flash: nil,
             scrolls: %{},
             placements: [],
@@ -738,12 +742,31 @@ defmodule Aleph.Cockpit do
   # it (Aleph.Config). Honest about scope: the RUNNING coworker keeps its model — the override
   # applies wherever Profiles.fetch flows on the next spawn (aleph:reset, or kill the pi window).
   defp apply_effect({:cycle_coworker_model, profile_name}, state) do
-    current = Profiles.fetch(profile_name)
-    next = Profiles.next_model(current && current.model)
-    Aleph.Config.put_coworker_model(profile_name, next)
+    {:noreply, render(%{state | flash: cycle_model!(profile_name)})}
+  rescue
+    e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
+  end
 
-    {:noreply,
-     render(%{state | flash: "coworker driver → #{next.provider}/#{next.model} — applies on next spawn (aleph:reset)"})}
+  # The settings modal applied a change to the selected coworker: cycle its driver model, or flip
+  # its yolo (permission) policy. Same honest scope as the `m` verb — the running coworker keeps its
+  # config; the override lands on the next spawn. The modal stays open (state.modal untouched).
+  defp apply_effect({:settings_apply, {profile_name, :model}}, state) do
+    {:noreply, render(%{state | flash: cycle_model!(profile_name)})}
+  rescue
+    e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
+  end
+
+  defp apply_effect({:settings_apply, {profile_name, :permission}}, state) do
+    case Settings.next_yolo(Profiles.fetch(profile_name).permissions) do
+      {:ok, next, policy} ->
+        Aleph.Config.put_coworker_yolo(profile_name, next)
+
+        {:noreply,
+         render(%{state | flash: "#{profile_name} permissions → #{policy} — applies on next spawn (aleph:reset)"})}
+
+      :no_policy ->
+        {:noreply, render(%{state | flash: "#{profile_name} has no permission policy to toggle"})}
+    end
   rescue
     e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
   end
@@ -936,6 +959,7 @@ defmodule Aleph.Cockpit do
       settings: settings_read(state.active_key),
       scrolls: state.scrolls,
       input: state.input,
+      modal: settings_modal_read(state),
       flash: state.flash,
       leader_pending?: state.leader_pending?,
       # Tlön's focus, so the View can light the focused sidebar pane and the status bar can show
@@ -1196,6 +1220,34 @@ defmodule Aleph.Cockpit do
     else
       _ -> nil
     end
+  end
+
+  # Advance a coworker's driver one step round the ring and persist it; returns the flash string.
+  defp cycle_model!(profile_name) do
+    current = Profiles.fetch(profile_name)
+    next = Profiles.next_model(current && current.model)
+    Aleph.Config.put_coworker_model(profile_name, next)
+    "coworker driver → #{next.provider}/#{next.model} — applies on next spawn (aleph:reset)"
+  end
+
+  # The settings-modal read: nil when closed, else the selection (row/field) plus a per-coworker row
+  # — its effective model + ring + whether it's overridden + its yolo policy — for the overlay.
+  defp settings_modal_read(%{modal: %Settings{open?: true} = m}) do
+    %{row: m.row, field: m.field, rows: Enum.map(m.coworkers, &coworker_row/1)}
+  end
+
+  defp settings_modal_read(_state), do: nil
+
+  defp coworker_row(name) do
+    p = Profiles.fetch(name)
+
+    %{
+      profile: name,
+      model: p.model,
+      ring: Profiles.model_ring(),
+      override?: Aleph.Config.coworker_model(name) != nil,
+      yolo?: p.permissions && p.permissions["yoloMode"]
+    }
   end
 
   # LOGBOOK reads are only gathered on Tlön — the machine thread's issues + recent messages,

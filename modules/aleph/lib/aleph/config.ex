@@ -54,10 +54,25 @@ defmodule Aleph.Config do
   @doc "Persist a coworker profile's model override (`%{provider, model, thinking}`)."
   @spec put_coworker_model(String.t(), map(), String.t()) :: :ok
   def put_coworker_model(profile, %{provider: prov, model: model, thinking: think}, path \\ path()) do
-    path
-    |> read()
-    |> put_in_new(["coworkers", profile], %{"provider" => prov, "model" => model, "thinking" => think})
-    |> write!(path)
+    merge_coworker(profile, %{"provider" => prov, "model" => model, "thinking" => think}, path)
+  end
+
+  @doc """
+  The operator's permission-policy override for a coworker: `true` (yolo — auto-approve asks) or
+  `false` (ask), or nil (compiled default wins). `false` is a real override, distinct from unset.
+  """
+  @spec coworker_yolo(String.t(), String.t()) :: boolean() | nil
+  def coworker_yolo(profile, path \\ path()) do
+    case get_in(read(path), ["coworkers", profile, "yolo"]) do
+      b when is_boolean(b) -> b
+      _ -> nil
+    end
+  end
+
+  @doc "Persist a coworker profile's yolo (permission-policy) override without disturbing its model."
+  @spec put_coworker_yolo(String.t(), boolean(), String.t()) :: :ok
+  def put_coworker_yolo(profile, yolo, path \\ path()) when is_boolean(yolo) do
+    merge_coworker(profile, %{"yolo" => yolo}, path)
   end
 
   @default_coworker "claude-machine"
@@ -77,8 +92,14 @@ defmodule Aleph.Config do
     path |> read() |> Map.put("default_coworker", handle) |> write!(path)
   end
 
-  # put_in/2 raises on a missing intermediate map; this seeds it.
-  defp put_in_new(map, [k1, k2], value), do: Map.update(map, k1, %{k2 => value}, &Map.put(&1, k2, value))
+  # Merge fields into `coworkers.<profile>` so independent knobs (model, yolo) coexist — a later
+  # put on one never clobbers the other. Seeds the intermediate maps when absent.
+  defp merge_coworker(profile, fields, path) do
+    map = read(path)
+    coworkers = Map.get(map, "coworkers", %{})
+    entry = Map.merge(Map.get(coworkers, profile, %{}), fields)
+    map |> Map.put("coworkers", Map.put(coworkers, profile, entry)) |> write!(path)
+  end
 
   # Atomic: write beside the target then rename, so a crash mid-write never truncates the file.
   defp write!(map, path) do

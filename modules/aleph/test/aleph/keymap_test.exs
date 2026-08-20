@@ -15,6 +15,7 @@ defmodule Aleph.KeymapTest do
 
   alias Aleph.Keymap
   alias Aleph.Tlon.Focus
+  alias Aleph.Tlon.Settings
 
   # The slice of cockpit state the keymap reads. Threads are anything with an `.id`.
   # `center_live?` and `composer_thread_id` are derived per keypress by the cockpit; here they're
@@ -629,6 +630,63 @@ defmodule Aleph.KeymapTest do
     test "outside Tlön a present focus struct is ignored — Ctrl+Space arms the leader as before" do
       s = state(%{active_key: :sessions, center_live?: true, focus: Focus.new()})
       assert {%{leader_pending?: true}, :repaint} = Keymap.handle(leader(), s)
+    end
+  end
+
+  # The Tlön settings modal (design §Settings): `,` from nav mode opens a key-invoked overlay over
+  # the coworker profiles; while open it OWNS every key (a MODAL, like the composer) until `,`/Esc
+  # dismisses. Enter/Space applies the selected knob (model ring cycle / yolo toggle) as an effect.
+  describe "Tlön settings modal" do
+    defp open_modal(overrides \\ %{}) do
+      m = ["tertius"] |> Settings.new() |> Settings.open()
+      tlon(nav_focus(), Map.merge(%{modal: m}, overrides))
+    end
+
+    test "in nav mode, ',' opens the modal over the materialised coworker profiles" do
+      {next, :repaint} = Keymap.handle(char(","), tlon(nav_focus()))
+      assert %Settings{open?: true, coworkers: ["tertius"]} = next.modal
+    end
+
+    test "in the terminal, ',' forwards to tmux — it does not open the modal (Ctrl+Space first)" do
+      s = tlon()
+      k = char(",")
+      assert {^s, {:forward, ^k}} = Keymap.handle(k, s)
+    end
+
+    test "while open, Tab flips the selected knob model <-> permission" do
+      {n1, :repaint} = Keymap.handle(key(:tab), open_modal())
+      assert Settings.target(n1.modal) == {"tertius", :permission}
+      {n2, :repaint} = Keymap.handle(key(:tab), n1)
+      assert Settings.target(n2.modal) == {"tertius", :model}
+    end
+
+    test "while open, Enter applies the selected knob (model by default) as an effect" do
+      assert {_s, {:settings_apply, {"tertius", :model}}} = Keymap.handle(key(:enter), open_modal())
+    end
+
+    test "while open on the permission knob, Enter applies a permission change" do
+      {on_perm, :repaint} = Keymap.handle(key(:tab), open_modal())
+      assert {_s, {:settings_apply, {"tertius", :permission}}} = Keymap.handle(key(:enter), on_perm)
+    end
+
+    test "while open, Space also applies (the alternate apply key)" do
+      assert {_s, {:settings_apply, {"tertius", :model}}} = Keymap.handle(key(:space), open_modal())
+    end
+
+    test "apply leaves the modal open so you can keep adjusting" do
+      {next, {:settings_apply, _}} = Keymap.handle(key(:enter), open_modal())
+      assert next.modal.open?
+    end
+
+    test "',' and Esc both dismiss the modal" do
+      {n1, :repaint} = Keymap.handle(char(","), open_modal())
+      refute n1.modal.open?
+      {n2, :repaint} = Keymap.handle(key(:escape), open_modal())
+      refute n2.modal.open?
+    end
+
+    test "while open, the modal OWNS every key — q navigates, it does not quit" do
+      assert {_s, :none} = Keymap.handle(char("q"), open_modal())
     end
   end
 end

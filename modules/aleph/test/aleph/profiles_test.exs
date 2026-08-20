@@ -180,6 +180,31 @@ defmodule Aleph.ProfilesTest do
 
       assert Profiles.fetch("tertius").model == %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
     end
+
+    test "an operator yolo override flips permissions.yoloMode but leaves the deny-floor intact" do
+      dir = Path.join(System.tmp_dir!(), "aleph-prof-yolo-#{System.unique_integer([:positive])}")
+      path = Path.join(dir, "config.json")
+      Aleph.Config.put_coworker_yolo("tertius", false, path)
+
+      previous = Application.get_env(:aleph, :config_path)
+      Application.put_env(:aleph, :config_path, path)
+
+      on_exit(fn ->
+        Application.put_env(:aleph, :config_path, previous)
+        File.rm_rf!(dir)
+      end)
+
+      perms = Profiles.fetch("tertius").permissions
+      # the operator flipped autonomous-yolo off (a human will answer asks)...
+      assert perms["yoloMode"] == false
+      # ...but the deny-floor is compiled-in, never operator-editable
+      assert perms["permission"]["bash"]["sudo *"] == "deny"
+      assert perms["permission"]["path"]["~/.ssh/*"] == "deny"
+    end
+
+    test "no yolo override keeps the compiled default (yolo on for the autonomous coworker)" do
+      assert Profiles.fetch("tertius").permissions["yoloMode"] == true
+    end
   end
 
   describe "the tertius profile — the Orbis Tertius meta agent (the center)" do

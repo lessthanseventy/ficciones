@@ -7,6 +7,7 @@ defmodule Aleph.ViewTest do
   """
   use ExUnit.Case, async: true
 
+  alias Aleph.Board
   alias Aleph.Panel
   alias Aleph.Tlon.Focus
   alias Aleph.View
@@ -132,6 +133,57 @@ defmodule Aleph.ViewTest do
       # the other left-column pane (Memory, not focused) gets no slice merged in
       assert {:ok, mem} = panel_data(placements, Panel.Memory)
       refute Map.has_key?(mem, :selected)
+    end
+  end
+
+  # The settings modal (design §Settings) is a floating overlay, not a column swap: appended last so
+  # its opaque box paints over the frame + the live terminal underneath.
+  describe "settings modal overlay" do
+    @modal %{
+      row: 0,
+      field: :model,
+      rows: [
+        %{
+          profile: "tertius",
+          model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
+          ring: [%{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}],
+          override?: false,
+          yolo?: true
+        }
+      ]
+    }
+
+    test "closed (no modal read) places no overlay — the panes render normally" do
+      placements = View.compose(reads(%{modal: nil}), 120, 40)
+      refute Enum.any?(placements, &match?({Panel.SettingsModal, _, _}, &1))
+    end
+
+    test "open: places the modal body centered, over an opaque focused border box" do
+      placements = View.compose(reads(%{modal: @modal}), 120, 40)
+      assert Enum.any?(placements, &match?({Panel.SettingsModal, _, _}, &1))
+
+      # focus is nil here, so the ONLY focused border is the modal's — and it's horizontally centered.
+      [rect] = focused_borders(placements)
+      assert rect.w == 60
+      assert rect.x == div(120 - 60, 2)
+    end
+
+    test "the overlay is painted LAST so it wins the cells under it (last-placement-wins)" do
+      placements = View.compose(reads(%{modal: @modal}), 120, 40)
+      {tail_panel, _, _} = List.last(placements)
+      assert tail_panel == Panel.SettingsModal
+    end
+
+    test "opaque: the modal box paints a cell at every coordinate of its rect (no terminal bleed-through)" do
+      placements = View.compose(reads(%{modal: @modal}), 120, 40)
+      [rect] = focused_borders(placements)
+
+      overlay = for {p, _, _} = pl <- placements, p in [Panel.Border, Panel.SettingsModal], do: pl
+      coords = MapSet.new(Board.compose(overlay, 120, 40), &{&1.x, &1.y})
+
+      for x <- rect.x..(rect.x + rect.w - 1), y <- rect.y..(rect.y + rect.h - 1) do
+        assert MapSet.member?(coords, {x, y}), "modal left cell (#{x},#{y}) unpainted — terminal would show through"
+      end
     end
   end
 end

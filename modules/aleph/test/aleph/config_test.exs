@@ -65,4 +65,32 @@ defmodule Aleph.ConfigTest do
     assert Config.default_coworker(path) == "pi-machine"
     assert Config.coworker_model("tlon", path).model == "claude-sonnet-5"
   end
+
+  test "coworker_yolo/2 is nil when unset (compiled default wins)", %{path: path} do
+    assert Config.coworker_yolo("tlon", path) == nil
+  end
+
+  test "put_coworker_yolo persists and reads back the boolean", %{path: path} do
+    :ok = Config.put_coworker_yolo("tlon", true, path)
+    assert Config.coworker_yolo("tlon", path) == true
+  end
+
+  test "put_coworker_yolo(false) is distinct from unset — an explicit ask override", %{path: path} do
+    :ok = Config.put_coworker_yolo("tlon", false, path)
+    # `=== false` (not `== false`) proves it is exactly false — a real override, not the nil of unset.
+    assert Config.coworker_yolo("tlon", path) === false
+  end
+
+  test "yolo and model overrides coexist in the same coworker — neither put clobbers the other", %{path: path} do
+    :ok = Config.put_coworker_yolo("tlon", false, path)
+    :ok = Config.put_coworker_model("tlon", %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}, path)
+
+    assert Config.coworker_yolo("tlon", path) == false
+    assert Config.coworker_model("tlon", path).model == "glm-5.2"
+
+    :ok = Config.put_coworker_yolo("tlon", true, path)
+
+    assert Config.coworker_yolo("tlon", path) == true
+    assert Config.coworker_model("tlon", path).model == "glm-5.2"
+  end
 end

@@ -359,12 +359,27 @@ defmodule Aleph.Profiles do
   @spec fetch(String.t()) :: Profile.t() | nil
   def fetch(name) do
     with %Profile{} = p <- Enum.find(@profiles, &(&1.name == name)) do
-      case Aleph.Config.coworker_model(name) do
-        nil -> p
-        override -> %{p | model: override}
-      end
+      p
+      |> apply_model_override(Aleph.Config.coworker_model(name))
+      |> apply_yolo_override(Aleph.Config.coworker_yolo(name))
     end
   end
+
+  defp apply_model_override(p, nil), do: p
+  defp apply_model_override(p, model), do: %{p | model: model}
+
+  # The yolo knob rides inside the compiled permissions map, so an override only applies when the
+  # profile HAS a policy — the deny-floor stays compiled-in, never operator-editable.
+  defp apply_yolo_override(p, nil), do: p
+
+  defp apply_yolo_override(%Profile{permissions: perms} = p, yolo) when is_map(perms),
+    do: %{p | permissions: Map.put(perms, "yoloMode", yolo)}
+
+  defp apply_yolo_override(p, _yolo), do: p
+
+  @doc "The names of the coworker profiles aleph materialises — the rows the settings modal controls."
+  @spec names() :: [String.t()]
+  def names, do: Enum.map(@profiles, & &1.name)
 
   @doc "The model ring the settings verb cycles through, Claude-first."
   @spec model_ring() :: [map()]

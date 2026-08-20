@@ -47,8 +47,10 @@ defmodule Aleph.Keymap do
   the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
   """
 
+  alias Aleph.Profiles
   alias Aleph.Space
   alias Aleph.Tlon.Focus
+  alias Aleph.Tlon.Settings
 
   @type effect ::
           :repaint
@@ -58,6 +60,7 @@ defmodule Aleph.Keymap do
           | {:enter_or_spawn, term()}
           | {:post_message, term(), String.t()}
           | {:cycle_coworker_model, String.t()}
+          | {:settings_apply, {String.t(), :model | :permission}}
           | {:habit_action, :approve | :reject}
           | :tlon_enter
           | :none
@@ -154,6 +157,42 @@ defmodule Aleph.Keymap do
 
   # Any other key while typing (function keys, …) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
+
+  # --- Tlön settings modal (design §Settings): a MODAL like `input` — while open, every key belongs
+  # to it (so `q` navigates, never quits) until `,`/Esc dismisses. j/k pick the coworker row, Tab or
+  # h/l flip the model↔permission knob, Enter/Space applies (cycle the model ring / toggle yolo) and
+  # leaves it open so you can keep adjusting. Must precede the Tlön focus dispatch below. ---
+  def handle(%{key: :escape}, %{modal: %Settings{open?: true}} = state), do: {close_modal(state), :repaint}
+  def handle(%{key: :char, char: ","}, %{modal: %Settings{open?: true}} = state), do: {close_modal(state), :repaint}
+
+  def handle(%{key: :char, char: "j"}, %{modal: %Settings{open?: true}} = state),
+    do: {modal_intent(state, :row_next), :repaint}
+
+  def handle(%{key: :down}, %{modal: %Settings{open?: true}} = state), do: {modal_intent(state, :row_next), :repaint}
+
+  def handle(%{key: :char, char: "k"}, %{modal: %Settings{open?: true}} = state),
+    do: {modal_intent(state, :row_prev), :repaint}
+
+  def handle(%{key: :up}, %{modal: %Settings{open?: true}} = state), do: {modal_intent(state, :row_prev), :repaint}
+  def handle(%{key: :tab}, %{modal: %Settings{open?: true}} = state), do: {modal_intent(state, :field_next), :repaint}
+
+  def handle(%{key: :char, char: "l"}, %{modal: %Settings{open?: true}} = state),
+    do: {modal_intent(state, :field_next), :repaint}
+
+  def handle(%{key: :char, char: "h"}, %{modal: %Settings{open?: true}} = state),
+    do: {modal_intent(state, :field_next), :repaint}
+
+  def handle(%{key: :enter}, %{modal: %Settings{open?: true} = m} = state),
+    do: {state, {:settings_apply, Settings.target(m)}}
+
+  def handle(%{key: :char, char: " "}, %{modal: %Settings{open?: true} = m} = state),
+    do: {state, {:settings_apply, Settings.target(m)}}
+
+  def handle(%{key: :space}, %{modal: %Settings{open?: true} = m} = state),
+    do: {state, {:settings_apply, Settings.target(m)}}
+
+  # Every other key is swallowed while the modal is up — nav mode never leaks a stray key to tmux.
+  def handle(_key, %{modal: %Settings{open?: true}} = state), do: {state, :none}
 
   # --- Tlön: the lazygit focus model (design 2026-08-20). The center is a live tmux client, so
   # `Ctrl+Space` is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use.
@@ -255,6 +294,9 @@ defmodule Aleph.Keymap do
     do: {focus_intent(state, :close_detail), :repaint}
 
   defp handle_tlon(%{key: :escape}, state), do: {put_in(state.focus.in_terminal?, true), :repaint}
+  # `,` opens the settings modal — the design's `Ctrl+Space ,` reaches here only in nav mode (an
+  # in-terminal comma forwarded above, a literal `,` to the shell). The modal then owns the keys.
+  defp handle_tlon(%{key: :char, char: ","}, state), do: {open_settings(state), :repaint}
   defp handle_tlon(%{key: :char, char: "l"}, state), do: {focus_intent(state, :pane_next), :repaint}
   defp handle_tlon(%{key: :char, char: "h"}, state), do: {focus_intent(state, :pane_prev), :repaint}
   defp handle_tlon(%{key: :char, char: "L"}, state), do: {focus_intent(state, :col_right), :repaint}
@@ -282,6 +324,16 @@ defmodule Aleph.Keymap do
   defp handle_tlon(_key, state), do: {state, :none}
 
   defp focus_intent(state, intent), do: %{state | focus: Focus.handle(state.focus, state.tlon_layout, intent)}
+
+  # The modal opens over the coworker profiles aleph actually materialises (Profiles.names) — the
+  # only rows whose model/permission it can honestly write. A prior modal's row/field is preserved.
+  defp open_settings(state) do
+    base = state[:modal] || Settings.new(Profiles.names())
+    Map.put(state, :modal, Settings.open(base))
+  end
+
+  defp close_modal(state), do: %{state | modal: Settings.close(state.modal)}
+  defp modal_intent(state, intent), do: %{state | modal: Settings.handle(state.modal, intent)}
 
   defp switch(state, dir) do
     space =
