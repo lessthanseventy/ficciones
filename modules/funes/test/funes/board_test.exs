@@ -105,10 +105,12 @@ defmodule Funes.BoardTest do
       assert Enum.any?(scope.chatter, &(&1.body == "starting"))
     end
 
-    test "LEARNINGS and DONE are capped WITH a count — a cut without a count lies" do
-      # The silent-cap failure (pi doc §2b): for an agent whose only window into
-      # its memory is this brief, "5 shown" with no number for the rest reads as
-      # "5 exist" — the empty-world lie in miniature. Same shape as blockers.
+    test "DONE is capped WITH a count; LEARNINGS is budget-bounded, not row-capped" do
+      # The silent-cap failure (pi doc §2b): for an agent whose only window into its memory is this
+      # brief, a cut with no number reads as "this is everything." DONE still caps at five WITH a
+      # count. LEARNINGS is now the token-budgeted working set — bounded by budget, not a row count
+      # (design) — so under the generous default budget all seven small facts fit and `more` is 0;
+      # the below-budget cut (still counted) is proven in the working-set describe block above.
       {:ok, thread} = Channel.open_thread(%{title: "t"})
 
       for n <- 1..7 do
@@ -131,8 +133,8 @@ defmodule Funes.BoardTest do
       end
 
       scope = Board.in_scope(thread)
-      assert length(scope.learnings.shown) == 5
-      assert scope.learnings.more == 2
+      assert length(scope.learnings.shown) == 7
+      assert scope.learnings.more == 0
       # DONE here is 6 work_landed events (no todos) — capped at five with the count.
       assert length(scope.done.shown) == 5
       assert scope.done.more == 1
@@ -151,24 +153,8 @@ defmodule Funes.BoardTest do
     end
   end
 
-  describe "Board.in_scope/1 LEARNINGS — the recall read path (cutover flag)" do
-    setup do
-      on_exit(fn -> Application.delete_env(:funes, :recall) end)
-      :ok
-    end
-
-    test "off by default: LEARNINGS stays recency-ranked, unchanged" do
-      Application.delete_env(:funes, :recall)
-      {:ok, thread} = Channel.open_thread(%{title: "t"})
-      {:ok, _older} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "older", provenance: "derived"})
-      {:ok, _newer} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "newer", provenance: "derived"})
-
-      # Recency: newest first — the pre-cutout behavior, untouched with the flag off.
-      assert [%{text: "newer"}, %{text: "older"}] = Board.in_scope(thread).learnings.shown
-    end
-
-    test "on: LEARNINGS ranks by strength, not recency" do
-      Application.put_env(:funes, :recall, enabled: true)
+  describe "Board.in_scope/1 LEARNINGS — the forgetting engine's working set" do
+    test "LEARNINGS ranks by strength, not recency" do
       {:ok, thread} = Channel.open_thread(%{title: "t"})
 
       # `proven` is banked FIRST (older), `plain` second (newer) — recency would surface `plain`
@@ -181,10 +167,13 @@ defmodule Funes.BoardTest do
       assert Enum.find_index(texts, &(&1 == "proven")) < Enum.find_index(texts, &(&1 == "plain"))
     end
 
-    test "on: a below-budget fact falls out of context and is COUNTED, not silently cut" do
+    test "a below-budget fact falls out of context and is COUNTED, not silently cut" do
       # A budget that fits ~one small fact (each is ~1 token) — the weaker one drops out of the
-      # working set but is still on disk (get_facts returns it); `more` must own the cut.
-      Application.put_env(:funes, :recall, enabled: true, budget: 1)
+      # working set but is still on disk (get_facts returns it); `more` must own the cut. Budget
+      # stays a config knob (the cost breaker's memory lever); the read path itself is unconditional.
+      Application.put_env(:funes, :recall, budget: 1)
+      on_exit(fn -> Application.delete_env(:funes, :recall) end)
+
       {:ok, thread} = Channel.open_thread(%{title: "t"})
       {:ok, _a} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "aaaa", provenance: "derived"})
       {:ok, b} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "bbbb", provenance: "derived"})

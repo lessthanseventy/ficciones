@@ -20,7 +20,7 @@ defmodule Funes.Application do
       [
         {Phoenix.PubSub, name: Funes.PubSub},
         # Fire-and-forget best-effort work off the request path — today the embed-on-write embedder
-        # (Funes.Recall.maybe_embed_on_write): a crash or a slow ollama stays here, off bank_fact.
+        # (Funes.Recall.embed_on_write): a crash or a slow ollama stays here, off bank_fact.
         {Task.Supervisor, name: Funes.TaskSupervisor}
       ] ++
         maybe(:start_repo, true, Funes.Repo) ++

@@ -124,20 +124,24 @@ token budget from the top, returns the working set.
 - `fact.embedding`/`embedding_model` columns (`VectorColumn`) + `store_embedding`/`embed_fact`;
   `reinforce_fact` (cited touch); `Search.matching_fact_ids/2`.
 
-**Cutover LANDED wired-dark (2026-08-20, `funes:check` green — 268 tests):**
-1. ✅ `Recall.maybe_embed_on_write/1` in `BankFact.execute` — gated by `:embed_on_write` (env
-   `FUNES_EMBED_ON_WRITE`, default off); embeds off the write path via a supervised
-   `Funes.TaskSupervisor` task so a slow/down ollama never blocks or fails `bank_fact`. One-off
-   backfill: `mix funes.embed_backfill` (embeds every NULL-vector fact; idempotent).
-2. ✅ `Recall.thread_learnings/1` wired into `Board.in_scope` LEARNINGS — gated by `:recall`'s
-   `:enabled` (env `FUNES_RECALL`, default off). On = the token-budgeted working set (relevance ×
-   strength) replaces the recency top-five; `more` counts what fell out of budget. Pinned
-   constraints stay in their always-loaded resource (the pinned floor), not folded into LEARNINGS.
-   `get_facts`/`search_facts` stay TOTAL — the deeper-search recovery path is untouched by design.
+**Cutover LANDED — UNCONDITIONAL, no flags (2026-08-20, `funes:check` green):** the flags were
+cutover scaffolding, not operational knobs — a permanent flag-defaulting-on is just a dead OFF-path
+you carry forever — so the working set is simply the memory now (Andrew, 2026-08-20: "rip them out,
+we can fix it if it's fucked"). Rollback is `git revert`, not an env flip.
+1. ✅ `Recall.embed_on_write/1` in `BankFact.execute` — always embeds a banked fact off the write
+   path via a supervised `Funes.TaskSupervisor` task, so a slow/down ollama never blocks or fails
+   `bank_fact` (best-effort — a node with no embedder no-ops, recall falls back to keyword +
+   strength). One-off backfill for the existing corpus: `mix funes.embed_backfill` (idempotent).
+2. ✅ `Recall.thread_learnings/1` IS `Board.in_scope` LEARNINGS — the token-budgeted working set
+   (relevance × strength), not a recency window; `more` counts what fell out of budget. Thread-
+   scoped: the GLOBAL constraint floor is surfaced by its always-loaded resource, not folded into a
+   thread's LEARNINGS — but a thread's OWN stated constraints stay pinned and present (the existing
+   contract). `get_facts`/`search_facts` stay TOTAL — the deeper-search recovery path is untouched.
+   `:recall`'s `:budget` remains a config knob (the cost breaker's memory lever).
 
-**Remaining = flip live + verify (reserved for Andrew — touches the live channel + ollama):**
-3. `home:switch`, then flip live on the running node (no rebuild): `FUNES_EMBED_ON_WRITE=1` → run
-   `mix funes.embed_backfill` once → `FUNES_RECALL=1`; live MCP smoke; review before merge to main.
+**Remaining = verify live (reserved for Andrew — touches the live channel + ollama):**
+3. `home:switch`, run `mix funes.embed_backfill` once so recall has vectors to rank by, then a live
+   MCP smoke; review before merge to main.
 
 ## Relationship to the other office-standup features
 

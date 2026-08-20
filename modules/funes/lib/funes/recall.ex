@@ -80,7 +80,16 @@ defmodule Funes.Recall do
 
     constraints = Dossier.always_loaded_constraints()
     pinned_ids = MapSet.new(constraints, & &1.id)
-    facts = Enum.uniq_by(constraints ++ Dossier.facts_for_thread(thread), & &1.id)
+    thread_facts = Dossier.facts_for_thread(thread)
+
+    # `:include_floor` (default true) prepends the GLOBAL operator-constraint floor — the session-
+    # start "floor + thread facts" working set. A thread's LEARNINGS pane passes false: it ranks the
+    # thread's OWN facts only (a thread's own stated constraints are still pinned via `pinned_ids`),
+    # so one thread's dossier never shows another thread's constraints.
+    facts =
+      if Keyword.get(opts, :include_floor, true),
+        do: Enum.uniq_by(constraints ++ thread_facts, & &1.id),
+        else: thread_facts
 
     ids = Enum.map(facts, & &1.id)
     matched = keyword_matches(opts[:query], ids)
@@ -114,16 +123,16 @@ defmodule Funes.Recall do
   @doc """
   A thread's LEARNINGS as the recall read path serves them: the thread's own facts from the working
   set (ranked by relevance × strength, cut to the token budget), shaped `%{shown, more}` like every
-  capped brief pane. The pinned operator constraints are dropped here — they are the always-loaded
-  floor, surfaced by their own resource, not a thread's learnings. `more` counts what fell out of
-  the budget (never off disk — `get_facts` still returns the total), never a silent cut.
+  capped brief pane. Thread-scoped — the global constraint floor is NOT folded in (that is the
+  always-loaded resource's job), but a thread's own stated constraints stay pinned and present.
+  `more` counts what fell out of the budget (never off disk — `get_facts` still returns the total),
+  never a silent cut.
   """
   @spec thread_learnings(Thread.t(), keyword()) :: %{shown: [Fact.t()], more: non_neg_integer()}
   def thread_learnings(%Thread{} = thread, opts \\ []) do
     shown =
       thread
-      |> working_set_for_thread(opts)
-      |> Enum.reject(& &1.pinned?)
+      |> working_set_for_thread(Keyword.put(opts, :include_floor, false))
       |> Enum.map(& &1.fact)
 
     total = length(Dossier.facts_for_thread(thread))
@@ -188,32 +197,24 @@ defmodule Funes.Recall do
       {:ok, vector} -> store_embedding(fact, vector, model)
       {:error, reason} -> {:error, reason}
     end
+  rescue
+    # The write is best-effort and runs async off the request path — a fact deleted mid-flight
+    # (a stale-entry update), a down Repo, anything: swallow it. An embedding is never load-bearing.
+    e -> {:error, e}
   end
 
   @doc """
-  The embed-on-write gate (`:embed_on_write`, default off — the cutover flag, cf. the design doc).
-  When on, embed a freshly-banked fact OFF the write path: a supervised, unlinked task hits ollama
-  so a slow/down embedder never blocks the `bank_fact` reply, and its crash can't take the caller.
-  Returns the fact unchanged either way (a side effect on the write result, never load-bearing).
+  Embed a freshly-banked fact OFF the write path: a supervised, unlinked task hits ollama so a
+  slow/down embedder never blocks the `bank_fact` reply, and its crash can't take the caller. Called
+  from the MCP write path (`Funes.MCP.Tool.BankFact`); returns the fact unchanged (a side effect on
+  the write result, never load-bearing). A node with no embedder just no-ops (`embed_fact` is
+  best-effort — recall falls back to keyword + strength).
   """
-  @spec maybe_embed_on_write(Fact.t()) :: Fact.t()
-  def maybe_embed_on_write(%Fact{} = fact) do
-    if embed_on_write?(),
-      do: Task.Supervisor.start_child(Funes.TaskSupervisor, fn -> embed_fact(fact) end)
-
+  @spec embed_on_write(Fact.t()) :: Fact.t()
+  def embed_on_write(%Fact{} = fact) do
+    Task.Supervisor.start_child(Funes.TaskSupervisor, fn -> embed_fact(fact) end)
     fact
   end
-
-  @doc "Is embed-on-write on? Off by default — flip `:embed_on_write` (env `FUNES_EMBED_ON_WRITE`)."
-  @spec embed_on_write?() :: boolean()
-  def embed_on_write?, do: Application.get_env(:funes, :embed_on_write, false) == true
-
-  @doc """
-  Is the recall read path on? Off by default — flip `:recall`'s `:enabled` (env `FUNES_RECALL`) to
-  make the token-budgeted working set the live memory a dossier's LEARNINGS reads.
-  """
-  @spec read_enabled?() :: boolean()
-  def read_enabled?, do: get_in(Application.get_env(:funes, :recall, []), [:enabled]) == true
 
   defp embedding_model, do: get_in(Application.get_env(:funes, :embedding, []), [:model]) || "nomic-embed-text"
 
