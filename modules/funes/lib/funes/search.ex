@@ -84,6 +84,28 @@ defmodule Funes.Search do
     end
   end
 
+  @doc """
+  Which of `fact_ids` match `query` in the fact FTS index — the keyword half of the recall layer's
+  relevance blend (`Funes.Recall`). A `MapSet` of matched ids; empty for a blank query or id list.
+  """
+  def matching_fact_ids(query, fact_ids) when is_binary(query) and is_list(fact_ids) do
+    case {fts_match(query), fact_ids} do
+      {"", _} ->
+        MapSet.new()
+
+      {_match, []} ->
+        MapSet.new()
+
+      {match, ids} ->
+        id_list = Enum.map_join(ids, ",", &Integer.to_string/1)
+
+        %{rows: rows} =
+          Repo.query!("SELECT rowid FROM fact_fts WHERE fact_fts MATCH ? AND rowid IN (#{id_list})", [match])
+
+        MapSet.new(rows, fn [id] -> id end)
+    end
+  end
+
   defp count(table, match) do
     %{rows: [[n]]} = Repo.query!("SELECT count(*) FROM #{table} WHERE #{table} MATCH ?", [match])
     n

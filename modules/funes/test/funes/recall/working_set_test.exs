@@ -16,8 +16,12 @@ defmodule Funes.Recall.WorkingSetTest do
   defp ids(ws), do: Enum.map(ws, & &1.id)
 
   test "a rechecked fact outranks an unchecked one of equal age", %{thread: thread} do
-    {:ok, plain} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "plain observation", provenance: "derived"})
-    {:ok, proven} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "proven observation", provenance: "derived"})
+    {:ok, plain} =
+      Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "plain observation", provenance: "derived"})
+
+    {:ok, proven} =
+      Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "proven observation", provenance: "derived"})
+
     {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "check_passed", correlation: "fact:#{proven.id}"})
 
     ids = ids(Recall.working_set_for_thread(thread, budget: 10_000))
@@ -27,7 +31,9 @@ defmodule Funes.Recall.WorkingSetTest do
   test "operator-stated constraints are pinned first, ahead of derived facts", %{thread: thread} do
     {:ok, msg} = Channel.post(%{thread_id: thread.id, author: "andrew", body: "always use mise for elixir"})
     {:ok, con} = Dossier.bank_stated_fact(msg, %{kind: "constraint"})
-    {:ok, note} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "a derived note", provenance: "derived"})
+
+    {:ok, note} =
+      Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "a derived note", provenance: "derived"})
 
     ids = ids(Recall.working_set_for_thread(thread, budget: 10_000))
     assert hd(ids) == con.id
@@ -47,8 +53,12 @@ defmodule Funes.Recall.WorkingSetTest do
   end
 
   test "with a query, the semantically closer fact outranks a distant one", %{thread: thread} do
-    {:ok, near} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "credential login flow", provenance: "derived"})
-    {:ok, far} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "bright autumn leaves", provenance: "derived"})
+    {:ok, near} =
+      Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "credential login flow", provenance: "derived"})
+
+    {:ok, far} =
+      Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "bright autumn leaves", provenance: "derived"})
+
     {:ok, _} = Recall.store_embedding(near, [0.9, 0.1], "test")
     {:ok, _} = Recall.store_embedding(far, [0.0, 1.0], "test")
 
@@ -64,5 +74,22 @@ defmodule Funes.Recall.WorkingSetTest do
 
     ids = ids(Recall.working_set_for_thread(thread, budget: 10_000))
     assert Enum.find_index(ids, &(&1 == used.id)) < Enum.find_index(ids, &(&1 == plain.id))
+  end
+
+  test "a keyword query surfaces an un-embedded matching fact via FTS", %{thread: thread} do
+    {:ok, match} =
+      Dossier.bank_fact(%{
+        thread_id: thread.id,
+        kind: "learned",
+        text: "the credential rotation policy",
+        provenance: "derived"
+      })
+
+    {:ok, other} =
+      Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "unrelated banana notes", provenance: "derived"})
+
+    # query_embedding: [] stubs the semantic term offline (no ollama); the FTS keyword half drives.
+    ids = ids(Recall.working_set_for_thread(thread, budget: 10_000, query: "credential", query_embedding: []))
+    assert Enum.find_index(ids, &(&1 == match.id)) < Enum.find_index(ids, &(&1 == other.id))
   end
 end

@@ -83,6 +83,7 @@ defmodule Funes.Recall do
     facts = Enum.uniq_by(constraints ++ Dossier.facts_for_thread(thread), & &1.id)
 
     ids = Enum.map(facts, & &1.id)
+    matched = keyword_matches(opts[:query], ids)
     touch_events = touches_by_fact(ids)
     superseded = superseded_ids(ids)
 
@@ -101,7 +102,7 @@ defmodule Funes.Recall do
       %{
         id: f.id,
         fact: f,
-        relevance: relevance(f, query_vec),
+        relevance: relevance(f, query_vec, matched),
         strength: Strength.of(touches, now),
         tokens: est_tokens(f.text),
         pinned?: MapSet.member?(pinned_ids, f.id)
@@ -128,12 +129,27 @@ defmodule Funes.Recall do
     end
   end
 
-  # Semantic relevance = cosine(query, fact-embedding), floored at 0 (anti-similar is irrelevant,
-  # not negative). No query → uniform 1.0 (rank by pure strength); an un-embedded fact scores 0
-  # under a query (keyword FTS will carry it in the follow-up blend).
-  defp relevance(_fact, nil), do: 1.0
-  defp relevance(%{embedding: nil}, _query_vec), do: 0.0
-  defp relevance(%{embedding: emb}, query_vec), do: max(Embedding.cosine(query_vec, emb), 0.0)
+  # Relevance blends the semantic (cosine) and keyword (FTS) signals as a soft-OR — a fact matching
+  # EITHER strongly is relevant, both is best, capped at 1. No query at all → uniform 1.0 (rank by
+  # pure strength); a keyword-exact match is fully relevant even with no embedding.
+  defp relevance(_fact, nil, nil), do: 1.0
+
+  defp relevance(fact, query_vec, matched) do
+    s = semantic_rel(fact, query_vec)
+    k = keyword_rel(fact, matched)
+    s + k - s * k
+  end
+
+  defp semantic_rel(_fact, nil), do: 0.0
+  defp semantic_rel(%{embedding: nil}, _query_vec), do: 0.0
+  defp semantic_rel(%{embedding: emb}, query_vec), do: max(Embedding.cosine(query_vec, emb), 0.0)
+
+  defp keyword_rel(_fact, nil), do: 0.0
+  defp keyword_rel(%{id: id}, matched), do: if(MapSet.member?(matched, id), do: 1.0, else: 0.0)
+
+  # The keyword half: which candidate ids FTS-match the query, or nil when there's no query string.
+  defp keyword_matches(nil, _ids), do: nil
+  defp keyword_matches(query, ids), do: Funes.Search.matching_fact_ids(query, ids)
 
   @doc "Store a fact's embedding vector + model (written after `bank_fact`, off the write path)."
   @spec store_embedding(Fact.t(), [float()], String.t()) :: {:ok, Fact.t()} | {:error, term()}
