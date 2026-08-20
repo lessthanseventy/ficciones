@@ -50,4 +50,26 @@ defmodule Funes do
 
   @doc "Recall corpus at a glance (facts/embedded/floor vs budget) — aleph's Memory pane read."
   defdelegate recall_coverage(), to: Funes.Recall, as: :coverage
+
+  @doc "The always-loaded constraint facts (the recall floor) — aleph's Memory pane pins these."
+  defdelegate floor(), to: Funes.Dossier, as: :always_loaded_constraints
+
+  @doc "Habits awaiting the operator's review — the Memory pane's approval queue, newest first."
+  defdelegate pending_habits(), to: Funes.Dossier
+
+  @doc """
+  Approve a pending habit by id (the Memory pane's `a`) — loads fresh, so a stale row the pane
+  rendered can't be acted on. `{:ok, habit}` · `{:error, :not_found}` · `{:error, changeset}`.
+  """
+  def approve_habit(id), do: with_habit(id, &Funes.Dossier.approve_habit/1)
+
+  @doc "Reject a pending habit by id (the Memory pane's `r`) — same load-fresh contract as approve."
+  def reject_habit(id), do: with_habit(id, &Funes.Dossier.reject_habit/1)
+
+  defp with_habit(id, act) do
+    case Funes.Dossier.habit(id) do
+      nil -> {:error, :not_found}
+      habit -> act.(habit)
+    end
+  end
 end
