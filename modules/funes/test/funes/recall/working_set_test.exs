@@ -1,0 +1,48 @@
+defmodule Funes.Recall.WorkingSetTest do
+  # The DB-backed gatherer: real thread facts → strength-ranked, budgeted working set
+  # (design: docs/plans/2026-08-19-funes-forgetting-design.md). Reads back through SQLite.
+  use ExUnit.Case, async: false
+
+  alias Funes.Channel
+  alias Funes.Dossier
+  alias Funes.Recall
+
+  setup do
+    Funes.TestDB.clean!()
+    {:ok, thread} = Channel.open_thread(%{title: "recall thread"})
+    %{thread: thread}
+  end
+
+  defp ids(ws), do: Enum.map(ws, & &1.id)
+
+  test "a rechecked fact outranks an unchecked one of equal age", %{thread: thread} do
+    {:ok, plain} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "plain observation", provenance: "derived"})
+    {:ok, proven} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "proven observation", provenance: "derived"})
+    {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "check_passed", correlation: "fact:#{proven.id}"})
+
+    ids = ids(Recall.working_set_for_thread(thread, budget: 10_000))
+    assert Enum.find_index(ids, &(&1 == proven.id)) < Enum.find_index(ids, &(&1 == plain.id))
+  end
+
+  test "operator-stated constraints are pinned first, ahead of derived facts", %{thread: thread} do
+    {:ok, msg} = Channel.post(%{thread_id: thread.id, author: "andrew", body: "always use mise for elixir"})
+    {:ok, con} = Dossier.bank_stated_fact(msg, %{kind: "constraint"})
+    {:ok, note} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "a derived note", provenance: "derived"})
+
+    ids = ids(Recall.working_set_for_thread(thread, budget: 10_000))
+    assert hd(ids) == con.id
+    assert note.id in ids
+  end
+
+  test "the token budget drops the weaker fact", %{thread: thread} do
+    big = String.duplicate("x ", 60)
+    {:ok, weak} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: big, provenance: "derived"})
+    {:ok, strong} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: big, provenance: "derived"})
+    {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "check_passed", correlation: "fact:#{strong.id}"})
+
+    tokens = max(div(String.length(big), 4), 1)
+    ids = ids(Recall.working_set_for_thread(thread, budget: tokens + 2))
+    assert strong.id in ids
+    refute weak.id in ids
+  end
+end

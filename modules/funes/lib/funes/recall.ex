@@ -8,6 +8,17 @@ defmodule Funes.Recall do
   falls out of context — never off disk (an explicit deeper search still finds it). `assemble/2`
   is the pure core; DB-backed gatherers feed it real candidates.
   """
+  import Ecto.Query
+
+  alias Funes.Dossier
+  alias Funes.Event
+  alias Funes.Fact
+  alias Funes.Recall.Strength
+  alias Funes.Repo
+  alias Funes.Thread
+
+  @check_kinds ["check_passed", "check_failed"]
+  @default_budget 4000
 
   @type candidate :: %{
           optional(any()) => any(),
@@ -52,5 +63,71 @@ defmodule Funes.Recall do
       end)
 
     Enum.reverse(kept)
+  end
+
+  @doc """
+  Assemble a thread's working set from the DB: the pinned operator constraints plus the thread's
+  facts, each scored by strength (from its touch events) and — for now — uniform relevance, cut to
+  the token budget. Query-relevance (FTS × cosine) blends into `:relevance` in a later pass.
+  """
+  @spec working_set_for_thread(Thread.t(), keyword()) :: [candidate()]
+  def working_set_for_thread(%Thread{} = thread, opts \\ []) do
+    now = opts[:now] || DateTime.utc_now()
+    budget = opts[:budget] || recall_budget()
+
+    constraints = Dossier.always_loaded_constraints()
+    pinned_ids = MapSet.new(constraints, & &1.id)
+    facts = Enum.uniq_by(constraints ++ Dossier.facts_for_thread(thread), & &1.id)
+
+    ids = Enum.map(facts, & &1.id)
+    checks = checks_by_fact(ids)
+    superseded = superseded_ids(ids)
+
+    facts
+    |> Enum.map(fn f ->
+      touches =
+        Strength.touches_for(
+          %{created_at: f.created_at, checks: Map.get(checks, f.id, []), superseded?: MapSet.member?(superseded, f.id)},
+          now
+        )
+
+      %{
+        id: f.id,
+        fact: f,
+        relevance: 1.0,
+        strength: Strength.of(touches, now),
+        tokens: est_tokens(f.text),
+        pinned?: MapSet.member?(pinned_ids, f.id)
+      }
+    end)
+    |> assemble(budget: budget)
+  end
+
+  defp recall_budget, do: get_in(Application.get_env(:funes, :recall, []), [:budget]) || @default_budget
+
+  # ~4 chars per token — a rough estimate, enough to bound the working set by tokens (design: a
+  # budget, not a row count). A precise tokenizer can replace this without changing the seam.
+  defp est_tokens(text), do: max(div(String.length(text || ""), 4), 1)
+
+  # Each fact's recheck events, grouped by fact id — the correlation is `"fact:<id>"`.
+  defp checks_by_fact([]), do: %{}
+
+  defp checks_by_fact(fact_ids) do
+    correlations = Enum.map(fact_ids, &"fact:#{&1}")
+
+    from(e in Event, where: e.correlation in ^correlations and e.kind in ^@check_kinds, select: {e.correlation, e.kind, e.created_at})
+    |> Repo.all()
+    |> Enum.group_by(fn {corr, _kind, _at} -> fact_id_of(corr) end, fn {_corr, kind, at} -> %{kind: kind, at: at} end)
+  end
+
+  defp fact_id_of("fact:" <> id), do: String.to_integer(id)
+
+  # The set of fact ids that a later fact supersedes — a hard-negative touch.
+  defp superseded_ids([]), do: MapSet.new()
+
+  defp superseded_ids(fact_ids) do
+    from(f in Fact, where: not is_nil(f.supersedes) and f.supersedes in ^fact_ids, select: f.supersedes)
+    |> Repo.all()
+    |> MapSet.new()
   end
 end
