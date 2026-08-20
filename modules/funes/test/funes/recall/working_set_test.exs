@@ -15,6 +15,25 @@ defmodule Funes.Recall.WorkingSetTest do
 
   defp ids(ws), do: Enum.map(ws, & &1.id)
 
+  describe "coverage/0 — the Memory-pane observability read" do
+    test "counts facts, embeddings, and the floor against the budget", %{thread: thread} do
+      {:ok, msg} = Channel.post(%{thread_id: thread.id, author: "andrew", body: "always use mise"})
+      {:ok, con} = Dossier.bank_stated_fact(msg, %{kind: "constraint"})
+      {:ok, _note} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "a note", provenance: "derived"})
+
+      # Embed one fact so coverage reflects partial semantic coverage.
+      Recall.store_embedding(con, [1.0, 0.0, 0.0], "test-model")
+
+      cov = Recall.coverage()
+      assert cov.facts == 2
+      assert cov.embedded == 1
+      assert cov.floor_count == 1
+      assert cov.floor_tokens > 0
+      assert cov.budget > 0
+      assert is_binary(cov.model)
+    end
+  end
+
   test "a rechecked fact outranks an unchecked one of equal age", %{thread: thread} do
     {:ok, plain} =
       Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "plain observation", provenance: "derived"})

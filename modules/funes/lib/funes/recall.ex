@@ -228,6 +228,32 @@ defmodule Funes.Recall do
     Dossier.record_event(%{thread_id: thread_id, kind: "cited", correlation: "fact:#{id}"})
   end
 
+  @doc """
+  The recall corpus at a glance — the observability read behind aleph's Memory pane: total facts,
+  how many carry an embedding (semantic-recall coverage), and the always-loaded floor's size in
+  facts and estimated tokens against the working-set budget. Cheap: two counts + the floor query.
+  """
+  @spec coverage() :: %{
+          facts: non_neg_integer(),
+          embedded: non_neg_integer(),
+          floor_count: non_neg_integer(),
+          floor_tokens: non_neg_integer(),
+          budget: pos_integer(),
+          model: String.t()
+        }
+  def coverage do
+    floor = Dossier.always_loaded_constraints()
+
+    %{
+      facts: Repo.aggregate(Fact, :count),
+      embedded: Repo.aggregate(from(f in Fact, where: not is_nil(f.embedding)), :count),
+      floor_count: length(floor),
+      floor_tokens: floor |> Enum.map(&est_tokens(&1.text)) |> Enum.sum(),
+      budget: recall_budget(),
+      model: embedding_model()
+    }
+  end
+
   defp recall_budget, do: get_in(Application.get_env(:funes, :recall, []), [:budget]) || @default_budget
 
   # ~4 chars per token — a rough estimate, enough to bound the working set by tokens (design: a

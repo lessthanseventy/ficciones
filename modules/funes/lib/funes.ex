@@ -47,4 +47,7 @@ defmodule Funes do
 
   @doc "The most recent operator-authored message on a thread, or nil — the opening-turn source."
   defdelegate latest_operator_message(thread_id), to: Funes.Channel
+
+  @doc "Recall corpus at a glance (facts/embedded/floor vs budget) — aleph's Memory pane read."
+  defdelegate recall_coverage(), to: Funes.Recall, as: :coverage
 end
