@@ -113,16 +113,23 @@ token budget from the top, returns the working set.
 
 ## Build status (2026-08-19, branch `funes-forgetting-engine`)
 
-**Done — committed, funes suite green (257):** `Recall.Strength` (signed-touch decay),
-`Recall.Certainty` (verification half-life), `Recall.Embedding` (cosine + live ollama embed),
-`Recall.assemble/2` (pure working-set core), `Recall.working_set_for_thread/2` (DB gatherer:
-real facts → strength-ranked, constraint-pinned, token-budgeted). The engine assembles from real
-thread data end-to-end.
-**Next:** the `fact` embedding-vector migration + embed-on-write in `bank_fact`; the FTS×cosine
-relevance blend (the gatherer uses uniform relevance today); the `cited` touch; then wire the
-working set into the session-start brief / `get_dossier` behind a flag.
-**Handoffs for Andrew:** flip the flag to make the working set the *live* session-start memory;
-`home:switch` + live MCP smoke; review before merge to main.
+**Engine complete — committed, funes suite green (261):**
+- `Recall.Strength` — memory strength = decayed sum of signed touches (created/cited +,
+  check_passed ++, check_failed −, superseded −−).
+- `Recall.Certainty` — verification half-life (`:checked` earned + perishable).
+- `Recall.Embedding` — cosine (pure) + ollama `embed/1` via `:httpc` (live-proven).
+- `Recall.assemble/2` — pure working-set core (relevance × strength, pinned floor, token budget).
+- `Recall.working_set_for_thread/2` — DB gatherer: real facts → strength-ranked, constraint-pinned,
+  budgeted; relevance = **semantic (cosine) soft-OR keyword (FTS)** blend.
+- `fact.embedding`/`embedding_model` columns (`VectorColumn`) + `store_embedding`/`embed_fact`;
+  `reinforce_fact` (cited touch); `Search.matching_fact_ids/2`.
+
+**Remaining = INTEGRATION / cutover (reserved for Andrew — touches live write + read paths):**
+1. Call `embed_fact/1` after `bank_fact` (config-gated `embed_on_write`, default off) so facts get
+   embedded automatically. A one-off backfill embeds existing facts.
+2. Wire `working_set_for_thread` into the session-start brief / `get_dossier` behind a flag; flip it
+   to make the working set the live memory.
+3. `home:switch` + live MCP smoke; review before merge to main.
 
 ## Relationship to the other office-standup features
 
