@@ -119,15 +119,24 @@ defmodule Aleph.ViewTest do
       end)
     end
 
-    test "the focused pane gets its cursor as `selected`; other panes don't" do
-      focus = %Focus{in_terminal?: false, column: :left, pane: 0, cursors: %{Panel.Stack => 2}, detail?: false}
-      stack = %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
-      placements = View.compose(reads(%{focus: focus, tlon_layout: layout(), stack: stack}), 120, 40)
+    test "the focused pane gets its cursor + section as a slice; other panes don't" do
+      focus = %Focus{
+        in_terminal?: false,
+        column: :left,
+        pane: 0,
+        cursors: %{Panel.Stack => 2},
+        section: 0,
+        detail?: false
+      }
 
-      assert {:ok, %{selected: 2}} = panel_data(placements, Panel.Stack)
-      # the other left-column pane (Settings, not focused) gets no selection injected
-      assert {:ok, settings} = panel_data(placements, Panel.Settings)
-      refute is_map(settings) and Map.has_key?(settings, :selected)
+      stack = %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
+      memory = %{coverage: nil, floor: [], habits: []}
+      placements = View.compose(reads(%{focus: focus, tlon_layout: layout(), stack: stack, memory: memory}), 120, 40)
+
+      assert {:ok, %{selected: 2, section: 0}} = panel_data(placements, Panel.Stack)
+      # the other left-column pane (Memory, not focused) gets no slice merged in
+      assert {:ok, mem} = panel_data(placements, Panel.Memory)
+      refute Map.has_key?(mem, :selected)
     end
   end
 end

@@ -58,6 +58,7 @@ defmodule Aleph.Keymap do
           | {:enter_or_spawn, term()}
           | {:post_message, term(), String.t()}
           | {:cycle_coworker_model, String.t()}
+          | {:habit_action, :approve | :reject}
           | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
@@ -256,6 +257,11 @@ defmodule Aleph.Keymap do
   defp handle_tlon(%{key: :down}, state), do: {focus_intent(state, :item_next), :repaint}
   defp handle_tlon(%{key: :up}, state), do: {focus_intent(state, :item_prev), :repaint}
   defp handle_tlon(%{key: :enter}, state), do: {focus_intent(state, :open_detail), :repaint}
+  # a/r act on the selected pending habit (Memory's habits section) — the cockpit resolves which
+  # habit from the focus + reads and no-ops if the focus isn't on a habit. Approving writes it into
+  # the recall floor; rejecting drops it.
+  defp handle_tlon(%{key: :char, char: "a"}, state), do: {state, {:habit_action, :approve}}
+  defp handle_tlon(%{key: :char, char: "r"}, state), do: {state, {:habit_action, :reject}}
   defp handle_tlon(%{key: :tab}, state), do: {focus_intent(state, :section_next), :repaint}
   defp handle_tlon(%{key: :char, char: "q"}, state), do: {state, :quit}
   defp handle_tlon(%{key: :char, char: "]"}, state), do: switch(state, :next)

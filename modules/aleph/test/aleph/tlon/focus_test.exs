@@ -102,6 +102,18 @@ defmodule Aleph.Tlon.FocusTest do
       s = Focus.handle(nav(), @layout, :section_next)
       assert s.section == 0
     end
+
+    test "changing section drops the item cursor to the top (each section is its own list)" do
+      s =
+        nav()
+        |> Focus.handle(@layout, :pane_next)
+        |> Focus.handle(@layout, :item_next)
+        |> Focus.handle(@layout, :item_next)
+
+      assert Focus.cursor(s, @layout) == 2
+      s = Focus.handle(s, @layout, :section_next)
+      assert Focus.cursor(s, @layout) == 0
+    end
   end
 
   describe "j/k — the item cursor within a pane" do

@@ -1,0 +1,59 @@
+defmodule Aleph.Panel.MemoryTest do
+  # The Memory pane: coverage header + FLOOR/HABITS sections, the active section (Tab) and the j/k
+  # cursor lit. A thin view; funes reads are the cockpit's. Pins the panel → styled-rows path.
+  use ExUnit.Case, async: true
+
+  alias Aleph.Panel.Memory
+
+  @rect %{x: 0, y: 0, w: 60, h: 100}
+
+  defp fact(text), do: %{text: text, kind: "constraint", provenance: "stated", check_cmd: nil, incident: nil, taught: nil}
+  defp habit(text, by), do: %{text: text, proposed_by: by, rationale: nil, id: 1}
+
+  defp coverage, do: %{facts: 30, embedded: 23, floor_count: 8, floor_tokens: 1100, budget: 4000, model: "m"}
+
+  defp data(extra \\ %{}) do
+    Map.merge(%{coverage: coverage(), floor: [fact("prefer X"), fact("never Y")], habits: [habit("do Z", "glm")]}, extra)
+  end
+
+  defp text(rows), do: Enum.map(rows, fn row -> Enum.map_join(row, fn {t, _s} -> t end) end)
+
+  defp style_of(rows, needle) do
+    Enum.find_value(rows, fn row ->
+      case row do
+        [{t, s}] -> if String.contains?(t, needle), do: s
+        _ -> nil
+      end
+    end)
+  end
+
+  test "nil data renders a placeholder, no crash" do
+    assert nil |> Memory.render(@rect) |> text() |> Enum.any?(&(&1 == "no recall yet"))
+  end
+
+  test "coverage header shows embedded/floor/forgotten" do
+    joined = Enum.join(text(Memory.render(data(), @rect)), "\n")
+    assert joined =~ "embedded 23/30"
+    assert joined =~ "floor 8"
+    assert joined =~ "7 forgotten"
+  end
+
+  test "with the FLOOR section active, the selected fact lights with a ▸ gutter" do
+    rows = Memory.render(data(%{section: 0, selected: 1}), @rect)
+    assert style_of(rows, "never Y") == :selected
+    assert style_of(rows, "prefer X") == :normal
+  end
+
+  test "with the HABITS section active, the selected habit lights and the a/r hint shows" do
+    rows = Memory.render(data(%{section: 1, selected: 0}), @rect)
+    joined = Enum.join(text(rows), "\n")
+    assert style_of(rows, "do Z") == :selected
+    assert joined =~ "approve"
+    assert joined =~ "reject"
+  end
+
+  test "an unfocused Memory (no section/selected) shows the floor with no cursor" do
+    rows = Memory.render(data(), @rect)
+    refute Enum.any?(text(rows), &String.starts_with?(&1, "▸"))
+  end
+end

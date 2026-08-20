@@ -69,8 +69,12 @@ defmodule Aleph.Tlon.Focus do
   def handle(%__MODULE__{} = s, layout, :col_right), do: switch_column(s, layout, :right)
   def handle(%__MODULE__{} = s, layout, :col_left), do: switch_column(s, layout, :left)
 
+  # Tab to the next section wraps within the pane and drops the item cursor to the top — each
+  # section is its own list (Memory's floor vs habits), so j/k should start fresh, not carry an
+  # index that meant something in the previous section.
   def handle(%__MODULE__{} = s, layout, :section_next) do
-    %{s | section: rem(s.section + 1, section_count(s, layout))}
+    pane = focused_pane(s, layout)
+    %{s | section: rem(s.section + 1, section_count(s, layout)), cursors: Map.put(s.cursors, pane, 0)}
   end
 
   def handle(%__MODULE__{} = s, layout, :item_next), do: move_item(s, layout, +1)

@@ -32,6 +32,7 @@ defmodule Aleph.View do
     Panel.Orbis,
     Panel.Triage,
     Panel.Settings,
+    Panel.Memory,
     Panel.Detail
   ]
 
@@ -71,13 +72,14 @@ defmodule Aleph.View do
     focused = focused_section(reads[:focus], space)
     borders = Enum.map(boxes, fn {section, rect} -> {Panel.Border, border_data(section, focused), rect} end)
 
-    # The focused pane's item cursor (j/k) is fed to that pane alone as `selected`, so it lights the
-    # row Enter would open; every other pane gets nil.
-    cursor = tlon_cursor(reads)
+    # The focused pane alone is fed a slice of the focus — its item cursor (j/k) as `selected` and
+    # the active `section` (Tab) — so it lights the row Enter would open and the section Tab landed
+    # on; every other pane gets nil (no selection, default section).
+    slice = focus_slice(reads)
 
     contents =
       Enum.map(boxes, fn {section, rect} ->
-        content_for(section, reads, inset(rect), selected_for(section, focused, cursor))
+        content_for(section, reads, inset(rect), if(section == focused, do: slice))
       end)
 
     status =
@@ -107,15 +109,13 @@ defmodule Aleph.View do
   defp detail_open?(%{focus: %Focus{detail?: true}} = reads), do: reads[:detail] != nil
   defp detail_open?(_reads), do: false
 
-  # The focused pane's clamped item cursor, or nil outside Tlön nav.
-  defp tlon_cursor(%{focus: %Focus{} = focus, tlon_layout: layout}) when is_map(layout), do: Focus.cursor(focus, layout)
+  # The slice of the focus the focused pane needs to render: `selected` (the clamped j/k cursor) and
+  # the active `section` (Tab). nil outside Tlön nav — panes then render their default (section 0,
+  # no selection).
+  defp focus_slice(%{focus: %Focus{} = focus, tlon_layout: layout}) when is_map(layout),
+    do: %{selected: Focus.cursor(focus, layout), section: focus.section}
 
-  defp tlon_cursor(_reads), do: nil
-
-  # The cursor to hand a section as `selected`: the live cursor for the focused pane, nil for the
-  # rest (so only one pane shows a selection highlight).
-  defp selected_for(section, focused, cursor) when not is_nil(focused) and section == focused, do: cursor
-  defp selected_for(_section, _focused, _cursor), do: nil
+  defp focus_slice(_reads), do: nil
 
   # The three-column geometry (left ¼ · center ½ · right ¼) of the wide layout, as box rects — the
   # single source of truth for where each column sits. `compose/3` places panels into these, and
@@ -154,17 +154,17 @@ defmodule Aleph.View do
 
   # A keyed surface section reads its data directly; a bare module resolves via data_for/2. The
   # 4-arity variant injects the focused pane's `selected` cursor into its data (nil elsewhere).
-  defp content_for(section, reads, rect, selected) do
+  defp content_for(section, reads, rect, slice) do
     {panel, data, rect} = content_for(section, reads, rect)
-    {panel, put_selected(data, selected), rect}
+    {panel, merge_slice(data, slice), rect}
   end
 
   defp content_for({panel, read_key}, reads, rect), do: {panel, scroll_data(panel, reads[read_key], reads), rect}
   defp content_for(panel, reads, rect), do: {panel, scroll_data(panel, data_for(panel, reads), reads), rect}
 
-  defp put_selected(data, nil), do: data
-  defp put_selected(data, selected) when is_map(data), do: Map.put(data, :selected, selected)
-  defp put_selected(data, _selected), do: data
+  defp merge_slice(data, nil), do: data
+  defp merge_slice(data, slice) when is_map(data), do: Map.merge(data, slice)
+  defp merge_slice(data, _slice), do: data
 
   @doc "Resolve the data a panel is fed from the assembled reads (keeps spaces plain data)."
   def data_for(Panel.Spaces, r), do: %{spaces: Space.all(), active_key: r.active_key}
@@ -182,6 +182,7 @@ defmodule Aleph.View do
   def data_for(Panel.Triage, r), do: r.triage
   def data_for(Panel.Habits, r), do: r.habits
   def data_for(Panel.Settings, r), do: r.settings
+  def data_for(Panel.Memory, r), do: r[:memory]
   def data_for(Panel.Detail, r), do: r[:detail]
   def data_for(_other, _r), do: nil
 

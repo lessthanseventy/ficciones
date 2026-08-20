@@ -239,6 +239,9 @@ defmodule Aleph.Cockpit do
             render_scheduled?: false,
             stack: nil,
             health: nil,
+            # The Memory pane's read (coverage + floor + pending habits), cached with stack/health;
+            # invalidated on a habit approve/reject so the pane reflects the write immediately.
+            memory: nil,
             probed_at: 0,
             machine_retry_at: nil,
             # The standing tertius/hronir coworker's own machine thread — captured once, at its
@@ -742,6 +745,44 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
   end
 
+  # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
+  # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
+  # A no-op (flash only) if the focus isn't on a selectable habit.
+  defp apply_effect({:habit_action, action}, state) do
+    case selected_habit(state) do
+      nil ->
+        {:noreply, render(%{state | flash: "no habit selected — Tab to HABITS, j/k to pick"})}
+
+      habit ->
+        {verb, result} =
+          case action do
+            :approve -> {"approved", Funes.approve_habit(habit.id)}
+            :reject -> {"rejected", Funes.reject_habit(habit.id)}
+          end
+
+        flash =
+          case result do
+            {:ok, _} -> "habit #{verb}"
+            _ -> "couldn't #{action} habit"
+          end
+
+        {:noreply, render(%{state | memory: nil, flash: flash})}
+    end
+  rescue
+    e -> {:noreply, render(%{state | flash: "habit action failed: #{Exception.message(e)}"})}
+  end
+
+  # The pending habit the focus points at, or nil unless: Tlön, nav mode, Memory pane, habits
+  # section (1), with a habit under the clamped cursor.
+  defp selected_habit(
+         %{active_key: :tlon, memory: %{habits: habits}, focus: %{in_terminal?: false, section: 1} = focus} = state
+       ) do
+    layout = tlon_layout(state)
+    if Focus.focused_pane(focus, layout) == Panel.Memory, do: Enum.at(habits, Focus.cursor(focus, layout))
+  end
+
+  defp selected_habit(_state), do: nil
+
   # `enter_or_spawn`: if the focused thread already has a live session, it's already the center —
   # nothing to do (you're already working there). Otherwise spawn one onto it — one `spawn_onto/2`
   # path, reached via `n` (new thread) or `Enter` (existing).
@@ -859,6 +900,7 @@ defmodule Aleph.Cockpit do
       machine: machine_read(state),
       stack: state.stack || @empty_stack,
       health: state.health,
+      memory: if(state.active_key == :tlon, do: state.memory),
       orbis: orbis_read(state.active_key),
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :orbis, do: triage_read(threads)),
@@ -951,25 +993,64 @@ defmodule Aleph.Cockpit do
   # Tlön anyway).
   defp tlon_layout(%{active_key: :tlon} = state) do
     space = Space.fetch(:tlon)
-    %{left: space.left, right: space.right, sections: %{}, counts: pane_counts(state)}
+    %{left: space.left, right: space.right, sections: %{Panel.Memory => 2}, counts: pane_counts(state)}
   end
 
   defp tlon_layout(_state), do: %{left: [], right: [], sections: %{}, counts: %{}}
 
-  # The navigable item count per pane, for j/k clamping. Commits = the commit-log length; other
-  # panes aren't list-navigable yet (0 → j/k is a no-op there). Extended as panes gain lists.
+  # The navigable item count per pane, for j/k clamping. Commits = the commit-log length; Memory is
+  # sectioned — j/k walks the ACTIVE section's list (floor=0, habits=1), so its count follows
+  # focus.section. Panes without a list are absent (0 → j/k is a no-op there).
   defp pane_counts(state) do
-    %{Panel.Stack => length((state.stack || @empty_stack).commits)}
+    %{
+      Panel.Stack => length((state.stack || @empty_stack).commits),
+      Panel.Memory => memory_section_count(state)
+    }
   end
+
+  defp memory_section_count(%{memory: nil}), do: 0
+  defp memory_section_count(%{focus: %{section: 1}, memory: m}), do: length(m.habits)
+  defp memory_section_count(%{memory: m}), do: length(m.floor)
 
   # MAIN's detail for the focused pane's current selection, or nil (this pane has no detail, or
   # nothing is selected) → the terminal stays. Dispatch per pane; Commits resolves the selected
-  # commit's diff via Aleph.Stack.show.
+  # commit's diff via Aleph.Stack.show, Memory the selected floor fact / pending habit.
   defp tlon_detail(state, layout) do
     case Focus.focused_pane(state.focus, layout) do
       Panel.Stack -> commit_detail(state, Focus.cursor(state.focus, layout))
+      Panel.Memory -> memory_detail(state, Focus.cursor(state.focus, layout))
       _ -> nil
     end
+  end
+
+  # Section 0 (floor) → the selected fact's full text + metadata; section 1 (habits) → the selected
+  # habit's text + rationale. nil (empty section / no memory) leaves the terminal up.
+  defp memory_detail(%{memory: nil}, _index), do: nil
+
+  defp memory_detail(%{focus: %{section: 1}, memory: m}, index), do: habit_detail(Enum.at(m.habits, index))
+  defp memory_detail(%{memory: m}, index), do: fact_detail(Enum.at(m.floor, index))
+
+  defp fact_detail(nil), do: nil
+
+  defp fact_detail(fact) do
+    meta =
+      [{"kind: #{fact.kind}  ·  #{fact.provenance}", :dim}] ++
+        for {label, val} <- [{"check", fact.check_cmd}, {"incident", fact.incident}, {"taught", fact.taught}],
+            is_binary(val) and val != "",
+            do: {"#{label}: #{val}", :dim}
+
+    %{title: "FLOOR FACT", lines: [{"", :normal}, {fact.text, :normal}, {"", :normal} | meta]}
+  end
+
+  defp habit_detail(nil), do: nil
+
+  defp habit_detail(habit) do
+    by = if is_binary(habit.proposed_by), do: "  ·  proposed by #{habit.proposed_by}", else: ""
+
+    rationale =
+      if is_binary(habit.rationale) and habit.rationale != "", do: [{"", :normal}, {habit.rationale, :dim}], else: []
+
+    %{title: "PENDING HABIT#{by}", lines: [{"", :normal}, {habit.text, :normal} | rationale]}
   end
 
   defp commit_detail(state, index) do
@@ -1003,19 +1084,30 @@ defmodule Aleph.Cockpit do
   # Expire cached probes once @probe_ms has passed; render's ensure_probes refills lazily.
   defp maybe_expire_probes(state) do
     if System.monotonic_time(:millisecond) - state.probed_at >= @probe_ms do
-      %{state | stack: nil, health: nil}
+      %{state | stack: nil, health: nil, memory: nil}
     else
       state
     end
   end
 
   # Fill the probe cache when Tlön is active and the cache is cold. Elsewhere the probes stay
-  # nil — git/nix/df/tmux forks are wasted on spaces that never show them.
+  # nil — git/nix/df/tmux forks and funes reads are wasted on spaces that never show them.
   defp ensure_probes(%{active_key: :tlon, stack: nil} = state) do
-    %{state | stack: stack_read(), health: health_read(), probed_at: System.monotonic_time(:millisecond)}
+    %{
+      state
+      | stack: stack_read(),
+        health: health_read(),
+        memory: memory_read(),
+        probed_at: System.monotonic_time(:millisecond)
+    }
   end
 
   defp ensure_probes(state), do: state
+
+  # The Memory pane read: coverage stats + the always-loaded floor + the pending-habit queue.
+  defp memory_read do
+    %{coverage: Funes.recall_coverage(), floor: Funes.floor(), habits: Funes.pending_habits()}
+  end
 
   # The STACK read: branch, dirty status, ahead/behind, status summary, enriched commits.
   # One ahead_behind call, destructured — it forks a git per call.

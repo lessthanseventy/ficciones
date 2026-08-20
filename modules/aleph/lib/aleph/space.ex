@@ -15,11 +15,10 @@ defmodule Aleph.Space do
 
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
-  alias Aleph.Panel.Habits
   alias Aleph.Panel.Health
+  alias Aleph.Panel.Memory
   alias Aleph.Panel.Orbis
   alias Aleph.Panel.Roster
-  alias Aleph.Panel.Settings
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
@@ -74,10 +73,13 @@ defmodule Aleph.Space do
         key: :tlon,
         label: "Tlön",
         surface: [{Terminal, :machine}],
-        left: [Stack, Settings],
-        # ORBIS — the machine rollup (leaves' lead/status/conflicts); HABITS — how the machine works
-        # with Andrew (funes' habits axis).
-        right: [Health, Orbis, Habits],
+        # The study/act column: Commits (git changelog, was Stack) over Memory (what funes knows —
+        # coverage + the always-loaded floor + pending habits to approve). Habits folded INTO Memory;
+        # Settings is now the `m` keybind / a modal, not an always-on pane.
+        left: [Stack, Memory],
+        # ORBIS — the machine rollup (leaves' lead/status/conflicts). Health becomes the status bar
+        # in the visual-cleanup pass; Orbis becomes Leaves when that pane lands.
+        right: [Health, Orbis],
         # The center coworker: the `tertius` profile (Orbis Tertius meta agent). See Aleph.Profiles.
         coworker: "tertius"
       }

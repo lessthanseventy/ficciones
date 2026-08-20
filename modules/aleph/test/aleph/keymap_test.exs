@@ -568,6 +568,11 @@ defmodule Aleph.KeymapTest do
       assert next.focus.detail? == true
     end
 
+    test "in nav mode, a/r emit the habit action effect (the cockpit resolves which habit)" do
+      assert {_s, {:habit_action, :approve}} = Keymap.handle(char("a"), tlon(nav_focus()))
+      assert {_s, {:habit_action, :reject}} = Keymap.handle(char("r"), tlon(nav_focus()))
+    end
+
     test "in nav mode with no detail open, Esc returns to the terminal" do
       {next, :repaint} = Keymap.handle(key(:escape), tlon(nav_focus()))
       assert next.focus.in_terminal? == true
