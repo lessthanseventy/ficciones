@@ -45,4 +45,15 @@ defmodule Funes.Recall.WorkingSetTest do
     assert strong.id in ids
     refute weak.id in ids
   end
+
+  test "with a query, the semantically closer fact outranks a distant one", %{thread: thread} do
+    {:ok, near} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "credential login flow", provenance: "derived"})
+    {:ok, far} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "bright autumn leaves", provenance: "derived"})
+    {:ok, _} = Recall.store_embedding(near, [0.9, 0.1], "test")
+    {:ok, _} = Recall.store_embedding(far, [0.0, 1.0], "test")
+
+    # query vector points at `near`; `far` is orthogonal (cosine 0)
+    ids = ids(Recall.working_set_for_thread(thread, budget: 10_000, query_embedding: [1.0, 0.0]))
+    assert Enum.find_index(ids, &(&1 == near.id)) < Enum.find_index(ids, &(&1 == far.id))
+  end
 end

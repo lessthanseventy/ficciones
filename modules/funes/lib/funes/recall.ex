@@ -75,6 +75,7 @@ defmodule Funes.Recall do
   def working_set_for_thread(%Thread{} = thread, opts \\ []) do
     now = opts[:now] || DateTime.utc_now()
     budget = opts[:budget] || recall_budget()
+    query_vec = query_vector(opts)
 
     constraints = Dossier.always_loaded_constraints()
     pinned_ids = MapSet.new(constraints, & &1.id)
@@ -95,7 +96,7 @@ defmodule Funes.Recall do
       %{
         id: f.id,
         fact: f,
-        relevance: 1.0,
+        relevance: relevance(f, query_vec),
         strength: Strength.of(touches, now),
         tokens: est_tokens(f.text),
         pinned?: MapSet.member?(pinned_ids, f.id)
@@ -103,6 +104,26 @@ defmodule Funes.Recall do
     end)
     |> assemble(budget: budget)
   end
+
+  # The query's embedding: a precomputed `:query_embedding` (the test/cached path), else embed the
+  # `:query` string via ollama, else nil (a session-start recall with no query → uniform relevance).
+  defp query_vector(opts) do
+    cond do
+      vec = opts[:query_embedding] -> vec
+      q = opts[:query] -> (case Embedding.embed(q, model: embedding_model()) do
+                             {:ok, vec} -> vec
+                             {:error, _} -> nil
+                           end)
+      true -> nil
+    end
+  end
+
+  # Semantic relevance = cosine(query, fact-embedding), floored at 0 (anti-similar is irrelevant,
+  # not negative). No query → uniform 1.0 (rank by pure strength); an un-embedded fact scores 0
+  # under a query (keyword FTS will carry it in the follow-up blend).
+  defp relevance(_fact, nil), do: 1.0
+  defp relevance(%{embedding: nil}, _query_vec), do: 0.0
+  defp relevance(%{embedding: emb}, query_vec), do: max(Embedding.cosine(query_vec, emb), 0.0)
 
   @doc "Store a fact's embedding vector + model (written after `bank_fact`, off the write path)."
   @spec store_embedding(Fact.t(), [float()], String.t()) :: {:ok, Fact.t()} | {:error, term()}
