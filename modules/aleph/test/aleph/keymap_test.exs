@@ -14,6 +14,7 @@ defmodule Aleph.KeymapTest do
   use ExUnit.Case, async: true
 
   alias Aleph.Keymap
+  alias Aleph.Tlon.Focus
 
   # The slice of cockpit state the keymap reads. Threads are anything with an `.id`.
   # `center_live?` and `composer_thread_id` are derived per keypress by the cockpit; here they're
@@ -481,6 +482,106 @@ defmodule Aleph.KeymapTest do
     test "an unbound key forwards when a terminal is live" do
       s = state(%{center_live?: true})
       assert {^s, {:forward, %{key: :f5}}} = Keymap.handle(key(:f5), s)
+    end
+  end
+
+  # Tlön's lazygit focus model (design 2026-08-20): the center is a live tmux client, so Ctrl+Space
+  # is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use. In the terminal
+  # every key forwards to tmux; out of it aleph owns the keys and drives the pure `Aleph.Tlon.Focus`
+  # SM over `tlon_layout`. Both `focus` (persistent) and `tlon_layout` (derived per keypress, like
+  # center_live?) are supplied by the cockpit only for this space.
+  describe "Tlön focus nav" do
+    # A Tlön state: `focus` + the two-column `tlon_layout` it navigates. center_live? is true (the
+    # tmux client is always live) but the focus path — not center_live? — decides key routing here.
+    defp tlon(focus \\ Focus.new(), overrides \\ %{}) do
+      state(
+        Map.merge(
+          %{
+            active_key: :tlon,
+            center_live?: true,
+            focus: focus,
+            tlon_layout: %{left: [:a, :b], right: [:c], sections: %{}}
+          },
+          overrides
+        )
+      )
+    end
+
+    defp nav_focus(overrides \\ %{}), do: struct(Focus.new(), Map.merge(%{in_terminal?: false}, overrides))
+
+    test "Ctrl+Space toggles OUT of the terminal into nav mode — it does not arm the leader" do
+      {next, :repaint} = Keymap.handle(leader(), tlon())
+      assert next.focus.in_terminal? == false
+      assert next.leader_pending? == false
+    end
+
+    test "Ctrl+Space again toggles back INTO the terminal" do
+      {next, :repaint} = Keymap.handle(leader(), tlon(nav_focus()))
+      assert next.focus.in_terminal? == true
+    end
+
+    test "in the terminal, every key forwards to tmux (unchanged tmux ownership)" do
+      s = tlon()
+      k = char("j")
+      assert {^s, {:forward, ^k}} = Keymap.handle(k, s)
+    end
+
+    test "in nav mode, l/h move the focus down/up the current column" do
+      {n1, :repaint} = Keymap.handle(char("l"), tlon(nav_focus(%{column: :left, pane: 0})))
+      assert n1.focus.pane == 1
+      {n2, :repaint} = Keymap.handle(char("h"), n1)
+      assert n2.focus.pane == 0
+    end
+
+    test "in nav mode, H/L jump between the sidebar columns" do
+      {n1, :repaint} = Keymap.handle(char("L"), tlon(nav_focus(%{column: :left})))
+      assert n1.focus.column == :right
+      {n2, :repaint} = Keymap.handle(char("H"), n1)
+      assert n2.focus.column == :left
+    end
+
+    test "in nav mode, Tab cycles the focused pane's sections" do
+      s = tlon(nav_focus(%{column: :left, pane: 0}), %{tlon_layout: %{left: [:a, :b], right: [:c], sections: %{a: 2}}})
+      {n1, :repaint} = Keymap.handle(key(:tab), s)
+      assert n1.focus.section == 1
+      {n2, :repaint} = Keymap.handle(key(:tab), n1)
+      assert n2.focus.section == 0
+    end
+
+    test "in nav mode, Esc returns to the terminal" do
+      {next, :repaint} = Keymap.handle(key(:escape), tlon(nav_focus()))
+      assert next.focus.in_terminal? == true
+    end
+
+    test "in nav mode, q still quits" do
+      assert {_s, :quit} = Keymap.handle(char("q"), tlon(nav_focus()))
+    end
+
+    test "in nav mode, [ and ] still switch spaces (Tab is section-cycle here)" do
+      s = tlon(nav_focus())
+      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("]"), s)
+      assert {%{active_key: :sessions}, :repaint} = Keymap.handle(char("["), s)
+    end
+
+    test "in nav mode, c opens the composer on the machine thread" do
+      s = tlon(nav_focus(), %{composer_thread_id: 7})
+      assert {%{input: %{kind: :compose, thread_id: 7}}, :repaint} = Keymap.handle(char("c"), s)
+    end
+
+    test "in nav mode, an unbound key is a no-op — nav mode never forwards to tmux" do
+      s = tlon(nav_focus())
+      assert {^s, :none} = Keymap.handle(char("z"), s)
+    end
+
+    test "a live composer modal still captures keys — focus never hijacks typing" do
+      s = tlon(nav_focus(), %{input: %{kind: :compose, thread_id: 9, buffer: "", cursor: 0}})
+      {next, :repaint} = Keymap.handle(char("l"), s)
+      assert next.input.buffer == "l"
+    end
+
+    test "outside Tlön a present focus struct is ignored — Ctrl+Space arms the leader as before" do
+      s = state(%{active_key: :sessions, center_live?: true, focus: Focus.new()})
+      assert {%{leader_pending?: true}, :repaint} = Keymap.handle(leader(), s)
     end
   end
 end

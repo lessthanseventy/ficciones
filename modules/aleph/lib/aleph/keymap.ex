@@ -48,6 +48,7 @@ defmodule Aleph.Keymap do
   """
 
   alias Aleph.Space
+  alias Aleph.Tlon.Focus
 
   @type effect ::
           :repaint
@@ -144,6 +145,14 @@ defmodule Aleph.Keymap do
   # Any other key while typing (function keys, …) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
 
+  # --- Tlön: the lazygit focus model (design 2026-08-20). The center is a live tmux client, so
+  # `Ctrl+Space` is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use.
+  # In the terminal every key forwards to tmux; out of it aleph owns the keys and drives the pure
+  # `Aleph.Tlon.Focus` SM over `tlon_layout` (h/l pane · H/L column · Tab section · Esc→terminal).
+  # `focus` (persistent) and `tlon_layout` (derived per keypress, like center_live?) are supplied by
+  # the cockpit only for this space; the guard keeps every other space on the leader path below. ---
+  def handle(key, %{active_key: :tlon, focus: %Focus{}} = state), do: handle_tlon(key, state)
+
   # --- leader pending: Ctrl+Space was pressed; the next key is an aleph command. ---
   # Ctrl+Space again → send a LITERAL Ctrl+Space through (the prefix-twice convention), so an
   # app that binds it (emacs set-mark!) still gets it. Only with a live terminal to receive it.
@@ -223,6 +232,28 @@ defmodule Aleph.Keymap do
 
   # Anything else (Ctrl+C, F-keys, page-up…) is unbound — a no-op, never a quit.
   defp command(_key, state), do: {state, :none}
+
+  # --- Tlön focus routing. Ctrl+Space toggles the terminal; in the terminal every key forwards;
+  # out of it the nav keys drive the focus SM and the bare commands (quit, space-switch, composer,
+  # driver ring) stay reachable. Anything else no-ops — nav mode never leaks a key to tmux. ---
+  defp handle_tlon(%{key: :space, ctrl: true}, state), do: {focus_intent(state, :toggle_terminal), :repaint}
+
+  defp handle_tlon(key, %{focus: %Focus{in_terminal?: true}} = state), do: {state, {:forward, key}}
+
+  defp handle_tlon(%{key: :escape}, state), do: {put_in(state.focus.in_terminal?, true), :repaint}
+  defp handle_tlon(%{key: :char, char: "l"}, state), do: {focus_intent(state, :pane_next), :repaint}
+  defp handle_tlon(%{key: :char, char: "h"}, state), do: {focus_intent(state, :pane_prev), :repaint}
+  defp handle_tlon(%{key: :char, char: "L"}, state), do: {focus_intent(state, :col_right), :repaint}
+  defp handle_tlon(%{key: :char, char: "H"}, state), do: {focus_intent(state, :col_left), :repaint}
+  defp handle_tlon(%{key: :tab}, state), do: {focus_intent(state, :section_next), :repaint}
+  defp handle_tlon(%{key: :char, char: "q"}, state), do: {state, :quit}
+  defp handle_tlon(%{key: :char, char: "]"}, state), do: switch(state, :next)
+  defp handle_tlon(%{key: :char, char: "["}, state), do: switch(state, :prev)
+  defp handle_tlon(%{key: :char, char: "c"} = k, state), do: command(k, state)
+  defp handle_tlon(%{key: :char, char: "m"} = k, state), do: command(k, state)
+  defp handle_tlon(_key, state), do: {state, :none}
+
+  defp focus_intent(state, intent), do: %{state | focus: Focus.handle(state.focus, state.tlon_layout, intent)}
 
   defp switch(state, dir) do
     space =

@@ -11,6 +11,7 @@ defmodule Aleph.View do
   """
   alias Aleph.Panel
   alias Aleph.Space
+  alias Aleph.Tlon.Focus
 
   @min_col 16
   # The bottom footer: an info line + a hints line (Aleph.Panel.StatusBar).
@@ -60,7 +61,10 @@ defmodule Aleph.View do
 
     boxes = Enum.flat_map(columns, fn {rect, panels} -> boxed(panels, rect) end)
 
-    borders = Enum.map(boxes, fn {_section, rect} -> {Panel.Border, nil, rect} end)
+    # In Tlön nav mode one sidebar pane is focused — its border lights up (the lazygit "active
+    # pane" cue). Every other box, and every other space, stays neutral.
+    focused = focused_section(reads[:focus], space)
+    borders = Enum.map(boxes, fn {section, rect} -> {Panel.Border, border_data(section, focused), rect} end)
 
     contents = Enum.map(boxes, fn {section, rect} -> content_for(section, reads, inset(rect)) end)
 
@@ -73,6 +77,18 @@ defmodule Aleph.View do
 
   defp layout_for(w) when w >= @wide_min, do: :wide
   defp layout_for(_w), do: :narrow
+
+  # The sidebar pane the Tlön focus sits on — only in nav mode (out of the terminal), so the frame
+  # lights the instant you Ctrl+Space out. nil for other spaces and while in the terminal (the
+  # terminal is the active pane then). Matches by section module — Tlön's panes are distinct, so a
+  # module identity is unambiguous; Panel.Spaces isn't in the focus layout, so it never lights.
+  defp focused_section(%Focus{in_terminal?: false} = focus, space),
+    do: Focus.focused_pane(focus, %{left: space.left, right: space.right, sections: %{}})
+
+  defp focused_section(_focus, _space), do: nil
+
+  defp border_data(section, focused) when not is_nil(focused) and section == focused, do: %{focused: true}
+  defp border_data(_section, _focused), do: nil
 
   # The three-column geometry (left ¼ · center ½ · right ¼) of the wide layout, as box rects — the
   # single source of truth for where each column sits. `compose/3` places panels into these, and
@@ -151,7 +167,9 @@ defmodule Aleph.View do
       # A transient result line (a spawn's pane id or failure), shown until the next keypress.
       flash: reads[:flash],
       # True for the one keypress after Ctrl+Space — the hints line shows the armed-prefix state.
-      leader_pending?: reads[:leader_pending?]
+      leader_pending?: reads[:leader_pending?],
+      # Tlön's focus (nil elsewhere) — the footer shows NAV/TERM and the focus-model hints.
+      focus: reads[:focus]
     }
   end
 

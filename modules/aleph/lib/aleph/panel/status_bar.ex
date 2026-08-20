@@ -111,16 +111,19 @@ defmodule Aleph.Panel.StatusBar do
 
   @impl Panel
   def render(%{space: space} = data, rect) do
-    focus = data[:thread] || "—"
+    focus = data[:focus]
+    thread = data[:thread] || "—"
     threads = data[:thread_count] || 0
     live = data[:live_count] || 0
 
-    left = [
-      {" #{space} ", :tab},
-      {"  ", :normal},
-      {"▸ ", :accent},
-      {focus, :normal}
-    ]
+    left =
+      mode_chip(focus) ++
+        [
+          {" #{space} ", :tab},
+          {"  ", :normal},
+          {"▸ ", :accent},
+          {thread, :normal}
+        ]
 
     right = [
       {" ◷ #{threads} threads ", :stat},
@@ -128,8 +131,14 @@ defmodule Aleph.Panel.StatusBar do
       {" ● #{live} live ", :stat_live}
     ]
 
-    Panel.clip([justify(left, right, rect.w), hints_row(hints_for(space))], rect)
+    Panel.clip([justify(left, right, rect.w), hints_row(hints_for(space, focus))], rect)
   end
+
+  # Tlön's nav/terminal mode as a leading chip, so you always know whether keys go to tmux (TERM)
+  # or drive the panes (NAV). Absent for spaces without a focus model.
+  defp mode_chip(%{in_terminal?: true}), do: [{" TERM ", :stat_live}, {" ", :normal}]
+  defp mode_chip(%{in_terminal?: false}), do: [{" NAV ", :stat}, {" ", :normal}]
+  defp mode_chip(_focus), do: []
 
   # The CURRENT line of a (possibly multiline) input buffer, split into the text before/after the
   # cursor — what the composer's single visible line renders around the `▎` marker. `cursor`
@@ -150,6 +159,26 @@ defmodule Aleph.Panel.StatusBar do
   end
 
   defp hints_row, do: hints_row(@hints)
+
+  # Tlön drives its panes with the focus model (not the shared leader), so its hints name those
+  # keys and change with the mode. In the terminal only the toggle-out is an aleph key (the rest
+  # forwards to tmux); in nav mode aleph owns the keys — pane/column/section movement plus the
+  # bare verbs. Focus nil (defensive) or any other space falls back to the shared hint table.
+  defp hints_for("Tlön", %{in_terminal?: true}), do: [{"^␣", "nav mode"}]
+
+  defp hints_for("Tlön", %{in_terminal?: false}),
+    do: [
+      {"h/l", "pane"},
+      {"H/L", "col"},
+      {"Tab", "section"},
+      {"[/]", "space"},
+      {"c", "post"},
+      {"m", "driver"},
+      {"q", "quit"},
+      {"Esc", "term"}
+    ]
+
+  defp hints_for(space, _focus), do: hints_for(space)
 
   # Tlön alone carries the settings verb — the only space with a coworker to point it at.
   defp hints_for("Tlön"), do: @hints ++ [{"^␣m", "driver"}]

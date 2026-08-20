@@ -20,6 +20,7 @@ defmodule Aleph.Cockpit do
   alias Aleph.Sessions
   alias Aleph.Space
   alias Aleph.Terminal
+  alias Aleph.Tlon.Focus
   alias Aleph.View
   alias Funes.Bus
   alias Funes.Channel
@@ -226,6 +227,10 @@ defmodule Aleph.Cockpit do
             threads: [],
             subscribed_thread: nil,
             leader_pending?: false,
+            # Tlön's lazygit focus (which sidebar column/pane/section, and whether we're in the
+            # center tmux terminal). Persistent across keypresses — the keymap reads+advances it,
+            # only in the Tlön space. Defaults in-terminal, so Tlön opens with keys going to tmux.
+            focus: Focus.new(),
             paste_buffer: nil,
             input: nil,
             flash: nil,
@@ -316,13 +321,16 @@ defmodule Aleph.Cockpit do
     # `center_live?` and `composer_thread_id` are derived per keypress and handed to the keymap so
     # it knows whether to forward to the PTY / which thread `c` targets. They are NOT stored —
     # dropped on the way back; the cockpit keeps only `leader_pending?`.
+    # `focus` rides in `state` (persistent); `tlon_layout` is derived per keypress, like the two
+    # above, and dropped on the way back — the keymap reads it to navigate, the cockpit never stores it.
     keymap_state =
       %{state | flash: nil}
       |> Map.put(:center_live?, center_terminal(state) != nil)
       |> Map.put(:composer_thread_id, composer_thread_id(state))
+      |> Map.put(:tlon_layout, tlon_layout(state))
 
     {next, effect} = Keymap.handle(key, keymap_state)
-    next = reset_scrolls(state, Map.drop(next, [:center_live?, :composer_thread_id]))
+    next = reset_scrolls(state, Map.drop(next, [:center_live?, :composer_thread_id, :tlon_layout]))
     apply_effect(effect, next)
   end
 
@@ -859,7 +867,10 @@ defmodule Aleph.Cockpit do
       scrolls: state.scrolls,
       input: state.input,
       flash: state.flash,
-      leader_pending?: state.leader_pending?
+      leader_pending?: state.leader_pending?,
+      # Tlön's focus, so the View can light the focused sidebar pane and the status bar can show
+      # NAV/TERM. nil elsewhere — no other space navigates panes this way.
+      focus: if(state.active_key == :tlon, do: state.focus)
     }
 
     placements = View.compose(reads, state.w, state.h)
@@ -928,6 +939,17 @@ defmodule Aleph.Cockpit do
   # makes `c` a no-op.
   defp composer_thread_id(%{active_key: :tlon}), do: machine_thread_id()
   defp composer_thread_id(state), do: state.focused_id
+
+  # The shape the Tlön focus SM navigates: the space's two sidebar columns, plus per-pane section
+  # counts (empty for Phase 1 — every pane is a single list; Memory's coverage/floor/habits split
+  # comes with that pane). Derived from the static Space definition; nil layout for other spaces
+  # (the keymap only reads it in Tlön anyway).
+  defp tlon_layout(%{active_key: :tlon}) do
+    space = Space.fetch(:tlon)
+    %{left: space.left, right: space.right, sections: %{}}
+  end
+
+  defp tlon_layout(_state), do: %{left: [], right: [], sections: %{}}
 
   defp machine_thread_id do
     case Channel.machine_thread() do
