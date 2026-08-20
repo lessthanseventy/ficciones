@@ -36,17 +36,17 @@ defmodule Funes.Recall.Strength do
   end
 
   @doc """
-  Map a fact's recorded history into signed touches: its birth, each recheck outcome
-  (`check_passed`/`check_failed`), citations (`cited`), and a hard-negative if superseded.
-  Extra kinds map through `weight/1`, so new touch events cost only a weight entry.
+  Map a fact's recorded history into signed touches: its birth, its correlated touch events
+  (`check_passed`/`check_failed`/`cited`), and a hard-negative if superseded. Each event kind maps
+  through `weight/1`, so a new touch kind costs only a weight entry.
   """
   @spec touches_for(map(), DateTime.t()) :: [touch()]
   def touches_for(%{created_at: created_at} = fact, now) do
-    checks = Map.get(fact, :checks, [])
+    events = Map.get(fact, :touches, [])
     superseded? = Map.get(fact, :superseded?, false)
 
     [%{weight: weight("created"), at: created_at}] ++
-      Enum.map(checks, fn %{kind: kind, at: at} -> %{weight: weight(kind), at: at} end) ++
+      Enum.map(events, fn %{kind: kind, at: at} -> %{weight: weight(kind), at: at} end) ++
       if(superseded?, do: [%{weight: weight("superseded"), at: now}], else: [])
   end
 

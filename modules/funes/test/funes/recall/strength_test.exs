@@ -7,7 +7,7 @@ defmodule Funes.Recall.StrengthTest do
 
   @now ~U[2026-08-19 12:00:00Z]
 
-  defp ago(seconds), do: DateTime.add(@now, -seconds, :second)
+  defp ago(seconds), do: DateTime.shift(@now, second: -seconds)
 
   describe "of/3 — decayed sum of signed touches" do
     test "no touches is zero strength" do
@@ -37,19 +37,28 @@ defmodule Funes.Recall.StrengthTest do
 
   describe "touches_for/2 — funes history → signed touches" do
     test "birth plus a passing recheck is positive" do
-      touches = Strength.touches_for(%{created_at: ago(3600), checks: [%{kind: "check_passed", at: @now}], superseded?: false}, @now)
+      touches =
+        Strength.touches_for(
+          %{created_at: ago(3600), touches: [%{kind: "check_passed", at: @now}], superseded?: false},
+          @now
+        )
+
       assert Strength.of(touches, @now) > 0.0
     end
 
     test "a failing recheck pulls strength below a passing one" do
-      passed = Strength.touches_for(%{created_at: @now, checks: [%{kind: "check_passed", at: @now}], superseded?: false}, @now)
-      failed = Strength.touches_for(%{created_at: @now, checks: [%{kind: "check_failed", at: @now}], superseded?: false}, @now)
+      passed =
+        Strength.touches_for(%{created_at: @now, touches: [%{kind: "check_passed", at: @now}], superseded?: false}, @now)
+
+      failed =
+        Strength.touches_for(%{created_at: @now, touches: [%{kind: "check_failed", at: @now}], superseded?: false}, @now)
+
       assert Strength.of(failed, @now) < Strength.of(passed, @now)
     end
 
     test "a superseded fact is dragged below a live one" do
-      live = Strength.touches_for(%{created_at: @now, checks: [], superseded?: false}, @now)
-      dead = Strength.touches_for(%{created_at: @now, checks: [], superseded?: true}, @now)
+      live = Strength.touches_for(%{created_at: @now, touches: [], superseded?: false}, @now)
+      dead = Strength.touches_for(%{created_at: @now, touches: [], superseded?: true}, @now)
       assert Strength.of(dead, @now) < Strength.of(live, @now)
     end
   end

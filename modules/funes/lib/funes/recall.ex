@@ -18,7 +18,8 @@ defmodule Funes.Recall do
   alias Funes.Repo
   alias Funes.Thread
 
-  @check_kinds ["check_passed", "check_failed"]
+  # Fact-correlated events that count as strength touches (weighted in Funes.Recall.Strength).
+  @touch_kinds ["check_passed", "check_failed", "cited"]
   @default_budget 4000
 
   @type candidate :: %{
@@ -82,14 +83,18 @@ defmodule Funes.Recall do
     facts = Enum.uniq_by(constraints ++ Dossier.facts_for_thread(thread), & &1.id)
 
     ids = Enum.map(facts, & &1.id)
-    checks = checks_by_fact(ids)
+    touch_events = touches_by_fact(ids)
     superseded = superseded_ids(ids)
 
     facts
     |> Enum.map(fn f ->
       touches =
         Strength.touches_for(
-          %{created_at: f.created_at, checks: Map.get(checks, f.id, []), superseded?: MapSet.member?(superseded, f.id)},
+          %{
+            created_at: f.created_at,
+            touches: Map.get(touch_events, f.id, []),
+            superseded?: MapSet.member?(superseded, f.id)
+          },
           now
         )
 
@@ -109,12 +114,17 @@ defmodule Funes.Recall do
   # `:query` string via ollama, else nil (a session-start recall with no query → uniform relevance).
   defp query_vector(opts) do
     cond do
-      vec = opts[:query_embedding] -> vec
-      q = opts[:query] -> (case Embedding.embed(q, model: embedding_model()) do
-                             {:ok, vec} -> vec
-                             {:error, _} -> nil
-                           end)
-      true -> nil
+      vec = opts[:query_embedding] ->
+        vec
+
+      q = opts[:query] ->
+        case Embedding.embed(q, model: embedding_model()) do
+          {:ok, vec} -> vec
+          {:error, _} -> nil
+        end
+
+      true ->
+        nil
     end
   end
 
@@ -147,19 +157,32 @@ defmodule Funes.Recall do
 
   defp embedding_model, do: get_in(Application.get_env(:funes, :embedding, []), [:model]) || "nomic-embed-text"
 
+  @doc """
+  Reinforce a fact that was surfaced-and-used: record a `cited` touch (correlated `fact:<id>`) so a
+  genuinely-useful fact stays warm even as raw age grows. Best-effort — a citation is never
+  load-bearing.
+  """
+  @spec reinforce_fact(Fact.t()) :: {:ok, Event.t()} | {:error, term()}
+  def reinforce_fact(%Fact{id: id, thread_id: thread_id}) do
+    Dossier.record_event(%{thread_id: thread_id, kind: "cited", correlation: "fact:#{id}"})
+  end
+
   defp recall_budget, do: get_in(Application.get_env(:funes, :recall, []), [:budget]) || @default_budget
 
   # ~4 chars per token — a rough estimate, enough to bound the working set by tokens (design: a
   # budget, not a row count). A precise tokenizer can replace this without changing the seam.
   defp est_tokens(text), do: max(div(String.length(text || ""), 4), 1)
 
-  # Each fact's recheck events, grouped by fact id — the correlation is `"fact:<id>"`.
-  defp checks_by_fact([]), do: %{}
+  # Each fact's touch events (rechecks + citations), grouped by fact id — correlation `"fact:<id>"`.
+  defp touches_by_fact([]), do: %{}
 
-  defp checks_by_fact(fact_ids) do
+  defp touches_by_fact(fact_ids) do
     correlations = Enum.map(fact_ids, &"fact:#{&1}")
 
-    from(e in Event, where: e.correlation in ^correlations and e.kind in ^@check_kinds, select: {e.correlation, e.kind, e.created_at})
+    from(e in Event,
+      where: e.correlation in ^correlations and e.kind in ^@touch_kinds,
+      select: {e.correlation, e.kind, e.created_at}
+    )
     |> Repo.all()
     |> Enum.group_by(fn {corr, _kind, _at} -> fact_id_of(corr) end, fn {_corr, kind, at} -> %{kind: kind, at: at} end)
   end

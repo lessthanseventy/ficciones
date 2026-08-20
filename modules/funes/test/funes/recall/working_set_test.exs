@@ -56,4 +56,13 @@ defmodule Funes.Recall.WorkingSetTest do
     ids = ids(Recall.working_set_for_thread(thread, budget: 10_000, query_embedding: [1.0, 0.0]))
     assert Enum.find_index(ids, &(&1 == near.id)) < Enum.find_index(ids, &(&1 == far.id))
   end
+
+  test "reinforcing a fact (a cited touch) lifts it above an equal unreferenced one", %{thread: thread} do
+    {:ok, plain} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "plain", provenance: "derived"})
+    {:ok, used} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "used", provenance: "derived"})
+    {:ok, _} = Recall.reinforce_fact(used)
+
+    ids = ids(Recall.working_set_for_thread(thread, budget: 10_000))
+    assert Enum.find_index(ids, &(&1 == used.id)) < Enum.find_index(ids, &(&1 == plain.id))
+  end
 end
