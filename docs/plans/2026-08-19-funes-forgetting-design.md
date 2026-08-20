@@ -113,12 +113,16 @@ token budget from the top, returns the working set.
 
 ## Build status (2026-08-19, branch `funes-forgetting-engine`)
 
-**Done — pure cores, committed, funes suite green (244):** `Recall.Strength` (signed-touch decay),
-`Recall.Certainty` (verification half-life), `Recall.Embedding` (cosine + live ollama embed).
-**Next:** the `fact` embedding-vector migration + embed-on-write, the FTS×cosine relevance blend,
-the `Funes.Recall` working-set assembler (relevance × strength, pinned floor, token budget), the
-`cited` touch. **Handoffs for Andrew:** flip the flag to make the working set the *live*
-session-start memory; `home:switch` + live MCP smoke; review before merge to main.
+**Done — committed, funes suite green (257):** `Recall.Strength` (signed-touch decay),
+`Recall.Certainty` (verification half-life), `Recall.Embedding` (cosine + live ollama embed),
+`Recall.assemble/2` (pure working-set core), `Recall.working_set_for_thread/2` (DB gatherer:
+real facts → strength-ranked, constraint-pinned, token-budgeted). The engine assembles from real
+thread data end-to-end.
+**Next:** the `fact` embedding-vector migration + embed-on-write in `bank_fact`; the FTS×cosine
+relevance blend (the gatherer uses uniform relevance today); the `cited` touch; then wire the
+working set into the session-start brief / `get_dossier` behind a flag.
+**Handoffs for Andrew:** flip the flag to make the working set the *live* session-start memory;
+`home:switch` + live MCP smoke; review before merge to main.
 
 ## Relationship to the other office-standup features
 
