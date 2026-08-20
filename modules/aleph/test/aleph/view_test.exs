@@ -37,11 +37,22 @@ defmodule Aleph.ViewTest do
         scrolls: %{},
         input: nil,
         flash: nil,
-        leader_pending?: false
+        leader_pending?: false,
+        tlon_layout: nil,
+        detail: nil
       },
       overrides
     )
   end
+
+  # A Tlön layout with commits count, so Focus.cursor/2 clamps and the Commits pane is navigable.
+  defp layout(counts \\ %{Panel.Stack => 3}),
+    do: %{
+      left: [Panel.Stack, Panel.Settings],
+      right: [Panel.Health, Panel.Orbis, Panel.Habits],
+      sections: %{},
+      counts: counts
+    }
 
   # The rects of every border flagged as focused.
   defp focused_borders(placements), do: for({Panel.Border, %{focused: true}, rect} <- placements, do: rect)
@@ -73,6 +84,50 @@ defmodule Aleph.ViewTest do
     test "a non-Tlön space (focus nil) never highlights a border" do
       placements = View.compose(reads(%{active_key: :orbis, focus: nil}), 120, 40)
       assert focused_borders(placements) == []
+    end
+  end
+
+  describe "MAIN detail (Enter)" do
+    # The Terminal keyed section, if present.
+    defp terminal_placed?(placements), do: Enum.any?(placements, &match?({Panel.Terminal, _, _}, &1))
+    defp detail_placed?(placements), do: Enum.any?(placements, &match?({Panel.Detail, _, _}, &1))
+
+    test "with a detail open and resolved, MAIN shows Panel.Detail instead of the terminal" do
+      focus = %Focus{in_terminal?: false, column: :left, pane: 0, detail?: true}
+      detail = %{title: "commit abc · x", lines: [{"+added", :diff_add}]}
+      placements = View.compose(reads(%{focus: focus, tlon_layout: layout(), detail: detail}), 120, 40)
+
+      assert detail_placed?(placements)
+      refute terminal_placed?(placements)
+    end
+
+    test "detail? on but nothing resolved (nil) leaves the terminal in place" do
+      focus = %Focus{in_terminal?: false, column: :left, pane: 0, detail?: true}
+      placements = View.compose(reads(%{focus: focus, tlon_layout: layout(), detail: nil}), 120, 40)
+
+      refute detail_placed?(placements)
+      assert terminal_placed?(placements)
+    end
+  end
+
+  describe "item selection" do
+    # The data handed to a given panel module in the placements.
+    defp panel_data(placements, mod) do
+      Enum.find_value(placements, fn
+        {^mod, data, _rect} -> {:ok, data}
+        _ -> nil
+      end)
+    end
+
+    test "the focused pane gets its cursor as `selected`; other panes don't" do
+      focus = %Focus{in_terminal?: false, column: :left, pane: 0, cursors: %{Panel.Stack => 2}, detail?: false}
+      stack = %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
+      placements = View.compose(reads(%{focus: focus, tlon_layout: layout(), stack: stack}), 120, 40)
+
+      assert {:ok, %{selected: 2}} = panel_data(placements, Panel.Stack)
+      # the other left-column pane (Settings, not focused) gets no selection injected
+      assert {:ok, settings} = panel_data(placements, Panel.Settings)
+      refute is_map(settings) and Map.has_key?(settings, :selected)
     end
   end
 end

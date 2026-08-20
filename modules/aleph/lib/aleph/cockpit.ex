@@ -870,7 +870,11 @@ defmodule Aleph.Cockpit do
       leader_pending?: state.leader_pending?,
       # Tlön's focus, so the View can light the focused sidebar pane and the status bar can show
       # NAV/TERM. nil elsewhere — no other space navigates panes this way.
-      focus: if(state.active_key == :tlon, do: state.focus)
+      focus: if(state.active_key == :tlon, do: state.focus),
+      # The layout the View reads for the focused pane + item cursor (counts), and the resolved
+      # MAIN detail (nil unless the focus opened one). Both nil outside Tlön.
+      tlon_layout: if(state.active_key == :tlon, do: tlon_layout(state)),
+      detail: if(state.active_key == :tlon and state.focus.detail?, do: tlon_detail(state, tlon_layout(state)))
     }
 
     placements = View.compose(reads, state.w, state.h)
@@ -940,16 +944,51 @@ defmodule Aleph.Cockpit do
   defp composer_thread_id(%{active_key: :tlon}), do: machine_thread_id()
   defp composer_thread_id(state), do: state.focused_id
 
-  # The shape the Tlön focus SM navigates: the space's two sidebar columns, plus per-pane section
-  # counts (empty for Phase 1 — every pane is a single list; Memory's coverage/floor/habits split
-  # comes with that pane). Derived from the static Space definition; nil layout for other spaces
-  # (the keymap only reads it in Tlön anyway).
-  defp tlon_layout(%{active_key: :tlon}) do
+  # The shape the Tlön focus SM navigates: the space's two sidebar columns, per-pane section counts
+  # (empty until a multi-section pane lands — Memory's coverage/floor/habits split), and per-pane
+  # ITEM counts (what j/k clamps against), derived from the live reads in `state`. Keyed by pane
+  # module, matching space.left/right. nil-ish layout for other spaces (the keymap only reads it in
+  # Tlön anyway).
+  defp tlon_layout(%{active_key: :tlon} = state) do
     space = Space.fetch(:tlon)
-    %{left: space.left, right: space.right, sections: %{}}
+    %{left: space.left, right: space.right, sections: %{}, counts: pane_counts(state)}
   end
 
-  defp tlon_layout(_state), do: %{left: [], right: [], sections: %{}}
+  defp tlon_layout(_state), do: %{left: [], right: [], sections: %{}, counts: %{}}
+
+  # The navigable item count per pane, for j/k clamping. Commits = the commit-log length; other
+  # panes aren't list-navigable yet (0 → j/k is a no-op there). Extended as panes gain lists.
+  defp pane_counts(state) do
+    %{Panel.Stack => length((state.stack || @empty_stack).commits)}
+  end
+
+  # MAIN's detail for the focused pane's current selection, or nil (this pane has no detail, or
+  # nothing is selected) → the terminal stays. Dispatch per pane; Commits resolves the selected
+  # commit's diff via Aleph.Stack.show.
+  defp tlon_detail(state, layout) do
+    case Focus.focused_pane(state.focus, layout) do
+      Panel.Stack -> commit_detail(state, Focus.cursor(state.focus, layout))
+      _ -> nil
+    end
+  end
+
+  defp commit_detail(state, index) do
+    case Enum.at((state.stack || @empty_stack).commits, index) do
+      %{hash: hash, subject: subject} ->
+        %{title: "commit #{hash} · #{subject}", lines: Enum.map(Aleph.Stack.show(hash), &diff_line/1)}
+
+      nil ->
+        nil
+    end
+  end
+
+  defp diff_line(%{text: text, kind: kind}), do: {text, diff_style(kind)}
+  defp diff_style(:add), do: :diff_add
+  defp diff_style(:del), do: :diff_del
+  defp diff_style(:hunk), do: :diff_hunk
+  defp diff_style(:file), do: :label
+  defp diff_style(:meta), do: :dim
+  defp diff_style(:context), do: :normal
 
   defp machine_thread_id do
     case Channel.machine_thread() do

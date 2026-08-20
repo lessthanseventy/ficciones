@@ -32,7 +32,12 @@ defmodule Aleph.Style do
     # Status-line chips: inverse-video tabs on the phosphors, dark text on a bright field.
     tab: {0xFFFFFF, @sel},
     stat: {@bg, @amber},
-    stat_live: {@bg, @green}
+    stat_live: {@bg, @green},
+    # A commit diff in MAIN (Commits pane detail): additions green, deletions red, hunk headers
+    # cyan. File/meta lines borrow chrome amber (:label) and :dim from above.
+    diff_add: {@green, @bg},
+    diff_del: {0xFF5555, @bg},
+    diff_hunk: {0x33C7FF, @bg}
   }
 
   @doc """

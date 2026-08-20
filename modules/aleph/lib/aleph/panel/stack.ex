@@ -40,11 +40,13 @@ defmodule Aleph.Panel.Stack do
     branch_section =
       [line("BRANCH", :label), branch_row(branch, dirty, ahead, behind)] ++ status_rows(summary)
 
+    selected = Map.get(data, :selected)
+
     commits_section =
       [line("COMMITS", :label)] ++
         case commits do
           [] -> [line("  no git history", :dim)]
-          cs -> Enum.flat_map(cs, &commit_row/1)
+          cs -> cs |> Enum.with_index() |> Enum.flat_map(fn {c, i} -> commit_row(c, i == selected) end)
         end
 
     files_section =
@@ -99,8 +101,14 @@ defmodule Aleph.Panel.Stack do
     [{"  ", :dim} | joined]
   end
 
-  defp commit_row(%{hash: hash, subject: subject, relative: relative, date: date, author: author, agent?: agent?}) do
+  # The selected commit (j/k cursor) gets a ▸ gutter and the :selected wash on its subject, so the
+  # eye lands on which Enter would open; unselected rows keep the two-space gutter.
+  defp commit_row(
+         %{hash: hash, subject: subject, relative: relative, date: date, author: author, agent?: agent?},
+         selected?
+       ) do
     author_style = if agent?, do: :accent, else: :label
+    {gutter, subject_style} = if selected?, do: {"▸ ", :selected}, else: {"  ", :normal}
 
     meta = [
       {"  " <> hash <> "  ", :dim},
@@ -109,7 +117,7 @@ defmodule Aleph.Panel.Stack do
       {" (" <> date <> ")", :dim}
     ]
 
-    [[{"  " <> subject, :normal}], meta]
+    [[{gutter <> subject, subject_style}], meta]
   end
 
   defp file_row(path), do: [{"  ", :dim}, {path, :normal}]

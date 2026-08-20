@@ -31,7 +31,8 @@ defmodule Aleph.View do
     Panel.Logbook,
     Panel.Orbis,
     Panel.Triage,
-    Panel.Settings
+    Panel.Settings,
+    Panel.Detail
   ]
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
@@ -43,6 +44,10 @@ defmodule Aleph.View do
     # defined regions. A section is a bare panel module (data resolved by `data_for/2`) or a
     # `{panel, read_key}` pair reading straight from `reads[key]` — how Tlön's two Terminal panes
     # get distinct data. Wide viewports get three columns; narrow ones collapse to one.
+    # MAIN is the terminal by default; a Tlön focus that opened a detail (Enter) replaces it with
+    # the Detail panel until Esc closes it (the tmux terminal keeps running underneath, unpainted).
+    center_panels = if detail_open?(reads), do: [Panel.Detail], else: space.surface
+
     columns =
       case layout_for(w) do
         :wide ->
@@ -50,12 +55,12 @@ defmodule Aleph.View do
 
           [
             {left, [Panel.Spaces | space.left]},
-            {center, space.surface},
+            {center, center_panels},
             {right, space.right}
           ]
 
         :narrow ->
-          sections = [Panel.Spaces | space.left] ++ space.surface ++ space.right
+          sections = [Panel.Spaces | space.left] ++ center_panels ++ space.right
           [{%{x: 0, y: 0, w: w, h: body_h}, sections}]
       end
 
@@ -66,7 +71,14 @@ defmodule Aleph.View do
     focused = focused_section(reads[:focus], space)
     borders = Enum.map(boxes, fn {section, rect} -> {Panel.Border, border_data(section, focused), rect} end)
 
-    contents = Enum.map(boxes, fn {section, rect} -> content_for(section, reads, inset(rect)) end)
+    # The focused pane's item cursor (j/k) is fed to that pane alone as `selected`, so it lights the
+    # row Enter would open; every other pane gets nil.
+    cursor = tlon_cursor(reads)
+
+    contents =
+      Enum.map(boxes, fn {section, rect} ->
+        content_for(section, reads, inset(rect), selected_for(section, focused, cursor))
+      end)
 
     status =
       {Panel.StatusBar, status_data(reads, space), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
@@ -89,6 +101,21 @@ defmodule Aleph.View do
 
   defp border_data(section, focused) when not is_nil(focused) and section == focused, do: %{focused: true}
   defp border_data(_section, _focused), do: nil
+
+  # True when the Tlön focus has a detail open AND the cockpit resolved content for it — an Enter on
+  # a pane with no detail (nil) leaves the terminal in place rather than blanking MAIN.
+  defp detail_open?(%{focus: %Focus{detail?: true}} = reads), do: reads[:detail] != nil
+  defp detail_open?(_reads), do: false
+
+  # The focused pane's clamped item cursor, or nil outside Tlön nav.
+  defp tlon_cursor(%{focus: %Focus{} = focus, tlon_layout: layout}) when is_map(layout), do: Focus.cursor(focus, layout)
+
+  defp tlon_cursor(_reads), do: nil
+
+  # The cursor to hand a section as `selected`: the live cursor for the focused pane, nil for the
+  # rest (so only one pane shows a selection highlight).
+  defp selected_for(section, focused, cursor) when not is_nil(focused) and section == focused, do: cursor
+  defp selected_for(_section, _focused, _cursor), do: nil
 
   # The three-column geometry (left ¼ · center ½ · right ¼) of the wide layout, as box rects — the
   # single source of truth for where each column sits. `compose/3` places panels into these, and
@@ -125,9 +152,19 @@ defmodule Aleph.View do
     %{x: x + 2, y: y + 1, w: max(w - 4, 1), h: max(h - 2, 1)}
   end
 
-  # A keyed surface section reads its data directly; a bare module resolves via data_for/2.
+  # A keyed surface section reads its data directly; a bare module resolves via data_for/2. The
+  # 4-arity variant injects the focused pane's `selected` cursor into its data (nil elsewhere).
+  defp content_for(section, reads, rect, selected) do
+    {panel, data, rect} = content_for(section, reads, rect)
+    {panel, put_selected(data, selected), rect}
+  end
+
   defp content_for({panel, read_key}, reads, rect), do: {panel, scroll_data(panel, reads[read_key], reads), rect}
   defp content_for(panel, reads, rect), do: {panel, scroll_data(panel, data_for(panel, reads), reads), rect}
+
+  defp put_selected(data, nil), do: data
+  defp put_selected(data, selected) when is_map(data), do: Map.put(data, :selected, selected)
+  defp put_selected(data, _selected), do: data
 
   @doc "Resolve the data a panel is fed from the assembled reads (keeps spaces plain data)."
   def data_for(Panel.Spaces, r), do: %{spaces: Space.all(), active_key: r.active_key}
@@ -145,6 +182,7 @@ defmodule Aleph.View do
   def data_for(Panel.Triage, r), do: r.triage
   def data_for(Panel.Habits, r), do: r.habits
   def data_for(Panel.Settings, r), do: r.settings
+  def data_for(Panel.Detail, r), do: r[:detail]
   def data_for(_other, _r), do: nil
 
   # Inject the panel's current scroll offset into scrollable panels' data (nil data left alone —
