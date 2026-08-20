@@ -9,7 +9,7 @@ defmodule Funes.Recall.CertaintyTest do
   @now ~U[2026-08-19 12:00:00Z]
   @hl 30 * 24 * 3600
 
-  defp ago(seconds), do: DateTime.add(@now, -seconds, :second)
+  defp ago(seconds), do: DateTime.shift(@now, second: -seconds)
 
   test "an operator-stated fact is always :stated, checks or not" do
     assert Certainty.of(%{provenance: "stated", last_pass_at: nil}, @now) == :stated

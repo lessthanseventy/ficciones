@@ -14,7 +14,8 @@ defmodule Funes.Recall.Embedding do
   @spec cosine([number()], [number()]) :: float()
   def cosine(a, b) do
     {dot, na, nb} =
-      Enum.zip(a, b)
+      a
+      |> Enum.zip(b)
       |> Enum.reduce({0.0, 0.0, 0.0}, fn {x, y}, {dot, na, nb} ->
         {dot + x * y, na + x * x, nb + y * y}
       end)

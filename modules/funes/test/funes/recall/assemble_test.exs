@@ -39,7 +39,9 @@ defmodule Funes.Recall.AssembleTest do
   end
 
   test "the pinned floor survives even when it alone exceeds the budget" do
-    ws = Recall.assemble([cand(:p1, 0.0, 0.0, 80, true), cand(:p2, 0.0, 0.0, 80, true), cand(:r, 1.0, 9.0, 10)], budget: 100)
+    pinned = [cand(:p1, 0.0, 0.0, 80, true), cand(:p2, 0.0, 0.0, 80, true)]
+    ws = Recall.assemble(pinned ++ [cand(:r, 1.0, 9.0, 10)], budget: 100)
+
     assert :p1 in ids(ws) and :p2 in ids(ws)
     refute :r in ids(ws)
   end
