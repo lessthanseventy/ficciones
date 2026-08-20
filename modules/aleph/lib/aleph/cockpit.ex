@@ -242,6 +242,9 @@ defmodule Aleph.Cockpit do
             # The Memory pane's read (coverage + floor + pending habits), cached with stack/health;
             # invalidated on a habit approve/reject so the pane reflects the write immediately.
             memory: nil,
+            # The Leaves rollup (machine_overview), cached with the other probes so its item count is
+            # available to the keymap for j/k clamping at keypress time (before reads exist).
+            leaves: nil,
             probed_at: 0,
             machine_retry_at: nil,
             # The standing tertius/hronir coworker's own machine thread — captured once, at its
@@ -745,6 +748,17 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
   end
 
+  # Enter in Tlön nav: on Leaves, jump to the selected leaf's thread in the Sessions space; on any
+  # other pane, open its selection's detail in MAIN (set focus.detail?, which the View renders).
+  defp apply_effect(:tlon_enter, state) do
+    layout = tlon_layout(state)
+
+    case Focus.focused_pane(state.focus, layout) do
+      Panel.Leaves -> jump_to_leaf(state, layout)
+      _ -> {:noreply, render(put_in(state.focus.detail?, true))}
+    end
+  end
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.
@@ -782,6 +796,20 @@ defmodule Aleph.Cockpit do
   end
 
   defp selected_habit(_state), do: nil
+
+  # The selected leaf → switch to Sessions focused on that thread (design decision 3). No leaf under
+  # the cursor (empty rollup) → a no-op flash, staying put.
+  defp jump_to_leaf(state, layout) do
+    rows = (state.leaves || %{rows: []}).rows
+
+    case Enum.at(rows, Focus.cursor(state.focus, layout)) do
+      %{id: id} ->
+        {:noreply, render(reset_scrolls(state, %{state | active_key: :sessions, focused_id: id, flash: nil}))}
+
+      _ ->
+        {:noreply, render(%{state | flash: "no leaf selected"})}
+    end
+  end
 
   # `enter_or_spawn`: if the focused thread already has a live session, it's already the center —
   # nothing to do (you're already working there). Otherwise spawn one onto it — one `spawn_onto/2`
@@ -901,7 +929,7 @@ defmodule Aleph.Cockpit do
       stack: state.stack || @empty_stack,
       health: state.health,
       memory: if(state.active_key == :tlon, do: state.memory),
-      orbis: orbis_read(state.active_key),
+      orbis: if(state.active_key == :tlon, do: state.leaves),
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :orbis, do: triage_read(threads)),
       habits: habits_read(state.active_key),
@@ -1004,9 +1032,13 @@ defmodule Aleph.Cockpit do
   defp pane_counts(state) do
     %{
       Panel.Stack => length((state.stack || @empty_stack).commits),
-      Panel.Memory => memory_section_count(state)
+      Panel.Memory => memory_section_count(state),
+      Panel.Leaves => leaf_count(state.leaves)
     }
   end
+
+  defp leaf_count(%{rows: rows}), do: length(rows)
+  defp leaf_count(_), do: 0
 
   defp memory_section_count(%{memory: nil}), do: 0
   defp memory_section_count(%{focus: %{section: 1}, memory: m}), do: length(m.habits)
@@ -1084,7 +1116,7 @@ defmodule Aleph.Cockpit do
   # Expire cached probes once @probe_ms has passed; render's ensure_probes refills lazily.
   defp maybe_expire_probes(state) do
     if System.monotonic_time(:millisecond) - state.probed_at >= @probe_ms do
-      %{state | stack: nil, health: nil, memory: nil}
+      %{state | stack: nil, health: nil, memory: nil, leaves: nil}
     else
       state
     end
@@ -1098,6 +1130,7 @@ defmodule Aleph.Cockpit do
       | stack: stack_read(),
         health: health_read(),
         memory: memory_read(),
+        leaves: orbis_read(:tlon),
         probed_at: System.monotonic_time(:millisecond)
     }
   end

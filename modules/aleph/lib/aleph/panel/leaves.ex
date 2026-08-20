@@ -1,16 +1,15 @@
-defmodule Aleph.Panel.Orbis do
+defmodule Aleph.Panel.Leaves do
   @moduledoc """
-  ORBIS — the machine-scoped **rollup lens** (Orbis Tertius design, slice 2): a compact vantage over
-  the Tlön leaf threads, rendered on Tlön in the slot Logbook used to hold. Where the `chat` tab is
-  the full machine chorus (every leaf's feed), this is the glance-value summary the operator reads
-  from the main cockpit without switching tabs: a header count line (open / stalled / done, with
-  conflicts called out) then one row per leaf — its lead and status, with a stalled leaf surfacing
-  its conflict count so trouble is visible without drilling in.
+  LEAVES — the machine-scoped **rollup lens** over Tlön's leaf threads (was `Panel.Orbis`, renamed
+  so it stops colliding with the Orbis *space*). A header count line (open / stalled / done, with
+  conflicts called out) then one row per leaf — its lead and status, a stalled leaf surfacing its
+  conflict count. The glance-value summary the operator reads without switching to the chat tab.
 
-  Data is `%{summary: %{open, stalled, done, conflicts}, rows: [%{id, title, lead, status, conflicts}]}`
-  — where `status` is `:open | :stalled | :done` — or `nil` when funes is down / there are no machine
-  threads. Pure over that read (gathered by `Aleph.Cockpit.orbis_read/1` from `Funes.Board`), so the
-  whole render path is headlessly testable, the same boundary the other panels draw.
+  Navigable in Tlön nav mode: `j/k` selects a leaf (the cursor row washes :selected), `Enter` jumps
+  to the Sessions space focused on that thread (design decision 3). Data is
+  `%{summary: %{open, stalled, done, conflicts}, rows: [%{id, title, lead, status, conflicts}],
+  selected}` — `selected` injected by the View only when this pane is focused — or `nil` when funes
+  is down / there are no machine threads. Pure over `Aleph.Orbis.rollup/0`.
   """
   @behaviour Aleph.Panel
 
@@ -26,12 +25,18 @@ defmodule Aleph.Panel.Orbis do
 
   @impl Aleph.Panel
   def render(nil, rect) do
-    Aleph.Panel.clip([line("ORBIS", :header), blank(), line("no machine threads", :dim)], rect)
+    Aleph.Panel.clip([line("LEAVES", :header), blank(), line("no machine threads", :dim)], rect)
   end
 
-  def render(%{summary: summary, rows: rows}, rect) do
-    header = [line("ORBIS", :header), blank(), summary_row(summary), blank()]
-    body = if rows == [], do: [line("all clear", :dim)], else: Enum.map(rows, &leaf_row(&1, rect.w))
+  def render(%{summary: summary, rows: rows} = data, rect) do
+    selected = Map.get(data, :selected)
+    header = [line("LEAVES", :header), blank(), summary_row(summary), blank()]
+
+    body =
+      if rows == [],
+        do: [line("all clear", :dim)],
+        else: rows |> Enum.with_index() |> Enum.map(fn {row, i} -> leaf_row(row, i == selected, rect.w) end)
+
     Aleph.Panel.clip(header ++ body, rect)
   end
 
@@ -71,12 +76,14 @@ defmodule Aleph.Panel.Orbis do
   defp stalled_style(0), do: :normal
   defp stalled_style(_n), do: :label
 
-  # One leaf: a status glyph, the title, and the lead; a stalled leaf trails its conflict count.
-  defp leaf_row(%{title: title, lead: lead, status: status} = row, _w) do
-    {glyph, style} = status_glyph(status)
+  # One leaf: a status glyph, the title, and the lead; a stalled leaf trails its conflict count. The
+  # selected leaf (j/k) washes :selected so the eye lands on which Enter would jump to.
+  defp leaf_row(%{title: title, lead: lead, status: status} = row, selected?, _w) do
+    {glyph, glyph_style} = status_glyph(status)
     who = if lead && lead != "", do: lead, else: "?"
+    title_style = if selected?, do: :selected, else: :normal
 
-    base = [{glyph, style}, {title || "untitled", :normal}, {" · ", :dim}, {who, :accent}]
+    base = [{glyph, glyph_style}, {title || "untitled", title_style}, {" · ", :dim}, {who, :accent}]
 
     case {status, row[:conflicts] || 0} do
       {:stalled, n} when n > 0 -> base ++ [{" · ", :dim}, {"#{n}⚠", :label}]

@@ -1,11 +1,10 @@
-defmodule Aleph.Panel.OrbisTest do
-  # ORBIS rollup (Orbis Tertius slice 2): the machine-scoped vantage — a compact lens over the
-  # leaf threads (lead + status + conflicts) rendered on Tlön in the slot Logbook used to hold.
-  # On-screen paint is the eye test in a real terminal; this pins the panel → styled-rows path
-  # headlessly, the same boundary Aleph.Panel.HabitsTest draws.
+defmodule Aleph.Panel.LeavesTest do
+  # LEAVES rollup (was ORBIS panel): the machine-scoped vantage — a compact lens over the leaf
+  # threads (lead + status + conflicts), navigable in Tlön nav. On-screen paint is the eye test in a
+  # real terminal; this pins the panel → styled-rows path headlessly.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Orbis
+  alias Aleph.Panel.Leaves
 
   @rect %{x: 0, y: 0, w: 80, h: 100}
 
@@ -14,8 +13,8 @@ defmodule Aleph.Panel.OrbisTest do
   end
 
   test "nil data renders the header and a placeholder, no crash" do
-    text = nil |> Orbis.render(@rect) |> lines() |> Enum.join("\n")
-    assert text =~ "ORBIS"
+    text = nil |> Leaves.render(@rect) |> lines() |> Enum.join("\n")
+    assert text =~ "LEAVES"
     assert text =~ "no machine threads"
   end
 
@@ -29,7 +28,7 @@ defmodule Aleph.Panel.OrbisTest do
       ]
     }
 
-    text = data |> Orbis.render(@rect) |> lines() |> Enum.join("\n")
+    text = data |> Leaves.render(@rect) |> lines() |> Enum.join("\n")
 
     # Rollup line: the operator's open / stalled / done buckets, with conflicts called out.
     assert text =~ "1 open"
@@ -59,7 +58,7 @@ defmodule Aleph.Panel.OrbisTest do
       ]
     }
 
-    text = data |> Orbis.render(@rect) |> lines() |> Enum.join("\n")
+    text = data |> Leaves.render(@rect) |> lines() |> Enum.join("\n")
     assert text =~ "0 stalled"
     refute text =~ "conflict"
   end
@@ -70,9 +69,29 @@ defmodule Aleph.Panel.OrbisTest do
       rows: [%{id: 7, title: "a", lead: "pi-machine", status: :open, conflicts: 0}]
     }
 
-    # Header block (ORBIS / blank / summary / blank) then the first leaf row.
-    assert Orbis.pick(data, @rect, 4) == {:focus_thread, 7}
-    assert Orbis.pick(data, @rect, 0) == nil
-    assert Orbis.pick(nil, @rect, 4) == nil
+    # Header block (LEAVES / blank / summary / blank) then the first leaf row.
+    assert Leaves.pick(data, @rect, 4) == {:focus_thread, 7}
+    assert Leaves.pick(data, @rect, 0) == nil
+    assert Leaves.pick(nil, @rect, 4) == nil
+  end
+
+  test "the selected leaf's title washes :selected; the rest stay :normal" do
+    data = %{
+      summary: %{open: 2, stalled: 0, done: 0, conflicts: 0},
+      rows: [
+        %{id: 2, title: "first", lead: "pi", status: :open, conflicts: 0},
+        %{id: 3, title: "second", lead: "cc", status: :open, conflicts: 0}
+      ],
+      selected: 1
+    }
+
+    rows = Leaves.render(data, @rect)
+
+    style_of = fn needle ->
+      Enum.find_value(rows, fn row -> Enum.find_value(row, fn {t, s} -> if t == needle, do: s end) end)
+    end
+
+    assert style_of.("second") == :selected
+    assert style_of.("first") == :normal
   end
 end

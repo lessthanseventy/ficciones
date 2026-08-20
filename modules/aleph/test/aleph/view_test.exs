@@ -47,12 +47,7 @@ defmodule Aleph.ViewTest do
 
   # A Tlön layout with commits count, so Focus.cursor/2 clamps and the Commits pane is navigable.
   defp layout(counts \\ %{Panel.Stack => 3}),
-    do: %{
-      left: [Panel.Stack, Panel.Settings],
-      right: [Panel.Health, Panel.Orbis, Panel.Habits],
-      sections: %{},
-      counts: counts
-    }
+    do: %{left: [Panel.Stack, Panel.Settings], right: [Panel.Health, Panel.Leaves], sections: %{}, counts: counts}
 
   # The rects of every border flagged as focused.
   defp focused_borders(placements), do: for({Panel.Border, %{focused: true}, rect} <- placements, do: rect)

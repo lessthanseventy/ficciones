@@ -29,7 +29,7 @@ defmodule Aleph.View do
     Panel.Stack,
     Panel.Health,
     Panel.Logbook,
-    Panel.Orbis,
+    Panel.Leaves,
     Panel.Triage,
     Panel.Settings,
     Panel.Memory,
@@ -178,7 +178,7 @@ defmodule Aleph.View do
   def data_for(Panel.Stack, r), do: r.stack
   def data_for(Panel.Health, r), do: r.health
   def data_for(Panel.Logbook, r), do: r.logbook
-  def data_for(Panel.Orbis, r), do: r.orbis
+  def data_for(Panel.Leaves, r), do: r.orbis
   def data_for(Panel.Triage, r), do: r.triage
   def data_for(Panel.Habits, r), do: r.habits
   def data_for(Panel.Settings, r), do: r.settings

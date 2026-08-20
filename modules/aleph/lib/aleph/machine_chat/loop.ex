@@ -398,7 +398,7 @@ defmodule Aleph.MachineChat.Loop do
   defp strip_cells(_state, 0), do: []
 
   defp strip_cells(%{rollup: %{summary: summary}} = state, sh) do
-    row = [{"ORBIS · ", :accent}] ++ Aleph.Panel.Orbis.summary_row(summary)
+    row = [{"ORBIS · ", :accent}] ++ Aleph.Panel.Leaves.summary_row(summary)
     Board.rows_to_cells([row], %{x: @pad_x, y: 0, w: content_w(state), h: sh})
   end
 

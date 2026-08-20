@@ -59,10 +59,19 @@ defmodule Aleph.Keymap do
           | {:post_message, term(), String.t()}
           | {:cycle_coworker_model, String.t()}
           | {:habit_action, :approve | :reject}
+          | :tlon_enter
           | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
   @spec handle(map(), map()) :: {map(), effect()}
+
+  # Shift+Space (Kitty CSI-u \e[32;2u → %{key: :space, shift: true}) is just a space — normalize it
+  # to a plain char up front so EVERY downstream path treats it identically: the composer inserts it,
+  # a live terminal forwards a real space byte, nav ignores it like a bare space. Without this it
+  # falls through to the drop-everything tables and vanishes. Ctrl+Space (the leader, has :ctrl, not
+  # :shift) never matches here, so the prefix is untouched.
+  def handle(%{key: :space, shift: true} = key, state) when not is_map_key(key, :ctrl),
+    do: handle(%{key: :char, char: " "}, state)
 
   # --- input mode: a MODAL — every key belongs to the buffer until Enter/Esc, so a binding
   # letter (q, s, tab) types its character instead of firing. Must come first. ---
@@ -256,7 +265,9 @@ defmodule Aleph.Keymap do
   defp handle_tlon(%{key: :char, char: "k"}, state), do: {focus_intent(state, :item_prev), :repaint}
   defp handle_tlon(%{key: :down}, state), do: {focus_intent(state, :item_next), :repaint}
   defp handle_tlon(%{key: :up}, state), do: {focus_intent(state, :item_prev), :repaint}
-  defp handle_tlon(%{key: :enter}, state), do: {focus_intent(state, :open_detail), :repaint}
+  # Enter is contextual: the cockpit resolves the focused pane and either opens a MAIN detail
+  # (Commits/Memory) or jumps to a thread (Leaves) — the keymap can't, it lacks the reads.
+  defp handle_tlon(%{key: :enter}, state), do: {state, :tlon_enter}
   # a/r act on the selected pending habit (Memory's habits section) — the cockpit resolves which
   # habit from the focus + reads and no-ops if the focus isn't on a habit. Approving writes it into
   # the recall floor; rejecting drops it.

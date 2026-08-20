@@ -16,8 +16,8 @@ defmodule Aleph.Space do
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Health
+  alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
-  alias Aleph.Panel.Orbis
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
@@ -77,9 +77,9 @@ defmodule Aleph.Space do
         # coverage + the always-loaded floor + pending habits to approve). Habits folded INTO Memory;
         # Settings is now the `m` keybind / a modal, not an always-on pane.
         left: [Stack, Memory],
-        # ORBIS — the machine rollup (leaves' lead/status/conflicts). Health becomes the status bar
-        # in the visual-cleanup pass; Orbis becomes Leaves when that pane lands.
-        right: [Health, Orbis],
+        # LEAVES — the machine rollup (each leaf thread's lead/status/conflicts), Enter jumps to it
+        # in Sessions. Health becomes the status bar in the visual-cleanup pass.
+        right: [Health, Leaves],
         # The center coworker: the `tertius` profile (Orbis Tertius meta agent). See Aleph.Profiles.
         coworker: "tertius"
       }

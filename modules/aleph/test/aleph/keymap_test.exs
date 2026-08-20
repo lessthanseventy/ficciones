@@ -46,6 +46,23 @@ defmodule Aleph.KeymapTest do
     Keymap.handle(next_key, armed)
   end
 
+  describe "Shift+Space normalizes to a plain space" do
+    test "in the composer it inserts a space, not a dropped key" do
+      s = state(%{input: %{kind: :compose, thread_id: 1, buffer: "a", cursor: 1}})
+      {next, :repaint} = Keymap.handle(key(:space, shift: true), s)
+      assert next.input.buffer == "a "
+    end
+
+    test "with a live terminal it forwards a real space char (not the modified key)" do
+      s = state(%{center_live?: true})
+      assert {^s, {:forward, %{key: :char, char: " "}}} = Keymap.handle(key(:space, shift: true), s)
+    end
+
+    test "Ctrl+Space is untouched — it still arms the leader" do
+      assert {%{leader_pending?: true}, :repaint} = Keymap.handle(key(:space, ctrl: true), state(%{center_live?: true}))
+    end
+  end
+
   describe "the leader (Ctrl+Space)" do
     test "Ctrl+Space arms the next key as an aleph command (sets leader_pending?, repaints)" do
       assert {%{leader_pending?: true}, :repaint} = Keymap.handle(leader(), state())
@@ -563,9 +580,8 @@ defmodule Aleph.KeymapTest do
       assert n2.focus.cursors[:a] == 0
     end
 
-    test "in nav mode, Enter opens the focused selection's detail in MAIN" do
-      {next, :repaint} = Keymap.handle(key(:enter), tlon(nav_focus()))
-      assert next.focus.detail? == true
+    test "in nav mode, Enter emits :tlon_enter (the cockpit resolves detail-vs-jump per pane)" do
+      assert {_s, :tlon_enter} = Keymap.handle(key(:enter), tlon(nav_focus()))
     end
 
     test "in nav mode, a/r emit the habit action effect (the cockpit resolves which habit)" do
