@@ -18,8 +18,17 @@ defmodule Funes.Fact do
     field :taught, :string
     field :supersedes, :id
     field :created_at, :utc_datetime
+    # Semantic-recall index (written AFTER the fact, off the write path) — the embedding vector and
+    # the model that produced it, so a model swap is a detectable re-embed.
+    field :embedding, Funes.VectorColumn
+    field :embedding_model, :string
     belongs_to :thread, Funes.Thread
     belongs_to :source_session, Funes.Session
+  end
+
+  @doc "Attach an embedding vector + its model to an existing fact (not part of the write path)."
+  def embedding_changeset(%__MODULE__{} = fact, vector, model) when is_list(vector) do
+    change(fact, embedding: vector, embedding_model: model)
   end
 
   @doc """

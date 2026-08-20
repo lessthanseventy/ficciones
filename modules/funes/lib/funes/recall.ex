@@ -13,6 +13,7 @@ defmodule Funes.Recall do
   alias Funes.Dossier
   alias Funes.Event
   alias Funes.Fact
+  alias Funes.Recall.Embedding
   alias Funes.Recall.Strength
   alias Funes.Repo
   alias Funes.Thread
@@ -102,6 +103,28 @@ defmodule Funes.Recall do
     end)
     |> assemble(budget: budget)
   end
+
+  @doc "Store a fact's embedding vector + model (written after `bank_fact`, off the write path)."
+  @spec store_embedding(Fact.t(), [float()], String.t()) :: {:ok, Fact.t()} | {:error, term()}
+  def store_embedding(%Fact{} = fact, vector, model) do
+    fact |> Fact.embedding_changeset(vector, model) |> Repo.update()
+  end
+
+  @doc """
+  Best-effort: embed a fact's text with the configured model and store the vector. A down embedder
+  is a no-op (`{:error, _}`, recall falls back to keyword) — it never blocks or fails the caller.
+  """
+  @spec embed_fact(Fact.t()) :: {:ok, Fact.t()} | {:error, term()}
+  def embed_fact(%Fact{} = fact) do
+    model = embedding_model()
+
+    case Embedding.embed(fact.text, model: model) do
+      {:ok, vector} -> store_embedding(fact, vector, model)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp embedding_model, do: get_in(Application.get_env(:funes, :embedding, []), [:model]) || "nomic-embed-text"
 
   defp recall_budget, do: get_in(Application.get_env(:funes, :recall, []), [:budget]) || @default_budget
 
