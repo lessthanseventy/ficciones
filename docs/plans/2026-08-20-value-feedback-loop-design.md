@@ -164,8 +164,42 @@ buildout** (all August). Under aleph it has become a second, older orchestration
 - Key files: `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, `~/.claude/.omc-config.json`,
   `~/.claude/hooks/{pre-tool-use,code-simplifier,persistent-mode}.mjs`.
 
-### Convo mining (baseline) — BLOCKED, retry noted
-The `episodic-memory:search-conversations` agent reported it lacked a history-search tool and returned
-nothing. Raw store located at `~/.claude/projects/**/*.jsonl` (188 files, 205M) — too large to read
-whole; needs a targeted extractor (grep the user-turn lines for correction/redirect/praise markers,
-then synthesize). Deferred to a follow-up pass, not lost.
+### Convo mining (baseline) — DONE (raw-transcript extractor over 188 files / 570 operator turns)
+The counterfactual "how it actually goes" bar. This should govern what the value loop optimizes FOR.
+
+- **Terseness is the defining fact.** Median operator message = 86 chars; 47% under 80. He steers on
+  loose reins: short direction → let Claude drive → screenshot → terse verdict → "keep going."
+- **Corrections are gentle and rarely about code.** The recurring kinds: mental-model/scope ("it's
+  more meta than that"), taste ("too gimmicky", colors), and **anti-verbosity** ("take that fluff
+  out"). Almost no anger, no "you keep doing X", no revert-in-rage.
+- **Success = the live app, not the suite.** Praise is the biggest signal category and cheap
+  ("sounds great", "looks great", screenshots). He accepts by clicking around, not by green tests.
+- **Work is ~94% agent-harness R&D** (aleph/funes/tlön/nix) — design/UX iteration + infra + memory
+  plumbing, debugging throughout. Plus OSS release ops (excessibility) and prod firefighting.
+- **Takeovers are operational, not code-quality**: he keeps merge/publish/secrets/privileged steps,
+  and runs other models (fable/glm/deepseek) in parallel windows, relaying state by hand.
+- **Standing preferences** (the ~5 durable rules worth promoting): terse load-bearing comments only
+  (no devlog prose) · zero warnings · clean tree / one main · bake knowledge into AGENTS.md/docs ·
+  internalize recurring gotchas (e.g. git-status-outside-sandbox).
+- **The real, repeated pain is CONTINUITY + operational overhead across many parallel short-lived
+  sessions** — he is the human runbook, re-relaying state, re-explaining mental models, re-hitting
+  gotchas. That is precisely where funes earns its keep: surface the standing rules + known gotchas
+  *before* he restates them, carry design intent between sessions, and close the dogfooding
+  self-service loop (self-cleanup/reset/restart) he keeps flagging.
+- **It tips into ceremony** the moment it front-loads approval gates or verbose status on a guy whose
+  median instruction is 86 chars. Anything that makes him type more, or read a devlog he said to
+  delete, works against the grain. (Directly implicates over-long assistant messages — including this
+  session's.)
+
+### OMC cleanup applied 2026-08-20 (global, backed up)
+- `pre-tool-use.mjs`: `checkBashCommand` now strips fd/stderr redirects (`2>/dev/null`, `2>&1`, `&>`)
+  before the write-check — kills the `[DELEGATION NOTICE]` false-positive. Backup:
+  `pre-tool-use.mjs.bak-before-fdredirect-fix`. (Aside: `.ex`/`.exs` were never in the source-ext
+  list, so the notice only ever mis-fired on `.mjs`/`.sh`/etc.)
+- `settings.json`: removed the two Stop hooks that fight aleph — `persistent-mode.mjs` (RALPH
+  self-continuation loop) and `code-simplifier.mjs` (auto-refactor vs. terse discipline); kept
+  `agent-deck`. Removed dead `clangd-lsp` plugin (no C/C++; kept `typescript-lsp` — manos is TS).
+  Backup: `settings.json.bak-before-omc-cleanup`.
+- Left for the operator's call (global blast radius / intentional tools / structural): the CLAUDE.md
+  OMC instruction block (still points at unregistered `executor`/`architect` agents), the four-way
+  memory consolidation toward funes, and agent-deck/herdr presence writers.
