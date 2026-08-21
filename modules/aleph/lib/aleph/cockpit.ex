@@ -818,12 +818,14 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
   end
 
-  # Enter in Tlön nav: on Leaves, jump to the selected leaf's thread in the Sessions space; on any
-  # other pane, open its selection's detail in MAIN (set focus.detail?, which the View renders).
+  # Enter in Tlön nav: on SPACES, switch to the lens under the cursor; on Leaves, jump to the
+  # selected leaf's thread in Sessions; on any other pane, open its selection's detail in MAIN (set
+  # focus.detail?, which the View renders).
   defp apply_effect(:tlon_enter, state) do
     layout = tlon_layout(state)
 
     case Focus.focused_pane(state.focus, layout) do
+      Panel.Spaces -> apply_pick({:switch_space, space_at_cursor(state, layout)}, state)
       Panel.Leaves -> jump_to_leaf(state, layout)
       _ -> {:noreply, render(put_in(state.focus.detail?, true))}
     end
@@ -1091,18 +1093,29 @@ defmodule Aleph.Cockpit do
   # ITEM counts (what j/k clamps against), derived from the live reads in `state`. Keyed by pane
   # module, matching space.left/right. nil-ish layout for other spaces (the keymap only reads it in
   # Tlön anyway).
+  # SPACES leads the left column in the FOCUS layout exactly as it does on screen (View prepends it
+  # to `space.left`), so `h`/`H` can land on the space-switcher and `Enter` there switches lens.
   defp tlon_layout(%{active_key: :tlon} = state) do
     space = Space.fetch(:tlon)
-    %{left: space.left, right: space.right, sections: %{Panel.Memory => 2}, counts: pane_counts(state)}
+
+    %{
+      left: [Panel.Spaces | space.left],
+      right: space.right,
+      sections: %{Panel.Memory => 2},
+      counts: pane_counts(state)
+    }
   end
 
   defp tlon_layout(_state), do: %{left: [], right: [], sections: %{}, counts: %{}}
+
+  defp space_at_cursor(state, layout), do: Enum.at(Space.all(), Focus.cursor(state.focus, layout)).key
 
   # The navigable item count per pane, for j/k clamping. Commits = the commit-log length; Memory is
   # sectioned — j/k walks the ACTIVE section's list (floor=0, habits=1), so its count follows
   # focus.section. Panes without a list are absent (0 → j/k is a no-op there).
   defp pane_counts(state) do
     %{
+      Panel.Spaces => length(Space.all()),
       Panel.Stack => length((state.stack || @empty_stack).commits),
       Panel.Memory => memory_section_count(state),
       Panel.Leaves => leaf_count(state.leaves)

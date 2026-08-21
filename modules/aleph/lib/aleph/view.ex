@@ -110,10 +110,11 @@ defmodule Aleph.View do
 
   # The sidebar pane the Tlön focus sits on — only in nav mode (out of the terminal), so the frame
   # lights the instant you Ctrl+Space out. nil for other spaces and while in the terminal (the
-  # terminal is the active pane then). Matches by section module — Tlön's panes are distinct, so a
-  # module identity is unambiguous; Panel.Spaces isn't in the focus layout, so it never lights.
+  # terminal is the active pane then). Matches by section module — the panes are distinct, so module
+  # identity is unambiguous. SPACES leads the left column here exactly as it does on screen, so its
+  # frame lights when the focus navigates onto the space-switcher.
   defp focused_section(%Focus{in_terminal?: false} = focus, space),
-    do: Focus.focused_pane(focus, %{left: space.left, right: space.right, sections: %{}})
+    do: Focus.focused_pane(focus, %{left: [Panel.Spaces | space.left], right: space.right, sections: %{}})
 
   defp focused_section(_focus, _space), do: nil
 
