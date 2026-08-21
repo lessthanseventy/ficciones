@@ -31,6 +31,8 @@ defmodule Funes do
       MCP.Spawn,
       # The arbiter behaviour a host implements (aleph's terminal-writing arbiter).
       Arbiter,
+      # The crew behaviour a host implements (aleph spawns a role's window in-node).
+      Crew,
       # Structs read by consumers (pattern-matched, never changeset-built from outside).
       Thread,
       Message

@@ -36,6 +36,8 @@ defmodule Funes.MCP.Server do
   component(Funes.MCP.Tool.CloseThread, name: "close_thread")
   component(Funes.MCP.Tool.SwitchThread, name: "switch_thread")
   component(Funes.MCP.Tool.ConsultPeer, name: "consult_peer")
+  component(Funes.MCP.Tool.SpawnCrew, name: "spawn_crew")
+  component(Funes.MCP.Tool.KillCrew, name: "kill_crew")
   component(Funes.MCP.Tool.ProposeHabit, name: "propose_habit")
   component(Funes.MCP.Tool.GetDossier, name: "get_dossier")
   component(Funes.MCP.Tool.GetFacts, name: "get_facts")

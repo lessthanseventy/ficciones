@@ -82,6 +82,8 @@ defmodule Funes.MCP.ServerTest do
                "close_thread",
                "switch_thread",
                "consult_peer",
+               "spawn_crew",
+               "kill_crew",
                "propose_habit",
                "get_dossier",
                "get_facts",
@@ -489,6 +491,40 @@ defmodule Funes.MCP.ServerTest do
     loaded = JSON.decode!(constraints["text"])
     assert Enum.any?(loaded, &(&1["text"] == "in production, Andrew presses Enter"))
     assert Enum.all?(loaded, &(&1["certainty"] == "stated"))
+  end
+
+  test "spawn_crew / kill_crew staff a role onto the connection's OWN thread via the crew backend",
+       %{token: token, thread: thread} do
+    Application.put_env(:funes, :crew, Funes.Crew.Test)
+    Application.put_env(:funes, :test_pid, self())
+    on_exit(fn -> Application.delete_env(:funes, :crew) end)
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    r = call(token, session, 4, "spawn_crew", %{"task" => "review the diff"})
+    refute r["isError"]
+    payload = decode_tool_json(r)
+    # no thread parameter — the reviewer joins THIS connection's thread; role defaults to reviewer
+    assert payload["thread_id"] == thread.id
+    assert payload["role"] == "reviewer"
+    assert_received {:crew_spawn, "reviewer", thread_id, "review the diff"}
+    assert thread_id == thread.id
+
+    refute call(token, session, 5, "kill_crew", %{})["isError"]
+    assert_received {:crew_kill, "reviewer", ^thread_id}
+  end
+
+  test "spawn_crew reports unavailable when no crew backend is configured", %{token: token} do
+    Application.delete_env(:funes, :crew)
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    r = call(token, session, 4, "spawn_crew", %{"task" => "review the diff"})
+    assert r["isError"]
+    %{"text" => text} = Enum.find(r["content"], &(&1["type"] == "text"))
+    assert text =~ "unavailable"
   end
 
   defp handshake(token) do

@@ -807,3 +807,78 @@ defmodule Funes.MCP.Tool.MachineOverview do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.SpawnCrew do
+  @moduledoc """
+  Staff a crew role onto THIS thread — the leader's spawn verb (funes crew MVP). Mints the role's
+  funes identity on your thread and stands up its terminal, then hands it `task` as its opening
+  assignment. MVP role is `reviewer`. Like every self-thread tool it takes no thread parameter: the
+  role joins the connection's own thread, so a leader spawns a reviewer onto the work it is leading.
+
+  Actuated by the configured crew backend (`Funes.Crew`) — on the aleph hub that spawns the window
+  in the live node. With no backend (the standalone service) it reports unavailable rather than
+  faking a spawn.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Crew
+  alias Funes.MCP
+
+  schema do
+    field :task, :string, required: true, description: "The opening assignment — what the role should do"
+    field :role, :string, description: "Crew role to staff (default reviewer)"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+    role = Map.get(params, :role) || "reviewer"
+
+    case Crew.spawn_role(role, identity.thread_id, params[:task]) do
+      {:ok, window} ->
+        payload = %{"role" => role, "thread_id" => identity.thread_id, "window" => to_string(window)}
+        {:reply, Response.json(Response.tool(), payload), frame}
+
+      {:error, :no_crew} ->
+        {:reply, Response.error(Response.tool(), "crew spawning is unavailable here — no crew backend is configured"), frame}
+
+      {:error, reason} ->
+        {:reply, Response.error(Response.tool(), "crew spawn failed: #{inspect(reason)}"), frame}
+    end
+  end
+end
+
+defmodule Funes.MCP.Tool.KillCrew do
+  @moduledoc """
+  Tear down a crew role's terminal on THIS thread — the leader's teardown verb (funes crew MVP).
+  Thread-scoped by the connection's identity; role defaults to `reviewer`. Best-effort: a role that
+  is already gone is not an error.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Crew
+  alias Funes.MCP
+
+  schema do
+    field :role, :string, description: "Crew role to tear down (default reviewer)"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+    role = Map.get(params, :role) || "reviewer"
+
+    case Crew.kill_role(role, identity.thread_id) do
+      :ok ->
+        {:reply, Response.json(Response.tool(), %{"killed" => role, "thread_id" => identity.thread_id}), frame}
+
+      {:error, :no_crew} ->
+        {:reply, Response.error(Response.tool(), "crew teardown is unavailable here — no crew backend is configured"), frame}
+
+      {:error, reason} ->
+        {:reply, Response.error(Response.tool(), "crew kill failed: #{inspect(reason)}"), frame}
+    end
+  end
+end
