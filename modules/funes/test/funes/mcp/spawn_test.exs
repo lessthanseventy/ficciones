@@ -44,6 +44,27 @@ defmodule Funes.MCP.SpawnTest do
       assert {:ok, %{agent: a}} = Spawn.ensure({:open, "t"}, "dup")
       assert a.id == agent.id
     end
+
+    test "assign: false ensures the agent WITHOUT staffing the thread — the lead keeps the seat" do
+      {:ok, %{thread: thread, agent: lead}} = Spawn.ensure({:open, "task thread"}, "claude-machine", mandate: "machine")
+      assert Repo.get(Thread, thread.id).agent_id == lead.id
+
+      assert {:ok, %{thread: t, agent: a}} =
+               Spawn.ensure({:join, thread.id}, "reviewer-machine", mandate: "machine", assign: false)
+
+      assert a.name == "reviewer-machine"
+      # thread's lead is UNCHANGED — the reviewer never became the staffed agent
+      assert Repo.get(Thread, t.id).agent_id == lead.id
+    end
+
+    test "assign: true (or omitted, the default) still reassigns — no regression" do
+      {:ok, %{thread: thread, agent: lead}} = Spawn.ensure({:open, "task thread 2"}, "claude-machine", mandate: "machine")
+      assert Repo.get(Thread, thread.id).agent_id == lead.id
+
+      assert {:ok, %{thread: t, agent: a}} = Spawn.ensure({:join, thread.id}, "someone-else", mandate: "machine")
+      assert Repo.get(Thread, t.id).agent_id == a.id
+      refute Repo.get(Thread, t.id).agent_id == lead.id
+    end
   end
 
   describe "env/3 and join/3 — mint + exports" do
@@ -70,6 +91,21 @@ defmodule Funes.MCP.SpawnTest do
 
     test "join/3 errors on a missing thread" do
       assert {:error, {:no_thread, 999_999}} = Spawn.join(999_999, "codex")
+    end
+
+    test "join/3 with assign: false mints a valid token/exports without staffing the thread" do
+      {:ok, %{thread: existing, agent: lead}} = Spawn.ensure({:open, "leaded"}, "claude-machine", mandate: "machine")
+
+      assert {:ok, %{thread: t, agent: a, token: tok, exports: ex}} =
+               Spawn.join(existing.id, "reviewer-machine", mandate: "machine", assign: false)
+
+      assert t.id == existing.id
+      assert a.name == "reviewer-machine"
+      assert ex =~ ~s(FUNES_THREAD="#{existing.id}")
+      assert ex =~ ~s(FUNES_AUTHOR="reviewer-machine")
+      # the token mints fine even though the reviewer never became the staffed lead
+      assert {:ok, _binding} = Tokens.resolve(tok)
+      assert Repo.get(Thread, existing.id).agent_id == lead.id
     end
   end
 

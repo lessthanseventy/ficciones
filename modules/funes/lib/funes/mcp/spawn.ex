@@ -45,13 +45,19 @@ defmodule Funes.MCP.Spawn do
   Options for a freshly-registered agent: `:mandate` (default "general"), `:engine`
   (default "local"). An existing agent keeps its own — funes has no vendor in the
   design (§8), so `engine` is just a capability handle resolved elsewhere.
+
+  `:assign` (default `true`) staffs the thread with `agent_name` (`Staff.assign/2`
+  is single-slot — "a thread has 0..1 agent; assigning again replaces the previous
+  agent"). Pass `assign: false` to ensure/mint identity for a NON-staffing rider on
+  an already-led thread (e.g. a crew role like a reviewer) without evicting the
+  thread's actual lead.
   """
   @spec ensure(thread_ref(), String.t(), keyword()) ::
           {:ok, %{thread: Thread.t(), agent: Funes.Agent.t()}} | {:error, term()}
   def ensure(thread_ref, agent_name, opts \\ []) when is_binary(agent_name) do
     with {:ok, thread} <- resolve_thread(thread_ref, opts),
          {:ok, agent} <- ensure_agent(agent_name, opts),
-         {:ok, thread} <- Staff.assign(thread, agent) do
+         {:ok, thread} <- maybe_assign(thread, agent, opts) do
       {:ok, %{thread: thread, agent: agent}}
     end
   end
@@ -107,6 +113,11 @@ defmodule Funes.MCP.Spawn do
       nil -> {:error, {:no_thread, id}}
       thread -> {:ok, thread}
     end
+  end
+
+  # `:assign` opt-out (default true, unchanged behavior for existing callers) — see `ensure/3` doc.
+  defp maybe_assign(thread, agent, opts) do
+    if Keyword.get(opts, :assign, true), do: Staff.assign(thread, agent), else: {:ok, thread}
   end
 
   defp ensure_agent(name, opts) do
