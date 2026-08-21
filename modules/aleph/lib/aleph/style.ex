@@ -19,6 +19,11 @@ defmodule Aleph.Style do
   @green 0x33FF00
   @amber 0xFFB000
 
+  # Chip fields carry dark text, so their background must be BRIGHT to pop — chrome amber (#FFB000)
+  # is a burnt mid-tone that leaves black text looking muddy next to the green chip. #FFD000 lifts
+  # the field to ~the green's luminance (black-on-it 14.3:1 vs 11.5) while staying gold, not lime.
+  @amber_chip 0xFFD000
+
   @colors %{
     normal: {@green, @bg},
     header: {@amber, @bg},
@@ -31,7 +36,7 @@ defmodule Aleph.Style do
     selected_accent: {0xFFFFFF, @sel},
     # Status-line chips: inverse-video tabs on the phosphors, dark text on a bright field.
     tab: {0xFFFFFF, @sel},
-    stat: {@bg, @amber},
+    stat: {@bg, @amber_chip},
     stat_live: {@bg, @green},
     # A commit diff in MAIN (Commits pane detail): additions green, deletions red, hunk headers
     # cyan. File/meta lines borrow chrome amber (:label) and :dim from above.
