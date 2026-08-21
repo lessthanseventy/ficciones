@@ -107,6 +107,34 @@ defmodule Aleph.CrewTest do
     test "an unknown role is an error, no spawn" do
       assert {:error, {:unknown_role, "planner"}} = Crew.spawn("planner", 42, "x")
     end
+
+    test "a nonzero tmux exit is an error, not a crash" do
+      test_pid = self()
+
+      Application.put_env(:aleph, :crew_cmd, fn "tmux", argv, _opts ->
+        send(test_pid, {:tmux, argv})
+        {"dup window", 1}
+      end)
+
+      assert {:error, {:tmux_failed, "dup window"}} = Crew.spawn("reviewer", 42, "x", inject: false)
+      assert_receive {:tmux, ["-L", _sock, "new-window" | _]}
+    end
+
+    test "injects the opening turn via two-phase send-keys when inject: true (default)" do
+      Application.put_env(:aleph, :crew_settle_ms, 0)
+      on_exit(fn -> Application.delete_env(:aleph, :crew_settle_ms) end)
+
+      assert {:ok, "r42"} = Crew.spawn("reviewer", 42, "review HEAD~1")
+
+      assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "tlon", "-n", "r42", _script]}
+
+      assert_receive {:tmux, ["-L", sock, "send-keys", "-l", "-t", "tlon:r42", text]}
+      assert text =~ "thread ##{42}"
+      assert text =~ "claude-machine"
+      assert text =~ "review HEAD~1"
+
+      assert_receive {:tmux, ["-L", ^sock, "send-keys", "-t", "tlon:r42", "Enter"]}
+    end
   end
 
   describe "kill/2 (IO seam)" do

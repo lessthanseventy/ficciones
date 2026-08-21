@@ -95,8 +95,10 @@ defmodule Aleph.Crew do
   defp joiner, do: Application.get_env(:aleph, :crew_join, &Funes.MCP.Spawn.join/3)
 
   # Wait between window boot and injecting the opening turn — the profile pi's TUI must settle before
-  # send-keys, same reason as Cockpit's @opening_submit_delay_ms two-phase inject.
+  # send-keys, same reason as Cockpit's @opening_submit_delay_ms two-phase inject. Overridable via app
+  # env (`:aleph, :crew_settle_ms`) so tests don't pay the real delay.
   @opening_settle_ms 1_500
+  defp opening_settle_ms, do: Application.get_env(:aleph, :crew_settle_ms, @opening_settle_ms)
 
   @doc """
   Spawn `role_key` onto task `thread_id` as a funes citizen, then inject the leader's `task` as its
@@ -106,19 +108,29 @@ defmodule Aleph.Crew do
   @spec spawn(String.t(), integer() | String.t(), String.t(), keyword()) ::
           {:ok, String.t()} | {:error, term()}
   def spawn(role_key, thread_id, task, opts \\ []) do
-    with %{handle: handle, profile: profile_name} <- role(role_key) || {:error, {:unknown_role, role_key}},
-         %Aleph.Profile{} = profile <- Profiles.fetch(profile_name),
+    with %{handle: handle, profile: profile_name} <- role(role_key) || :unknown_role,
+         %Aleph.Profile{} = profile <- Profiles.fetch(profile_name) || {:missing_profile, profile_name},
          _dir = Profiles.materialise!(profile),
-         {:ok, %{exports: exports}} <- joiner().(thread_id, handle, mandate: "machine") do
-      window = crew_window(role_key, thread_id)
-      script = boot_script(exports, Aleph.Cockpit.profile_launcher(profile))
-      {_out, 0} = cmd_runner().("tmux", spawn_argv(role_key, thread_id, script), stderr_to_stdout: true)
+         {:ok, %{exports: exports}} <- joiner().(thread_id, handle, mandate: "machine"),
+         script = boot_script(exports, Aleph.Cockpit.profile_launcher(profile)),
+         {:ok, window} <- run_spawn(role_key, thread_id, script) do
       if Keyword.get(opts, :inject, true), do: inject_opening(window, opening_turn(thread_id, task))
       {:ok, window}
     else
+      :unknown_role -> {:error, {:unknown_role, role_key}}
+      {:missing_profile, _} = err -> {:error, err}
       {:error, _} = err -> err
-      nil -> {:error, {:unknown_role, role_key}}
       other -> {:error, other}
+    end
+  end
+
+  # Shells out to tmux and folds its exit status into a tagged result — `spawn/4`'s @spec promises
+  # `{:error, term()}`, never a crash, so a duplicate window (very plausible re-spawning onto the
+  # same thread) or any other nonzero exit must not raise a MatchError.
+  defp run_spawn(role_key, thread_id, script) do
+    case cmd_runner().("tmux", spawn_argv(role_key, thread_id, script), stderr_to_stdout: true) do
+      {_out, 0} -> {:ok, crew_window(role_key, thread_id)}
+      {out, _status} -> {:error, {:tmux_failed, out}}
     end
   end
 
@@ -141,7 +153,7 @@ defmodule Aleph.Crew do
     sock = tlon_socket()
     target = "#{@tlon_session}:#{window}"
     _ = cmd_runner().("tmux", ["-L", sock, "send-keys", "-l", "-t", target, text], stderr_to_stdout: true)
-    Process.sleep(@opening_settle_ms)
+    Process.sleep(opening_settle_ms())
     _ = cmd_runner().("tmux", ["-L", sock, "send-keys", "-t", target, "Enter"], stderr_to_stdout: true)
     :ok
   end
