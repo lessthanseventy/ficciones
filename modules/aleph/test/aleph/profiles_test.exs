@@ -329,9 +329,18 @@ defmodule Aleph.ProfilesTest do
     end
 
     test "the catastrophic deny-floor is preserved from @tlon_permissions" do
-      bash = Profiles.fetch("reviewer").permissions["permission"]["bash"]
-      assert bash["rm -rf /*"] == "deny"
-      assert bash["sudo *"] == "deny"
+      # tertius carries @tlon_permissions verbatim, so its bash map IS the floor. Assert EVERY
+      # floor rule survives the reviewer's merge unchanged — a refactor that silently drops one
+      # (e.g. `curl * | sh`) must fail here, not just the two spot-checks below.
+      floor = Profiles.fetch("tertius").permissions["permission"]["bash"]
+      reviewer = Profiles.fetch("reviewer").permissions["permission"]["bash"]
+
+      for {pattern, action} <- floor do
+        assert reviewer[pattern] == action, "deny-floor entry #{inspect(pattern)} not preserved"
+      end
+
+      assert reviewer["rm -rf /*"] == "deny"
+      assert reviewer["sudo *"] == "deny"
     end
 
     test "yoloMode is on so allowed reads never stall on an ask" do
