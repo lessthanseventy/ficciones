@@ -24,6 +24,12 @@ defmodule Aleph.Style do
   # the field to ~the green's luminance (black-on-it 14.3:1 vs 11.5) while staying gold, not lime.
   @amber_chip 0xFFD000
 
+  # Chip TEXT ink. Must NOT be 0x000000: under TB_OUTPUT_TRUECOLOR color 0 is termbox's "default"
+  # sentinel — fine as a background (→ terminal bg), but as a FOREGROUND it falls through to the
+  # terminal's default fg (light), so `{@bg, chip}` rendered as white-on-chip, not the intended
+  # black. A non-zero near-black keeps the dark text the bright fields were tuned for.
+  @ink 0x0A0A0A
+
   @colors %{
     normal: {@green, @bg},
     header: {@amber, @bg},
@@ -36,8 +42,8 @@ defmodule Aleph.Style do
     selected_accent: {0xFFFFFF, @sel},
     # Status-line chips: inverse-video tabs on the phosphors, dark text on a bright field.
     tab: {0xFFFFFF, @sel},
-    stat: {@bg, @amber_chip},
-    stat_live: {@bg, @green},
+    stat: {@ink, @amber_chip},
+    stat_live: {@ink, @green},
     # A commit diff in MAIN (Commits pane detail): additions green, deletions red, hunk headers
     # cyan. File/meta lines borrow chrome amber (:label) and :dim from above.
     diff_add: {@green, @bg},
