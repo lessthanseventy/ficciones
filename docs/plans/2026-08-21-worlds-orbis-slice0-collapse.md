@@ -15,7 +15,7 @@
 These are my calls given the design doc + the live code maps. Each is cheap to reverse at a review checkpoint; flag disagreement before the task that depends on it.
 
 - **A1 — The World center stays a single tmux client.** "Attach in place" = re-point that center with `tmux select-window` (the primitive already exists: `cockpit.ex select_tlon_window/1`). No polymorphic native-PTY center in Slice 0.
-- **A2 — Preview-swap (tweak #1) targets Leaders (the WindowBar tmux windows), and Leaves where a leaf maps to a live World window.** Arrow-hover = `select-window` re-point only (no keys, no focus); Enter/typing = commit (`in_terminal?: true`, keys flow). This is buildable against real windows.
+- **A2 — Preview-swap (tweak #1) targets the Leaves pane** (a leaf whose `lead` maps to a live World window). Arrow-hover = `select-window` re-point only (no keys, no focus); Enter/typing = commit (`in_terminal?: true`, keys flow). *Revised in Task 1: WindowBar/Leaders is a `surface` frame, NOT a navigable focus column, so the focus SM cannot land on it — Leaves is the only window-bearing nav pane today.* `previewed_window` holds the **tmux string index** (`"1"`), tmux-native; no int conversion.
 - **A3 — Arbitrary-leaf attach is explicitly deferred to Slice 1.** A Leaves row whose lead does not map to a live World window flashes `no live session (Slice 1)`. We do NOT fake a native per-thread PTY — that path is what Sessions provided and what we're deleting.
 - **A4 — "One hardcoded world" = Tlön stays a hardcoded space, reframed as World #1.** No `world` struct; the rollup gains a single hardcoded world grouping key. Full config-truth (funes-owned compositions, flake seeding) is Slice 1.
 - **A5 — "tertius re-seats as Orbis' resident agent" is a framing change, not a new PTY.** tertius already runs the root machine thread (`machine_chat/loop.ex`); Orbis' survey is its home view. Orbis gains no center terminal in Slice 0.
@@ -74,11 +74,14 @@ end
 
 **Step 1 — Failing test:**
 
+# NOTE: jump_to_leaf must PREVIEW then COMMIT (re-point + focus) — reuse
+# preview_focused/1 then commit_preview/1 from Task 1. previewed_window is a
+# tmux STRING index ("1"), not an int.
 ```elixir
 test "Enter on a leaf mapped to a live world window attaches it (commit + focus)" do
   state = tlon_state(windows: ~w(tertius hronir), leaves: [%{id: "t1", lead: "hronir"}], cursor: 0)
   {:noreply, next} = Cockpit.apply_effect(:tlon_enter, %{state | focus: focus_on(Panel.Leaves)})
-  assert next.previewed_window == 1          # hronir's window
+  assert next.previewed_window == "1"        # hronir's window (tmux string index)
   assert next.focus.in_terminal? == true
 end
 
@@ -182,7 +185,7 @@ Framing/labels only (per A4/A5). No PTY moves.
 
 - `mise run aleph:check` green; `modules/funes` `mix test` green (no funes changes, but the reads are exercised).
 - The picker offers exactly **Orbis** and **Tlön**; `grep -rn ':sessions' modules/aleph/lib` is empty.
-- In Tlön nav mode, arrowing over Leaders/Leaves **previews** (center re-points, no keys/focus); `Enter`/typing **commits** (focus + keys). A leaf with no live window flashes the Slice-1 deferral, no crash.
+- In Tlön nav mode, arrowing over Leaves **previews** (center re-points, no keys/focus); `Enter`/typing **commits** (focus + keys). A leaf with no live window flashes the Slice-1 deferral, no crash.
 - Orbis' survey renders a **per-world** row (one hardcoded world) with its leads/open/stalled/done/trouble rollup; `Enter` zooms to the world.
 - **Live-verify** (not just tests): boot `mise run aleph:run`, confirm Orbis↔Tlön cycle, preview-swap, and the survey row on real funes traffic.
 - The two already-shipped interaction tweaks (nav-to-SPACES, heavy focused border) remain green and untouched.
