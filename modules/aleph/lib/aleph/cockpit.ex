@@ -822,9 +822,9 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
   end
 
-  # Enter in Tlön nav: on SPACES, switch to the lens under the cursor; on Leaves, jump to the
-  # selected leaf's thread in Sessions; on any other pane, open its selection's detail in MAIN (set
-  # focus.detail?, which the View renders).
+  # Enter in Tlön nav: on SPACES, switch to the lens under the cursor; on Leaves, attach the leaf's
+  # live World window in the center (preview + commit); on any other pane, open its selection's
+  # detail in MAIN (set focus.detail?, which the View renders).
   defp apply_effect(:tlon_enter, state) do
     layout = tlon_layout(state)
 
@@ -877,17 +877,24 @@ defmodule Aleph.Cockpit do
 
   defp selected_habit(_state), do: nil
 
-  # The selected leaf → switch to Sessions focused on that thread (design decision 3). No leaf under
-  # the cursor (empty rollup) → a no-op flash, staying put.
-  defp jump_to_leaf(state, layout) do
+  # The selected leaf → attach its live World window in the center (Worlds Slice 0): the Enter path
+  # of the preview-swap. render is un-unit-testable (it paints via termbox); attach_leaf/2 is the
+  # pure decision, so it carries the logic + tests.
+  defp jump_to_leaf(state, layout), do: {:noreply, render(attach_leaf(state, layout))}
+
+  @doc false
+  # PREVIEW (re-point) then COMMIT (focus in) the World tmux window under the Leaves cursor, reusing
+  # Task 1's primitives. A leaf whose lead maps to no live window — or no leaf under the cursor —
+  # can't attach yet (arbitrary-leaf PTYs are Slice 1): flash the deferral, re-point nothing. This
+  # supersedes the old jump into the (now-retiring) Sessions space.
+  def attach_leaf(state, layout) do
     rows = (state.leaves || %{rows: []}).rows
 
-    case Enum.at(rows, Focus.cursor(state.focus, layout)) do
-      %{id: id} ->
-        {:noreply, render(reset_scrolls(state, %{state | active_key: :sessions, focused_id: id, flash: nil}))}
-
-      _ ->
-        {:noreply, render(%{state | flash: "no leaf selected"})}
+    with %{lead: lead} <- Enum.at(rows, Focus.cursor(state.focus, layout)),
+         idx when not is_nil(idx) <- window_index(tlon_tabs(), lead) do
+      state |> preview_focused() |> commit_preview() |> Map.put(:flash, nil)
+    else
+      _ -> %{state | flash: "no live session (Slice 1)"}
     end
   end
 
@@ -1746,8 +1753,9 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Every Tlön tmux call routes through here — one seam over the coworker's private server — so a
-  # test can inject a fake runner (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
+  # Every Tlön tmux query/re-point call routes through here — one seam over the coworker's private
+  # server (send-keys paths like inject_text/submit_turn still shell out directly) — so a test can
+  # inject a fake runner (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
   defp tlon_run(args) do
     runner = Application.get_env(:aleph, :tlon_cmd, &System.cmd/3)
     runner.("tmux", tlon_tmux(args), stderr_to_stdout: true)
