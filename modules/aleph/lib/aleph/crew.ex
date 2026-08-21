@@ -2,14 +2,19 @@ defmodule Aleph.Crew do
   @moduledoc """
   The funes crew — roles the leader spawns onto a task thread and tears down when done.
 
+  This is the aleph-side crew backend: funes' `spawn_crew`/`kill_crew` tools dispatch through the
+  `Funes.Crew` behaviour (`config :funes, :crew, Aleph.Crew`) into `spawn_role/3` / `kill_role/2`,
+  which run IN the live cockpit node — the same node holding funes' Repo, tokens, and the `tlon`
+  tmux server. No second BEAM boots and no port is re-bound; the leader staffs a reviewer from the
+  thread it is leading and the window lands beside it.
+
   A **role** is a seat, not an identity: a `%{handle, window_prefix, profile}` naming the funes
   author the seat posts as, the tmux window it runs in, and the `Aleph.Profile` that materialises
   its pi config. MVP staffs one role, `reviewer`.
 
-  The per-thread window name (`crew_window/2`) is a PURE function of (role, thread id), so the
-  spawner (the `mix aleph.crew.*` task, in its own BEAM) and the mention router (in the cockpit
-  BEAM) agree on `r<tid>` with no shared state — that is what lets a leader-invoked CLI spawn a
-  window the running cockpit can route `@reviewer-machine` to.
+  The per-thread window name (`crew_window/2`) is a PURE function of (role, thread id), so this
+  spawner and the mention router agree on `r<tid>` deterministically — that is what lets a spawned
+  window be the target the cockpit routes `@reviewer-machine` to.
 
   Pure tmux command builders (`spawn_argv/3`, `kill_argv/2`, `boot_script/2`) live below; the IO
   wrappers (`spawn/4`, `kill/2`) mint identity, materialise the profile, shell out to tmux, and
@@ -20,6 +25,11 @@ defmodule Aleph.Crew do
 
   alias Aleph.Profiles
   alias Aleph.Space
+
+  # The crew backend funes dispatches to (`config :funes, :crew, Aleph.Crew`) — the same seam as
+  # Aleph.Arbiter. funes' `spawn_crew`/`kill_crew` tools call through `Funes.Crew` and land in
+  # `spawn_role/3` / `kill_role/2` below, run IN this live node, so no second BEAM boots.
+  @behaviour Funes.Crew
 
   @tlon_session "tlon"
 
@@ -91,9 +101,9 @@ defmodule Aleph.Crew do
     "export TERM=xterm-256color\n" <> exports <> "\nexec " <> launcher
   end
 
-  # The reviewer runs on the SAME funes the cockpit uses (aleph's :4041/.dev) — the injected minter
-  # defaults to Funes.MCP.Spawn.join, which reads :funes/:mcp_port from the running app config, so a
-  # `mix aleph.crew.*` task inherits aleph's funes port/db just by booting the aleph app.
+  # The reviewer runs on the SAME funes the cockpit uses — the injected minter defaults to
+  # Funes.MCP.Spawn.join, which mints in-node against the live Repo/tokens (this backend runs inside
+  # the cockpit BEAM), so the identity is valid the instant the reviewer's pi connects to :4041.
   defp cmd_runner, do: Application.get_env(:aleph, :crew_cmd, &System.cmd/3)
   defp joiner, do: Application.get_env(:aleph, :crew_join, &Funes.MCP.Spawn.join/3)
 
@@ -143,6 +153,15 @@ defmodule Aleph.Crew do
     _ = cmd_runner().("tmux", kill_argv(role_key, thread_id), stderr_to_stdout: true)
     :ok
   end
+
+  # `Funes.Crew` behaviour — the doors funes' spawn_crew/kill_crew tools land in. Thin delegates to
+  # the IO wrappers above; the leader's handle in `opening_turn/2` is claude-machine (MVP lead).
+  # spawn/4 (not spawn/3) — a local spawn/3 call is ambiguous with Kernel.spawn/3.
+  @impl Funes.Crew
+  def spawn_role(role_key, thread_id, task), do: spawn(role_key, thread_id, task, [])
+
+  @impl Funes.Crew
+  def kill_role(role_key, thread_id), do: kill(role_key, thread_id)
 
   # The opening assignment the leader hands the reviewer. Names the leader handle so the reviewer's
   # @<leader> ESCALATE resolves — MVP leader is claude-machine (the task thread's staffed lead).

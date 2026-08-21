@@ -157,4 +157,41 @@ defmodule Aleph.CrewTest do
       assert_receive {:tmux, ["-L", _, "kill-window", "-t", "tlon:r42"]}
     end
   end
+
+  describe "Funes.Crew behaviour (the door funes' spawn_crew/kill_crew tools land in)" do
+    setup do
+      test_pid = self()
+
+      Application.put_env(:aleph, :crew_cmd, fn "tmux", argv, _opts ->
+        send(test_pid, {:tmux, argv})
+        {"", 0}
+      end)
+
+      Application.put_env(:aleph, :crew_join, fn thread_id, author, opts ->
+        send(test_pid, {:join, thread_id, author, opts})
+        {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}")}}
+      end)
+
+      Application.put_env(:aleph, :crew_settle_ms, 0)
+
+      on_exit(fn ->
+        Application.delete_env(:aleph, :crew_cmd)
+        Application.delete_env(:aleph, :crew_join)
+        Application.delete_env(:aleph, :crew_settle_ms)
+      end)
+
+      :ok
+    end
+
+    test "spawn_role/3 delegates to spawn/4 — mints identity and spawns the window" do
+      assert {:ok, "r7"} = Crew.spawn_role("reviewer", 7, "review the diff")
+      assert_receive {:join, 7, "reviewer-machine", _opts}
+      assert_receive {:tmux, ["-L", _, "new-window", "-d", "-t", "tlon", "-n", "r7" | _]}
+    end
+
+    test "kill_role/2 delegates to kill/2" do
+      assert :ok = Crew.kill_role("reviewer", 7)
+      assert_receive {:tmux, ["-L", _, "kill-window", "-t", "tlon:r7"]}
+    end
+  end
 end

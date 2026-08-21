@@ -10,6 +10,11 @@ config :funes, Funes.Repo,
 # funes calls this through the behaviour seam (§8) — it never imports aleph.
 config :funes, :arbiter, Aleph.Arbiter
 
+# The crew backend (funes crew MVP): funes' spawn_crew/kill_crew tools dispatch through Funes.Crew
+# to Aleph.Crew, which spawns a role's window on the tlon server IN this live node — the leader
+# staffs a reviewer without booting a second BEAM. Same behaviour seam as :arbiter above.
+config :funes, :crew, Aleph.Crew
+
 # The engine-credit presence backend: the hand toggle (Funes.Presence.clock_out/1 from the
 # console) — when the scarce Claude window is spent, the switchboard stops poking Claude
 # sessions. A real rate-limit reader is a later local backend swapped in the same seam.
