@@ -75,10 +75,15 @@ defmodule Aleph.CrewTest do
   describe "spawn/3 (IO seam, injected runner)" do
     setup do
       test_pid = self()
-      # fake tmux runner: records argv, returns success
-      Application.put_env(:aleph, :crew_cmd, fn "tmux", argv, _opts ->
-        send(test_pid, {:tmux, argv})
-        {"", 0}
+      # fake tmux runner: records argv; a capture-pane poll reports the registered footer (pi ready)
+      Application.put_env(:aleph, :crew_cmd, fn
+        "tmux", ["-L", _, "capture-pane" | _] = argv, _opts ->
+          send(test_pid, {:tmux, argv})
+          {"funes: registered — reviewer-machine on 1", 0}
+
+        "tmux", argv, _opts ->
+          send(test_pid, {:tmux, argv})
+          {"", 0}
       end)
 
       # fake identity minter: asserts author + thread, returns a canned exports block
@@ -87,9 +92,13 @@ defmodule Aleph.CrewTest do
         {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}"\nexport FUNES_AUTHOR="#{author}")}}
       end)
 
+      # no real poll wait in tests
+      Application.put_env(:aleph, :crew_poll_ms, 0)
+
       on_exit(fn ->
         Application.delete_env(:aleph, :crew_cmd)
         Application.delete_env(:aleph, :crew_join)
+        Application.delete_env(:aleph, :crew_poll_ms)
       end)
 
       :ok
@@ -134,12 +143,44 @@ defmodule Aleph.CrewTest do
 
       assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "tlon", "-n", "r42", _script]}
 
+      # readiness gate first: the pane is polled before any keystroke, so a booting TUI can't swallow
+      # the Enter and strand the turn unsubmitted
+      assert_receive {:tmux, ["-L", _sock, "capture-pane", "-p", "-t", "tlon:r42"]}
+
       assert_receive {:tmux, ["-L", sock, "send-keys", "-l", "-t", "tlon:r42", text]}
       assert text =~ "thread ##{42}"
       assert text =~ "claude-machine"
       assert text =~ "review HEAD~1"
 
       assert_receive {:tmux, ["-L", ^sock, "send-keys", "-t", "tlon:r42", "Enter"]}
+    end
+
+    test "the opening inject waits through a not-yet-ready pane, then submits once registered" do
+      Application.put_env(:aleph, :crew_settle_ms, 0)
+      test_pid = self()
+      polls = :counters.new(1, [])
+
+      # pane is 'booting' on the first poll, registered on the second — inject must not fire until then
+      Application.put_env(:aleph, :crew_cmd, fn
+        "tmux", ["-L", _, "capture-pane" | _] = argv, _opts ->
+          send(test_pid, {:tmux, argv})
+          :counters.add(polls, 1, 1)
+          if :counters.get(polls, 1) >= 2, do: {"funes: registered — reviewer-machine on 1", 0}, else: {"booting…", 0}
+
+        "tmux", argv, _opts ->
+          send(test_pid, {:tmux, argv})
+          {"", 0}
+      end)
+
+      on_exit(fn -> Application.delete_env(:aleph, :crew_settle_ms) end)
+
+      assert {:ok, "r42"} = Crew.spawn("reviewer", 42, "review HEAD~1")
+
+      assert_receive {:tmux, ["-L", _, "capture-pane", "-p", "-t", "tlon:r42"]}
+      assert_receive {:tmux, ["-L", _, "capture-pane", "-p", "-t", "tlon:r42"]}
+      assert_receive {:tmux, ["-L", _, "send-keys", "-l", "-t", "tlon:r42", _text]}
+      assert_receive {:tmux, ["-L", _, "send-keys", "-t", "tlon:r42", "Enter"]}
+      assert :counters.get(polls, 1) == 2
     end
   end
 
@@ -162,9 +203,14 @@ defmodule Aleph.CrewTest do
     setup do
       test_pid = self()
 
-      Application.put_env(:aleph, :crew_cmd, fn "tmux", argv, _opts ->
-        send(test_pid, {:tmux, argv})
-        {"", 0}
+      Application.put_env(:aleph, :crew_cmd, fn
+        "tmux", ["-L", _, "capture-pane" | _] = argv, _opts ->
+          send(test_pid, {:tmux, argv})
+          {"funes: registered — reviewer-machine on 1", 0}
+
+        "tmux", argv, _opts ->
+          send(test_pid, {:tmux, argv})
+          {"", 0}
       end)
 
       Application.put_env(:aleph, :crew_join, fn thread_id, author, opts ->
@@ -173,11 +219,13 @@ defmodule Aleph.CrewTest do
       end)
 
       Application.put_env(:aleph, :crew_settle_ms, 0)
+      Application.put_env(:aleph, :crew_poll_ms, 0)
 
       on_exit(fn ->
         Application.delete_env(:aleph, :crew_cmd)
         Application.delete_env(:aleph, :crew_join)
         Application.delete_env(:aleph, :crew_settle_ms)
+        Application.delete_env(:aleph, :crew_poll_ms)
       end)
 
       :ok

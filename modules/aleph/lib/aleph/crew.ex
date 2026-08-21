@@ -23,13 +23,13 @@ defmodule Aleph.Crew do
   `:spawn_launcher`.
   """
 
-  alias Aleph.Profiles
-  alias Aleph.Space
-
   # The crew backend funes dispatches to (`config :funes, :crew, Aleph.Crew`) — the same seam as
   # Aleph.Arbiter. funes' `spawn_crew`/`kill_crew` tools call through `Funes.Crew` and land in
   # `spawn_role/3` / `kill_role/2` below, run IN this live node, so no second BEAM boots.
   @behaviour Funes.Crew
+
+  alias Aleph.Profiles
+  alias Aleph.Space
 
   @tlon_session "tlon"
 
@@ -113,6 +113,17 @@ defmodule Aleph.Crew do
   @opening_settle_ms 1_500
   defp opening_settle_ms, do: Application.get_env(:aleph, :crew_settle_ms, @opening_settle_ms)
 
+  # Readiness gate for the opening inject: a fresh-profile pi boots for several seconds (npm
+  # bootstrap of its extensions, MCP refresh, funes register) — far longer than a fixed settle — so
+  # we POLL the pane for pi's funes-registered footer before sending Enter, or a booting TUI swallows
+  # it and the turn sits unsubmitted. `@ready_marker` is the aleph footer's own text (our UI). Poll
+  # cadence + budget are app-env overridable so tests don't pay the real wait, same as crew_settle_ms.
+  @ready_marker "registered"
+  @ready_poll_ms 500
+  @ready_timeout_ms 20_000
+  defp ready_poll_ms, do: Application.get_env(:aleph, :crew_poll_ms, @ready_poll_ms)
+  defp ready_timeout_ms, do: Application.get_env(:aleph, :crew_ready_timeout_ms, @ready_timeout_ms)
+
   @doc """
   Spawn `role_key` onto task `thread_id` as a funes citizen, then inject the leader's `task` as its
   opening turn. Returns `{:ok, window}`. `opts[:inject]` (default true) can be set false in tests to
@@ -170,13 +181,39 @@ defmodule Aleph.Crew do
       "Task: #{task}. Read the diff (git diff/show), post findings, and escalate any fix per your protocol."
   end
 
-  # Two-phase send-keys into the freshly-booted window: literal text, settle, then Enter. Best-effort.
+  # Two-phase send-keys into the window, but only once pi is input-ready: await the registered
+  # footer (`await_ready`), type the literal text, settle, then Enter as a SEPARATE burst. Waiting
+  # for ready is what stops a booting TUI from swallowing the Enter and leaving the turn unsubmitted.
+  # Best-effort throughout — a poll timeout still injects (the deadline outlasts a normal boot).
   defp inject_opening(window, text) do
     sock = tlon_socket()
     target = "#{@tlon_session}:#{window}"
+    _ = await_ready(sock, target)
     _ = cmd_runner().("tmux", ["-L", sock, "send-keys", "-l", "-t", target, text], stderr_to_stdout: true)
     Process.sleep(opening_settle_ms())
     _ = cmd_runner().("tmux", ["-L", sock, "send-keys", "-t", target, "Enter"], stderr_to_stdout: true)
     :ok
+  end
+
+  # Poll the pane until it shows pi's registered footer (or the budget elapses). Returns whether it
+  # became ready — the caller injects either way, so a never-ready pane degrades to the old behaviour
+  # rather than dropping the turn.
+  defp await_ready(sock, target), do: poll_ready(sock, target, div(ready_timeout_ms(), max(ready_poll_ms(), 1)))
+
+  defp poll_ready(_sock, _target, remaining) when remaining <= 0, do: false
+
+  defp poll_ready(sock, target, remaining) do
+    case cmd_runner().("tmux", ["-L", sock, "capture-pane", "-p", "-t", target], stderr_to_stdout: true) do
+      {out, 0} when is_binary(out) ->
+        if String.contains?(out, @ready_marker) do
+          true
+        else
+          Process.sleep(ready_poll_ms())
+          poll_ready(sock, target, remaining - 1)
+        end
+
+      _ ->
+        false
+    end
   end
 end
