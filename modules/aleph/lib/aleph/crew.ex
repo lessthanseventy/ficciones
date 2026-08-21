@@ -12,7 +12,10 @@ defmodule Aleph.Crew do
   window the running cockpit can route `@reviewer-machine` to.
 
   Pure tmux command builders (`spawn_argv/3`, `kill_argv/2`, `boot_script/2`) live below; the IO
-  wrappers that actually mint identity and shell out land in a follow-up.
+  wrappers (`spawn/4`, `kill/2`) mint identity, materialise the profile, shell out to tmux, and
+  inject the leader's opening turn. The command runner and identity minter are injected via app env
+  (`:aleph, :crew_cmd` / `:crew_join`) so the seam tests headless, same pattern as the cockpit's
+  `:spawn_launcher`.
   """
 
   alias Aleph.Profiles
@@ -83,5 +86,63 @@ defmodule Aleph.Crew do
   @spec boot_script(String.t(), String.t()) :: String.t()
   def boot_script(exports, launcher) do
     "export TERM=xterm-256color\n" <> exports <> "\nexec " <> launcher
+  end
+
+  # The reviewer runs on the SAME funes the cockpit uses (aleph's :4041/.dev) — the injected minter
+  # defaults to Funes.MCP.Spawn.join, which reads :funes/:mcp_port from the running app config, so a
+  # `mix aleph.crew.*` task inherits aleph's funes port/db just by booting the aleph app.
+  defp cmd_runner, do: Application.get_env(:aleph, :crew_cmd, &System.cmd/3)
+  defp joiner, do: Application.get_env(:aleph, :crew_join, &Funes.MCP.Spawn.join/3)
+
+  # Wait between window boot and injecting the opening turn — the profile pi's TUI must settle before
+  # send-keys, same reason as Cockpit's @opening_submit_delay_ms two-phase inject.
+  @opening_settle_ms 1_500
+
+  @doc """
+  Spawn `role_key` onto task `thread_id` as a funes citizen, then inject the leader's `task` as its
+  opening turn. Returns `{:ok, window}`. `opts[:inject]` (default true) can be set false in tests to
+  skip the timed send-keys.
+  """
+  @spec spawn(String.t(), integer() | String.t(), String.t(), keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  def spawn(role_key, thread_id, task, opts \\ []) do
+    with %{handle: handle, profile: profile_name} <- role(role_key) || {:error, {:unknown_role, role_key}},
+         %Aleph.Profile{} = profile <- Profiles.fetch(profile_name),
+         _dir = Profiles.materialise!(profile),
+         {:ok, %{exports: exports}} <- joiner().(thread_id, handle, mandate: "machine") do
+      window = crew_window(role_key, thread_id)
+      script = boot_script(exports, Aleph.Cockpit.profile_launcher(profile))
+      {_out, 0} = cmd_runner().("tmux", spawn_argv(role_key, thread_id, script), stderr_to_stdout: true)
+      if Keyword.get(opts, :inject, true), do: inject_opening(window, opening_turn(thread_id, task))
+      {:ok, window}
+    else
+      {:error, _} = err -> err
+      nil -> {:error, {:unknown_role, role_key}}
+      other -> {:error, other}
+    end
+  end
+
+  @doc "Tear down a role's window on a thread. Best-effort; a missing window is not an error."
+  @spec kill(String.t(), integer() | String.t()) :: :ok
+  def kill(role_key, thread_id) do
+    _ = cmd_runner().("tmux", kill_argv(role_key, thread_id), stderr_to_stdout: true)
+    :ok
+  end
+
+  # The opening assignment the leader hands the reviewer. Names the leader handle so the reviewer's
+  # @<leader> ESCALATE resolves — MVP leader is claude-machine (the task thread's staffed lead).
+  defp opening_turn(thread_id, task) do
+    "You are reviewing on funes thread ##{thread_id}. Leader handle: claude-machine. " <>
+      "Task: #{task}. Read the diff (git diff/show), post findings, and escalate any fix per your protocol."
+  end
+
+  # Two-phase send-keys into the freshly-booted window: literal text, settle, then Enter. Best-effort.
+  defp inject_opening(window, text) do
+    sock = tlon_socket()
+    target = "#{@tlon_session}:#{window}"
+    _ = cmd_runner().("tmux", ["-L", sock, "send-keys", "-l", "-t", target, text], stderr_to_stdout: true)
+    Process.sleep(@opening_settle_ms)
+    _ = cmd_runner().("tmux", ["-L", sock, "send-keys", "-t", target, "Enter"], stderr_to_stdout: true)
+    :ok
   end
 end

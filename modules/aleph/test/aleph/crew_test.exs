@@ -71,4 +71,56 @@ defmodule Aleph.CrewTest do
                ["-L", "aleph-tertius", "kill-window", "-t", "tlon:r42"]
     end
   end
+
+  describe "spawn/3 (IO seam, injected runner)" do
+    setup do
+      test_pid = self()
+      # fake tmux runner: records argv, returns success
+      Application.put_env(:aleph, :crew_cmd, fn "tmux", argv, _opts ->
+        send(test_pid, {:tmux, argv})
+        {"", 0}
+      end)
+
+      # fake identity minter: asserts author + thread, returns a canned exports block
+      Application.put_env(:aleph, :crew_join, fn thread_id, author, opts ->
+        send(test_pid, {:join, thread_id, author, opts})
+        {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}"\nexport FUNES_AUTHOR="#{author}")}}
+      end)
+
+      on_exit(fn ->
+        Application.delete_env(:aleph, :crew_cmd)
+        Application.delete_env(:aleph, :crew_join)
+      end)
+
+      :ok
+    end
+
+    test "mints reviewer-machine identity on the thread and spawns the r<id> window" do
+      assert {:ok, "r42"} = Crew.spawn("reviewer", 42, "review HEAD~1", inject: false)
+      assert_receive {:join, 42, "reviewer-machine", opts}
+      assert opts[:mandate] == "machine"
+      assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "tlon", "-n", "r42", script]}
+      assert script =~ ~s(export FUNES_AUTHOR="reviewer-machine")
+      assert script =~ "\nexec "
+    end
+
+    test "an unknown role is an error, no spawn" do
+      assert {:error, {:unknown_role, "planner"}} = Crew.spawn("planner", 42, "x")
+    end
+  end
+
+  describe "kill/2 (IO seam)" do
+    test "kills the role window via the injected runner" do
+      test_pid = self()
+
+      Application.put_env(:aleph, :crew_cmd, fn "tmux", argv, _ ->
+        send(test_pid, {:tmux, argv})
+        {"", 0}
+      end)
+
+      on_exit(fn -> Application.delete_env(:aleph, :crew_cmd) end)
+      assert :ok = Crew.kill("reviewer", 42)
+      assert_receive {:tmux, ["-L", _, "kill-window", "-t", "tlon:r42"]}
+    end
+  end
 end
