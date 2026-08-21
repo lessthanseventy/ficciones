@@ -85,15 +85,29 @@ No new test needed (pure data); `mise run aleph:check` covers compile. Commit wi
 
 ---
 
-## Task 4: aleph — footer pulse (latest event, always-on)
+## Task 4: aleph — frame the middle window with two bordered panels
 
-**Files:** Modify `modules/aleph/lib/aleph/panel/status_bar.ex` (+ `view.ex` if it needs the latest event in its data).
+Reshaped per operator: NOT a footer segment. The Tlön center gets a **bordered top panel** (window bar) and a **bordered bottom panel** (funes pulse), each a standalone box framing the middle terminal.
 
-**Step 1 (failing test):** in the status_bar test (find/create), assert that given a latest activity event, the rendered footer contains a compact pulse segment (icon + author + short label), styled by the event's semantic style.
+**Files:**
+- Create: `modules/aleph/lib/aleph/panel/window_bar.ex`, `modules/aleph/lib/aleph/panel/pulse.ex`
+- Modify: `modules/aleph/lib/aleph/view.ex` (`compose/3` — allocate the two bands + their borders), `modules/aleph/lib/aleph/panel/terminal.ex` (REMOVE the row-0 tab strip — it moves to WindowBar; terminal now renders edge-to-edge), `modules/aleph/lib/aleph/cockpit.ex` (click dispatch: row-0-is-tab-strip logic moves from the terminal to the WindowBar's rect; `pick`/`tab_at_x` on the new panel), `modules/aleph/lib/aleph/view.ex` `data_for/2`
+- Test: `modules/aleph/test/aleph/panel/window_bar_test.exs`, `modules/aleph/test/aleph/panel/pulse_test.exs`
 
-**Step 3 (implement):** add a right-aligned (or after the existing "no open blockers") segment showing `head(state.activity)` compactly: `funes ● fact #35 claude-machine`. Reuse the same event→{icon,style,text} mapping as the panel — extract that mapping into a shared helper (e.g. `Aleph.Panel.Activity.summarize/1`) so the panel and footer can't drift. Empty buffer → no pulse segment (don't crash).
+**`Aleph.Panel.Pulse` (bottom):** `render(%{events: events}, rect)` → the newest event via `Aleph.Panel.Activity.summarize/1` (shared, no drift): `funes  ● fact #35 claude-machine`. Empty buffer → a dim `funes · idle`. Bordered (compose wraps it in `Panel.Border`).
 
-**Step 4:** `mise run aleph:check` green. **Step 5:** commit `aleph: footer pulse — latest funes event always visible`.
+**`Aleph.Panel.WindowBar` (top):** `render(%{tabs: tabs, engine: e, thread: t}, rect)`:
+- Left: window tabs, each `presence + window·agent` — presence dot `●` (warm) / `○` (cold) from the roster; active window `:selected`, others `:dim`. Preserve click-to-switch (expose `tab_at_x/2` like the terminal did).
+- Right (justified): engine/Claude presence (`⚡ claude` when on the clock via the presence backend, dim when clocked out) + `#<focused thread id>`.
+- Data: reuse `tlon_tabs()`; presence from `Funes.Staff.roster()` (warm?/agent) joined to the tabs by agent handle (map window→agent via `Aleph.Mention`); engine state from the presence backend the cockpit already reads.
+
+**`compose/3` (view.ex):** above the center Terminal add a WindowBar band (content + 1-cell border ≈ 3 rows), below it a Pulse band (≈ 3 rows), both full width, inset between the Spaces picker/sidebars and the StatusBar. The center Terminal shrinks to the remaining middle. Borders via the existing `Panel.Border` (focusable frame). Keep StatusBar (info + hints) unchanged at the very bottom.
+
+**terminal.ex:** delete `tab_rows/2` + the row-0 tab strip; the terminal renders its cells edge-to-edge. Move `tab_at_x/2` (or its logic) to WindowBar.
+
+**cockpit.ex:** the click handler that special-cased "row 0 of the center terminal is aleph's tab strip" (`dispatch_click({Panel.Terminal, ...})`) now targets the WindowBar panel's rect instead. Verify `select_tlon_window` still fires on a tab click.
+
+TDD each panel's `render` + `tab_at_x`. Then `mise run aleph:check` green, and **live-verify** the frame renders (tabs top, pulse bottom, terminal boxed between) once merged. Commit(s): `aleph: bordered window-bar + funes-pulse panels framing the Tlön center`.
 
 ---
 

@@ -18,4 +18,31 @@ defmodule Aleph.Panel.TerminalTest do
     text = Enum.map_join(first, fn {t, _} -> t end)
     assert text =~ "x"
   end
+
+  describe "Claude Code's cyan `background` sentinel is neutralized, never blitted" do
+    # CC paints its theme `background` token — a deliberately garish "you should never see this"
+    # cyan (dark UI: rgb(0,204,204); light: rgb(0,153,153)) — as the explicit per-cell bg on
+    # queued/injected message rows. The VT stores it faithfully, so aleph must remap it to the
+    # panel's own default (black) or those rows blit as cyan under a phosphor theme.
+    test "a cyan-sentinel cell background is remapped to the terminal default (black)" do
+      rs = render_state(%{cells: [[{"m", {51, 255, 0}, {0, 204, 204}, 0}]]})
+      [first | _] = Terminal.render(rs, @rect)
+      {char, {:rgb, fg, bg}} = Enum.find(first, fn {t, _} -> t == "m" end)
+      assert {char, fg, bg} == {"m", 0x33FF00, 0x000000}
+    end
+
+    test "the light-UI sentinel rgb(0,153,153) is remapped too" do
+      rs = render_state(%{cells: [[{"m", {51, 255, 0}, {0, 153, 153}, 0}]]})
+      [first | _] = Terminal.render(rs, @rect)
+      {_, {:rgb, _fg, bg}} = Enum.find(first, fn {t, _} -> t == "m" end)
+      assert bg == 0x000000
+    end
+
+    test "a normal (non-sentinel) cell background is preserved untouched" do
+      rs = render_state(%{cells: [[{"m", {51, 255, 0}, {16, 32, 24}, 0}]]})
+      [first | _] = Terminal.render(rs, @rect)
+      {_, {:rgb, _fg, bg}} = Enum.find(first, fn {t, _} -> t == "m" end)
+      assert bg == 0x102018
+    end
+  end
 end
