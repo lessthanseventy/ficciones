@@ -61,7 +61,7 @@ defmodule Aleph.BoardTest do
   defp reads(overrides \\ %{}) do
     Map.merge(
       %{
-        active_key: :sessions,
+        active_key: :orbis,
         focused_id: 1,
         focused_title: "review PR 329",
         roster: @roster,
@@ -392,7 +392,7 @@ defmodule Aleph.BoardTest do
       data = %{spaces: Aleph.Space.all(), active_key: :orbis}
       rect = %{x: 0, y: 0, w: 20, h: 10}
       assert {:switch_space, :orbis} = Spaces.pick(data, rect, 2)
-      assert {:switch_space, :sessions} = Spaces.pick(data, rect, 3)
+      assert {:switch_space, :tlon} = Spaces.pick(data, rect, 3)
       assert Spaces.pick(data, rect, 0) == nil
     end
 
@@ -535,15 +535,15 @@ defmodule Aleph.BoardTest do
   end
 
   describe "view composition" do
-    test "sessions space: picker, tmux surface, a box per section, status bar — all in bounds" do
+    test "orbis space: picker, chorus surface, a box per section, status bar — all in bounds" do
       placements = View.compose(reads(), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
 
       assert Spaces in mods
-      assert Terminal in mods
+      assert Chorus in mods
       assert Dossier in mods
       assert StatusBar in mods
-      # every section gets its own bordered box (switcher, thread list, session, dossier)
+      # every section gets its own bordered box (switcher, roster/triage, chorus, dossier)
       content_panels = Enum.reject(mods, &(&1 in [Border, StatusBar]))
       assert Enum.count(mods, &(&1 == Border)) == length(content_panels)
       assert length(content_panels) >= 4
@@ -557,9 +557,9 @@ defmodule Aleph.BoardTest do
 
     test "content sits inside its column box, not against the frame" do
       placements = View.compose(reads(), 120, 40)
-      {_m, _d, list_rect} = Enum.find(placements, fn {m, _d, _r} -> m == ThreadList end)
-      # the thread list is inset from the left frame — padded, not jammed to x=0
-      assert list_rect.x >= 2
+      {_m, _d, roster_rect} = Enum.find(placements, fn {m, _d, _r} -> m == Roster end)
+      # the left sidebar is inset from the left frame — padded, not jammed to x=0
+      assert roster_rect.x >= 2
     end
 
     test "tlön space centers ONE machine terminal (the embedded tmux client), fed by the :machine read" do
@@ -597,9 +597,9 @@ defmodule Aleph.BoardTest do
     test "the PTY sizes to the placed Terminal rect — no overflow past the frame" do
       # center_rect is what the embedded PTY is sized to; it MUST equal the rect compose places the
       # Terminal into, or pi draws wider/taller than the visible area (content spills past the frame,
-      # or a dead band opens below). One authority for both, asserted across sizes and both terminal
-      # spaces — Tlön's is smaller than Sessions' since its column also carries WindowBar/Pulse.
-      for {key, w, h} <- [{:sessions, 120, 40}, {:tlon, 120, 40}, {:sessions, 84, 30}] do
+      # or a dead band opens below). One authority for both, asserted across sizes. Tlön is the only
+      # terminal-bearing space since the Slice 0 collapse; its column also carries WindowBar/Pulse.
+      for {key, w, h} <- [{:tlon, 120, 40}, {:tlon, 84, 30}] do
         r =
           reads(%{
             active_key: key,
@@ -653,18 +653,6 @@ defmodule Aleph.BoardTest do
       assert Roster in mods
       refute Terminal in mods
       refute ThreadList in mods
-    end
-
-    test "sessions space shows a thread navigator so up/down selection is visible" do
-      placements = View.compose(reads(%{focused_id: 2}), 120, 40)
-      thread_list = Enum.find(placements, fn {m, _d, _r} -> m == ThreadList end)
-
-      assert thread_list,
-             "Sessions space needs a visible ThreadList to navigate; focus was invisible"
-
-      {_m, data, _r} = thread_list
-      # the navigator's cursor is the focused thread — what up/down moves
-      assert data.selected_id == 2
     end
   end
 

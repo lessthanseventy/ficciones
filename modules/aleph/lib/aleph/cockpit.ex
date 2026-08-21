@@ -786,6 +786,8 @@ defmodule Aleph.Cockpit do
   end
 
   # The `Enter` verb landed: enter-or-spawn on the focused thread. The result flashes in the footer.
+  # UNREFERENCED since Slice 0 collapse (Sessions deleted) — no keymap clause emits :enter_or_spawn
+  # now; kept intact, teardown TBD.
   defp apply_effect({:enter_or_spawn, thread_id}, state),
     do: {:noreply, render(%{state | flash: enter_or_spawn(thread_id, state)})}
 
@@ -933,6 +935,8 @@ defmodule Aleph.Cockpit do
   # `enter_or_spawn`: if the focused thread already has a live session, it's already the center —
   # nothing to do (you're already working there). Otherwise spawn one onto it — one `spawn_onto/2`
   # path, reached via `n` (new thread) or `Enter` (existing).
+  # UNREFERENCED since Slice 0 collapse (Sessions deleted) — the `Enter`-to-spawn path is gone; the
+  # `n`/new-thread path still calls spawn_onto/2 directly. Kept intact, teardown TBD.
   defp enter_or_spawn(thread_id, state) do
     case safe_terminal(thread_id) do
       pid when is_pid(pid) -> "already live — type to use it, Ctrl+Space for aleph"
@@ -1077,18 +1081,12 @@ defmodule Aleph.Cockpit do
     %{state | placements: placements}
   end
 
-  defp focused(state), do: focused_thread(state.threads, state.focused_id)
-
   defp focused_thread([], _id), do: nil
   defp focused_thread(threads, nil), do: List.first(threads)
   defp focused_thread(threads, id), do: Enum.find(threads, List.first(threads), &(&1.id == id))
 
-  # The Sessions center: the focused thread's Aleph.Terminal render_state (Ghostty's live cells
-  # + cursor), read fresh; no session → the placeholder. `:no_session` elsewhere.
-  defp terminal_read(%{active_key: :sessions} = state, _focused) do
-    state |> center_terminal() |> render_state_of()
-  end
-
+  # No space carries a per-thread native-PTY center since the Slice 0 collapse (Sessions deleted);
+  # Tlön's center reads via machine_read, so terminal_read is uniformly `:no_session`.
   defp terminal_read(_state, _focused), do: :no_session
 
   # The Tlön center's read: the embedded tmux client. Lookup only — the find-or-spawn lives in
@@ -1122,9 +1120,8 @@ defmodule Aleph.Cockpit do
     :exit, _ -> {:error, :sessions_down}
   end
 
-  # The terminal that owns the keys, by space: Sessions → the focused thread's session; Tlön →
-  # the embedded tmux client. nil elsewhere.
-  defp center_terminal(%{active_key: :sessions} = state), do: state |> focused() |> terminal_for()
+  # The terminal that owns the keys, by space: Tlön → the embedded tmux client. nil elsewhere
+  # (Orbis has no center Terminal — its surface is the Chorus).
   defp center_terminal(%{active_key: :tlon}), do: safe_terminal(:machine)
   defp center_terminal(_state), do: nil
 
@@ -1241,9 +1238,6 @@ defmodule Aleph.Cockpit do
       _ -> nil
     end
   end
-
-  defp terminal_for(nil), do: nil
-  defp terminal_for(%{id: id}), do: safe_terminal(id)
 
   # Expire cached probes once @probe_ms has passed; render's ensure_probes refills lazily.
   defp maybe_expire_probes(state) do

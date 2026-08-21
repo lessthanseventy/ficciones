@@ -24,7 +24,6 @@ defmodule Aleph.Space do
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
-  alias Aleph.Panel.ThreadList
   alias Aleph.Panel.Triage
   alias Aleph.Panel.WindowBar
 
@@ -59,15 +58,6 @@ defmodule Aleph.Space do
         # list the middle already shows. TRIAGE below IN FLIGHT shows cross-thread trouble.
         surface: [Chorus],
         left: [Roster, Triage],
-        right: [Dossier]
-      },
-      %__MODULE__{
-        key: :sessions,
-        label: "Sessions",
-        surface: [{Terminal, :terminal}],
-        # The annotated ThreadList *is* the merged IN FLIGHT + THREADS: one list, agents folded in
-        # (Addendum §A). Picking a thread here swaps the center's live coworker session.
-        left: [ThreadList],
         right: [Dossier]
       },
       %__MODULE__{

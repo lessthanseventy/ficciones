@@ -261,14 +261,9 @@ defmodule Aleph.Keymap do
     end
   end
 
-  # Enter on a focused thread → enter-or-spawn: spawn a session if it has none, else no-op.
-  # Creating a thread and spawning are one action (`n` already does both), and "put a session on
-  # an existing thread" is this. Sessions space only: anywhere
-  # else the center can't show the spawned terminal (Orbis renders the chorus, Tlön the machine
-  # shell), so Enter would start a live PTY the operator can neither see nor type into.
-  defp command(%{key: :enter}, %{active_key: :sessions, focused_id: id} = state) when not is_nil(id),
-    do: {state, {:enter_or_spawn, id}}
-
+  # Enter has no top-level verb since the Slice 0 collapse: the Sessions space (its only home — the
+  # one center that could show a spawned per-thread PTY) is gone, so Enter is a plain no-op here.
+  # In Tlön, Enter is routed by handle_tlon (commit-the-preview), never reaching this clause.
   defp command(%{key: :enter}, state), do: {state, :none}
 
   defp command(%{key: :tab, shift: true}, state), do: switch(state, :prev)

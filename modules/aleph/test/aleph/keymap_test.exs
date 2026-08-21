@@ -3,7 +3,7 @@ defmodule Aleph.KeymapTest do
   The keyhandling contract, tested as a pure reducer with no TTY (design §8: the cockpit's one
   brain, extracted from its paint). `Aleph.Keymap.handle/2` maps `(key_event, state)` to
   `{new_state, effect}`; the Cockpit interprets the effect (`:repaint` / `:quit` /
-  `{:forward, key}` / `{:create_thread, title}` / `{:enter_or_spawn, id}` / `:none`).
+  `{:forward, key}` / `{:create_thread, title}` / `:none`).
 
   **Input model — tmux-style** (see `docs/plans/2026-08-16-aleph-tmux-style-input.md`): a live
   terminal in the center forwards every key by default; aleph's commands are reached through a
@@ -25,7 +25,7 @@ defmodule Aleph.KeymapTest do
     base =
       Map.merge(
         %{
-          active_key: :sessions,
+          active_key: :orbis,
           focused_id: 2,
           threads: [%{id: 1}, %{id: 2}, %{id: 3}],
           center_live?: false,
@@ -103,8 +103,9 @@ defmodule Aleph.KeymapTest do
     end
 
     test "] is next, [ is previous" do
+      # Two spaces after the Slice 0 collapse, so the ring is Orbis⇄Tlön: ] advances, [ retreats.
       assert {%{active_key: :tlon}, :repaint} = Keymap.handle(char("]"), state())
-      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("["), state())
+      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("["), state(%{active_key: :tlon}))
     end
 
     test "Down and j both move focus forward" do
@@ -130,22 +131,16 @@ defmodule Aleph.KeymapTest do
       assert {^s, :none} = Keymap.handle(key(:down), s)
     end
 
-    test "Enter on a focused thread asks to enter-or-spawn" do
-      assert {_s, {:enter_or_spawn, 2}} = Keymap.handle(key(:enter), state(%{focused_id: 2}))
-    end
-
     test "Enter with no focused thread is a no-op" do
       s = state(%{focused_id: nil, threads: []})
       assert {^s, :none} = Keymap.handle(key(:enter), s)
     end
 
-    test "Enter outside the Sessions space is a no-op — the spawned terminal couldn't be seen" do
-      # In Orbis the center renders the chorus and in Tlön the machine shell; a spawn from
-      # either would start a live PTY the operator can't see or type into.
-      for space <- [:orbis, :tlon] do
-        s = state(%{active_key: space})
-        assert {^s, :none} = Keymap.handle(key(:enter), s)
-      end
+    test "Enter is a no-op everywhere since the Slice 0 collapse deleted the Sessions space" do
+      # Sessions was the only center that could show a spawned per-thread PTY; with it gone Enter
+      # has no top-level verb (Tlön routes Enter through its own focus SM, not this clause).
+      s = state(%{active_key: :orbis, focused_id: 2})
+      assert {^s, :none} = Keymap.handle(key(:enter), s)
     end
   end
 
@@ -197,9 +192,9 @@ defmodule Aleph.KeymapTest do
       assert {%{active_key: :tlon, leader_pending?: false}, :repaint} = via_leader(key(:tab), s)
     end
 
-    test "^B Enter enters-or-spawns on the focused thread" do
+    test "^B Enter is a no-op since the Slice 0 collapse (no enter-or-spawn verb)" do
       s = state(%{center_live?: true, focused_id: 2})
-      assert {%{leader_pending?: false}, {:enter_or_spawn, 2}} = via_leader(key(:enter), s)
+      assert {%{leader_pending?: false}, :none} = via_leader(key(:enter), s)
     end
 
     test "^B n opens the title input modal" do
@@ -475,7 +470,7 @@ defmodule Aleph.KeymapTest do
     end
 
     test "in a space without a coworker, `m` is a no-op" do
-      s = state(%{active_key: :sessions})
+      s = state(%{active_key: :orbis})
       assert {^s, :none} = Keymap.handle(char("m"), s)
     end
 
@@ -630,9 +625,10 @@ defmodule Aleph.KeymapTest do
     end
 
     test "in nav mode, [ and ] still switch spaces (Tab is section-cycle here)" do
+      # Two-space ring after the collapse: from Tlön both brackets land on Orbis.
       s = tlon(nav_focus())
       assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("]"), s)
-      assert {%{active_key: :sessions}, :repaint} = Keymap.handle(char("["), s)
+      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("["), s)
     end
 
     test "in nav mode, c opens the composer on the machine thread" do
@@ -652,7 +648,7 @@ defmodule Aleph.KeymapTest do
     end
 
     test "outside Tlön a present focus struct is ignored — Ctrl+Space arms the leader as before" do
-      s = state(%{active_key: :sessions, center_live?: true, focus: Focus.new()})
+      s = state(%{active_key: :orbis, center_live?: true, focus: Focus.new()})
       assert {%{leader_pending?: true}, :repaint} = Keymap.handle(leader(), s)
     end
   end
