@@ -1046,7 +1046,7 @@ defmodule Aleph.Cockpit do
       threads: threads,
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
-      worlds: if(state.active_key == :orbis, do: orbis_worlds(), else: []),
+      worlds: if(state.active_key == :orbis, do: orbis_worlds(state), else: []),
       terminal: terminal_read(state, focused),
       machine: machine_read(state),
       stack: state.stack || @empty_stack,
@@ -1261,6 +1261,13 @@ defmodule Aleph.Cockpit do
     }
   end
 
+  # Orbis' survey only needs the rollup, not the git/nix/df battery — fill just the cached leaves
+  # rollup on the SAME @probe_ms throttle so `orbis_worlds/1` reads the cache, never gathers funes
+  # per-frame.
+  defp ensure_probes(%{active_key: :orbis, leaves: nil} = state) do
+    %{state | leaves: orbis_read(:orbis), probed_at: System.monotonic_time(:millisecond)}
+  end
+
   defp ensure_probes(state), do: state
 
   # The Memory pane read: coverage stats + the always-loaded floor + the pending-habit queue.
@@ -1371,17 +1378,19 @@ defmodule Aleph.Cockpit do
 
   defp logbook_read(_key), do: nil
 
-  # ORBIS rollup (Orbis Tertius slice 2) — the machine-scoped vantage, gathered only on Tlön. The
-  # semantics live in `Aleph.Orbis` (shared with the `chat` tab's header strip) so a status rule
-  # never drifts between the two surfaces.
-  defp orbis_read(:tlon), do: Aleph.Orbis.rollup()
+  # ORBIS rollup (Orbis Tertius slice 2) — the machine-scoped vantage, gathered on the spaces that
+  # show it (Tlön's LEAVES sidebar + Orbis' survey), cached in `state.leaves` on the @probe_ms
+  # throttle. The semantics live in `Aleph.Orbis` (shared with the `chat` tab's header strip) so a
+  # status rule never drifts between the surfaces.
+  defp orbis_read(key) when key in [:tlon, :orbis], do: Aleph.Orbis.rollup()
   defp orbis_read(_key), do: nil
 
-  # The Orbis survey (Chorus center): the per-WORLD rollup (Slice 0: one hardcoded world). Reuses
-  # the same `Aleph.Orbis.rollup/0` gather as the Tlön LEAVES sidebar — its `worlds` key — so the
-  # survey and the sidebar can never disagree. Empty list when funes is down / there are no worlds.
-  defp orbis_worlds do
-    case Aleph.Orbis.rollup() do
+  # The Orbis survey (Chorus center): the per-WORLD rollup grouping (Slice 0: one hardcoded world).
+  # Reads the SAME cached `state.leaves` rollup the @probe_ms throttle fills — its `worlds` key — so
+  # the survey and the Tlön LEAVES sidebar share one gather. Empty list when funes is down / the
+  # cache is cold / there are no worlds. Public: a pure read seam (unit-tested against a known cache).
+  def orbis_worlds(state) do
+    case state.leaves do
       %{worlds: worlds} -> worlds
       _ -> []
     end

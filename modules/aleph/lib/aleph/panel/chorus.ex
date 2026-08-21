@@ -48,6 +48,8 @@ defmodule Aleph.Panel.Chorus do
 
   def pick(_data, _rect, _local_y), do: nil
 
+  # Slice 0: every world block is a fixed @world_rows tall, so idx→world is plain integer division.
+  # Slice 1 (multi-world / wrapping summaries) must measure each block's rendered height instead.
   defp world_at(worlds, idx) when idx >= 0 do
     if div(idx, @world_rows) < length(worlds), do: {:switch_space, :tlon}
   end

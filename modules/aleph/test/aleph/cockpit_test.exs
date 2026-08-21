@@ -152,6 +152,24 @@ defmodule Aleph.CockpitTest do
     end
   end
 
+  describe "orbis_worlds/1: the survey reads the CACHED rollup, never re-gathers funes" do
+    test "returns the cached rollup's worlds — no live funes gather" do
+      # ensure_probes fills state.leaves with the full rollup (worlds key included) on the @probe_ms
+      # throttle; the survey must read THAT, so a known cache flows straight through untouched.
+      cached = %{
+        summary: %{open: 1, stalled: 0, done: 0, conflicts: 0},
+        rows: [%{id: 1}],
+        worlds: [%{world: "Tlön", summary: %{open: 1, stalled: 0, done: 0, conflicts: 0}, leaves: [%{id: 1}]}]
+      }
+
+      assert Cockpit.orbis_worlds(%{leaves: cached}) == cached.worlds
+    end
+
+    test "a cold / funes-down cache (nil leaves) is an empty survey, not a crash" do
+      assert Cockpit.orbis_worlds(%{leaves: nil}) == []
+    end
+  end
+
   describe "machine_spawn_due?/2: the Tlön coworker backoff gate" do
     test "a fresh cockpit (no prior failure) is due — even though BEAM monotonic time is NEGATIVE" do
       # The bug: machine_retry_at started at 0 and the guard was `now < retry_at`. BEAM monotonic
