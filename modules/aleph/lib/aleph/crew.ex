@@ -81,7 +81,10 @@ defmodule Aleph.Crew do
 
   @doc """
   The window's boot script: set TERM, source the funes `exports` block (so `${FUNES_MCP_URL}` etc.
-  reach pi's env), then `exec` the profile launcher. Mirrors `Cockpit.spawn_agent_window/3`.
+  reach pi's env), then `exec` the bare pi launcher. Mirrors `Cockpit.spawn_agent_window/3` — a
+  role's window rides the ALREADY-created `r<tid>` window on the shared tlon server, so it must
+  exec the bare `Cockpit.pi_command/1`, never `profile_launcher/1` (a `tmux new-session` wrapper
+  meant for a coworker's own dedicated server — execing it here would nest a second server).
   """
   @spec boot_script(String.t(), String.t()) :: String.t()
   def boot_script(exports, launcher) do
@@ -111,8 +114,8 @@ defmodule Aleph.Crew do
     with %{handle: handle, profile: profile_name} <- role(role_key) || :unknown_role,
          %Aleph.Profile{} = profile <- Profiles.fetch(profile_name) || {:missing_profile, profile_name},
          _dir = Profiles.materialise!(profile),
-         {:ok, %{exports: exports}} <- joiner().(thread_id, handle, mandate: "machine"),
-         script = boot_script(exports, Aleph.Cockpit.profile_launcher(profile)),
+         {:ok, %{exports: exports}} <- joiner().(thread_id, handle, mandate: "machine", assign: false),
+         script = boot_script(exports, Aleph.Cockpit.pi_command(profile)),
          {:ok, window} <- run_spawn(role_key, thread_id, script) do
       if Keyword.get(opts, :inject, true), do: inject_opening(window, opening_turn(thread_id, task))
       {:ok, window}

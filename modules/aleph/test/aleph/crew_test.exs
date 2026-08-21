@@ -99,9 +99,15 @@ defmodule Aleph.CrewTest do
       assert {:ok, "r42"} = Crew.spawn("reviewer", 42, "review HEAD~1", inject: false)
       assert_receive {:join, 42, "reviewer-machine", opts}
       assert opts[:mandate] == "machine"
+      # the reviewer must NOT hijack the task thread's staffed lead (Staff.assign is single-slot)
+      assert opts[:assign] == false
       assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "tlon", "-n", "r42", script]}
       assert script =~ ~s(export FUNES_AUTHOR="reviewer-machine")
       assert script =~ "\nexec "
+      # bare pi launch (Cockpit.pi_command/1), NOT profile_launcher's tmux new-session wrapper —
+      # execing new-session here would nest a second tmux server on the shared aleph-tertius socket
+      assert script =~ "PI_CODING_AGENT_DIR"
+      refute script =~ "new-session"
     end
 
     test "an unknown role is an error, no spawn" do

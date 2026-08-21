@@ -1594,7 +1594,8 @@ defmodule Aleph.Cockpit do
   # and any windowed pi. The model MUST ride as a --model flag: pi resolves settings.json defaultModel
   # BEFORE pi-multi-account registers `anthropic`, so a claude-* default falls back to glm; the CLI
   # flag applies after extensions load, so it sticks (verified 2026-08-17).
-  defp pi_command(%Profile{} = profile) do
+  @doc false
+  def pi_command(%Profile{} = profile) do
     base = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
     dir = Profiles.config_dir(profile.name)
     prompt = if profile.system_prompt, do: " --append-system-prompt #{Path.join(dir, "system_prompt.md")}", else: ""
