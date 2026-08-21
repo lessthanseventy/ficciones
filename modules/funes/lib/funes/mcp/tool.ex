@@ -94,6 +94,8 @@ defmodule Funes.MCP.Tool.BankFact do
   `check_cmd` when the claim is reproducible, or it ranks as an unverified
   opinion. To bank the operator's words as a `stated` fact, pass `from_message`
   (his message id): the fact quotes it verbatim. Never paraphrase him into text.
+  `intent` is optional on either path — what the fact is FOR, the purpose the
+  value loop later grades against.
   """
   use Anubis.Server.Component, type: :tool
 
@@ -111,6 +113,8 @@ defmodule Funes.MCP.Tool.BankFact do
     field :check_cmd, :string, description: "Command that re-runs/verifies the claim"
 
     field :from_message, :integer, description: "Operator message id to quote verbatim as a STATED fact"
+
+    field :intent, :string, description: "What this fact is FOR — the purpose the value loop later grades against"
   end
 
   @impl true
@@ -141,6 +145,7 @@ defmodule Funes.MCP.Tool.BankFact do
       text: text,
       provenance: "derived",
       check_cmd: Map.get(params, :check_cmd),
+      intent: Map.get(params, :intent),
       source_session_id: identity.session_id
     }
     |> Dossier.bank_fact()
@@ -164,6 +169,7 @@ defmodule Funes.MCP.Tool.BankFact do
         |> Dossier.bank_stated_fact(%{
           kind: params.kind,
           check_cmd: Map.get(params, :check_cmd),
+          intent: Map.get(params, :intent),
           source_session_id: identity.session_id
         })
         |> normalize()

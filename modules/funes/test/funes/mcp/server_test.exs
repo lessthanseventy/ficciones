@@ -227,6 +227,23 @@ defmodule Funes.MCP.ServerTest do
     assert fact["check_cmd"] == nil
   end
 
+  test "bank_fact stores intent (what the fact was for)", %{thread: thread, token: token} do
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    result =
+      call(token, session, 4, "bank_fact", %{
+        "kind" => "learned",
+        "text" => "x",
+        "intent" => "for the value loop"
+      })
+
+    refute result["isError"]
+
+    fact = Repo.get_by!(Fact, thread_id: thread.id, text: "x")
+    assert fact.intent == "for the value loop"
+  end
+
   test "add_todo / complete_todo — the activity axis over the wire", %{token: token} do
     session = handshake(token)
     call(token, session, 3, "register", %{})
