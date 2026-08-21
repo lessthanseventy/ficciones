@@ -47,6 +47,7 @@ defmodule Aleph.Keymap do
   the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
   """
 
+  alias Aleph.Panel
   alias Aleph.Profiles
   alias Aleph.Space
   alias Aleph.Tlon.Focus
@@ -63,6 +64,7 @@ defmodule Aleph.Keymap do
           | {:settings_apply, {String.t(), :model | :permission}}
           | {:habit_action, :approve | :reject}
           | :tlon_enter
+          | :tlon_preview
           | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
@@ -303,10 +305,13 @@ defmodule Aleph.Keymap do
   defp handle_tlon(%{key: :char, char: "H"}, state), do: {focus_intent(state, :col_left), :repaint}
   # j/k move the item cursor within the focused pane; Enter opens its selection's detail in MAIN.
   # (Leaves' Enter is a space-jump, not a detail — Phase 4 special-cases it ahead of this clause.)
-  defp handle_tlon(%{key: :char, char: "j"}, state), do: {focus_intent(state, :item_next), :repaint}
-  defp handle_tlon(%{key: :char, char: "k"}, state), do: {focus_intent(state, :item_prev), :repaint}
-  defp handle_tlon(%{key: :down}, state), do: {focus_intent(state, :item_next), :repaint}
-  defp handle_tlon(%{key: :up}, state), do: {focus_intent(state, :item_prev), :repaint}
+  # Over a WINDOW-BEARING pane (Leaves — each leaf maps to a live World tmux window) the move emits
+  # `:tlon_preview` so the cockpit re-points the center to the hovered window (a hover, not a commit
+  # — focus stays in nav); anywhere else it's a plain `:repaint`.
+  defp handle_tlon(%{key: :char, char: "j"}, state), do: nav_move(state, :item_next)
+  defp handle_tlon(%{key: :char, char: "k"}, state), do: nav_move(state, :item_prev)
+  defp handle_tlon(%{key: :down}, state), do: nav_move(state, :item_next)
+  defp handle_tlon(%{key: :up}, state), do: nav_move(state, :item_prev)
   # Enter is contextual: the cockpit resolves the focused pane and either opens a MAIN detail
   # (Commits/Memory) or jumps to a thread (Leaves) — the keymap can't, it lacks the reads.
   defp handle_tlon(%{key: :enter}, state), do: {state, :tlon_enter}
@@ -324,6 +329,18 @@ defmodule Aleph.Keymap do
   defp handle_tlon(_key, state), do: {state, :none}
 
   defp focus_intent(state, intent), do: %{state | focus: Focus.handle(state.focus, state.tlon_layout, intent)}
+
+  # Move the item cursor, then decide the effect: over a window-bearing pane the cockpit should
+  # preview (re-point the center) — `:tlon_preview`; elsewhere a plain `:repaint`. The cockpit
+  # re-checks and no-ops the re-point if the hovered leaf has no live window.
+  defp nav_move(state, intent) do
+    next = focus_intent(state, intent)
+    if window_bearing?(next), do: {next, :tlon_preview}, else: {next, :repaint}
+  end
+
+  # A pane whose selection maps to a live World tmux window — Leaves today (each leaf → its lead's
+  # window). Only these drive the center preview.
+  defp window_bearing?(state), do: Focus.focused_pane(state.focus, state.tlon_layout) == Panel.Leaves
 
   # The modal opens over the coworker profiles aleph actually materialises (Profiles.names) — the
   # only rows whose model/permission it can honestly write. A prior modal's row/field is preserved.

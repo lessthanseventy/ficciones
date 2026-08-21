@@ -14,6 +14,7 @@ defmodule Aleph.KeymapTest do
   use ExUnit.Case, async: true
 
   alias Aleph.Keymap
+  alias Aleph.Panel.Leaves
   alias Aleph.Tlon.Focus
   alias Aleph.Tlon.Settings
 
@@ -579,6 +580,29 @@ defmodule Aleph.KeymapTest do
       assert n1.focus.cursors[:a] == 1
       {n2, :repaint} = Keymap.handle(key(:up), n1)
       assert n2.focus.cursors[:a] == 0
+    end
+
+    # Preview-swap (Worlds Slice 0, tweak #1): j/k/arrows over a WINDOW-BEARING pane (Leaves — each
+    # leaf maps to a live World tmux window) emit `:tlon_preview` so the cockpit re-points the center
+    # to the hovered window WITHOUT taking focus. Over a non-window pane it stays a plain `:repaint`.
+    defp leaves_layout, do: %{left: [:a, :b], right: [Leaves], sections: %{}, counts: %{Leaves => 3}}
+
+    defp leaves_nav(overrides \\ %{}),
+      do: tlon(nav_focus(Map.merge(%{column: :right, pane: 0}, overrides)), %{tlon_layout: leaves_layout()})
+
+    test "in nav mode, j/k over the Leaves pane emit :tlon_preview (a hover re-points the center)" do
+      assert {n1, :tlon_preview} = Keymap.handle(char("j"), leaves_nav())
+      assert n1.focus.cursors[Leaves] == 1
+      assert {_n2, :tlon_preview} = Keymap.handle(char("k"), n1)
+    end
+
+    test "in nav mode, Down/Up over the Leaves pane also emit :tlon_preview" do
+      assert {_n1, :tlon_preview} = Keymap.handle(key(:down), leaves_nav())
+      assert {_n2, :tlon_preview} = Keymap.handle(key(:up), leaves_nav())
+    end
+
+    test "in nav mode, j over a non-window pane stays a plain :repaint (no preview)" do
+      assert {_n, :repaint} = Keymap.handle(char("j"), tlon(nav_focus(%{column: :left, pane: 0})))
     end
 
     test "in nav mode, Enter emits :tlon_enter (the cockpit resolves detail-vs-jump per pane)" do

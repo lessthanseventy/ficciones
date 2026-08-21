@@ -238,6 +238,10 @@ defmodule Aleph.Cockpit do
             # center tmux terminal). Persistent across keypresses — the keymap reads+advances it,
             # only in the Tlön space. Defaults in-terminal, so Tlön opens with keys going to tmux.
             focus: Focus.new(),
+            # The World tmux window the center is previewing (Worlds Slice 0, tweak #1): a hover over
+            # a window-bearing pane (Leaves) re-points the center here WITHOUT taking focus; a commit
+            # (`commit_preview/1`) drops keys into it. nil = center on its default (active) window.
+            previewed_window: nil,
             paste_buffer: nil,
             input: nil,
             # The Tlön settings modal (nil = closed). Persistent like `input`: the keymap opens it
@@ -694,9 +698,9 @@ defmodule Aleph.Cockpit do
 
   defp dispatch_click({panel, data, rect}, _x, y, state), do: apply_pick(Panel.pick(panel, data, rect, y - rect.y), state)
 
-  # Select a Tlön tmux window by the clicked tab's index; nil (a click past the tabs) is a no-op.
+  # Select a Tlön tmux window by the clicked/hovered tab's index; nil (past the tabs) is a no-op.
   defp select_tlon_window(%{index: idx}) do
-    System.cmd("tmux", tlon_tmux(["select-window", "-t", "#{@tlon_session}:#{idx}"]), stderr_to_stdout: true)
+    tlon_run(["select-window", "-t", "#{@tlon_session}:#{idx}"])
     :ok
   end
 
@@ -831,6 +835,10 @@ defmodule Aleph.Cockpit do
     end
   end
 
+  # A hover in Tlön nav (`:tlon_preview`): re-point the World center to the window under the cursor
+  # (a live preview) WITHOUT taking focus or sending keys — commit does that. See preview_focused/1.
+  defp apply_effect(:tlon_preview, state), do: {:noreply, render(preview_focused(state))}
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.
@@ -882,6 +890,33 @@ defmodule Aleph.Cockpit do
         {:noreply, render(%{state | flash: "no leaf selected"})}
     end
   end
+
+  @doc false
+  # Preview-swap (Worlds Slice 0, tweak #1): re-point the World center to the tmux window under the
+  # nav cursor, storing it in `previewed_window`, WITHOUT taking keyboard focus (in_terminal? stays
+  # put) or sending keys — a live preview that follows the selection. Only a window-bearing pane
+  # (Leaves, mapped by the leaf's lead to a live window) re-points; a leaf with no live window, or
+  # any other pane/space, leaves the center exactly where it was. commit_preview/1 is what focuses.
+  def preview_focused(%{active_key: :tlon} = state) do
+    layout = tlon_layout(state)
+    rows = (state.leaves || %{rows: []}).rows
+
+    with Panel.Leaves <- Focus.focused_pane(state.focus, layout),
+         %{lead: lead} <- Enum.at(rows, Focus.cursor(state.focus, layout)),
+         idx when not is_nil(idx) <- window_index(tlon_tabs(), lead) do
+      select_tlon_window(%{index: idx})
+      %{state | previewed_window: idx}
+    else
+      _ -> state
+    end
+  end
+
+  def preview_focused(state), do: state
+
+  @doc false
+  # Commit the previewed World window: take keyboard focus into the center (in_terminal? true) so
+  # keystrokes now flow to tmux. The shared "attach in place" step — Task 2's Leaves-Enter reuses it.
+  def commit_preview(state), do: put_in(state.focus.in_terminal?, true)
 
   # `enter_or_spawn`: if the focused thread already has a live session, it's already the center —
   # nothing to do (you're already working there). Otherwise spawn one onto it — one `spawn_onto/2`
@@ -1705,14 +1740,17 @@ defmodule Aleph.Cockpit do
   # so it asks tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort:
   # the session not being up yet is an empty strip, not a crash.
   defp tlon_tabs do
-    case System.cmd(
-           "tmux",
-           tlon_tmux(["list-windows", "-t", @tlon_session, "-F", "\#{window_active}\t\#{window_index}\t\#{window_name}"]),
-           stderr_to_stdout: true
-         ) do
+    case tlon_run(["list-windows", "-t", @tlon_session, "-F", "\#{window_active}\t\#{window_index}\t\#{window_name}"]) do
       {out, 0} -> parse_tlon_tabs(out)
       _ -> []
     end
+  end
+
+  # Every Tlön tmux call routes through here — one seam over the coworker's private server — so a
+  # test can inject a fake runner (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
+  defp tlon_run(args) do
+    runner = Application.get_env(:aleph, :tlon_cmd, &System.cmd/3)
+    runner.("tmux", tlon_tmux(args), stderr_to_stdout: true)
   end
 
   # Every tmux call about the Tlön coworker targets its private server (`-L aleph-<profile>`),
