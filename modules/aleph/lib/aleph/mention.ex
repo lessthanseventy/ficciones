@@ -18,6 +18,8 @@ defmodule Aleph.Mention do
       thread.
   """
 
+  alias Aleph.Crew
+
   # funes handle → the tmux window (tab) the coworker runs in. Keep in sync with the spawn code.
   # tertius-machine (the meta agent) is the center; claude-machine is the builder, tab `hronir`.
   @base_coworkers %{"claude-machine" => "hronir", "tertius-machine" => "tertius"}
@@ -79,9 +81,9 @@ defmodule Aleph.Mention do
   def route(row, opts \\ [])
 
   def route(%{author: author, body: body, thread_id: tid}, opts) do
-    author_window = coworkers()[author]
-    targets = mention_targets(body, opts[:lead])
-    lead_window = opts[:lead] && coworkers()[opts[:lead]]
+    author_window = resolve(author, tid)
+    targets = mention_targets(body, opts[:lead], tid)
+    lead_window = opts[:lead] && resolve(opts[:lead], tid)
     staffed = opts[:staffed_window]
 
     for_result =
@@ -95,23 +97,44 @@ defmodule Aleph.Mention do
 
   def route(_, _), do: []
 
+  # A handle → window: the static base map, else a crew role's per-thread window (`r<tid>`), else
+  # nil. Crew roles only resolve WITH a thread id — their window is per-thread, so a nil tid
+  # (standing thread, uqbar console) leaves a crew handle unresolved and it is simply not woken.
+  defp resolve(handle, tid) do
+    cond do
+      w = coworkers()[handle] -> w
+      role = tid && Crew.handle_role(handle) -> Crew.crew_window(role, tid)
+      true -> nil
+    end
+  end
+
   # On a staffed thread the lead lives in its own `t<id>` window: rewrite any target that resolves
   # to the lead's standing window onto it. nil staffed_window (standing thread / no per-thread
   # session) = no redirect, the old handle→window target stands.
   defp redirect(window, lead_window, staffed) when is_binary(staffed) and window == lead_window, do: staffed
   defp redirect(window, _lead_window, _staffed), do: window
 
-  # The windows to wake: the explicitly @-mentioned coworkers, or — when none are named — the
-  # thread's lead coworker's window (nil / unknown lead → []).
-  defp mention_targets(body, lead) do
-    case mentions(body) do
-      [] -> lead |> lead_window() |> List.wrap()
-      ms -> Enum.map(ms, fn {_handle, window} -> window end)
+  # The windows to wake: the @-mentioned handles resolved for THIS thread, or — when none are
+  # named — the thread's lead coworker's window (nil/unknown → []).
+  defp mention_targets(body, lead, tid) do
+    case mentioned_handles(body) do
+      [] -> lead |> lead_window(tid) |> List.wrap()
+      handles -> handles |> Enum.map(&resolve(&1, tid)) |> Enum.reject(&is_nil/1)
     end
   end
 
-  defp lead_window(nil), do: nil
-  defp lead_window(handle), do: coworkers()[handle]
+  defp lead_window(nil, _tid), do: nil
+  defp lead_window(handle, tid), do: resolve(handle, tid)
+
+  # Every @handle token in the body (deduped, first-seen). Resolution to windows happens per-thread
+  # in `resolve/2`; this stays purely lexical so crew handles are seen even though they are not in
+  # the static `coworkers/0` map.
+  defp mentioned_handles(body) do
+    ~r/@([\w-]+)/
+    |> Regex.scan(body, capture: :all_but_first)
+    |> List.flatten()
+    |> Enum.uniq()
+  end
 
   defp one_line(body), do: String.replace(body || "", "\n", " ")
   defp tid_str(nil), do: "?"

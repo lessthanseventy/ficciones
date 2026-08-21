@@ -130,4 +130,30 @@ defmodule Aleph.MentionTest do
              ) == [{"hronir", "[funes thread #1] andrew: tell me a joke"}]
     end
   end
+
+  describe "crew role resolution (per-thread windows)" do
+    test "@reviewer-machine on a thread routes to that thread's r<id> window" do
+      row = %{author: "claude-machine", body: "@reviewer-machine review the diff in HEAD~1", thread_id: 42}
+
+      assert Mention.route(row, lead: "claude-machine", staffed_window: "t42") ==
+               [{"r42", "[funes thread #42] claude-machine: @reviewer-machine review the diff in HEAD~1"}]
+    end
+
+    test "a reviewer's own post never wakes its own r<id> window (loop guard)" do
+      row = %{author: "reviewer-machine", body: "@reviewer-machine note to self", thread_id: 42}
+      assert Mention.route(row, lead: "claude-machine", staffed_window: "t42") == []
+    end
+
+    test "reviewer ESCALATE to the leader lands on the leader's staffed window" do
+      row = %{author: "reviewer-machine", body: "@claude-machine ESCALATE apply: <patch>", thread_id: 42}
+
+      assert Mention.route(row, lead: "claude-machine", staffed_window: "t42") ==
+               [{"t42", "[funes thread #42] reviewer-machine: @claude-machine ESCALATE apply: <patch>"}]
+    end
+
+    test "a crew handle without a thread id does not resolve (no tid → no per-thread window)" do
+      row = %{author: "claude-machine", body: "@reviewer-machine hi", thread_id: nil}
+      assert Mention.route(row, lead: "claude-machine") == []
+    end
+  end
 end
