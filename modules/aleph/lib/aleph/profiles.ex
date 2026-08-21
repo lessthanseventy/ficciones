@@ -280,6 +280,34 @@ defmodule Aleph.Profiles do
     }
   }
 
+  # The reviewer's permission policy — @tlon_permissions with the WRITE FENCE added: the built-in
+  # file-writers (`write`, `edit`) and the obvious bash-write forms are denied, so a reviewer
+  # STRUCTURALLY cannot land a change (its only path is to escalate). Reads/greps/git-read fall
+  # through the "*" => "allow" fallback; yoloMode keeps those from stalling on an ask. The
+  # catastrophic deny-floor rides along from @tlon_permissions unchanged. See the crew contract §A.
+  #
+  # pi-permission-system per-tool surfaces: top-level keys are surface names; `write`/`edit` are the
+  # only built-in file WRITERS (reads are read/grep/find/ls), and a per-tool deny needs no path glob.
+  # Bash writes are token-gated, so we deny the common redirect/in-place forms — the airtight fence is
+  # the tool deny; the bash patterns are belt-and-suspenders for the MVP (the model-judge for the
+  # ambiguous middle is phase-2).
+  @reviewer_permissions put_in(
+                          @tlon_permissions,
+                          ["permission"],
+                          Map.merge(@tlon_permissions["permission"], %{
+                            "write" => "deny",
+                            "edit" => "deny",
+                            "bash" =>
+                              Map.merge(@tlon_permissions["permission"]["bash"], %{
+                                "* > *" => "deny",
+                                "* >> *" => "deny",
+                                "sed -i*" => "deny",
+                                "tee *" => "deny",
+                                "dd *" => "deny"
+                              })
+                          })
+                        )
+
   # The dense statusline (manos/footer) — its OWN package, not manos/pi, so dropping the funes
   # adapter doesn't take the footer with it. Added explicitly so Tlön shows it at the next cockpit
   # restart even before the flake registers it into the base config (which needs a home:switch).
@@ -323,6 +351,22 @@ defmodule Aleph.Profiles do
   asked to synthesize — you are the vantage, not another voice in the room.
   """
 
+  # The reviewer persona → `system_prompt.md`. Names the write-deny explicitly so the model doesn't
+  # keep retrying a denied tool — it should escalate instead. See Aleph.Crew / the crew MVP contract.
+  @reviewer_role """
+  You are reviewer-machine, a code REVIEWER on this funes task thread. Read the diff you are asked to
+  review (use `git diff`/`git show` — you have repo READ access) and post terse, high-signal findings
+  as thread messages. You do NOT ship changes: you CANNOT write files (the write/edit tools are denied
+  to you, by policy — do not fight it). When a fix is warranted, post the patch and escalate it to the
+  thread's leader with a single line:
+
+      @<leader> ESCALATE apply: <unified diff or exact change>
+
+  Then STOP and wait for the leader's verdict. If a write is denied, that is expected — never retry
+  it; escalate instead. Attribute nothing to yourself that you did not actually verify. Be brief; a
+  review nobody reads is worse than none.
+  """
+
   # The one coworker profile: `tertius`, the Tlön CENTER — the Orbis Tertius meta agent
   # (`tertius-machine`, tab `tertius`), keying the tmux socket `aleph-tertius` and config dir. A
   # machine-scope funes citizen (@tertius_funes_mcp: the machine-citizen surface + the machine_overview
@@ -339,6 +383,16 @@ defmodule Aleph.Profiles do
       sandbox: @tlon_sandbox,
       permissions: @tlon_permissions,
       system_prompt: @tertius_role
+    },
+    %Profile{
+      name: "reviewer",
+      drop_extensions: [],
+      add_extensions: [@footer_extension],
+      mcp: @tlon_funes_mcp,
+      model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
+      sandbox: @tlon_sandbox,
+      permissions: @reviewer_permissions,
+      system_prompt: @reviewer_role
     }
   ]
 

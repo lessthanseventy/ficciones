@@ -644,7 +644,7 @@ defmodule Aleph.KeymapTest do
 
     test "in nav mode, ',' opens the modal over the materialised coworker profiles" do
       {next, :repaint} = Keymap.handle(char(","), tlon(nav_focus()))
-      assert %Settings{open?: true, coworkers: ["tertius"]} = next.modal
+      assert %Settings{open?: true, coworkers: ["tertius", "reviewer"]} = next.modal
     end
 
     test "in the terminal, ',' forwards to tmux — it does not open the modal (Ctrl+Space first)" do

@@ -306,4 +306,49 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.materialise!(Profiles.fetch("tertius"), base: base, root: root) == Path.join(root, "tertius")
     end
   end
+
+  describe "the reviewer profile — the write-deny gate" do
+    test "reviewer is a fetchable profile on glm-5.2" do
+      p = Profiles.fetch("reviewer")
+      assert %Profile{name: "reviewer"} = p
+      assert p.model.model == "glm-5.2"
+    end
+
+    test "its permission policy DENIES the write and edit tools but ALLOWS reads" do
+      perms = Profiles.fetch("reviewer").permissions
+      assert perms["permission"]["write"] == "deny"
+      assert perms["permission"]["edit"] == "deny"
+      # reads fall through the "*" => "allow" fallback (no read/grep/find/ls deny)
+      assert perms["permission"]["*"] == "allow"
+      refute Map.has_key?(perms["permission"], "read")
+    end
+
+    test "the obvious bash-write patterns are denied" do
+      bash = Profiles.fetch("reviewer").permissions["permission"]["bash"]
+      for pat <- ["* > *", "* >> *", "sed -i*", "tee *", "dd *"], do: assert(bash[pat] == "deny")
+    end
+
+    test "the catastrophic deny-floor is preserved from @tlon_permissions" do
+      bash = Profiles.fetch("reviewer").permissions["permission"]["bash"]
+      assert bash["rm -rf /*"] == "deny"
+      assert bash["sudo *"] == "deny"
+    end
+
+    test "yoloMode is on so allowed reads never stall on an ask" do
+      assert Profiles.fetch("reviewer").permissions["yoloMode"] == true
+    end
+
+    test "materialise! writes the write-deny into the pi-permission-system config" do
+      root = Path.join(System.tmp_dir!(), "crew-mat-#{System.unique_integer([:positive])}")
+      base = Path.join(root, "agent")
+      File.mkdir_p!(base)
+      File.write!(Path.join(base, "settings.json"), ~s({"extensions":[]}))
+      File.write!(Path.join(base, "mcp.json"), ~s({"mcpServers":{}}))
+
+      dir = Profiles.materialise!(Profiles.fetch("reviewer"), base: base, root: Path.join(root, "profiles"))
+      cfg = dir |> Path.join("extensions/pi-permission-system/config.json") |> File.read!() |> Jason.decode!()
+      assert cfg["permission"]["write"] == "deny"
+      assert cfg["permission"]["edit"] == "deny"
+    end
+  end
 end
