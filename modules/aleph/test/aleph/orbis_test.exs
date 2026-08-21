@@ -37,4 +37,25 @@ defmodule Aleph.OrbisTest do
       assert Orbis.summarize([]) == %{open: 0, stalled: 0, done: 0, conflicts: 0}
     end
   end
+
+  describe "worlds/1" do
+    # rollup/0 wraps its per-thread rows under a single hardcoded world (Slice 0). rollup/0 itself
+    # reads funes (exercised live, like the cockpit reads); this pins the pure grouping it delegates
+    # to, so the survey face's world shape can never drift.
+    test "groups the rollup rows under one hardcoded world (Tlön), carrying summary + leaves" do
+      rows = [
+        %{status: :open, conflicts: 0},
+        %{status: :stalled, conflicts: 2},
+        %{status: :done, conflicts: 0}
+      ]
+
+      assert [%{world: "Tlön", summary: summary, leaves: ^rows}] = Orbis.worlds(rows)
+      assert summary == %{open: 1, stalled: 1, done: 1, conflicts: 2}
+    end
+
+    test "an empty board is still one world, with a zeroed summary and no leaves" do
+      assert [%{world: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}] =
+               Orbis.worlds([])
+    end
+  end
 end

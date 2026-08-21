@@ -331,39 +331,28 @@ defmodule Aleph.BoardTest do
       assert Enum.map_join(rows, "\n", &text/1) =~ "Enter to spawn"
     end
 
-    test "chorus renders a block per thread — empty threads included, focus + replies marked" do
-      blocks = [
+    test "chorus surveys worlds — the ORBIS · worlds header + a row per world with its rollup" do
+      worlds = [
         %{
-          thread: %Funes.Thread{id: 7, title: "fable review", state: "open"},
-          messages: [
-            %{author: "andrew", body: "start it", reply_to: nil},
-            %{author: "pi", body: "on it", reply_to: 1}
-          ]
-        },
-        %{
-          thread: %Funes.Thread{id: 9, title: "triage inbox", state: "open"},
-          messages: [%{author: "Carl", body: "CI is red", reply_to: nil}]
-        },
-        # a fresh thread with NO messages still gets a block (so it's visible + navigable)
-        %{thread: %Funes.Thread{id: 5, title: "new fable review", state: "open"}, messages: []}
+          world: "Tlön",
+          summary: %{open: 2, stalled: 1, done: 3, conflicts: 4},
+          leaves: [%{id: 1}, %{id: 2}]
+        }
       ]
 
-      rows = Chorus.render(%{blocks: blocks, focused_id: 7}, %{x: 0, y: 0, w: 60, h: 40})
+      rows = Chorus.render(%{worlds: worlds}, %{x: 0, y: 0, w: 60, h: 40})
       joined = Enum.map_join(rows, "\n", &text/1)
 
-      # every thread has a header — including the empty one, which shows a placeholder
-      assert joined =~ "fable review"
-      assert joined =~ "triage inbox"
-      assert joined =~ "new fable review"
-      assert joined =~ "no messages yet"
-      # messages appear under their thread; a reply carries the ↳ mark
-      assert joined =~ "on it"
-      assert joined =~ "↳"
-      # the focused thread's header is highlighted (:selected), the others are not
-      focused_head = Enum.find(rows, &(text(&1) =~ "fable review" and text(&1) =~ "▸"))
-      other_head = Enum.find(rows, &(text(&1) =~ "triage inbox"))
-      assert Enum.any?(focused_head, fn {_t, s} -> s == :selected end)
-      refute Enum.any?(other_head, fn {_t, s} -> s == :selected end)
+      assert joined =~ "ORBIS · worlds"
+      assert joined =~ "Tlön"
+      # the world's summary line carries the open/stalled/done/trouble rollup
+      assert joined =~ "2 open"
+      assert joined =~ "1 stalled"
+      assert joined =~ "3 done"
+      assert joined =~ "4 conflicts"
+      # the world header row washes :header (the ▸ + name)
+      world_head = Enum.find(rows, &(text(&1) =~ "Tlön" and text(&1) =~ "▸"))
+      assert Enum.any?(world_head, fn {_t, s} -> s == :header end)
     end
   end
 
@@ -404,31 +393,21 @@ defmodule Aleph.BoardTest do
       assert Roster.pick(data, rect, 0) == nil
     end
 
-    test "chorus: any row inside a thread's block focuses that thread; the feed header doesn't" do
-      blocks = [
-        %{
-          thread: %Funes.Thread{id: 7, title: "fable review", state: "open"},
-          messages: [%{author: "andrew", body: "start it", reply_to: nil}, %{author: "pi", body: "on it", reply_to: 1}]
-        },
-        %{
-          thread: %Funes.Thread{id: 9, title: "triage inbox", state: "open"},
-          messages: [%{author: "Carl", body: "CI is red", reply_to: nil}]
-        },
-        %{thread: %Funes.Thread{id: 5, title: "new fable review", state: "open"}, messages: []}
+    test "chorus: clicking a world row zooms to its lens; the survey header + blank do not" do
+      worlds = [
+        %{world: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
       ]
 
-      data = %{blocks: blocks, focused_id: 7, scroll: 0}
+      data = %{worlds: worlds, scroll: 0}
       rect = %{x: 0, y: 0, w: 60, h: 40}
-      # feed header (0) + blank (1) select nothing
+      # survey header (0) + blank (1) select nothing
       assert Chorus.pick(data, rect, 0) == nil
       assert Chorus.pick(data, rect, 1) == nil
-      # block 7 spans content rows 2–5 (head + 2 messages + blank)
-      assert {:focus_thread, 7} = Chorus.pick(data, rect, 2)
-      assert {:focus_thread, 7} = Chorus.pick(data, rect, 5)
-      # block 9 spans 6–8
-      assert {:focus_thread, 9} = Chorus.pick(data, rect, 6)
-      # block 5 spans 9–11
-      assert {:focus_thread, 5} = Chorus.pick(data, rect, 9)
+      # the world's rows (head + summary + blank) span content rows 2–4 → zoom to the Tlön lens
+      assert {:switch_space, :tlon} = Chorus.pick(data, rect, 2)
+      assert {:switch_space, :tlon} = Chorus.pick(data, rect, 4)
+      # a click past the last world selects nothing
+      assert Chorus.pick(data, rect, 5) == nil
     end
   end
 

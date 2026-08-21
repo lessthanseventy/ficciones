@@ -204,7 +204,7 @@ defmodule Aleph.View do
   def data_for(Panel.ThreadList, r), do: %{threads: r.threads, roster: r.roster, selected_id: r.focused_id}
 
   def data_for(Panel.Dossier, r), do: r.scope
-  def data_for(Panel.Chorus, r), do: %{blocks: r.chorus, focused_id: r.focused_id}
+  def data_for(Panel.Chorus, r), do: %{worlds: r[:worlds] || []}
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
   def data_for(Panel.Stack, r), do: r.stack
   def data_for(Panel.Health, r), do: r.health

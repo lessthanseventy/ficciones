@@ -1046,7 +1046,7 @@ defmodule Aleph.Cockpit do
       threads: threads,
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
-      chorus: chorus,
+      worlds: if(state.active_key == :orbis, do: orbis_worlds(), else: []),
       terminal: terminal_read(state, focused),
       machine: machine_read(state),
       stack: state.stack || @empty_stack,
@@ -1376,6 +1376,16 @@ defmodule Aleph.Cockpit do
   # never drifts between the two surfaces.
   defp orbis_read(:tlon), do: Aleph.Orbis.rollup()
   defp orbis_read(_key), do: nil
+
+  # The Orbis survey (Chorus center): the per-WORLD rollup (Slice 0: one hardcoded world). Reuses
+  # the same `Aleph.Orbis.rollup/0` gather as the Tlön LEAVES sidebar — its `worlds` key — so the
+  # survey and the sidebar can never disagree. Empty list when funes is down / there are no worlds.
+  defp orbis_worlds do
+    case Aleph.Orbis.rollup() do
+      %{worlds: worlds} -> worlds
+      _ -> []
+    end
+  end
 
   # TRIAGE reads: cross-thread blockers, failed checks, and unassigned threads.
   # Gathers from all open threads — a funes Board aggregate.

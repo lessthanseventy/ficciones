@@ -131,16 +131,14 @@ defmodule Aleph.KeymapTest do
       assert {^s, :none} = Keymap.handle(key(:down), s)
     end
 
-    test "Enter with no focused thread is a no-op" do
-      s = state(%{focused_id: nil, threads: []})
-      assert {^s, :none} = Keymap.handle(key(:enter), s)
-    end
+    test "Enter in the Orbis survey zooms the world to its lens — Slice 0 drops straight to Tlön" do
+      # The god-view → world zoom (Slice 0 has one world). No focused thread needed: the survey
+      # surveys worlds, not threads. Tlön routes Enter through its own focus SM, not this clause.
+      assert {%{active_key: :tlon}, :repaint} =
+               Keymap.handle(key(:enter), state(%{active_key: :orbis, focused_id: nil, threads: []}))
 
-    test "Enter is a no-op everywhere since the Slice 0 collapse deleted the Sessions space" do
-      # Sessions was the only center that could show a spawned per-thread PTY; with it gone Enter
-      # has no top-level verb (Tlön routes Enter through its own focus SM, not this clause).
-      s = state(%{active_key: :orbis, focused_id: 2})
-      assert {^s, :none} = Keymap.handle(key(:enter), s)
+      assert {%{active_key: :tlon}, :repaint} =
+               Keymap.handle(key(:enter), state(%{active_key: :orbis, focused_id: 2}))
     end
   end
 
@@ -193,7 +191,9 @@ defmodule Aleph.KeymapTest do
     end
 
     test "^B Enter is a no-op since the Slice 0 collapse (no enter-or-spawn verb)" do
-      s = state(%{center_live?: true, focused_id: 2})
+      # The leader lives in the Tlön terminal; there Enter has no top-level verb (the Orbis
+      # survey's Enter-zooms clause is keyed to :orbis and never matches here).
+      s = state(%{center_live?: true, focused_id: 2, active_key: :tlon})
       assert {%{leader_pending?: false}, :none} = via_leader(key(:enter), s)
     end
 
