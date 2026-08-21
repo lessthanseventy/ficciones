@@ -62,4 +62,19 @@ defmodule Funes.BusTest do
     assert_received {:session_started, ^session}
     refute_received {:session_started, _}
   end
+
+  test "durable-write events also reach the global activity topic, regardless of thread" do
+    Bus.subscribe_activity()
+    fact = %{thread_id: 7}
+    event = %{thread_id: 42}
+    msg = %{id: 1, thread_id: 99}
+
+    Bus.broadcast({:fact_banked, fact})
+    Bus.broadcast({:event_recorded, event})
+    Bus.broadcast({:message_posted, msg})
+
+    assert_received {:fact_banked, ^fact}
+    assert_received {:event_recorded, ^event}
+    assert_received {:message_posted, ^msg}
+  end
 end

@@ -16,6 +16,7 @@ defmodule Funes.Bus do
     * `funes:threads`       — thread lifecycle: opened, closed, assigned (the list)
     * `funes:sessions`      — session start/end (feeds the IN FLIGHT roster)
     * `funes:habits`        — habit proposed/approved/rejected (the operator's review queue)
+    * `funes:activity`      — every durable write, cross-thread (the machine-wide activity feed)
 
   ## Events (the envelope every subscriber matches)
     `{:message_posted, message}` · `{:fact_banked, fact}` · `{:event_recorded, event}`
@@ -33,12 +34,14 @@ defmodule Funes.Bus do
   def threads_topic, do: "funes:threads"
   def sessions_topic, do: "funes:sessions"
   def habits_topic, do: "funes:habits"
+  def activity_topic, do: "funes:activity"
 
   def subscribe_messages, do: sub(messages_topic())
   def subscribe_thread(id), do: sub(thread_topic(id))
   def subscribe_threads, do: sub(threads_topic())
   def subscribe_sessions, do: sub(sessions_topic())
   def subscribe_habits, do: sub(habits_topic())
+  def subscribe_activity, do: sub(activity_topic())
 
   # A consumer that follows the *focused* thread drops the old topic on a switch.
   def unsubscribe_thread(id), do: Phoenix.PubSub.unsubscribe(@pubsub, thread_topic(id))
@@ -50,7 +53,7 @@ defmodule Funes.Bus do
   so the topic scheme has one home. Returns `:ok`.
   """
   def broadcast({:message_posted, m} = event) do
-    publish([messages_topic() | thread_topics(m.thread_id)], event)
+    publish([messages_topic(), activity_topic() | thread_topics(m.thread_id)], event)
   end
 
   def broadcast({tag, %{thread_id: thread_id} = _row} = event)
@@ -64,7 +67,7 @@ defmodule Funes.Bus do
              :question_raised,
              :question_resolved
            ] do
-    publish(thread_topics(thread_id), event)
+    publish([activity_topic() | thread_topics(thread_id)], event)
   end
 
   # Habits are machine-wide (no thread_id key of their own), so they ride their own topic
