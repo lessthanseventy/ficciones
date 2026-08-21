@@ -14,6 +14,7 @@ defmodule Funes.Fact do
     field :text, :string
     field :provenance, :string
     field :check_cmd, :string
+    field :intent, :string
     field :incident, :string
     field :taught, :string
     field :supersedes, :id
@@ -44,6 +45,7 @@ defmodule Funes.Fact do
       :text,
       :provenance,
       :check_cmd,
+      :intent,
       :incident,
       :taught,
       :supersedes,
