@@ -4,16 +4,26 @@ defmodule Mix.Tasks.Aleph.Crew.Kill do
   use Mix.Task
   use Boundary, classify_to: Aleph
 
-  @impl true
+  @requirements ["app.config"]
+
+  @impl Mix.Task
   def run(argv) do
     case parse(argv) do
       {:ok, role, thread_id} ->
-        Mix.Task.run("app.start")
+        boot!()
         :ok = Aleph.Crew.kill(role, thread_id)
         Mix.shell().info("killed #{role} window on thread #{thread_id}")
 
       {:error, msg} ->
         Mix.raise(msg)
+    end
+  end
+
+  # Boot aleph (which starts funes) before touching Aleph.Crew. A boot failure gets a setup hint.
+  defp boot! do
+    case Application.ensure_all_started(:aleph) do
+      {:ok, _} -> :ok
+      {:error, reason} -> Mix.raise("aleph failed to boot (#{inspect(reason)}) — try `mise run aleph:setup`")
     end
   end
 

@@ -12,11 +12,13 @@ defmodule Mix.Tasks.Aleph.Crew.Spawn do
   use Mix.Task
   use Boundary, classify_to: Aleph
 
-  @impl true
+  @requirements ["app.config"]
+
+  @impl Mix.Task
   def run(argv) do
     case parse(argv) do
       {:ok, role, thread_id, task} ->
-        Mix.Task.run("app.start")
+        boot!()
 
         case Aleph.Crew.spawn(role, thread_id, task) do
           {:ok, window} -> Mix.shell().info("spawned #{role} → #{window} on thread #{thread_id}")
@@ -25,6 +27,16 @@ defmodule Mix.Tasks.Aleph.Crew.Spawn do
 
       {:error, msg} ->
         Mix.raise(msg)
+    end
+  end
+
+  # Boot aleph (which starts funes) before touching Aleph.Crew — spawn mints funes identity, so the
+  # OTP apps must be up. A boot failure (e.g. the scratch DB behind migrations) gets a setup hint,
+  # not Mix's generic app-start error.
+  defp boot! do
+    case Application.ensure_all_started(:aleph) do
+      {:ok, _} -> :ok
+      {:error, reason} -> Mix.raise("aleph failed to boot (#{inspect(reason)}) — try `mise run aleph:setup`")
     end
   end
 
