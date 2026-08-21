@@ -616,6 +616,34 @@ defmodule Aleph.BoardTest do
       end
     end
 
+    test "a short Tlön terminal never places a section (or the PTY) past the frame" do
+      # WindowBar(3) + Terminal(flex) + Pulse(3) stacked in the center column overflowed at short
+      # heights: split_heights floored the flex Terminal at 1 but never clamped the SUM against the
+      # column, so the Pulse box landed below the column (on/past the StatusBar). Clamp now shrinks
+      # the fixed bands in stack order — a lower band collapses to 0 rather than going off-frame.
+      # 12 is a comfortably short cockpit; 8 is the regime that used to overflow.
+      for {key, w, h} <- [{:tlon, 120, 12}, {:tlon, 120, 8}] do
+        r =
+          reads(%{
+            active_key: key,
+            machine: :no_session,
+            stack: %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []},
+            health: nil,
+            logbook: nil
+          })
+
+        Enum.each(View.compose(r, w, h), fn {mod, _d, rect} ->
+          assert rect.x >= 0 and rect.y >= 0, "#{inspect(mod)} placed above/left of the frame at #{key} #{w}x#{h}"
+          assert rect.x + rect.w <= w, "#{inspect(mod)} overflowed the frame width at #{key} #{w}x#{h}"
+          assert rect.y + rect.h <= h, "#{inspect(mod)} overflowed the frame height at #{key} #{w}x#{h}: #{inspect(rect)}"
+        end)
+
+        cr = View.center_rect(key, w, h)
+        assert cr.y + cr.h <= h, "the PTY center_rect fell past the frame at #{key} #{w}x#{h}: #{inspect(cr)}"
+        assert cr.x + cr.w <= w
+      end
+    end
+
     test "orbis space centers the chorus feed, with the roster (not a thread list) at its side" do
       placements = View.compose(reads(%{active_key: :orbis}), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)

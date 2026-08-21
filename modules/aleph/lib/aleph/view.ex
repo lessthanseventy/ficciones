@@ -253,7 +253,10 @@ defmodule Aleph.View do
 
   defp boxed(panels, %{x: x, y: y, w: w, h: h}) do
     gaps = max(length(panels) - 1, 0) * @gap
-    heights = split_heights(panels, max(h - gaps, length(panels)))
+    # The section budget is the column minus the inter-section gaps; never inflate it past what
+    # fits (a `length(panels)` floor would push short columns off-frame). split_heights/2 fits the
+    # sections into exactly this budget, so no placed box's `y + h` ever exceeds the column bottom.
+    heights = split_heights(panels, max(h - gaps, 0))
 
     {placed, _y} =
       panels
@@ -265,16 +268,37 @@ defmodule Aleph.View do
     placed
   end
 
+  # Resolve each section's height within `total_h` (the column's row budget net of gaps). The
+  # invariant is that the resolved heights SUM to at most `total_h`, so `boxed/2` never places a box
+  # past the column bottom (design: "no overflow past the frame").
   defp split_heights(panels, total_h) do
     fixed = Enum.map(panels, &fixed_height/1)
     fixed_sum = fixed |> Enum.reject(&is_nil/1) |> Enum.sum()
     flex_count = Enum.count(fixed, &is_nil/1)
-    flex = if flex_count > 0, do: max(div(total_h - fixed_sum, flex_count), 1), else: 0
 
-    resolved = Enum.map(fixed, fn f -> f || flex end)
-    # Hand any rounding remainder to the last panel so the column is fully used.
-    used = Enum.sum(resolved)
-    List.update_at(resolved, -1, &(&1 + max(total_h - used, 0)))
+    if fixed_sum <= total_h do
+      # Room for every fixed section at nominal height: the flex sections split the remainder, and
+      # any rounding leftover goes to the last section so the column is fully used.
+      flex = if flex_count > 0, do: max(div(total_h - fixed_sum, flex_count), 0), else: 0
+      resolved = Enum.map(fixed, fn f -> f || flex end)
+      used = Enum.sum(resolved)
+      List.update_at(resolved, -1, &(&1 + max(total_h - used, 0)))
+    else
+      # Too short even for the fixed sections: no room for flex (0), and the fixed sections shrink in
+      # stack order against a running budget — a lower section collapses to 0 (not rendered) before
+      # anything is placed off-frame.
+      shrink_to_fit(fixed, total_h)
+    end
+  end
+
+  defp shrink_to_fit(sections, total_h) do
+    {resolved, _left} =
+      Enum.map_reduce(sections, total_h, fn nominal, left ->
+        take = min(nominal || 0, left)
+        {take, left - take}
+      end)
+
+    resolved
   end
 
   # The picker box is intrinsically short: header + blank + one row per space, plus its frame.
