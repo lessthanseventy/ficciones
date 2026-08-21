@@ -19,6 +19,14 @@ defmodule Aleph.Panel.Terminal do
   @default_bg 0x000000
   @inverse_bit 32
 
+  # Claude Code paints its theme `background` token — a deliberately garish "you should never see
+  # this" cyan (dark UI: rgb(0,204,204); light: rgb(0,153,153)) — as the EXPLICIT per-cell bg on
+  # queued/injected message rows (your own input, cross-thread funes messages). The VT stores it
+  # faithfully, so without neutralising it those rows blit as cyan under a phosphor theme. Remap the
+  # sentinel to the panel's own default so they read like the rest of the screen. It's not a real
+  # background choice any harness means to show — matching the value is the only signal aleph gets.
+  @bg_sentinels [0x00CCCC, 0x009999]
+
   @impl Aleph.Panel
   def topics(_assigns), do: []
 
@@ -81,7 +89,7 @@ defmodule Aleph.Panel.Terminal do
     |> Enum.map(fn {{grapheme, fg, bg, flags}, x} ->
       char = if grapheme in ["", nil], do: " ", else: grapheme
       fg = rgb_int(fg) || default_fg
-      bg = rgb_int(bg) || default_bg
+      bg = neutralize_sentinel(rgb_int(bg) || default_bg, default_bg)
 
       # inverse video (SGR 7) swaps, and the cursor cell inverts on top of that.
       {fg, bg} = if band(flags, @inverse_bit) == 0, do: {fg, bg}, else: {bg, fg}
@@ -90,6 +98,11 @@ defmodule Aleph.Panel.Terminal do
       {char, {:rgb, fg, bg}}
     end)
   end
+
+  # A cell bg equal to Claude Code's `background` sentinel (see @bg_sentinels) reads as the panel
+  # default; every other colour passes through untouched.
+  defp neutralize_sentinel(bg, default_bg) when bg in @bg_sentinels, do: default_bg
+  defp neutralize_sentinel(bg, _default_bg), do: bg
 
   defp cursor_at?(%{visible: true, x: cx, y: cy}, x, y), do: cx == x and cy == y
   defp cursor_at?(_cursor, _x, _y), do: false
