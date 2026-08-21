@@ -883,16 +883,21 @@ defmodule Aleph.Cockpit do
   defp jump_to_leaf(state, layout), do: {:noreply, render(attach_leaf(state, layout))}
 
   @doc false
-  # PREVIEW (re-point) then COMMIT (focus in) the World tmux window under the Leaves cursor, reusing
-  # Task 1's primitives. A leaf whose lead maps to no live window — or no leaf under the cursor —
-  # can't attach yet (arbitrary-leaf PTYs are Slice 1): flash the deferral, re-point nothing. This
-  # supersedes the old jump into the (now-retiring) Sessions space.
+  # PREVIEW (re-point) then COMMIT (focus in) the World tmux window under the Leaves cursor. The
+  # hit/miss decision AND the re-point run off ONE `tlon_tabs()` snapshot: resolve `idx`, then
+  # `select_tlon_window` + commit against that same idx — never a second read that could disagree
+  # (a TOCTOU half-attach if the window vanished between two snapshots). A leaf whose lead maps to
+  # no live window — or no leaf under the cursor — can't attach yet (arbitrary-leaf PTYs are Slice
+  # 1): flash the deferral, re-point nothing. Supersedes the old jump into the retiring Sessions
+  # space. Note: `preview_focused/1` (the arrow-hover path) is deliberately NOT reused here — it
+  # takes its own snapshot, which is safe for its single read but would reintroduce the double read.
   def attach_leaf(state, layout) do
     rows = (state.leaves || %{rows: []}).rows
 
     with %{lead: lead} <- Enum.at(rows, Focus.cursor(state.focus, layout)),
          idx when not is_nil(idx) <- window_index(tlon_tabs(), lead) do
-      state |> preview_focused() |> commit_preview() |> Map.put(:flash, nil)
+      select_tlon_window(%{index: idx})
+      state |> Map.put(:previewed_window, idx) |> commit_preview() |> Map.put(:flash, nil)
     else
       _ -> %{state | flash: "no live session (Slice 1)"}
     end

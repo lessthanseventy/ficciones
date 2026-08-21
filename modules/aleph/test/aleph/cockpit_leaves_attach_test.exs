@@ -15,6 +15,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
 
   alias Aleph.Cockpit
   alias Aleph.Panel
+  alias Aleph.Space
   alias Aleph.Tlon.Focus
 
   setup do
@@ -49,11 +50,13 @@ defmodule Aleph.CockpitLeavesAttachTest do
   end
 
   # The right-column layout the cockpit derives for Tlön (Leaves at index 2), with the Leaves count
-  # so the focus cursor resolves the row under it.
+  # so the focus cursor resolves the row under it. `right` is pulled from the real `Space.fetch(:tlon)`
+  # (the same source `tlon_layout/1` uses) so a future reorder of `space.right` can't silently desync
+  # this test; `focus.pane: 2` in leaves_state/1 mirrors Leaves' position in that column.
   defp leaves_layout(rows) do
     %{
       left: [Panel.Spaces, Panel.Stack, Panel.Memory],
-      right: [Panel.Health, Panel.Activity, Panel.Leaves],
+      right: Space.fetch(:tlon).right,
       sections: %{},
       counts: %{Panel.Leaves => length(rows)}
     }
@@ -67,8 +70,8 @@ defmodule Aleph.CockpitLeavesAttachTest do
       assert next.previewed_window == "1"
       assert next.focus.in_terminal? == true
       assert_received {:tmux, ["-L", _sock, "select-window", "-t", "tlon:1"]}
-      # Retargeted off the deleted Sessions space — no space switch.
-      refute Map.get(next, :active_key) == :sessions
+      # Retargeted off the deleted Sessions space — the space stays Tlön, no jump.
+      assert next.active_key == :tlon
     end
 
     test "a leaf with no live window flashes the Slice-1 deferral, re-points nothing, no crash" do
