@@ -28,8 +28,6 @@ defmodule Aleph.Keymap do
     * `:quit` — tear down and stop.
     * `{:forward, key}` — send this key to the focused session's embedded terminal.
     * `{:create_thread, title}` — open a new thread AND spawn a session onto it (the `n` verb).
-    * `{:enter_or_spawn, thread_id}` — spawn a session onto an existing focused thread if it has
-      none, else no-op (the `Enter` verb — the `s` verb's replacement).
     * `{:post_message, thread_id, body}` — post the composer's body to the focused thread as the
       operator (the `c` verb).
     * `{:cycle_coworker_model, profile}` — advance the active space's coworker driver model one
@@ -58,7 +56,6 @@ defmodule Aleph.Keymap do
           | :quit
           | {:forward, map()}
           | {:create_thread, String.t()}
-          | {:enter_or_spawn, term()}
           | {:post_message, term(), String.t()}
           | {:cycle_coworker_model, String.t()}
           | {:settings_apply, {String.t(), :model | :permission}}
@@ -241,8 +238,8 @@ defmodule Aleph.Keymap do
   defp command(%{key: :char, char: "n"}, state),
     do: {%{state | input: %{kind: :new_thread, buffer: "", cursor: 0}}, :repaint}
 
-  # `c` — the composer: post to the thread `composer_thread_id` (the focused thread in Orbis/
-  # Sessions, the machine thread in Tlön — resolved per keypress by the cockpit, like center_live?).
+  # `c` — the composer: post to the thread `composer_thread_id` (the focused thread in Orbis, the
+  # machine thread in Tlön — resolved per keypress by the cockpit, like center_live?).
   # nil (empty board / no machine thread) → nothing to post on. Bare `c` only (modifiers nil):
   # Ctrl+C is unbound (never a quit) and must not open a composer. Bare in a nav space or via the
   # leader from a terminal.

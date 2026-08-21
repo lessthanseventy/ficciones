@@ -1,14 +1,14 @@
 defmodule Aleph.Space do
   @moduledoc """
   A **space** is a named lens over funes — *what's in the middle* and the panels around it — the
-  unit the top-left switcher picks (design Addendum §B). Each space is a different app over the
-  same substrate: **Orbis** (the thread/message chorus, the default), **Sessions** (the live
-  embedded-terminal view), and **Tlön** (the META space — the machine/stack as a whole, not a
-  project). The `Aleph.Panel.Spaces` picker switches the active one; the center renders that
-  space's `surface`.
+  unit the top-left switcher picks (design Addendum §B). Since the Slice 0 collapse there are two:
+  **Orbis** (the god-view survey — tertius' per-world rollup, the default) and **Tlön** (the sole,
+  hardcoded **World** under that god-view — the machine/stack as a live embedded terminal). Sessions
+  is gone (its per-thread native-PTY center folded into the World's tmux center). The
+  `Aleph.Panel.Spaces` picker switches the active one; the center renders that space's `surface`.
 
-  A surface is a LIST of sections stacked down the center — usually one (Orbis, Sessions), but
-  Tlön frames its Terminal with two more: WindowBar above, Pulse below. A section is either a bare
+  A surface is a LIST of sections stacked down the center — usually one (Orbis), but Tlön frames its
+  Terminal with two more: WindowBar above, Pulse below. A section is either a bare
   panel module (its data shaped by `Aleph.View.data_for/2`, like the sidebars) or a
   `{panel_module, read_key}` pair whose data is the named Cockpit read verbatim — how two
   Terminal panes on one surface get distinct data. A space stays plain data either way.
@@ -61,11 +61,16 @@ defmodule Aleph.Space do
         right: [Dossier]
       },
       %__MODULE__{
-        # Tlön: the center is literal tmux — an embedded client on the standing `tlon` session, so it
+        # Tlön — **World #1**: the sole hardcoded World under Orbis' god-view (Slice 0 collapse).
+        # The center is literal tmux — an embedded client on the standing `tlon` session, so it
         # survives aleph restarts. The center coworker (tertius) is window 0; the builder (hronir) and
         # console (uqbar) ride as further windows. WindowBar (aleph's own tab strip — tmux's status
         # bar is off) frames the terminal on top, Pulse (the latest funes event) frames it below —
         # each its own bordered band, stacked in this one surface list.
+        #
+        # PROVISIONAL: hardcoding this one World here is a Slice 0 stopgap. Slice 1 moves world
+        # composition (roster, panel-sets, a real second world) into funes-owned data — see
+        # docs/plans/2026-08-21-worlds-orbis-reshape-design.md.
         key: :tlon,
         label: "Tlön",
         surface: [WindowBar, {Terminal, :machine}, Pulse],
@@ -73,8 +78,9 @@ defmodule Aleph.Space do
         # coverage + the always-loaded floor + pending habits to approve). Habits folded INTO Memory;
         # Settings is now the `m` keybind / a modal, not an always-on pane.
         left: [Stack, Memory],
-        # LEAVES — the machine rollup (each leaf thread's lead/status/conflicts), Enter jumps to it
-        # in Sessions. Health becomes the status bar in the visual-cleanup pass. ACTIVITY — the
+        # LEAVES — the machine rollup (each leaf thread's lead/status/conflicts), Enter attaches it
+        # in the World center (re-points the tmux window). Health becomes the status bar in the
+        # visual-cleanup pass. ACTIVITY — the
         # cross-thread funes feed (fact banked, check passed/failed, work landed, message posted,
         # issue/question raised), fed by the Cockpit's activity buffer.
         right: [Health, Activity, Leaves],

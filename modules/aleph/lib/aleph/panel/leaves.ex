@@ -5,8 +5,9 @@ defmodule Aleph.Panel.Leaves do
   conflicts called out) then one row per leaf — its lead and status, a stalled leaf surfacing its
   conflict count. The glance-value summary the operator reads without switching to the chat tab.
 
-  Navigable in Tlön nav mode: `j/k` selects a leaf (the cursor row washes :selected), `Enter` jumps
-  to the Sessions space focused on that thread (design decision 3). Data is
+  Navigable in Tlön nav mode: `j/k` selects a leaf (the cursor row washes :selected), `Enter`
+  attaches that leaf in the World center — re-points the tmux window (Slice 0 collapse; was a jump
+  into the now-deleted Sessions space). Data is
   `%{summary: %{open, stalled, done, conflicts}, rows: [%{id, title, lead, status, conflicts}],
   selected}` — `selected` injected by the View only when this pane is focused — or `nil` when funes
   is down / there are no machine threads. Pure over `Aleph.Orbis.rollup/0`.

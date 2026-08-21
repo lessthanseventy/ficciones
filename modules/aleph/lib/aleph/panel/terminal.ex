@@ -7,7 +7,7 @@ defmodule Aleph.Panel.Terminal do
 
   Renders edge-to-edge — no header row. The Tlön workspace's window strip (once drawn here as row
   0) is now `Aleph.Panel.WindowBar`, a standalone bordered panel `Aleph.View.compose/3` places
-  above this one; a Sessions coworker terminal never had a strip and is unaffected.
+  above this one.
 
   Data is a `render_state` map (`%{cells, cursor, foreground, background}`) or `:no_session`.
   Pure: a render_state in → styled rows out, no TTY. The cockpit blits these through `Aleph.Board`,

@@ -157,11 +157,11 @@ defmodule Aleph.View do
   @doc """
   The content rect the center Terminal renders into for a `space_key`/`w`×`h` cockpit — the single
   source of truth the embedded PTY sizes to, so pi never draws wider or taller than the visible
-  area. Sessions' center is a single-section surface, so its Terminal IS the full-height center
-  column; Tlön's WindowBar/Pulse bands (`Aleph.Space`) share the column with the Terminal, so its
-  box is smaller — found via the SAME `boxed/2` stacking `compose/3` uses, not a second formula
-  that could drift. (The PTY is only sized in the wide layout — a real cockpit is never below the
-  narrow threshold.)
+  area. Orbis carries no center Terminal (its surface is `[Chorus]`, the survey) → this falls back
+  to the full center column. Tlön's WindowBar/Pulse bands (`Aleph.Space`) share the column with its
+  Terminal, so its box is smaller — found via the SAME `boxed/2` stacking `compose/3` uses, not a
+  second formula that could drift. (The PTY is only sized in the wide layout — a real cockpit is
+  never below the narrow threshold.)
   """
   @spec center_rect(atom(), pos_integer(), pos_integer()) :: Panel.rect()
   def center_rect(space_key, w, h) do

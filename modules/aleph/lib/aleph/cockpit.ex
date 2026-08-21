@@ -1126,8 +1126,8 @@ defmodule Aleph.Cockpit do
   defp center_terminal(_state), do: nil
 
   # The thread `c` composes onto, derived per keypress (like center_live?): the focused project
-  # thread in Orbis/Sessions; in Tlön the MACHINE thread — the operator working the box posts to
-  # the machine coworker, never a stale project thread id carried over from Orbis. nil (no thread)
+  # thread in Orbis; in Tlön the MACHINE thread — the operator working the box posts to the
+  # machine coworker, never a stale project thread id carried over from Orbis. nil (no thread)
   # makes `c` a no-op.
   defp composer_thread_id(%{active_key: :tlon}), do: machine_thread_id()
   defp composer_thread_id(state), do: state.focused_id

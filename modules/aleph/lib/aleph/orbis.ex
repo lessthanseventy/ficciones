@@ -1,19 +1,21 @@
 defmodule Aleph.Orbis do
   @moduledoc """
-  ORBIS — the machine-scoped **rollup** DATA (Orbis Tertius design, slice 2): every machine thread
-  (root + leaves) reduced to lead + status + conflict count, plus the open/stalled/done tallies.
-  The single source of the rollup's semantics, shared by BOTH surfaces — the Tlön sidebar panel
-  (`Aleph.Panel.Orbis`, via `Aleph.Cockpit`) and the `chat` tab's header strip
-  (`Aleph.MachineChat.Loop`) — so a status rule never drifts between them.
+  ORBIS — the god-view survey DATA behind tertius, Orbis' **resident surveyor** (Orbis Tertius
+  design, slice 2). tertius no longer sits as Tlön's center coworker in the operator's eye; its
+  home view is this survey — the god-view over worlds. Every machine thread (root + leaves) is
+  reduced to lead + status + conflict count, plus the open/stalled/done tallies. The single source
+  of the rollup's semantics, shared by BOTH surfaces — the Tlön sidebar panel (`Aleph.Panel.Orbis`,
+  via `Aleph.Cockpit`) and the `chat` tab's header strip (`Aleph.MachineChat.Loop`) — so a status
+  rule never drifts between them.
 
   Pure data, no styling: `rollup/0` returns `%{summary: %{open, stalled, done, conflicts},
   rows: [%{id, title, lead, status, conflicts}], worlds: [%{world, summary, leaves}]}` (status
   `:open | :stalled | :done`), or `nil` when funes is down / there are no machine threads. `summary`
-  and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `worlds` groups those
-  same rows under a single hardcoded world (Tlön) — the Slice 0 survey face Orbis' Chorus renders,
-  one row per world. Status derives from `Funes.Board.in_scope/1` (the same per-thread brief Triage
-  reads) so it reflects real blockers/failed checks, never a self-report. The gather is guarded: a
-  funes hiccup degrades to `nil`, never a crash.
+  and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `worlds` is the
+  survey's per-world rollup — Slice 0 groups those same rows under one hardcoded world (Tlön), the
+  face Orbis' Chorus renders as one row per world. Status derives from `Funes.Board.in_scope/1` (the
+  same per-thread brief Triage reads) so it reflects real blockers/failed checks, never a
+  self-report. The gather is guarded: a funes hiccup degrades to `nil`, never a crash.
   """
 
   alias Funes.Channel
