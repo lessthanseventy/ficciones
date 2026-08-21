@@ -134,6 +134,30 @@ defmodule Aleph.Stack do
     end
   end
 
+  @doc ~S"""
+  The running build's identity for HEALTH — `git describe --tags --always --dirty`: a release tag
+  when HEAD is exactly one, else `<tag>-<n>-g<sha>` when ahead of the last tag, else the bare short
+  SHA; a `-dirty` suffix marks an uncommitted tree. "?" outside a git repo. Cached after the first
+  probe (like `tools/0`) — the running build is fixed for the process lifetime, so it must NOT
+  re-read per health tick (which would fork git every second and could drift mid-session).
+  """
+  def release do
+    case :persistent_term.get({__MODULE__, :release}, nil) do
+      nil ->
+        probed =
+          case cmd("git", ["-C", ".", "describe", "--tags", "--always", "--dirty"]) do
+            {:ok, out} -> out |> String.trim() |> then(&if(&1 == "", do: "?", else: &1))
+            :error -> "?"
+          end
+
+        :persistent_term.put({__MODULE__, :release}, probed)
+        probed
+
+      cached ->
+        cached
+    end
+  end
+
   @doc "Installed tool versions as `[%{name, version}]`, cached after the first probe."
   def tools do
     case :persistent_term.get({__MODULE__, :tools}, nil) do

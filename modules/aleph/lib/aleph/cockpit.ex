@@ -1244,7 +1244,8 @@ defmodule Aleph.Cockpit do
       disk_pct: Aleph.Stack.disk_pct(),
       mem_pct: Aleph.Stack.mem_pct(),
       load_avg: Aleph.Stack.load_avg(),
-      tools: Aleph.Stack.tools()
+      tools: Aleph.Stack.tools(),
+      version: Aleph.Stack.release()
     }
   end
 

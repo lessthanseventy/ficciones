@@ -4,7 +4,8 @@ defmodule Aleph.Panel.Health do
   Best-effort and honest: a probe that fails yields "?", never a crash. Re-rendered on every
   Cockpit tick (not Bus-driven — system state changes on a clock, not a topic).
 
-  Data is `%{funes_up, tlon_up, nix_gen, nix_behind, disk_pct, mem_pct, load_avg, tools}`.
+  Data is `%{version, funes_up, tlon_up, nix_gen, nix_behind, disk_pct, mem_pct, load_avg, tools}`.
+  The `version` line (top) is the running build's identity — the answer to "is my change live?"
   """
   @behaviour Aleph.Panel
 
@@ -21,12 +22,18 @@ defmodule Aleph.Panel.Health do
   end
 
   defp rows(data) do
-    service_rows(data) ++
+    version_rows(data[:version]) ++
+      service_rows(data) ++
       [blank()] ++
       sys_rows(data) ++
       [blank()] ++
       tool_rows(data.tools)
   end
+
+  # The build stamp: what code is actually running (git describe). Top of the panel so "is my fix
+  # live?" is answerable at a glance. Absent (nil) → no line, never a crash.
+  defp version_rows(nil), do: []
+  defp version_rows(version), do: [[{"aleph ", :label}, {version, :normal}], blank()]
 
   # -- Services (up/down dots) --
 
