@@ -24,15 +24,19 @@ you are it. Read the thread (`get_dossier`, recent messages) to understand the g
 No fixed pipeline — spawn only the roles the task needs. **MVP: "review this diff/PR" → spawn one
 reviewer.**
 
+Call the `spawn_crew` funes tool from the thread you are leading:
+
 ```
-mix aleph.crew.spawn reviewer <thread_id> --task "<what to review>"
+spawn_crew(task: "<what to review>")        # role defaults to "reviewer"
 ```
 
-Run it from your own shell (you already live on the `tlon` tmux server, so the reviewer's `r<id>`
-window lands beside you). This mints the reviewer's funes identity (`FUNES_AUTHOR=reviewer-machine`)
-on the thread, spawns its window, and injects the opening assignment. `--task` should name the
-diff concretely — a git ref/range or a one-line description the reviewer can act on (it has repo
-read + `git`, so "review the working-tree diff" or "review HEAD~1..HEAD" both work).
+The reviewer joins **this** thread (no thread parameter — like every self-thread tool), so you spawn
+it onto the work you are leading. It runs in the live cockpit node: mints the reviewer's funes
+identity (`FUNES_AUTHOR=reviewer-machine`) on the thread, spawns its `r<id>` window on the `tlon`
+server beside you, and injects the opening assignment. `task` should name the diff concretely — a
+git ref/range or a one-line description the reviewer can act on (it has repo read + `git`, so
+"review the working-tree diff" or "review HEAD~1..HEAD" both work). If the tool reports crew
+spawning is unavailable, the cockpit's crew backend is not configured (you are not on the aleph hub).
 
 Then keep talking to the reviewer over funes: post `@reviewer-machine …` on the thread and it
 arrives in its window. The reviewer posts its findings back as thread messages.
@@ -88,7 +92,7 @@ loop can later grade whether the reviewer's fixes actually helped.
 When the review is resolved (fix applied, or rejected + reasoned):
 
 ```
-mix aleph.crew.kill <thread_id>
+kill_crew()        # role defaults to "reviewer"; tears down on THIS thread
 ```
 
 This removes the reviewer's `r<id>` window. Post a one-line synthesis to the thread. The agent is
@@ -99,12 +103,12 @@ standing coworker.
 
 | Step | Action |
 |------|--------|
-| Spawn reviewer | `mix aleph.crew.spawn reviewer <tid> --task "<what>"` |
+| Spawn reviewer | `spawn_crew(task: "<what>")` (joins this thread) |
 | Talk to it | post `@reviewer-machine …` on the thread |
 | It escalates | `@claude-machine ESCALATE apply: <patch>` arrives in your window |
 | You approve-on-behalf | apply + verify + post `applied on your behalf: …` + `record_check` |
 | You surface | post `@operator NEEDS DECISION: …` (wakes them), wait |
-| Teardown | `mix aleph.crew.kill <tid>` + one-line synthesis |
+| Teardown | `kill_crew()` + one-line synthesis |
 
 ## Boundaries of this MVP (don't over-reach)
 
