@@ -18,8 +18,8 @@ defmodule Aleph.Panel.Chorus do
 
   import Aleph.Panel, only: [line: 2, blank: 0]
 
-  # The cockpit already subscribes to ALL message events (Bus.subscribe_messages), so the feed
-  # repaints on any thread's activity — no per-thread topic needed here.
+  # The cockpit already subscribes to ALL message events (Bus.subscribe_activity, a superset of
+  # messages_topic), so the feed repaints on any thread's activity — no per-thread topic needed.
   @impl Aleph.Panel
   def topics(_assigns), do: []
 

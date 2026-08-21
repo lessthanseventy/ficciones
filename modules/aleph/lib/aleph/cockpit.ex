@@ -189,7 +189,12 @@ defmodule Aleph.Cockpit do
     # Subscribe before the first read so nothing posted mid-boot is missed.
     Bus.subscribe_sessions()
     Bus.subscribe_threads()
-    Bus.subscribe_messages()
+    # The global activity topic is a strict superset of messages_topic for `:message_posted`
+    # (Bus.broadcast always publishes a message to both) — subscribing to messages_topic too
+    # would double-deliver every message. Riding activity alone also brings fact_banked /
+    # event_recorded / issue_raised / question_raised in globally (the Activity feed's buffer),
+    # not just for the focused thread.
+    Bus.subscribe_activity()
     Bus.subscribe_habits()
 
     case :termbox2_nif.tb_init() do
@@ -249,6 +254,9 @@ defmodule Aleph.Cockpit do
             # The Leaves rollup (machine_overview), cached with the other probes so its item count is
             # available to the keymap for j/k clamping at keypress time (before reads exist).
             leaves: nil,
+            # The funes activity feed's bounded buffer (Tlön right sidebar + the footer pulse):
+            # `{tag, row}` Bus events, newest-first, capped at 50 by `push_activity/3`.
+            activity: [],
             probed_at: 0,
             machine_retry_at: nil,
             # The standing tertius/hronir coworker's own machine thread — captured once, at its
@@ -387,8 +395,15 @@ defmodule Aleph.Cockpit do
   def handle_info({:message_posted, row}, state) do
     desktop_notify(:message_posted, row)
     mention_notify(row, state)
-    {:noreply, render(state)}
+    {:noreply, render(push_activity(state, :message_posted, row))}
   end
+
+  # The activity-buffer subset of this clause's tags: `Funes.Bus` publishes these to the global
+  # activity topic (see funes/lib/funes/bus.ex), not just the focused thread's topic — so this
+  # is where the Activity feed's `state.activity` gets filled. thread_opened/closed/assigned and
+  # session_started/ended ride ONLY their own topics (never activity), so they never reach here
+  # via a second path and are left out of the buffer.
+  @activity_tags [:fact_banked, :event_recorded, :issue_raised, :issue_resolved, :question_raised, :question_resolved]
 
   def handle_info({tag, row}, state)
       when tag in [
@@ -406,6 +421,7 @@ defmodule Aleph.Cockpit do
            ] do
     desktop_notify(tag, row)
     nudge_tertius_on_finish(tag, row, state)
+    state = if tag in @activity_tags, do: push_activity(state, tag, row), else: state
     {:noreply, render(state)}
   end
 
@@ -454,6 +470,20 @@ defmodule Aleph.Cockpit do
   defp refresh_size(state) do
     :termbox2_nif.tb_resize()
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
+  end
+
+  @activity_cap 50
+
+  # Prepend `{tag, row}` to the activity buffer (newest-first, capped at @activity_cap). A
+  # thread-scoped activity event (fact_banked, event_recorded, …) on the currently FOCUSED
+  # thread reaches the cockpit via TWO subscriptions — that thread's own topic and the global
+  # activity topic — so the identical event can arrive twice back-to-back. Checking the head
+  # guards the buffer against double-counting it without a separate "seen" set.
+  defp push_activity(state, tag, row) do
+    case state.activity do
+      [{^tag, ^row} | _] -> state
+      activity -> %{state | activity: Enum.take([{tag, row} | activity], @activity_cap)}
+    end
   end
 
   # Operator-relevant Bus events become native desktop notifications via an OSC 777 escape —
@@ -951,6 +981,7 @@ defmodule Aleph.Cockpit do
       machine: machine_read(state),
       stack: state.stack || @empty_stack,
       health: state.health,
+      activity: state.activity,
       memory: if(state.active_key == :tlon, do: state.memory),
       orbis: if(state.active_key == :tlon, do: state.leaves),
       logbook: logbook_read(state.active_key),

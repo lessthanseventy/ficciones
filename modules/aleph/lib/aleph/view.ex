@@ -30,6 +30,7 @@ defmodule Aleph.View do
     Panel.Health,
     Panel.Logbook,
     Panel.Leaves,
+    Panel.Activity,
     Panel.Triage,
     Panel.Settings,
     Panel.Memory,
@@ -192,6 +193,7 @@ defmodule Aleph.View do
   def data_for(Panel.Health, r), do: r.health
   def data_for(Panel.Logbook, r), do: r.logbook
   def data_for(Panel.Leaves, r), do: r.orbis
+  def data_for(Panel.Activity, r), do: %{events: r[:activity] || []}
   def data_for(Panel.Triage, r), do: r.triage
   def data_for(Panel.Habits, r), do: r.habits
   def data_for(Panel.Settings, r), do: r.settings

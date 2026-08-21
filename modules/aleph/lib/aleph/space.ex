@@ -13,6 +13,7 @@ defmodule Aleph.Space do
   Terminal panes on one surface get distinct data. A space stays plain data either way.
   """
 
+  alias Aleph.Panel.Activity
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Health
@@ -78,8 +79,10 @@ defmodule Aleph.Space do
         # Settings is now the `m` keybind / a modal, not an always-on pane.
         left: [Stack, Memory],
         # LEAVES — the machine rollup (each leaf thread's lead/status/conflicts), Enter jumps to it
-        # in Sessions. Health becomes the status bar in the visual-cleanup pass.
-        right: [Health, Leaves],
+        # in Sessions. Health becomes the status bar in the visual-cleanup pass. ACTIVITY — the
+        # cross-thread funes feed (fact banked, check passed/failed, work landed, message posted,
+        # issue/question raised), fed by the Cockpit's activity buffer.
+        right: [Health, Activity, Leaves],
         # The center coworker: the `tertius` profile (Orbis Tertius meta agent). See Aleph.Profiles.
         coworker: "tertius"
       }
