@@ -40,24 +40,34 @@ defmodule Aleph.Panel.Activity do
 
   @doc """
   Map one buffered `{tag, row}` Bus event to `{icon, style, summary text}` — the single source
-  both this panel and the footer pulse render from.
+  both this panel and the footer pulse render from. The summary is flattened to a single line
+  (agent-authored text can carry a literal newline that would render as a raw control byte).
   """
   @spec summarize({atom(), map()}) :: {String.t(), atom(), String.t()}
-  def summarize({:fact_banked, fact}), do: {"● ", :event_ok, "fact ##{fact.id} #{fact.kind} — #{fact.text}"}
+  def summarize(event) do
+    {icon, style, text} = classify(event)
+    {icon, style, flatten(text)}
+  end
 
-  def summarize({:event_recorded, %{kind: "check_passed"} = ev}), do: {"✓ ", :event_ok, check_text(ev)}
-  def summarize({:event_recorded, %{kind: "check_failed"} = ev}), do: {"✗ ", :event_bad, check_text(ev)}
-  def summarize({:event_recorded, %{kind: "work_landed"} = ev}), do: {"⚑ ", :event_done, work_text(ev)}
-  def summarize({:event_recorded, ev}), do: {"· ", :event_msg, ev.kind}
+  defp classify({:fact_banked, fact}), do: {"● ", :event_ok, "fact ##{fact.id} #{fact.kind} — #{fact.text}"}
 
-  def summarize({:message_posted, m}), do: {"▸ ", :event_msg, "#{m.author}: #{m.body}"}
+  defp classify({:event_recorded, %{kind: "check_passed"} = ev}), do: {"✓ ", :event_ok, check_text(ev)}
+  defp classify({:event_recorded, %{kind: "check_failed"} = ev}), do: {"✗ ", :event_bad, check_text(ev)}
+  defp classify({:event_recorded, %{kind: "work_landed"} = ev}), do: {"⚑ ", :event_done, work_text(ev)}
+  defp classify({:event_recorded, ev}), do: {"· ", :event_msg, ev.kind}
 
-  def summarize({:issue_raised, row}), do: {"◆ ", :event_warn, "issue: #{row.summary}"}
-  def summarize({:question_raised, row}), do: {"◆ ", :event_warn, "question: #{row.text}"}
+  defp classify({:message_posted, m}), do: {"▸ ", :event_msg, "#{m.author}: #{m.body}"}
+
+  defp classify({:issue_raised, row}), do: {"◆ ", :event_warn, "issue: #{row.summary}"}
+  defp classify({:question_raised, row}), do: {"◆ ", :event_warn, "question: #{row.text}"}
 
   # Anything else that rides the activity topic (issue_resolved, question_resolved, todo_*…) —
   # a plain row rather than a silent drop, so the feed never hides a real write.
-  def summarize({tag, _row}), do: {"· ", :event_msg, to_string(tag)}
+  defp classify({tag, _row}), do: {"· ", :event_msg, to_string(tag)}
+
+  # Collapse any run of whitespace (incl. embedded newlines) to a single space, so the summary
+  # stays one clean line — the panel keeps one row per event and the footer stays compact.
+  defp flatten(text), do: text |> to_string() |> String.replace(~r/\s+/, " ") |> String.trim()
 
   defp check_text(%{detail: detail}) do
     d = detail || %{}

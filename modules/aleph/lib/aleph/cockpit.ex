@@ -257,6 +257,10 @@ defmodule Aleph.Cockpit do
             # The funes activity feed's bounded buffer (Tlön right sidebar + the footer pulse):
             # `{tag, row}` Bus events, newest-first, capped at 50 by `push_activity/3`.
             activity: [],
+            # Recently-seen `{tag, id}` keys (capped ~100) — the first-sight gate. A tagged event on
+            # the FOCUSED thread arrives TWICE (its thread topic + the global activity topic), so this
+            # dedupes side effects (notify/nudge/append) to exactly once. See `fresh?/3`.
+            seen_events: [],
             probed_at: 0,
             machine_retry_at: nil,
             # The standing tertius/hronir coworker's own machine thread — captured once, at its
@@ -403,7 +407,16 @@ defmodule Aleph.Cockpit do
   # is where the Activity feed's `state.activity` gets filled. thread_opened/closed/assigned and
   # session_started/ended ride ONLY their own topics (never activity), so they never reach here
   # via a second path and are left out of the buffer.
-  @activity_tags [:fact_banked, :event_recorded, :issue_raised, :issue_resolved, :question_raised, :question_resolved]
+  @activity_tags [
+    :fact_banked,
+    :event_recorded,
+    :issue_raised,
+    :issue_resolved,
+    :question_raised,
+    :question_resolved,
+    :todo_added,
+    :todo_completed
+  ]
 
   def handle_info({tag, row}, state)
       when tag in [
@@ -413,16 +426,25 @@ defmodule Aleph.Cockpit do
              :issue_resolved,
              :question_raised,
              :question_resolved,
+             :todo_added,
+             :todo_completed,
              :thread_opened,
              :thread_closed,
              :thread_assigned,
              :session_started,
              :session_ended
            ] do
-    desktop_notify(tag, row)
-    nudge_tertius_on_finish(tag, row, state)
-    state = if tag in @activity_tags, do: push_activity(state, tag, row), else: state
-    {:noreply, render(state)}
+    # First-sight gate: a tagged event on the FOCUSED thread is delivered twice (thread topic +
+    # activity topic). Dropping the repeat here means desktop_notify/nudge/append each fire once.
+    if fresh?(state, tag, row) do
+      state = %{state | seen_events: cap_seen([seen_key(tag, row) | state.seen_events])}
+      desktop_notify(tag, row)
+      nudge_tertius_on_finish(tag, row, state)
+      state = if tag in @activity_tags, do: push_activity(state, tag, row), else: state
+      {:noreply, render(state)}
+    else
+      {:noreply, state}
+    end
   end
 
   # Habit review events refresh the Habits panel (Tlön). No desktop notification — a proposed
@@ -473,18 +495,24 @@ defmodule Aleph.Cockpit do
   end
 
   @activity_cap 50
+  @seen_cap 100
 
-  # Prepend `{tag, row}` to the activity buffer (newest-first, capped at @activity_cap). A
-  # thread-scoped activity event (fact_banked, event_recorded, …) on the currently FOCUSED
-  # thread reaches the cockpit via TWO subscriptions — that thread's own topic and the global
-  # activity topic — so the identical event can arrive twice back-to-back. Checking the head
-  # guards the buffer against double-counting it without a separate "seen" set.
+  # Prepend `{tag, row}` to the activity buffer (newest-first, capped at @activity_cap). Tagged
+  # events are already deduped by the `fresh?/3` first-sight gate in handle_info; messages reach
+  # the cockpit once (only via the activity topic, since init dropped subscribe_messages).
   defp push_activity(state, tag, row) do
-    case state.activity do
-      [{^tag, ^row} | _] -> state
-      activity -> %{state | activity: Enum.take([{tag, row} | activity], @activity_cap)}
-    end
+    %{state | activity: Enum.take([{tag, row} | state.activity], @activity_cap)}
   end
+
+  # First-sight test for a tagged event: true unless its key is already in the recently-seen set.
+  # The key is `{tag, row.id}` (a durable row always has an id, so the two topic deliveries share
+  # it); a row with no id falls back to the whole `{tag, row}` term.
+  defp fresh?(state, tag, row), do: seen_key(tag, row) not in state.seen_events
+
+  defp seen_key(tag, %{id: id}) when not is_nil(id), do: {tag, id}
+  defp seen_key(tag, row), do: {tag, row}
+
+  defp cap_seen(keys), do: Enum.take(keys, @seen_cap)
 
   # Operator-relevant Bus events become native desktop notifications via an OSC 777 escape —
   # ghostty (Linux and macOS) raises it as a real notification, and only when unfocused (the

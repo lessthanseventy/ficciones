@@ -9,9 +9,9 @@ defmodule Aleph.Notify do
 
   This module only DECIDES and FORMATS: `for_event/2` maps an operator-relevant Bus event to
   `{title, body}` (nil for noise), `osc/2` builds the escape. The one-line tty write lives in
-  the Cockpit (thin edge). Known limit, by design: `question_raised`/`issue_raised` publish on
-  per-thread topics, so today they only reach the cockpit for the FOCUSED thread — the global
-  meta-topic that fixes that is funes work (see docs/plans/2026-08-16-context-reuse-cribs.md).
+  the Cockpit (thin edge). `question_raised`/`issue_raised` now reach the cockpit cross-thread:
+  the Cockpit subscribes to `Funes.Bus`'s global `activity` topic, so these fire for ANY thread,
+  not just the focused one (the meta-topic that was once outstanding funes work).
   """
 
   @doc """

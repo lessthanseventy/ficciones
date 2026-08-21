@@ -59,4 +59,11 @@ defmodule Aleph.Panel.ActivityTest do
     assert {"◆ ", :event_warn, text} = Activity.summarize({:question_raised, %{text: "does raxol support embedding?"}})
     assert text =~ "raxol"
   end
+
+  test "summarize/1 flattens embedded whitespace so a summary is always one clean line" do
+    {_, _, text} = Activity.summarize({:message_posted, %{author: "pi", body: "line one\nline two\t tabbed"}})
+    refute text =~ "\n"
+    refute text =~ "\t"
+    assert text == "pi: line one line two tabbed"
+  end
 end
