@@ -41,4 +41,34 @@ defmodule Aleph.CrewTest do
       assert Crew.handle_role("claude-machine") == nil
     end
   end
+
+  describe "spawn_argv/3 and boot_script/2 (pure tmux builders)" do
+    test "spawn_argv targets the tlon session on the aleph-tertius socket, window r<id>, detached" do
+      argv = Crew.spawn_argv("reviewer", 42, "boot-script-here")
+
+      assert argv == [
+               "-L",
+               "aleph-tertius",
+               "new-window",
+               "-d",
+               "-t",
+               "tlon",
+               "-n",
+               "r42",
+               "boot-script-here"
+             ]
+    end
+
+    test "boot_script sources the funes exports then execs the reviewer profile launcher" do
+      script = Crew.boot_script("export FUNES_THREAD=\"42\"", "tmux -L aleph-reviewer … 'pi …'")
+      assert script =~ "export TERM=xterm-256color"
+      assert script =~ "export FUNES_THREAD=\"42\""
+      assert String.contains?(script, "\nexec tmux -L aleph-reviewer")
+    end
+
+    test "kill_argv removes the role's window on the same server" do
+      assert Crew.kill_argv("reviewer", 42) ==
+               ["-L", "aleph-tertius", "kill-window", "-t", "tlon:r42"]
+    end
+  end
 end
