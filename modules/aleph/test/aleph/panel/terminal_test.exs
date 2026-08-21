@@ -20,22 +20,26 @@ defmodule Aleph.Panel.TerminalTest do
   end
 
   describe "Claude Code's cyan `background` sentinel is neutralized, never blitted" do
-    # CC paints its theme `background` token — a deliberately garish "you should never see this"
-    # cyan (dark UI: rgb(0,204,204); light: rgb(0,153,153)) — as the explicit per-cell bg on
-    # queued/injected message rows. The VT stores it faithfully, so aleph must remap it to the
-    # panel's own default (black) or those rows blit as cyan under a phosphor theme.
-    test "a cyan-sentinel cell background is remapped to the terminal default (black)" do
-      rs = render_state(%{cells: [[{"m", {51, 255, 0}, {0, 204, 204}, 0}]]})
+    # CC paints its theme `background` token — a pale cyan, observed live as rgb(155,208,204) — as
+    # the explicit per-cell bg on queued/injected message rows. The VT stores it faithfully, so aleph
+    # must remap it to the panel's own default (black) or those rows blit as cyan under a phosphor
+    # theme. (Value captured 2026-08-21; earlier guesses of rgb(0,204,204)/rgb(0,153,153) never fired
+    # and are NOT sentinels — the two below guard that they now pass through untouched.)
+    test "the cyan sentinel rgb(155,208,204) is remapped to the terminal default (black)" do
+      rs = render_state(%{cells: [[{"m", {51, 255, 0}, {155, 208, 204}, 0}]]})
       [first | _] = Terminal.render(rs, @rect)
       {char, {:rgb, fg, bg}} = Enum.find(first, fn {t, _} -> t == "m" end)
       assert {char, fg, bg} == {"m", 0x33FF00, 0x000000}
     end
 
-    test "the light-UI sentinel rgb(0,153,153) is remapped too" do
-      rs = render_state(%{cells: [[{"m", {51, 255, 0}, {0, 153, 153}, 0}]]})
-      [first | _] = Terminal.render(rs, @rect)
-      {_, {:rgb, _fg, bg}} = Enum.find(first, fn {t, _} -> t == "m" end)
-      assert bg == 0x000000
+    test "the earlier guessed values rgb(0,204,204)/rgb(0,153,153) are NOT sentinels — passed through" do
+      for rgb <- [{0, 204, 204}, {0, 153, 153}] do
+        rs = render_state(%{cells: [[{"m", {51, 255, 0}, rgb, 0}]]})
+        [first | _] = Terminal.render(rs, @rect)
+        {_, {:rgb, _fg, bg}} = Enum.find(first, fn {t, _} -> t == "m" end)
+        {r, g, b} = rgb
+        assert bg == r * 0x10000 + g * 0x100 + b
+      end
     end
 
     test "a normal (non-sentinel) cell background is preserved untouched" do

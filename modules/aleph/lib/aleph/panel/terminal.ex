@@ -23,13 +23,14 @@ defmodule Aleph.Panel.Terminal do
   @default_bg 0x000000
   @inverse_bit 32
 
-  # Claude Code paints its theme `background` token — a deliberately garish "you should never see
-  # this" cyan (dark UI: rgb(0,204,204); light: rgb(0,153,153)) — as the EXPLICIT per-cell bg on
-  # queued/injected message rows (your own input, cross-thread funes messages). The VT stores it
-  # faithfully, so without neutralising it those rows blit as cyan under a phosphor theme. Remap the
-  # sentinel to the panel's own default so they read like the rest of the screen. It's not a real
-  # background choice any harness means to show — matching the value is the only signal aleph gets.
-  @bg_sentinels [0x00CCCC, 0x009999]
+  # Claude Code paints its theme `background` token — a pale cyan, observed as rgb(155,208,204) — as
+  # the EXPLICIT per-cell bg on queued/injected message rows (your own input, cross-thread funes
+  # messages). The VT stores it faithfully, so without neutralising it those rows blit as cyan under
+  # a phosphor theme. Remap the sentinel to the panel's own default so they read like the rest of the
+  # screen. It's not a real background choice any harness means to show — matching the value is the
+  # only signal aleph gets. (Value captured live via the probe below, 2026-08-21; earlier guesses of
+  # 0x00CCCC/0x009999 never fired.)
+  @bg_sentinels [0x9BD0CC]
 
   @impl Aleph.Panel
   def topics(_assigns), do: []
