@@ -106,8 +106,10 @@ export class FunesClient {
   // Bank a DERIVED fact from cadence capture (total-recall slice C). No from_message → funes banks
   // it `derived` (the low-authority lane automation is allowed to fill). funes' own secret scan
   // (slice B) rejects a credential here, which surfaces as a thrown FunesRejected the caller drops.
-  async bankFact(text: string, kind: "learned" | "decision"): Promise<void> {
-    await this.#callTool("bank_fact", { text, kind });
+  // intent (one-ledger Cut 1) is what the fact is FOR — omitted, not sent, when the extractor
+  // didn't produce one, so older funes servers still accept the call.
+  async bankFact(text: string, kind: "learned" | "decision", intent?: string): Promise<void> {
+    await this.#callTool("bank_fact", intent ? { text, kind, intent } : { text, kind });
   }
 
   // Raise an open question surfaced by capture — a known unknown for the successor.

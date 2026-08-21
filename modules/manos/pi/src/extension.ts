@@ -135,7 +135,7 @@ export default function manos(pi: ExtensionAPI): void {
       watermark = nextWatermark;
       for (const f of facts) {
         try {
-          await client.bankFact(f.text, f.kind);
+          await client.bankFact(f.text, f.kind, f.intent);
         } catch {
           /* a rejected fact (e.g. a secret) is dropped, never retried */
         }

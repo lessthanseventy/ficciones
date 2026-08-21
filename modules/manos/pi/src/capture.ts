@@ -17,6 +17,7 @@ export interface Entry {
 export interface CapturedFact {
   text: string;
   kind: "learned" | "decision";
+  intent?: string;
 }
 
 export interface Extraction {
@@ -101,8 +102,9 @@ export function buildExtractionPrompt(delta: string): string {
     "conclusion, a decision made and why) and OPEN questions left unresolved. Ignore chit-chat, " +
     "restatements of the task, and anything uncertain.\n\n" +
     'Output ONLY minified JSON of this exact shape, nothing else:\n' +
-    '{"facts":[{"text":"...","kind":"learned"}],"questions":["..."]}\n' +
-    'kind is "learned" or "decision". If nothing durable, output {"facts":[],"questions":[]}.\n\n' +
+    '{"facts":[{"text":"...","kind":"learned","intent":"..."}],"questions":["..."]}\n' +
+    'kind is "learned" or "decision". intent is a short phrase for WHY this fact is worth keeping ' +
+    '(what future work it serves). If nothing durable, output {"facts":[],"questions":[]}.\n\n' +
     "TRANSCRIPT EXCERPT:\n" +
     delta
   );
@@ -132,7 +134,9 @@ export function parseExtraction(raw: string): Extraction {
       const text = typeof (f as { text?: unknown })?.text === "string" ? (f as { text: string }).text.trim() : "";
       if (!text) continue;
       const kind = (f as { kind?: unknown })?.kind === "decision" ? "decision" : "learned";
-      facts.push({ text, kind });
+      const intent =
+        typeof (f as { intent?: unknown })?.intent === "string" ? (f as { intent: string }).intent.trim() : undefined;
+      facts.push({ text, kind, intent });
     }
   }
   const questions: string[] = [];

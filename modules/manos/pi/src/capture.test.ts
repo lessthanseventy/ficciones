@@ -49,8 +49,9 @@ describe("serializeDelta — a role/text transcript, tool spam + brief injection
 describe("buildExtractionPrompt — pins the JSON contract + the kind restriction", () => {
   test("names the shape and forbids inventing constraints", () => {
     const p = buildExtractionPrompt("### user\nhi");
-    expect(p).toContain('{"facts":[{"text":"...","kind":"learned"}],"questions":["..."]}');
+    expect(p).toContain('{"facts":[{"text":"...","kind":"learned","intent":"..."}],"questions":["..."]}');
     expect(p).toContain('"learned" or "decision"');
+    expect(p).toContain("WHY this fact is worth keeping");
     expect(p).toContain("### user\nhi");
   });
 });
@@ -107,5 +108,15 @@ describe("parseExtraction — tolerant JSON, clamped kinds, empty on garbage", (
     expect(parseExtraction("the model refused")).toEqual({ facts: [], questions: [] });
     expect(parseExtraction("")).toEqual({ facts: [], questions: [] });
     expect(parseExtraction("{not json}")).toEqual({ facts: [], questions: [] });
+  });
+
+  test("pulls intent per fact", () => {
+    const out = parseExtraction('{"facts":[{"text":"x","kind":"learned","intent":"why"}],"questions":[]}');
+    expect(out.facts[0]?.intent).toBe("why");
+  });
+
+  test("a missing intent parses fine, leaving it undefined (tolerant parse)", () => {
+    const out = parseExtraction('{"facts":[{"text":"x","kind":"learned"}],"questions":[]}');
+    expect(out.facts[0]?.intent).toBeUndefined();
   });
 });
