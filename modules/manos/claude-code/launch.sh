@@ -3,7 +3,8 @@
 # No thread-id: open a fresh thread. A numeric thread-id: join that thread (resume across
 # a /clear).
 #
-# The funes MCP server (Door 1) and brief hook (Door 2) are scoped to THIS session via
+# The funes MCP server (Door 1), the brief hook (Door 2), and the capture reflex (a Stop
+# hook that banks durable facts back to funes each turn) are scoped to THIS session via
 # `--mcp-config`/`--settings`, not installed into ~/.claude, so a normal `claude` stays
 # untouched.
 #
@@ -45,7 +46,7 @@ if [ -z "${FUNES_MCP_URL:-}" ] || [ -z "${FUNES_THREAD:-}" ] || [ -z "${FUNES_AU
 fi
 
 mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headersHelper\":\"$cli token\"}}}"
-settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}]}}"
+settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/capture-hook.sh\"}]}]}}"
 
 # The funes-citizen protocol, as a system prompt. Without it Claude Code treats a teammate's message
 # (injected into its input as "[funes thread #N] <author>: ...") like the human talking and answers in

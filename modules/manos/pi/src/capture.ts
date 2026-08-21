@@ -29,6 +29,12 @@ export interface Extraction {
 // session that compacts before its first tick could still hand over a big slice. Tail wins.
 const MAX_DELTA_CHARS = 16_000;
 
+// The default cheap model that runs cadence extraction out-of-band (ollama-cloud). Flash: efficient
+// MoE, large enough context for a bounded delta, cheap enough to run on a cadence. The single
+// source of truth for BOTH harness reflexes — pi's extension.ts (overridable via funes-recall.json)
+// and claude-code's cc-capture.ts (fixed) — so the two never drift.
+export const DEFAULT_CAPTURE_MODEL = "deepseek-v4-flash";
+
 // The entries added since the watermark (an index into the running entry list). Returns the slice
 // to capture and the new watermark to store once it's captured.
 export function deltaSince(entries: Entry[], watermark: number): { slice: Entry[]; nextWatermark: number } {

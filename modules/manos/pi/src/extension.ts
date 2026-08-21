@@ -14,14 +14,21 @@ import { join } from "node:path";
 import { renderBrief, type Dossier } from "./brief.ts";
 import { FunesClient, FunesUnreachable, type FunesConfig } from "./mcp.ts";
 import { detectCorrection } from "./recall.ts";
-import { buildExtractionPrompt, deltaSince, parseExtraction, redactSecrets, serializeDelta } from "./capture.ts";
+import {
+  buildExtractionPrompt,
+  deltaSince,
+  DEFAULT_CAPTURE_MODEL,
+  parseExtraction,
+  redactSecrets,
+  serializeDelta,
+} from "./capture.ts";
 import { completeText } from "./llm.ts";
 import type { ExtensionAPI, ExtensionContext } from "./pi.ts";
 
-// The cheap model that runs cadence extraction out-of-band (ollama-cloud). Flash: efficient MoE,
-// large enough context for a bounded delta, cheap enough to run every few turns. Overridable via
+// The cheap model that runs cadence extraction out-of-band (ollama-cloud), shared with the
+// claude-code reflex via capture.ts's DEFAULT_CAPTURE_MODEL. Overridable per-pane via
 // funes-recall.json `captureModel` (e.g. a local-daemon model to keep deltas off the wire entirely).
-const CAPTURE_MODEL = "deepseek-v4-flash";
+const CAPTURE_MODEL = DEFAULT_CAPTURE_MODEL;
 
 interface RecallConfig {
   correctionDetection: boolean;

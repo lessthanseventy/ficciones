@@ -35,6 +35,29 @@ Both reach the **live** funes service node (loopback MCP on :4040); the service 
   re-orients from funes. No identity, a down channel, or a missing thread → a silent no-op;
   it never blocks the session.
 
+## The capture reflex (one-ledger Cut 1)
+
+[`capture-hook.sh`](capture-hook.sh) is a `Stop` hook — it runs every turn. It execs
+[`cc-capture.ts`](../pi/src/cc-capture.ts) (bun), which reuses pi's `capture.ts` pure core
+(delta-slicing, secret redaction, the extraction prompt, tolerant parse) and `mcp.ts`'s
+`FunesClient` verbatim — the same reflex pi's `extension.ts` runs on a cadence, adapted to
+Claude Code's stateless-per-turn hook model: a per-session watermark is persisted to
+`${XDG_STATE_HOME:-~/.local/state}/funes-cc-capture/<session_id>` instead of living in a
+long-lived closure. Extracted facts are banked `derived`, with `intent`, unbidden. Same
+failure discipline as everything else here: no identity, a down channel, a bad completion,
+or an unparseable transcript is a silent no-op — a Stop hook must never be why a session
+looks broken.
+
+**Cadence floor + tail-loss follow-up.** The Stop hook batches: a delta under `MIN_DELTA_CHARS`
+(~2k) accumulates without advancing the watermark rather than paying for a per-turn ollama
+call, so nothing is dropped mid-session (the next Stop re-includes it). The one gap is the
+*final* sub-floor tail: if a session ends with an un-extracted delta below the floor, it's
+never banked. Claude Code exposes a `SessionEnd` hook (fires on session termination) and a
+`PreCompact` hook (fires before compaction) — both receive the same `session_id` +
+`transcript_path` on stdin as `Stop`, so either could later run `cc-capture.ts` with a
+zero-floor "flush" mode to capture that tail. `SessionEnd` is the cleaner fit (it fires after
+all turns complete). Deferred — not wired yet; the per-turn Stop reflex covers the common case.
+
 ## Install
 
 Declarative, via home-manager (`flake.nix`), the same merge-not-own pattern as the pi
