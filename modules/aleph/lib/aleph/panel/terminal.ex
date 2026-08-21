@@ -5,13 +5,17 @@ defmodule Aleph.Panel.Terminal do
   from the VT engine (not a semantic palette). The cursor cell is inverted so you can see where
   you type, and the `inverse` attribute (SGR 7) swaps fg/bg like a real terminal.
 
+  Renders edge-to-edge — no header row. The Tlön workspace's window strip (once drawn here as row
+  0) is now `Aleph.Panel.WindowBar`, a standalone bordered panel `Aleph.View.compose/3` places
+  above this one; a Sessions coworker terminal never had a strip and is unaffected.
+
   Data is a `render_state` map (`%{cells, cursor, foreground, background}`) or `:no_session`.
   Pure: a render_state in → styled rows out, no TTY. The cockpit blits these through `Aleph.Board`,
   which already paints 24-bit colour.
   """
   @behaviour Aleph.Panel
 
-  import Aleph.Panel, only: [line: 2, pad: 3]
+  import Aleph.Panel, only: [line: 2]
   import Bitwise
 
   # Fallback colours when the emulator reports nil (use the terminal-native pair).
@@ -32,45 +36,10 @@ defmodule Aleph.Panel.Terminal do
     default_bg = rgb_int(render_state[:background]) || @default_bg
     cursor = render_state[:cursor] || %{visible: false}
 
-    cell_rows =
-      cells
-      |> Enum.with_index()
-      |> Enum.map(fn {row, y} -> cell_runs(row, y, cursor, default_fg, default_bg) end)
-
-    render_state[:tabs]
-    |> tab_rows(rect.w)
-    |> Kernel.++(cell_rows)
+    cells
+    |> Enum.with_index()
+    |> Enum.map(fn {row, y} -> cell_runs(row, y, cursor, default_fg, default_bg) end)
     |> Aleph.Panel.clip(rect)
-  end
-
-  # When the panel carries a window list (the Tlön workspace), aleph draws its OWN tab strip as the
-  # header row — tmux's status bar is off, so this is the only window chrome. A Sessions coworker
-  # terminal carries no tabs and renders edge-to-edge. The active window is `:selected` (the picker's
-  # highlight), the rest `:dim`.
-  defp tab_rows(tabs, w) when is_list(tabs) and tabs != [] do
-    [pad(Enum.map(tabs, &tab_run/1), w, :normal)]
-  end
-
-  defp tab_rows(_tabs, _w), do: []
-
-  defp tab_run(t), do: {tab_label(t), if(t.active?, do: :selected, else: :dim)}
-  defp tab_label(t), do: " #{t.name} "
-
-  @doc """
-  Hit-test the tab strip a click landed on: the tab whose ` name ` segment contains column `x`
-  (0-based within the panel), or nil past the last tab. Shares `tab_label/1` with the render so the
-  clickable regions can't drift from what's drawn.
-  """
-  def tab_at_x(tabs, x) do
-    tabs
-    |> Enum.reduce_while(0, fn t, start ->
-      next = start + String.length(tab_label(t))
-      if x >= start and x < next, do: {:halt, t}, else: {:cont, next}
-    end)
-    |> case do
-      %{} = tab -> tab
-      _ -> nil
-    end
   end
 
   # One run per cell — its own RGB. Board.row_cells emits a cell per grapheme, so per-cell runs are

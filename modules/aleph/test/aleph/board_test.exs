@@ -35,12 +35,14 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Health
   alias Aleph.Panel.Logbook
+  alias Aleph.Panel.Pulse
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Spaces
   alias Aleph.Panel.Stack
   alias Aleph.Panel.StatusBar
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
+  alias Aleph.Panel.WindowBar
   alias Aleph.View
 
   # Flatten a styled row to its text, for assertions.
@@ -581,16 +583,22 @@ defmodule Aleph.BoardTest do
 
       placements = View.compose(tlon, 120, 40)
 
-      # one full-height center terminal — tmux owns the windows INSIDE it
-      assert [{Terminal, :no_session, rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == Terminal end)
-      assert rect.h > 30
+      # the terminal is framed: WindowBar above, Pulse below, each its own bordered box — no
+      # longer the full-height center column a single-section surface would give it.
+      assert [{Terminal, :no_session, term_rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == Terminal end)
+      assert [{WindowBar, _wb_data, wb_rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == WindowBar end)
+      assert [{Pulse, _pulse_data, pulse_rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == Pulse end)
+
+      assert wb_rect.y < term_rect.y
+      assert pulse_rect.y > term_rect.y
+      assert term_rect.h < 36
     end
 
     test "the PTY sizes to the placed Terminal rect — no overflow past the frame" do
       # center_rect is what the embedded PTY is sized to; it MUST equal the rect compose places the
       # Terminal into, or pi draws wider/taller than the visible area (content spills past the frame,
       # or a dead band opens below). One authority for both, asserted across sizes and both terminal
-      # spaces. (A terminal space growing a second center section would break this — and should.)
+      # spaces — Tlön's is smaller than Sessions' since its column also carries WindowBar/Pulse.
       for {key, w, h} <- [{:sessions, 120, 40}, {:tlon, 120, 40}, {:sessions, 84, 30}] do
         r =
           reads(%{
@@ -602,7 +610,9 @@ defmodule Aleph.BoardTest do
           })
 
         {_m, _d, term_rect} = Enum.find(View.compose(r, w, h), fn {m, _d, _r} -> m == Terminal end)
-        assert View.center_rect(w, h) == term_rect, "center_rect drifted from the Terminal placement at #{key} #{w}x#{h}"
+
+        assert View.center_rect(key, w, h) == term_rect,
+               "center_rect drifted from the Terminal placement at #{key} #{w}x#{h}"
       end
     end
 

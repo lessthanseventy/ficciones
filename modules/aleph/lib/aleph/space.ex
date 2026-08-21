@@ -7,8 +7,9 @@ defmodule Aleph.Space do
   project). The `Aleph.Panel.Spaces` picker switches the active one; the center renders that
   space's `surface`.
 
-  A surface is a LIST of sections stacked down the center (one per space today). A section is either a
-  bare panel module (its data shaped by `Aleph.View.data_for/2`, like the sidebars) or a
+  A surface is a LIST of sections stacked down the center — usually one (Orbis, Sessions), but
+  Tlön frames its Terminal with two more: WindowBar above, Pulse below. A section is either a bare
+  panel module (its data shaped by `Aleph.View.data_for/2`, like the sidebars) or a
   `{panel_module, read_key}` pair whose data is the named Cockpit read verbatim — how two
   Terminal panes on one surface get distinct data. A space stays plain data either way.
   """
@@ -19,11 +20,13 @@ defmodule Aleph.Space do
   alias Aleph.Panel.Health
   alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
+  alias Aleph.Panel.Pulse
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.ThreadList
   alias Aleph.Panel.Triage
+  alias Aleph.Panel.WindowBar
 
   @enforce_keys [:key, :label, :surface]
   defstruct [:key, :label, :surface, left: [], right: [], coworker: nil]
@@ -70,10 +73,12 @@ defmodule Aleph.Space do
       %__MODULE__{
         # Tlön: the center is literal tmux — an embedded client on the standing `tlon` session, so it
         # survives aleph restarts. The center coworker (tertius) is window 0; the builder (hronir) and
-        # console (uqbar) ride as further windows, which aleph renders as the tab strip.
+        # console (uqbar) ride as further windows. WindowBar (aleph's own tab strip — tmux's status
+        # bar is off) frames the terminal on top, Pulse (the latest funes event) frames it below —
+        # each its own bordered band, stacked in this one surface list.
         key: :tlon,
         label: "Tlön",
-        surface: [{Terminal, :machine}],
+        surface: [WindowBar, {Terminal, :machine}, Pulse],
         # The study/act column: Commits (git changelog, was Stack) over Memory (what funes knows —
         # coverage + the always-loaded floor + pending habits to approve). Habits folded INTO Memory;
         # Settings is now the `m` keybind / a modal, not an always-on pane.

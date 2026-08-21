@@ -9,9 +9,11 @@ defmodule Aleph.View do
   `reads` is the map the Cockpit assembles:
     `%{active_key, focused_id, focused_title, roster, threads, scope, chatter, session}`
   """
+  alias Aleph.Mention
   alias Aleph.Panel
   alias Aleph.Space
   alias Aleph.Tlon.Focus
+  alias Funes.Presence
 
   @min_col 16
   # The bottom footer: an info line + a hints line (Aleph.Panel.StatusBar).
@@ -133,7 +135,7 @@ defmodule Aleph.View do
 
   # The three-column geometry (left ¼ · center ½ · right ¼) of the wide layout, as box rects — the
   # single source of truth for where each column sits. `compose/3` places panels into these, and
-  # `center_rect/2` derives the center Terminal's content rect from the SAME math, so the embedded
+  # `center_rect/3` derives the center Terminal's content rect from the SAME math, so the embedded
   # PTY can be sized to exactly what's on screen (a wider PTY spills pi past the frame; a shorter
   # one leaves a dead band).
   defp wide_columns(w, body_h) do
@@ -152,14 +154,28 @@ defmodule Aleph.View do
   end
 
   @doc """
-  The content rect the center Terminal renders into for a `w`×`h` cockpit — the single source of
-  truth the embedded PTY sizes to, so pi never draws wider or taller than the visible area. It is
-  the wide layout's center column inset by its frame; the terminal-bearing spaces (Sessions, Tlön)
-  each have a single-section center surface, so that box IS the full-height center column. (The PTY
-  is only sized in the wide layout — a real cockpit is never below the narrow threshold.)
+  The content rect the center Terminal renders into for a `space_key`/`w`×`h` cockpit — the single
+  source of truth the embedded PTY sizes to, so pi never draws wider or taller than the visible
+  area. Sessions' center is a single-section surface, so its Terminal IS the full-height center
+  column; Tlön's WindowBar/Pulse bands (`Aleph.Space`) share the column with the Terminal, so its
+  box is smaller — found via the SAME `boxed/2` stacking `compose/3` uses, not a second formula
+  that could drift. (The PTY is only sized in the wide layout — a real cockpit is never below the
+  narrow threshold.)
   """
-  @spec center_rect(pos_integer(), pos_integer()) :: Panel.rect()
-  def center_rect(w, h), do: inset(wide_columns(w, max(h - @status_h, 1)).center)
+  @spec center_rect(atom(), pos_integer(), pos_integer()) :: Panel.rect()
+  def center_rect(space_key, w, h) do
+    center_col = wide_columns(w, max(h - @status_h, 1)).center
+    surface = Space.fetch(space_key).surface
+
+    case Enum.find(boxed(surface, center_col), &terminal_section?/1) do
+      {_section, rect} -> inset(rect)
+      nil -> inset(center_col)
+    end
+  end
+
+  defp terminal_section?({Panel.Terminal, _rect}), do: true
+  defp terminal_section?({{Panel.Terminal, _read_key}, _rect}), do: true
+  defp terminal_section?(_boxed), do: false
 
   # The content region inside a section box: one cell of frame + one of padding on each side.
   defp inset(%{x: x, y: y, w: w, h: h}) do
@@ -194,6 +210,8 @@ defmodule Aleph.View do
   def data_for(Panel.Logbook, r), do: r.logbook
   def data_for(Panel.Leaves, r), do: r.orbis
   def data_for(Panel.Activity, r), do: %{events: r[:activity] || []}
+  def data_for(Panel.Pulse, r), do: %{events: r[:activity] || []}
+  def data_for(Panel.WindowBar, r), do: %{tabs: window_tabs(r), engine: engine_state(), thread: r.focused_id}
   def data_for(Panel.Triage, r), do: r.triage
   def data_for(Panel.Habits, r), do: r.habits
   def data_for(Panel.Settings, r), do: r.settings
@@ -261,8 +279,37 @@ defmodule Aleph.View do
 
   # The picker box is intrinsically short: header + blank + one row per space, plus its frame.
   defp fixed_height(Panel.Spaces), do: length(Space.all()) + 4
+  # The WindowBar/Pulse bands framing the Tlön terminal: one content row + their own 2-row frame.
+  defp fixed_height(Panel.WindowBar), do: 3
+  defp fixed_height(Panel.Pulse), do: 3
   defp fixed_height({panel, _read_key}), do: fixed_height(panel)
   defp fixed_height(_panel), do: nil
+
+  # The Tlön window strip, presence-joined: `reads.machine`'s tabs (from `tlon_tabs()`, forked
+  # once per render by the Cockpit) each get their agent handle (window → agent via
+  # `Aleph.Mention.coworkers/0`, inverted) and warmth (`reads.roster`, already fetched for the
+  # sidebar) — so WindowBar stays a pure render with no funes reads of its own.
+  defp window_tabs(r) do
+    agents = Map.new(Mention.coworkers(), fn {agent, window} -> {window, agent} end)
+    warm_agents = r.roster |> Enum.filter(& &1.warm?) |> MapSet.new(& &1.agent)
+
+    r
+    |> Map.get(:machine, %{})
+    |> tabs_of()
+    |> Enum.map(fn tab ->
+      agent = agents[tab.name]
+      Map.merge(tab, %{agent: agent, warm?: agent != nil and MapSet.member?(warm_agents, agent)})
+    end)
+  end
+
+  defp tabs_of(%{tabs: tabs}), do: tabs
+  defp tabs_of(_render_state), do: []
+
+  # The Claude-engine clock readout: `:off` only once the operator has manually clocked "claude"
+  # out (`Funes.Presence.clock_out/1`, e.g. from `funes:console`) — nothing calls that today, so
+  # this reads `:on` until that console verb exists. A real per-agent engine reader (§3b,
+  # `Funes.Presence.Engine`) is a later, local backend swapped into the same seam.
+  defp engine_state, do: if("claude" in Presence.clocked_out_engines(), do: :off, else: :on)
 
   defp clamp_col(v, w), do: v |> max(@min_col) |> min(max(div(w, 3), @min_col))
 end

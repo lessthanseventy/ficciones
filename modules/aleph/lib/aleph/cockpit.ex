@@ -15,6 +15,7 @@ defmodule Aleph.Cockpit do
   alias Aleph.Keymap
   alias Aleph.Mouse
   alias Aleph.Panel
+  alias Aleph.Panel.WindowBar
   alias Aleph.Profile
   alias Aleph.Profiles
   alias Aleph.Sessions
@@ -407,6 +408,8 @@ defmodule Aleph.Cockpit do
   # is where the Activity feed's `state.activity` gets filled. thread_opened/closed/assigned and
   # session_started/ended ride ONLY their own topics (never activity), so they never reach here
   # via a second path and are left out of the buffer.
+  # First-sight gate: a tagged event on the FOCUSED thread is delivered twice (thread topic +
+  # activity topic). Dropping the repeat here means desktop_notify/nudge/append each fire once.
   @activity_tags [
     :fact_banked,
     :event_recorded,
@@ -434,8 +437,6 @@ defmodule Aleph.Cockpit do
              :session_started,
              :session_ended
            ] do
-    # First-sight gate: a tagged event on the FOCUSED thread is delivered twice (thread topic +
-    # activity topic). Dropping the repeat here means desktop_notify/nudge/append each fire once.
     if fresh?(state, tag, row) do
       state = %{state | seen_events: cap_seen([seen_key(tag, row) | state.seen_events])}
       desktop_notify(tag, row)
@@ -672,32 +673,26 @@ defmodule Aleph.Cockpit do
 
   defp dispatch_click(nil, _x, _y, state), do: {:noreply, state}
 
-  # Clicking the center terminal. In the Tlön workspace, row 0 is aleph's OWN tab strip — a click
-  # there selects that tmux window (never forwarded to the PTY). Below it is the terminal proper:
-  # forwarded to the PTY when the embedded program tracks the mouse (tmux `mouse on` selects; a TUI
-  # hit-tests its own regions), shifted UP by the tab row so the cell under the cursor is the one hit.
-  defp dispatch_click({Panel.Terminal, data, rect}, x, y, state) do
-    tabs = tabs_of(data)
-    local_y = y - rect.y
-
-    if tabs != [] and local_y == 0 do
-      select_tlon_window(Panel.Terminal.tab_at_x(tabs, x - rect.x))
-      {:noreply, render(state)}
-    else
-      offset = if tabs == [], do: 0, else: 1
-
-      with term when is_pid(term) <- center_terminal(state) do
-        Terminal.mouse(term, :press, clamp_cell(x - rect.x, rect.w), clamp_cell(local_y - offset, rect.h))
-      end
-
-      {:noreply, state}
+  # Clicking the center terminal: forward to the PTY when the embedded program tracks the mouse
+  # (tmux `mouse on` selects; a TUI hit-tests its own regions). The terminal renders edge-to-edge —
+  # the Tlön window strip is WindowBar's own bordered panel above it (see the next clause), so
+  # there is no row-0 special case here anymore.
+  defp dispatch_click({Panel.Terminal, _data, rect}, x, y, state) do
+    with term when is_pid(term) <- center_terminal(state) do
+      Terminal.mouse(term, :press, clamp_cell(x - rect.x, rect.w), clamp_cell(y - rect.y, rect.h))
     end
+
+    {:noreply, state}
+  end
+
+  # Clicking a WindowBar tab selects that tmux window — never forwarded to the PTY (WindowBar is a
+  # standalone panel, not part of the terminal it frames).
+  defp dispatch_click({WindowBar, data, rect}, x, _y, state) do
+    select_tlon_window(WindowBar.tab_at_x(data[:tabs] || [], x - rect.x))
+    {:noreply, render(state)}
   end
 
   defp dispatch_click({panel, data, rect}, _x, y, state), do: apply_pick(Panel.pick(panel, data, rect, y - rect.y), state)
-
-  defp tabs_of(data) when is_map(data), do: data[:tabs] || []
-  defp tabs_of(_data), do: []
 
   # Select a Tlön tmux window by the clicked tab's index; nil (a click past the tabs) is a no-op.
   defp select_tlon_window(%{index: idx}) do
@@ -707,17 +702,11 @@ defmodule Aleph.Cockpit do
 
   defp select_tlon_window(_tab), do: :ok
 
-  # A drag/release over the terminal body (below the tab strip) → the PTY, shifted up by the tab row;
-  # anywhere else is ignored. Mirrors dispatch_click's body branch so a click and a drag agree on
-  # where the terminal starts.
-  defp forward_terminal_mouse({Panel.Terminal, data, rect}, action, x, y, state) do
-    offset = if tabs_of(data) == [], do: 0, else: 1
-    local_y = y - rect.y
-
-    if local_y >= offset do
-      with term when is_pid(term) <- center_terminal(state) do
-        Terminal.mouse(term, action, clamp_cell(x - rect.x, rect.w), clamp_cell(local_y - offset, rect.h))
-      end
+  # A drag/release over the terminal body → the PTY; anywhere else is ignored. The terminal is
+  # edge-to-edge now, so there is no tab-row offset to shift by.
+  defp forward_terminal_mouse({Panel.Terminal, _data, rect}, action, x, y, state) do
+    with term when is_pid(term) <- center_terminal(state) do
+      Terminal.mouse(term, action, clamp_cell(x - rect.x, rect.w), clamp_cell(y - rect.y, rect.h))
     end
 
     :ok
@@ -1753,15 +1742,13 @@ defmodule Aleph.Cockpit do
   end
 
   # Size the PTY to EXACTLY the center Terminal's content rect (Aleph.View.center_rect), so pi never
-  # draws past the frame (a wider PTY spills; a shorter one leaves a dead band). Tlön reserves the
-  # terminal's top row for aleph's own tab strip, so its PTY is one row shorter than the rect.
+  # draws past the frame (a wider PTY spills; a shorter one leaves a dead band). Tlön's WindowBar
+  # and Pulse bands already shrink that rect (they're their own sections, not the terminal's), so
+  # no separate reserve is needed here.
   defp center_dims(%{active_key: active_key, w: w, h: h}) do
-    rect = View.center_rect(w, h)
-    {max(rect.w, 1), max(rect.h - tab_reserve(active_key), 1)}
+    rect = View.center_rect(active_key, w, h)
+    {max(rect.w, 1), max(rect.h, 1)}
   end
-
-  defp tab_reserve(:tlon), do: 1
-  defp tab_reserve(_), do: 0
 
   # Follow the focused thread's Bus topic so its dossier/chat repaint on new activity.
   defp resubscribe(state, focused) do
