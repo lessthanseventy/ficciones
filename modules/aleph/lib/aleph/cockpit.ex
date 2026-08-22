@@ -632,31 +632,10 @@ defmodule Aleph.Cockpit do
   # / funes down).
   defp lead_window_name(world_id) do
     case Space.fetch(world_id) do
-      %Space{roster: [lead | _]} -> roster_entry(lead).name
+      %Space{roster: [lead | _]} -> Profiles.roster_entry(lead).name
       _ -> nil
     end
   end
-
-  # A roster entry (funes JSON `%{"archetype" => "builder", "name" => "hronir"}`, or a test's atom-keyed
-  # `%{archetype: :builder, name: "hronir"}`) normalized to `%{archetype: atom, name: string}` —
-  # `Profiles.instantiate/1`'s input shape. Read tolerantly (either key style); an archetype STRING
-  # (funes JSON) is the wire form, normalized to the atom the archetype registry is keyed by.
-  defp roster_entry(entry) do
-    %{
-      archetype: normalize_archetype(entry["archetype"] || entry[:archetype]),
-      name: entry["name"] || entry[:name]
-    }
-  end
-
-  defp normalize_archetype(a) when is_atom(a), do: a
-
-  # NOT `String.to_existing_atom/1`: that only succeeds once something else has already loaded
-  # `Aleph.Profiles` (interning `:builder`/`:surveyor`/…) into the atom table — an ordering
-  # accident, not a guarantee (a fresh boot / an isolated test can hit this BEFORE anything else
-  # touches Profiles). Resolving against the compiled archetype registry instead forces that load
-  # as an ordinary qualified call, and is exhaustion-safe the same way (a bounded, compiled set).
-  defp normalize_archetype(a) when is_binary(a),
-    do: Enum.find(Map.keys(Profiles.archetypes()), &(Atom.to_string(&1) == a))
 
   # The tmux window index for a named coworker window in world `world_id`, from the live session
   # (nil if not up).
@@ -1617,7 +1596,7 @@ defmodule Aleph.Cockpit do
       existing = world_id |> tlon_tabs() |> MapSet.new(& &1.name)
 
       entries
-      |> Enum.map(&roster_entry/1)
+      |> Enum.map(&Profiles.roster_entry/1)
       |> Enum.reject(&MapSet.member?(existing, &1.name))
       |> Enum.each(fn %{archetype: arch, name: name} ->
         spawn_window(world_id, Profiles.instantiate(%{archetype: arch, name: name}))
@@ -1708,10 +1687,7 @@ defmodule Aleph.Cockpit do
   # (this World's builder handle, roster-derived). A pi-led thread is skipped.
   defp claude_launched?(lead, world_id), do: lead in claude_handles(world_id)
 
-  # The funes handles this World's roster stamps onto a `:claude_code`-harness archetype
-  # (`"<name>-machine"`, e.g. the builder → `hronir-machine`) — the set `claude_launched?/2` checks
-  # against.
-  defp claude_handles(world_id), do: Enum.flat_map(active_roster(world_id), &claude_handle_if_claude_code/1)
+  defp claude_handles(world_id), do: Profiles.claude_code_handles(active_roster(world_id))
 
   # This World's roster (`Aleph.Mention.route/3`'s resolution fixture) — funes-down / no roster
   # degrades to `[]` (nobody resolves, nobody wakes).
@@ -1720,11 +1696,6 @@ defmodule Aleph.Cockpit do
       %Space{roster: roster} -> roster
       _ -> []
     end
-  end
-
-  defp claude_handle_if_claude_code(entry) do
-    %{archetype: arch, name: name} = roster_entry(entry)
-    if Profiles.instantiate(%{archetype: arch, name: name}).harness == :claude_code, do: ["#{name}-machine"], else: []
   end
 
   # Two-phase, so a just-booted `t<id>` window submits its opening turn instead of leaving it typed
@@ -1842,7 +1813,7 @@ defmodule Aleph.Cockpit do
   # then spawn the center: an embedded tmux client attached to the standing session (pi as window 0
   # if absent) — an aleph restart re-attaches to the running pi instead of spawning another.
   defp spawn_center(world_id, lead) do
-    %{archetype: arch, name: name} = roster_entry(lead)
+    %{archetype: arch, name: name} = Profiles.roster_entry(lead)
 
     with %Profile{} = profile <- Profiles.instantiate(%{archetype: arch, name: name}),
          {:ok, _dir} <- materialise_profile(profile),

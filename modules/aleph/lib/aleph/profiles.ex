@@ -583,6 +583,40 @@ defmodule Aleph.Profiles do
     }
   end
 
+  @doc """
+  Normalize a `world.roster[]` entry to `instantiate/1`'s input shape `%{archetype: atom, name:
+  string}`. Read tolerantly: funes JSON (`%{"archetype" => "builder", "name" => "hronir"}`) or a
+  test's atom-keyed map. An archetype STRING (the wire form) is resolved to the atom the registry
+  is keyed by.
+  """
+  @spec roster_entry(map()) :: %{archetype: atom() | nil, name: String.t() | nil}
+  def roster_entry(entry) do
+    %{
+      archetype: normalize_archetype(entry["archetype"] || entry[:archetype]),
+      name: entry["name"] || entry[:name]
+    }
+  end
+
+  @doc """
+  The funes handles a roster stamps onto its `:claude_code`-harness entries — `"<name>-machine"`
+  (e.g. the builder → `hronir-machine`). The set the cockpit's `claude_launched?`/the machine-chat
+  loop's `cockpit_staffs?` check a thread lead against; a pi-led entry contributes nothing.
+  """
+  @spec claude_code_handles([map()]) :: [String.t()]
+  def claude_code_handles(roster) do
+    Enum.flat_map(roster, fn entry ->
+      %{name: name} = e = roster_entry(entry)
+      if instantiate(e).harness == :claude_code, do: ["#{name}-machine"], else: []
+    end)
+  end
+
+  defp normalize_archetype(a) when is_atom(a), do: a
+
+  # NOT `String.to_existing_atom/1`: that only succeeds once something has already loaded this
+  # module (interning `:builder`/`:surveyor`/…) — an ordering accident. Resolving against the
+  # compiled registry forces the load as an ordinary call, exhaustion-safe (a bounded set).
+  defp normalize_archetype(a) when is_binary(a), do: Enum.find(Map.keys(@archetypes), &(Atom.to_string(&1) == a))
+
   # The funes handle convention: profile name + "-machine" (profile "tertius" → "tertius-machine").
   # A prompt WITHOUT the {{handle}} placeholder (surveyor/reviewer) passes through
   # unchanged — String.replace is a no-op, so those personas stay byte-identical.

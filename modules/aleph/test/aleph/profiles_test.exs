@@ -437,6 +437,21 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.instantiate(%{archetype: :surveyor, name: "tertius"}).harness == :pi
     end
 
+    test "roster_entry normalizes string- and atom-keyed entries; a string archetype → its atom" do
+      assert Profiles.roster_entry(%{"archetype" => "builder", "name" => "hronir"}) == %{
+               archetype: :builder,
+               name: "hronir"
+             }
+
+      assert Profiles.roster_entry(%{archetype: :surveyor, name: "tertius"}) == %{archetype: :surveyor, name: "tertius"}
+    end
+
+    test "claude_code_handles returns <name>-machine only for :claude_code entries" do
+      roster = [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
+      assert Profiles.claude_code_handles(roster) == ["hronir-machine"]
+      assert Profiles.claude_code_handles([]) == []
+    end
+
     test "roster-entry model overrides the archetype default" do
       entry = %{archetype: :reviewer, name: "vera", model: %{provider: "anthropic", model: "sonnet", thinking: "low"}}
       assert Profiles.instantiate(entry).model.model == "sonnet"

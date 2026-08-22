@@ -261,30 +261,9 @@ defmodule Aleph.MachineChat.Loop do
   # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.claude_launched?/2`: a roster
   # `:claude_code`-harness handle (e.g. the builder → `hronir-machine`) is claude-launched; a
   # pi-led thread is not.
-  defp cockpit_staffs?(lead), do: lead in claude_handles()
-
-  # The funes handles this World's roster stamps onto a `:claude_code`-harness archetype — mirrors
-  # `Aleph.Cockpit.claude_handles/1`, but against `active_roster/0` (`Space.first_world/0`): this
-  # tab has no `active_key`/multi-world notion (single World in Slice 1). A later multi-world Loop
-  # would need to thread this from the thread's own world instead.
-  defp claude_handles, do: Enum.flat_map(active_roster(), &claude_handle_if_claude_code/1)
-
-  # Mirrors `Aleph.Cockpit.claude_handle_if_claude_code/1`/`roster_entry/1`: a roster entry is
-  # funes JSON (string keys) or a test's atom-keyed map; the archetype STRING is normalized to the
-  # atom the archetype registry is keyed by.
-  defp claude_handle_if_claude_code(entry) do
-    name = entry["name"] || entry[:name]
-    archetype = normalize_archetype(entry["archetype"] || entry[:archetype])
-
-    if Profiles.instantiate(%{archetype: archetype, name: name}).harness == :claude_code,
-      do: ["#{name}-machine"],
-      else: []
-  end
-
-  defp normalize_archetype(a) when is_atom(a), do: a
-
-  defp normalize_archetype(a) when is_binary(a),
-    do: Enum.find(Map.keys(Profiles.archetypes()), &(Atom.to_string(&1) == a))
+  # Against `active_roster/0` (`Space.first_world/0`, single World in Slice 1) — a later multi-world
+  # Loop would thread this from the thread's own world instead.
+  defp cockpit_staffs?(lead), do: lead in Profiles.claude_code_handles(active_roster())
 
   # The active World's roster (single World, Slice 1) — the fixture `wake_mentions`/`stage_lead`
   # resolve handles against. Funes-down / no world degrades to `[]` (nobody resolves, nobody wakes).
