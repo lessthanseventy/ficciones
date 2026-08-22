@@ -49,20 +49,12 @@ defmodule Aleph.Cockpit do
   # emit mouse events, which the Driver translates into Event{type: :mouse, data: %{x, y, button}}.
   @tb_input_esc_mouse 5
 
-  # The Tlön CENTER coworker is the Orbis Tertius meta agent — `tertius-machine`, a glm pi bound to
-  # the ROOT machine thread, running the `tlon` profile's @tertius_role persona (its job is to
-  # synthesize across the leaves, not answer as a lead). It anchors the tlon tmux session as window
-  # `tertius`; the builder (`hronir`) and console (`uqbar`) ride as further windows. Stable identity
-  # so restarts reuse the same agent. Borges' cast: **uqbar** (the doorway/console) · **hronir** (the
-  # builder) · **tertius** (the orchestrator), inside **Tlön**.
-  @machine_agent "tertius-machine"
-  @machine_window "tertius"
-  # The Tlön Claude-Code window's identity — real Claude, the BUILDER (tab `hronir`). Joins the SAME
-  # root thread as @machine_agent so the two coordinate as ordinary funes agents (post_message back
-  # and forth), never a merged identity. Handle stays claude-machine (honest — it IS Claude); the tab
-  # is the ROLE (hronir). Its handle→window mapping lives in Aleph.Mention.
-  @claude_agent "claude-machine"
-  @claude_window "hronir"
+  # The World's cast is roster-driven (`ensure_world_roster/1`, C2.3): head = the center (embedded
+  # terminal, `new-session`), tail = tmux windows (`new-window`), harness-dispatched. Funes handle =
+  # `"<name>-machine"`, tmux window = `"<name>"` (`roster_entry/1`). No more hardcoded
+  # tertius/hronir/claude-machine identity — the seed roster (surveyor "tertius", builder "hronir")
+  # reproduces the old Borges cast (**uqbar** console · **hronir** builder · **tertius**
+  # orchestrator) as DATA, not constants.
 
   # tmux is a first-class stack citizen here: each World's center is a real `tmux attach`, so the
   # workspace gets mouse, windows, and copy-mode, and it SURVIVES aleph restarts. Session/socket are
@@ -270,8 +262,8 @@ defmodule Aleph.Cockpit do
             seen_events: [],
             probed_at: 0,
             machine_retry_at: nil,
-            # The standing tertius/hronir coworker's own machine thread — captured once, at its
-            # first successful spawn (`ensure_machine_coworker`), so `ensure_thread_sessions` can
+            # The standing center coworker's own machine thread — captured once, at its
+            # first successful spawn (`ensure_center`), so `ensure_thread_sessions` can
             # tell it apart from an ordinary staffed machine thread it should spawn a session for.
             standing_thread_id: nil,
             # Per-thread spawn backoff (mirrors `machine_retry_at`) — thread_id => monotonic
@@ -540,7 +532,7 @@ defmodule Aleph.Cockpit do
        when is_integer(root) and is_integer(id) and id != root do
     world_id = active_world_id(state)
 
-    case tlon_window_index(world_id, @machine_window) do
+    case tlon_window_index(world_id, lead_window_name(world_id)) do
       nil ->
         :ok
 
@@ -589,7 +581,7 @@ defmodule Aleph.Cockpit do
 
     cond do
       tid == standing -> {:route, nil}
-      is_nil(lead) or not claude_launched?(lead) -> {:route, nil}
+      is_nil(lead) or not claude_launched?(lead, active_world_id(state)) -> {:route, nil}
       staffed_thread_ready?(tid, state) -> {:route, "t#{tid}"}
       true -> :skip
     end
@@ -627,6 +619,36 @@ defmodule Aleph.Cockpit do
       space -> space.id
     end
   end
+
+  # The active roster's LEAD window name (the center's tab label) for `world_id`, or nil (no roster
+  # / funes down). Replaces the old hardcoded `@machine_window`.
+  defp lead_window_name(world_id) do
+    case Space.fetch(world_id) do
+      %Space{roster: [lead | _]} -> roster_entry(lead).name
+      _ -> nil
+    end
+  end
+
+  # A roster entry (funes JSON `%{"archetype" => "builder", "name" => "hronir"}`, or a test's atom-keyed
+  # `%{archetype: :builder, name: "hronir"}`) normalized to `%{archetype: atom, name: string}` —
+  # `Profiles.instantiate/1`'s input shape. Read tolerantly (either key style); an archetype STRING
+  # (funes JSON) is the wire form, normalized to the atom the archetype registry is keyed by.
+  defp roster_entry(entry) do
+    %{
+      archetype: normalize_archetype(entry["archetype"] || entry[:archetype]),
+      name: entry["name"] || entry[:name]
+    }
+  end
+
+  defp normalize_archetype(a) when is_atom(a), do: a
+
+  # NOT `String.to_existing_atom/1`: that only succeeds once something else has already loaded
+  # `Aleph.Profiles` (interning `:builder`/`:surveyor`/…) into the atom table — an ordering
+  # accident, not a guarantee (a fresh boot / an isolated test can hit this BEFORE anything else
+  # touches Profiles). Resolving against the compiled archetype registry instead forces that load
+  # as an ordinary qualified call, and is exhaustion-safe the same way (a bounded, compiled set).
+  defp normalize_archetype(a) when is_binary(a),
+    do: Enum.find(Map.keys(Profiles.archetypes()), &(Atom.to_string(&1) == a))
 
   # The tmux window index for a named coworker window in world `world_id`, from the live session
   # (nil if not up).
@@ -1056,14 +1078,12 @@ defmodule Aleph.Cockpit do
   end
 
   defp render(state) do
-    # Fill the probe cache (Tlön only) and find-or-spawn the machine coworker — both stateful,
+    # Fill the probe cache (Tlön only) and find-or-spawn the World's roster — both stateful,
     # both rate-limited, both OUT of the per-frame hot path.
     state =
       state
       |> ensure_probes()
-      |> ensure_machine_coworker()
-      |> ensure_claude_coworker()
-      |> ensure_third_coworker()
+      |> ensure_world_roster()
       |> ensure_log_window()
       |> ensure_thread_sessions()
 
@@ -1126,8 +1146,8 @@ defmodule Aleph.Cockpit do
   defp terminal_read(_state, _focused), do: :no_session
 
   # The Tlön center's read: the embedded tmux client. Lookup only — the find-or-spawn lives in
-  # ensure_machine_coworker (render's stateful preamble), so a failing spawn can back off
-  # instead of re-materialising the profile and re-issuing tmux new-session every frame.
+  # ensure_center (render's stateful preamble, via ensure_world_roster), so a failing spawn can back
+  # off instead of re-materialising the profile and re-issuing tmux new-session every frame.
   defp machine_read(%{active_key: key}) when Space.world?(key) do
     case render_state_of(safe_terminal(:machine)) do
       %{} = render_state -> Map.put(render_state, :tabs, tlon_tabs(key))
@@ -1478,12 +1498,30 @@ defmodule Aleph.Cockpit do
   defp cmd_from_detail(%{"cmd" => cmd}), do: cmd
   defp cmd_from_detail(_), do: "check"
 
-  # The Tlön machine coworker: a pi session working ON the box on a persistent "machine" thread
-  # (so its work is triageable). pi by design — Tlön is meta/machine work, claude stays the
-  # deliberate escalation (AGENTS.md routing). Find-or-spawned here (render's stateful preamble),
-  # with a backoff: a failed spawn must not retry the whole materialise+tmux pipeline on EVERY
-  # render — that would be a spawn storm whenever the coworker can't start.
-  defp ensure_machine_coworker(%{active_key: key} = state) when Space.world?(key) do
+  # The World's cast, spawned lazily on entry from its roster (C2.3 — replaces the old hardcoded
+  # ensure_machine_coworker/ensure_claude_coworker/ensure_third_coworker trio): head = the CENTER
+  # (embedded terminal, `new-session`), tail = tmux windows (`new-window`), each launcher chosen by
+  # its archetype's harness. An empty roster / funes-down space is a no-op. `spaces` defaults to the
+  # live cache (`Space.all/0`, `render`'s call) but is overridable — mirrors `Space.fetch/1` vs
+  # `/2` — so a test drives a roster without a live world in the funes DB.
+  @doc false
+  def ensure_world_roster(state, spaces \\ Space.all())
+
+  def ensure_world_roster(%{active_key: key} = state, spaces) when Space.world?(key) do
+    case Space.fetch(key, spaces) do
+      %Space{roster: [lead | rest]} -> state |> ensure_center(key, lead) |> ensure_windows(key, rest)
+      _ -> state
+    end
+  end
+
+  def ensure_world_roster(state, _spaces), do: state
+
+  # The roster LEAD: a pi session working ON the box on a persistent "machine" thread (so its work
+  # is triageable) — pi by design, claude stays the deliberate escalation (AGENTS.md routing).
+  # Find-or-spawned here (render's stateful preamble), with a backoff: a failed spawn must not retry
+  # the whole materialise+tmux pipeline on EVERY render — that would be a spawn storm whenever the
+  # coworker can't start.
+  defp ensure_center(state, world_id, lead) do
     now = System.monotonic_time(:millisecond)
 
     cond do
@@ -1494,71 +1532,48 @@ defmodule Aleph.Cockpit do
         state
 
       true ->
-        case spawn_machine_coworker(key) do
+        case spawn_center(world_id, lead) do
           pid when is_pid(pid) -> capture_standing_thread_id(state)
           _ -> %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
         end
     end
   end
 
-  defp ensure_machine_coworker(state), do: state
-
   # Stash the standing coworker's machine thread id, once, at its first successful spawn —
-  # the id `ensure_thread_sessions` excludes from its own spawn pass (the standing tertius/hronir
+  # the id `ensure_thread_sessions` excludes from its own spawn pass (the standing center
   # coworker is not "a staffed machine thread it should spawn a session for", it already has one).
   defp capture_standing_thread_id(%{standing_thread_id: nil} = state),
     do: %{state | standing_thread_id: machine_thread_id()}
 
   defp capture_standing_thread_id(state), do: state
 
-  # The Tlön BUILDER window (`hronir`): real `claude`, honestly identified (no pi-multi-account
-  # impersonation — see Aleph.Profiles' @seed_roster comment for why that path is avoided by default).
-  # A second tmux window in the SAME session as the tertius center coworker, joined to the SAME root
-  # thread, so the two coordinate over funes messages like any two agents. Gated on the center up (its
-  # spawn opens/finds the root thread this one joins) and on the window not already being there (tmux
-  # `new-window` isn't idempotent like `new-session -A` — a naive re-run every render would spawn a
-  # fresh claude every tick).
-  defp ensure_claude_coworker(%{active_key: key} = state) when Space.world?(key) do
-    cond do
-      not is_pid(safe_terminal(:machine)) ->
-        state
+  # The roster TAIL: one tmux window per entry, each a second window in the SAME session as the
+  # center, joined to the SAME root thread, so the cast coordinates over funes messages like any
+  # two agents. Gated on the center up (its spawn opens/finds the root thread these join) and on
+  # the window not already being there (tmux `new-window` isn't idempotent like `new-session -A` —
+  # a naive re-run every render would spawn a fresh coworker every tick).
+  defp ensure_windows(state, world_id, entries) do
+    if is_pid(safe_terminal(:machine)) do
+      existing = world_id |> tlon_tabs() |> MapSet.new(& &1.name)
 
-      Enum.any?(tlon_tabs(key), &(&1.name == @claude_window)) ->
-        state
-
-      true ->
-        spawn_claude_window(key)
-        state
+      entries
+      |> Enum.map(&roster_entry/1)
+      |> Enum.reject(&MapSet.member?(existing, &1.name))
+      |> Enum.each(fn %{archetype: arch, name: name} ->
+        spawn_window(world_id, Profiles.instantiate(%{archetype: arch, name: name}))
+      end)
     end
+
+    state
   end
 
-  defp ensure_claude_coworker(state), do: state
+  # Dispatch a tail window's launcher by its archetype's harness — real Claude (honestly
+  # identified, no pi-multi-account impersonation — see Aleph.Profiles' @seed_roster comment) or a
+  # windowed pi.
+  defp spawn_window(world_id, %Profile{harness: :claude_code, name: name}),
+    do: spawn_agent_window(world_id, "#{name}-machine", name)
 
-  # An optional THIRD coworker for experiments (`$TLON_THIRD_AGENT="handle:window"`, off by default):
-  # a second Claude-Code window on its own funes identity, to break the two-body agree/disagree
-  # dynamic. Same gating as the claude window (pi up, its own window absent); `Aleph.Mention` picks
-  # up the same env so the third joins the wake-loop.
-  defp ensure_third_coworker(%{active_key: key} = state) when Space.world?(key) do
-    case Aleph.Mention.third_agent() do
-      %{author: author, window: window} ->
-        cond do
-          not is_pid(safe_terminal(:machine)) ->
-            state
-
-          Enum.any?(tlon_tabs(key), &(&1.name == window)) ->
-            state
-
-          true ->
-            spawn_agent_window(key, author, window)
-            state
-        end
-
-      nil ->
-        state
-    end
-  end
-
-  defp ensure_third_coworker(state), do: state
+  defp spawn_window(world_id, %Profile{harness: :pi} = profile), do: spawn_pi_window(world_id, profile, profile.name)
 
   # The `chat` tab (the third Tlön window): the INTERACTIVE machine-chat — machine-scope threads as
   # foldable blocks with author-turn grouping (fold/zoom/scroll), so the tertius/hronir tabs can stay
@@ -1583,8 +1598,8 @@ defmodule Aleph.Cockpit do
   # the window shows up live in `tlon_tabs()` — send-keys the instant `new-window` returns races
   # the harness's own boot and the first turn lands on the floor.
   #
-  # Restricted to claude-launched leads (`claude_launched?/1`) — `spawn_agent_window` runs
-  # `claude_launcher()`, so it is only correct for a claude-machine/third-agent lead.
+  # Restricted to claude-launched leads (`claude_launched?/2`) — `spawn_agent_window` runs
+  # `claude_launcher()`, so it is only correct for a roster :claude_code lead or the third-agent.
   # Pi-launched staffing is a follow-up.
   defp ensure_thread_sessions(%{active_key: key} = state) when Space.world?(key) do
     tabs = tlon_tabs(key)
@@ -1607,7 +1622,7 @@ defmodule Aleph.Cockpit do
       Enum.any?(tabs, &(&1.name == window)) ->
         maybe_inject_opening_turn(world_id, id, tabs, now, state)
 
-      not claude_launched?(lead) ->
+      not claude_launched?(lead, world_id) ->
         state
 
       not thread_spawn_due?(state.thread_spawn_retry[id], now) ->
@@ -1629,9 +1644,25 @@ defmodule Aleph.Cockpit do
   defp thread_spawn_due?(nil, _now), do: true
   defp thread_spawn_due?(retry_at, now), do: now >= retry_at
 
-  # `spawn_agent_window` always runs claude_launcher() — correct only for a claude-machine lead or
-  # the optional third experiment agent (also claude-launched). A pi-led thread is skipped.
-  defp claude_launched?(lead), do: lead == @claude_agent or lead == third_agent_author()
+  # `spawn_agent_window` always runs claude_launcher() — correct only for a roster :claude_code lead
+  # (this World's builder handle, roster-derived) or the optional third experiment agent (also
+  # claude-launched). A pi-led thread is skipped.
+  defp claude_launched?(lead, world_id), do: lead in claude_handles(world_id) or lead == third_agent_author()
+
+  # The funes handles this World's roster stamps onto a `:claude_code`-harness archetype
+  # (`"<name>-machine"`, e.g. the builder → `hronir-machine`) — the set `claude_launched?/2` checks
+  # against. Funes-down / no roster degrades to `[]`.
+  defp claude_handles(world_id) do
+    case Space.fetch(world_id) do
+      %Space{roster: roster} -> Enum.flat_map(roster, &claude_handle_if_claude_code/1)
+      _ -> []
+    end
+  end
+
+  defp claude_handle_if_claude_code(entry) do
+    %{archetype: arch, name: name} = roster_entry(entry)
+    if Profiles.instantiate(%{archetype: arch, name: name}).harness == :claude_code, do: ["#{name}-machine"], else: []
+  end
 
   defp third_agent_author do
     case Aleph.Mention.third_agent() do
@@ -1699,15 +1730,14 @@ defmodule Aleph.Cockpit do
     System.cmd("tmux", tlon_tmux(world_id, ["move-window", "-r", "-t", "#{session}:0"]), stderr_to_stdout: true)
   end
 
-  # `tmux new-window`, not Sessions.spawn_harness: the BUILDER (`hronir`) rides as a window of the
-  # ALREADY-embedded tlon tmux session (the tertius center is window 0), not a separate
-  # Aleph.Terminal/PTY of its own. Fire-and-forget: a failed spawn (funes down, no thread yet) just
-  # leaves the window absent, and `ensure_claude_coworker` retries it on the next render — no backoff
-  # needed, `new-window` is cheap and idempotent-by-absence-check above.
-  defp spawn_claude_window(world_id), do: spawn_agent_window(world_id, @claude_agent, @claude_window)
+  # `tmux new-window`, not Sessions.spawn_harness: a roster tail entry rides as a window of the
+  # ALREADY-embedded tlon tmux session (the center is window 0), not a separate Aleph.Terminal/PTY
+  # of its own. Fire-and-forget: a failed spawn (funes down, no thread yet) just leaves the window
+  # absent, and `ensure_windows` retries it on the next render — no backoff needed, `new-window` is
+  # cheap and idempotent-by-absence-check above.
 
   # Open a Claude-Code window named `window` on `thread_id` as funes `agent`, in world `world_id` —
-  # default `machine_thread_id()`, the standing coworkers' shared thread. The claude/third-experiment
+  # default `machine_thread_id()`, the standing coworkers' shared thread. The roster/third-experiment
   # windows AND the per-thread windows (`ensure_thread_sessions`) all ride this: same launcher,
   # distinct identity + tab label + (per-thread) distinct thread, so `FUNES_THREAD` binds the harness
   # to the thread it's actually meant to work on.
@@ -1715,17 +1745,34 @@ defmodule Aleph.Cockpit do
 
   defp spawn_agent_window(world_id, agent, window, thread_id) do
     with id when is_integer(id) <- thread_id,
-         {:ok, %{exports: exports}} <- Spawn.join(id, agent, mandate: "machine") do
+         {:ok, %{exports: exports}} <- joiner().(id, agent, mandate: "machine") do
       script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> claude_launcher()
       # `-d`: spawn the window in the background — a coworker starting (a standing claude/third, or
       # a per-thread session) must NOT yank the operator off whatever window they're on.
-      System.cmd("tmux", tlon_tmux(world_id, ["new-window", "-d", "-t", world_session(world_id), "-n", window, script]),
-        stderr_to_stdout: true
-      )
+      tlon_run(world_id, ["new-window", "-d", "-t", world_session(world_id), "-n", window, script])
+    end
+  end
+
+  # The roster's :pi tail entries (a second surveyor/planner riding its own window, not the
+  # embedded center): same shape as `spawn_agent_window`, but execs the bare `pi_command/1` instead
+  # of `claude_launcher/0` — and its funes handle is the roster-derived `"<name>-machine"`.
+  defp spawn_pi_window(world_id, profile, window, thread_id \\ machine_thread_id())
+
+  defp spawn_pi_window(world_id, %Profile{name: name} = profile, window, thread_id) do
+    with id when is_integer(id) <- thread_id,
+         {:ok, %{exports: exports}} <- joiner().(id, "#{name}-machine", mandate: "machine") do
+      script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> pi_command(profile)
+      tlon_run(world_id, ["new-window", "-d", "-t", world_session(world_id), "-n", window, script])
     end
   end
 
   defp claude_launcher, do: Path.join(Profiles.repo(), "modules/manos/claude-code/launch.sh")
+
+  # The identity minter for a tail-window spawn — defaults to the live funes join (mints in-node
+  # against the Repo/tokens), overridable via `:aleph, :tlon_join` so a test drives `ensure_windows`
+  # against the SAME injected `:tlon_cmd` tmux runner without a live DB (mirrors `Aleph.Crew`'s
+  # `:crew_join`/`:crew_cmd` pair).
+  defp joiner, do: Application.get_env(:aleph, :tlon_join, &Spawn.join/3)
 
   @doc false
   # Is a machine-coworker spawn attempt due? `machine_retry_at` is nil until an attempt FAILS (the
@@ -1735,17 +1782,18 @@ defmodule Aleph.Cockpit do
   def machine_spawn_due?(nil = _retry_at, _now), do: true
   def machine_spawn_due?(retry_at, now), do: now >= retry_at
 
-  # Materialise the Tlön space's coworker profile, find-or-create the machine identity, then spawn
-  # the Tlön center: an embedded tmux client attached to the standing session (pi as window 0 if
-  # absent) — an aleph restart re-attaches to the running pi instead of spawning another.
-  defp spawn_machine_coworker(world_id) do
-    with %Space{} = space <- Space.first_world(),
-         %Profile{} = profile <- Profiles.fetch(space.coworker),
+  # Materialise the World's LEAD roster entry into a profile, find-or-create the machine identity,
+  # then spawn the center: an embedded tmux client attached to the standing session (pi as window 0
+  # if absent) — an aleph restart re-attaches to the running pi instead of spawning another.
+  defp spawn_center(world_id, lead) do
+    %{archetype: arch, name: name} = roster_entry(lead)
+
+    with %Profile{} = profile <- Profiles.instantiate(%{archetype: arch, name: name}),
          {:ok, _dir} <- materialise_profile(profile),
-         {:ok, exports} <- machine_exports(@machine_agent),
+         {:ok, exports} <- machine_exports("#{name}-machine"),
          # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
          {:ok, pid} <-
-           safe_spawn_harness(:machine, exports, launcher: profile_launcher(world_id, profile), kitty: false) do
+           safe_spawn_harness(:machine, exports, launcher: profile_launcher(world_id, name, profile), kitty: false) do
       pid
     else
       _error -> nil
@@ -1781,16 +1829,17 @@ defmodule Aleph.Cockpit do
 
   # The center coworker's launcher: pi on its OWN tmux server (`-L aleph-world-<id>`, id-derived —
   # not name-derived, so a world rename can't orphan it — + the profile's persistence-free
-  # tmux.conf), window 0 named `tertius` (the tab-strip label). MANOS_RELOAD_CMD lets manos/reload
-  # respawn in place with --continue, keeping the thread across the restart.
-  def profile_launcher(world_id, %Profile{} = profile) do
+  # tmux.conf), window 0 named `lead_name` (the roster lead's name — the tab-strip label).
+  # MANOS_RELOAD_CMD lets manos/reload respawn in place with --continue, keeping the thread across
+  # the restart.
+  def profile_launcher(world_id, lead_name, %Profile{} = profile) do
     pi = pi_command(profile)
     dir = Profiles.config_dir(profile.name)
     reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
     env_flags = Enum.map_join([reload_cmd], " ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
 
     "tmux -L #{world_socket(world_id)} -f #{Path.join(dir, "tmux.conf")}" <>
-      " new-session -A -s #{world_session(world_id)} -n #{@machine_window} #{funes_identity_flags()} #{env_flags} '#{pi}'"
+      " new-session -A -s #{world_session(world_id)} -n #{lead_name} #{funes_identity_flags()} #{env_flags} '#{pi}'"
   end
 
   @doc false

@@ -114,7 +114,7 @@ defmodule Aleph.Space do
       right: [Health, Activity, Leaves],
       coworker: "tertius",
       # Mirrors the funes seed roster for the Tlön world, so C2/C3 get a faithful stand-in.
-      roster: [%{"archetype" => "surveyor", "name" => "tertius"}]
+      roster: [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
     }
   end
 

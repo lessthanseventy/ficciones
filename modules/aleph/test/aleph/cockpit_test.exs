@@ -99,21 +99,21 @@ defmodule Aleph.CockpitTest do
     end
   end
 
-  describe "profile_launcher/2: the World window-0 command runs pi from its profile's config dir" do
+  describe "profile_launcher/3: the World window-0 command runs pi from its profile's config dir" do
     @profile %Aleph.Profile{name: "tlon"}
 
     test "attaches-or-creates the world's w<id> session" do
-      assert Cockpit.profile_launcher(1, @profile) =~ "new-session -A -s w1"
+      assert Cockpit.profile_launcher(1, "tertius", @profile) =~ "new-session -A -s w1"
     end
 
     test "runs on the world's PRIVATE tmux server (id-derived), with the profile's persistence-free config" do
-      cmd = Cockpit.profile_launcher(1, @profile)
+      cmd = Cockpit.profile_launcher(1, "tertius", @profile)
       assert cmd =~ "tmux -L aleph-world-1 "
       assert cmd =~ "-f #{Aleph.Profiles.config_dir("tlon")}/tmux.conf"
     end
 
     test "points pi at the profile's config dir and carries the funes identity into the session env" do
-      cmd = Cockpit.profile_launcher(1, @profile)
+      cmd = Cockpit.profile_launcher(1, "tertius", @profile)
       assert cmd =~ "PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")}"
       # The tlon coworker is a funes citizen (machine scope, @tlon_funes_mcp reads ${FUNES_MCP_URL}),
       # so the identity is `-e`'d into the tmux SESSION env — durable across a pi respawn, not just
@@ -124,24 +124,29 @@ defmodule Aleph.CockpitTest do
     end
 
     test "MANOS_RELOAD_CMD carries the config dir so a manos/reload respawn stays on-profile" do
-      cmd = Cockpit.profile_launcher(1, @profile)
+      cmd = Cockpit.profile_launcher(1, "tertius", @profile)
 
       assert cmd =~
                "MANOS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")} mise exec -- pi --continue"
     end
 
     test "a profile with a persona adds --append-system-prompt; without one, none" do
-      refute Cockpit.profile_launcher(1, @profile) =~ "--append-system-prompt"
-      withp = Cockpit.profile_launcher(1, %Aleph.Profile{name: "tlon", system_prompt: "be terse"})
+      refute Cockpit.profile_launcher(1, "tertius", @profile) =~ "--append-system-prompt"
+      withp = Cockpit.profile_launcher(1, "tertius", %Aleph.Profile{name: "tlon", system_prompt: "be terse"})
       assert withp =~ "--append-system-prompt #{Aleph.Profiles.config_dir("tlon")}/system_prompt.md"
     end
 
     test "still launches pi as window 0's command" do
-      assert Cockpit.profile_launcher(1, @profile) =~ "mise exec -- pi"
+      assert Cockpit.profile_launcher(1, "tertius", @profile) =~ "mise exec -- pi"
+    end
+
+    test "window 0's name is the LEAD roster entry's name, not a hardcoded constant" do
+      cmd = Cockpit.profile_launcher(1, "borges", @profile)
+      assert cmd =~ "new-session -A -s w1 -n borges"
     end
 
     test "chrome-off + copy-mode style live in the profile tmux.conf now, not chained set-options" do
-      cmd = Cockpit.profile_launcher(1, @profile)
+      cmd = Cockpit.profile_launcher(1, "tertius", @profile)
       assert cmd =~ "new-session -A -s w1 -n tertius"
       refute cmd =~ "set-option"
 

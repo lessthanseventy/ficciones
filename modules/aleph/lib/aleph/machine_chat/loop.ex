@@ -35,8 +35,9 @@ defmodule Aleph.MachineChat.Loop do
   alias Raxol.Core.Events.Event
 
   # The claude coworker handle — the lead the cockpit staffs with its own `t<id>` session,
-  # so this tab must not also wake the standing coworker for it. Keep in sync with
-  # `Aleph.Cockpit.@claude_agent`.
+  # so this tab must not also wake the standing coworker for it. STALE since C2.3: the cockpit's
+  # equivalent (`claude_launched?/2`) is now roster-derived (e.g. `hronir-machine`), so this
+  # constant only still matches the seed roster's builder by coincidence. Follow-up (C2.4/C2.5).
   @claude_agent "claude-machine"
 
   @poll_ms 700
