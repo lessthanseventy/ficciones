@@ -4,6 +4,12 @@ import Config
 # never leak into test assertions; Aleph.Config tests pass explicit paths.
 config :aleph, config_path: "/nonexistent/aleph-test-config.json"
 
+# Don't run the app-global Aleph.Worlds cache under test. It subscribes to the funes worlds Bus at
+# boot, so worlds registered by the async DB tests (worlds_test.exs) would leak into its cache and
+# pollute Space.all/0 for the pure-render tests. Unstarted, fetch_worlds/0 degrades to [] → the
+# deterministic hardcoded [:orbis, :tlon] fallback. worlds_test.exs starts its own local pids.
+config :aleph, start_worlds: false
+
 config :funes, start_mcp: false
 
 # aleph's own tests exercise the pure render path (panels → lines → composition) headlessly,
