@@ -12,7 +12,7 @@ defmodule Aleph.Orbis do
   rows: [%{id, title, lead, status, conflicts}], worlds: [%{world, summary, leaves}]}` (status
   `:open | :stalled | :done`), or `nil` when funes is down / there are no machine threads. `summary`
   and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `worlds` is the
-  survey's per-world rollup — Slice 0 groups those same rows under one hardcoded world (Tlön), the
+  survey's per-world rollup — grouped under the funes world names (`Aleph.Worlds`, Slice 1), the
   face Orbis' Chorus renders as one row per world. Status derives from `Funes.Board.in_scope/1` (the
   same per-thread brief Triage reads) so it reflects real blockers/failed checks, never a
   self-report. The gather is guarded: a funes hiccup degrades to `nil`, never a crash.
@@ -20,8 +20,9 @@ defmodule Aleph.Orbis do
 
   alias Funes.Channel
 
-  # Slice 0: one hardcoded world. Slice 1 moves this to funes-owned composition data.
-  @world "Tlön"
+  # The survey row when funes yields no worlds (down / unseeded — the seed only runs after
+  # home:switch). Slice 1 otherwise groups under the real funes world names (`Aleph.Worlds.all/0`).
+  @fallback_world "Tlön"
 
   @spec rollup() :: %{summary: map(), rows: [map()], worlds: [map()]} | nil
   def rollup do
@@ -38,11 +39,36 @@ defmodule Aleph.Orbis do
   end
 
   @doc """
-  Group the rollup rows under the single hardcoded world (Slice 0: one world, Tlön). Pure — the
-  survey face pins its world shape against this, since `rollup/0` itself needs live funes.
+  Group the rollup rows under the funes world names (`Aleph.Worlds.all/0`, Slice 1 Task B3). With
+  the single seeded Tlön world this is one "Tlön" row — identical to Slice 0. Reads the cached world
+  list; `worlds/2` is the pure grouping over explicit names (tested without the live cache).
   """
   @spec worlds([map()]) :: [%{world: String.t(), summary: map(), leaves: [map()]}]
-  def worlds(rows), do: [%{world: @world, summary: summarize(rows), leaves: rows}]
+  def worlds(rows), do: worlds(rows, world_names())
+
+  @doc """
+  Group `rows` under explicit world `names`. Per-world leaf attribution is coarse for now (Phase B):
+  the first world carries all machine leaves; any further worlds get an empty, zeroed row. No world
+  names (funes down / unseeded) falls back to the literal "Tlön" so the survey never breaks.
+  """
+  @spec worlds([map()], [String.t()]) :: [%{world: String.t(), summary: map(), leaves: [map()]}]
+  def worlds(rows, []), do: [%{world: @fallback_world, summary: summarize(rows), leaves: rows}]
+
+  def worlds(rows, [first | rest]) do
+    [
+      %{world: first, summary: summarize(rows), leaves: rows}
+      | Enum.map(rest, &%{world: &1, summary: summarize([]), leaves: []})
+    ]
+  end
+
+  # The funes world names, guarded: a cache hiccup degrades to [] (→ literal "Tlön" fallback).
+  defp world_names do
+    Enum.map(Aleph.Worlds.all(), & &1.name)
+  rescue
+    _ -> []
+  catch
+    :exit, _ -> []
+  end
 
   defp row(thread) do
     scope = Funes.Board.in_scope(thread)

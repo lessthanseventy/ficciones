@@ -58,4 +58,21 @@ defmodule Aleph.OrbisTest do
                Orbis.worlds([])
     end
   end
+
+  describe "worlds/2 (grouped by real world names)" do
+    # worlds/1 reads the live Aleph.Worlds cache (funes down under test → [] → literal "Tlön"
+    # fallback, covered above). worlds/2 is the pure grouping it delegates to, tested with
+    # injected names so a real funes world's name drives the survey row.
+    test "one world → the rollup rows group under that world's real name" do
+      rows = [%{status: :open, conflicts: 0}, %{status: :stalled, conflicts: 1}]
+
+      assert [%{world: "Freedonia", summary: summary, leaves: ^rows}] = Orbis.worlds(rows, ["Freedonia"])
+      assert summary == %{open: 1, stalled: 1, done: 0, conflicts: 1}
+    end
+
+    test "no world names → literal \"Tlön\" fallback so the survey never breaks" do
+      rows = [%{status: :open, conflicts: 0}]
+      assert [%{world: "Tlön", leaves: ^rows}] = Orbis.worlds(rows, [])
+    end
+  end
 end
