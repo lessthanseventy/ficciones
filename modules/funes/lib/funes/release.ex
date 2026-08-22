@@ -75,22 +75,57 @@ defmodule Funes.Release do
     end
   end
 
+  # The live cast (C2.6): surveyor (tertius, the center) + builder (hronir, real
+  # claude) — aleph's cockpit spawns world.roster[] verbatim, so both must be seeded.
+  @legacy_roster [%{"archetype" => "surveyor", "name" => "tertius"}]
+  @full_roster @legacy_roster ++ [%{"archetype" => "builder", "name" => "hronir"}]
+
   @doc """
   The seed's DB work, split out so the suite drives it against the already-running
-  test repo without a release double-boot. Returns the existing Tlön (a `%World{}`)
-  or the `register/1` result (`{:ok, world}` / `{:error, changeset}`).
+  test repo without a release double-boot.
+
+  Three outcomes:
+    - absent: `register/1`'s the two-entry roster — `{:ok, world}` / `{:error, changeset}`.
+    - present with the untouched legacy one-entry roster: backfilled via `edit/2` to
+      the two-entry roster — `{:ok, world}` / `{:error, changeset}`.
+    - present with anything else (hand-edited, or already carries the builder): the
+      existing `%World{}`, unchanged — never clobber an operator's roster edit.
   """
   @spec do_seed_world() ::
           {:ok, Funes.World.t()} | {:error, Ecto.Changeset.t()} | Funes.World.t()
   def do_seed_world do
-    Funes.Worlds.by_name("Tlön") ||
-      Funes.Worlds.register(%{
-        name: "Tlön",
-        type: "code",
-        scope: "machine",
-        paths: ["modules/*"],
-        roster: [%{"archetype" => "surveyor", "name" => "tertius"}]
-      })
+    case Funes.Worlds.by_name("Tlön") do
+      nil ->
+        Funes.Worlds.register(%{
+          name: "Tlön",
+          type: "code",
+          scope: "machine",
+          paths: ["modules/*"],
+          roster: @full_roster
+        })
+
+      %Funes.World{} = world ->
+        if legacy_roster?(world.roster) do
+          Funes.Worlds.edit(world, %{roster: @full_roster})
+        else
+          world
+        end
+    end
+  end
+
+  # Tolerant compare (string/atom keys either side): only the exact untouched
+  # legacy seed upgrades. Anything else — added/removed/renamed entries, or the
+  # builder already present — is an operator's roster, left alone.
+  defp legacy_roster?(roster) when is_list(roster) do
+    normalize_roster(roster) == @legacy_roster
+  end
+
+  defp legacy_roster?(_), do: false
+
+  defp normalize_roster(roster) do
+    Enum.map(roster, fn entry ->
+      Map.new(entry, fn {k, v} -> {to_string(k), v} end)
+    end)
   end
 
   defp repos, do: Application.fetch_env!(@app, :ecto_repos)
