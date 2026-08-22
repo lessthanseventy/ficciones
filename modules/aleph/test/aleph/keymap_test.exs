@@ -94,18 +94,18 @@ defmodule Aleph.KeymapTest do
     end
 
     test "Tab moves to the next space and repaints" do
-      assert {%{active_key: :tlon}, :repaint} = Keymap.handle(key(:tab), state())
+      assert {%{active_key: 0}, :repaint} = Keymap.handle(key(:tab), state())
     end
 
     test "Shift-Tab moves to the previous space (wraps)" do
-      assert {%{active_key: :tlon}, :repaint} =
+      assert {%{active_key: 0}, :repaint} =
                Keymap.handle(key(:tab, shift: true), state(%{active_key: :orbis}))
     end
 
     test "] is next, [ is previous" do
       # Two spaces after the Slice 0 collapse, so the ring is Orbis⇄Tlön: ] advances, [ retreats.
-      assert {%{active_key: :tlon}, :repaint} = Keymap.handle(char("]"), state())
-      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("["), state(%{active_key: :tlon}))
+      assert {%{active_key: 0}, :repaint} = Keymap.handle(char("]"), state())
+      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("["), state(%{active_key: 0}))
     end
 
     test "Down and j both move focus forward" do
@@ -134,10 +134,10 @@ defmodule Aleph.KeymapTest do
     test "Enter in the Orbis survey zooms the world to its lens — Slice 0 drops straight to Tlön" do
       # The god-view → world zoom (Slice 0 has one world). No focused thread needed: the survey
       # surveys worlds, not threads. Tlön routes Enter through its own focus SM, not this clause.
-      assert {%{active_key: :tlon}, :repaint} =
+      assert {%{active_key: 0}, :repaint} =
                Keymap.handle(key(:enter), state(%{active_key: :orbis, focused_id: nil, threads: []}))
 
-      assert {%{active_key: :tlon}, :repaint} =
+      assert {%{active_key: 0}, :repaint} =
                Keymap.handle(key(:enter), state(%{active_key: :orbis, focused_id: 2}))
     end
   end
@@ -187,13 +187,13 @@ defmodule Aleph.KeymapTest do
 
     test "^B Tab switches spaces" do
       s = state(%{center_live?: true})
-      assert {%{active_key: :tlon, leader_pending?: false}, :repaint} = via_leader(key(:tab), s)
+      assert {%{active_key: 0, leader_pending?: false}, :repaint} = via_leader(key(:tab), s)
     end
 
     test "^B Enter is a no-op since the Slice 0 collapse (no enter-or-spawn verb)" do
       # The leader lives in the Tlön terminal; there Enter has no top-level verb (the Orbis
       # survey's Enter-zooms clause is keyed to :orbis and never matches here).
-      s = state(%{center_live?: true, focused_id: 2, active_key: :tlon})
+      s = state(%{center_live?: true, focused_id: 2, active_key: 0})
       assert {%{leader_pending?: false}, :none} = via_leader(key(:enter), s)
     end
 
@@ -285,7 +285,7 @@ defmodule Aleph.KeymapTest do
     test "in Tlön, c composes onto the MACHINE thread, not a stale project focused_id" do
       # The cockpit derives composer_thread_id from the machine thread in Tlön (a per-keypress
       # injection), so a focused_id carried over from Orbis must not receive the post.
-      s = state(%{active_key: :tlon, focused_id: 2, composer_thread_id: 99})
+      s = state(%{active_key: 0, focused_id: 2, composer_thread_id: 99})
       assert {%{input: %{kind: :compose, thread_id: 99, buffer: ""}}, :repaint} = Keymap.handle(char("c"), s)
     end
 
@@ -460,12 +460,12 @@ defmodule Aleph.KeymapTest do
 
   describe "the `m` verb — cycle the coworker driver model (the SETTINGS knob)" do
     test "in a coworker space (Tlön), bare `m` emits the cycle effect for that profile" do
-      s = state(%{active_key: :tlon})
+      s = state(%{active_key: 0})
       assert {^s, {:cycle_coworker_model, "tertius"}} = Keymap.handle(char("m"), s)
     end
 
     test "reachable via the leader from inside the live terminal" do
-      s = state(%{active_key: :tlon, center_live?: true})
+      s = state(%{active_key: 0, center_live?: true})
       assert {%{leader_pending?: false}, {:cycle_coworker_model, "tertius"}} = via_leader(char("m"), s)
     end
 
@@ -475,13 +475,13 @@ defmodule Aleph.KeymapTest do
     end
 
     test "a modified m (Ctrl+M / Alt+M) never fires the settings verb" do
-      s = state(%{active_key: :tlon})
+      s = state(%{active_key: 0})
       assert {^s, :none} = Keymap.handle(char("m", ctrl: true), s)
       assert {^s, :none} = Keymap.handle(char("m", alt: true), s)
     end
 
     test "with a live terminal and no leader, `m` types into the terminal like any key" do
-      s = state(%{active_key: :tlon, center_live?: true})
+      s = state(%{active_key: 0, center_live?: true})
       k = char("m")
       assert {^s, {:forward, ^k}} = Keymap.handle(k, s)
     end
@@ -511,7 +511,7 @@ defmodule Aleph.KeymapTest do
       state(
         Map.merge(
           %{
-            active_key: :tlon,
+            active_key: 0,
             # counts: :a has 3 items, :b 2, :c 4 — what j/k clamps against.
             center_live?: true,
             focus: focus,

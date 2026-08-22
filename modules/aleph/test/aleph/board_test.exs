@@ -381,7 +381,7 @@ defmodule Aleph.BoardTest do
       data = %{spaces: Aleph.Space.all(), active_key: :orbis}
       rect = %{x: 0, y: 0, w: 20, h: 10}
       assert {:switch_space, :orbis} = Spaces.pick(data, rect, 2)
-      assert {:switch_space, :tlon} = Spaces.pick(data, rect, 3)
+      assert {:switch_space, 0} = Spaces.pick(data, rect, 3)
       assert Spaces.pick(data, rect, 0) == nil
     end
 
@@ -404,8 +404,8 @@ defmodule Aleph.BoardTest do
       assert Chorus.pick(data, rect, 0) == nil
       assert Chorus.pick(data, rect, 1) == nil
       # the world's rows (head + summary + blank) span content rows 2–4 → zoom to the Tlön lens
-      assert {:switch_space, :tlon} = Chorus.pick(data, rect, 2)
-      assert {:switch_space, :tlon} = Chorus.pick(data, rect, 4)
+      assert {:switch_space, 0} = Chorus.pick(data, rect, 2)
+      assert {:switch_space, 0} = Chorus.pick(data, rect, 4)
       # a click past the last world selects nothing
       assert Chorus.pick(data, rect, 5) == nil
     end
@@ -544,7 +544,7 @@ defmodule Aleph.BoardTest do
     test "tlön space centers ONE machine terminal (the embedded tmux client), fed by the :machine read" do
       tlon =
         reads(%{
-          active_key: :tlon,
+          active_key: 0,
           machine: :no_session,
           stack: %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []},
           health: %{
@@ -578,7 +578,7 @@ defmodule Aleph.BoardTest do
       # Terminal into, or pi draws wider/taller than the visible area (content spills past the frame,
       # or a dead band opens below). One authority for both, asserted across sizes. Tlön is the only
       # terminal-bearing space since the Slice 0 collapse; its column also carries WindowBar/Pulse.
-      for {key, w, h} <- [{:tlon, 120, 40}, {:tlon, 84, 30}] do
+      for {key, w, h} <- [{0, 120, 40}, {0, 84, 30}] do
         r =
           reads(%{
             active_key: key,
@@ -601,7 +601,7 @@ defmodule Aleph.BoardTest do
       # column, so the Pulse box landed below the column (on/past the StatusBar). Clamp now shrinks
       # the fixed bands in stack order — a lower band collapses to 0 rather than going off-frame.
       # 12 is a comfortably short cockpit; 8 is the regime that used to overflow.
-      for {key, w, h} <- [{:tlon, 120, 12}, {:tlon, 120, 8}] do
+      for {key, w, h} <- [{0, 120, 12}, {0, 120, 8}] do
         r =
           reads(%{
             active_key: key,

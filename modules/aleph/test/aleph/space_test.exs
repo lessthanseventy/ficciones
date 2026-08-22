@@ -9,6 +9,9 @@ defmodule Aleph.SpaceTest do
   """
   use ExUnit.Case, async: true
 
+  # `Space.world?/1` is a `defguard` (Phase C1.3), which requires the module, not just an alias.
+  require Aleph.Space
+
   alias Aleph.Panel.Activity
   alias Aleph.Panel.Health
   alias Aleph.Panel.Leaves

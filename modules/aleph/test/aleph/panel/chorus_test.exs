@@ -47,7 +47,7 @@ defmodule Aleph.Panel.ChorusTest do
     }
 
     # Header (0) + blank (1), then the world's rows start at y = 2.
-    assert Chorus.pick(data, @rect, 2) == {:switch_space, :tlon}
+    assert Chorus.pick(data, @rect, 2) == {:switch_space, 0}
     assert Chorus.pick(data, @rect, 0) == nil
   end
 end

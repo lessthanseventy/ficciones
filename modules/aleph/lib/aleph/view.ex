@@ -41,7 +41,7 @@ defmodule Aleph.View do
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
   def compose(reads, w, h) do
-    space = Space.fetch(reads.active_key)
+    space = fetch_space(reads.active_key)
     body_h = max(h - @status_h, 1)
 
     # Each column holds a stack of *sections*, each its own bordered box, so sections read as
@@ -166,13 +166,18 @@ defmodule Aleph.View do
   @spec center_rect(atom(), pos_integer(), pos_integer()) :: Panel.rect()
   def center_rect(space_key, w, h) do
     center_col = wide_columns(w, max(h - @status_h, 1)).center
-    surface = Space.fetch(space_key).surface
+    surface = fetch_space(space_key).surface
 
     case Enum.find(boxed(surface, center_col), &terminal_section?/1) do
       {_section, rect} -> inset(rect)
       nil -> inset(center_col)
     end
   end
+
+  # `Space.fetch/1` returns nil on a miss (Phase C1: no silent Orbis default at the Space layer) —
+  # a stale/unknown active_key mid-render degrades to an empty space here instead of crashing the
+  # paint (View chooses to be forgiving; Space stays honest).
+  defp fetch_space(key), do: Space.fetch(key) || %Space{key: key, label: "?", surface: []}
 
   defp terminal_section?({Panel.Terminal, _rect}), do: true
   defp terminal_section?({{Panel.Terminal, _read_key}, _rect}), do: true

@@ -11,6 +11,10 @@ defmodule Aleph.Cockpit do
   """
   use GenServer
 
+  # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
+  # not just an alias.
+  require Aleph.Space
+
   alias Aleph.Board
   alias Aleph.Keymap
   alias Aleph.Mouse
@@ -868,11 +872,12 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "habit action failed: #{Exception.message(e)}"})}
   end
 
-  # The pending habit the focus points at, or nil unless: Tlön, nav mode, Memory pane, habits
-  # section (1), with a habit under the clamped cursor.
+  # The pending habit the focus points at, or nil unless: a World space, nav mode, Memory pane,
+  # habits section (1), with a habit under the clamped cursor.
   defp selected_habit(
-         %{active_key: :tlon, memory: %{habits: habits}, focus: %{in_terminal?: false, section: 1} = focus} = state
-       ) do
+         %{active_key: key, memory: %{habits: habits}, focus: %{in_terminal?: false, section: 1} = focus} = state
+       )
+       when Space.world?(key) do
     layout = tlon_layout(state)
     if Focus.focused_pane(focus, layout) == Panel.Memory, do: Enum.at(habits, Focus.cursor(focus, layout))
   end
@@ -911,7 +916,7 @@ defmodule Aleph.Cockpit do
   # put) or sending keys — a live preview that follows the selection. Only a window-bearing pane
   # (Leaves, mapped by the leaf's lead to a live window) re-points; a leaf with no live window, or
   # any other pane/space, leaves the center exactly where it was. commit_preview/1 is what focuses.
-  def preview_focused(%{active_key: :tlon} = state) do
+  def preview_focused(%{active_key: key} = state) when Space.world?(key) do
     layout = tlon_layout(state)
     rows = (state.leaves || %{rows: []}).rows
 
@@ -1052,8 +1057,8 @@ defmodule Aleph.Cockpit do
       stack: state.stack || @empty_stack,
       health: state.health,
       activity: state.activity,
-      memory: if(state.active_key == :tlon, do: state.memory),
-      orbis: if(state.active_key == :tlon, do: state.leaves),
+      memory: if(Space.world?(state.active_key), do: state.memory),
+      orbis: if(Space.world?(state.active_key), do: state.leaves),
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :orbis, do: triage_read(threads)),
       habits: habits_read(state.active_key),
@@ -1063,13 +1068,13 @@ defmodule Aleph.Cockpit do
       modal: settings_modal_read(state),
       flash: state.flash,
       leader_pending?: state.leader_pending?,
-      # Tlön's focus, so the View can light the focused sidebar pane and the status bar can show
-      # NAV/TERM. nil elsewhere — no other space navigates panes this way.
-      focus: if(state.active_key == :tlon, do: state.focus),
+      # The World space's focus, so the View can light the focused sidebar pane and the status bar
+      # can show NAV/TERM. nil elsewhere — no other space navigates panes this way.
+      focus: if(Space.world?(state.active_key), do: state.focus),
       # The layout the View reads for the focused pane + item cursor (counts), and the resolved
-      # MAIN detail (nil unless the focus opened one). Both nil outside Tlön.
-      tlon_layout: if(state.active_key == :tlon, do: tlon_layout(state)),
-      detail: if(state.active_key == :tlon and state.focus.detail?, do: tlon_detail(state, tlon_layout(state)))
+      # MAIN detail (nil unless the focus opened one). Both nil outside a World space.
+      tlon_layout: if(Space.world?(state.active_key), do: tlon_layout(state)),
+      detail: if(Space.world?(state.active_key) and state.focus.detail?, do: tlon_detail(state, tlon_layout(state)))
     }
 
     placements = View.compose(reads, state.w, state.h)
@@ -1092,7 +1097,7 @@ defmodule Aleph.Cockpit do
   # The Tlön center's read: the embedded tmux client. Lookup only — the find-or-spawn lives in
   # ensure_machine_coworker (render's stateful preamble), so a failing spawn can back off
   # instead of re-materialising the profile and re-issuing tmux new-session every frame.
-  defp machine_read(%{active_key: :tlon}) do
+  defp machine_read(%{active_key: key}) when Space.world?(key) do
     case render_state_of(safe_terminal(:machine)) do
       %{} = render_state -> Map.put(render_state, :tabs, tlon_tabs())
       other -> other
@@ -1120,16 +1125,17 @@ defmodule Aleph.Cockpit do
     :exit, _ -> {:error, :sessions_down}
   end
 
-  # The terminal that owns the keys, by space: Tlön → the embedded tmux client. nil elsewhere
-  # (Orbis has no center Terminal — its surface is the Chorus).
-  defp center_terminal(%{active_key: :tlon}), do: safe_terminal(:machine)
+  # The terminal that owns the keys, by space: a World → the embedded tmux client (still the single
+  # `:machine` registry entry in Slice 1 — C2 keys the terminal per world id). nil elsewhere (Orbis
+  # has no center Terminal — its surface is the Chorus).
+  defp center_terminal(%{active_key: key}) when Space.world?(key), do: safe_terminal(:machine)
   defp center_terminal(_state), do: nil
 
   # The thread `c` composes onto, derived per keypress (like center_live?): the focused project
-  # thread in Orbis; in Tlön the MACHINE thread — the operator working the box posts to the
-  # machine coworker, never a stale project thread id carried over from Orbis. nil (no thread)
+  # thread in Orbis; in a World space the MACHINE thread — the operator working the box posts to
+  # the machine coworker, never a stale project thread id carried over from Orbis. nil (no thread)
   # makes `c` a no-op.
-  defp composer_thread_id(%{active_key: :tlon}), do: machine_thread_id()
+  defp composer_thread_id(%{active_key: key}) when Space.world?(key), do: machine_thread_id()
   defp composer_thread_id(state), do: state.focused_id
 
   # The shape the Tlön focus SM navigates: the space's two sidebar columns, per-pane section counts
@@ -1139,15 +1145,13 @@ defmodule Aleph.Cockpit do
   # Tlön anyway).
   # SPACES leads the left column in the FOCUS layout exactly as it does on screen (View prepends it
   # to `space.left`), so `h`/`H` can land on the space-switcher and `Enter` there switches lens.
-  defp tlon_layout(%{active_key: :tlon} = state) do
-    space = Space.fetch(:tlon)
-
-    %{
-      left: [Panel.Spaces | space.left],
-      right: space.right,
-      sections: %{Panel.Memory => 2},
-      counts: pane_counts(state)
-    }
+  defp tlon_layout(%{active_key: key} = state) when Space.world?(key) do
+    case Space.fetch(key) do
+      # A stale/removed active_key mid-render (Space.fetch/1 returns nil on a miss) — degrade to
+      # the same empty layout a non-World space gets, rather than crash the render.
+      nil -> %{left: [], right: [], sections: %{}, counts: %{}}
+      space -> %{left: [Panel.Spaces | space.left], right: space.right, sections: %{Panel.Memory => 2}, counts: pane_counts(state)}
+    end
   end
 
   defp tlon_layout(_state), do: %{left: [], right: [], sections: %{}, counts: %{}}
@@ -1248,15 +1252,15 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Fill the probe cache when Tlön is active and the cache is cold. Elsewhere the probes stay
-  # nil — git/nix/df/tmux forks and funes reads are wasted on spaces that never show them.
-  defp ensure_probes(%{active_key: :tlon, stack: nil} = state) do
+  # Fill the probe cache when a World space is active and the cache is cold. Elsewhere the probes
+  # stay nil — git/nix/df/tmux forks and funes reads are wasted on spaces that never show them.
+  defp ensure_probes(%{active_key: key, stack: nil} = state) when Space.world?(key) do
     %{
       state
       | stack: stack_read(),
         health: health_read(),
         memory: memory_read(),
-        leaves: orbis_read(:tlon),
+        leaves: orbis_read(key),
         probed_at: System.monotonic_time(:millisecond)
     }
   end
@@ -1310,9 +1314,11 @@ defmodule Aleph.Cockpit do
     }
   end
 
-  # HABITS reads are only gathered on Tlön — the machine-wide review queue (pending) and the
-  # always-loaded set (approved). Machine-wide, so not keyed on a focused thread.
-  defp habits_read(:tlon), do: %{pending: Dossier.pending_habits(), approved: Dossier.approved_habits()}
+  # HABITS reads are only gathered on a World space — the machine-wide review queue (pending) and
+  # the always-loaded set (approved). Machine-wide, so not keyed on a focused thread.
+  defp habits_read(key) when Space.world?(key),
+    do: %{pending: Dossier.pending_habits(), approved: Dossier.approved_habits()}
+
   defp habits_read(_key), do: nil
 
   # SETTINGS reads: the active space's coworker driver (override merged by Profiles.fetch) + the
@@ -1360,9 +1366,9 @@ defmodule Aleph.Cockpit do
     }
   end
 
-  # LOGBOOK reads are only gathered on Tlön — the machine thread's issues + recent messages,
-  # the shared notebook for notes and observations about the env.
-  defp logbook_read(:tlon) do
+  # LOGBOOK reads are only gathered on a World space — the machine thread's issues + recent
+  # messages, the shared notebook for notes and observations about the env.
+  defp logbook_read(key) when Space.world?(key) do
     case Channel.machine_thread() do
       nil ->
         nil
@@ -1379,10 +1385,11 @@ defmodule Aleph.Cockpit do
   defp logbook_read(_key), do: nil
 
   # ORBIS rollup (Orbis Tertius slice 2) — the machine-scoped vantage, gathered on the spaces that
-  # show it (Tlön's LEAVES sidebar + Orbis' survey), cached in `state.leaves` on the @probe_ms
+  # show it (a World's LEAVES sidebar + Orbis' survey), cached in `state.leaves` on the @probe_ms
   # throttle. The semantics live in `Aleph.Orbis` (shared with the `chat` tab's header strip) so a
   # status rule never drifts between the surfaces.
-  defp orbis_read(key) when key in [:tlon, :orbis], do: Aleph.Orbis.rollup()
+  defp orbis_read(:orbis), do: Aleph.Orbis.rollup()
+  defp orbis_read(key) when Space.world?(key), do: Aleph.Orbis.rollup()
   defp orbis_read(_key), do: nil
 
   # The Orbis survey (Chorus center): the per-WORLD rollup grouping (Slice 0: one hardcoded world).
@@ -1437,7 +1444,7 @@ defmodule Aleph.Cockpit do
   # deliberate escalation (AGENTS.md routing). Find-or-spawned here (render's stateful preamble),
   # with a backoff: a failed spawn must not retry the whole materialise+tmux pipeline on EVERY
   # render — that would be a spawn storm whenever the coworker can't start.
-  defp ensure_machine_coworker(%{active_key: :tlon} = state) do
+  defp ensure_machine_coworker(%{active_key: key} = state) when Space.world?(key) do
     now = System.monotonic_time(:millisecond)
 
     cond do
@@ -1472,7 +1479,7 @@ defmodule Aleph.Cockpit do
   # spawn opens/finds the root thread this one joins) and on the window not already being there (tmux
   # `new-window` isn't idempotent like `new-session -A` — a naive re-run every render would spawn a
   # fresh claude every tick).
-  defp ensure_claude_coworker(%{active_key: :tlon} = state) do
+  defp ensure_claude_coworker(%{active_key: key} = state) when Space.world?(key) do
     cond do
       not is_pid(safe_terminal(:machine)) ->
         state
@@ -1492,7 +1499,7 @@ defmodule Aleph.Cockpit do
   # a second Claude-Code window on its own funes identity, to break the two-body agree/disagree
   # dynamic. Same gating as the claude window (pi up, its own window absent); `Aleph.Mention` picks
   # up the same env so the third joins the wake-loop.
-  defp ensure_third_coworker(%{active_key: :tlon} = state) do
+  defp ensure_third_coworker(%{active_key: key} = state) when Space.world?(key) do
     case Aleph.Mention.third_agent() do
       %{author: author, window: window} ->
         cond do
@@ -1520,7 +1527,7 @@ defmodule Aleph.Cockpit do
   # doesn't know it); it just polls the db the cockpit writes. Gated like the claude window: pi up
   # (so a machine thread exists to read), window absent (`new-window` isn't idempotent), retried each
   # render — a failed open just leaves the tab missing.
-  defp ensure_log_window(%{active_key: :tlon} = state) do
+  defp ensure_log_window(%{active_key: key} = state) when Space.world?(key) do
     cond do
       not is_pid(safe_terminal(:machine)) -> state
       Enum.any?(tlon_tabs(), &(&1.name == "uqbar")) -> state
@@ -1540,7 +1547,7 @@ defmodule Aleph.Cockpit do
   # Restricted to claude-launched leads (`claude_launched?/1`) — `spawn_agent_window` runs
   # `claude_launcher()`, so it is only correct for a claude-machine/third-agent lead.
   # Pi-launched staffing is a follow-up.
-  defp ensure_thread_sessions(%{active_key: :tlon} = state) do
+  defp ensure_thread_sessions(%{active_key: key} = state) when Space.world?(key) do
     tabs = tlon_tabs()
     now = System.monotonic_time(:millisecond)
 
@@ -1691,9 +1698,8 @@ defmodule Aleph.Cockpit do
   # the Tlön center: an embedded tmux client attached to the standing session (pi as window 0 if
   # absent) — an aleph restart re-attaches to the running pi instead of spawning another.
   defp spawn_machine_coworker do
-    space = Space.fetch(:tlon)
-
-    with %Profile{} = profile <- Profiles.fetch(space.coworker),
+    with %Space{} = space <- first_world_space(),
+         %Profile{} = profile <- Profiles.fetch(space.coworker),
          {:ok, _dir} <- materialise_profile(profile),
          {:ok, exports} <- machine_exports(@machine_agent),
          # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
@@ -1780,8 +1786,19 @@ defmodule Aleph.Cockpit do
   end
 
   # Every tmux call about the Tlön coworker targets its private server (`-L aleph-<profile>`),
-  # never the user's default one.
-  defp tlon_tmux(args), do: ["-L", Profiles.socket(Space.fetch(:tlon).coworker)] ++ args
+  # never the user's default one. Stateless (no `state`/`active_key` in scope here), so it can't
+  # target the ACTIVE world — degrades to no `-L` flag if even the fallback World is somehow gone
+  # (never happens today: `Space.world_spaces/1` always yields at least the sentinel).
+  defp tlon_tmux(args) do
+    case first_world_space() do
+      nil -> args
+      space -> ["-L", Profiles.socket(space.coworker)] ++ args
+    end
+  end
+
+  # The (single, in Slice 1) World space — the C1 bridge for stateless call sites that used to
+  # hardcode Space.fetch(:tlon). C2 replaces these with the ACTIVE world once multiplicity lands.
+  defp first_world_space, do: Enum.find(Space.all(), &Space.world?(&1.key))
 
   @doc false
   # `window_active` is "1" for the current window, "0" otherwise; each line is

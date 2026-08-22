@@ -134,11 +134,11 @@ defmodule Aleph.Space do
   @doc """
   The mode predicate: is `key` a World space (as opposed to `:orbis`)? Replaces the ~40
   `active_key == :tlon` guards the cockpit carried pre-Phase-C1 (Task C1.3) — any funes id,
-  including the funes-down fallback sentinel `0`, is a World.
+  including the funes-down fallback sentinel `0`, is a World. A `defguard` (not a plain function)
+  so cockpit/keymap clause heads can gate directly on it (`when Space.world?(key)`) — callers must
+  `require Aleph.Space` (a macro, unlike an ordinary `def`).
   """
-  @spec world?(:orbis | non_neg_integer()) :: boolean()
-  def world?(:orbis), do: false
-  def world?(key) when is_integer(key), do: true
+  defguard world?(key) when is_integer(key)
 
   @doc "The space after `key` in picker order, wrapping around."
   @spec next(:orbis | non_neg_integer()) :: t()

@@ -36,7 +36,7 @@ defmodule Aleph.CockpitPreviewTest do
   # item cursor on `row_idx`, keys NOT forwarding (in_terminal? false).
   defp leaves_state(rows, row_idx) do
     %{
-      active_key: :tlon,
+      active_key: 0,
       focus: %Focus{in_terminal?: false, column: :right, pane: 2, cursors: %{Panel.Leaves => row_idx}},
       leaves: %{summary: %{}, rows: rows},
       stack: nil,

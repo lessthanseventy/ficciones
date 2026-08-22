@@ -17,7 +17,7 @@ defmodule Aleph.ViewTest do
   defp reads(overrides) do
     Map.merge(
       %{
-        active_key: :tlon,
+        active_key: 0,
         focus: nil,
         focused_id: nil,
         focused_title: nil,

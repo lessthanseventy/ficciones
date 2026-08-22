@@ -35,11 +35,11 @@ defmodule Aleph.CockpitLeavesAttachTest do
     :ok
   end
 
-  # A Tlön nav state focused on the Leaves pane (right column, index 2 — matches Space.fetch(:tlon)),
+  # A Tlön nav state focused on the Leaves pane (right column, index 2 — matches Space.fetch(0)),
   # the item cursor on row 0, keys NOT forwarding (in_terminal? false).
   defp leaves_state(rows) do
     %{
-      active_key: :tlon,
+      active_key: 0,
       focus: %Focus{in_terminal?: false, column: :right, pane: 2, cursors: %{Panel.Leaves => 0}},
       leaves: %{summary: %{}, rows: rows},
       stack: nil,
@@ -50,13 +50,13 @@ defmodule Aleph.CockpitLeavesAttachTest do
   end
 
   # The right-column layout the cockpit derives for Tlön (Leaves at index 2), with the Leaves count
-  # so the focus cursor resolves the row under it. `right` is pulled from the real `Space.fetch(:tlon)`
+  # so the focus cursor resolves the row under it. `right` is pulled from the real `Space.fetch(0)`
   # (the same source `tlon_layout/1` uses) so a future reorder of `space.right` can't silently desync
   # this test; `focus.pane: 2` in leaves_state/1 mirrors Leaves' position in that column.
   defp leaves_layout(rows) do
     %{
       left: [Panel.Spaces, Panel.Stack, Panel.Memory],
-      right: Space.fetch(:tlon).right,
+      right: Space.fetch(0).right,
       sections: %{},
       counts: %{Panel.Leaves => length(rows)}
     }
@@ -71,7 +71,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
       assert next.focus.in_terminal? == true
       assert_received {:tmux, ["-L", _sock, "select-window", "-t", "tlon:1"]}
       # Retargeted off the deleted Sessions space — the space stays Tlön, no jump.
-      assert next.active_key == :tlon
+      assert next.active_key == 0
     end
 
     test "a leaf with no live window flashes the Slice-1 deferral, re-points nothing, no crash" do

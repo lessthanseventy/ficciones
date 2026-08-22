@@ -45,6 +45,10 @@ defmodule Aleph.Keymap do
   the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
   """
 
+  # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
+  # not just an alias.
+  require Aleph.Space
+
   alias Aleph.Panel
   alias Aleph.Profiles
   alias Aleph.Space
@@ -199,7 +203,7 @@ defmodule Aleph.Keymap do
   # `Aleph.Tlon.Focus` SM over `tlon_layout` (h/l pane · H/L column · Tab section · Esc→terminal).
   # `focus` (persistent) and `tlon_layout` (derived per keypress, like center_live?) are supplied by
   # the cockpit only for this space; the guard keeps every other space on the leader path below. ---
-  def handle(key, %{active_key: :tlon, focus: %Focus{}} = state), do: handle_tlon(key, state)
+  def handle(key, %{active_key: k, focus: %Focus{}} = state) when Space.world?(k), do: handle_tlon(key, state)
 
   # --- leader pending: Ctrl+Space was pressed; the next key is an aleph command. ---
   # Ctrl+Space again → send a LITERAL Ctrl+Space through (the prefix-twice convention), so an
@@ -258,10 +262,10 @@ defmodule Aleph.Keymap do
     end
   end
 
-  # Enter in the Orbis survey zooms the selected world to its lens — Slice 0 has one world (Tlön),
-  # so Enter drops straight into the Tlön space (the god-view → world zoom). Reuses the plain
-  # space-switch, no focus SM involved.
-  defp command(%{key: :enter}, %{active_key: :orbis} = state), do: {%{state | active_key: :tlon}, :repaint}
+  # Enter in the Orbis survey zooms the selected world to its lens — Slice 1 still has one world,
+  # so Enter drops straight into it (the god-view → world zoom). Reuses the plain space-switch, no
+  # focus SM involved. Slice 1 one-world bridge; C2 resolves the selected survey row → its world id.
+  defp command(%{key: :enter}, %{active_key: :orbis} = state), do: {%{state | active_key: first_world_key()}, :repaint}
 
   # Enter has no top-level verb elsewhere since the Slice 0 collapse: the Sessions space (its only
   # home — the one center that could show a spawned per-thread PTY) is gone, so Enter is a plain
@@ -348,6 +352,10 @@ defmodule Aleph.Keymap do
 
   defp close_modal(state), do: %{state | modal: Settings.close(state.modal)}
   defp modal_intent(state, intent), do: %{state | modal: Settings.handle(state.modal, intent)}
+
+  # The (single, in Slice 1) World space's key — the C1 bridge for the Orbis-Enter zoom, replacing
+  # the literal `:tlon` target. C2 resolves the selected survey row to its own world id instead.
+  defp first_world_key, do: Enum.find(Space.all(), &Space.world?(&1.key)).key
 
   defp switch(state, dir) do
     space =

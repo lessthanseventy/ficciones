@@ -12,9 +12,13 @@ defmodule Aleph.Panel.Chorus do
   """
   @behaviour Aleph.Panel
 
+  # `Space.world?/1` is a `defguard`, which requires the module, not just an alias.
+  require Aleph.Space
+
   import Aleph.Panel, only: [line: 2, blank: 0]
 
   alias Aleph.Panel.Leaves
+  alias Aleph.Space
 
   # Header (title) + blank spacer above the world rows; each world block is head + summary + blank.
   @header_rows 2
@@ -38,8 +42,8 @@ defmodule Aleph.Panel.Chorus do
     Aleph.Panel.clip(header ++ body, rect)
   end
 
-  # Click a world's rows → zoom to its lens. Slice 0 has one world (Tlön), so any world row zooms
-  # to the Tlön space; the header + blank (rows 0–1) and clicks past the last world are inert.
+  # Click a world's rows → zoom to its lens. Slice 1 still has one world, so any world row zooms
+  # there; the header + blank (rows 0–1) and clicks past the last world are inert.
   @impl Aleph.Panel
   def pick(%{worlds: worlds} = data, _rect, local_y) do
     idx = Aleph.Panel.scroll_offset(data) + local_y - @header_rows
@@ -50,11 +54,15 @@ defmodule Aleph.Panel.Chorus do
 
   # Slice 0: every world block is a fixed @world_rows tall, so idx→world is plain integer division.
   # Slice 1 (multi-world / wrapping summaries) must measure each block's rendered height instead.
+  # `first_world_key/0`: Slice 1 one-world bridge (the rollup row carries a world NAME, not an id,
+  # so a click can't yet resolve its own world) — C2 resolves the clicked row → its own world id.
   defp world_at(worlds, idx) when idx >= 0 do
-    if div(idx, @world_rows) < length(worlds), do: {:switch_space, :tlon}
+    if div(idx, @world_rows) < length(worlds), do: {:switch_space, first_world_key()}
   end
 
   defp world_at(_worlds, _idx), do: nil
+
+  defp first_world_key, do: Enum.find(Space.all(), &Space.world?(&1.key)).key
 
   # One world: a ▸ + its name, then an indented summary line — leaf count + the shared rollup line
   # (open/stalled/done, trouble called out only when there is any), then a blank spacer.
