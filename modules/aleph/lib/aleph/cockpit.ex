@@ -226,6 +226,12 @@ defmodule Aleph.Cockpit do
             active_key: List.first(Space.all()).key,
             focused_id: nil,
             threads: [],
+            # Orbis' focus toggle (`h`/`l`) — which cursor its j/k drives: the survey's per-row
+            # cursor (default, so a fresh Orbis opens ready to zoom a world) or the thread list.
+            orbis_focus: :survey,
+            # The Orbis survey's per-row cursor (j/k), clamped to the live world count at keypress
+            # time (Aleph.Keymap) — `Enter`/click resolve it to that row's world id.
+            survey_cursor: 0,
             subscribed_thread: nil,
             leader_pending?: false,
             # Tlön's lazygit focus (which sidebar column/pane/section, and whether we're in the
@@ -1137,6 +1143,10 @@ defmodule Aleph.Cockpit do
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
       worlds: if(state.active_key == :orbis, do: orbis_worlds(state), else: []),
+      # The survey's focus + per-row cursor, so Chorus can wash the cursor row :selected — only
+      # meaningful in Orbis (`right_pane_view`'s same "harmless elsewhere" idiom).
+      orbis_focus: state.orbis_focus,
+      survey_cursor: state.survey_cursor,
       terminal: terminal_read(state, focused),
       machine: machine_read(state),
       stack: state.stack || @empty_stack,

@@ -19,8 +19,11 @@ defmodule Aleph.Keymap do
   `center_live?` (derived per keypress by the cockpit — true when a live terminal is in the
   center), `composer_thread_id` (also derived per keypress — the thread the `c` verb composes
   onto: the focused thread, or the machine thread in Tlön), `leader_pending?` (the prefix is
-  armed), and `input` (the typing modal). A `key_event` is the `Raxol.Core.Events.Event` `data`
-  map, e.g. `%{key: :up}` or `%{key: :char, char: "j"}`.
+  armed), `input` (the typing modal), `orbis_focus` (`:survey | :threads` — which cursor Orbis'
+  `j/k` drives; `h`/`l` toggle it), `survey_cursor` (the Orbis survey's per-row cursor, clamped to
+  the live world count), and `leaves` (the cached `Aleph.Orbis.rollup/0`, read-only here for its
+  `worlds` list — the same cache the cockpit's `orbis_worlds/1` reads). A `key_event` is the
+  `Raxol.Core.Events.Event` `data` map, e.g. `%{key: :up}` or `%{key: :char, char: "j"}`.
 
   Effects:
 
@@ -278,6 +281,20 @@ defmodule Aleph.Keymap do
   defp command(%{key: :tab, shift: true}, state), do: switch(state, :prev)
   defp command(%{key: :tab}, state), do: switch(state, :next)
 
+  # `h`/`l` toggle Orbis' focus between the survey (per-row cursor) and the thread list (the
+  # existing `focused_id` nav) — Orbis-only; in a World, h/l belong to Focus pane-nav
+  # (`handle_tlon`), never reaching this table.
+  defp command(%{key: :char, char: "h"}, %{active_key: :orbis} = state), do: {toggle_orbis_focus(state), :repaint}
+
+  defp command(%{key: :char, char: "l"}, %{active_key: :orbis} = state), do: {toggle_orbis_focus(state), :repaint}
+
+  # j/k/↑/↓ route by `orbis_focus`: :survey moves the survey's per-row cursor (clamped, no wrap);
+  # :threads keeps the pre-existing thread-focus move. Orbis-only (World j/k is `handle_tlon`'s).
+  defp command(%{key: :up}, %{active_key: :orbis} = state), do: move_orbis(state, -1)
+  defp command(%{key: :char, char: "k"}, %{active_key: :orbis} = state), do: move_orbis(state, -1)
+  defp command(%{key: :down}, %{active_key: :orbis} = state), do: move_orbis(state, 1)
+  defp command(%{key: :char, char: "j"}, %{active_key: :orbis} = state), do: move_orbis(state, 1)
+
   defp command(%{key: :up}, state), do: move(state, -1)
   defp command(%{key: :char, char: "k"}, state), do: move(state, -1)
   defp command(%{key: :down}, state), do: move(state, 1)
@@ -383,6 +400,46 @@ defmodule Aleph.Keymap do
     i = Enum.find_index(ids, &(&1 == state.focused_id)) || 0
     new_id = Enum.at(ids, min(max(i + dir, 0), length(ids) - 1))
     {%{state | focused_id: new_id}, :repaint}
+  end
+
+  # Dispatch Orbis' j/k/↑/↓ by which cursor is focused — the survey's per-row cursor, or the
+  # pre-existing thread move (`move/2`, unchanged — keeps the composer's `c` target working).
+  defp move_orbis(state, dir) do
+    case orbis_focus(state) do
+      :survey -> move_survey(state, dir)
+      :threads -> move(state, dir)
+    end
+  end
+
+  # Clamp `survey_cursor` into `0..length(worlds) - 1` — no wrap, same edge-clamp discipline as
+  # `move/2`. Zero worlds clamps to 0 (harmless; Enter no-ops on an empty survey).
+  # `Map.put/3`, not `%{state | ...}` — that raises KeyError when `:survey_cursor` is absent (an
+  # older test's literal state map, built before this field existed), same tolerance as the
+  # composer's `insert_at/2`.
+  defp move_survey(state, dir) do
+    max_idx = max(length(survey_worlds(state)) - 1, 0)
+    cursor = (survey_cursor(state) + dir) |> max(0) |> min(max_idx)
+    {Map.put(state, :survey_cursor, cursor), :repaint}
+  end
+
+  defp toggle_orbis_focus(state) do
+    next = if orbis_focus(state) == :survey, do: :threads, else: :survey
+    Map.put(state, :orbis_focus, next)
+  end
+
+  # Defaults tolerate a state map built before these fields existed (an older test's literal
+  # state) — `:survey`/`0`, matching the cockpit's init-state defaults.
+  defp orbis_focus(state), do: Map.get(state, :orbis_focus, :survey)
+  defp survey_cursor(state), do: Map.get(state, :survey_cursor, 0)
+
+  # The live worlds list Orbis' survey cursor/Enter resolve against — the same cached
+  # `Aleph.Orbis.rollup/0` the cockpit's `orbis_worlds/1` reads (`state.leaves.worlds`). Kept local
+  # (not a call into `Aleph.Cockpit`) so the keymap stays a pure reducer over its passed-in state.
+  defp survey_worlds(state) do
+    case Map.get(state, :leaves) do
+      %{worlds: worlds} -> worlds
+      _ -> []
+    end
   end
 
   defp cursor_of(%{cursor: c}), do: c

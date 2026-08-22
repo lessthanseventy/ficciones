@@ -20,7 +20,10 @@ defmodule Aleph.KeymapTest do
 
   # The slice of cockpit state the keymap reads. Threads are anything with an `.id`.
   # `center_live?` and `composer_thread_id` are derived per keypress by the cockpit; here they're
-  # set explicitly per test (`composer_thread_id` defaults to the focused thread).
+  # set explicitly per test (`composer_thread_id` defaults to the focused thread). `orbis_focus`
+  # defaults to `:threads` here (NOT the cockpit's `:survey` init default) so the many pre-existing
+  # thread-nav tests below keep exercising thread focus without every one of them overriding it;
+  # the "Orbis survey cursor" describe block below sets `:survey` explicitly.
   defp state(overrides \\ %{}) do
     base =
       Map.merge(
@@ -30,7 +33,10 @@ defmodule Aleph.KeymapTest do
           threads: [%{id: 1}, %{id: 2}, %{id: 3}],
           center_live?: false,
           leader_pending?: false,
-          input: nil
+          input: nil,
+          orbis_focus: :threads,
+          survey_cursor: 0,
+          leaves: nil
         },
         overrides
       )
@@ -140,6 +146,46 @@ defmodule Aleph.KeymapTest do
 
       assert {%{active_key: 0}, :repaint} =
                Keymap.handle(key(:enter), state(%{active_key: :orbis, focused_id: 2}))
+    end
+  end
+
+  describe "the Orbis survey cursor (D0.1: orbis_focus == :survey, the cockpit default)" do
+    @two_worlds [
+      %{id: 11, name: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []},
+      %{id: 22, name: "Freedonia", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
+    ]
+
+    defp survey_state(overrides \\ %{}),
+      do: state(Map.merge(%{orbis_focus: :survey, leaves: %{worlds: @two_worlds}}, overrides))
+
+    test "j/k (and ↑/↓) move survey_cursor, clamped 0..length(worlds)-1 — no wrap" do
+      s = survey_state(%{survey_cursor: 0})
+      assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(char("j"), s)
+      assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(key(:down), s)
+
+      # stops at the last world — 2 worlds, index 1 is the ceiling.
+      s1 = survey_state(%{survey_cursor: 1})
+      assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(char("j"), s1)
+      assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(key(:down), s1)
+
+      # stops at 0 — no wrap below the floor either.
+      assert {%{survey_cursor: 0}, :repaint} = Keymap.handle(char("k"), survey_state(%{survey_cursor: 0}))
+      assert {%{survey_cursor: 0}, :repaint} = Keymap.handle(key(:up), survey_state(%{survey_cursor: 0}))
+    end
+
+    test "h/l toggle orbis_focus between :survey and :threads" do
+      assert {%{orbis_focus: :threads}, :repaint} = Keymap.handle(char("h"), survey_state())
+      assert {%{orbis_focus: :threads}, :repaint} = Keymap.handle(char("l"), survey_state())
+
+      s = state(%{active_key: :orbis, orbis_focus: :threads})
+      assert {%{orbis_focus: :survey}, :repaint} = Keymap.handle(char("h"), s)
+      assert {%{orbis_focus: :survey}, :repaint} = Keymap.handle(char("l"), s)
+    end
+
+    test "with orbis_focus == :threads, j/k still move focused_id — compose unbroken" do
+      s = survey_state(%{orbis_focus: :threads, focused_id: 2})
+      assert {%{focused_id: 3, survey_cursor: 0}, :repaint} = Keymap.handle(char("j"), s)
+      assert {%{focused_id: 1, survey_cursor: 0}, :repaint} = Keymap.handle(char("k"), s)
     end
   end
 
