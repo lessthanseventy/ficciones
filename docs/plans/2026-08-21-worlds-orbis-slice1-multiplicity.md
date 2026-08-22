@@ -155,11 +155,19 @@ The de-singletoning. Today these are hardcoded to one coworker/session (map from
 
 **Direction:** entering world N attaches its own tmux session (keyed by world name) and lazily spawns its `roster[]` — each entry `Profiles.instantiate(entry)` (layer 1) → a window keyed by the instance name; `Aleph.Mention` routes by instance handle (`#{name}-machine`) instead of the fixed map. One `ensure_world_roster(world)` loop replaces the three singletons. Re-plan with exact tasks after Phase B.
 
+**Carried-forward from Phase B review (address in C):**
+- **C2 — `Space.fetch/1` silently defaults to Orbis** (`List.first(all())`) on a missing key. Today, and especially once a real world isn't named "Tlön", every hardcoded `:tlon` lookup in the cockpit will silently resolve to Orbis instead of erroring. De-singletoning must stop keying the cockpit on `:tlon`; while doing so, make a missing-key lookup explicit (raise or `nil`+handling) rather than the silent Orbis fallback.
+- **The `:tlon` slug bridge is temporary.** Phase B keys the World space via a slug (`"Tlön"→:tlon`) purely to preserve behavioral identity. C must move the cockpit off atom-keyed `:tlon` lookups entirely (key by world name/id), which also dissolves I1/I2 below.
+
 ---
 
 ## Phase D — author face creates a second world (OUTLINE — re-plan after C)
 
 Form over a seeded row (absorbs the Settings modal): edit a world's type/paths/roster/knobs; "new world" = duplicate a template + `register_world`. The release bar: a second world row in Orbis' survey, spawned from the UI, no aleph/funes code touched. Re-plan after Phase C.
+
+**Carried-forward from Phase B review (must resolve when the author face lets humans name worlds):**
+- **I1 — atom exhaustion.** The Phase-B slug ends in `String.to_atom/1`; every distinct world name mints a permanent, never-GC'd atom. Bounded/admin-seeded today (fine), but arbitrary user names in the author face make it an unbounded vector. `to_existing_atom` isn't a drop-in (new worlds need new atoms). Resolution rides on C moving the cockpit off atom keys entirely (key by name/id string) — do NOT ship the author face while Spaces are still atom-keyed by user input.
+- **I2 — slug collision.** funes' `UNIQUE(name)` does not prevent two names slugging to the same atom ("Tlön"/"tlon"/"My Life!"→`:my_life`). Duplicate picker keys break `next/1` and every keyed lookup. Once C keys by name/id this dissolves; until then the author face must reject colliding names.
 
 ---
 
