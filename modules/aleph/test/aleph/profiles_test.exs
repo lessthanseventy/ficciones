@@ -181,6 +181,25 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.fetch("tertius").model == %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
     end
 
+    test "an operator model override takes precedence over the archetype default (not shadowed by a seed model)" do
+      # The seed entry must NOT pin a model, or entry[:model] shadows the SETTINGS override the `m`
+      # verb writes. Use a NON-glm tuple so this fails if the override is ignored (glm == default).
+      override = %{provider: "ollama-cloud", model: "kimi-k2.7-code", thinking: "medium"}
+      dir = Path.join(System.tmp_dir!(), "aleph-prof-ovr-#{System.unique_integer([:positive])}")
+      path = Path.join(dir, "config.json")
+      Aleph.Config.put_coworker_model("tertius", override, path)
+
+      previous = Application.get_env(:aleph, :config_path)
+      Application.put_env(:aleph, :config_path, path)
+
+      on_exit(fn ->
+        Application.put_env(:aleph, :config_path, previous)
+        File.rm_rf!(dir)
+      end)
+
+      assert Profiles.fetch("tertius").model == override
+    end
+
     test "an operator yolo override flips permissions.yoloMode but leaves the deny-floor intact" do
       dir = Path.join(System.tmp_dir!(), "aleph-prof-yolo-#{System.unique_integer([:positive])}")
       path = Path.join(dir, "config.json")
@@ -429,6 +448,13 @@ defmodule Aleph.ProfilesTest do
       assert prompt =~ "atlas-machine"
       refute prompt =~ "{{handle}}"
       refute prompt =~ "builder-machine"
+    end
+
+    test "instancing the reviewer archetype under another name states its own handle, not reviewer-machine" do
+      prompt = Profiles.instantiate(%{archetype: :reviewer, name: "vera"}).system_prompt
+      assert prompt =~ "vera-machine"
+      refute prompt =~ "reviewer-machine"
+      refute prompt =~ "{{handle}}"
     end
 
     test "a non-personalized prompt (surveyor/tertius) is byte-identical to the template" do

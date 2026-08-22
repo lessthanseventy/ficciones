@@ -356,7 +356,7 @@ defmodule Aleph.Profiles do
   # The reviewer persona → `system_prompt.md`. Names the write-deny explicitly so the model doesn't
   # keep retrying a denied tool — it should escalate instead. See Aleph.Crew / the crew MVP contract.
   @reviewer_role """
-  You are reviewer-machine, a code REVIEWER on this funes task thread. Read the diff you are asked to
+  You are {{handle}}, a code REVIEWER on this funes task thread. Read the diff you are asked to
   review (use `git diff`/`git show` — you have repo READ access) and post terse, high-signal findings
   as thread messages. You do NOT ship changes: you CANNOT write files (the write/edit tools are denied
   to you, by policy — do not fight it). When a fix is warranted, post the patch and escalate it to the
@@ -498,14 +498,16 @@ defmodule Aleph.Profiles do
   # significant (settings-modal rows, `names/0`): tertius first, then reviewer.
   #
   #   * tertius — the Tlön CENTER (Orbis Tertius meta agent `tertius-machine`, socket `aleph-tertius`).
-  #     Pins `model: @glm` so its materialisation stays BYTE-IDENTICAL to the pre-archetype profile
-  #     (it is the only live Slice-0 spawn; regression-locked). Genuine Claude is the honest `hronir`
-  #     window, not a pi-multi-account impersonation.
+  #     NO model override — it inherits the surveyor archetype's @glm default, so its materialisation
+  #     stays BYTE-IDENTICAL to the pre-archetype profile (it is the only live Slice-0 spawn;
+  #     regression-locked) WHILE leaving `Aleph.Config` (the SETTINGS `m` verb) free to retarget it: a
+  #     seed `model:` would be highest-precedence and shadow that override. Genuine Claude is the honest
+  #     `hronir` window, not a pi-multi-account impersonation.
   #   * reviewer — the read-only review gate. NO model override → it inherits the reviewer archetype's
   #     Sonnet default (A2: the legacy glm-5.2 was incidental, reviewer isn't live-spawned, so this
   #     intentionally flips glm-5.2 → claude-sonnet-5).
   @seed_roster [
-    %{archetype: :surveyor, name: "tertius", model: @glm},
+    %{archetype: :surveyor, name: "tertius"},
     %{archetype: :reviewer, name: "reviewer"}
   ]
 
