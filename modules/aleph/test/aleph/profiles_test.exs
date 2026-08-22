@@ -308,10 +308,10 @@ defmodule Aleph.ProfilesTest do
   end
 
   describe "the reviewer profile — the write-deny gate" do
-    test "reviewer is a fetchable profile on glm-5.2" do
+    test "reviewer is a fetchable profile on claude-sonnet-5 (its archetype default)" do
       p = Profiles.fetch("reviewer")
       assert %Profile{name: "reviewer"} = p
-      assert p.model.model == "glm-5.2"
+      assert p.model.model == "claude-sonnet-5"
     end
 
     test "its permission policy DENIES the write and edit tools but ALLOWS reads" do
@@ -436,6 +436,53 @@ defmodule Aleph.ProfilesTest do
       # fetch(\"tertius\") byte-identical.
       p = Profiles.instantiate(%{archetype: :surveyor, name: "tertius"})
       assert p.system_prompt == Profiles.archetype(:surveyor).system_prompt
+    end
+  end
+
+  describe "fetch/1 resolves through the archetype registry (back-compat)" do
+    # REGRESSION LOCK: tertius is the only live-spawned profile (Slice-0 Tlön center). Its rendered
+    # output MUST stay byte-identical across the archetype refactor. Golden values captured from the
+    # pre-refactor render (mix run --no-start): glm-5.2 / ollama-cloud / medium, machine_overview
+    # present, system_prompt == @tertius_role.
+    test "fetch('tertius') materialises byte-identically to pre-refactor (the live Tlön spawn)" do
+      r = Profiles.render(Profiles.fetch("tertius"), %{}, %{})
+      assert r.system_prompt == Profiles.archetype(:surveyor).system_prompt
+      assert r.system_prompt =~ "tertius-machine"
+      assert r.settings["defaultModel"] == "glm-5.2"
+      assert r.settings["defaultProvider"] == "ollama-cloud"
+      assert r.settings["defaultThinkingLevel"] == "medium"
+      assert "machine_overview" in r.mcp["mcpServers"]["funes"]["directTools"]
+    end
+
+    test "fetch('reviewer') INTENTIONALLY flips glm-5.2 → claude-sonnet-5 (A2: reviewer is not live-spawned)" do
+      # Pins the design-correct flip so it can't silently regress back to the legacy incidental glm.
+      assert Profiles.fetch("reviewer").model == %{
+               provider: "anthropic",
+               model: "claude-sonnet-5",
+               thinking: "medium"
+             }
+    end
+
+    test "the archetype model defaults are pinned both ways (surveyor→glm, the other five→sonnet)" do
+      # Guards the Task 1-2 review's "sonnet-vs-glm untested" gap.
+      assert Profiles.archetype(:surveyor).model.model == "glm-5.2"
+
+      for k <- ~w(reviewer planner builder researcher assistant)a do
+        assert Profiles.archetype(k).model.model == "claude-sonnet-5",
+               "archetype #{k} should default to claude-sonnet-5"
+      end
+    end
+
+    test "an unknown name is still nil (no archetype fallback for a non-roster handle)" do
+      assert Profiles.fetch("nope") == nil
+    end
+
+    test "all/0 and names/0 stay in roster order [tertius, reviewer], one content source" do
+      assert Profiles.names() == ["tertius", "reviewer"]
+      assert Enum.map(Profiles.all(), & &1.name) == ["tertius", "reviewer"]
+      # all/0 flows through the same archetype path, so reviewer here is sonnet too (not the legacy glm).
+      reviewer = Enum.find(Profiles.all(), &(&1.name == "reviewer"))
+      assert reviewer.model.model == "claude-sonnet-5"
     end
   end
 end

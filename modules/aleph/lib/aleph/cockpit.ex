@@ -1466,7 +1466,7 @@ defmodule Aleph.Cockpit do
   defp capture_standing_thread_id(state), do: state
 
   # The Tlön BUILDER window (`hronir`): real `claude`, honestly identified (no pi-multi-account
-  # impersonation — see Aleph.Profiles' @profiles comment for why that path is avoided by default).
+  # impersonation — see Aleph.Profiles' @seed_roster comment for why that path is avoided by default).
   # A second tmux window in the SAME session as the tertius center coworker, joined to the SAME root
   # thread, so the two coordinate over funes messages like any two agents. Gated on the center up (its
   # spawn opens/finds the root thread this one joins) and on the window not already being there (tmux

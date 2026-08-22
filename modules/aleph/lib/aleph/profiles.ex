@@ -412,37 +412,6 @@ defmodule Aleph.Profiles do
   outside the world you serve.
   """
 
-  # The one coworker profile: `tertius`, the Tlön CENTER — the Orbis Tertius meta agent
-  # (`tertius-machine`, tab `tertius`), keying the tmux socket `aleph-tertius` and config dir. A
-  # machine-scope funes citizen (@tertius_funes_mcp: the machine-citizen surface + the machine_overview
-  # cross-leaf read), the @tertius_role persona, footer, sandbox, yolo permissions, glm-5.2 driver.
-  # Genuine Claude access is the honest `hronir` window (real Claude, no pi-multi-account
-  # impersonation), joined to the same root thread.
-  @profiles [
-    %Profile{
-      name: "tertius",
-      archetype: :surveyor,
-      drop_extensions: [],
-      add_extensions: [@footer_extension],
-      mcp: @tertius_funes_mcp,
-      model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
-      sandbox: @tlon_sandbox,
-      permissions: @tlon_permissions,
-      system_prompt: @tertius_role
-    },
-    %Profile{
-      name: "reviewer",
-      archetype: :reviewer,
-      drop_extensions: [],
-      add_extensions: [@footer_extension],
-      mcp: @tlon_funes_mcp,
-      model: %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
-      sandbox: @tlon_sandbox,
-      permissions: @reviewer_permissions,
-      system_prompt: @reviewer_role
-    }
-  ]
-
   # The coworker-driver ring the SETTINGS panel cycles (leader `m`) — ollama-only, no anthropic-via-pi
   # (see the moduledoc for why). Claude proper is the `hronir` window.
   @model_ring [
@@ -522,40 +491,54 @@ defmodule Aleph.Profiles do
     }
   }
 
+  # The seed roster — the name-keyed coworker instances aleph materialises today, expressed as
+  # `{archetype, name, model?}` roster ENTRIES (Slice 1's `world.roster[]` stores this exact shape).
+  # `fetch/1`/`all/0`/`names/0` resolve these through `instantiate/1`, so the archetype registry is the
+  # ONE content source — no more full `%Profile{}` structs duplicating the templates. Order is
+  # significant (settings-modal rows, `names/0`): tertius first, then reviewer.
+  #
+  #   * tertius — the Tlön CENTER (Orbis Tertius meta agent `tertius-machine`, socket `aleph-tertius`).
+  #     Pins `model: @glm` so its materialisation stays BYTE-IDENTICAL to the pre-archetype profile
+  #     (it is the only live Slice-0 spawn; regression-locked). Genuine Claude is the honest `hronir`
+  #     window, not a pi-multi-account impersonation.
+  #   * reviewer — the read-only review gate. NO model override → it inherits the reviewer archetype's
+  #     Sonnet default (A2: the legacy glm-5.2 was incidental, reviewer isn't live-spawned, so this
+  #     intentionally flips glm-5.2 → claude-sonnet-5).
+  @seed_roster [
+    %{archetype: :surveyor, name: "tertius", model: @glm},
+    %{archetype: :reviewer, name: "reviewer"}
+  ]
+
   @doc """
-  Look a profile up by name, or nil. The operator's runtime override (`Aleph.Config`
-  `coworkers.<name>.model` — what the SETTINGS panel writes) is merged over the compiled
-  `model`, so it flows everywhere the profile does: the materialised settings.json AND the
-  launcher's `--model` flag, on the next coworker spawn.
+  Look a profile up by name, or nil. Resolves the name to its seed roster ENTRY, then
+  `instantiate/1` mints the `%Profile{}` from the archetype registry — so name-keyed `fetch/1` and
+  the roster path share ONE content source. `instantiate/1` folds in the runtime overrides
+  (`Aleph.Config` `coworkers.<name>.model`/`.yolo` — what the SETTINGS panel writes), so they flow
+  everywhere the profile does: the materialised settings.json AND the launcher's `--model` flag, on
+  the next coworker spawn. An unknown name (not in the roster) → `nil`.
   """
   @spec fetch(String.t()) :: Profile.t() | nil
   def fetch(name) do
-    with %Profile{} = p <- Enum.find(@profiles, &(&1.name == name)) do
-      p
-      |> apply_model_override(Aleph.Config.coworker_model(name))
-      |> apply_yolo_override(Aleph.Config.coworker_yolo(name))
+    with %{} = entry <- Enum.find(@seed_roster, &(&1.name == name)) do
+      instantiate(entry)
     end
   end
 
-  defp apply_model_override(p, nil), do: p
-  defp apply_model_override(p, model), do: %{p | model: model}
-
   # The yolo knob rides inside the compiled permissions map, so an override only applies when the
-  # profile HAS a policy — the deny-floor stays compiled-in, never operator-editable.
-  defp apply_yolo_override(p, nil), do: p
+  # archetype HAS a policy — the deny-floor stays compiled-in, never operator-editable. Operates on a
+  # permissions map (what `instantiate/1` holds); a nil override or a profile without permissions is a
+  # pass-through.
+  defp apply_yolo_override(perms, nil), do: perms
+  defp apply_yolo_override(perms, yolo) when is_map(perms), do: Map.put(perms, "yoloMode", yolo)
+  defp apply_yolo_override(perms, _yolo), do: perms
 
-  defp apply_yolo_override(%Profile{permissions: perms} = p, yolo) when is_map(perms),
-    do: %{p | permissions: Map.put(perms, "yoloMode", yolo)}
-
-  defp apply_yolo_override(p, _yolo), do: p
-
-  @doc "Every registered coworker profile (the compiled registry, before runtime overrides)."
+  @doc "Every registered coworker profile — the seed roster resolved through the archetype registry."
   @spec all() :: [Profile.t()]
-  def all, do: @profiles
+  def all, do: Enum.map(@seed_roster, &instantiate/1)
 
   @doc "The names of the coworker profiles aleph materialises — the rows the settings modal controls."
   @spec names() :: [String.t()]
-  def names, do: Enum.map(@profiles, & &1.name)
+  def names, do: Enum.map(@seed_roster, & &1.name)
 
   @doc "The model ring the settings verb cycles through, Claude-first."
   @spec model_ring() :: [map()]
