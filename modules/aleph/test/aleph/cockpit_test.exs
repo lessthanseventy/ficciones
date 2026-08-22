@@ -224,6 +224,18 @@ defmodule Aleph.CockpitTest do
     end
   end
 
+  # D2.1: `a`/Esc land `{:toggle_orbis_face}`; `toggle_orbis_face/1` is the pure flip the effect
+  # runs — exposed (like `cycle_pane_view/2`) so it's testable without a live GenServer.
+  describe "toggle_orbis_face/1: Orbis' survey↔author flip" do
+    test "flips :survey to :author" do
+      assert %{orbis_face: :author} = Cockpit.toggle_orbis_face(%{orbis_face: :survey})
+    end
+
+    test "flips :author back to :survey" do
+      assert %{orbis_face: :survey} = Cockpit.toggle_orbis_face(%{orbis_face: :author})
+    end
+  end
+
   describe "orbis_worlds/1: the survey reads the CACHED rollup, never re-gathers funes" do
     test "returns the cached rollup's worlds — no live funes gather" do
       # ensure_probes fills state.leaves with the full rollup (worlds key included) on the @probe_ms

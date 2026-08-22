@@ -36,7 +36,10 @@ defmodule Aleph.KeymapTest do
           input: nil,
           orbis_focus: :threads,
           survey_cursor: 0,
-          leaves: nil
+          leaves: nil,
+          # Orbis' author face (D2, Chunk 1) — defaults mirror the cockpit's init state; the
+          # "Orbis author face" describe block below sets `orbis_face: :author` explicitly.
+          orbis_face: :survey
         },
         overrides
       )
@@ -191,6 +194,35 @@ defmodule Aleph.KeymapTest do
     test "Enter on an empty survey (funes down / no worlds) is a no-op, never a crash" do
       s = state(%{active_key: :orbis, orbis_focus: :survey, leaves: nil})
       assert {^s, :none} = Keymap.handle(key(:enter), s)
+    end
+  end
+
+  describe "Orbis' author face — the survey↔author toggle (D2.1)" do
+    test "bare `a` in Orbis emits {:toggle_orbis_face}, state untouched (the cockpit flips it)" do
+      s = state(%{active_key: :orbis})
+      assert {^s, {:toggle_orbis_face}} = Keymap.handle(char("a"), s)
+    end
+
+    test "Ctrl/Shift/Alt+A is unbound — only bare `a` toggles" do
+      s = state(%{active_key: :orbis})
+      assert {^s, :none} = Keymap.handle(char("a", ctrl: true), s)
+      assert {^s, :none} = Keymap.handle(char("a", shift: true), s)
+      assert {^s, :none} = Keymap.handle(char("a", alt: true), s)
+    end
+
+    test "Esc in the author face emits {:toggle_orbis_face} to step back to the survey" do
+      s = state(%{active_key: :orbis, orbis_face: :author})
+      assert {^s, {:toggle_orbis_face}} = Keymap.handle(key(:escape), s)
+    end
+
+    test "Esc on the survey face is a no-op — nothing to close" do
+      s = state(%{active_key: :orbis, orbis_face: :survey})
+      assert {^s, :none} = Keymap.handle(key(:escape), s)
+    end
+
+    test "`a` outside Orbis is unbound (not a table-wide binding)" do
+      s = state(%{active_key: 0})
+      assert {^s, :none} = Keymap.handle(char("a"), s)
     end
   end
 

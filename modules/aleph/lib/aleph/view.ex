@@ -50,7 +50,13 @@ defmodule Aleph.View do
     # get distinct data. Wide viewports get three columns; narrow ones collapse to one.
     # MAIN is the terminal by default; a Tlön focus that opened a detail (Enter) replaces it with
     # the Detail panel until Esc closes it (the tmux terminal keeps running underneath, unpainted).
-    center_panels = if detail_open?(reads), do: [Panel.Detail], else: space.surface
+    # Orbis' author face (D2.1) replaces the survey (Chorus) with Panel.Author the same way.
+    center_panels =
+      cond do
+        detail_open?(reads) -> [Panel.Detail]
+        reads.active_key == :orbis and reads[:orbis_face] == :author -> [Panel.Author]
+        true -> space.surface
+      end
 
     columns =
       case layout_for(w) do

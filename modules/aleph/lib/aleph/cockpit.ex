@@ -232,6 +232,9 @@ defmodule Aleph.Cockpit do
             # The Orbis survey's per-row cursor (j/k), clamped to the live world count at keypress
             # time (Aleph.Keymap) — `Enter`/click resolve it to that row's world id.
             survey_cursor: 0,
+            # Orbis' second face (D2.1): `:survey` (Chorus, the default) or `:author` (Panel.Author
+            # — create/delete funes worlds). `a` toggles; Esc in `:author` steps back.
+            orbis_face: :survey,
             subscribed_thread: nil,
             leader_pending?: false,
             # Tlön's lazygit focus (which sidebar column/pane/section, and whether we're in the
@@ -899,6 +902,9 @@ defmodule Aleph.Cockpit do
   # Enter on the Orbis survey (D0.2) — the same space-switch a click on the row runs.
   defp apply_effect({:switch_space, key}, state), do: apply_pick({:switch_space, key}, state)
 
+  # `a` (or Esc from the author face) landed: flip Orbis' face and repaint (D2.1).
+  defp apply_effect({:toggle_orbis_face}, state), do: {:noreply, render(toggle_orbis_face(state))}
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.
@@ -942,6 +948,12 @@ defmodule Aleph.Cockpit do
   end
 
   def cycle_pane_view(state, _dir), do: state
+
+  @doc false
+  # The pure flip behind Orbis' `a`/Esc (D2.1) — public + exposed like `cycle_pane_view/2` so it's
+  # testable without a live GenServer.
+  def toggle_orbis_face(%{orbis_face: :author} = state), do: %{state | orbis_face: :survey}
+  def toggle_orbis_face(state), do: %{state | orbis_face: :author}
 
   # The pending habit the focus points at, or nil unless: a World space, nav mode, Memory pane,
   # habits section (1), with a habit under the clamped cursor.
@@ -1150,6 +1162,9 @@ defmodule Aleph.Cockpit do
       # meaningful in Orbis (`right_pane_view`'s same "harmless elsewhere" idiom).
       orbis_focus: state.orbis_focus,
       survey_cursor: state.survey_cursor,
+      # Orbis' author face (D2.1): which center panel to render — Meaningless-but-harmless
+      # outside Orbis, same idiom as `right_pane_view`.
+      orbis_face: state.orbis_face,
       terminal: terminal_read(state, focused),
       machine: machine_read(state),
       stack: state.stack || @empty_stack,

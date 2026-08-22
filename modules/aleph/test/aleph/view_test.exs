@@ -117,6 +117,34 @@ defmodule Aleph.ViewTest do
     end
   end
 
+  describe "Orbis' author face (D2.1)" do
+    defp chorus_placed?(placements), do: Enum.any?(placements, &match?({Panel.Chorus, _, _}, &1))
+    defp author_placed?(placements), do: Enum.any?(placements, &match?({Panel.Author, _, _}, &1))
+
+    test "orbis_face == :author replaces Chorus with Panel.Author" do
+      placements = View.compose(reads(%{active_key: :orbis, orbis_face: :author}), 120, 40)
+      assert author_placed?(placements)
+      refute chorus_placed?(placements)
+    end
+
+    test "orbis_face == :survey (the default) keeps Chorus, no Panel.Author" do
+      placements = View.compose(reads(%{active_key: :orbis, orbis_face: :survey}), 120, 40)
+      refute author_placed?(placements)
+      assert chorus_placed?(placements)
+    end
+
+    test "orbis_face absent from reads (an older/minimal reads map) defaults to the survey" do
+      placements = View.compose(reads(%{active_key: :orbis}), 120, 40)
+      refute author_placed?(placements)
+      assert chorus_placed?(placements)
+    end
+
+    test "orbis_face == :author outside Orbis is inert — only Orbis' center swaps" do
+      placements = View.compose(reads(%{active_key: 0, orbis_face: :author}), 120, 40)
+      refute author_placed?(placements)
+    end
+  end
+
   describe "item selection" do
     # The data handed to a given panel module in the placements.
     defp panel_data(placements, mod) do

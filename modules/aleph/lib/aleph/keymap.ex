@@ -40,6 +40,8 @@ defmodule Aleph.Keymap do
       panel shown full-height at a time) by `dir` (+1/-1, the `[`/`]` verb, World nav only).
     * `{:switch_space, key}` — Enter on the Orbis survey (`orbis_focus == :survey`) zooms into the
       cursor row's world id — the same effect a survey-row click emits (D0.2).
+    * `{:toggle_orbis_face}` — `a` (Orbis, bare) flips `orbis_face` survey↔author (D2.1); Esc in
+      the author face emits the same effect to step back to the survey.
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb) or
@@ -50,6 +52,9 @@ defmodule Aleph.Keymap do
   Ctrl+A/Ctrl+E/Ctrl+U/Ctrl+K/Ctrl+W are readline's line-editing reflexes), and every
   edit (typing, Backspace, Shift+Enter's newline) acts AT the cursor, like a normal text box. In
   the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
+
+  Orbis' AUTHOR face (D2, Chunk 1): `orbis_face :: :survey | :author` (default `:survey`) picks
+  which center panel `Aleph.View` renders — `a` toggles it on, Esc steps back off.
   """
   alias Aleph.Panel
   alias Aleph.Profiles
@@ -72,6 +77,7 @@ defmodule Aleph.Keymap do
           | {:habit_action, :approve | :reject}
           | {:cycle_pane_view, integer()}
           | {:switch_space, atom() | non_neg_integer()}
+          | {:toggle_orbis_face}
           | :tlon_enter
           | :tlon_preview
           | :none
@@ -250,6 +256,19 @@ defmodule Aleph.Keymap do
   defp command(%{key: :char, char: "n"}, state),
     do: {%{state | input: %{kind: :new_thread, buffer: "", cursor: 0}}, :repaint}
 
+  # `a` (bare) toggles Orbis' author face on; Esc (below, no input open) toggles it back off.
+  # Modifier-guarded like `c`/`m` — Ctrl/Shift/Alt+A never fires this.
+  defp command(%{key: :char, char: "a"} = k, %{active_key: :orbis} = state)
+       when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt),
+       do: {state, {:toggle_orbis_face}}
+
+  # Esc steps the author face back to the survey. Only reached with `input` nil (the input-mode
+  # Esc clause up top intercepts first while typing) — a bare Esc on the survey face is a no-op,
+  # nothing to close.
+  defp command(%{key: :escape}, %{active_key: :orbis} = state) do
+    if orbis_face(state) == :author, do: {state, {:toggle_orbis_face}}, else: {state, :none}
+  end
+
   # `c` — the composer: post to the thread `composer_thread_id` (the focused thread in Orbis, the
   # machine thread in Tlön — resolved per keypress by the cockpit, like center_live?).
   # nil (empty board / no machine thread) → nothing to post on. Bare `c` only (modifiers nil):
@@ -273,16 +292,21 @@ defmodule Aleph.Keymap do
   # Enter in the Orbis survey (focus == :survey) zooms into the CURSOR row's own world id — the
   # god-view → world zoom, resolved from `survey_cursor` against the live worlds list (D0.3 gives
   # every row an `id`). With focus on :threads, Enter has no verb here (falls to the plain no-op
-  # below, same as "elsewhere") — the thread list has nothing for Enter to do (Slice 1).
+  # below, same as "elsewhere") — the thread list has nothing for Enter to do (Slice 1). The
+  # author face has no Enter verb yet either (opening the field editor is Chunk 2) — a no-op, not
+  # an accidental zoom into the cursor world's space.
   defp command(%{key: :enter}, %{active_key: :orbis} = state) do
-    case orbis_focus(state) do
-      :survey ->
+    cond do
+      orbis_face(state) == :author ->
+        {state, :none}
+
+      orbis_focus(state) == :survey ->
         case Enum.at(survey_worlds(state), survey_cursor(state)) do
           %{id: id} -> {state, {:switch_space, id}}
           _ -> {state, :none}
         end
 
-      :threads ->
+      true ->
         {state, :none}
     end
   end
@@ -445,6 +469,7 @@ defmodule Aleph.Keymap do
   # state) — `:survey`/`0`, matching the cockpit's init-state defaults.
   defp orbis_focus(state), do: Map.get(state, :orbis_focus, :survey)
   defp survey_cursor(state), do: Map.get(state, :survey_cursor, 0)
+  defp orbis_face(state), do: Map.get(state, :orbis_face, :survey)
 
   # The live worlds list Orbis' survey cursor/Enter resolve against — the same cached
   # `Aleph.Orbis.rollup/0` the cockpit's `orbis_worlds/1` reads (`state.leaves.worlds`). Kept local
