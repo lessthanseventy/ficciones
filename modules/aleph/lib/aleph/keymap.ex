@@ -38,6 +38,8 @@ defmodule Aleph.Keymap do
       only in a space with a coworker).
     * `{:cycle_pane_view, dir}` — cycle the World's right-pane view (Health↔Activity↔Leaves, one
       panel shown full-height at a time) by `dir` (+1/-1, the `[`/`]` verb, World nav only).
+    * `{:switch_space, key}` — Enter on the Orbis survey (`orbis_focus == :survey`) zooms into the
+      cursor row's world id — the same effect a survey-row click emits (D0.2).
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb) or
@@ -69,6 +71,7 @@ defmodule Aleph.Keymap do
           | {:settings_apply, {String.t(), :model | :permission}}
           | {:habit_action, :approve | :reject}
           | {:cycle_pane_view, integer()}
+          | {:switch_space, atom() | non_neg_integer()}
           | :tlon_enter
           | :tlon_preview
           | :none
@@ -267,11 +270,22 @@ defmodule Aleph.Keymap do
     end
   end
 
-  # Enter in the Orbis survey zooms the selected world to its lens — Slice 1 still has one world,
-  # so Enter drops straight into it (the god-view → world zoom). Reuses the plain space-switch, no
-  # focus SM involved. Slice 1 one-world bridge; C2 resolves the selected survey row → its world id.
-  defp command(%{key: :enter}, %{active_key: :orbis} = state),
-    do: {%{state | active_key: Space.first_world().key}, :repaint}
+  # Enter in the Orbis survey (focus == :survey) zooms into the CURSOR row's own world id — the
+  # god-view → world zoom, resolved from `survey_cursor` against the live worlds list (D0.3 gives
+  # every row an `id`). With focus on :threads, Enter has no verb here (falls to the plain no-op
+  # below, same as "elsewhere") — the thread list has nothing for Enter to do (Slice 1).
+  defp command(%{key: :enter}, %{active_key: :orbis} = state) do
+    case orbis_focus(state) do
+      :survey ->
+        case Enum.at(survey_worlds(state), survey_cursor(state)) do
+          %{id: id} -> {state, {:switch_space, id}}
+          _ -> {state, :none}
+        end
+
+      :threads ->
+        {state, :none}
+    end
+  end
 
   # Enter has no top-level verb elsewhere since the Slice 0 collapse: the Sessions space (its only
   # home — the one center that could show a spawned per-thread PTY) is gone, so Enter is a plain

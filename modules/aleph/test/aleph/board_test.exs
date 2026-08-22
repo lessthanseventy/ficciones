@@ -394,9 +394,9 @@ defmodule Aleph.BoardTest do
       assert Roster.pick(data, rect, 0) == nil
     end
 
-    test "chorus: clicking a world row zooms to its lens; the survey header + blank do not" do
+    test "chorus: clicking a world row zooms to ITS OWN world id; the survey header + blank do not" do
       worlds = [
-        %{world: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
+        %{id: 3, name: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
       ]
 
       data = %{worlds: worlds, scroll: 0}
@@ -404,9 +404,9 @@ defmodule Aleph.BoardTest do
       # survey header (0) + blank (1) select nothing
       assert Chorus.pick(data, rect, 0) == nil
       assert Chorus.pick(data, rect, 1) == nil
-      # the world's rows (head + summary + blank) span content rows 2–4 → zoom to the Tlön lens
-      assert {:switch_space, 0} = Chorus.pick(data, rect, 2)
-      assert {:switch_space, 0} = Chorus.pick(data, rect, 4)
+      # the world's rows (head + summary + blank) span content rows 2–4 → zoom to its own id
+      assert {:switch_space, 3} = Chorus.pick(data, rect, 2)
+      assert {:switch_space, 3} = Chorus.pick(data, rect, 4)
       # a click past the last world selects nothing
       assert Chorus.pick(data, rect, 5) == nil
     end

@@ -138,18 +138,13 @@ defmodule Aleph.KeymapTest do
       assert {^s, :none} = Keymap.handle(key(:down), s)
     end
 
-    test "Enter in the Orbis survey zooms the world to its lens — Slice 0 drops straight to Tlön" do
-      # The god-view → world zoom (Slice 0 has one world). No focused thread needed: the survey
-      # surveys worlds, not threads. Tlön routes Enter through its own focus SM, not this clause.
-      assert {%{active_key: 0}, :repaint} =
-               Keymap.handle(key(:enter), state(%{active_key: :orbis, focused_id: nil, threads: []}))
-
-      assert {%{active_key: 0}, :repaint} =
-               Keymap.handle(key(:enter), state(%{active_key: :orbis, focused_id: 2}))
+    test "Enter with orbis_focus == :threads is a no-op — nothing to zoom from the thread list" do
+      s = state(%{active_key: :orbis, orbis_focus: :threads})
+      assert {^s, :none} = Keymap.handle(key(:enter), s)
     end
   end
 
-  describe "the Orbis survey cursor (D0.1: orbis_focus == :survey, the cockpit default)" do
+  describe "the Orbis survey cursor (D0.1/D0.2/D0.3: orbis_focus == :survey, the cockpit default)" do
     @two_worlds [
       %{id: 11, name: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []},
       %{id: 22, name: "Freedonia", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
@@ -186,6 +181,16 @@ defmodule Aleph.KeymapTest do
       s = survey_state(%{orbis_focus: :threads, focused_id: 2})
       assert {%{focused_id: 3, survey_cursor: 0}, :repaint} = Keymap.handle(char("j"), s)
       assert {%{focused_id: 1, survey_cursor: 0}, :repaint} = Keymap.handle(char("k"), s)
+    end
+
+    test "Enter zooms into the CURSOR row's own world id, not the first world's" do
+      assert {_state, {:switch_space, 22}} = Keymap.handle(key(:enter), survey_state(%{survey_cursor: 1}))
+      assert {_state, {:switch_space, 11}} = Keymap.handle(key(:enter), survey_state(%{survey_cursor: 0}))
+    end
+
+    test "Enter on an empty survey (funes down / no worlds) is a no-op, never a crash" do
+      s = state(%{active_key: :orbis, orbis_focus: :survey, leaves: nil})
+      assert {^s, :none} = Keymap.handle(key(:enter), s)
     end
   end
 

@@ -2,12 +2,11 @@ defmodule Aleph.Panel.Chorus do
   @moduledoc """
   ORBIS — the **survey**: Orbis' center, one row per WORLD. Each world row shows its name and the
   leads/open/stalled/done/trouble rollup for all its leaves — the god-view glance the operator
-  opens on. `Enter` (keymap) or a click zooms to a world's lens. Data is `%{worlds: [%{id, name,
-  summary, leaves}], survey_cursor, orbis_focus}` — `worlds` from `Aleph.Orbis.rollup/0`'s
-  `worlds` key (an empty list when funes is down / there are no worlds); every row now carries its
-  funes `id` (D0.3 — a click/Enter can resolve its OWN world once D0.2 lands, still bridged to
-  `Space.first_world/0` here); `survey_cursor`/`orbis_focus` (View-injected) wash the cursor row
-  `:selected`, only while the survey (not the thread list) has focus.
+  opens on. `Enter` (keymap, `orbis_focus == :survey`) or a click zooms to the row's OWN world id
+  (D0.2 — no more a single hardcoded lens). Data is `%{worlds: [%{id, name, summary, leaves}],
+  survey_cursor, orbis_focus}` — `worlds` from `Aleph.Orbis.rollup/0`'s `worlds` key (an empty list
+  when funes is down / there are no worlds); `survey_cursor`/`orbis_focus` (View-injected, D0.3)
+  wash the cursor row `:selected`, only while the survey (not the thread list) has focus.
 
   Was a per-thread message feed (`Funes.Channel.chorus/1`); re-pointed to worlds in the Slice 0
   collapse so the survey surveys worlds, not threads. The per-thread rollup still lives in the
@@ -18,10 +17,6 @@ defmodule Aleph.Panel.Chorus do
   import Aleph.Panel, only: [line: 2, blank: 0]
 
   alias Aleph.Panel.Leaves
-  alias Aleph.Space
-
-  # `Space.world?/1` is a `defguard`, which requires the module, not just an alias.
-  require Space
 
   # Header (title) + blank spacer above the world rows; each world block is head + summary + blank.
   @header_rows 2
@@ -47,8 +42,8 @@ defmodule Aleph.Panel.Chorus do
     Aleph.Panel.clip(header ++ body, rect)
   end
 
-  # Click a world's rows → zoom to its lens. Slice 1 still has one world, so any world row zooms
-  # there; the header + blank (rows 0–1) and clicks past the last world are inert.
+  # Click a world's rows → zoom to ITS id (D0.2). The header + blank (rows 0–1) and clicks past
+  # the last world are inert.
   @impl Aleph.Panel
   def pick(%{worlds: worlds} = data, _rect, local_y) do
     idx = Aleph.Panel.scroll_offset(data) + local_y - @header_rows
@@ -57,11 +52,13 @@ defmodule Aleph.Panel.Chorus do
 
   def pick(_data, _rect, _local_y), do: nil
 
-  # Slice 0/D0.3: every world block is a fixed @world_rows tall, so idx→world is plain integer
-  # division. `Space.first_world/0`: still the Slice 1 one-world bridge — the rows now carry an
-  # `id` (D0.3), but the CLICK doesn't resolve it yet; D0.2 replaces this with the row's own id.
+  # Every world block is a fixed @world_rows tall, so idx→world is plain integer division; a
+  # wrapping/variable-height summary would need to measure each block's rendered height instead.
   defp world_at(worlds, idx) when idx >= 0 do
-    if div(idx, @world_rows) < length(worlds), do: {:switch_space, Space.first_world().key}
+    case Enum.at(worlds, div(idx, @world_rows)) do
+      %{id: id} -> {:switch_space, id}
+      nil -> nil
+    end
   end
 
   defp world_at(_worlds, _idx), do: nil

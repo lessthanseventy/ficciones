@@ -896,6 +896,9 @@ defmodule Aleph.Cockpit do
   # `[`/`]` landed (C3.4): step the World's right-pane view and repaint.
   defp apply_effect({:cycle_pane_view, dir}, state), do: {:noreply, render(cycle_pane_view(state, dir))}
 
+  # Enter on the Orbis survey (D0.2) — the same space-switch a click on the row runs.
+  defp apply_effect({:switch_space, key}, state), do: apply_pick({:switch_space, key}, state)
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.

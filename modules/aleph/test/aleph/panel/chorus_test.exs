@@ -42,14 +42,28 @@ defmodule Aleph.Panel.ChorusTest do
     assert text =~ "no worlds"
   end
 
-  test "clicking a world row zooms to its lens (the Tlön space); the header is inert" do
+  test "clicking a world row zooms to ITS OWN world id; the header is inert" do
     data = %{
       worlds: [%{id: 9, name: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}]
     }
 
     # Header (0) + blank (1), then the world's rows start at y = 2.
-    assert Chorus.pick(data, @rect, 2) == {:switch_space, 0}
+    assert Chorus.pick(data, @rect, 2) == {:switch_space, 9}
     assert Chorus.pick(data, @rect, 0) == nil
+  end
+
+  test "with 2 worlds, clicking the SECOND row's block zooms into its own id, not the first's" do
+    data = %{
+      worlds: [
+        %{id: 1, name: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []},
+        %{id: 2, name: "Freedonia", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
+      ]
+    }
+
+    # Each world block is 3 rows (head/summary/blank); world 1 spans content rows 2-4, world 2 5-7.
+    assert Chorus.pick(data, @rect, 2) == {:switch_space, 1}
+    assert Chorus.pick(data, @rect, 5) == {:switch_space, 2}
+    assert Chorus.pick(data, @rect, 8) == nil
   end
 
   test "the survey_cursor row washes :selected only while orbis_focus is :survey" do
