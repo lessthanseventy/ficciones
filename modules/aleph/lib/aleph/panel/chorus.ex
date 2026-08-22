@@ -1,10 +1,13 @@
 defmodule Aleph.Panel.Chorus do
   @moduledoc """
-  ORBIS — the **survey**: Orbis' center, one row per WORLD (Slice 0: a single hardcoded world,
-  Tlön). Each world row shows its name and the leads/open/stalled/done/trouble rollup for all its
-  leaves — the god-view glance the operator opens on. `Enter` (keymap) or a click zooms to a
-  world's lens (the Tlön space). Data is `%{worlds: [%{world, summary, leaves}]}` from
-  `Aleph.Orbis.rollup/0`'s `worlds` key — an empty list when funes is down / there are no worlds.
+  ORBIS — the **survey**: Orbis' center, one row per WORLD. Each world row shows its name and the
+  leads/open/stalled/done/trouble rollup for all its leaves — the god-view glance the operator
+  opens on. `Enter` (keymap) or a click zooms to a world's lens. Data is `%{worlds: [%{id, name,
+  summary, leaves}], survey_cursor, orbis_focus}` — `worlds` from `Aleph.Orbis.rollup/0`'s
+  `worlds` key (an empty list when funes is down / there are no worlds); every row now carries its
+  funes `id` (D0.3 — a click/Enter can resolve its OWN world once D0.2 lands, still bridged to
+  `Space.first_world/0` here); `survey_cursor`/`orbis_focus` (View-injected) wash the cursor row
+  `:selected`, only while the survey (not the thread list) has focus.
 
   Was a per-thread message feed (`Funes.Channel.chorus/1`); re-pointed to worlds in the Slice 0
   collapse so the survey surveys worlds, not threads. The per-thread rollup still lives in the
@@ -30,13 +33,15 @@ defmodule Aleph.Panel.Chorus do
   def topics(_assigns), do: []
 
   @impl Aleph.Panel
-  def render(%{worlds: worlds}, rect) do
+  def render(%{worlds: worlds} = data, rect) do
     header = [line("ORBIS · worlds", :header), blank()]
+    # Only wash a row :selected while the SURVEY (not the thread list) has focus — D0.3.
+    cursor = if Map.get(data, :orbis_focus) == :survey, do: Map.get(data, :survey_cursor)
 
     body =
       case worlds do
         [] -> [line("no worlds yet", :dim)]
-        ws -> Enum.flat_map(ws, &world_rows/1)
+        ws -> ws |> Enum.with_index() |> Enum.flat_map(fn {w, i} -> world_rows(w, i == cursor) end)
       end
 
     Aleph.Panel.clip(header ++ body, rect)
@@ -52,20 +57,21 @@ defmodule Aleph.Panel.Chorus do
 
   def pick(_data, _rect, _local_y), do: nil
 
-  # Slice 0: every world block is a fixed @world_rows tall, so idx→world is plain integer division.
-  # Slice 1 (multi-world / wrapping summaries) must measure each block's rendered height instead.
-  # `Space.first_world/0`: Slice 1 one-world bridge (the rollup row carries a world NAME, not an id,
-  # so a click can't yet resolve its own world) — C2 resolves the clicked row → its own world id.
+  # Slice 0/D0.3: every world block is a fixed @world_rows tall, so idx→world is plain integer
+  # division. `Space.first_world/0`: still the Slice 1 one-world bridge — the rows now carry an
+  # `id` (D0.3), but the CLICK doesn't resolve it yet; D0.2 replaces this with the row's own id.
   defp world_at(worlds, idx) when idx >= 0 do
     if div(idx, @world_rows) < length(worlds), do: {:switch_space, Space.first_world().key}
   end
 
   defp world_at(_worlds, _idx), do: nil
 
-  # One world: a ▸ + its name, then an indented summary line — leaf count + the shared rollup line
-  # (open/stalled/done, trouble called out only when there is any), then a blank spacer.
-  defp world_rows(%{world: world, summary: summary, leaves: leaves}) do
-    head = [{"▸ ", :accent}, {world, :header}]
+  # One world: a ▸ + its name (washed :selected under the survey cursor), then an indented summary
+  # line — leaf count + the shared rollup line (open/stalled/done, trouble called out only when
+  # there is any), then a blank spacer.
+  defp world_rows(%{name: name, summary: summary, leaves: leaves}, selected?) do
+    name_style = if selected?, do: :selected, else: :header
+    head = [{"▸ ", :accent}, {name, name_style}]
     count = length(leaves)
     summary_line = [{"  #{count} #{leaf_word(count)} · ", :dim} | Leaves.summary_row(summary)]
     [head, summary_line, blank()]

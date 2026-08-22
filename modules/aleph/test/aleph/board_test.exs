@@ -334,7 +334,8 @@ defmodule Aleph.BoardTest do
     test "chorus surveys worlds — the ORBIS · worlds header + a row per world with its rollup" do
       worlds = [
         %{
-          world: "Tlön",
+          id: 1,
+          name: "Tlön",
           summary: %{open: 2, stalled: 1, done: 3, conflicts: 4},
           leaves: [%{id: 1}, %{id: 2}]
         }

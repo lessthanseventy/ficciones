@@ -9,11 +9,12 @@ defmodule Aleph.Orbis do
   rule never drifts between them.
 
   Pure data, no styling: `rollup/0` returns `%{summary: %{open, stalled, done, conflicts},
-  rows: [%{id, title, lead, status, conflicts}], worlds: [%{world, summary, leaves}]}` (status
+  rows: [%{id, title, lead, status, conflicts}], worlds: [%{id, name, summary, leaves}]}` (status
   `:open | :stalled | :done`), or `nil` when funes is down / there are no machine threads. `summary`
   and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `worlds` is the
-  survey's per-world rollup — grouped under the funes world names (`Aleph.Worlds`, Slice 1), the
-  face Orbis' Chorus renders as one row per world. Status derives from `Funes.Board.in_scope/1` (the
+  survey's per-world rollup — grouped under the live funes worlds (`Aleph.Worlds`, Slice 1), each
+  row carrying its world `id` (D0.3) — the face Orbis' Chorus renders as one row per world, and the
+  survey's `Enter`/click resolve back to. Status derives from `Funes.Board.in_scope/1` (the
   same per-thread brief Triage reads) so it reflects real blockers/failed checks, never a
   self-report. The gather is guarded: a funes hiccup degrades to `nil`, never a crash.
   """
@@ -21,8 +22,9 @@ defmodule Aleph.Orbis do
   alias Funes.Channel
 
   # The survey row when funes yields no worlds (down / unseeded — the seed only runs after
-  # home:switch). Slice 1 otherwise groups under the real funes world names (`Aleph.Worlds.all/0`).
-  @fallback_world "Tlön"
+  # home:switch). Keyed `0` — the same sentinel `Aleph.Space`'s Tlön fallback uses, so a click/Enter
+  # on this row resolves to the same World the fallback space is keyed under.
+  @fallback_world %{id: 0, name: "Tlön"}
 
   @spec rollup() :: %{summary: map(), rows: [map()], worlds: [map()]} | nil
   def rollup do
@@ -39,31 +41,36 @@ defmodule Aleph.Orbis do
   end
 
   @doc """
-  Group the rollup rows under the funes world names (`Aleph.Worlds.all/0`, Slice 1 Task B3). With
-  the single seeded Tlön world this is one "Tlön" row — identical to Slice 0. Reads the cached world
-  list; `worlds/2` is the pure grouping over explicit names (tested without the live cache).
+  Group the rollup rows under the live funes worlds (`Aleph.Worlds.all/0`, Slice 1 Task B3). With
+  the single seeded Tlön world this is one row — identical to Slice 0. Reads the cached world list;
+  `worlds/2` is the pure grouping over explicit `%{id, name}` refs (tested without the live cache).
   """
-  @spec worlds([map()]) :: [%{world: String.t(), summary: map(), leaves: [map()]}]
-  def worlds(rows), do: worlds(rows, world_names())
+  @spec worlds([map()]) :: [%{id: term(), name: String.t(), summary: map(), leaves: [map()]}]
+  def worlds(rows), do: worlds(rows, world_refs())
 
   @doc """
-  Group `rows` under explicit world `names`. Per-world leaf attribution is coarse for now (Phase B):
-  the first world carries all machine leaves; any further worlds get an empty, zeroed row. No world
-  names (funes down / unseeded) falls back to the literal "Tlön" so the survey never breaks.
+  Group `rows` under explicit `%{id, name}` world refs — every row carries its funes **id** (D0.3:
+  the survey can't resolve a click/Enter to a world without one). Per-world leaf attribution is
+  still coarse (Phase B): the first world carries all machine leaves; any further worlds get an
+  empty, zeroed row — a real per-leaf world membership isn't modeled yet, so this is the Slice-1
+  floor, not the final grouping. No world refs (funes down / unseeded) falls back to the literal
+  "Tlön" (id 0) so the survey never breaks.
   """
-  @spec worlds([map()], [String.t()]) :: [%{world: String.t(), summary: map(), leaves: [map()]}]
-  def worlds(rows, []), do: [%{world: @fallback_world, summary: summarize(rows), leaves: rows}]
+  @spec worlds([map()], [%{id: term(), name: String.t()}]) :: [
+          %{id: term(), name: String.t(), summary: map(), leaves: [map()]}
+        ]
+  def worlds(rows, []), do: [Map.merge(@fallback_world, %{summary: summarize(rows), leaves: rows})]
 
   def worlds(rows, [first | rest]) do
     [
-      %{world: first, summary: summarize(rows), leaves: rows}
-      | Enum.map(rest, &%{world: &1, summary: summarize([]), leaves: []})
+      %{id: first.id, name: first.name, summary: summarize(rows), leaves: rows}
+      | Enum.map(rest, &%{id: &1.id, name: &1.name, summary: summarize([]), leaves: []})
     ]
   end
 
-  # The funes world names, guarded: a cache hiccup degrades to [] (→ literal "Tlön" fallback).
-  defp world_names do
-    Enum.map(Aleph.Worlds.all(), & &1.name)
+  # The funes world refs, guarded: a cache hiccup degrades to [] (→ literal "Tlön" fallback).
+  defp world_refs do
+    Enum.map(Aleph.Worlds.all(), &%{id: &1.id, name: &1.name})
   rescue
     _ -> []
   catch
