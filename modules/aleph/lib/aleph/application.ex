@@ -11,7 +11,9 @@ defmodule Aleph.Application do
   def start(_type, _args) do
     children = [
       {DynamicSupervisor, name: Aleph.TerminalSup, strategy: :one_for_one},
-      Aleph.Sessions
+      Aleph.Sessions,
+      # Event-driven cache of funes' worlds so the per-render picker/survey never hit the DB.
+      Aleph.Worlds
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Aleph.Supervisor)
