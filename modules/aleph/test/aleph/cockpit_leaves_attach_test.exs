@@ -69,7 +69,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
 
       assert next.previewed_window == "1"
       assert next.focus.in_terminal? == true
-      assert_received {:tmux, ["-L", _sock, "select-window", "-t", "tlon:1"]}
+      assert_received {:tmux, ["-L", _sock, "select-window", "-t", "w0:1"]}
       # Retargeted off the deleted Sessions space — the space stays Tlön, no jump.
       assert next.active_key == 0
     end

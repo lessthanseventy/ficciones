@@ -8,6 +8,7 @@ defmodule Aleph.CockpitTest do
   use ExUnit.Case, async: true
 
   alias Aleph.Cockpit
+  alias Aleph.Panel.Leaves
   alias Ghostty.KeyEvent
 
   test "a printable char carries its utf8 and its key atom" do
@@ -98,21 +99,21 @@ defmodule Aleph.CockpitTest do
     end
   end
 
-  describe "profile_launcher/1: the Tlön window-0 command runs pi from its profile's config dir" do
+  describe "profile_launcher/2: the World window-0 command runs pi from its profile's config dir" do
     @profile %Aleph.Profile{name: "tlon"}
 
-    test "attaches-or-creates the standing tlon session" do
-      assert Cockpit.profile_launcher(@profile) =~ "new-session -A -s tlon"
+    test "attaches-or-creates the world's w<id> session" do
+      assert Cockpit.profile_launcher(1, @profile) =~ "new-session -A -s w1"
     end
 
-    test "runs on the coworker's PRIVATE tmux server with the profile's persistence-free config" do
-      cmd = Cockpit.profile_launcher(@profile)
-      assert cmd =~ "tmux -L #{Aleph.Profiles.socket("tlon")} "
+    test "runs on the world's PRIVATE tmux server (id-derived), with the profile's persistence-free config" do
+      cmd = Cockpit.profile_launcher(1, @profile)
+      assert cmd =~ "tmux -L aleph-world-1 "
       assert cmd =~ "-f #{Aleph.Profiles.config_dir("tlon")}/tmux.conf"
     end
 
     test "points pi at the profile's config dir and carries the funes identity into the session env" do
-      cmd = Cockpit.profile_launcher(@profile)
+      cmd = Cockpit.profile_launcher(1, @profile)
       assert cmd =~ "PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")}"
       # The tlon coworker is a funes citizen (machine scope, @tlon_funes_mcp reads ${FUNES_MCP_URL}),
       # so the identity is `-e`'d into the tmux SESSION env — durable across a pi respawn, not just
@@ -123,25 +124,25 @@ defmodule Aleph.CockpitTest do
     end
 
     test "MANOS_RELOAD_CMD carries the config dir so a manos/reload respawn stays on-profile" do
-      cmd = Cockpit.profile_launcher(@profile)
+      cmd = Cockpit.profile_launcher(1, @profile)
 
       assert cmd =~
                "MANOS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")} mise exec -- pi --continue"
     end
 
     test "a profile with a persona adds --append-system-prompt; without one, none" do
-      refute Cockpit.profile_launcher(@profile) =~ "--append-system-prompt"
-      withp = Cockpit.profile_launcher(%Aleph.Profile{name: "tlon", system_prompt: "be terse"})
+      refute Cockpit.profile_launcher(1, @profile) =~ "--append-system-prompt"
+      withp = Cockpit.profile_launcher(1, %Aleph.Profile{name: "tlon", system_prompt: "be terse"})
       assert withp =~ "--append-system-prompt #{Aleph.Profiles.config_dir("tlon")}/system_prompt.md"
     end
 
     test "still launches pi as window 0's command" do
-      assert Cockpit.profile_launcher(@profile) =~ "mise exec -- pi"
+      assert Cockpit.profile_launcher(1, @profile) =~ "mise exec -- pi"
     end
 
     test "chrome-off + copy-mode style live in the profile tmux.conf now, not chained set-options" do
-      cmd = Cockpit.profile_launcher(@profile)
-      assert cmd =~ "new-session -A -s tlon -n tertius"
+      cmd = Cockpit.profile_launcher(1, @profile)
+      assert cmd =~ "new-session -A -s w1 -n tertius"
       refute cmd =~ "set-option"
 
       conf = Aleph.Profiles.tmux_conf()
@@ -149,6 +150,48 @@ defmodule Aleph.CockpitTest do
       assert conf =~ "set -g 'status-format[0]' ''"
       assert conf =~ "set -g pane-border-status off"
       assert conf =~ "set -g mode-style 'bg=#3b4261,fg=#c0caf5'"
+    end
+  end
+
+  # C2.2: session/socket are id-derived (`w<id>` / `aleph-world-<id>`), not the old singleton "tlon"
+  # session on the lead-name-derived "aleph-tertius" socket — a rename can't orphan the running
+  # session and two worlds can't collide. `attach_leaf/2` takes the layout as a plain arg (no
+  # `Space.fetch` involved), so `active_key: 1` proves the id comes from STATE, not from whatever
+  # world happens to be seeded in the test env (the funes-down fallback is id 0 — see
+  # `Aleph.CockpitLeavesAttachTest`).
+  describe "world id threads into the tmux target (C2.2 — de-singleton the tlon session/socket)" do
+    setup do
+      test_pid = self()
+
+      Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+        send(test_pid, {:tmux, args})
+
+        if Enum.member?(args, "list-windows"),
+          do: {"1\t0\ttertius\n0\t1\thronir\n", 0},
+          else: {"", 0}
+      end)
+
+      on_exit(fn -> Application.delete_env(:aleph, :tlon_cmd) end)
+      :ok
+    end
+
+    test "a query for World id 1 targets socket aleph-world-1 and session w1" do
+      state = %{
+        active_key: 1,
+        focus: %Aleph.Tlon.Focus{in_terminal?: false, column: :right, pane: 0, cursors: %{Leaves => 0}},
+        leaves: %{summary: %{}, rows: [%{id: "t1", title: "x", lead: "hronir"}]},
+        stack: nil,
+        memory: nil,
+        flash: nil,
+        previewed_window: nil
+      }
+
+      layout = %{left: [], right: [Leaves], sections: %{}, counts: %{Leaves => 1}}
+
+      Cockpit.attach_leaf(state, layout)
+
+      assert_received {:tmux, ["-L", "aleph-world-1", "list-windows", "-t", "w1" | _]}
+      assert_received {:tmux, ["-L", "aleph-world-1", "select-window", "-t", "w1:1"]}
     end
   end
 

@@ -347,11 +347,14 @@ defmodule Aleph.Stack do
     end
   end
 
-  @doc "Whether the tlon session exists — on the center coworker's private server (`-L aleph-tertius`)."
+  @doc """
+  Whether the active World's tmux session exists — on its own private server (`-L
+  aleph-world-<id>`, id-derived, rename-proof).
+  """
   def tlon_up? do
-    socket = Aleph.Profiles.socket(Aleph.Space.first_world().coworker)
+    id = Aleph.Space.first_world().id
 
-    case cmd("tmux", ["-L", socket, "has-session", "-t", "tlon"]) do
+    case cmd("tmux", ["-L", "aleph-world-#{id}", "has-session", "-t", "w#{id}"]) do
       {:ok, _} -> true
       :error -> false
     end

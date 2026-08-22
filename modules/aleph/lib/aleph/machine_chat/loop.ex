@@ -283,9 +283,11 @@ defmodule Aleph.MachineChat.Loop do
     if cockpit_staffs?(lead) and window_live?(window), do: window
   end
 
-  # Does a named window exist on the tlon server? ($TMUX points at it, so a bare `tmux` hits it.)
+  # Does a named window exist in the world's session? ($TMUX points at its private server, and each
+  # world's server hosts exactly one session (C2.2: `w<id>`, id-derived) — so a bare `tmux`
+  # (no `-t session:`) resolves against the CURRENT session and never needs to know the id.
   defp window_live?(window) do
-    case System.cmd("tmux", ["list-windows", "-t", "tlon", "-F", "#W"], stderr_to_stdout: true) do
+    case System.cmd("tmux", ["list-windows", "-F", "#W"], stderr_to_stdout: true) do
       {out, 0} -> window in String.split(out, "\n", trim: true)
       _ -> false
     end
@@ -297,14 +299,15 @@ defmodule Aleph.MachineChat.Loop do
 
   # Wake each @-mentioned coworker by injecting the message as a turn into its tmux window — the same
   # send-keys the cockpit does, but from here (our post is on our own bus, which the cockpit can't
-  # see). $TMUX points at the tlon server, so a bare `tmux` targets the right session.
+  # see). $TMUX points at the world's server, and `-t <window>` (no session prefix) resolves against
+  # the current session, same reasoning as `window_live?/1`.
   defp wake_mentions(author, body, thread_id) do
     lead = safe_thread_lead(thread_id)
     opts = [lead: lead, staffed_window: staffed_window(lead, thread_id)]
 
     for {window, text} <- Mention.route(%{author: author, body: body, thread_id: thread_id}, opts) do
-      System.cmd("tmux", ["send-keys", "-t", "tlon:#{window}", "-l", text], stderr_to_stdout: true)
-      System.cmd("tmux", ["send-keys", "-t", "tlon:#{window}", "Enter"], stderr_to_stdout: true)
+      System.cmd("tmux", ["send-keys", "-t", window, "-l", text], stderr_to_stdout: true)
+      System.cmd("tmux", ["send-keys", "-t", window, "Enter"], stderr_to_stdout: true)
     end
 
     :ok

@@ -500,7 +500,9 @@ defmodule Aleph.Profiles do
   # ONE content source — no more full `%Profile{}` structs duplicating the templates. Order is
   # significant (settings-modal rows, `names/0`): tertius first, then reviewer.
   #
-  #   * tertius — the Tlön CENTER (Orbis Tertius meta agent `tertius-machine`, socket `aleph-tertius`).
+  #   * tertius — the Tlön CENTER (Orbis Tertius meta agent `tertius-machine`; its tmux socket is
+  #     id-derived per World now — `aleph-world-<id>`, see `Aleph.Cockpit.world_socket/1` — not
+  #     name-derived off this profile).
   #     NO model override — it inherits the surveyor archetype's @glm default, so its materialisation
   #     stays BYTE-IDENTICAL to the pre-archetype profile (it is the only live Slice-0 spawn;
   #     regression-locked) WHILE leaving `Aleph.Config` (the SETTINGS `m` verb) free to retarget it: a

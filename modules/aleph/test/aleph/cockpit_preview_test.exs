@@ -52,7 +52,7 @@ defmodule Aleph.CockpitPreviewTest do
       assert next.previewed_window == "1"
       # NO focus steal, NO keys sent — a hover, not a commit.
       assert next.focus.in_terminal? == false
-      assert_received {:tmux, ["-L", _sock, "select-window", "-t", "tlon:1"]}
+      assert_received {:tmux, ["-L", _sock, "select-window", "-t", "w0:1"]}
     end
 
     test "a leaf whose lead has no live window leaves the center where it is (no re-point)" do

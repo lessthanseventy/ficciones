@@ -43,16 +43,16 @@ defmodule Aleph.CrewTest do
   end
 
   describe "spawn_argv/3 and boot_script/2 (pure tmux builders)" do
-    test "spawn_argv targets the tlon session on the aleph-tertius socket, window r<id>, detached" do
+    test "spawn_argv targets the w<id> session on the aleph-world-<id> socket, window r<id>, detached" do
       argv = Crew.spawn_argv("reviewer", 42, "boot-script-here")
 
       assert argv == [
                "-L",
-               "aleph-tertius",
+               "aleph-world-0",
                "new-window",
                "-d",
                "-t",
-               "tlon",
+               "w0",
                "-n",
                "r42",
                "boot-script-here"
@@ -68,7 +68,7 @@ defmodule Aleph.CrewTest do
 
     test "kill_argv removes the role's window on the same server" do
       assert Crew.kill_argv("reviewer", 42) ==
-               ["-L", "aleph-tertius", "kill-window", "-t", "tlon:r42"]
+               ["-L", "aleph-world-0", "kill-window", "-t", "w0:r42"]
     end
   end
 
@@ -110,11 +110,11 @@ defmodule Aleph.CrewTest do
       assert opts[:mandate] == "machine"
       # the reviewer must NOT hijack the task thread's staffed lead (Staff.assign is single-slot)
       assert opts[:assign] == false
-      assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "tlon", "-n", "r42", script]}
+      assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "w0", "-n", "r42", script]}
       assert script =~ ~s(export FUNES_AUTHOR="reviewer-machine")
       assert script =~ "\nexec "
       # bare pi launch (Cockpit.pi_command/1), NOT profile_launcher's tmux new-session wrapper —
-      # execing new-session here would nest a second tmux server on the shared aleph-tertius socket
+      # execing new-session here would nest a second tmux server on the shared aleph-world-<id> socket
       assert script =~ "PI_CODING_AGENT_DIR"
       refute script =~ "new-session"
     end
@@ -141,18 +141,18 @@ defmodule Aleph.CrewTest do
 
       assert {:ok, "r42"} = Crew.spawn("reviewer", 42, "review HEAD~1")
 
-      assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "tlon", "-n", "r42", _script]}
+      assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "w0", "-n", "r42", _script]}
 
       # readiness gate first: the pane is polled before any keystroke, so a booting TUI can't swallow
       # the Enter and strand the turn unsubmitted
-      assert_receive {:tmux, ["-L", _sock, "capture-pane", "-p", "-t", "tlon:r42"]}
+      assert_receive {:tmux, ["-L", _sock, "capture-pane", "-p", "-t", "w0:r42"]}
 
-      assert_receive {:tmux, ["-L", sock, "send-keys", "-l", "-t", "tlon:r42", text]}
+      assert_receive {:tmux, ["-L", sock, "send-keys", "-l", "-t", "w0:r42", text]}
       assert text =~ "thread ##{42}"
       assert text =~ "claude-machine"
       assert text =~ "review HEAD~1"
 
-      assert_receive {:tmux, ["-L", ^sock, "send-keys", "-t", "tlon:r42", "Enter"]}
+      assert_receive {:tmux, ["-L", ^sock, "send-keys", "-t", "w0:r42", "Enter"]}
     end
 
     test "the opening inject waits through a not-yet-ready pane, then submits once registered" do
@@ -176,10 +176,10 @@ defmodule Aleph.CrewTest do
 
       assert {:ok, "r42"} = Crew.spawn("reviewer", 42, "review HEAD~1")
 
-      assert_receive {:tmux, ["-L", _, "capture-pane", "-p", "-t", "tlon:r42"]}
-      assert_receive {:tmux, ["-L", _, "capture-pane", "-p", "-t", "tlon:r42"]}
-      assert_receive {:tmux, ["-L", _, "send-keys", "-l", "-t", "tlon:r42", _text]}
-      assert_receive {:tmux, ["-L", _, "send-keys", "-t", "tlon:r42", "Enter"]}
+      assert_receive {:tmux, ["-L", _, "capture-pane", "-p", "-t", "w0:r42"]}
+      assert_receive {:tmux, ["-L", _, "capture-pane", "-p", "-t", "w0:r42"]}
+      assert_receive {:tmux, ["-L", _, "send-keys", "-l", "-t", "w0:r42", _text]}
+      assert_receive {:tmux, ["-L", _, "send-keys", "-t", "w0:r42", "Enter"]}
       assert :counters.get(polls, 1) == 2
     end
   end
@@ -195,7 +195,7 @@ defmodule Aleph.CrewTest do
 
       on_exit(fn -> Application.delete_env(:aleph, :crew_cmd) end)
       assert :ok = Crew.kill("reviewer", 42)
-      assert_receive {:tmux, ["-L", _, "kill-window", "-t", "tlon:r42"]}
+      assert_receive {:tmux, ["-L", _, "kill-window", "-t", "w0:r42"]}
     end
   end
 
@@ -234,12 +234,12 @@ defmodule Aleph.CrewTest do
     test "spawn_role/3 delegates to spawn/4 — mints identity and spawns the window" do
       assert {:ok, "r7"} = Crew.spawn_role("reviewer", 7, "review the diff")
       assert_receive {:join, 7, "reviewer-machine", _opts}
-      assert_receive {:tmux, ["-L", _, "new-window", "-d", "-t", "tlon", "-n", "r7" | _]}
+      assert_receive {:tmux, ["-L", _, "new-window", "-d", "-t", "w0", "-n", "r7" | _]}
     end
 
     test "kill_role/2 delegates to kill/2" do
       assert :ok = Crew.kill_role("reviewer", 7)
-      assert_receive {:tmux, ["-L", _, "kill-window", "-t", "tlon:r7"]}
+      assert_receive {:tmux, ["-L", _, "kill-window", "-t", "w0:r7"]}
     end
   end
 end

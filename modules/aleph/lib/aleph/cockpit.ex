@@ -64,12 +64,10 @@ defmodule Aleph.Cockpit do
   @claude_agent "claude-machine"
   @claude_window "hronir"
 
-  # The tlon tmux session name — tmux is a first-class stack citizen here: the Tlön center is a real
-  # `tmux attach`, so the machine workspace gets mouse, windows, and copy-mode, and it SURVIVES
-  # aleph restarts. It runs on its OWN tmux server though (`tmux -L aleph-tertius`, config from the
-  # profile's persistence-free tmux.conf — Aleph.Profiles.socket/1), NOT the user's default server:
-  # there resurrect/continuum would restore a torn-down coworker with stale identity/env.
-  @tlon_session "tlon"
+  # tmux is a first-class stack citizen here: each World's center is a real `tmux attach`, so the
+  # workspace gets mouse, windows, and copy-mode, and it SURVIVES aleph restarts. Session/socket are
+  # id-derived (world_session/1, world_socket/1, near tlon_tmux/2) — not name-derived — so a world
+  # rename can't orphan the running session and two worlds never collide.
 
   # Tlön probe cadence: the Stack/Health reads fork subprocesses (git ×~6, nix-env, df, tmux)
   # and open a TCP probe — far too heavy to run per render (a streaming terminal coalesces to
@@ -538,11 +536,16 @@ defmodule Aleph.Cockpit do
   # finished" synthesis trigger. The root closing is not a leaf finish. Best-effort; tertius not up
   # (or not yet captured) = no-op. (record_done-without-close is a future trigger — its Bus event is
   # thread-scoped, so it doesn't reach the cockpit globally the way :thread_closed does.)
-  defp nudge_tertius_on_finish(:thread_closed, %{scope: "machine", id: id}, %{standing_thread_id: root})
+  defp nudge_tertius_on_finish(:thread_closed, %{scope: "machine", id: id}, %{standing_thread_id: root} = state)
        when is_integer(root) and is_integer(id) and id != root do
-    case tlon_window_index(@machine_window) do
-      nil -> :ok
-      index -> inject_turn(index, "[funes] leaf ##{id} finished — run machine_overview and refresh the root rollup.")
+    world_id = active_world_id(state)
+
+    case tlon_window_index(world_id, @machine_window) do
+      nil ->
+        :ok
+
+      index ->
+        inject_turn(world_id, index, "[funes] leaf ##{id} finished — run machine_overview and refresh the root rollup.")
     end
   end
 
@@ -554,6 +557,7 @@ defmodule Aleph.Cockpit do
   # tmux send-keys, never a crash on a missing window.
   defp mention_notify(row, state) do
     lead = thread_lead(row)
+    world_id = active_world_id(state)
 
     case delivery_target(row, state, lead) do
       :skip ->
@@ -561,9 +565,9 @@ defmodule Aleph.Cockpit do
 
       {:route, staffed} ->
         for {window, text} <- Aleph.Mention.route(row, lead: lead, staffed_window: staffed),
-            index = tlon_window_index(window),
+            index = tlon_window_index(world_id, window),
             not is_nil(index) do
-          inject_turn(index, text)
+          inject_turn(world_id, index, text)
         end
 
         :ok
@@ -597,7 +601,7 @@ defmodule Aleph.Cockpit do
   # been submitted (`ensure_thread_sessions` set `opening_injected`) — so `mention_notify` may
   # deliver subsequent turns straight to it without racing or doubling the opening.
   defp staffed_thread_ready?(tid, state),
-    do: MapSet.member?(state.opening_injected, tid) and not is_nil(tlon_window_index("t#{tid}"))
+    do: MapSet.member?(state.opening_injected, tid) and not is_nil(tlon_window_index(active_world_id(state), "t#{tid}"))
 
   # The funes handle of the coworker staffed on this message's thread (its lead), or nil.
   # Read in-process (aleph boots funes); never crash the hub if the lookup fails.
@@ -611,8 +615,22 @@ defmodule Aleph.Cockpit do
 
   defp thread_lead(_), do: nil
 
-  # The tmux window index for a named coworker window, from the live session (nil if not up).
-  defp tlon_window_index(name), do: window_index(tlon_tabs(), name)
+  # The tmux target world id for a call site that only has `state` (not a `Space.world?`-guarded
+  # `active_key`) in scope — a background Bus handler, or a click that landed on a World-only panel.
+  # `state.active_key` when it names a World, else the funes-down/no-active-world fallback
+  # (`Space.first_world/0`) — the same degradation `tlon_tmux/2` falls back to.
+  defp active_world_id(%{active_key: key}) when Space.world?(key), do: key
+
+  defp active_world_id(_state) do
+    case Space.first_world() do
+      nil -> nil
+      space -> space.id
+    end
+  end
+
+  # The tmux window index for a named coworker window in world `world_id`, from the live session
+  # (nil if not up).
+  defp tlon_window_index(world_id, name), do: window_index(tlon_tabs(world_id), name)
 
   # Same lookup against an already-fetched tabs list — for a caller (`ensure_thread_sessions`)
   # that snapshot tlon_tabs() once for a whole render pass instead of forking `tmux` per thread.
@@ -620,29 +638,40 @@ defmodule Aleph.Cockpit do
     Enum.find_value(tabs, fn %{name: n, index: index} -> if n == name, do: index end)
   end
 
-  # Inject `text` as a submitted turn into window `index`: literal text, then the Enter key — so a
-  # multiline body flattened to one line reaches the coworker's input as a single message. Safe for
-  # a LONG-BOOTED window (the standing coworkers); a freshly-spawned harness needs the split form
-  # below (`inject_text`/`submit_turn`) so the Enter doesn't get swallowed in the same input burst.
-  defp inject_turn(index, text) do
-    inject_text(index, text)
-    submit_turn(index)
+  # Inject `text` as a submitted turn into window `index` of world `world_id`: literal text, then
+  # the Enter key — so a multiline body flattened to one line reaches the coworker's input as a
+  # single message. Safe for a LONG-BOOTED window (the standing coworkers); a freshly-spawned
+  # harness needs the split form below (`inject_text`/`submit_turn`) so the Enter doesn't get
+  # swallowed in the same input burst.
+  defp inject_turn(world_id, index, text) do
+    inject_text(world_id, index, text)
+    submit_turn(world_id, index)
   end
 
-  # Type literal `text` into window `index` WITHOUT submitting — the first half of a fresh-window
-  # inject, so the Enter can be sent on a later render once the TUI has settled.
-  defp inject_text(index, text) do
+  # Type literal `text` into window `index` of world `world_id` WITHOUT submitting — the first half
+  # of a fresh-window inject, so the Enter can be sent on a later render once the TUI has settled.
+  defp inject_text(world_id, index, text) do
     _ =
-      System.cmd("tmux", tlon_tmux(["send-keys", "-l", "-t", "#{@tlon_session}:#{index}", text]), stderr_to_stdout: true)
+      System.cmd(
+        "tmux",
+        tlon_tmux(world_id, ["send-keys", "-l", "-t", "#{world_session(world_id)}:#{index}", text]),
+        stderr_to_stdout: true
+      )
 
     :ok
   end
 
-  # Send Enter to window `index` — submits whatever's in its input. Split from `inject_text` so a
-  # just-booted Claude Code TUI gets the text and the Enter as separate bursts (a bundled Enter
-  # lands as a literal newline / gets swallowed, leaving the turn typed-but-unsent).
-  defp submit_turn(index) do
-    _ = System.cmd("tmux", tlon_tmux(["send-keys", "-t", "#{@tlon_session}:#{index}", "Enter"]), stderr_to_stdout: true)
+  # Send Enter to window `index` of world `world_id` — submits whatever's in its input. Split from
+  # `inject_text` so a just-booted Claude Code TUI gets the text and the Enter as separate bursts (a
+  # bundled Enter lands as a literal newline / gets swallowed, leaving the turn typed-but-unsent).
+  defp submit_turn(world_id, index) do
+    _ =
+      System.cmd(
+        "tmux",
+        tlon_tmux(world_id, ["send-keys", "-t", "#{world_session(world_id)}:#{index}", "Enter"]),
+        stderr_to_stdout: true
+      )
+
     :ok
   end
 
@@ -696,19 +725,20 @@ defmodule Aleph.Cockpit do
   # Clicking a WindowBar tab selects that tmux window — never forwarded to the PTY (WindowBar is a
   # standalone panel, not part of the terminal it frames).
   defp dispatch_click({WindowBar, data, rect}, x, _y, state) do
-    select_tlon_window(WindowBar.tab_at_x(data[:tabs] || [], x - rect.x))
+    select_tlon_window(active_world_id(state), WindowBar.tab_at_x(data[:tabs] || [], x - rect.x))
     {:noreply, render(state)}
   end
 
   defp dispatch_click({panel, data, rect}, _x, y, state), do: apply_pick(Panel.pick(panel, data, rect, y - rect.y), state)
 
-  # Select a Tlön tmux window by the clicked/hovered tab's index; nil (past the tabs) is a no-op.
-  defp select_tlon_window(%{index: idx}) do
-    tlon_run(["select-window", "-t", "#{@tlon_session}:#{idx}"])
+  # Select a Tlön tmux window in world `world_id` by the clicked/hovered tab's index; nil (past the
+  # tabs) is a no-op.
+  defp select_tlon_window(world_id, %{index: idx}) do
+    tlon_run(world_id, ["select-window", "-t", "#{world_session(world_id)}:#{idx}"])
     :ok
   end
 
-  defp select_tlon_window(_tab), do: :ok
+  defp select_tlon_window(_world_id, _tab), do: :ok
 
   # A drag/release over the terminal body → the PTY; anywhere else is ignored. The terminal is
   # edge-to-edge now, so there is no tab-row offset to shift by.
@@ -900,10 +930,11 @@ defmodule Aleph.Cockpit do
   # takes its own snapshot, which is safe for its single read but would reintroduce the double read.
   def attach_leaf(state, layout) do
     rows = (state.leaves || %{rows: []}).rows
+    world_id = active_world_id(state)
 
     with %{lead: lead} <- Enum.at(rows, Focus.cursor(state.focus, layout)),
-         idx when not is_nil(idx) <- window_index(tlon_tabs(), lead) do
-      select_tlon_window(%{index: idx})
+         idx when not is_nil(idx) <- window_index(tlon_tabs(world_id), lead) do
+      select_tlon_window(world_id, %{index: idx})
       state |> Map.put(:previewed_window, idx) |> commit_preview() |> Map.put(:flash, nil)
     else
       _ -> %{state | flash: "no live session (Slice 1)"}
@@ -922,8 +953,8 @@ defmodule Aleph.Cockpit do
 
     with Panel.Leaves <- Focus.focused_pane(state.focus, layout),
          %{lead: lead} <- Enum.at(rows, Focus.cursor(state.focus, layout)),
-         idx when not is_nil(idx) <- window_index(tlon_tabs(), lead) do
-      select_tlon_window(%{index: idx})
+         idx when not is_nil(idx) <- window_index(tlon_tabs(key), lead) do
+      select_tlon_window(key, %{index: idx})
       %{state | previewed_window: idx}
     else
       _ -> state
@@ -1099,7 +1130,7 @@ defmodule Aleph.Cockpit do
   # instead of re-materialising the profile and re-issuing tmux new-session every frame.
   defp machine_read(%{active_key: key}) when Space.world?(key) do
     case render_state_of(safe_terminal(:machine)) do
-      %{} = render_state -> Map.put(render_state, :tabs, tlon_tabs())
+      %{} = render_state -> Map.put(render_state, :tabs, tlon_tabs(key))
       other -> other
     end
   end
@@ -1463,7 +1494,7 @@ defmodule Aleph.Cockpit do
         state
 
       true ->
-        case spawn_machine_coworker() do
+        case spawn_machine_coworker(key) do
           pid when is_pid(pid) -> capture_standing_thread_id(state)
           _ -> %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
         end
@@ -1492,11 +1523,11 @@ defmodule Aleph.Cockpit do
       not is_pid(safe_terminal(:machine)) ->
         state
 
-      Enum.any?(tlon_tabs(), &(&1.name == @claude_window)) ->
+      Enum.any?(tlon_tabs(key), &(&1.name == @claude_window)) ->
         state
 
       true ->
-        spawn_claude_window()
+        spawn_claude_window(key)
         state
     end
   end
@@ -1514,11 +1545,11 @@ defmodule Aleph.Cockpit do
           not is_pid(safe_terminal(:machine)) ->
             state
 
-          Enum.any?(tlon_tabs(), &(&1.name == window)) ->
+          Enum.any?(tlon_tabs(key), &(&1.name == window)) ->
             state
 
           true ->
-            spawn_agent_window(author, window)
+            spawn_agent_window(key, author, window)
             state
         end
 
@@ -1538,8 +1569,8 @@ defmodule Aleph.Cockpit do
   defp ensure_log_window(%{active_key: key} = state) when Space.world?(key) do
     cond do
       not is_pid(safe_terminal(:machine)) -> state
-      Enum.any?(tlon_tabs(), &(&1.name == "uqbar")) -> state
-      true -> spawn_log_window() && state
+      Enum.any?(tlon_tabs(key), &(&1.name == "uqbar")) -> state
+      true -> spawn_log_window(key) && state
     end
   end
 
@@ -1556,15 +1587,15 @@ defmodule Aleph.Cockpit do
   # `claude_launcher()`, so it is only correct for a claude-machine/third-agent lead.
   # Pi-launched staffing is a follow-up.
   defp ensure_thread_sessions(%{active_key: key} = state) when Space.world?(key) do
-    tabs = tlon_tabs()
+    tabs = tlon_tabs(key)
     now = System.monotonic_time(:millisecond)
 
-    Enum.reduce(Funes.staffed_machine_threads(), state, &ensure_thread_session(&1, tabs, now, &2))
+    Enum.reduce(Funes.staffed_machine_threads(), state, &ensure_thread_session(key, &1, tabs, now, &2))
   end
 
   defp ensure_thread_sessions(state), do: state
 
-  defp ensure_thread_session(%{id: id, lead: lead}, tabs, now, state) do
+  defp ensure_thread_session(world_id, %{id: id, lead: lead}, tabs, now, state) do
     window = "t#{id}"
 
     cond do
@@ -1574,7 +1605,7 @@ defmodule Aleph.Cockpit do
         state
 
       Enum.any?(tabs, &(&1.name == window)) ->
-        maybe_inject_opening_turn(id, tabs, now, state)
+        maybe_inject_opening_turn(world_id, id, tabs, now, state)
 
       not claude_launched?(lead) ->
         state
@@ -1583,7 +1614,7 @@ defmodule Aleph.Cockpit do
         state
 
       true ->
-        record_thread_spawn(spawn_agent_window(lead, window, id), state, id, now)
+        record_thread_spawn(spawn_agent_window(world_id, lead, window, id), state, id, now)
     end
   end
 
@@ -1613,21 +1644,21 @@ defmodule Aleph.Cockpit do
   # but unsent: stage 1 types the text and records the moment; stage 2, once the text has settled
   # for @opening_submit_delay_ms, sends Enter and marks the thread done. Ordered newest-first: the
   # `opening_injected` (done) check must precede the `opening_text_at` (typed) check.
-  defp maybe_inject_opening_turn(id, tabs, now, state) do
+  defp maybe_inject_opening_turn(world_id, id, tabs, now, state) do
     cond do
       MapSet.member?(state.opening_injected, id) ->
         state
 
       Map.has_key?(state.opening_text_at, id) ->
         if now - state.opening_text_at[id] >= @opening_submit_delay_ms do
-          with index when not is_nil(index) <- window_index(tabs, "t#{id}"), do: submit_turn(index)
+          with index when not is_nil(index) <- window_index(tabs, "t#{id}"), do: submit_turn(world_id, index)
           %{state | opening_injected: MapSet.put(state.opening_injected, id)}
         else
           state
         end
 
       true ->
-        inject_opening_text(id, tabs)
+        inject_opening_text(world_id, id, tabs)
         %{state | opening_text_at: Map.put(state.opening_text_at, id, now)}
     end
   end
@@ -1635,13 +1666,13 @@ defmodule Aleph.Cockpit do
   # Type the thread's latest operator message into its just-appeared `t<id>` window (no Enter yet —
   # stage 2 submits). Best-effort on both reads: a window that vanished between the tabs snapshot
   # and here, or a thread with no operator message yet, is silently skipped — never a render crash.
-  defp inject_opening_text(id, tabs) do
+  defp inject_opening_text(world_id, id, tabs) do
     index = window_index(tabs, "t#{id}")
     message = Funes.latest_operator_message(id)
 
     if index && message do
       operator = Application.get_env(:funes, :operator, "andrew")
-      inject_text(index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
+      inject_text(world_id, index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
     end
 
     :ok
@@ -1653,17 +1684,19 @@ defmodule Aleph.Cockpit do
   # project (where mise/mix resolve). It inherits the tlon session's `FUNES_DB`, so it reads the SAME
   # db the cockpit writes — the whole point of the poll-the-db design (a separate process can't share
   # the in-node Bus). Fire-and-forget: a failed spawn leaves the tab absent and the next render retries.
-  defp spawn_log_window do
+  defp spawn_log_window(world_id) do
     dir = Path.join(Profiles.repo(), "modules/aleph")
     script = "export TERM=xterm-256color\ncd #{dir}\nexec mise exec -- mix aleph.machine_chat"
-    System.cmd("tmux", tlon_tmux(["new-window", "-t", @tlon_session, "-n", "uqbar", script]), stderr_to_stdout: true)
+    session = world_session(world_id)
+
+    System.cmd("tmux", tlon_tmux(world_id, ["new-window", "-t", session, "-n", "uqbar", script]), stderr_to_stdout: true)
     # uqbar is the primary Tlön surface (the doorway), so seat it as tab 1: move it below base-index,
     # then renumber so it becomes the first window and tertius/hronir shift after it.
-    System.cmd("tmux", tlon_tmux(["move-window", "-s", "#{@tlon_session}:uqbar", "-t", "#{@tlon_session}:0"]),
+    System.cmd("tmux", tlon_tmux(world_id, ["move-window", "-s", "#{session}:uqbar", "-t", "#{session}:0"]),
       stderr_to_stdout: true
     )
 
-    System.cmd("tmux", tlon_tmux(["move-window", "-r", "-t", "#{@tlon_session}:0"]), stderr_to_stdout: true)
+    System.cmd("tmux", tlon_tmux(world_id, ["move-window", "-r", "-t", "#{session}:0"]), stderr_to_stdout: true)
   end
 
   # `tmux new-window`, not Sessions.spawn_harness: the BUILDER (`hronir`) rides as a window of the
@@ -1671,22 +1704,22 @@ defmodule Aleph.Cockpit do
   # Aleph.Terminal/PTY of its own. Fire-and-forget: a failed spawn (funes down, no thread yet) just
   # leaves the window absent, and `ensure_claude_coworker` retries it on the next render — no backoff
   # needed, `new-window` is cheap and idempotent-by-absence-check above.
-  defp spawn_claude_window, do: spawn_agent_window(@claude_agent, @claude_window)
+  defp spawn_claude_window(world_id), do: spawn_agent_window(world_id, @claude_agent, @claude_window)
 
-  # Open a Claude-Code window named `window` on `thread_id` as funes `agent` — default
-  # `machine_thread_id()`, the standing coworkers' shared thread. The claude/third-experiment
+  # Open a Claude-Code window named `window` on `thread_id` as funes `agent`, in world `world_id` —
+  # default `machine_thread_id()`, the standing coworkers' shared thread. The claude/third-experiment
   # windows AND the per-thread windows (`ensure_thread_sessions`) all ride this: same launcher,
   # distinct identity + tab label + (per-thread) distinct thread, so `FUNES_THREAD` binds the harness
   # to the thread it's actually meant to work on.
-  defp spawn_agent_window(agent, window, thread_id \\ machine_thread_id())
+  defp spawn_agent_window(world_id, agent, window, thread_id \\ machine_thread_id())
 
-  defp spawn_agent_window(agent, window, thread_id) do
+  defp spawn_agent_window(world_id, agent, window, thread_id) do
     with id when is_integer(id) <- thread_id,
          {:ok, %{exports: exports}} <- Spawn.join(id, agent, mandate: "machine") do
       script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> claude_launcher()
       # `-d`: spawn the window in the background — a coworker starting (a standing claude/third, or
       # a per-thread session) must NOT yank the operator off whatever window they're on.
-      System.cmd("tmux", tlon_tmux(["new-window", "-d", "-t", @tlon_session, "-n", window, script]),
+      System.cmd("tmux", tlon_tmux(world_id, ["new-window", "-d", "-t", world_session(world_id), "-n", window, script]),
         stderr_to_stdout: true
       )
     end
@@ -1705,13 +1738,14 @@ defmodule Aleph.Cockpit do
   # Materialise the Tlön space's coworker profile, find-or-create the machine identity, then spawn
   # the Tlön center: an embedded tmux client attached to the standing session (pi as window 0 if
   # absent) — an aleph restart re-attaches to the running pi instead of spawning another.
-  defp spawn_machine_coworker do
+  defp spawn_machine_coworker(world_id) do
     with %Space{} = space <- Space.first_world(),
          %Profile{} = profile <- Profiles.fetch(space.coworker),
          {:ok, _dir} <- materialise_profile(profile),
          {:ok, exports} <- machine_exports(@machine_agent),
          # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
-         {:ok, pid} <- safe_spawn_harness(:machine, exports, launcher: profile_launcher(profile), kitty: false) do
+         {:ok, pid} <-
+           safe_spawn_harness(:machine, exports, launcher: profile_launcher(world_id, profile), kitty: false) do
       pid
     else
       _error -> nil
@@ -1745,17 +1779,18 @@ defmodule Aleph.Cockpit do
     "env PI_CODING_AGENT_DIR=#{dir} #{base}#{prompt}#{model}"
   end
 
-  # The center coworker's launcher: pi on its OWN tmux server (`-L aleph-<profile>` + the profile's
-  # persistence-free tmux.conf), window 0 named `tertius` (the tab-strip label). MANOS_RELOAD_CMD lets
-  # manos/reload respawn in place with --continue, keeping the thread across the restart.
-  def profile_launcher(%Profile{} = profile) do
+  # The center coworker's launcher: pi on its OWN tmux server (`-L aleph-world-<id>`, id-derived —
+  # not name-derived, so a world rename can't orphan it — + the profile's persistence-free
+  # tmux.conf), window 0 named `tertius` (the tab-strip label). MANOS_RELOAD_CMD lets manos/reload
+  # respawn in place with --continue, keeping the thread across the restart.
+  def profile_launcher(world_id, %Profile{} = profile) do
     pi = pi_command(profile)
     dir = Profiles.config_dir(profile.name)
     reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
     env_flags = Enum.map_join([reload_cmd], " ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
 
-    "tmux -L #{Profiles.socket(profile.name)} -f #{Path.join(dir, "tmux.conf")}" <>
-      " new-session -A -s #{@tlon_session} -n #{@machine_window} #{funes_identity_flags()} #{env_flags} '#{pi}'"
+    "tmux -L #{world_socket(world_id)} -f #{Path.join(dir, "tmux.conf")}" <>
+      " new-session -A -s #{world_session(world_id)} -n #{@machine_window} #{funes_identity_flags()} #{env_flags} '#{pi}'"
   end
 
   @doc false
@@ -1775,34 +1810,38 @@ defmodule Aleph.Cockpit do
   # POSIX single-quote: escape embedded quotes as '\'' so the value survives the shell verbatim.
   defp sh_single_quote(s), do: "'" <> String.replace(s, "'", "'\\''") <> "'"
 
-  # The Tlön workspace's windows as tabs — aleph draws them itself (tmux's own status bar is off),
-  # so it asks tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort:
-  # the session not being up yet is an empty strip, not a crash.
-  defp tlon_tabs do
-    case tlon_run(["list-windows", "-t", @tlon_session, "-F", "\#{window_active}\t\#{window_index}\t\#{window_name}"]) do
+  # A World's tmux session/socket, id-derived (rename-proof) — replaces the old singleton "tlon"
+  # session on the lead-name-derived "aleph-<coworker>" socket. Two worlds can never collide on
+  # either name, and a world rename can't orphan a running session.
+  defp world_session(id), do: "w#{id}"
+  defp world_socket(id), do: "aleph-world-#{id}"
+
+  # A World's windows as tabs — aleph draws them itself (tmux's own status bar is off), so it asks
+  # tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort: the
+  # session not being up yet is an empty strip, not a crash.
+  defp tlon_tabs(world_id) do
+    args = ["list-windows", "-t", world_session(world_id), "-F", "\#{window_active}\t\#{window_index}\t\#{window_name}"]
+
+    case tlon_run(world_id, args) do
       {out, 0} -> parse_tlon_tabs(out)
       _ -> []
     end
   end
 
-  # Every Tlön tmux query/re-point call routes through here — one seam over the coworker's private
+  # Every World tmux query/re-point call routes through here — one seam over the coworker's private
   # server (send-keys paths like inject_text/submit_turn still shell out directly) — so a test can
   # inject a fake runner (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
-  defp tlon_run(args) do
+  defp tlon_run(world_id, args) do
     runner = Application.get_env(:aleph, :tlon_cmd, &System.cmd/3)
-    runner.("tmux", tlon_tmux(args), stderr_to_stdout: true)
+    runner.("tmux", tlon_tmux(world_id, args), stderr_to_stdout: true)
   end
 
-  # Every tmux call about the Tlön coworker targets its private server (`-L aleph-<profile>`),
-  # never the user's default one. Stateless (no `state`/`active_key` in scope here), so it can't
-  # target the ACTIVE world — degrades to no `-L` flag if even the fallback World is somehow gone
-  # (never happens today: `Space.world_spaces/1` always yields at least the sentinel).
-  defp tlon_tmux(args) do
-    case Space.first_world() do
-      nil -> args
-      space -> ["-L", Profiles.socket(space.coworker)] ++ args
-    end
-  end
+  # Every tmux call about a World's coworker targets ITS private server (`-L aleph-world-<id>`),
+  # never the user's default one. Degrades to no `-L` flag if there's no active world id (funes-down
+  # with the fallback World somehow also gone — never happens today: `Space.world_spaces/1` always
+  # yields at least the sentinel).
+  defp tlon_tmux(nil, args), do: args
+  defp tlon_tmux(world_id, args), do: ["-L", world_socket(world_id)] ++ args
 
   @doc false
   # `window_active` is "1" for the current window, "0" otherwise; each line is

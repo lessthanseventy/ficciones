@@ -31,8 +31,6 @@ defmodule Aleph.Crew do
   alias Aleph.Profiles
   alias Aleph.Space
 
-  @tlon_session "tlon"
-
   @roles %{
     "reviewer" => %{handle: "reviewer-machine", window_prefix: "r", profile: "reviewer"}
   }
@@ -63,9 +61,16 @@ defmodule Aleph.Crew do
     end
   end
 
-  @doc "The tmux server socket the Tlön coworkers share (`aleph-<tlon coworker>`), e.g. `aleph-tertius`."
+  # The tmux session/socket for the ACTIVE world's workspace — id-derived (rename-proof), not
+  # lead-name-derived. Slice 1's one-world bridge (`Space.first_world/0`, same fallback the
+  # Cockpit's `tlon_tmux/2` uses); C2.3+ picks the truly active world once there's more than one.
+  defp world_id, do: Space.first_world().id
+  defp world_session, do: "w#{world_id()}"
+  defp world_socket, do: "aleph-world-#{world_id()}"
+
+  @doc "The tmux server socket the Tlön coworkers share, id-derived (rename-proof), e.g. `aleph-world-1`."
   @spec tlon_socket() :: String.t()
-  def tlon_socket, do: Profiles.socket(Space.first_world().coworker)
+  def tlon_socket, do: world_socket()
 
   @doc "The `tmux` argv to spawn a role's per-thread window (detached) running `script`."
   @spec spawn_argv(String.t(), integer() | String.t(), String.t()) :: [String.t()]
@@ -76,7 +81,7 @@ defmodule Aleph.Crew do
       "new-window",
       "-d",
       "-t",
-      @tlon_session,
+      world_session(),
       "-n",
       crew_window(role_key, thread_id),
       script
@@ -86,7 +91,7 @@ defmodule Aleph.Crew do
   @doc "The `tmux` argv to tear down a role's per-thread window."
   @spec kill_argv(String.t(), integer() | String.t()) :: [String.t()]
   def kill_argv(role_key, thread_id) do
-    ["-L", tlon_socket(), "kill-window", "-t", "#{@tlon_session}:#{crew_window(role_key, thread_id)}"]
+    ["-L", tlon_socket(), "kill-window", "-t", "#{world_session()}:#{crew_window(role_key, thread_id)}"]
   end
 
   @doc """
@@ -187,7 +192,7 @@ defmodule Aleph.Crew do
   # Best-effort throughout — a poll timeout still injects (the deadline outlasts a normal boot).
   defp inject_opening(window, text) do
     sock = tlon_socket()
-    target = "#{@tlon_session}:#{window}"
+    target = "#{world_session()}:#{window}"
     _ = await_ready(sock, target)
     _ = cmd_runner().("tmux", ["-L", sock, "send-keys", "-l", "-t", target, text], stderr_to_stdout: true)
     Process.sleep(opening_settle_ms())
