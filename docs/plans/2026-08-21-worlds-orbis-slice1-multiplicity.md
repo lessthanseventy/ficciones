@@ -113,11 +113,21 @@ end
 
 ## Phase B — aleph reads worlds from funes
 
-### Task B1: an `Aleph.Worlds` read seam
+### Task B1: an `Aleph.Worlds` CACHED read seam (event-driven)
+
+**Why a cache, not a thin read (discovered during execution):** `Space.all/0` is called per-render in hot paths (`view.ex`, cockpit `tlon_layout`, `keymap`). A direct `Funes.Worlds.all/0` there = a funes DB read every render — the same per-frame-gather regression the Orbis survey caught. So the seam must be an event-driven cache.
+
+**Design:** a small `Aleph.Worlds` GenServer that:
+- On init, loads `Funes.Worlds.all/0` into state and subscribes to the funes worlds Bus topic (`Funes.Bus.subscribe_worlds/0` — added in Phase A; funes runs in-process in aleph, so this works like the cockpit's existing `Funes.Channel`/`Board` reads).
+- On `{:world_registered|world_edited|world_removed, _}` → reloads the cache.
+- Exposes `Aleph.Worlds.all/0` reading the cached list (cheap — no DB hit per render). Returns aleph-shaped `%{name, type, paths, roster, scope}` maps.
+- Funes-down at init / empty → `[]` (callers apply the hardcoded-Tlön fallback in B2/B3). Guard the load in a try/rescue so a funes hiccup can't crash aleph boot.
+- Add it to the aleph supervision tree.
 
 **Files:**
-- Create: `modules/aleph/lib/aleph/worlds.ex` — a thin read over `Funes.Worlds.all/0` (or the `list_worlds` MCP path if aleph shouldn't call funes contexts directly — prefer the exported context per the boundary note), returning aleph-shaped `%{name, type, paths, roster, scope}` structs. Nil/funes-down → `[]` (like `orbis_worlds/1`).
-- Test: `modules/aleph/test/aleph/worlds_test.exs`
+- Create: `modules/aleph/lib/aleph/worlds.ex` (the GenServer + `all/0`)
+- Modify: the aleph application supervisor (`lib/aleph/application.ex`) — start `Aleph.Worlds`
+- Test: `modules/aleph/test/aleph/worlds_test.exs` — cached read returns worlds; a `:world_registered` Bus message refreshes the cache; funes-down/empty → `[]`. (Drive the GenServer directly; assert it reflects a registered world without a per-call DB read.)
 
 ### Task B2: `Space.all/0` derives the World space from funes
 
