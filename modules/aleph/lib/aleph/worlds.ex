@@ -23,6 +23,8 @@ defmodule Aleph.Worlds do
 
   alias Funes.Bus
 
+  require Logger
+
   @world_events [:world_registered, :world_edited, :world_removed]
   # The aleph-shaped subset lifted off each `Funes.World` — dropping `knobs`/`created_at`.
   # Taken by key (not a struct match) so aleph needn't reference funes' unexported struct.
@@ -37,8 +39,18 @@ defmodule Aleph.Worlds do
 
   @impl true
   def init(_opts) do
-    Bus.subscribe_worlds()
+    subscribe()
     {:ok, load([])}
+  end
+
+  # Guarded like `load/1`: if funes' PubSub is down at boot, degrade to an unsubscribed
+  # empty cache instead of crash-looping the supervisor. Happy path is a plain subscribe.
+  defp subscribe do
+    Bus.subscribe_worlds()
+  rescue
+    e -> Logger.warning("Aleph.Worlds: worlds subscribe failed (#{inspect(e)}); cache won't refresh")
+  catch
+    :exit, reason -> Logger.warning("Aleph.Worlds: worlds subscribe exited (#{inspect(reason)}); cache won't refresh")
   end
 
   @impl true

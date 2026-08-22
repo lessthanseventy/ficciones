@@ -98,6 +98,25 @@ defmodule Aleph.WorldsTest do
     assert [%{name: "Orbis"}] = Aleph.Worlds.all(pid)
   end
 
+  test "all/0 serves the cache, not a live DB read: a direct insert stays invisible until its event lands" do
+    pid = start_worlds()
+    assert Aleph.Worlds.all(pid) == []
+
+    # Insert straight through the Repo, BYPASSING Worlds.register/1 so NO :world_registered
+    # is announced. A naive per-call live read would see this row; a genuine cache does not.
+    {:ok, ghost} = Repo.insert(World.register_changeset(%{name: "Ghost", type: "code"}))
+
+    # Still stale — the row is in the DB but the cache never re-read it on the call.
+    # This assertion is what distinguishes a cache from a live read: a live read fails here.
+    assert Aleph.Worlds.all(pid) == []
+
+    # Deliver the event the real write pipe (Worlds.register/1) would have broadcast. FIFO
+    # mailbox: this handle_info runs before the following all/0 call, so no sleep is needed.
+    # The cache refreshes ONLY now → the EVENT, not the call, drives the reload.
+    send(pid, {:world_registered, ghost})
+    assert [%{name: "Ghost"}] = Aleph.Worlds.all(pid)
+  end
+
   test "no worlds → []" do
     pid = start_worlds()
     assert Aleph.Worlds.all(pid) == []
