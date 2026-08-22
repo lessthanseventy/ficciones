@@ -215,6 +215,53 @@ defmodule Aleph.ViewTest do
     end
   end
 
+  # C3.4: the right column shows ONE panel at a time — `[`/`]` cycle it (right_pane_view) instead
+  # of stacking the whole `space.right` list, so the shown panel renders full-height.
+  describe "right-pane view (C3.4)" do
+    defp right_placed?(placements, mod), do: Enum.any?(placements, &match?({^mod, _, _}, &1))
+
+    test "right_pane_view: 0 (default) shows only the first right panel (Health)" do
+      r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 0})
+      placements = View.compose(r, 120, 40)
+
+      assert right_placed?(placements, Panel.Health)
+      refute right_placed?(placements, Panel.Leaves)
+    end
+
+    test "right_pane_view: 1 shows only the second right panel (Activity), not Health or Leaves" do
+      # The World space's right column is [Health, Activity, Leaves] (Aleph.Space).
+      r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
+      placements = View.compose(r, 120, 40)
+
+      assert right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Health)
+      refute right_placed?(placements, Panel.Leaves)
+    end
+
+    test "a missing right_pane_view (key absent from reads) defaults to 0 (the first panel)" do
+      r = Map.delete(reads(%{active_key: 0, tlon_layout: layout()}), :right_pane_view)
+      placements = View.compose(r, 120, 40)
+
+      assert right_placed?(placements, Panel.Health)
+      refute right_placed?(placements, Panel.Leaves)
+    end
+
+    test "a 1-panel right column (Orbis' [Dossier]) degrades cleanly — rem clamps to index 0" do
+      r = reads(%{active_key: :orbis, focus: nil, right_pane_view: 7})
+      placements = View.compose(r, 120, 40)
+      assert right_placed?(placements, Panel.Dossier)
+    end
+
+    test "narrow layout applies the same single-pane selection to the right portion" do
+      r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
+      placements = View.compose(r, 60, 40)
+
+      assert right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Health)
+      refute right_placed?(placements, Panel.Leaves)
+    end
+  end
+
   # C3.1: the tab strip is LEADERS only — a world's roster windows (+ the uqbar console furniture);
   # `t<id>` leaf windows move to the Leaves panel, not the strip.
   describe "WindowBar leaders only" do

@@ -200,6 +200,30 @@ defmodule Aleph.CockpitTest do
     end
   end
 
+  # C3.4: `[`/`]` cycle the World's right-pane view (Health/Activity/Leaves shown one at a time).
+  # `cycle_pane_view/2` is the pure decision `apply_effect({:cycle_pane_view, dir}, state)` runs —
+  # exposed (like `attach_leaf/2`/`preview_focused/1`) so it's testable without a live GenServer.
+  # Test env's world fallback (funes-down / no live cache) is the hardcoded Tlön space (key 0),
+  # whose right column is `[Health, Activity, Leaves]` — 3 panels.
+  describe "cycle_pane_view/2: the World's right-pane view index" do
+    test "advances by dir and wraps at the right column's length (3 panels: 0→1→2→0)" do
+      state = %{active_key: 0, right_pane_view: 0}
+      assert %{right_pane_view: 1} = Cockpit.cycle_pane_view(state, 1)
+      assert %{right_pane_view: 2} = Cockpit.cycle_pane_view(%{state | right_pane_view: 1}, 1)
+      assert %{right_pane_view: 0} = Cockpit.cycle_pane_view(%{state | right_pane_view: 2}, 1)
+    end
+
+    test "wraps backward too (0 - 1 → last panel)" do
+      state = %{active_key: 0, right_pane_view: 0}
+      assert %{right_pane_view: 2} = Cockpit.cycle_pane_view(state, -1)
+    end
+
+    test "outside a World (Orbis) it's a no-op — nothing to cycle" do
+      state = %{active_key: :orbis, right_pane_view: 0}
+      assert Cockpit.cycle_pane_view(state, 1) == state
+    end
+  end
+
   describe "orbis_worlds/1: the survey reads the CACHED rollup, never re-gathers funes" do
     test "returns the cached rollup's worlds — no live funes gather" do
       # ensure_probes fills state.leaves with the full rollup (worlds key included) on the @probe_ms

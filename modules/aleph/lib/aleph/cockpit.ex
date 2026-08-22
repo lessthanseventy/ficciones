@@ -240,6 +240,10 @@ defmodule Aleph.Cockpit do
             # `t<id>` window is attached, else `{:leader, name | nil}`. Leaves washes the leaf row
             # whose id matches. Set by attach_leaf/2 and the WindowBar tab click.
             focused_session: {:leader, nil},
+            # C3.4: `[`/`]` cycle this index into the active World's right column, so only one of
+            # Health/Activity/Leaves shows (full-height) at a time. Index 0 = the first right panel
+            # (Health) — the default; the operator tunes it live.
+            right_pane_view: 0,
             paste_buffer: nil,
             input: nil,
             # The Tlön settings modal (nil = closed). Persistent like `input`: the keymap opens it
@@ -904,6 +908,9 @@ defmodule Aleph.Cockpit do
   # (a live preview) WITHOUT taking focus or sending keys — commit does that. See preview_focused/1.
   defp apply_effect(:tlon_preview, state), do: {:noreply, render(preview_focused(state))}
 
+  # `[`/`]` landed (C3.4): step the World's right-pane view and repaint.
+  defp apply_effect({:cycle_pane_view, dir}, state), do: {:noreply, render(cycle_pane_view(state, dir))}
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.
@@ -930,6 +937,23 @@ defmodule Aleph.Cockpit do
   rescue
     e -> {:noreply, render(%{state | flash: "habit action failed: #{Exception.message(e)}"})}
   end
+
+  @doc false
+  # The pure decision behind `[`/`]`: advance `right_pane_view` by `dir`, wrapped at the active
+  # space's right-column length (0 → no right column → no-op, guards div-by-zero). Public + exposed
+  # (like `attach_leaf/2`/`preview_focused/1`) so it's testable without a live GenServer.
+  def cycle_pane_view(%{active_key: key} = state, dir) when Space.world?(key) do
+    case Space.fetch(key) do
+      %{right: right} when right != [] ->
+        n = length(right)
+        %{state | right_pane_view: rem(state.right_pane_view + dir + n, n)}
+
+      _ ->
+        state
+    end
+  end
+
+  def cycle_pane_view(state, _dir), do: state
 
   # The pending habit the focus points at, or nil unless: a World space, nav mode, Memory pane,
   # habits section (1), with a habit under the clamped cursor.
@@ -1142,6 +1166,10 @@ defmodule Aleph.Cockpit do
       memory: if(Space.world?(state.active_key), do: state.memory),
       orbis: if(Space.world?(state.active_key), do: state.leaves),
       focused_session: state.focused_session,
+      # Which of the World's right-column panels (Health/Activity/Leaves) to show, full-height —
+      # the `[`/`]` cycle (C3.4). View clamps with `rem`, so this is meaningless-but-harmless
+      # outside a World.
+      right_pane_view: state.right_pane_view,
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :orbis, do: triage_read(threads)),
       habits: habits_read(state.active_key),

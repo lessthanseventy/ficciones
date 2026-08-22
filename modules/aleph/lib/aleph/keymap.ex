@@ -33,6 +33,8 @@ defmodule Aleph.Keymap do
     * `{:cycle_coworker_model, profile}` — advance the active space's coworker driver model one
       step round `Aleph.Profiles.model_ring/0` and persist it (the `m` verb — the SETTINGS knob;
       only in a space with a coworker).
+    * `{:cycle_pane_view, dir}` — cycle the World's right-pane view (Health↔Activity↔Leaves, one
+      panel shown full-height at a time) by `dir` (+1/-1, the `[`/`]` verb, World nav only).
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb) or
@@ -63,6 +65,7 @@ defmodule Aleph.Keymap do
           | {:cycle_coworker_model, String.t()}
           | {:settings_apply, {String.t(), :model | :permission}}
           | {:habit_action, :approve | :reject}
+          | {:cycle_pane_view, integer()}
           | :tlon_enter
           | :tlon_preview
           | :none
@@ -199,7 +202,7 @@ defmodule Aleph.Keymap do
   # --- Tlön: the lazygit focus model (design 2026-08-20). The center is a live tmux client, so
   # `Ctrl+Space` is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use.
   # In the terminal every key forwards to tmux; out of it aleph owns the keys and drives the pure
-  # `Aleph.Tlon.Focus` SM over `tlon_layout` (h/l pane · H/L column · Tab section · Esc→terminal).
+  # `Aleph.Tlon.Focus` SM over `tlon_layout` (h/l pane · H/L column · s section · Esc→terminal).
   # `focus` (persistent) and `tlon_layout` (derived per keypress, like center_live?) are supplied by
   # the cockpit only for this space; the guard keeps every other space on the leader path below. ---
   def handle(key, %{active_key: k, focus: %Focus{}} = state) when Space.world?(k), do: handle_tlon(key, state)
@@ -274,8 +277,6 @@ defmodule Aleph.Keymap do
 
   defp command(%{key: :tab, shift: true}, state), do: switch(state, :prev)
   defp command(%{key: :tab}, state), do: switch(state, :next)
-  defp command(%{key: :char, char: "]"}, state), do: switch(state, :next)
-  defp command(%{key: :char, char: "["}, state), do: switch(state, :prev)
 
   defp command(%{key: :up}, state), do: move(state, -1)
   defp command(%{key: :char, char: "k"}, state), do: move(state, -1)
@@ -326,10 +327,18 @@ defmodule Aleph.Keymap do
 
   defp handle_tlon(%{key: :char, char: "a"}, state), do: {state, {:habit_action, :approve}}
   defp handle_tlon(%{key: :char, char: "r"}, state), do: {state, {:habit_action, :reject}}
-  defp handle_tlon(%{key: :tab}, state), do: {focus_intent(state, :section_next), :repaint}
+  # C3.4 reshuffle: Tab/Shift+Tab switch spaces (matching the command level) instead of cycling
+  # sections — Shift+Tab must precede the bare :tab clause below, which also matches it.
+  defp handle_tlon(%{key: :tab, shift: true}, state), do: switch(state, :prev)
+  defp handle_tlon(%{key: :tab}, state), do: switch(state, :next)
+  # `s` took over section-cycle (freed by Tab) — habits approve/reject needs focus.section == 1,
+  # so the section must stay reachable.
+  defp handle_tlon(%{key: :char, char: "s"}, state), do: {focus_intent(state, :section_next), :repaint}
   defp handle_tlon(%{key: :char, char: "q"}, state), do: {state, :quit}
-  defp handle_tlon(%{key: :char, char: "]"}, state), do: switch(state, :next)
-  defp handle_tlon(%{key: :char, char: "["}, state), do: switch(state, :prev)
+  # `[`/`]` cycle the World's right-pane view (Health↔Activity↔Leaves, one full-height panel at a
+  # time) — the cockpit resolves the active space's right-column length and wraps the index.
+  defp handle_tlon(%{key: :char, char: "]"}, state), do: {state, {:cycle_pane_view, 1}}
+  defp handle_tlon(%{key: :char, char: "["}, state), do: {state, {:cycle_pane_view, -1}}
   defp handle_tlon(%{key: :char, char: "c"} = k, state), do: command(k, state)
   defp handle_tlon(%{key: :char, char: "m"} = k, state), do: command(k, state)
   defp handle_tlon(_key, state), do: {state, :none}

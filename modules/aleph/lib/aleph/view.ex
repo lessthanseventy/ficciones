@@ -60,11 +60,11 @@ defmodule Aleph.View do
           [
             {left, [Panel.Spaces | space.left]},
             {center, center_panels},
-            {right, space.right}
+            {right, right_panels(space, reads)}
           ]
 
         :narrow ->
-          sections = [Panel.Spaces | space.left] ++ center_panels ++ space.right
+          sections = [Panel.Spaces | space.left] ++ center_panels ++ right_panels(space, reads)
           [{%{x: 0, y: 0, w: w, h: body_h}, sections}]
       end
 
@@ -172,6 +172,15 @@ defmodule Aleph.View do
       {_section, rect} -> inset(rect)
       nil -> inset(center_col)
     end
+  end
+
+  # C3.4: the right column shows ONE panel at a time (`[`/`]` cycles `reads.right_pane_view`),
+  # full-height, instead of stacking every `space.right` panel. `rem` clamps so a 1-panel column
+  # (Orbis' `[Dossier]`) degrades cleanly to index 0 regardless of the stored view index.
+  defp right_panels(%{right: []}, _reads), do: []
+
+  defp right_panels(%{right: right}, reads) do
+    [Enum.at(right, rem(reads[:right_pane_view] || 0, length(right)))]
   end
 
   # `Space.fetch/1` returns nil on a miss (Phase C1: no silent Orbis default at the Space layer) —

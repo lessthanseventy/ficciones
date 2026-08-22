@@ -102,10 +102,11 @@ defmodule Aleph.KeymapTest do
                Keymap.handle(key(:tab, shift: true), state(%{active_key: :orbis}))
     end
 
-    test "] is next, [ is previous" do
-      # Two spaces after the Slice 0 collapse, so the ring is Orbis⇄Tlön: ] advances, [ retreats.
-      assert {%{active_key: 0}, :repaint} = Keymap.handle(char("]"), state())
-      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("["), state(%{active_key: 0}))
+    test "[ and ] are unbound outside a World — nothing to cycle in Orbis (C3.4 reshuffle)" do
+      s = state()
+      assert {^s, :none} = Keymap.handle(char("]"), s)
+      s2 = state(%{active_key: 0})
+      assert {^s2, :none} = Keymap.handle(char("["), s2)
     end
 
     test "Down and j both move focus forward" do
@@ -555,12 +556,19 @@ defmodule Aleph.KeymapTest do
       assert n2.focus.column == :left
     end
 
-    test "in nav mode, Tab cycles the focused pane's sections" do
+    test "in nav mode, s cycles the focused pane's sections (C3.4: section-cycle moved off Tab)" do
       s = tlon(nav_focus(%{column: :left, pane: 0}), %{tlon_layout: %{left: [:a, :b], right: [:c], sections: %{a: 2}}})
-      {n1, :repaint} = Keymap.handle(key(:tab), s)
+      {n1, :repaint} = Keymap.handle(char("s"), s)
       assert n1.focus.section == 1
-      {n2, :repaint} = Keymap.handle(key(:tab), n1)
+      {n2, :repaint} = Keymap.handle(char("s"), n1)
       assert n2.focus.section == 0
+    end
+
+    test "in nav mode, Tab and Shift+Tab switch spaces (consistent with the command level)" do
+      # Two-space ring after the collapse: from Tlön, either direction lands on Orbis.
+      s = tlon(nav_focus())
+      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(key(:tab), s)
+      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(key(:tab, shift: true), s)
     end
 
     test "in nav mode, j/k move the item cursor within the focused pane, clamped to its count" do
@@ -624,11 +632,10 @@ defmodule Aleph.KeymapTest do
       assert {_s, :quit} = Keymap.handle(char("q"), tlon(nav_focus()))
     end
 
-    test "in nav mode, [ and ] still switch spaces (Tab is section-cycle here)" do
-      # Two-space ring after the collapse: from Tlön both brackets land on Orbis.
+    test "in nav mode, ] and [ cycle the right-pane view (C3.4 — space-switch moved to Tab)" do
       s = tlon(nav_focus())
-      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("]"), s)
-      assert {%{active_key: :orbis}, :repaint} = Keymap.handle(char("["), s)
+      assert {^s, {:cycle_pane_view, 1}} = Keymap.handle(char("]"), s)
+      assert {^s, {:cycle_pane_view, -1}} = Keymap.handle(char("["), s)
     end
 
     test "in nav mode, c opens the composer on the machine thread" do
