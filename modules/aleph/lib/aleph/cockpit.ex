@@ -235,6 +235,9 @@ defmodule Aleph.Cockpit do
             # Orbis' second face (D2.1): `:survey` (Chorus, the default) or `:author` (Panel.Author
             # — create/delete funes worlds). `a` toggles; Esc in `:author` steps back.
             orbis_face: :survey,
+            # The author face's own per-row cursor (j/k), clamped to `Aleph.Worlds.all/0`'s length
+            # at keypress time — mirrors `survey_cursor`.
+            author_cursor: 0,
             subscribed_thread: nil,
             leader_pending?: false,
             # Tlön's lazygit focus (which sidebar column/pane/section, and whether we're in the
@@ -361,14 +364,21 @@ defmodule Aleph.Cockpit do
     # dropped on the way back; the cockpit keeps only `leader_pending?`.
     # `focus` rides in `state` (persistent); `tlon_layout` is derived per keypress, like the two
     # above, and dropped on the way back — the keymap reads it to navigate, the cockpit never stores it.
+    # `author_worlds` (D2.2): the author face's own world list, derived per keypress like
+    # `composer_thread_id` — `Aleph.Worlds.all/0` is a cached GenServer call (no DB hit), so this
+    # keeps `Aleph.Keymap` a pure reducer with no funes call of its own.
     keymap_state =
       %{state | flash: nil}
       |> Map.put(:center_live?, center_terminal(state) != nil)
       |> Map.put(:composer_thread_id, composer_thread_id(state))
       |> Map.put(:tlon_layout, tlon_layout(state))
+      |> Map.put(:author_worlds, Aleph.Worlds.all())
 
     {next, effect} = Keymap.handle(key, keymap_state)
-    next = reset_scrolls(state, Map.drop(next, [:center_live?, :composer_thread_id, :tlon_layout]))
+
+    next =
+      reset_scrolls(state, Map.drop(next, [:center_live?, :composer_thread_id, :tlon_layout, :author_worlds]))
+
     apply_effect(effect, next)
   end
 
@@ -1162,9 +1172,10 @@ defmodule Aleph.Cockpit do
       # meaningful in Orbis (`right_pane_view`'s same "harmless elsewhere" idiom).
       orbis_focus: state.orbis_focus,
       survey_cursor: state.survey_cursor,
-      # Orbis' author face (D2.1): which center panel to render — Meaningless-but-harmless
-      # outside Orbis, same idiom as `right_pane_view`.
+      # Orbis' author face (D2.1/D2.2): which center panel to render, and its own cursor.
+      # Meaningless-but-harmless outside Orbis, same idiom as `right_pane_view`.
       orbis_face: state.orbis_face,
+      author_cursor: state.author_cursor,
       terminal: terminal_read(state, focused),
       machine: machine_read(state),
       stack: state.stack || @empty_stack,

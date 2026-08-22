@@ -13,6 +13,7 @@ defmodule Aleph.View do
   alias Aleph.Panel
   alias Aleph.Space
   alias Aleph.Tlon.Focus
+  alias Aleph.Worlds
   alias Funes.Presence
 
   @min_col 16
@@ -36,7 +37,8 @@ defmodule Aleph.View do
     Panel.Triage,
     Panel.Settings,
     Panel.Memory,
-    Panel.Detail
+    Panel.Detail,
+    Panel.Author
   ]
 
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
@@ -228,6 +230,11 @@ defmodule Aleph.View do
   def data_for(Panel.Chorus, r),
     do: %{worlds: r[:worlds] || [], survey_cursor: r[:survey_cursor], orbis_focus: r[:orbis_focus]}
 
+  # The author face's own world list — `Aleph.Worlds.all/0` directly (not the survey's rollup
+  # cache), since a thread-less world (a fresh "blank" template) is real here even when
+  # `Aleph.Orbis.rollup/0` has nothing to show (D2.2).
+  def data_for(Panel.Author, r), do: %{worlds: author_worlds(), cursor: r[:author_cursor] || 0}
+
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
   def data_for(Panel.Stack, r), do: r.stack
   def data_for(Panel.Health, r), do: r.health
@@ -251,6 +258,17 @@ defmodule Aleph.View do
     do: Map.put(data, :scroll, (reads[:scrolls] || %{})[panel] || 0)
 
   defp scroll_data(_panel, data, _reads), do: data
+
+  # `Aleph.Worlds` isn't started under `mix test` (config/test.exs `start_worlds: false` — it
+  # would subscribe to the funes worlds Bus and pollute the pure-render tests), so a call here
+  # degrades to `[]` instead of crashing the paint — same guard as `Aleph.Space.fetch_worlds/0`.
+  defp author_worlds do
+    Worlds.all()
+  rescue
+    _ -> []
+  catch
+    :exit, _ -> []
+  end
 
   defp status_data(reads, space) do
     %{

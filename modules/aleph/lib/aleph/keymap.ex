@@ -54,7 +54,10 @@ defmodule Aleph.Keymap do
   the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
 
   Orbis' AUTHOR face (D2, Chunk 1): `orbis_face :: :survey | :author` (default `:survey`) picks
-  which center panel `Aleph.View` renders — `a` toggles it on, Esc steps back off.
+  which center panel `Aleph.View` renders — `a` toggles it on, Esc steps back off. `author_cursor`
+  is the author list's own per-row cursor (mirrors `survey_cursor`), clamped against
+  `author_worlds` — the live `Aleph.Worlds.all/0` list, threaded in per keypress (like
+  `composer_thread_id`) so this module stays a pure reducer with no funes call of its own.
   """
   alias Aleph.Panel
   alias Aleph.Profiles
@@ -440,12 +443,15 @@ defmodule Aleph.Keymap do
     {%{state | focused_id: new_id}, :repaint}
   end
 
-  # Dispatch Orbis' j/k/↑/↓ by which cursor is focused — the survey's per-row cursor, or the
-  # pre-existing thread move (`move/2`, unchanged — keeps the composer's `c` target working).
+  # Dispatch Orbis' j/k/↑/↓: the author face's own cursor takes priority over `orbis_focus`
+  # (survey/threads is meaningless while the author face is showing — Panel.Author, not Chorus);
+  # else the survey's per-row cursor, or the pre-existing thread move (`move/2`, unchanged — keeps
+  # the composer's `c` target working).
   defp move_orbis(state, dir) do
-    case orbis_focus(state) do
-      :survey -> move_survey(state, dir)
-      :threads -> move(state, dir)
+    cond do
+      orbis_face(state) == :author -> move_author_cursor(state, dir)
+      orbis_focus(state) == :survey -> move_survey(state, dir)
+      true -> move(state, dir)
     end
   end
 
@@ -465,11 +471,20 @@ defmodule Aleph.Keymap do
     Map.put(state, :orbis_focus, next)
   end
 
+  # Clamp `author_cursor` into `0..length(author_worlds) - 1` — same edge-clamp discipline as
+  # `move_survey/2`.
+  defp move_author_cursor(state, dir) do
+    max_idx = max(length(author_worlds(state)) - 1, 0)
+    cursor = (author_cursor(state) + dir) |> max(0) |> min(max_idx)
+    {Map.put(state, :author_cursor, cursor), :repaint}
+  end
+
   # Defaults tolerate a state map built before these fields existed (an older test's literal
   # state) — `:survey`/`0`, matching the cockpit's init-state defaults.
   defp orbis_focus(state), do: Map.get(state, :orbis_focus, :survey)
   defp survey_cursor(state), do: Map.get(state, :survey_cursor, 0)
   defp orbis_face(state), do: Map.get(state, :orbis_face, :survey)
+  defp author_cursor(state), do: Map.get(state, :author_cursor, 0)
 
   # The live worlds list Orbis' survey cursor/Enter resolve against — the same cached
   # `Aleph.Orbis.rollup/0` the cockpit's `orbis_worlds/1` reads (`state.leaves.worlds`). Kept local
@@ -480,6 +495,13 @@ defmodule Aleph.Keymap do
       _ -> []
     end
   end
+
+  # The author face's own world list — `Aleph.Worlds.all/0`, threaded in per keypress by the
+  # cockpit (like `composer_thread_id`) so this stays a pure reducer with no funes call of its
+  # own. Distinct from `survey_worlds/1` (the Orbis rollup, which is `nil` whenever there are no
+  # MACHINE THREADS yet — a freshly-created, thread-less world would vanish from that list even
+  # though it's a real row here).
+  defp author_worlds(state), do: Map.get(state, :author_worlds, [])
 
   defp cursor_of(%{cursor: c}), do: c
   defp cursor_of(%{buffer: buffer}), do: String.length(buffer)

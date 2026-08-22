@@ -39,7 +39,9 @@ defmodule Aleph.KeymapTest do
           leaves: nil,
           # Orbis' author face (D2, Chunk 1) — defaults mirror the cockpit's init state; the
           # "Orbis author face" describe block below sets `orbis_face: :author` explicitly.
-          orbis_face: :survey
+          orbis_face: :survey,
+          author_cursor: 0,
+          author_worlds: []
         },
         overrides
       )
@@ -223,6 +225,38 @@ defmodule Aleph.KeymapTest do
     test "`a` outside Orbis is unbound (not a table-wide binding)" do
       s = state(%{active_key: 0})
       assert {^s, :none} = Keymap.handle(char("a"), s)
+    end
+  end
+
+  describe "Panel.Author's row cursor (D2.2: author_cursor, orbis_face == :author)" do
+    @two_author_worlds [%{id: 11, name: "Tlön"}, %{id: 22, name: "Freedonia"}]
+
+    defp author_state(overrides),
+      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: @two_author_worlds}, overrides))
+
+    test "j/k (and ↑/↓) move author_cursor, clamped 0..length(author_worlds)-1 — no wrap" do
+      s = author_state(%{author_cursor: 0})
+      assert {%{author_cursor: 1}, :repaint} = Keymap.handle(char("j"), s)
+      assert {%{author_cursor: 1}, :repaint} = Keymap.handle(key(:down), s)
+
+      s1 = author_state(%{author_cursor: 1})
+      assert {%{author_cursor: 1}, :repaint} = Keymap.handle(char("j"), s1)
+      assert {%{author_cursor: 1}, :repaint} = Keymap.handle(key(:down), s1)
+
+      assert {%{author_cursor: 0}, :repaint} = Keymap.handle(char("k"), author_state(%{author_cursor: 0}))
+      assert {%{author_cursor: 0}, :repaint} = Keymap.handle(key(:up), author_state(%{author_cursor: 0}))
+    end
+
+    test "the author face's cursor is independent of the survey's orbis_focus dimension" do
+      # orbis_focus left at its :threads default (irrelevant while orbis_face == :author) — the
+      # author cursor still moves, proving move_orbis checks orbis_face FIRST.
+      s = author_state(%{orbis_focus: :threads, author_cursor: 0, focused_id: 2})
+      assert {%{author_cursor: 1, focused_id: 2}, :repaint} = Keymap.handle(char("j"), s)
+    end
+
+    test "back on the survey face, j/k move survey_cursor/focused_id as before — untouched by author_cursor" do
+      s = state(%{active_key: :orbis, orbis_face: :survey, orbis_focus: :survey, leaves: %{worlds: @two_author_worlds}})
+      assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(char("j"), s)
     end
   end
 
