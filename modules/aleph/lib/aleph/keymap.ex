@@ -44,16 +44,15 @@ defmodule Aleph.Keymap do
   edit (typing, Backspace, Shift+Enter's newline) acts AT the cursor, like a normal text box. In
   the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
   """
-
-  # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
-  # not just an alias.
-  require Aleph.Space
-
   alias Aleph.Panel
   alias Aleph.Profiles
   alias Aleph.Space
   alias Aleph.Tlon.Focus
   alias Aleph.Tlon.Settings
+
+  # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
+  # not just an alias.
+  require Space
 
   @type effect ::
           :repaint
@@ -265,7 +264,8 @@ defmodule Aleph.Keymap do
   # Enter in the Orbis survey zooms the selected world to its lens — Slice 1 still has one world,
   # so Enter drops straight into it (the god-view → world zoom). Reuses the plain space-switch, no
   # focus SM involved. Slice 1 one-world bridge; C2 resolves the selected survey row → its world id.
-  defp command(%{key: :enter}, %{active_key: :orbis} = state), do: {%{state | active_key: Space.first_world().key}, :repaint}
+  defp command(%{key: :enter}, %{active_key: :orbis} = state),
+    do: {%{state | active_key: Space.first_world().key}, :repaint}
 
   # Enter has no top-level verb elsewhere since the Slice 0 collapse: the Sessions space (its only
   # home — the one center that could show a spawned per-thread PTY) is gone, so Enter is a plain
@@ -317,8 +317,13 @@ defmodule Aleph.Keymap do
   # (Commits/Memory) or jumps to a thread (Leaves) — the keymap can't, it lacks the reads.
   defp handle_tlon(%{key: :enter}, state), do: {state, :tlon_enter}
   # a/r act on the selected pending habit (Memory's habits section) — the cockpit resolves which
+  # --- input-buffer cursor math (graphemes, not bytes) — what makes the composer/new-thread box
   # habit from the focus + reads and no-ops if the focus isn't on a habit. Approving writes it into
+  # behave like a normal text field instead of an append-only log. `input.cursor` defaults to the
   # the recall floor; rejecting drops it.
+  # buffer's end when absent (a state built before this field existed, or by an older test),
+  # matching the old append-always behaviour exactly until something actually moves the cursor.
+
   defp handle_tlon(%{key: :char, char: "a"}, state), do: {state, {:habit_action, :approve}}
   defp handle_tlon(%{key: :char, char: "r"}, state), do: {state, {:habit_action, :reject}}
   defp handle_tlon(%{key: :tab}, state), do: {focus_intent(state, :section_next), :repaint}
@@ -370,11 +375,6 @@ defmodule Aleph.Keymap do
     new_id = Enum.at(ids, min(max(i + dir, 0), length(ids) - 1))
     {%{state | focused_id: new_id}, :repaint}
   end
-
-  # --- input-buffer cursor math (graphemes, not bytes) — what makes the composer/new-thread box
-  # behave like a normal text field instead of an append-only log. `input.cursor` defaults to the
-  # buffer's end when absent (a state built before this field existed, or by an older test),
-  # matching the old append-always behaviour exactly until something actually moves the cursor.
 
   defp cursor_of(%{cursor: c}), do: c
   defp cursor_of(%{buffer: buffer}), do: String.length(buffer)

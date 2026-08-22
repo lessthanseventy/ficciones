@@ -11,10 +11,6 @@ defmodule Aleph.Cockpit do
   """
   use GenServer
 
-  # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
-  # not just an alias.
-  require Aleph.Space
-
   alias Aleph.Board
   alias Aleph.Keymap
   alias Aleph.Mouse
@@ -35,6 +31,10 @@ defmodule Aleph.Cockpit do
   alias Funes.Staff
   alias Ghostty.KeyEvent
   alias Raxol.Core.Events.Event
+
+  # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
+  # not just an alias.
+  require Space
 
   # Redraw cadence for tmux liveness + roster warmth, independent of Bus events.
   @tick_ms 500
@@ -1149,8 +1149,16 @@ defmodule Aleph.Cockpit do
     case Space.fetch(key) do
       # A stale/removed active_key mid-render (Space.fetch/1 returns nil on a miss) — degrade to
       # the same empty layout a non-World space gets, rather than crash the render.
-      nil -> %{left: [], right: [], sections: %{}, counts: %{}}
-      space -> %{left: [Panel.Spaces | space.left], right: space.right, sections: %{Panel.Memory => 2}, counts: pane_counts(state)}
+      nil ->
+        %{left: [], right: [], sections: %{}, counts: %{}}
+
+      space ->
+        %{
+          left: [Panel.Spaces | space.left],
+          right: space.right,
+          sections: %{Panel.Memory => 2},
+          counts: pane_counts(state)
+        }
     end
   end
 

@@ -9,9 +9,6 @@ defmodule Aleph.SpaceTest do
   """
   use ExUnit.Case, async: true
 
-  # `Space.world?/1` is a `defguard` (Phase C1.3), which requires the module, not just an alias.
-  require Aleph.Space
-
   alias Aleph.Panel.Activity
   alias Aleph.Panel.Health
   alias Aleph.Panel.Leaves
@@ -21,6 +18,9 @@ defmodule Aleph.SpaceTest do
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.WindowBar
   alias Aleph.Space
+
+  # `Space.world?/1` is a `defguard` (Phase C1.3), which requires the module, not just an alias.
+  require Space
 
   # The seeded Tlön world, aleph-shaped (Aleph.Worlds.all/0 output — string-keyed roster from JSON).
   @tlon %{
@@ -97,7 +97,7 @@ defmodule Aleph.SpaceTest do
 
   describe "the funes-down fallback" do
     test "keys as the sentinel 0 (real funes ids start at 1)" do
-      assert [%{key: :orbis}, %{key: 0, label: "Tlön"}] = Aleph.Space.all([])
+      assert [%{key: :orbis}, %{key: 0, label: "Tlön"}] = Space.all([])
     end
   end
 

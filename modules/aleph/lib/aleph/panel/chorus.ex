@@ -12,13 +12,13 @@ defmodule Aleph.Panel.Chorus do
   """
   @behaviour Aleph.Panel
 
-  # `Space.world?/1` is a `defguard`, which requires the module, not just an alias.
-  require Aleph.Space
-
   import Aleph.Panel, only: [line: 2, blank: 0]
 
   alias Aleph.Panel.Leaves
   alias Aleph.Space
+
+  # `Space.world?/1` is a `defguard`, which requires the module, not just an alias.
+  require Space
 
   # Header (title) + blank spacer above the world rows; each world block is head + summary + blank.
   @header_rows 2
