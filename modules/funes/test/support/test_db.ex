@@ -12,7 +12,10 @@ defmodule Funes.TestDB do
   # fact → thread+session, event/issue/message/habit → thread, session → agent+thread,
   # thread → agent. So: the leaf rows, then message/session, then thread, then agent.
   # habit.source_thread_id → thread, so it clears with the other thread-children.
+  # world has no FK relationships (a machine-global composition), so it clears
+  # independently — order-free, listed first.
   @ordered [
+    Funes.World,
     Funes.Fact,
     Funes.Event,
     Funes.Issue,
