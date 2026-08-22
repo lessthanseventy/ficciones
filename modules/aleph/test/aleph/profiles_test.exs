@@ -360,4 +360,17 @@ defmodule Aleph.ProfilesTest do
       assert cfg["permission"]["edit"] == "deny"
     end
   end
+
+  describe "archetype — each profile is an instance of a role template" do
+    test "every registered profile declares an archetype atom" do
+      for p <- Profiles.all() do
+        assert is_atom(p.archetype) and not is_nil(p.archetype)
+      end
+    end
+
+    test "tertius is the surveyor archetype, reviewer is the reviewer archetype" do
+      assert Profiles.fetch("tertius").archetype == :surveyor
+      assert Profiles.fetch("reviewer").archetype == :reviewer
+    end
+  end
 end

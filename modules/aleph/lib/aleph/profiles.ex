@@ -23,6 +23,7 @@ defmodule Aleph.Profile do
   """
   @enforce_keys [:name]
   defstruct name: nil,
+            archetype: nil,
             drop_extensions: [],
             add_extensions: [],
             mcp: :base,
@@ -33,6 +34,7 @@ defmodule Aleph.Profile do
 
   @type t :: %__MODULE__{
           name: String.t(),
+          archetype: atom(),
           drop_extensions: [String.t()],
           add_extensions: [String.t()],
           mcp: :base | :none | map(),
@@ -376,6 +378,7 @@ defmodule Aleph.Profiles do
   @profiles [
     %Profile{
       name: "tertius",
+      archetype: :surveyor,
       drop_extensions: [],
       add_extensions: [@footer_extension],
       mcp: @tertius_funes_mcp,
@@ -386,6 +389,7 @@ defmodule Aleph.Profiles do
     },
     %Profile{
       name: "reviewer",
+      archetype: :reviewer,
       drop_extensions: [],
       add_extensions: [@footer_extension],
       mcp: @tlon_funes_mcp,
@@ -430,6 +434,10 @@ defmodule Aleph.Profiles do
     do: %{p | permissions: Map.put(perms, "yoloMode", yolo)}
 
   defp apply_yolo_override(p, _yolo), do: p
+
+  @doc "Every registered coworker profile (the compiled registry, before runtime overrides)."
+  @spec all() :: [Profile.t()]
+  def all, do: @profiles
 
   @doc "The names of the coworker profiles aleph materialises — the rows the settings modal controls."
   @spec names() :: [String.t()]
