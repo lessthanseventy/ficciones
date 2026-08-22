@@ -1,10 +1,12 @@
 defmodule Aleph.Space do
   @moduledoc """
   A **space** is a named lens over funes — *what's in the middle* and the panels around it — the
-  unit the top-left switcher picks (design Addendum §B). Since the Slice 0 collapse there are two:
-  **Orbis** (the god-view survey — tertius' per-world rollup, the default) and **Tlön** (the sole,
-  hardcoded **World** under that god-view — the machine/stack as a live embedded terminal). Sessions
-  is gone (its per-thread native-PTY center folded into the World's tmux center). The
+  unit the top-left switcher picks (design Addendum §B). **Orbis** (the god-view survey — tertius'
+  per-world rollup, the default) leads, then one **World** space per funes world (`Aleph.Worlds`,
+  Slice 1) — the machine/stack as a live embedded terminal. With the single seeded Tlön world this
+  is the Slice-0 `[:orbis, :tlon]`; funes-down falls back to the hardcoded Tlön so aleph never boots
+  without a World. Sessions is gone (its per-thread native-PTY center folded into the tmux center).
+  The
   `Aleph.Panel.Spaces` picker switches the active one; the center renders that space's `surface`.
 
   A surface is a LIST of sections stacked down the center — usually one (Orbis), but Tlön frames its
@@ -43,51 +45,90 @@ defmodule Aleph.Space do
         }
 
   @doc """
-  The spaces the switcher offers, in picker order — **Orbis first (the default)**. Deliberately
-  hardcoded for now; the design ships one set and *designs toward* user config (§3). `surface` is
-  the center; `left`/`right` the situational sidebars.
+  The spaces the switcher offers, in picker order — **Orbis first (the default)**, then one World
+  space per funes world (`Aleph.Worlds.all/0`, Slice 1 Task B2). `surface` is the center;
+  `left`/`right` the situational sidebars. Reads the cached world list; `all/1` is the pure
+  derivation over an explicit list (tests inject worlds without the live cache).
   """
   @spec all() :: [t()]
-  def all do
-    [
-      %__MODULE__{
-        key: :orbis,
-        label: "Orbis",
-        # The chorus IS the center now, so thread navigation lives in the feed (the focused
-        # thread's block is highlighted) and the left carries presence (IN FLIGHT) instead of a
-        # list the middle already shows. TRIAGE below IN FLIGHT shows cross-thread trouble.
-        surface: [Chorus],
-        left: [Roster, Triage],
-        right: [Dossier]
-      },
-      %__MODULE__{
-        # Tlön — **World #1**: the sole hardcoded World under Orbis' god-view (Slice 0 collapse).
-        # The center is literal tmux — an embedded client on the standing `tlon` session, so it
-        # survives aleph restarts. The center coworker (tertius) is window 0; the builder (hronir) and
-        # console (uqbar) ride as further windows. WindowBar (aleph's own tab strip — tmux's status
-        # bar is off) frames the terminal on top, Pulse (the latest funes event) frames it below —
-        # each its own bordered band, stacked in this one surface list.
-        #
-        # PROVISIONAL: hardcoding this one World here is a Slice 0 stopgap. Slice 1 moves world
-        # composition (roster, panel-sets, a real second world) into funes-owned data — see
-        # docs/plans/2026-08-21-worlds-orbis-reshape-design.md.
-        key: :tlon,
-        label: "Tlön",
-        surface: [WindowBar, {Terminal, :machine}, Pulse],
-        # The study/act column: Commits (git changelog, was Stack) over Memory (what funes knows —
-        # coverage + the always-loaded floor + pending habits to approve). Habits folded INTO Memory;
-        # Settings is now the `m` keybind / a modal, not an always-on pane.
-        left: [Stack, Memory],
-        # LEAVES — the machine rollup (each leaf thread's lead/status/conflicts), Enter attaches it
-        # in the World center (re-points the tmux window). Health becomes the status bar in the
-        # visual-cleanup pass. ACTIVITY — the
-        # cross-thread funes feed (fact banked, check passed/failed, work landed, message posted,
-        # issue/question raised), fed by the Cockpit's activity buffer.
-        right: [Health, Activity, Leaves],
-        # The center coworker: the `tertius` profile (Orbis Tertius meta agent). See Aleph.Profiles.
-        coworker: "tertius"
-      }
-    ]
+  def all, do: all(fetch_worlds())
+
+  @doc "The picker derived from an explicit world list — `[Orbis | world_spaces(worlds)]`."
+  @spec all([map()]) :: [t()]
+  def all(worlds), do: [orbis_space() | world_spaces(worlds)]
+
+  defp orbis_space do
+    %__MODULE__{
+      key: :orbis,
+      label: "Orbis",
+      # The chorus IS the center now, so thread navigation lives in the feed (the focused
+      # thread's block is highlighted) and the left carries presence (IN FLIGHT) instead of a
+      # list the middle already shows. TRIAGE below IN FLIGHT shows cross-thread trouble.
+      surface: [Chorus],
+      left: [Roster, Triage],
+      right: [Dossier]
+    }
+  end
+
+  # One World space per funes world. FALLBACK: an empty list (funes down / unseeded — the seed only
+  # runs after home:switch) yields the hardcoded Tlön space, so aleph never boots without a World.
+  # With one seeded Tlön world this is structurally identical to the Slice-0 `[:orbis, :tlon]`.
+  defp world_spaces([]), do: [tlon_space()]
+  defp world_spaces(worlds), do: Enum.map(worlds, &space_from_world/1)
+
+  # A World space built from a funes world (aleph-shaped `%{name, roster, ...}`). The `:tlon` key
+  # requirement (the whole cockpit still keys off the `:tlon` atom — de-singletoning is Phase C)
+  # is met by the name→key slug: "Tlön" → :tlon. surface/left/right/coworker reproduce the
+  # Slice-0 Tlön struct exactly; the coworker is the roster lead's name.
+  defp space_from_world(world) do
+    %__MODULE__{
+      key: slug(world.name),
+      label: world.name,
+      surface: [WindowBar, {Terminal, :machine}, Pulse],
+      left: [Stack, Memory],
+      right: [Health, Activity, Leaves],
+      coworker: lead_coworker(world.roster)
+    }
+  end
+
+  # The hardcoded Tlön World — the fallback when funes yields no worlds. Its center is literal tmux
+  # (an embedded client on the standing `tlon` session, surviving aleph restarts): tertius is window
+  # 0, the builder (hronir) and console (uqbar) ride as further windows. WindowBar frames the
+  # terminal on top, Pulse (the latest funes event) below — each its own bordered band.
+  defp tlon_space do
+    %__MODULE__{
+      key: :tlon,
+      label: "Tlön",
+      surface: [WindowBar, {Terminal, :machine}, Pulse],
+      left: [Stack, Memory],
+      right: [Health, Activity, Leaves],
+      coworker: "tertius"
+    }
+  end
+
+  # Read the cached worlds, degrading to [] (→ Tlön fallback) if the cache is down mid-render.
+  defp fetch_worlds do
+    Aleph.Worlds.all()
+  rescue
+    _ -> []
+  catch
+    :exit, _ -> []
+  end
+
+  # The roster lead → center coworker: the first entry's name, tolerating string (JSON) or atom keys.
+  defp lead_coworker([entry | _]), do: entry["name"] || entry[:name]
+  defp lead_coworker(_), do: nil
+
+  # name → space key. Downcase, then NFD-decompose and strip combining marks so ö→o (⇒ "Tlön" keys
+  # as :tlon exactly, the atom the cockpit still hardcodes); non-alphanumerics collapse to "_".
+  defp slug(name) do
+    name
+    |> String.downcase()
+    |> String.normalize(:nfd)
+    |> String.replace(~r/[\x{0300}-\x{036f}]/u, "")
+    |> String.replace(~r/[^a-z0-9]+/u, "_")
+    |> String.trim("_")
+    |> String.to_atom()
   end
 
   @doc "The space after `key` in picker order, wrapping around."
