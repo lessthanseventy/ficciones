@@ -65,7 +65,7 @@ defmodule Aleph.Crew do
 
   @doc "The tmux server socket the Tlön coworkers share (`aleph-<tlon coworker>`), e.g. `aleph-tertius`."
   @spec tlon_socket() :: String.t()
-  def tlon_socket, do: Profiles.socket(Space.fetch(:tlon).coworker)
+  def tlon_socket, do: Profiles.socket(Space.first_world().coworker)
 
   @doc "The `tmux` argv to spawn a role's per-thread window (detached) running `script`."
   @spec spawn_argv(String.t(), integer() | String.t(), String.t()) :: [String.t()]
