@@ -56,6 +56,8 @@ defmodule Aleph.SpaceTest do
       assert tlon.right == [Health, Activity, Leaves]
       # The roster lead's name (string-keyed JSON) becomes the center coworker.
       assert tlon.coworker == "tertius"
+      # The full roster rides along too (C2/C3 read it), not just the derived coworker name.
+      assert tlon.roster == @tlon.roster
     end
 
     test "empty worlds → hardcoded-Tlön fallback still yields [:orbis, 0]" do

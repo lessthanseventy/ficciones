@@ -112,7 +112,9 @@ defmodule Aleph.Space do
       surface: [WindowBar, {Terminal, :machine}, Pulse],
       left: [Stack, Memory],
       right: [Health, Activity, Leaves],
-      coworker: "tertius"
+      coworker: "tertius",
+      # Mirrors the funes seed roster for the Tlön world, so C2/C3 get a faithful stand-in.
+      roster: [%{"archetype" => "surveyor", "name" => "tertius"}]
     }
   end
 
@@ -139,11 +141,11 @@ defmodule Aleph.Space do
   def world?(key) when is_integer(key), do: true
 
   @doc "The space after `key` in picker order, wrapping around."
-  @spec next(atom() | non_neg_integer()) :: t()
+  @spec next(:orbis | non_neg_integer()) :: t()
   def next(key), do: step(key, 1)
 
   @doc "The space before `key` in picker order, wrapping around."
-  @spec prev(atom() | non_neg_integer()) :: t()
+  @spec prev(:orbis | non_neg_integer()) :: t()
   def prev(key), do: step(key, -1)
 
   @doc """
