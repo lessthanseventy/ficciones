@@ -41,7 +41,8 @@ defmodule Aleph.KeymapTest do
           # "Orbis author face" describe block below sets `orbis_face: :author` explicitly.
           orbis_face: :survey,
           author_cursor: 0,
-          author_worlds: []
+          author_worlds: [],
+          pending_delete: nil
         },
         overrides
       )
@@ -313,6 +314,32 @@ defmodule Aleph.KeymapTest do
     test "Esc cancels the create flow, registering nothing" do
       s = state(%{input: %{kind: :new_world, buffer: "half typed", cursor: 10, template: :code}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+  end
+
+  describe "deleting a world — the author face's `d` verb, two-key confirm (D2.5)" do
+    defp author_state2(overrides),
+      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: @two_author_worlds}, overrides))
+
+    test "d on the cursor world arms the confirm: {:arm_delete, id, name}" do
+      s = author_state2(%{author_cursor: 1})
+      assert {^s, {:arm_delete, 22, "Freedonia"}} = Keymap.handle(char("d"), s)
+    end
+
+    test "d on the survey face is a no-op — nothing to delete from the survey" do
+      s = state(%{active_key: :orbis, orbis_face: :survey})
+      assert {^s, :none} = Keymap.handle(char("d"), s)
+    end
+
+    test "a second d while armed on the SAME id confirms: {:remove_world, id}, and clears the arm" do
+      s = author_state2(%{author_cursor: 1, pending_delete: 22})
+      assert {%{pending_delete: nil}, {:remove_world, 22}} = Keymap.handle(char("d"), s)
+    end
+
+    test "any other key while armed cancels — clears pending_delete, no remove effect" do
+      s = author_state2(%{author_cursor: 1, pending_delete: 22})
+      assert {%{pending_delete: nil}, :repaint} = Keymap.handle(char("j"), s)
+      assert {%{pending_delete: nil}, :repaint} = Keymap.handle(key(:escape), author_state2(%{pending_delete: 22}))
     end
   end
 

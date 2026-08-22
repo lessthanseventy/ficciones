@@ -1,10 +1,10 @@
 defmodule Aleph.CockpitWorldsTest do
   @moduledoc """
-  D2.3: `Aleph.Cockpit.register_world!/3` — the author face's `n` verb's funes write. Exercises
-  the REAL `Funes.Worlds` write pipe (register) through the cockpit's public, pure-ish wrapper
-  (like `cycle_pane_view/2`/`attach_leaf/2`), mirroring `Aleph.WorldsTest`'s temp-DB setup —
-  aleph's `config/test.exs` keeps funes' Repo down, so this suite boots it itself. One of the few
-  aleph suites touching the DB → `async: false`. `remove_world!/2` (D2.5) joins next commit.
+  D2, Chunk 1: `Aleph.Cockpit.register_world!/3` (D2.3) and `remove_world!/2` (D2.5) — the author
+  face's `n`/`d` funes writes. Exercises the REAL `Funes.Worlds` write pipe (register/remove)
+  through the cockpit's public, pure-ish wrappers (like `cycle_pane_view/2`/`attach_leaf/2`),
+  mirroring `Aleph.WorldsTest`'s temp-DB setup — aleph's `config/test.exs` keeps funes' Repo down,
+  so this suite boots it itself. One of the few aleph suites touching the DB → `async: false`.
   """
   use ExUnit.Case, async: false
 
@@ -77,6 +77,44 @@ defmodule Aleph.CockpitWorldsTest do
       assert next.input.kind == :new_world
       assert next.flash =~ "couldn't create"
       assert Worlds.all() == []
+    end
+  end
+
+  describe "remove_world!/2 — the author face's two-key `d` confirm (D2.5)" do
+    test "removes the world and flashes success" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
+      next = Cockpit.remove_world!(state(%{}), w.id)
+
+      assert next.flash =~ "deleted Freedonia"
+      assert Worlds.all() == []
+    end
+
+    test "removing the ACTIVE world resolves active_key to :orbis — never stranded on a dead space" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
+      next = Cockpit.remove_world!(state(%{active_key: w.id}), w.id)
+
+      assert next.active_key == :orbis
+    end
+
+    test "removing a world that ISN'T active leaves active_key untouched" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
+      next = Cockpit.remove_world!(state(%{active_key: :orbis}), w.id)
+
+      assert next.active_key == :orbis
+    end
+
+    test "author_cursor clamps to the shrunk list" do
+      {:ok, w1} = Worlds.register(%{name: "A", type: "blank"})
+      {:ok, _w2} = Worlds.register(%{name: "B", type: "blank"})
+
+      next = Cockpit.remove_world!(state(%{author_cursor: 1}), w1.id)
+
+      assert next.author_cursor == 0
+    end
+
+    test "a missing world (already gone) flashes, never crashes" do
+      next = Cockpit.remove_world!(state(%{}), 999_999)
+      assert next.flash =~ "already gone"
     end
   end
 end

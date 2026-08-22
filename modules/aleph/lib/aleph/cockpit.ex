@@ -240,6 +240,9 @@ defmodule Aleph.Cockpit do
             # The author face's own per-row cursor (j/k), clamped to `Aleph.Worlds.all/0`'s length
             # at keypress time — mirrors `survey_cursor`.
             author_cursor: 0,
+            # The author face's delete confirm arm (D2.5): the world id a `d` press armed, or nil.
+            # A second `d` on this SAME id confirms; any other key cancels (Aleph.Keymap).
+            pending_delete: nil,
             subscribed_thread: nil,
             leader_pending?: false,
             # Tlön's lazygit focus (which sidebar column/pane/section, and whether we're in the
@@ -921,6 +924,13 @@ defmodule Aleph.Cockpit do
   defp apply_effect({:register_world, template, name}, state),
     do: {:noreply, render(register_world!(state, template, name))}
 
+  # `d` on the author face's cursor world landed: arm the two-key delete confirm.
+  defp apply_effect({:arm_delete, id, name}, state),
+    do: {:noreply, render(%{state | pending_delete: id, flash: "press d again to delete #{name}"})}
+
+  # The second `d` (still armed on this id) landed: remove the world.
+  defp apply_effect({:remove_world, id}, state), do: {:noreply, render(remove_world!(state, id))}
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.
@@ -995,6 +1005,38 @@ defmodule Aleph.Cockpit do
   catch
     :exit, reason -> %{state | flash: "create failed: #{inspect(reason)}"}
   end
+
+  @doc false
+  # Remove world `id` (D2.5's second `d`). Guards against stranding the cockpit on a deleted
+  # active world (falls back to `:orbis`) and clamps `author_cursor` to the shrunk list. A missing
+  # world (already gone) or a funes hiccup flashes, never crashes.
+  def remove_world!(state, id) do
+    case Worlds.get(id) do
+      nil ->
+        %{state | flash: "world ##{id} already gone"}
+
+      world ->
+        case Worlds.remove(world) do
+          {:ok, _} ->
+            state
+            |> Map.put(:active_key, if(state.active_key == id, do: :orbis, else: state.active_key))
+            |> Map.put(:author_cursor, clamp_author_cursor(state.author_cursor))
+            |> Map.put(:flash, "deleted #{world.name}")
+
+          {:error, changeset} ->
+            %{state | flash: "couldn't delete #{world.name} — #{changeset_error(changeset)}"}
+        end
+    end
+  rescue
+    e -> %{state | flash: "delete failed: #{Exception.message(e)}"}
+  catch
+    :exit, reason -> %{state | flash: "delete failed: #{inspect(reason)}"}
+  end
+
+  # Re-clamp the author cursor against the POST-delete count (one fewer row) — same edge-clamp
+  # discipline as the keymap's move_author_cursor, applied here since a delete can shrink the list
+  # out from under a cursor sitting on (or past) the new last row.
+  defp clamp_author_cursor(cursor), do: max(min(cursor, max(length(Worlds.all()) - 1, 0)), 0)
 
   # A short "field message, message" sentence from an Ecto changeset — surfaces e.g. a duplicate
   # name's UNIQUE(name) violation ("name has already been taken") without a full inspect dump.

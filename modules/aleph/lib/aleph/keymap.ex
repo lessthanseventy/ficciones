@@ -44,6 +44,8 @@ defmodule Aleph.Keymap do
       the author face emits the same effect to step back to the survey.
     * `{:register_world, template_key, name}` — Enter on the `:new_world` input (the author
       face's `n` verb) — register a world from a template + the typed name (D2.3).
+    * `{:arm_delete, id, name}` — `d` on the author face's cursor row arms a delete confirm (D2.5).
+    * `{:remove_world, id}` — the second `d` while armed on the SAME id confirms the delete.
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb),
@@ -62,6 +64,7 @@ defmodule Aleph.Keymap do
   is the author list's own per-row cursor (mirrors `survey_cursor`), clamped against
   `author_worlds` — the live `Aleph.Worlds.all/0` list, threaded in per keypress (like
   `composer_thread_id`) so this module stays a pure reducer with no funes call of its own.
+  `pending_delete` (id | nil) is the two-key delete confirm's arm.
   """
   alias Aleph.Panel
   alias Aleph.Profiles
@@ -87,6 +90,8 @@ defmodule Aleph.Keymap do
           | {:switch_space, atom() | non_neg_integer()}
           | {:toggle_orbis_face}
           | {:register_world, atom(), String.t()}
+          | {:arm_delete, term(), String.t()}
+          | {:remove_world, term()}
           | :tlon_enter
           | :tlon_preview
           | :none
@@ -273,6 +278,19 @@ defmodule Aleph.Keymap do
 
   # --- aleph's command table — one source of bindings, reached two ways: bare in a nav-default
   # space, or via the Ctrl+Space leader from inside a running terminal. ---
+
+  # --- Orbis' delete confirm (author face, D2.5): a `d` on the cursor row arms; the SECOND `d`
+  # (still armed on that SAME id — nothing else could have changed it, see the next clause)
+  # confirms; literally any other key cancels. Both must precede EVERY other clause (even `q`) so
+  # an armed delete can never be confirmed by a stale keypress. ---
+  defp command(%{key: :char, char: "d"}, %{active_key: :orbis, pending_delete: id} = state) when not is_nil(id) do
+    {Map.put(state, :pending_delete, nil), {:remove_world, id}}
+  end
+
+  defp command(_key, %{active_key: :orbis, pending_delete: id} = state) when not is_nil(id) do
+    {Map.put(state, :pending_delete, nil), :repaint}
+  end
+
   defp command(%{key: :char, char: "q"}, state), do: {state, :quit}
 
   # `n` in Orbis' author face opens the create-world flow (a template ring + a name buffer, D2.3)
@@ -302,6 +320,16 @@ defmodule Aleph.Keymap do
   # nothing to close.
   defp command(%{key: :escape}, %{active_key: :orbis} = state) do
     if orbis_face(state) == :author, do: {state, {:toggle_orbis_face}}, else: {state, :none}
+  end
+
+  # `d` on the author face's cursor world arms the delete confirm (D2.5) — the FIRST press; the
+  # armed-state clauses above own the second press and every cancel. A no-op off the author face
+  # (nothing to delete from the survey) or on an empty list.
+  defp command(%{key: :char, char: "d"}, %{active_key: :orbis} = state) do
+    case {orbis_face(state), Enum.at(author_worlds(state), author_cursor(state))} do
+      {:author, %{id: id, name: name}} -> {state, {:arm_delete, id, name}}
+      _ -> {state, :none}
+    end
   end
 
   # `c` — the composer: post to the thread `composer_thread_id` (the focused thread in Orbis, the
