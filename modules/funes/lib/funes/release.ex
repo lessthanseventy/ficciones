@@ -40,6 +40,50 @@ defmodule Funes.Release do
     :ok
   end
 
+  @doc """
+  Find-or-create the seed Tlön world row (worlds/orbis Slice 1) — the composition
+  aleph's picker/survey/spawn opens on. Idempotent: a row already named "Tlön" is
+  left untouched, so the flake's ExecStartPre can run it on every boot. Mirrors
+  `migrate/0`'s release shape (load the app, start only what the work needs, do it),
+  but `Funes.Worlds.register/1` announces on `Funes.Bus`, so PubSub must be up too —
+  hence Repo + PubSub, not the full tree (no MCP/switchboard for a one-shot seed).
+  """
+  @spec seed_world() ::
+          {:ok, Funes.World.t()} | {:error, Ecto.Changeset.t()} | Funes.World.t()
+  def seed_world do
+    load_app()
+
+    {:ok, sup} =
+      Supervisor.start_link(
+        [{Phoenix.PubSub, name: Funes.PubSub}, Funes.Repo],
+        strategy: :one_for_one
+      )
+
+    try do
+      do_seed_world()
+    after
+      Supervisor.stop(sup)
+    end
+  end
+
+  @doc """
+  The seed's DB work, split out so the suite drives it against the already-running
+  test repo without a release double-boot. Returns the existing Tlön (a `%World{}`)
+  or the `register/1` result (`{:ok, world}` / `{:error, changeset}`).
+  """
+  @spec do_seed_world() ::
+          {:ok, Funes.World.t()} | {:error, Ecto.Changeset.t()} | Funes.World.t()
+  def do_seed_world do
+    Funes.Worlds.by_name("Tlön") ||
+      Funes.Worlds.register(%{
+        name: "Tlön",
+        type: "code",
+        scope: "machine",
+        paths: ["modules/*"],
+        roster: [%{"archetype" => "surveyor", "name" => "tertius"}]
+      })
+  end
+
   defp repos, do: Application.fetch_env!(@app, :ecto_repos)
 
   # Load (not start) the app so its config — including :ecto_repos and the repo's

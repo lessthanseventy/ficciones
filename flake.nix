@@ -740,7 +740,10 @@
                 Service = {
                   Type = "exec";
                   Environment = [ "FUNES_START_MCP=1" "FUNES_MCP_PORT=4040" ];
-                  ExecStartPre = "${funesRel}/bin/funes eval Funes.Release.migrate()";
+                  ExecStartPre = [
+                    "${funesRel}/bin/funes eval Funes.Release.migrate()"
+                    "${funesRel}/bin/funes eval Funes.Release.seed_world()"
+                  ];
                   ExecStart = "${funesRel}/bin/funes start";
                   Restart = "on-failure";
                   RestartSec = 2;
