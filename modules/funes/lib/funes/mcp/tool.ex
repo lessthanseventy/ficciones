@@ -890,3 +890,125 @@ defmodule Funes.MCP.Tool.KillCrew do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.RegisterWorld do
+  @moduledoc """
+  Register a WORLD — a first-class composition (worlds/orbis Slice 1): a git-tracked
+  scope (`paths`), a `roster` of archetype instances, and free-form `knobs` that aleph
+  reads to drive its picker/survey/spawn. Unlike the thread-scoped tools this is
+  machine-GLOBAL — it takes no identity, it writes the shared `world` table via
+  `Funes.Worlds`. `name` is unique; a duplicate is a graceful error, not a crash.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.MCP
+  alias Funes.Worlds
+
+  schema do
+    field :name, :string, required: true, description: "The world's unique name"
+    field :type, :enum, values: ["code", "life", "blank"], default: "code"
+    field :scope, :enum, values: ["project", "machine"], default: "machine"
+    field :paths, {:list, :string}, default: [], description: "Git-tracked scope globs"
+    field :roster, {:list, :map}, default: [], description: "Archetype instances: {archetype,name,model?,knobs}"
+    field :knobs, :map, default: %{}, description: "Free-form per-world settings"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    case Worlds.register(params) do
+      {:ok, world} ->
+        {:reply, Response.json(Response.tool(), %{"world_id" => world.id, "name" => world.name}), frame}
+
+      {:error, changeset} ->
+        {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+    end
+  end
+end
+
+defmodule Funes.MCP.Tool.ListWorlds do
+  @moduledoc """
+  Every WORLD, newest-first — the machine-global read aleph's Orbis survey/picker maps
+  over. Takes no identity: worlds are not thread-scoped.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.MCP
+  alias Funes.Worlds
+
+  schema do
+  end
+
+  @impl true
+  def execute(_params, frame) do
+    worlds = Enum.map(Worlds.all(), &MCP.Brief.world/1)
+    {:reply, Response.json(Response.tool(), worlds), frame}
+  end
+end
+
+defmodule Funes.MCP.Tool.EditWorld do
+  @moduledoc """
+  Edit a WORLD's mutable fields (`type`/`scope`/`paths`/`roster`/`knobs`), identified by
+  its unique `name` — a world's identity is immutable, so name is the handle, not a
+  field this rewrites. Machine-global; a missing world is refused rather than created.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.MCP
+  alias Funes.Worlds
+
+  schema do
+    field :name, :string, required: true, description: "The world to edit (its unique name)"
+    field :type, :enum, values: ["code", "life", "blank"]
+    field :scope, :enum, values: ["project", "machine"]
+    field :paths, {:list, :string}, description: "Git-tracked scope globs"
+    field :roster, {:list, :map}, description: "Archetype instances: {archetype,name,model?,knobs}"
+    field :knobs, :map, description: "Free-form per-world settings"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    case Worlds.by_name(params[:name]) do
+      nil ->
+        {:reply, Response.error(Response.tool(), "no such world: #{params[:name]}"), frame}
+
+      world ->
+        case Worlds.edit(world, params) do
+          {:ok, edited} ->
+            {:reply, Response.json(Response.tool(), MCP.Brief.world(edited)), frame}
+
+          {:error, changeset} ->
+            {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+        end
+    end
+  end
+end
+
+defmodule Funes.MCP.Tool.RemoveWorld do
+  @moduledoc """
+  Remove a WORLD by its unique `name` — machine-global, thread-independent. A missing
+  world is refused rather than reported as removed.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Worlds
+
+  schema do
+    field :name, :string, required: true, description: "The world to remove (its unique name)"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    case Worlds.by_name(params[:name]) do
+      nil ->
+        {:reply, Response.error(Response.tool(), "no such world: #{params[:name]}"), frame}
+
+      world ->
+        {:ok, removed} = Worlds.remove(world)
+        {:reply, Response.json(Response.tool(), %{"removed" => removed.name}), frame}
+    end
+  end
+end

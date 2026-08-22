@@ -16,6 +16,7 @@ defmodule Funes.MCP.Brief do
   alias Funes.Message
   alias Funes.Question
   alias Funes.Todo
+  alias Funes.World
 
   @doc "A Board.in_scope/1 map, rendered."
   def scope(scope) do
@@ -162,6 +163,25 @@ defmodule Funes.MCP.Brief do
       "rationale" => h.rationale,
       "state" => h.state,
       "at" => at(h.created_at)
+    }
+  end
+
+  @doc """
+  A WORLD — a composition aleph reads to drive its picker/survey/spawn. Machine-
+  global (no thread scope): `paths`/`roster`/`knobs` round-trip as the JSON the
+  columns hold — a list of globs, a list of `{archetype,name,model?,knobs}` maps,
+  and a free-form map.
+  """
+  def world(%World{} = w) do
+    %{
+      "id" => w.id,
+      "name" => w.name,
+      "type" => w.type,
+      "scope" => w.scope,
+      "paths" => w.paths,
+      "roster" => w.roster,
+      "knobs" => w.knobs,
+      "at" => at(w.created_at)
     }
   end
 

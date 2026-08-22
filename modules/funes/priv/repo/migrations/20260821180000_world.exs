@@ -26,7 +26,5 @@ defmodule Funes.Repo.Migrations.World do
       """,
       "DROP TABLE world"
     )
-
-    create unique_index(:world, [:name])
   end
 end
