@@ -24,6 +24,7 @@ defmodule Aleph.Profile do
   @enforce_keys [:name]
   defstruct name: nil,
             archetype: nil,
+            harness: :pi,
             drop_extensions: [],
             add_extensions: [],
             mcp: :base,
@@ -35,6 +36,7 @@ defmodule Aleph.Profile do
   @type t :: %__MODULE__{
           name: String.t(),
           archetype: atom(),
+          harness: :pi | :claude_code,
           drop_extensions: [String.t()],
           add_extensions: [String.t()],
           mcp: :base | :none | map(),
@@ -456,6 +458,7 @@ defmodule Aleph.Profiles do
       add_extensions: [@footer_extension]
     },
     builder: %{
+      harness: :claude_code,
       model: @sonnet,
       mcp: @tlon_funes_mcp,
       sandbox: @tlon_sandbox,
@@ -568,6 +571,7 @@ defmodule Aleph.Profiles do
     %Profile{
       name: name,
       archetype: key,
+      harness: Map.get(t, :harness, :pi),
       add_extensions: Map.get(t, :add_extensions, []),
       mcp: t.mcp,
       model: entry[:model] || Aleph.Config.coworker_model(name) || t.model,

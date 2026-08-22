@@ -432,6 +432,11 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.socket(p.name) == "aleph-atlas"
     end
 
+    test "builder instantiates as a claude_code harness; surveyor as pi" do
+      assert Profiles.instantiate(%{archetype: :builder, name: "hronir"}).harness == :claude_code
+      assert Profiles.instantiate(%{archetype: :surveyor, name: "tertius"}).harness == :pi
+    end
+
     test "roster-entry model overrides the archetype default" do
       entry = %{archetype: :reviewer, name: "vera", model: %{provider: "anthropic", model: "sonnet", thinking: "low"}}
       assert Profiles.instantiate(entry).model.model == "sonnet"
