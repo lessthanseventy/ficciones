@@ -394,7 +394,48 @@ defmodule Aleph.ProfilesTest do
 
     test "archetype/1 fetches one template by its atom key" do
       assert Profiles.archetype(:surveyor).system_prompt =~ "tertius-machine"
-      assert Profiles.archetype(:builder).system_prompt =~ "builder-machine"
+      # the four new prompts carry the {{handle}} placeholder (personalized at instantiate time),
+      # not a hardcoded `<role>-machine` self-identity.
+      assert Profiles.archetype(:builder).system_prompt =~ "{{handle}}"
+    end
+  end
+
+  describe "instantiate/1 — a named coworker from an archetype roster entry" do
+    test "builds a named Profile from an archetype, content from the template" do
+      p = Profiles.instantiate(%{archetype: :builder, name: "atlas"})
+      # identity = the instance name
+      assert p.name == "atlas"
+      assert p.archetype == :builder
+      # content (sandbox/mcp) from the builder template
+      assert p.sandbox == Profiles.archetype(:builder).sandbox
+      assert p.mcp == Profiles.archetype(:builder).mcp
+      # socket keys off the instance name
+      assert Profiles.socket(p.name) == "aleph-atlas"
+    end
+
+    test "roster-entry model overrides the archetype default" do
+      entry = %{archetype: :reviewer, name: "vera", model: %{provider: "anthropic", model: "sonnet", thinking: "low"}}
+      assert Profiles.instantiate(entry).model.model == "sonnet"
+    end
+
+    test "two instances of one archetype get distinct identities" do
+      a = Profiles.instantiate(%{archetype: :builder, name: "atlas"})
+      b = Profiles.instantiate(%{archetype: :builder, name: "borges"})
+      assert a.name != b.name and a.archetype == b.archetype
+    end
+
+    test "personalizes the prompt with the instance handle — no placeholder or role-machine leak" do
+      prompt = Profiles.instantiate(%{archetype: :builder, name: "atlas"}).system_prompt
+      assert prompt =~ "atlas-machine"
+      refute prompt =~ "{{handle}}"
+      refute prompt =~ "builder-machine"
+    end
+
+    test "a non-personalized prompt (surveyor/tertius) is byte-identical to the template" do
+      # tertius's prompt has NO placeholder — personalize must leave it untouched so Task 4 keeps
+      # fetch(\"tertius\") byte-identical.
+      p = Profiles.instantiate(%{archetype: :surveyor, name: "tertius"})
+      assert p.system_prompt == Profiles.archetype(:surveyor).system_prompt
     end
   end
 end

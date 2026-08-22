@@ -371,7 +371,7 @@ defmodule Aleph.Profiles do
 
   # The planner persona → `system_prompt.md`. The writing-plans discipline, distilled.
   @planner_role """
-  You are planner-machine, an implementation PLANNER on this funes task thread. You turn a rough goal
+  You are {{handle}}, an implementation PLANNER on this funes task thread. You turn a rough goal
   into a plan an engineer with zero codebase context can execute. Decompose the work into bite-sized,
   independently-committable TASKS, each with: exact file paths, the COMPLETE code (not a sketch), a
   failing test written FIRST (TDD), and a concrete definition of done + the command that verifies it.
@@ -382,7 +382,7 @@ defmodule Aleph.Profiles do
 
   # The builder persona → `system_prompt.md`. TDD + verification-before-completion, distilled.
   @builder_role """
-  You are builder-machine, an implementation BUILDER on this funes task thread. You work strictly
+  You are {{handle}}, an implementation BUILDER on this funes task thread. You work strictly
   test-first: RED — write the failing test and RUN it, watch it fail for the right reason; GREEN —
   write the MINIMAL code to pass; REFACTOR — clean up with the test green. Never write implementation
   before a failing test. Never claim a task done without running the verification (tests/build/lint)
@@ -393,7 +393,7 @@ defmodule Aleph.Profiles do
 
   # The researcher persona → `system_prompt.md`. The deep-research discipline, distilled.
   @researcher_role """
-  You are researcher-machine, a deep RESEARCHER on this funes task thread. Answer by fanning out
+  You are {{handle}}, a deep RESEARCHER on this funes task thread. Answer by fanning out
   across MULTIPLE independent sources, fetching the primary material, and reading it — not by
   recalling from memory. Verify every load-bearing claim adversarially: seek the source that would
   falsify it, and never state as fact what you could not confirm. Synthesize into a terse briefing
@@ -404,7 +404,7 @@ defmodule Aleph.Profiles do
 
   # The assistant persona → `system_prompt.md`. A general life-assistant scoped to a non-code world.
   @assistant_role """
-  You are assistant-machine, a capable general life-ASSISTANT for a non-code world (journal, notes,
+  You are {{handle}}, a capable general life-ASSISTANT for a non-code world (journal, notes,
   finances, and the like). Your substrate is the world's git-tracked files, scoped to its paths. Help
   the operator organize, summarize, retrieve, and draft across that material: keep notes tidy and
   cross-linked, surface what is relevant, and answer from what is actually written, not invention.
@@ -568,6 +568,35 @@ defmodule Aleph.Profiles do
   @doc "The role template for one archetype atom (raises on an unknown key)."
   @spec archetype(atom()) :: map()
   def archetype(k), do: Map.fetch!(@archetypes, k)
+
+  @doc """
+  Build a materialisation-ready `%Profile{}` from a roster entry `%{archetype:, name:, model:, knobs:}`:
+  identity (`name` → socket/config_dir/handle) is the instance name, content comes from the archetype
+  template, and the system prompt is personalized with the instance handle. Model precedence (A3):
+  roster-entry `model` > `Aleph.Config.coworker_model(name)` (SETTINGS panel) > archetype default.
+  """
+  @spec instantiate(%{required(:archetype) => atom(), required(:name) => String.t(), optional(any()) => any()}) ::
+          Profile.t()
+  def instantiate(%{archetype: key, name: name} = entry) do
+    t = archetype(key)
+
+    %Profile{
+      name: name,
+      archetype: key,
+      add_extensions: Map.get(t, :add_extensions, []),
+      mcp: t.mcp,
+      model: entry[:model] || Aleph.Config.coworker_model(name) || t.model,
+      sandbox: t.sandbox,
+      permissions: apply_yolo_override(t.permissions, Aleph.Config.coworker_yolo(name)),
+      system_prompt: personalize(t.system_prompt, name)
+    }
+  end
+
+  # The funes handle convention: profile name + "-machine" (cf. @machine_agent "tertius-machine" for
+  # profile "tertius"). A prompt WITHOUT the {{handle}} placeholder (surveyor/reviewer) passes through
+  # unchanged — String.replace is a no-op, so those personas stay byte-identical.
+  defp personalize(nil, _name), do: nil
+  defp personalize(prompt, name), do: String.replace(prompt, "{{handle}}", "#{name}-machine")
 
   @doc "The ring entry after `current` (matched on provider+model), wrapping; unknown → the ring head."
   @spec next_model(map() | nil) :: map()
