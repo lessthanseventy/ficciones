@@ -259,9 +259,9 @@ defmodule Aleph.MachineChat.Loop do
 
   # Does the cockpit spawn a per-thread `t<id>` session for this lead (so it owns the opening turn
   # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.claude_launched?/2`: a roster
-  # `:claude_code`-harness handle (e.g. the builder → `hronir-machine`) or the third experiment
-  # agent are claude-launched; a pi-led thread is not.
-  defp cockpit_staffs?(lead), do: lead in claude_handles() or lead == third_agent_author()
+  # `:claude_code`-harness handle (e.g. the builder → `hronir-machine`) is claude-launched; a
+  # pi-led thread is not.
+  defp cockpit_staffs?(lead), do: lead in claude_handles()
 
   # The funes handles this World's roster stamps onto a `:claude_code`-harness archetype — mirrors
   # `Aleph.Cockpit.claude_handles/1`, but against `active_roster/0` (`Space.first_world/0`): this
@@ -292,13 +292,6 @@ defmodule Aleph.MachineChat.Loop do
     case Space.first_world() do
       %Space{roster: roster} -> roster
       _ -> []
-    end
-  end
-
-  defp third_agent_author do
-    case Mention.third_agent() do
-      %{author: author} -> author
-      nil -> nil
     end
   end
 

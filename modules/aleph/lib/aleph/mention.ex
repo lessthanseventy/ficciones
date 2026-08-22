@@ -14,8 +14,6 @@ defmodule Aleph.Mention do
 
   ## Experiment knobs (env, off by default — see docs/tlon-experiments)
 
-    * `TLON_THIRD_AGENT="<handle>:<window>"` adds a third coworker (the cockpit spawns its window and
-      it joins the wake-loop) — for breaking the two-body agree/disagree dynamic.
     * `TLON_MENTION_LABEL=anon` labels the injected turn's sender as "someone" instead of its handle,
       for the "does the argument survive without the personas" run. NOTE: funes still records the
       true author, so pair it with a prompt telling them to answer the injected turn, not re-read the
@@ -24,35 +22,16 @@ defmodule Aleph.Mention do
 
   alias Aleph.Crew
 
-  @doc "The optional third experiment coworker from `$TLON_THIRD_AGENT` (\"handle:window\"), or nil."
-  @spec third_agent() :: %{author: String.t(), window: String.t()} | nil
-  def third_agent do
-    with val when is_binary(val) <- System.get_env("TLON_THIRD_AGENT"),
-         [author, window] <- String.split(String.trim(val), ":", parts: 2),
-         true <- author != "" and window != "" do
-      %{author: author, window: window}
-    else
-      _ -> nil
-    end
-  end
-
   @doc """
   The active handle → window map for `roster` (entries `%{"name" => n}`/`%{name: n}`, string or atom
-  keyed) — each name `n` becomes handle `"n-machine"` mapped to window `n` — plus `$TLON_THIRD_AGENT`
-  if set.
+  keyed) — each name `n` becomes handle `"n-machine"` mapped to window `n`.
   """
   @spec coworkers([map()]) :: %{String.t() => String.t()}
   def coworkers(roster \\ []) do
-    base =
-      Map.new(roster, fn entry ->
-        name = entry["name"] || entry[:name]
-        {"#{name}-machine", name}
-      end)
-
-    case third_agent() do
-      %{author: a, window: w} -> Map.put(base, a, w)
-      nil -> base
-    end
+    Map.new(roster, fn entry ->
+      name = entry["name"] || entry[:name]
+      {"#{name}-machine", name}
+    end)
   end
 
   @doc "The {handle, window} pairs @-mentioned in `body` (deduped, first-seen order), resolved against `roster`."

@@ -1645,9 +1645,8 @@ defmodule Aleph.Cockpit do
   defp thread_spawn_due?(retry_at, now), do: now >= retry_at
 
   # `spawn_agent_window` always runs claude_launcher() — correct only for a roster :claude_code lead
-  # (this World's builder handle, roster-derived) or the optional third experiment agent (also
-  # claude-launched). A pi-led thread is skipped.
-  defp claude_launched?(lead, world_id), do: lead in claude_handles(world_id) or lead == third_agent_author()
+  # (this World's builder handle, roster-derived). A pi-led thread is skipped.
+  defp claude_launched?(lead, world_id), do: lead in claude_handles(world_id)
 
   # The funes handles this World's roster stamps onto a `:claude_code`-harness archetype
   # (`"<name>-machine"`, e.g. the builder → `hronir-machine`) — the set `claude_launched?/2` checks
@@ -1666,13 +1665,6 @@ defmodule Aleph.Cockpit do
   defp claude_handle_if_claude_code(entry) do
     %{archetype: arch, name: name} = roster_entry(entry)
     if Profiles.instantiate(%{archetype: arch, name: name}).harness == :claude_code, do: ["#{name}-machine"], else: []
-  end
-
-  defp third_agent_author do
-    case Aleph.Mention.third_agent() do
-      %{author: author} -> author
-      nil -> nil
-    end
   end
 
   # Two-phase, so a just-booted `t<id>` window submits its opening turn instead of leaving it typed
