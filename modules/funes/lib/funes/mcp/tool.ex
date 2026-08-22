@@ -847,7 +847,8 @@ defmodule Funes.MCP.Tool.SpawnCrew do
         {:reply, Response.json(Response.tool(), payload), frame}
 
       {:error, :no_crew} ->
-        {:reply, Response.error(Response.tool(), "crew spawning is unavailable here — no crew backend is configured"), frame}
+        {:reply, Response.error(Response.tool(), "crew spawning is unavailable here — no crew backend is configured"),
+         frame}
 
       {:error, reason} ->
         {:reply, Response.error(Response.tool(), "crew spawn failed: #{inspect(reason)}"), frame}
@@ -881,7 +882,8 @@ defmodule Funes.MCP.Tool.KillCrew do
         {:reply, Response.json(Response.tool(), %{"killed" => role, "thread_id" => identity.thread_id}), frame}
 
       {:error, :no_crew} ->
-        {:reply, Response.error(Response.tool(), "crew teardown is unavailable here — no crew backend is configured"), frame}
+        {:reply, Response.error(Response.tool(), "crew teardown is unavailable here — no crew backend is configured"),
+         frame}
 
       {:error, reason} ->
         {:reply, Response.error(Response.tool(), "crew kill failed: #{inspect(reason)}"), frame}
