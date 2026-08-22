@@ -24,11 +24,13 @@ defmodule Aleph.Cockpit do
   alias Aleph.Tlon.Focus
   alias Aleph.Tlon.Settings
   alias Aleph.View
+  alias Aleph.WorldTemplates
   alias Funes.Bus
   alias Funes.Channel
   alias Funes.Dossier
   alias Funes.MCP.Spawn
   alias Funes.Staff
+  alias Funes.Worlds
   alias Ghostty.KeyEvent
   alias Raxol.Core.Events.Event
 
@@ -915,6 +917,10 @@ defmodule Aleph.Cockpit do
   # `a` (or Esc from the author face) landed: flip Orbis' face and repaint (D2.1).
   defp apply_effect({:toggle_orbis_face}, state), do: {:noreply, render(toggle_orbis_face(state))}
 
+  # The author face's `n` verb landed: register a world from the armed template + typed name.
+  defp apply_effect({:register_world, template, name}, state),
+    do: {:noreply, render(register_world!(state, template, name))}
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.
@@ -964,6 +970,39 @@ defmodule Aleph.Cockpit do
   # testable without a live GenServer.
   def toggle_orbis_face(%{orbis_face: :author} = state), do: %{state | orbis_face: :survey}
   def toggle_orbis_face(state), do: %{state | orbis_face: :author}
+
+  @doc false
+  # Register a world from `template` + the operator-typed `name` (D2.3's `n` verb). `{:ok, _}`
+  # clears the input and flashes; `{:error, changeset}` (a blank OR duplicate name — both are the
+  # funes changeset's job, not re-validated here) flashes the reason and REOPENS the input with
+  # what was typed, so a rejected name can be edited and resubmitted rather than retyped from
+  # scratch. Wrapped like `create_thread`/`post_message` — a funes hiccup flashes, never crashes
+  # the cockpit.
+  def register_world!(state, template, name) do
+    case Worlds.register(WorldTemplates.new_world_attrs(template, name)) do
+      {:ok, world} ->
+        %{state | input: nil, flash: "created #{world.name}"}
+
+      {:error, changeset} ->
+        %{
+          state
+          | input: %{kind: :new_world, buffer: name, cursor: String.length(name), template: template},
+            flash: "couldn't create “#{name}” — #{changeset_error(changeset)}"
+        }
+    end
+  rescue
+    e -> %{state | flash: "create failed: #{Exception.message(e)}"}
+  catch
+    :exit, reason -> %{state | flash: "create failed: #{inspect(reason)}"}
+  end
+
+  # A short "field message, message" sentence from an Ecto changeset — surfaces e.g. a duplicate
+  # name's UNIQUE(name) violation ("name has already been taken") without a full inspect dump.
+  defp changeset_error(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, _opts} -> msg end)
+    |> Enum.map_join("; ", fn {field, errors} -> "#{field} #{Enum.join(errors, ", ")}" end)
+  end
 
   # The pending habit the focus points at, or nil unless: a World space, nav mode, Memory pane,
   # habits section (1), with a habit under the clamped cursor.

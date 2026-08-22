@@ -93,6 +93,38 @@ defmodule Aleph.Panel.StatusBar do
     Panel.clip([prompt, hints], rect)
   end
 
+  # The author face's create-world prompt (D2.3): the info line becomes the prompt over the typed
+  # name, prefixed by the armed template — h/l cycles it, named in the hints.
+  @impl Panel
+  def render(%{input: %{kind: :new_world, template: template} = input}, rect) do
+    {before, after_} = cursor_split(input)
+
+    prompt = [
+      {" NEW WORLD ", :tab},
+      {"  ", :normal},
+      {"◂ #{template} ▸ ", :accent},
+      {before, :normal},
+      {"▎", :accent},
+      {after_, :normal}
+    ]
+
+    hints = [
+      {"⏎", :header},
+      {" create", :dim},
+      {"   ", :dim},
+      {"←→", :header},
+      {" move", :dim},
+      {"  ", :dim},
+      {"h/l", :header},
+      {" template", :dim},
+      {"  ", :dim},
+      {"Esc", :header},
+      {" cancel", :dim}
+    ]
+
+    Panel.clip([prompt, hints], rect)
+  end
+
   # A transient result line (a spawn's pane id, or its failure reason) — the operator's feedback
   # that `n`/`s` did something. Shown until the next keypress clears it.
   @impl Panel

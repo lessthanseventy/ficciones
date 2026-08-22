@@ -42,16 +42,20 @@ defmodule Aleph.Keymap do
       cursor row's world id — the same effect a survey-row click emits (D0.2).
     * `{:toggle_orbis_face}` — `a` (Orbis, bare) flips `orbis_face` survey↔author (D2.1); Esc in
       the author face emits the same effect to step back to the survey.
+    * `{:register_world, template_key, name}` — Enter on the `:new_world` input (the author
+      face's `n` verb) — register a world from a template + the typed name (D2.3).
     * `:none` — nothing to do.
 
-  `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb) or
-  `%{kind: :compose, thread_id, buffer, cursor}` (the `c` verb) while the operator is typing — a
-  modal that captures EVERY key (so `q` types a "q", it does not quit) until Enter submits or Esc
-  cancels. `cursor` is a grapheme offset into `buffer` (not always the end — Left/Right/Up/Down/
-  Home/End move it, Ctrl+P/Ctrl+N alias Up/Down for hosts that don't deliver arrow keys, and
-  Ctrl+A/Ctrl+E/Ctrl+U/Ctrl+K/Ctrl+W are readline's line-editing reflexes), and every
-  edit (typing, Backspace, Shift+Enter's newline) acts AT the cursor, like a normal text box. In
-  the composer, Shift+Enter inserts a newline (multiline bodies) instead of submitting.
+  `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb),
+  `%{kind: :compose, thread_id, buffer, cursor}` (the `c` verb), or `%{kind: :new_world, buffer,
+  cursor, template}` (the author face's `n` verb — `template` is a `WorldTemplates.names/0` atom,
+  `h`/`l` cycle it) while the operator is typing — a modal that captures EVERY key (so `q` types a
+  "q", it does not quit) until Enter submits or Esc cancels. `cursor` is a grapheme offset into
+  `buffer` (not always the end — Left/Right/Up/Down/Home/End move it, Ctrl+P/Ctrl+N alias Up/Down
+  for hosts that don't deliver arrow keys, and Ctrl+A/Ctrl+E/Ctrl+U/Ctrl+K/Ctrl+W are readline's
+  line-editing reflexes), and every edit (typing, Backspace, Shift+Enter's newline) acts AT the
+  cursor, like a normal text box. In the composer, Shift+Enter inserts a newline (multiline
+  bodies) instead of submitting.
 
   Orbis' AUTHOR face (D2, Chunk 1): `orbis_face :: :survey | :author` (default `:survey`) picks
   which center panel `Aleph.View` renders — `a` toggles it on, Esc steps back off. `author_cursor`
@@ -64,6 +68,7 @@ defmodule Aleph.Keymap do
   alias Aleph.Space
   alias Aleph.Tlon.Focus
   alias Aleph.Tlon.Settings
+  alias Aleph.WorldTemplates
 
   # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
   # not just an alias.
@@ -81,6 +86,7 @@ defmodule Aleph.Keymap do
           | {:cycle_pane_view, integer()}
           | {:switch_space, atom() | non_neg_integer()}
           | {:toggle_orbis_face}
+          | {:register_world, atom(), String.t()}
           | :tlon_enter
           | :tlon_preview
           | :none
@@ -111,6 +117,11 @@ defmodule Aleph.Keymap do
 
   def handle(%{key: :enter}, %{input: %{kind: :new_thread, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:create_thread, buffer}}
+
+  # A non-blank name registers a world from the armed template. Blank already fell into the
+  # empty-buffer clause above, same cancel-not-create precedent as :new_thread.
+  def handle(%{key: :enter}, %{input: %{kind: :new_world, template: template, buffer: buffer}} = state),
+    do: {%{state | input: nil}, {:register_world, template, buffer}}
 
   def handle(%{key: :enter}, %{input: %{kind: :compose, thread_id: id, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:post_message, id, buffer}}
@@ -163,6 +174,14 @@ defmodule Aleph.Keymap do
 
   def handle(%{key: :char, char: "w", ctrl: true}, %{input: %{}} = state),
     do: {%{state | input: kill_word_backward(state.input)}, :repaint}
+
+  # `:new_world`'s h/l cycle the armed template (a ring, `WorldTemplates.names/0`) instead of
+  # inserting the letter — must precede the generic printable-insert clause below.
+  def handle(%{key: :char, char: "h"}, %{input: %{kind: :new_world} = input} = state),
+    do: {%{state | input: cycle_template(input, -1)}, :repaint}
+
+  def handle(%{key: :char, char: "l"}, %{input: %{kind: :new_world} = input} = state),
+    do: {%{state | input: cycle_template(input, 1)}, :repaint}
 
   # Printable keys insert AT the cursor, not append — so typing after moving the cursor lands
   # where you moved it, like a normal text box.
@@ -255,6 +274,19 @@ defmodule Aleph.Keymap do
   # --- aleph's command table — one source of bindings, reached two ways: bare in a nav-default
   # space, or via the Ctrl+Space leader from inside a running terminal. ---
   defp command(%{key: :char, char: "q"}, state), do: {state, :quit}
+
+  # `n` in Orbis' author face opens the create-world flow (a template ring + a name buffer, D2.3)
+  # instead of the thread composer; every other space (and Orbis' survey face) keeps `n` == new
+  # thread. `orbis_face/1` isn't guard-safe (a plain function, not a `defguard`), so the branch is
+  # in the body, not the clause head.
+  defp command(%{key: :char, char: "n"}, %{active_key: :orbis} = state) do
+    if orbis_face(state) == :author do
+      input = %{kind: :new_world, buffer: "", cursor: 0, template: List.first(WorldTemplates.names())}
+      {%{state | input: input}, :repaint}
+    else
+      {%{state | input: %{kind: :new_thread, buffer: "", cursor: 0}}, :repaint}
+    end
+  end
 
   defp command(%{key: :char, char: "n"}, state),
     do: {%{state | input: %{kind: :new_thread, buffer: "", cursor: 0}}, :repaint}
@@ -477,6 +509,14 @@ defmodule Aleph.Keymap do
     max_idx = max(length(author_worlds(state)) - 1, 0)
     cursor = (author_cursor(state) + dir) |> max(0) |> min(max_idx)
     {Map.put(state, :author_cursor, cursor), :repaint}
+  end
+
+  # h/l cycle `input.template` through `WorldTemplates.names/0`, wrapping (a ring, not a clamp) —
+  # the create flow always has a template armed, so there's no "past the end" to guard.
+  defp cycle_template(%{template: template} = input, dir) do
+    names = WorldTemplates.names()
+    i = Enum.find_index(names, &(&1 == template)) || 0
+    Map.put(input, :template, Enum.at(names, rem(i + dir + length(names), length(names))))
   end
 
   # Defaults tolerate a state map built before these fields existed (an older test's literal

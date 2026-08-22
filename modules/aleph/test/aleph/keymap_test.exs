@@ -260,6 +260,62 @@ defmodule Aleph.KeymapTest do
     end
   end
 
+  describe "creating a world — the author face's `n` verb + :new_world input (D2.3)" do
+    @templates Aleph.WorldTemplates.names()
+
+    test "n in the author face opens :new_world input armed with the FIRST template" do
+      s = state(%{active_key: :orbis, orbis_face: :author})
+      assert {%{input: %{kind: :new_world, buffer: "", template: t}}, :repaint} = Keymap.handle(char("n"), s)
+      assert t == List.first(@templates)
+    end
+
+    test "n on the survey face still opens :new_thread — unaffected" do
+      s = state(%{active_key: :orbis, orbis_face: :survey})
+      assert {%{input: %{kind: :new_thread, buffer: ""}}, :repaint} = Keymap.handle(char("n"), s)
+    end
+
+    test "h/l cycle input.template through WorldTemplates.names/0, wrapping both ways" do
+      first = List.first(@templates)
+      last = List.last(@templates)
+      s = state(%{input: %{kind: :new_world, buffer: "", cursor: 0, template: first}})
+
+      # l steps forward through every template, wrapping back to the first.
+      {s1, :repaint} = Keymap.handle(char("l"), s)
+      assert s1.input.template != first
+
+      wrapped =
+        Enum.reduce(1..length(@templates), s, fn _, acc ->
+          {next, :repaint} = Keymap.handle(char("l"), acc)
+          next
+        end)
+
+      assert wrapped.input.template == first
+
+      # h steps backward, wrapping to the last.
+      assert {%{input: %{template: ^last}}, :repaint} = Keymap.handle(char("h"), s)
+    end
+
+    test "printable keys still accumulate into buffer (kind-agnostic reuse of the input machinery)" do
+      s = state(%{input: %{kind: :new_world, buffer: "Fic", cursor: 3, template: List.first(@templates)}})
+      assert {%{input: %{buffer: "Ficc"}}, :repaint} = Keymap.handle(char("c"), s)
+    end
+
+    test "Enter on a non-empty buffer emits {:register_world, template, name} and leaves input mode" do
+      s = state(%{input: %{kind: :new_world, buffer: "Ficciones2", cursor: 10, template: :code}})
+      assert {%{input: nil}, {:register_world, :code, "Ficciones2"}} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Enter on a blank buffer no-ops — no register, same precedent as :new_thread/:compose" do
+      s = state(%{input: %{kind: :new_world, buffer: "", cursor: 0, template: :code}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Esc cancels the create flow, registering nothing" do
+      s = state(%{input: %{kind: :new_world, buffer: "half typed", cursor: 10, template: :code}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+  end
+
   describe "the live terminal owns the keys by default" do
     test "a printable key forwards, not acted on locally" do
       s = state(%{center_live?: true})
