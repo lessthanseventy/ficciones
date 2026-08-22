@@ -13,7 +13,8 @@
 ## Assumptions
 
 - **A1 — `%Profile{}` stays the materialisation contract.** `render/3`/`materialise!/2`/`socket/1`/`config_dir/1` keep keying off `profile.name`. `instantiate/1` just *produces* a `%Profile{}` with the instance name; the whole downstream pipeline is unchanged. This is why layer 1 needs no cockpit edits.
-- **A2 — `tertius` and `reviewer` are re-expressed as archetype instances, not deleted.** `tertius` = the `:surveyor` archetype instanced under name `"tertius"`; the current `reviewer` profile = the `:reviewer` archetype. `fetch("tertius")` must return a byte-identical materialisation to today (regression-guarded), so the live Tlön spawn can't break.
+- **A2 — `tertius` is re-expressed as an archetype instance; its materialisation stays byte-identical** (regression-guarded — it's the only profile on the live Slice-0 spawn path). **`reviewer` is NOT held byte-identical:** its archetype default is Sonnet (design-correct) and the legacy live profile's glm-5.2 was incidental; `reviewer` isn't live-spawned, so `fetch("reviewer")` intentionally flips glm-5.2 → claude-sonnet-5. Task 4 pins the models with a regression test both ways (tertius/surveyor → glm; the other five → sonnet). *(Decided from the Task 1-2 review.)*
+- **A5 — `instantiate/1` personalizes the system prompt with the instance name.** The archetype role prompts must NOT hardcode a `-machine` self-identity (a coworker instanced as "atlas" mis-stating itself as "builder-machine" would break @-mention/attribution). `instantiate/1` injects the instance name so the agent knows its real funes handle. *(Decided from the Task 1-2 review.)*
 - **A3 — Per-coworker model override precedence:** roster-entry `model` > `Aleph.Config.coworker_model(name)` (SETTINGS panel) > archetype default. Documented + tested.
 - **A4 — Archetype keys are atoms** (`:reviewer`, `:planner`, `:builder`, `:surveyor`, `:researcher`, `:assistant`); instance names are strings (funes handles).
 
