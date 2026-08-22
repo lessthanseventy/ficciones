@@ -320,6 +320,11 @@ defmodule Aleph.View do
   # `Aleph.Mention.coworkers/1`, inverted, sourced from the active space's roster) and warmth
   # (`reads.roster`, already fetched for the sidebar) — so WindowBar stays a pure render with no
   # funes reads of its own.
+  # C3.1: the strip is LEADERS only — `t<id>` leaf windows (spawned by ensure_thread_sessions) move
+  # to the Leaves panel. Reject by the leaf-name shape, not a roster allowlist, so an unexpected
+  # leader window (roster not yet loaded, a hand-made window) still shows rather than vanishing.
+  @leaf_window ~r/^t\d+$/
+
   defp window_tabs(r) do
     agents = Map.new(Mention.coworkers(fetch_space(r.active_key).roster), fn {agent, window} -> {window, agent} end)
     warm_agents = r.roster |> Enum.filter(& &1.warm?) |> MapSet.new(& &1.agent)
@@ -327,6 +332,7 @@ defmodule Aleph.View do
     r
     |> Map.get(:machine, %{})
     |> tabs_of()
+    |> Enum.reject(&Regex.match?(@leaf_window, &1.name))
     |> Enum.map(fn tab ->
       agent = agents[tab.name]
       Map.merge(tab, %{agent: agent, warm?: agent != nil and MapSet.member?(warm_agents, agent)})
