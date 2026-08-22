@@ -265,7 +265,7 @@ defmodule Aleph.Keymap do
   # Enter in the Orbis survey zooms the selected world to its lens — Slice 1 still has one world,
   # so Enter drops straight into it (the god-view → world zoom). Reuses the plain space-switch, no
   # focus SM involved. Slice 1 one-world bridge; C2 resolves the selected survey row → its world id.
-  defp command(%{key: :enter}, %{active_key: :orbis} = state), do: {%{state | active_key: first_world_key()}, :repaint}
+  defp command(%{key: :enter}, %{active_key: :orbis} = state), do: {%{state | active_key: Space.first_world().key}, :repaint}
 
   # Enter has no top-level verb elsewhere since the Slice 0 collapse: the Sessions space (its only
   # home — the one center that could show a spawned per-thread PTY) is gone, so Enter is a plain
@@ -352,10 +352,6 @@ defmodule Aleph.Keymap do
 
   defp close_modal(state), do: %{state | modal: Settings.close(state.modal)}
   defp modal_intent(state, intent), do: %{state | modal: Settings.handle(state.modal, intent)}
-
-  # The (single, in Slice 1) World space's key — the C1 bridge for the Orbis-Enter zoom, replacing
-  # the literal `:tlon` target. C2 resolves the selected survey row to its own world id instead.
-  defp first_world_key, do: Enum.find(Space.all(), &Space.world?(&1.key)).key
 
   defp switch(state, dir) do
     space =

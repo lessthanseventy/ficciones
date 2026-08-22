@@ -54,15 +54,13 @@ defmodule Aleph.Panel.Chorus do
 
   # Slice 0: every world block is a fixed @world_rows tall, so idx→world is plain integer division.
   # Slice 1 (multi-world / wrapping summaries) must measure each block's rendered height instead.
-  # `first_world_key/0`: Slice 1 one-world bridge (the rollup row carries a world NAME, not an id,
+  # `Space.first_world/0`: Slice 1 one-world bridge (the rollup row carries a world NAME, not an id,
   # so a click can't yet resolve its own world) — C2 resolves the clicked row → its own world id.
   defp world_at(worlds, idx) when idx >= 0 do
-    if div(idx, @world_rows) < length(worlds), do: {:switch_space, first_world_key()}
+    if div(idx, @world_rows) < length(worlds), do: {:switch_space, Space.first_world().key}
   end
 
   defp world_at(_worlds, _idx), do: nil
-
-  defp first_world_key, do: Enum.find(Space.all(), &Space.world?(&1.key)).key
 
   # One world: a ▸ + its name, then an indented summary line — leaf count + the shared rollup line
   # (open/stalled/done, trouble called out only when there is any), then a blank spacer.

@@ -138,7 +138,18 @@ defmodule Aleph.Space do
   so cockpit/keymap clause heads can gate directly on it (`when Space.world?(key)`) — callers must
   `require Aleph.Space` (a macro, unlike an ordinary `def`).
   """
+  # A defguard evaluates to `false` (never raises) for any non-integer, non-`:orbis` key — a stray
+  # `:tlon` no longer fails loudly, it just reads as "not a World".
   defguard world?(key) when is_integer(key)
+
+  @doc """
+  The single World space in Slice 1 — the C1 bridge for call sites that used to hardcode
+  `fetch(:tlon)`/`:tlon`, before multiplicity. Returns the first world-keyed space, or `nil`
+  when funes yields no world (even the fallback keys a world, so `nil` is funes-genuinely-empty).
+  C2 replaces these call sites with the ACTIVE world once there can be more than one.
+  """
+  @spec first_world() :: t() | nil
+  def first_world, do: Enum.find(all(), &world?(&1.key))
 
   @doc "The space after `key` in picker order, wrapping around."
   @spec next(:orbis | non_neg_integer()) :: t()

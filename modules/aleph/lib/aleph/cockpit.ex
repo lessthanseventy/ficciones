@@ -1698,7 +1698,7 @@ defmodule Aleph.Cockpit do
   # the Tlön center: an embedded tmux client attached to the standing session (pi as window 0 if
   # absent) — an aleph restart re-attaches to the running pi instead of spawning another.
   defp spawn_machine_coworker do
-    with %Space{} = space <- first_world_space(),
+    with %Space{} = space <- Space.first_world(),
          %Profile{} = profile <- Profiles.fetch(space.coworker),
          {:ok, _dir} <- materialise_profile(profile),
          {:ok, exports} <- machine_exports(@machine_agent),
@@ -1790,15 +1790,11 @@ defmodule Aleph.Cockpit do
   # target the ACTIVE world — degrades to no `-L` flag if even the fallback World is somehow gone
   # (never happens today: `Space.world_spaces/1` always yields at least the sentinel).
   defp tlon_tmux(args) do
-    case first_world_space() do
+    case Space.first_world() do
       nil -> args
       space -> ["-L", Profiles.socket(space.coworker)] ++ args
     end
   end
-
-  # The (single, in Slice 1) World space — the C1 bridge for stateless call sites that used to
-  # hardcode Space.fetch(:tlon). C2 replaces these with the ACTIVE world once multiplicity lands.
-  defp first_world_space, do: Enum.find(Space.all(), &Space.world?(&1.key))
 
   @doc false
   # `window_active` is "1" for the current window, "0" otherwise; each line is
