@@ -28,13 +28,13 @@ defmodule Aleph.Worlds do
   @world_events [:world_registered, :world_edited, :world_removed]
   # The aleph-shaped subset lifted off each `Funes.World` — dropping `knobs`/`created_at`.
   # Taken by key (not a struct match) so aleph needn't reference funes' unexported struct.
-  @fields [:name, :type, :paths, :roster, :scope]
+  @fields [:id, :name, :type, :paths, :roster, :scope]
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: Keyword.get(opts, :name, __MODULE__))
   end
 
-  @doc "The cached worlds as aleph-shaped `%{name, type, paths, roster, scope}` maps."
+  @doc "The cached worlds as aleph-shaped `%{id, name, type, paths, roster, scope}` maps."
   def all(server \\ __MODULE__), do: GenServer.call(server, :all)
 
   @impl true

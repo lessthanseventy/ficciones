@@ -65,7 +65,7 @@ defmodule Aleph.WorldsTest do
   end
 
   test "all/0 returns the worlds present at boot, aleph-shaped" do
-    {:ok, _} =
+    {:ok, registered} =
       Worlds.register(%{
         name: "Tlön",
         type: "code",
@@ -79,12 +79,22 @@ defmodule Aleph.WorldsTest do
     assert [world] = Aleph.Worlds.all(pid)
 
     assert world == %{
+             id: registered.id,
              name: "Tlön",
              type: "code",
              scope: "machine",
              paths: ["modules/*"],
              roster: [%{"archetype" => "surveyor", "name" => "tertius"}]
            }
+  end
+
+  test "cached worlds carry the funes id" do
+    {:ok, w} = Worlds.register(%{name: "Test", type: "code"})
+
+    pid = start_worlds()
+
+    assert [%{id: id, name: "Test"}] = Aleph.Worlds.all(pid)
+    assert id == w.id
   end
 
   test "a :world_registered Bus event refreshes the cache" do
