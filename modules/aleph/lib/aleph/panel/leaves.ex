@@ -7,10 +7,11 @@ defmodule Aleph.Panel.Leaves do
 
   Navigable in Tlön nav mode: `j/k` selects a leaf (the cursor row washes :selected), `Enter`
   attaches that leaf in the World center — re-points the tmux window (Slice 0 collapse; was a jump
-  into the now-deleted Sessions space). Data is
-  `%{summary: %{open, stalled, done, conflicts}, rows: [%{id, title, lead, status, conflicts}],
-  selected}` — `selected` injected by the View only when this pane is focused — or `nil` when funes
-  is down / there are no machine threads. Pure over `Aleph.Orbis.rollup/0`.
+  into the now-deleted Sessions space); its own `t<id>` window if live, else its lead's (C3.3). Data
+  is `%{summary: %{open, stalled, done, conflicts}, rows: [%{id, title, lead, status, conflicts}],
+  selected, attached}` — `selected` (cursor) and `attached` (the leaf whose own window IS the
+  center, persistent) both injected by the View, either `nil`; either washes the row :selected — or
+  `nil` when funes is down / there are no machine threads. Pure over `Aleph.Orbis.rollup/0`.
   """
   @behaviour Aleph.Panel
 
@@ -31,13 +32,17 @@ defmodule Aleph.Panel.Leaves do
 
   def render(%{summary: summary, rows: rows} = data, rect) do
     selected = Map.get(data, :selected)
+    attached = Map.get(data, :attached)
     rows = ordered(rows, Map.get(data, :focused_lead))
     header = [line("LEAVES", :header), blank(), summary_row(summary), blank()]
 
     body =
       if rows == [],
         do: [line("all clear", :dim)],
-        else: rows |> Enum.with_index() |> Enum.map(fn {row, i} -> leaf_row(row, i == selected, rect.w) end)
+        else:
+          rows
+          |> Enum.with_index()
+          |> Enum.map(fn {row, i} -> leaf_row(row, i == selected or row.id == attached, rect.w) end)
 
     Aleph.Panel.clip(header ++ body, rect)
   end

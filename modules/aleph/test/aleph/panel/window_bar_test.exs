@@ -43,6 +43,16 @@ defmodule Aleph.Panel.WindowBarTest do
     assert Enum.any?(row, fn {t, s} -> t =~ "claude" and s == :dim end)
   end
 
+  test "no leader tab active (a leaf's own t<id> window is the active tmux window) — none highlighted, C3.3" do
+    tabs = [
+      %{name: "tertius", active?: false, index: "0", agent: "tertius-machine", warm?: true},
+      %{name: "hronir", active?: false, index: "1", agent: "claude-machine", warm?: false}
+    ]
+
+    [row] = WindowBar.render(%{tabs: tabs, engine: :on, thread: 7}, @rect)
+    refute Enum.any?(row, fn {_t, s} -> s == :selected end)
+  end
+
   describe "tab_at_x/2: which tab a click landed on" do
     test "a click inside a tab's label segment returns that tab" do
       assert WindowBar.tab_at_x(@tabs, 1).name == "tertius"

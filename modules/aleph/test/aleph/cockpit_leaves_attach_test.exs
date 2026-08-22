@@ -6,6 +6,11 @@ defmodule Aleph.CockpitLeavesAttachTest do
   yet (arbitrary-leaf PTYs are Slice 1) — it flashes the deferral and re-points nothing, never the
   old `active_key: :sessions` jump.
 
+  C3.3: a leaf now MAY have its own live `t<id>` window (`ensure_thread_sessions`) — `attach_leaf/2`
+  prefers that over the lead's window and sets `focused_session: {:leaf, id}`; the lead-window
+  fallback below (the original Slice-0 behavior) sets `focused_session: {:leader, lead}` instead.
+  See the "C3.3" describe block.
+
   These exercise `attach_leaf/2`, the pure decision the `:tlon_enter` → `jump_to_leaf` path runs
   before its (termbox-painting, un-unit-testable) render. The tmux runner is injected
   (`:aleph, :tlon_cmd`) so argv is asserted without a live server, the same seam the preview test
@@ -88,6 +93,45 @@ defmodule Aleph.CockpitLeavesAttachTest do
       next = Cockpit.attach_leaf(leaves_state([]), leaves_layout([]))
       assert next.flash =~ "no live session"
       assert next.previewed_window == nil
+    end
+  end
+
+  describe "attach_leaf/2 — C3.3: prefer the leaf's own t<id> window" do
+    setup do
+      test_pid = self()
+
+      # window 0 is the lead's own window, window 1 is the leaf's own `t<id>` window — a leaf with
+      # BOTH live must prefer its own (id 42 here), never fall back to the lead's.
+      Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+        send(test_pid, {:tmux, args})
+
+        if Enum.member?(args, "list-windows"),
+          do: {"1\t0\thronir-machine\n0\t1\tt42\n", 0},
+          else: {"", 0}
+      end)
+
+      on_exit(fn -> Application.delete_env(:aleph, :tlon_cmd) end)
+      :ok
+    end
+
+    test "a leaf with a live t<id> window attaches ITS OWN window, not its lead's" do
+      rows = [%{id: 42, title: "x", lead: "hronir-machine"}]
+      next = Cockpit.attach_leaf(leaves_state(rows), leaves_layout(rows))
+
+      assert next.focused_session == {:leaf, 42}
+      assert next.previewed_window == "1"
+      assert next.focus.in_terminal? == true
+      assert_received {:tmux, ["-L", _sock, "select-window", "-t", "w0:1"]}
+    end
+
+    test "a leaf whose t<id> is absent falls back to its lead's window — focused_session stays a leader" do
+      rows = [%{id: 99, title: "x", lead: "hronir-machine"}]
+      next = Cockpit.attach_leaf(leaves_state(rows), leaves_layout(rows))
+
+      assert next.focused_session == {:leader, "hronir-machine"}
+      assert next.previewed_window == "0"
+      assert next.focus.in_terminal? == true
+      assert_received {:tmux, ["-L", _sock, "select-window", "-t", "w0:0"]}
     end
   end
 end

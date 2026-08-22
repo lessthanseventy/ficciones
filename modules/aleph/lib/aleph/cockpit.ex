@@ -236,6 +236,10 @@ defmodule Aleph.Cockpit do
             # a window-bearing pane (Leaves) re-points the center here WITHOUT taking focus; a commit
             # (`commit_preview/1`) drops keys into it. nil = center on its default (active) window.
             previewed_window: nil,
+            # Which World window is attached in the center (C3.3): `{:leaf, id}` when a leaf's own
+            # `t<id>` window is attached, else `{:leader, name | nil}`. Leaves washes the leaf row
+            # whose id matches. Set by attach_leaf/2 and the WindowBar tab click.
+            focused_session: {:leader, nil},
             paste_buffer: nil,
             input: nil,
             # The Tlön settings modal (nil = closed). Persistent like `input`: the keymap opens it
@@ -745,9 +749,12 @@ defmodule Aleph.Cockpit do
   end
 
   # Clicking a WindowBar tab selects that tmux window — never forwarded to the PTY (WindowBar is a
-  # standalone panel, not part of the terminal it frames).
+  # standalone panel, not part of the terminal it frames). WindowBar tabs are leader windows only,
+  # so a hit resets focused_session to that leader (clears a stale {:leaf, id} — C3.3).
   defp dispatch_click({WindowBar, data, rect}, x, _y, state) do
-    select_tlon_window(active_world_id(state), WindowBar.tab_at_x(data[:tabs] || [], x - rect.x))
+    tab = WindowBar.tab_at_x(data[:tabs] || [], x - rect.x)
+    select_tlon_window(active_world_id(state), tab)
+    state = if tab, do: %{state | focused_session: {:leader, tab[:name]}}, else: state
     {:noreply, render(state)}
   end
 
@@ -942,24 +949,48 @@ defmodule Aleph.Cockpit do
   defp jump_to_leaf(state, layout), do: {:noreply, render(attach_leaf(state, layout))}
 
   @doc false
-  # PREVIEW (re-point) then COMMIT (focus in) the World tmux window under the Leaves cursor. The
-  # hit/miss decision AND the re-point run off ONE `tlon_tabs()` snapshot: resolve `idx`, then
-  # `select_tlon_window` + commit against that same idx — never a second read that could disagree
-  # (a TOCTOU half-attach if the window vanished between two snapshots). A leaf whose lead maps to
-  # no live window — or no leaf under the cursor — can't attach yet (arbitrary-leaf PTYs are Slice
-  # 1): flash the deferral, re-point nothing. Supersedes the old jump into the retiring Sessions
-  # space. Note: `preview_focused/1` (the arrow-hover path) is deliberately NOT reused here — it
-  # takes its own snapshot, which is safe for its single read but would reintroduce the double read.
+  # PREVIEW (re-point) then COMMIT (focus in) the World tmux window under the Leaves cursor. C3.3:
+  # a leaf is now a real attachable session — prefer ITS OWN `t<id>` window over its lead's, so
+  # `focused_session` becomes `{:leaf, id}`. Falls back to the lead's window (today's Slice-0
+  # behavior, `focused_session: {:leader, lead}`) when the leaf has no live window of its own. Both
+  # lookups run off ONE `tlon_tabs()` snapshot: resolve `idx`, then `select_tlon_window` + commit
+  # against that same idx — never a second read that could disagree (a TOCTOU half-attach if a
+  # window vanished between two snapshots). No leaf under the cursor, or no window either way, can't
+  # attach yet: flash the deferral, re-point nothing. Supersedes the old jump into the retiring
+  # Sessions space. Note: `preview_focused/1` (the arrow-hover path) is deliberately NOT reused here
+  # — it takes its own snapshot, which is safe for its single read but would reintroduce the double
+  # read.
   def attach_leaf(state, layout) do
     rows = (state.leaves || %{rows: []}).rows
     world_id = active_world_id(state)
 
-    with %{lead: lead} <- Enum.at(rows, Focus.cursor(state.focus, layout)),
-         idx when not is_nil(idx) <- window_index(tlon_tabs(world_id), lead) do
-      select_tlon_window(world_id, %{index: idx})
-      state |> Map.put(:previewed_window, idx) |> commit_preview() |> Map.put(:flash, nil)
-    else
-      _ -> %{state | flash: "no live session (Slice 1)"}
+    case Enum.at(rows, Focus.cursor(state.focus, layout)) do
+      %{id: id, lead: lead} ->
+        tabs = tlon_tabs(world_id)
+
+        case {window_index(tabs, "t#{id}"), window_index(tabs, lead)} do
+          {idx, _} when not is_nil(idx) ->
+            select_tlon_window(world_id, %{index: idx})
+
+            state
+            |> Map.put(:previewed_window, idx)
+            |> commit_preview()
+            |> Map.merge(%{focused_session: {:leaf, id}, flash: nil})
+
+          {nil, idx} when not is_nil(idx) ->
+            select_tlon_window(world_id, %{index: idx})
+
+            state
+            |> Map.put(:previewed_window, idx)
+            |> commit_preview()
+            |> Map.merge(%{focused_session: {:leader, lead}, flash: nil})
+
+          _ ->
+            %{state | flash: "no live session (Slice 1)"}
+        end
+
+      _ ->
+        %{state | flash: "no live session (Slice 1)"}
     end
   end
 
@@ -1110,6 +1141,7 @@ defmodule Aleph.Cockpit do
       activity: state.activity,
       memory: if(Space.world?(state.active_key), do: state.memory),
       orbis: if(Space.world?(state.active_key), do: state.leaves),
+      focused_session: state.focused_session,
       logbook: logbook_read(state.active_key),
       triage: if(state.active_key == :orbis, do: triage_read(threads)),
       habits: habits_read(state.active_key),

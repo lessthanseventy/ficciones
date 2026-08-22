@@ -95,6 +95,29 @@ defmodule Aleph.Panel.LeavesTest do
     assert style_of.("first") == :normal
   end
 
+  # C3.3: `attached` (the leaf whose own window IS the World center) washes :selected too — distinct
+  # from and independent of the j/k `selected` cursor.
+  test "the attached leaf's title washes :selected even when the cursor (selected) is elsewhere" do
+    data = %{
+      summary: %{open: 2, stalled: 0, done: 0, conflicts: 0},
+      rows: [
+        %{id: 2, title: "first", lead: "pi", status: :open, conflicts: 0},
+        %{id: 3, title: "second", lead: "cc", status: :open, conflicts: 0}
+      ],
+      selected: 0,
+      attached: 3
+    }
+
+    rows = Leaves.render(data, @rect)
+
+    style_of = fn needle ->
+      Enum.find_value(rows, fn row -> Enum.find_value(row, fn {t, s} -> if t == needle, do: s end) end)
+    end
+
+    assert style_of.("first") == :selected
+    assert style_of.("second") == :selected
+  end
+
   # C3.2: the focused leader's leaves float to the top (stable) so the operator's active leader owns
   # the top of the panel; render and pick share the ordering so selection stays consistent.
   describe "focused leader's leaves float to the top" do

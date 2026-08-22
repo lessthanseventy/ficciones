@@ -343,11 +343,18 @@ defmodule Aleph.View do
   defp tabs_of(_render_state), do: []
 
   # C3.2: tag the Leaves data with the active leader (the focused WindowBar tab's agent handle) so
-  # the panel floats that leader's leaves to the top. nil orbis (funes down) stays nil.
+  # the panel floats that leader's leaves to the top. C3.3: also tag the attached leaf's id (nil
+  # unless focused_session is {:leaf, id}) so the panel washes that row :selected. nil orbis (funes
+  # down) stays nil.
   defp with_focused_lead(nil, _r), do: nil
-  defp with_focused_lead(orbis, r), do: Map.put(orbis, :focused_lead, focused_lead(r))
+
+  defp with_focused_lead(orbis, r),
+    do: orbis |> Map.put(:focused_lead, focused_lead(r)) |> Map.put(:attached, attached_leaf(r))
 
   defp focused_lead(r), do: r |> window_tabs() |> Enum.find_value(fn t -> if t.active?, do: t.agent end)
+
+  defp attached_leaf(%{focused_session: {:leaf, id}}), do: id
+  defp attached_leaf(_r), do: nil
 
   # The Claude-engine clock readout: `:off` only once the operator has manually clocked "claude"
   # out (`Funes.Presence.clock_out/1`, e.g. from `funes:console`) — nothing calls that today, so
