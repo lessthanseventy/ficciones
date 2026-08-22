@@ -583,8 +583,8 @@ defmodule Aleph.Profiles do
     }
   end
 
-  # The funes handle convention: profile name + "-machine" (cf. @machine_agent "tertius-machine" for
-  # profile "tertius"). A prompt WITHOUT the {{handle}} placeholder (surveyor/reviewer) passes through
+  # The funes handle convention: profile name + "-machine" (profile "tertius" → "tertius-machine").
+  # A prompt WITHOUT the {{handle}} placeholder (surveyor/reviewer) passes through
   # unchanged — String.replace is a no-op, so those personas stay byte-identical.
   defp personalize(nil, _name), do: nil
   defp personalize(prompt, name), do: String.replace(prompt, "{{handle}}", "#{name}-machine")

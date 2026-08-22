@@ -621,7 +621,7 @@ defmodule Aleph.Cockpit do
   end
 
   # The active roster's LEAD window name (the center's tab label) for `world_id`, or nil (no roster
-  # / funes down). Replaces the old hardcoded `@machine_window`.
+  # / funes down).
   defp lead_window_name(world_id) do
     case Space.fetch(world_id) do
       %Space{roster: [lead | _]} -> roster_entry(lead).name
