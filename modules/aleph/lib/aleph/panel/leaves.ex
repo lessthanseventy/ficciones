@@ -31,6 +31,7 @@ defmodule Aleph.Panel.Leaves do
 
   def render(%{summary: summary, rows: rows} = data, rect) do
     selected = Map.get(data, :selected)
+    rows = ordered(rows, Map.get(data, :focused_lead))
     header = [line("LEAVES", :header), blank(), summary_row(summary), blank()]
 
     body =
@@ -42,15 +43,26 @@ defmodule Aleph.Panel.Leaves do
   end
 
   # Click a leaf row → focus that thread (so composing targets it). The header rows are inert.
+  # Uses the SAME `ordered/2` as render so a click lands on the row the operator sees (C3.2).
   @impl Aleph.Panel
-  def pick(%{rows: rows}, _rect, local_y) do
-    case Enum.at(rows, local_y - @header_rows) do
+  def pick(%{rows: rows} = data, _rect, local_y) do
+    case Enum.at(ordered(rows, Map.get(data, :focused_lead)), local_y - @header_rows) do
       %{id: id} when local_y >= @header_rows -> {:focus_thread, id}
       _ -> nil
     end
   end
 
   def pick(_data, _rect, _local_y), do: nil
+
+  # C3.2: float the focused leader's leaves to the top, stable within each group (split_with keeps
+  # source order), so the active leader owns the top of the panel. `focused_lead` = the active
+  # WindowBar tab's agent handle, injected by the View; nil (no leader active) → source order.
+  defp ordered(rows, nil), do: rows
+
+  defp ordered(rows, focused_lead) do
+    {mine, others} = Enum.split_with(rows, &(&1.lead == focused_lead))
+    mine ++ others
+  end
 
   @doc """
   The rollup line as a styled row: the operator's three buckets, conflicts appended only when there

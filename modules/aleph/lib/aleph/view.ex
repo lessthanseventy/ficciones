@@ -214,7 +214,7 @@ defmodule Aleph.View do
   def data_for(Panel.Stack, r), do: r.stack
   def data_for(Panel.Health, r), do: r.health
   def data_for(Panel.Logbook, r), do: r.logbook
-  def data_for(Panel.Leaves, r), do: r.orbis
+  def data_for(Panel.Leaves, r), do: with_focused_lead(r.orbis, r)
   def data_for(Panel.Activity, r), do: %{events: r[:activity] || []}
   def data_for(Panel.Pulse, r), do: %{events: r[:activity] || []}
   def data_for(Panel.WindowBar, r), do: %{tabs: window_tabs(r), engine: engine_state(), thread: r.focused_id}
@@ -341,6 +341,13 @@ defmodule Aleph.View do
 
   defp tabs_of(%{tabs: tabs}), do: tabs
   defp tabs_of(_render_state), do: []
+
+  # C3.2: tag the Leaves data with the active leader (the focused WindowBar tab's agent handle) so
+  # the panel floats that leader's leaves to the top. nil orbis (funes down) stays nil.
+  defp with_focused_lead(nil, _r), do: nil
+  defp with_focused_lead(orbis, r), do: Map.put(orbis, :focused_lead, focused_lead(r))
+
+  defp focused_lead(r), do: r |> window_tabs() |> Enum.find_value(fn t -> if t.active?, do: t.agent end)
 
   # The Claude-engine clock readout: `:off` only once the operator has manually clocked "claude"
   # out (`Funes.Presence.clock_out/1`, e.g. from `funes:console`) — nothing calls that today, so

@@ -94,4 +94,40 @@ defmodule Aleph.Panel.LeavesTest do
     assert style_of.("second") == :selected
     assert style_of.("first") == :normal
   end
+
+  # C3.2: the focused leader's leaves float to the top (stable) so the operator's active leader owns
+  # the top of the panel; render and pick share the ordering so selection stays consistent.
+  describe "focused leader's leaves float to the top" do
+    defp grouping_data(focused_lead) do
+      %{
+        summary: %{open: 3, stalled: 0, done: 0, conflicts: 0},
+        rows: [
+          %{id: 1, title: "tX", lead: "tertius-machine", status: :open, conflicts: 0},
+          %{id: 2, title: "hA", lead: "hronir-machine", status: :open, conflicts: 0},
+          %{id: 3, title: "hB", lead: "hronir-machine", status: :open, conflicts: 0}
+        ],
+        focused_lead: focused_lead
+      }
+    end
+
+    defp title_index(rows, needle), do: Enum.find_index(rows, fn row -> Enum.any?(row, fn {t, _} -> t == needle end) end)
+
+    test "the two hronir leaves render before the tertius leaf when hronir is focused" do
+      rows = Leaves.render(grouping_data("hronir-machine"), @rect)
+
+      assert title_index(rows, "hA") < title_index(rows, "tX")
+      assert title_index(rows, "hB") < title_index(rows, "tX")
+    end
+
+    test "no focused_lead → input order is preserved (stable)" do
+      rows = Leaves.render(grouping_data(nil), @rect)
+      assert title_index(rows, "tX") < title_index(rows, "hA")
+    end
+
+    test "pick honors the floated order — local_y of the first row is the focused leader's leaf" do
+      data = grouping_data("hronir-machine")
+      # first leaf row sits just below the header chrome (same offset the selected test uses)
+      assert {:focus_thread, 2} = Leaves.pick(data, @rect, 4)
+    end
+  end
 end
