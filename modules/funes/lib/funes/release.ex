@@ -47,11 +47,20 @@ defmodule Funes.Release do
   `migrate/0`'s release shape (load the app, start only what the work needs, do it),
   but `Funes.Worlds.register/1` announces on `Funes.Bus`, so PubSub must be up too —
   hence Repo + PubSub, not the full tree (no MCP/switchboard for a one-shot seed).
+
+  `bin/funes eval` only *loads* apps, it never starts them, so the dep applications
+  that own the registries these children need are missing: phoenix_pubsub starts the
+  `:pg` scope named `Phoenix.PubSub` that the PG2 adapter joins, and ecto starts
+  `Ecto.Repo.Registry` that the repo associates into. Start those apps first, then the
+  two children under our own one-shot supervisor — otherwise the boot crashes on a
+  `:pg.join`/`Ecto.Repo.Registry` call with no process.
   """
   @spec seed_world() ::
           {:ok, Funes.World.t()} | {:error, Ecto.Changeset.t()} | Funes.World.t()
   def seed_world do
     load_app()
+    {:ok, _} = Application.ensure_all_started(:phoenix_pubsub)
+    {:ok, _} = Application.ensure_all_started(:ecto_sql)
 
     {:ok, sup} =
       Supervisor.start_link(
