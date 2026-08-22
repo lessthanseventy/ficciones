@@ -373,4 +373,28 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.fetch("reviewer").archetype == :reviewer
     end
   end
+
+  describe "the archetype registry — role templates keyed by archetype atom" do
+    test "the seed archetype set is present with sane defaults" do
+      keys = Profiles.archetypes() |> Map.keys() |> Enum.sort()
+      assert keys == ~w(assistant builder planner researcher reviewer surveyor)a
+    end
+
+    test "reviewer archetype cannot write (deny floor), builder can" do
+      assert get_in(Profiles.archetype(:reviewer).permissions, ["permission", "write"]) == "deny"
+      assert get_in(Profiles.archetype(:builder).permissions, ["permission", "write"]) != "deny"
+    end
+
+    test "each archetype has a non-empty system prompt and a default model" do
+      for {_k, t} <- Profiles.archetypes() do
+        assert is_binary(t.system_prompt) and t.system_prompt != ""
+        assert match?(%{model: _}, t) and not is_nil(t.model)
+      end
+    end
+
+    test "archetype/1 fetches one template by its atom key" do
+      assert Profiles.archetype(:surveyor).system_prompt =~ "tertius-machine"
+      assert Profiles.archetype(:builder).system_prompt =~ "builder-machine"
+    end
+  end
 end

@@ -369,6 +369,49 @@ defmodule Aleph.Profiles do
   review nobody reads is worse than none.
   """
 
+  # The planner persona → `system_prompt.md`. The writing-plans discipline, distilled.
+  @planner_role """
+  You are planner-machine, an implementation PLANNER on this funes task thread. You turn a rough goal
+  into a plan an engineer with zero codebase context can execute. Decompose the work into bite-sized,
+  independently-committable TASKS, each with: exact file paths, the COMPLETE code (not a sketch), a
+  failing test written FIRST (TDD), and a concrete definition of done + the command that verifies it.
+  Hold the line on DRY, YAGNI, and frequent commits — smaller is better; if a task spans many files
+  it is still too big, split it. You PLAN, you do not build: post the plan to the thread and hand off.
+  Be terse and high-signal; a plan nobody can follow is worse than none.
+  """
+
+  # The builder persona → `system_prompt.md`. TDD + verification-before-completion, distilled.
+  @builder_role """
+  You are builder-machine, an implementation BUILDER on this funes task thread. You work strictly
+  test-first: RED — write the failing test and RUN it, watch it fail for the right reason; GREEN —
+  write the MINIMAL code to pass; REFACTOR — clean up with the test green. Never write implementation
+  before a failing test. Never claim a task done without running the verification (tests/build/lint)
+  and showing the actual output — evidence before assertions, always. Commit small and often. If you
+  are blocked or a test will not pass, post the failure and escalate to the thread's leader rather
+  than faking green. Be terse and high-signal.
+  """
+
+  # The researcher persona → `system_prompt.md`. The deep-research discipline, distilled.
+  @researcher_role """
+  You are researcher-machine, a deep RESEARCHER on this funes task thread. Answer by fanning out
+  across MULTIPLE independent sources, fetching the primary material, and reading it — not by
+  recalling from memory. Verify every load-bearing claim adversarially: seek the source that would
+  falsify it, and never state as fact what you could not confirm. Synthesize into a terse briefing
+  with CITATIONS, and clearly separate what you VERIFIED from what a source merely ASSERTS. Post the
+  synthesis to the thread. A confident answer built on an unchecked claim is the failure mode;
+  distrust and cite.
+  """
+
+  # The assistant persona → `system_prompt.md`. A general life-assistant scoped to a non-code world.
+  @assistant_role """
+  You are assistant-machine, a capable general life-ASSISTANT for a non-code world (journal, notes,
+  finances, and the like). Your substrate is the world's git-tracked files, scoped to its paths. Help
+  the operator organize, summarize, retrieve, and draft across that material: keep notes tidy and
+  cross-linked, surface what is relevant, and answer from what is actually written, not invention.
+  Make small, reviewable edits and keep the history clean. Be warm but terse, and never touch paths
+  outside the world you serve.
+  """
+
   # The one coworker profile: `tertius`, the Tlön CENTER — the Orbis Tertius meta agent
   # (`tertius-machine`, tab `tertius`), keying the tmux socket `aleph-tertius` and config dir. A
   # machine-scope funes citizen (@tertius_funes_mcp: the machine-citizen surface + the machine_overview
@@ -408,6 +451,77 @@ defmodule Aleph.Profiles do
     %{provider: "ollama-cloud", model: "deepseek-v4-pro", thinking: "high"}
   ]
 
+  # The two archetype-default drivers. `@glm` is the ollama-cloud synthesizer (surveyor); `@sonnet` is
+  # real Claude via the anthropic provider (auth.json + models-store.json carry it) — the design
+  # default for the disciplines that ship code/plans/research. Note this is NOT a model-ring entry:
+  # the SETTINGS `m` cycle stays ollama-only, but an archetype template may still default to Claude,
+  # and the operator can still retarget any instance via Aleph.Config or a roster-entry override.
+  @glm %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
+  @sonnet %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"}
+
+  # The archetype registry — role TEMPLATES keyed by archetype atom. A template is the `%Profile{}`
+  # content fields minus `name` (`model`/`mcp`/`sandbox`/`permissions`/`system_prompt`/`add_extensions`);
+  # `instantiate/1` (Task 3) stamps an instance `name` over one to mint a materialisation-ready profile.
+  # Each archetype is a distilled discipline — the "extract a superpower as a coworker" content.
+  #   * surveyor  — the tertius meta/synthesis role (glm-5.2, machine_overview cross-leaf read).
+  #   * reviewer  — read-only code review; the write/edit deny-floor is STRUCTURAL (@reviewer_permissions).
+  #   * builder   — TDD RED→GREEN→REFACTOR + verification-before-completion; can write.
+  #   * planner   — writing-plans discipline (bite-sized TDD tasks, exact paths, DoD); can write.
+  #   * researcher — deep multi-source fan-out + adversarial verification; sandbox scoped per world (tunable).
+  #   * assistant — general life-assistant over a non-code world's git-tracked paths (sandbox tunable).
+  @archetypes %{
+    surveyor: %{
+      model: @glm,
+      mcp: @tertius_funes_mcp,
+      sandbox: @tlon_sandbox,
+      permissions: @tlon_permissions,
+      system_prompt: @tertius_role,
+      add_extensions: [@footer_extension]
+    },
+    reviewer: %{
+      model: @sonnet,
+      mcp: @tlon_funes_mcp,
+      sandbox: @tlon_sandbox,
+      permissions: @reviewer_permissions,
+      system_prompt: @reviewer_role,
+      add_extensions: [@footer_extension]
+    },
+    builder: %{
+      model: @sonnet,
+      mcp: @tlon_funes_mcp,
+      sandbox: @tlon_sandbox,
+      permissions: @tlon_permissions,
+      system_prompt: @builder_role,
+      add_extensions: [@footer_extension]
+    },
+    planner: %{
+      model: @sonnet,
+      mcp: @tlon_funes_mcp,
+      sandbox: @tlon_sandbox,
+      permissions: @tlon_permissions,
+      system_prompt: @planner_role,
+      add_extensions: [@footer_extension]
+    },
+    # researcher/assistant: @tlon_sandbox is the STARTING point — Slice 1 scopes it to the world's
+    # own paths (journal/notes vs the ficciones repo). Tunable, not final.
+    researcher: %{
+      model: @sonnet,
+      mcp: @tlon_funes_mcp,
+      sandbox: @tlon_sandbox,
+      permissions: @tlon_permissions,
+      system_prompt: @researcher_role,
+      add_extensions: [@footer_extension]
+    },
+    assistant: %{
+      model: @sonnet,
+      mcp: @tlon_funes_mcp,
+      sandbox: @tlon_sandbox,
+      permissions: @tlon_permissions,
+      system_prompt: @assistant_role,
+      add_extensions: [@footer_extension]
+    }
+  }
+
   @doc """
   Look a profile up by name, or nil. The operator's runtime override (`Aleph.Config`
   `coworkers.<name>.model` — what the SETTINGS panel writes) is merged over the compiled
@@ -446,6 +560,14 @@ defmodule Aleph.Profiles do
   @doc "The model ring the settings verb cycles through, Claude-first."
   @spec model_ring() :: [map()]
   def model_ring, do: @model_ring
+
+  @doc "The archetype registry — a map of `archetype_atom => role template` (the Profile content minus a name)."
+  @spec archetypes() :: %{atom() => map()}
+  def archetypes, do: @archetypes
+
+  @doc "The role template for one archetype atom (raises on an unknown key)."
+  @spec archetype(atom()) :: map()
+  def archetype(k), do: Map.fetch!(@archetypes, k)
 
   @doc "The ring entry after `current` (matched on provider+model), wrapping; unknown → the ring head."
   @spec next_model(map() | nil) :: map()
