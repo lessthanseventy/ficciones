@@ -28,7 +28,14 @@ defmodule Aleph.Transcript do
   # A spread of distinct truecolor foregrounds for unknown/hashed voices, plus hand-picked slots
   # for the known coworkers — carried in spirit from the Pass 1 stream palette.
   @palette [0x5FAFFF, 0xFFAF5F, 0x87FF87, 0xFF87D7, 0xD7AFFF, 0x5FD7D7, 0xFFD75F, 0xFF8787]
-  @known %{"tertius-machine" => 0xFF87D7, "claude-machine" => 0x5FD7FF, "andrew" => 0xFFD75F}
+  # claude-machine kept alongside hronir-machine (its C2.3 rename) — old thread history still
+  # colors correctly.
+  @known %{
+    "tertius-machine" => 0xFF87D7,
+    "hronir-machine" => 0x5FD7FF,
+    "claude-machine" => 0x5FD7FF,
+    "andrew" => 0xFFD75F
+  }
 
   @impl Panel
   def topics(_assigns), do: []

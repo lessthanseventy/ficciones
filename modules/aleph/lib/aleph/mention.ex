@@ -5,8 +5,12 @@ defmodule Aleph.Mention do
   does the `tmux send-keys`; this module only DECIDES who to wake and what to say). Pure, so it tests
   without a TTY or a live tmux.
 
-  The handle → window mapping (`@base_coworkers`) is the one piece of structural knowledge here — it
-  must match the window names the Cockpit's spawn code creates (`tertius`, `hronir`).
+  The handle → window mapping (`coworkers/1`) is the one piece of structural knowledge here — it is
+  DERIVED from the active world's roster (`Aleph.Space`), not a compile-time table: each roster entry
+  named `n` becomes handle `"n-machine"` → window `n`, matching the window name the Cockpit's
+  roster-driven spawn code creates (C2.3). Every call here that resolves handles takes the roster as
+  an explicit arg — callers source it from `Space.fetch/1`/`Space.first_world/0` (funes-down/no-world
+  → `[]`, no handles resolve, nobody is woken).
 
   ## Experiment knobs (env, off by default — see docs/tlon-experiments)
 
@@ -20,10 +24,6 @@ defmodule Aleph.Mention do
 
   alias Aleph.Crew
 
-  # funes handle → the tmux window (tab) the coworker runs in. Keep in sync with the spawn code.
-  # tertius-machine (the meta agent) is the center; claude-machine is the builder, tab `hronir`.
-  @base_coworkers %{"claude-machine" => "hronir", "tertius-machine" => "tertius"}
-
   @doc "The optional third experiment coworker from `$TLON_THIRD_AGENT` (\"handle:window\"), or nil."
   @spec third_agent() :: %{author: String.t(), window: String.t()} | nil
   def third_agent do
@@ -36,21 +36,32 @@ defmodule Aleph.Mention do
     end
   end
 
-  @doc "The active handle → window map: the tertius/hronir base, plus `$TLON_THIRD_AGENT` if set."
-  @spec coworkers() :: %{String.t() => String.t()}
-  def coworkers do
+  @doc """
+  The active handle → window map for `roster` (entries `%{"name" => n}`/`%{name: n}`, string or atom
+  keyed) — each name `n` becomes handle `"n-machine"` mapped to window `n` — plus `$TLON_THIRD_AGENT`
+  if set.
+  """
+  @spec coworkers([map()]) :: %{String.t() => String.t()}
+  def coworkers(roster \\ []) do
+    base =
+      Map.new(roster, fn entry ->
+        name = entry["name"] || entry[:name]
+        {"#{name}-machine", name}
+      end)
+
     case third_agent() do
-      %{author: a, window: w} -> Map.put(@base_coworkers, a, w)
-      nil -> @base_coworkers
+      %{author: a, window: w} -> Map.put(base, a, w)
+      nil -> base
     end
   end
 
-  @doc "The {handle, window} pairs @-mentioned in `body` (deduped, first-seen order)."
-  @spec mentions(String.t() | nil) :: [{String.t(), String.t()}]
-  def mentions(nil), do: []
+  @doc "The {handle, window} pairs @-mentioned in `body` (deduped, first-seen order), resolved against `roster`."
+  @spec mentions(String.t() | nil, [map()]) :: [{String.t(), String.t()}]
+  def mentions(body, roster \\ [])
+  def mentions(nil, _roster), do: []
 
-  def mentions(body) do
-    cw = coworkers()
+  def mentions(body, roster) do
+    cw = coworkers(roster)
 
     ~r/@([\w-]+)/
     |> Regex.scan(body, capture: :all_but_first)
@@ -68,7 +79,8 @@ defmodule Aleph.Mention do
   The injection turns for a posted message. With an explicit coworker `@`-mention, wakes each
   mentioned coworker (except the author's own window — the loop guard). With NO coworker mention,
   falls back to `opts[:lead]` — the thread's staffed lead coworker — so a bare operator reply
-  still reaches someone. Each turn is `{window_name, one_line_text}`.
+  still reaches someone. Each turn is `{window_name, one_line_text}`. `roster` resolves handles
+  (see `coworkers/1`) — funes-down/no-world callers pass `[]`, so nobody is woken.
 
   `opts[:staffed_window]` (e.g. `"t9"`) redirects the lead onto its OWN per-thread window: on a
   staffed thread the lead coworker runs in a `t<id>` window, not the standing handle→window
@@ -77,13 +89,13 @@ defmodule Aleph.Mention do
   thread. The author-exclusion loop guard runs before the redirect (an agent's own post — its
   standing window — is dropped first), so the thread's own session never wakes itself.
   """
-  @spec route(map(), keyword()) :: [{String.t(), String.t()}]
-  def route(row, opts \\ [])
+  @spec route(map(), keyword(), [map()]) :: [{String.t(), String.t()}]
+  def route(row, opts \\ [], roster \\ [])
 
-  def route(%{author: author, body: body, thread_id: tid}, opts) do
-    author_window = resolve(author, tid)
-    targets = mention_targets(body, opts[:lead], tid)
-    lead_window = opts[:lead] && resolve(opts[:lead], tid)
+  def route(%{author: author, body: body, thread_id: tid}, opts, roster) do
+    author_window = resolve(author, tid, roster)
+    targets = mention_targets(body, opts[:lead], tid, roster)
+    lead_window = opts[:lead] && resolve(opts[:lead], tid, roster)
     staffed = opts[:staffed_window]
 
     for_result =
@@ -95,14 +107,14 @@ defmodule Aleph.Mention do
     Enum.uniq(for_result)
   end
 
-  def route(_, _), do: []
+  def route(_, _, _), do: []
 
-  # A handle → window: the static base map, else a crew role's per-thread window (`r<tid>`), else
+  # A handle → window: the roster-derived map, else a crew role's per-thread window (`r<tid>`), else
   # nil. Crew roles only resolve WITH a thread id — their window is per-thread, so a nil tid
   # (standing thread, uqbar console) leaves a crew handle unresolved and it is simply not woken.
-  defp resolve(handle, tid) do
+  defp resolve(handle, tid, roster) do
     cond do
-      w = coworkers()[handle] -> w
+      w = coworkers(roster)[handle] -> w
       role = tid && Crew.handle_role(handle) -> Crew.crew_window(role, tid)
       true -> nil
     end
@@ -116,19 +128,19 @@ defmodule Aleph.Mention do
 
   # The windows to wake: the @-mentioned handles resolved for THIS thread, or — when none are
   # named — the thread's lead coworker's window (nil/unknown → []).
-  defp mention_targets(body, lead, tid) do
+  defp mention_targets(body, lead, tid, roster) do
     case mentioned_handles(body) do
-      [] -> lead |> lead_window(tid) |> List.wrap()
-      handles -> handles |> Enum.map(&resolve(&1, tid)) |> Enum.reject(&is_nil/1)
+      [] -> lead |> lead_window(tid, roster) |> List.wrap()
+      handles -> handles |> Enum.map(&resolve(&1, tid, roster)) |> Enum.reject(&is_nil/1)
     end
   end
 
-  defp lead_window(nil, _tid), do: nil
-  defp lead_window(handle, tid), do: resolve(handle, tid)
+  defp lead_window(nil, _tid, _roster), do: nil
+  defp lead_window(handle, tid, roster), do: resolve(handle, tid, roster)
 
   # Every @handle token in the body (deduped, first-seen). Resolution to windows happens per-thread
-  # in `resolve/2`; this stays purely lexical so crew handles are seen even though they are not in
-  # the static `coworkers/0` map.
+  # in `resolve/3`; this stays purely lexical so crew handles are seen even though they are not in
+  # the roster-derived `coworkers/1` map.
   defp mentioned_handles(body) do
     ~r/@([\w-]+)/
     |> Regex.scan(body, capture: :all_but_first)

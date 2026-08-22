@@ -43,19 +43,19 @@ defmodule Aleph.ConfigTest do
     assert Config.coworker_model("tlon", path).thinking == "medium"
   end
 
-  test "default_coworker/1 reads the configured default, else claude-machine", %{path: path} do
+  test "default_coworker/1 reads the configured default, else the roster-derived builder", %{path: path} do
     :ok = Config.put_default_coworker("pi-machine", path)
     assert Config.default_coworker(path) == "pi-machine"
   end
 
-  test "default_coworker/1 falls back to claude-machine when unset", %{path: path} do
-    assert Config.default_coworker(path) == "claude-machine"
+  test "default_coworker/1 falls back to the World's builder handle when unset", %{path: path} do
+    assert Config.default_coworker(path) == "hronir-machine"
   end
 
-  test "default_coworker/1 falls back to claude-machine on a corrupt file", %{path: path} do
+  test "default_coworker/1 falls back to the World's builder handle on a corrupt file", %{path: path} do
     File.mkdir_p!(Path.dirname(path))
     File.write!(path, "{not json")
-    assert Config.default_coworker(path) == "claude-machine"
+    assert Config.default_coworker(path) == "hronir-machine"
   end
 
   test "put_default_coworker persists without disturbing coworker model overrides", %{path: path} do

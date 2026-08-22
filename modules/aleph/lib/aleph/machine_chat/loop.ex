@@ -30,15 +30,11 @@ defmodule Aleph.MachineChat.Loop do
   alias Aleph.MachineChat.Host
   alias Aleph.MachineChat.Staffing
   alias Aleph.Mention
+  alias Aleph.Profiles
+  alias Aleph.Space
   alias Aleph.Transcript
   alias Funes.Channel
   alias Raxol.Core.Events.Event
-
-  # The claude coworker handle — the lead the cockpit staffs with its own `t<id>` session,
-  # so this tab must not also wake the standing coworker for it. STALE since C2.3: the cockpit's
-  # equivalent (`claude_launched?/2`) is now roster-derived (e.g. `hronir-machine`), so this
-  # constant only still matches the seed roster's builder by coincidence. Follow-up (C2.4/C2.5).
-  @claude_agent "claude-machine"
 
   @poll_ms 700
   @render_coalesce_ms 8
@@ -256,15 +252,48 @@ defmodule Aleph.MachineChat.Loop do
   # (an unregistered handle, a DB hiccup) raises up to `submit/1`'s rescue/catch, which just clears
   # the box — the thread and its opening message are already durable either way.
   defp stage_lead(thread_id, text) do
-    handle = Staffing.pick_coworker(text, Config.default_coworker())
+    handle = Staffing.pick_coworker(text, Config.default_coworker(), active_roster())
     Funes.assign_lead(thread_id, handle)
     handle
   end
 
   # Does the cockpit spawn a per-thread `t<id>` session for this lead (so it owns the opening turn
-  # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.claude_launched?/1`: the claude coworker
-  # and the optional third experiment agent are claude-launched; a pi-led thread is not.
-  defp cockpit_staffs?(lead), do: lead == @claude_agent or lead == third_agent_author()
+  # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.claude_launched?/2`: a roster
+  # `:claude_code`-harness handle (e.g. the builder → `hronir-machine`) or the third experiment
+  # agent are claude-launched; a pi-led thread is not.
+  defp cockpit_staffs?(lead), do: lead in claude_handles() or lead == third_agent_author()
+
+  # The funes handles this World's roster stamps onto a `:claude_code`-harness archetype — mirrors
+  # `Aleph.Cockpit.claude_handles/1`, but against `active_roster/0` (`Space.first_world/0`): this
+  # tab has no `active_key`/multi-world notion (single World in Slice 1). A later multi-world Loop
+  # would need to thread this from the thread's own world instead.
+  defp claude_handles, do: Enum.flat_map(active_roster(), &claude_handle_if_claude_code/1)
+
+  # Mirrors `Aleph.Cockpit.claude_handle_if_claude_code/1`/`roster_entry/1`: a roster entry is
+  # funes JSON (string keys) or a test's atom-keyed map; the archetype STRING is normalized to the
+  # atom the archetype registry is keyed by.
+  defp claude_handle_if_claude_code(entry) do
+    name = entry["name"] || entry[:name]
+    archetype = normalize_archetype(entry["archetype"] || entry[:archetype])
+
+    if Profiles.instantiate(%{archetype: archetype, name: name}).harness == :claude_code,
+      do: ["#{name}-machine"],
+      else: []
+  end
+
+  defp normalize_archetype(a) when is_atom(a), do: a
+
+  defp normalize_archetype(a) when is_binary(a),
+    do: Enum.find(Map.keys(Profiles.archetypes()), &(Atom.to_string(&1) == a))
+
+  # The active World's roster (single World, Slice 1) — the fixture `wake_mentions`/`stage_lead`
+  # resolve handles against. Funes-down / no world degrades to `[]` (nobody resolves, nobody wakes).
+  defp active_roster do
+    case Space.first_world() do
+      %Space{roster: roster} -> roster
+      _ -> []
+    end
+  end
 
   defp third_agent_author do
     case Mention.third_agent() do
@@ -306,7 +335,7 @@ defmodule Aleph.MachineChat.Loop do
     lead = safe_thread_lead(thread_id)
     opts = [lead: lead, staffed_window: staffed_window(lead, thread_id)]
 
-    for {window, text} <- Mention.route(%{author: author, body: body, thread_id: thread_id}, opts) do
+    for {window, text} <- Mention.route(%{author: author, body: body, thread_id: thread_id}, opts, active_roster()) do
       System.cmd("tmux", ["send-keys", "-t", window, "-l", text], stderr_to_stdout: true)
       System.cmd("tmux", ["send-keys", "-t", window, "Enter"], stderr_to_stdout: true)
     end

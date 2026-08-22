@@ -7,10 +7,13 @@ defmodule Aleph.MachineChat.Staffing do
 
   alias Aleph.Mention
 
-  @doc "The coworker to staff on a new thread: the first @-mentioned coworker, else the default."
-  @spec pick_coworker(String.t(), String.t()) :: String.t()
-  def pick_coworker(text, default) do
-    case Mention.mentions(text) do
+  @doc """
+  The coworker to staff on a new thread: the first @-mentioned coworker (resolved against
+  `roster`, see `Aleph.Mention.coworkers/1`), else the default.
+  """
+  @spec pick_coworker(String.t(), String.t(), [map()]) :: String.t()
+  def pick_coworker(text, default, roster \\ []) do
+    case Mention.mentions(text, roster) do
       [{handle, _window} | _] -> handle
       [] -> default
     end

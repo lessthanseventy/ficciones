@@ -556,7 +556,7 @@ defmodule Aleph.Cockpit do
         :ok
 
       {:route, staffed} ->
-        for {window, text} <- Aleph.Mention.route(row, lead: lead, staffed_window: staffed),
+        for {window, text} <- Aleph.Mention.route(row, [lead: lead, staffed_window: staffed], active_roster(world_id)),
             index = tlon_window_index(world_id, window),
             not is_nil(index) do
           inject_turn(world_id, index, text)
@@ -1651,10 +1651,14 @@ defmodule Aleph.Cockpit do
 
   # The funes handles this World's roster stamps onto a `:claude_code`-harness archetype
   # (`"<name>-machine"`, e.g. the builder → `hronir-machine`) — the set `claude_launched?/2` checks
-  # against. Funes-down / no roster degrades to `[]`.
-  defp claude_handles(world_id) do
+  # against.
+  defp claude_handles(world_id), do: Enum.flat_map(active_roster(world_id), &claude_handle_if_claude_code/1)
+
+  # This World's roster (`Aleph.Mention.route/3`'s resolution fixture) — funes-down / no roster
+  # degrades to `[]` (nobody resolves, nobody wakes).
+  defp active_roster(world_id) do
     case Space.fetch(world_id) do
-      %Space{roster: roster} -> Enum.flat_map(roster, &claude_handle_if_claude_code/1)
+      %Space{roster: roster} -> roster
       _ -> []
     end
   end

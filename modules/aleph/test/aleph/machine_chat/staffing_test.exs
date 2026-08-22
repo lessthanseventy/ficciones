@@ -8,15 +8,21 @@ defmodule Aleph.MachineChat.StaffingTest do
 
   alias Aleph.MachineChat.Staffing
 
+  @roster [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
+
   test "the first @-mentioned coworker wins over the default" do
-    assert Staffing.pick_coworker("@tertius-machine do x", "claude-machine") == "tertius-machine"
+    assert Staffing.pick_coworker("@tertius-machine do x", "hronir-machine", @roster) == "tertius-machine"
   end
 
   test "no mention falls back to the default" do
-    assert Staffing.pick_coworker("no mention", "claude-machine") == "claude-machine"
+    assert Staffing.pick_coworker("no mention", "hronir-machine", @roster) == "hronir-machine"
   end
 
   test "a non-coworker @-handle is ignored — falls back to the default" do
-    assert Staffing.pick_coworker("@andrew hi", "claude-machine") == "claude-machine"
+    assert Staffing.pick_coworker("@andrew hi", "hronir-machine", @roster) == "hronir-machine"
+  end
+
+  test "an empty roster (funes-down) falls back to the default even with a mention" do
+    assert Staffing.pick_coworker("@tertius-machine do x", "hronir-machine") == "hronir-machine"
   end
 end

@@ -8,6 +8,9 @@ defmodule Aleph.MentionEnvTest do
 
   alias Aleph.Mention
 
+  # The seed roster (Aleph.Space's fallback Tlön world) — mirrors mention_test.exs's fixture.
+  @roster [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
+
   setup do
     on_exit(fn ->
       System.delete_env("TLON_THIRD_AGENT")
@@ -36,14 +39,17 @@ defmodule Aleph.MentionEnvTest do
     test "the third agent joins the wake-loop — @-mention wakes its window" do
       System.put_env("TLON_THIRD_AGENT", "skeptic-machine:skeptic")
 
-      assert Mention.coworkers()["skeptic-machine"] == "skeptic"
+      assert Mention.coworkers(@roster)["skeptic-machine"] == "skeptic"
 
-      assert Mention.route(%{author: "tertius-machine", body: "@skeptic-machine weigh in", thread_id: 1}) ==
+      assert Mention.route(%{author: "tertius-machine", body: "@skeptic-machine weigh in", thread_id: 1}, [], @roster) ==
                [{"skeptic", "[funes thread #1] tertius-machine: @skeptic-machine weigh in"}]
 
-      # And the base pair still works alongside it.
-      assert Mention.route(%{author: "skeptic-machine", body: "@claude-machine you're stalling", thread_id: 1}) ==
-               [{"hronir", "[funes thread #1] skeptic-machine: @claude-machine you're stalling"}]
+      # And the roster-derived base map still works alongside it.
+      assert Mention.route(
+               %{author: "skeptic-machine", body: "@hronir-machine you're stalling", thread_id: 1},
+               [],
+               @roster
+             ) == [{"hronir", "[funes thread #1] skeptic-machine: @hronir-machine you're stalling"}]
     end
   end
 
@@ -51,15 +57,15 @@ defmodule Aleph.MentionEnvTest do
     test "labels the injected turn 'someone' instead of the real handle" do
       System.put_env("TLON_MENTION_LABEL", "anon")
 
-      assert Mention.route(%{author: "tertius-machine", body: "@claude-machine who are you", thread_id: 1}) ==
-               [{"hronir", "[funes thread #1] someone: @claude-machine who are you"}]
+      assert Mention.route(%{author: "tertius-machine", body: "@hronir-machine who are you", thread_id: 1}, [], @roster) ==
+               [{"hronir", "[funes thread #1] someone: @hronir-machine who are you"}]
     end
 
     test "any other value keeps the real label" do
       System.put_env("TLON_MENTION_LABEL", "real")
 
-      assert Mention.route(%{author: "tertius-machine", body: "@claude-machine hi", thread_id: 1}) ==
-               [{"hronir", "[funes thread #1] tertius-machine: @claude-machine hi"}]
+      assert Mention.route(%{author: "tertius-machine", body: "@hronir-machine hi", thread_id: 1}, [], @roster) ==
+               [{"hronir", "[funes thread #1] tertius-machine: @hronir-machine hi"}]
     end
   end
 end

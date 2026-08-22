@@ -317,10 +317,11 @@ defmodule Aleph.View do
 
   # The Tlön window strip, presence-joined: `reads.machine`'s tabs (from `tlon_tabs()`, forked
   # once per render by the Cockpit) each get their agent handle (window → agent via
-  # `Aleph.Mention.coworkers/0`, inverted) and warmth (`reads.roster`, already fetched for the
-  # sidebar) — so WindowBar stays a pure render with no funes reads of its own.
+  # `Aleph.Mention.coworkers/1`, inverted, sourced from the active space's roster) and warmth
+  # (`reads.roster`, already fetched for the sidebar) — so WindowBar stays a pure render with no
+  # funes reads of its own.
   defp window_tabs(r) do
-    agents = Map.new(Mention.coworkers(), fn {agent, window} -> {window, agent} end)
+    agents = Map.new(Mention.coworkers(fetch_space(r.active_key).roster), fn {agent, window} -> {window, agent} end)
     warm_agents = r.roster |> Enum.filter(& &1.warm?) |> MapSet.new(& &1.agent)
 
     r
