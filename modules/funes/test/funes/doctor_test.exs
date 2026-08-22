@@ -21,7 +21,8 @@ defmodule Funes.DoctorTest do
                "question",
                "session",
                "thread",
-               "todo"
+               "todo",
+               "world"
              ]
   end
 

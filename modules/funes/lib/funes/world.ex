@@ -36,6 +36,9 @@ defmodule Funes.World do
     %__MODULE__{}
     |> cast(attrs, [:name | @mutable])
     |> validate_required([:name])
+    # Not an app-side re-check: this only translates the DB's UNIQUE(name) violation
+    # into an {:error, changeset} so a duplicate register is graceful, not a crash.
+    |> unique_constraint(:name)
     |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 

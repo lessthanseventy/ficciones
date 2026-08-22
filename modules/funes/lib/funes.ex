@@ -22,6 +22,8 @@ defmodule Funes do
       Staff,
       Board,
       Dossier,
+      # Compositions: the worlds context aleph reads to drive its picker/survey/spawn.
+      Worlds,
       Presence,
       # The agent-to-agent consult (ask a peer; the answer is mirrored back).
       Consult,
