@@ -1140,6 +1140,14 @@ defmodule Aleph.KeymapTest do
       assert {_s, {:habit_action, :reject}} = Keymap.handle(char("r"), tlon(nav_focus()))
     end
 
+    test "y in nav emits :yank; y in the terminal forwards" do
+      assert {_s, :yank} = Keymap.handle(char("y"), tlon(nav_focus()))
+
+      s = tlon()
+      k = char("y")
+      assert {^s, {:forward, ^k}} = Keymap.handle(k, s)
+    end
+
     test "in nav mode with no detail open, Esc returns to the terminal" do
       {next, :repaint} = Keymap.handle(key(:escape), tlon(nav_focus()))
       assert next.focus.in_terminal? == true

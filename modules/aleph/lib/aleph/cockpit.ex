@@ -16,6 +16,7 @@ defmodule Aleph.Cockpit do
   alias Aleph.Keymap
   alias Aleph.LeafWindow
   alias Aleph.Mouse
+  alias Aleph.Osc
   alias Aleph.Panel
   alias Aleph.Panel.Border
   alias Aleph.Panel.WindowBar
@@ -1003,6 +1004,19 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "habit action failed: #{Exception.message(e)}"})}
   end
 
+  # `y` landed: resolve the focused pane's semantic text, OSC-52 it to the host clipboard
+  # (through the tty, so it works over SSH), and flash what was taken.
+  defp apply_effect(:yank, state) do
+    case yank_text(state) do
+      {label, text} ->
+        IO.write(Osc.copy(text))
+        {:noreply, render(%{state | flash: "yanked #{label}"})}
+
+      nil ->
+        {:noreply, render(%{state | flash: "nothing to yank here"})}
+    end
+  end
+
   @doc false
   # The pure decision behind `[`/`]`: advance `right_pane_view` by `dir`, wrapped at the CAROUSEL's
   # length (Health is pinned, never cycled — clarity slice 2). No carousel (0/1-panel right column)
@@ -1612,6 +1626,30 @@ defmodule Aleph.Cockpit do
       _ -> nil
     end
   end
+
+  # The focused selection's clipboard text — pane dispatch mirrors tlon_detail/2. An open detail
+  # wins (yank what's on screen).
+  defp yank_text(%{focus: %Focus{detail?: true}} = state) do
+    case tlon_detail(state, tlon_layout(state)) do
+      %{title: title, lines: lines} -> {"detail", Enum.map_join([{title, nil} | lines], "\n", fn {t, _} -> t end)}
+      _ -> nil
+    end
+  end
+
+  defp yank_text(state) do
+    layout = tlon_layout(state)
+    cursor = Focus.cursor(state.focus, layout)
+
+    case Focus.focused_pane(state.focus, layout) do
+      Panel.Stack -> Panel.Stack.yank(state.stack, cursor)
+      Panel.Memory -> Panel.Memory.yank(memory_for_yank(state), cursor)
+      Panel.Leaves -> Panel.Leaves.yank(state.leaves, cursor)
+      _ -> nil
+    end
+  end
+
+  defp memory_for_yank(%{memory: nil}), do: nil
+  defp memory_for_yank(%{memory: memory, focus: focus}), do: Map.put(memory, :section, focus.section)
 
   # Section 0 (floor) → the selected fact's full text + metadata; section 1 (habits) → the selected
   # habit's text + rationale. nil (empty section / no memory) leaves the terminal up.

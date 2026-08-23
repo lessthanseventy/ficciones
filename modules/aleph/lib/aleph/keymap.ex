@@ -127,6 +127,7 @@ defmodule Aleph.Keymap do
           | {:coworker_knob, String.t(), :model | :yolo}
           | :tlon_enter
           | :tlon_preview
+          | :yank
           | :none
 
   @doc "Map a key event against the current state to the next state and the effect to run."
@@ -649,6 +650,9 @@ defmodule Aleph.Keymap do
 
   defp handle_tlon(%{key: :char, char: "a"}, state), do: {state, {:habit_action, :approve}}
   defp handle_tlon(%{key: :char, char: "r"}, state), do: {state, {:habit_action, :reject}}
+  # `y` — semantic yank: the cockpit resolves the focused pane's real text (sha/fact/title) and
+  # writes it to the clipboard via OSC 52. Detail-open yanks the detail body.
+  defp handle_tlon(%{key: :char, char: "y"}, state), do: {state, :yank}
   # C3.4 reshuffle: Tab/Shift+Tab switch spaces (matching the command level) instead of cycling
   # sections — Shift+Tab must precede the bare :tab clause below, which also matches it.
   defp handle_tlon(%{key: :tab, shift: true}, state), do: switch(state, :prev)
