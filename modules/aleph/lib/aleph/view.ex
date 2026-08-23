@@ -16,6 +16,9 @@ defmodule Aleph.View do
   alias Aleph.Worlds
   alias Funes.Presence
 
+  # Space.world?/1 is a defguard — usable outside a guard too, but only once required.
+  require Space
+
   @min_col 16
   # The bottom footer: an info line + a hints line (Aleph.Panel.StatusBar).
   @status_h 2
@@ -111,7 +114,7 @@ defmodule Aleph.View do
       end)
 
     status =
-      {Panel.StatusBar, status_data(reads, space), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
+      {Panel.StatusBar, status_data(reads, space, focused), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
 
     # Borders first: panel content paints over each box interior, leaving only the frames.
     borders ++ contents ++ composer_placement(reads, composer_h, w, h) ++ [status]
@@ -330,7 +333,7 @@ defmodule Aleph.View do
     :exit, _ -> []
   end
 
-  defp status_data(reads, space) do
+  defp status_data(reads, space, focused) do
     %{
       space: space.label,
       thread: reads.focused_title,
@@ -343,8 +346,27 @@ defmodule Aleph.View do
       # True for the one keypress after Ctrl+Space — the hints line shows the armed-prefix state.
       leader_pending?: reads[:leader_pending?],
       # Tlön's focus (nil elsewhere) — the footer shows NAV/TERM and the focus-model hints.
-      focus: reads[:focus]
+      focus: reads[:focus],
+      # The contextual footer's keys (design 2026-08-23) — world-ness, never the label.
+      mode: footer_mode(reads),
+      world?: Space.world?(space.key),
+      lock?: reads[:lock?] == true,
+      pane_hints: pane_hints(reads, space, focused)
     }
+  end
+
+  defp footer_mode(%{lock?: true}), do: :lock
+  defp footer_mode(%{focus: %Focus{in_terminal?: true}}), do: :term
+  defp footer_mode(%{focus: %Focus{}}), do: :nav
+  defp footer_mode(_reads), do: nil
+
+  # The focused pane's declared verbs; the carousel slot appends the view-cycle key.
+  defp pane_hints(_reads, _space, nil), do: []
+
+  defp pane_hints(reads, space, focused) do
+    {panel, data, _rect} = content_for(focused, reads, %{x: 0, y: 0, w: 40, h: 10})
+    hints = Panel.hints(panel, data)
+    if focused in Space.carousel(space), do: hints ++ [{"[/]", "view"}], else: hints
   end
 
   @gap 1

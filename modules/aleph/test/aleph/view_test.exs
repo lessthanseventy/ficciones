@@ -378,4 +378,41 @@ defmodule Aleph.ViewTest do
       assert border_of(placements, "IN SCOPE")
     end
   end
+
+  describe "contextual footer data (clarity slice 3)" do
+    defp status_of(placements),
+      do:
+        Enum.find_value(placements, fn
+          {Panel.StatusBar, data, _rect} -> data
+          _ -> nil
+        end)
+
+    test "world + nav: mode :nav, world? true, and the focused pane's hints (carousel appends [/])" do
+      focus = %Focus{in_terminal?: false, column: :right, pane: 1}
+      data = status_of(View.compose(reads(%{focus: focus}), 120, 40))
+
+      assert data.mode == :nav
+      assert data.world? == true
+      # right pane 1 is the carousel slot (CREW by default — no verbs of its own) → just [/]
+      assert {"[/]", "view"} in data.pane_hints
+    end
+
+    test "world + terminal: mode :term, no pane hints" do
+      data = status_of(View.compose(reads(%{focus: Focus.new()}), 120, 40))
+      assert data.mode == :term
+      assert data.pane_hints == []
+    end
+
+    test "orbis: mode nil (the shared table)" do
+      data = status_of(View.compose(reads(%{active_key: :orbis, focus: nil}), 120, 40))
+      assert data.mode == nil
+      assert data.world? == false
+    end
+
+    test "a focused Stack pane's own verbs ride through" do
+      focus = %Focus{in_terminal?: false, column: :left, pane: 1}
+      data = status_of(View.compose(reads(%{focus: focus}), 120, 40))
+      assert {"⏎", "diff"} in data.pane_hints
+    end
+  end
 end
