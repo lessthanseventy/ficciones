@@ -167,6 +167,41 @@ defmodule Aleph.CockpitThreadSessionsTest do
     refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
   end
 
+  test "a restart can't replay the opening turn — the phase lives on the window (@funes_opening)" do
+    thread = staffed_thread("borges-machine")
+    test_pid = self()
+
+    # A DONE-tagged live leaf + a fresh cockpit (empty opening state): nothing is typed or sent.
+    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+      send(test_pid, {:tmux, args})
+
+      if Enum.member?(args, "list-windows"),
+        do: {"1\t0\trufus\t\t\n0\t1\tplanner-task\t#{thread.id}\tdone\n", 0},
+        else: {"", 0}
+    end)
+
+    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    refute_receive {:tmux, ["-L", _, "send-keys" | _]}, 50
+  end
+
+  test "a TYPED-tagged leaf after a restart submits immediately and tags done (text settled long ago)" do
+    thread = staffed_thread("borges-machine")
+    test_pid = self()
+
+    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+      send(test_pid, {:tmux, args})
+
+      if Enum.member?(args, "list-windows"),
+        do: {"1\t0\trufus\t\t\n0\t1\tplanner-task\t#{thread.id}\ttyped\n", 0},
+        else: {"", 0}
+    end)
+
+    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+
+    assert_receive {:tmux, ["-L", "aleph-world-99", "send-keys", "-t", "w99:1", "Enter"]}
+    assert_receive {:tmux, ["-L", "aleph-world-99", "set-option", "-w", "-t", "w99:1", "@funes_opening", "done"]}
+  end
+
   test "an orphan leaf window (thread closed/cleared while aleph was down) is swept" do
     thread = staffed_thread("borges-machine")
     test_pid = self()

@@ -643,16 +643,18 @@ defmodule Aleph.Cockpit do
   defp delivery_target(_row, _state, _lead), do: {:route, nil}
 
   # The live window NAME of a staffed thread's leaf session, once its opening turn has been
-  # submitted (`ensure_thread_sessions` set `opening_injected`) — the `staffed_window` redirect
-  # target `Aleph.Mention.route/3` rewrites the lead onto. Resolved via `leaf_tab` (the
-  # `@funes_thread` routing map — Slice C), so the human window name never gets parsed. nil while
-  # mid-spawn / pre-opening (→ `:skip`; the spawn pass owns the opening turn).
+  # submitted — the `staffed_window` redirect target `Aleph.Mention.route/3` rewrites the lead
+  # onto. Resolved via `leaf_tab` (the `@funes_thread` routing map — Slice C); the submitted
+  # check reads the window's own `@funes_opening` tag first, so a restarted cockpit (empty
+  # `opening_injected`) keeps delivering to already-running leaves instead of `:skip`ping them
+  # forever. nil while mid-spawn / pre-opening (→ `:skip`; the spawn pass owns the opening turn).
   defp staffed_leaf_window(tid, state) do
-    if MapSet.member?(state.opening_injected, tid) do
-      case leaf_tab(tlon_tabs(active_world_id(state)), tid) do
-        %{name: name} -> name
-        _ -> nil
-      end
+    case leaf_tab(tlon_tabs(active_world_id(state)), tid) do
+      %{name: name} = tab ->
+        if tab[:opening] == "done" or MapSet.member?(state.opening_injected, tid), do: name
+
+      _ ->
+        nil
     end
   end
 
@@ -713,13 +715,7 @@ defmodule Aleph.Cockpit do
   # Type literal `text` into window `index` of world `world_id` WITHOUT submitting — the first half
   # of a fresh-window inject, so the Enter can be sent on a later render once the TUI has settled.
   defp inject_text(world_id, index, text) do
-    _ =
-      System.cmd(
-        "tmux",
-        tlon_tmux(world_id, ["send-keys", "-l", "-t", "#{world_session(world_id)}:#{index}", text]),
-        stderr_to_stdout: true
-      )
-
+    _ = tlon_run(world_id, ["send-keys", "-l", "-t", "#{world_session(world_id)}:#{index}", text])
     :ok
   end
 
@@ -727,13 +723,7 @@ defmodule Aleph.Cockpit do
   # `inject_text` so a just-booted Claude Code TUI gets the text and the Enter as separate bursts (a
   # bundled Enter lands as a literal newline / gets swallowed, leaving the turn typed-but-unsent).
   defp submit_turn(world_id, index) do
-    _ =
-      System.cmd(
-        "tmux",
-        tlon_tmux(world_id, ["send-keys", "-t", "#{world_session(world_id)}:#{index}", "Enter"]),
-        stderr_to_stdout: true
-      )
-
+    _ = tlon_run(world_id, ["send-keys", "-t", "#{world_session(world_id)}:#{index}", "Enter"])
     :ok
   end
 
@@ -1975,37 +1965,65 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Two-phase, so a just-booted `t<id>` window submits its opening turn instead of leaving it typed
-  # but unsent: stage 1 types the text and records the moment; stage 2, once the text has settled
-  # for @opening_submit_delay_ms, sends Enter and marks the thread done. Ordered newest-first: the
-  # `opening_injected` (done) check must precede the `opening_text_at` (typed) check.
+  # Two-phase, so a just-booted leaf window submits its opening turn instead of leaving it typed
+  # but unsent: stage 1 types the text; stage 2, once the text has settled for
+  # @opening_submit_delay_ms, sends Enter. The PHASE lives in tmux itself (`@funes_opening`
+  # "typed"/"done" on the window) so a cockpit restart mid-phase can't re-type the opening into a
+  # live session or (done-tagged) re-send it — process state only carries the settle timestamp; a
+  # "typed" tag with no timestamp (restart) means the text settled long ago, submit now.
   defp maybe_inject_opening_turn(world_id, id, tabs, now, state) do
+    tab = leaf_tab(tabs, id)
+
     cond do
-      MapSet.member?(state.opening_injected, id) ->
+      is_nil(tab) ->
         state
 
-      Map.has_key?(state.opening_text_at, id) ->
-        if now - state.opening_text_at[id] >= @opening_submit_delay_ms do
-          with index when not is_nil(index) <- leaf_index(tabs, id), do: submit_turn(world_id, index)
-          %{state | opening_injected: MapSet.put(state.opening_injected, id)}
-        else
-          state
-        end
+      tab.opening == "done" or MapSet.member?(state.opening_injected, id) ->
+        mark_opening_done(state, id)
+
+      tab.opening == "typed" or Map.has_key?(state.opening_text_at, id) ->
+        submit_opening(world_id, id, tab, now, state)
 
       true ->
-        inject_opening_text(world_id, id, tabs)
+        inject_opening_text(world_id, id, tab)
+        tag_opening(world_id, tab.index, "typed")
         %{state | opening_text_at: Map.put(state.opening_text_at, id, now)}
     end
   end
 
-  # Type the thread's latest operator message into its just-appeared `t<id>` window (no Enter yet —
-  # stage 2 submits). Best-effort on both reads: a window that vanished between the tabs snapshot
-  # and here, or a thread with no operator message yet, is silently skipped — never a render crash.
-  defp inject_opening_text(world_id, id, tabs) do
-    index = leaf_index(tabs, id)
+  defp submit_opening(world_id, id, tab, now, state) do
+    typed_at = state.opening_text_at[id]
+
+    if is_nil(typed_at) or now - typed_at >= @opening_submit_delay_ms do
+      submit_turn(world_id, tab.index)
+      tag_opening(world_id, tab.index, "done")
+      mark_opening_done(state, id)
+    else
+      state
+    end
+  end
+
+  defp mark_opening_done(state, id) do
+    %{
+      state
+      | opening_injected: MapSet.put(state.opening_injected, id),
+        opening_text_at: Map.delete(state.opening_text_at, id)
+    }
+  end
+
+  # Stamp the opening phase on the window itself — index-targeted, best-effort.
+  defp tag_opening(world_id, index, phase) do
+    _ = tlon_run(world_id, ["set-option", "-w", "-t", "#{world_session(world_id)}:#{index}", "@funes_opening", phase])
+    :ok
+  end
+
+  # Type the thread's latest operator message into its just-appeared leaf window (no Enter yet —
+  # stage 2 submits). Best-effort: a thread with no operator message yet is silently skipped —
+  # never a render crash.
+  defp inject_opening_text(world_id, id, %{index: index}) do
     message = Funes.latest_operator_message(id)
 
-    if index && message do
+    if message do
       operator = Application.get_env(:funes, :operator, "andrew")
       inject_text(world_id, index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
     end
@@ -2146,7 +2164,7 @@ defmodule Aleph.Cockpit do
       "-t",
       world_session(world_id),
       "-F",
-      "\#{window_active}\t\#{window_index}\t\#{window_name}\t\#{@funes_thread}"
+      "\#{window_active}\t\#{window_index}\t\#{window_name}\t\#{@funes_thread}\t\#{@funes_opening}"
     ]
 
     case tlon_run(world_id, args) do
@@ -2155,9 +2173,9 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Every World tmux query/re-point call routes through here — one seam over the coworker's private
-  # server (send-keys paths like inject_text/submit_turn still shell out directly) — so a test can
-  # inject a fake runner (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
+  # Every World tmux call — queries, re-points, AND the send-keys injects — routes through here:
+  # one seam over the coworker's private server, so a test can inject a fake runner
+  # (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
   defp tlon_run(world_id, args) do
     runner = Application.get_env(:aleph, :tlon_cmd, &System.cmd/3)
     runner.("tmux", tlon_tmux(world_id, args), stderr_to_stdout: true)
@@ -2172,19 +2190,33 @@ defmodule Aleph.Cockpit do
 
   @doc false
   # `window_active` is "1" for the current window, "0" otherwise; each line is
-  # `<active>\t<index>\t<name>\t<@funes_thread>` — the index is tmux's window index (select-window
-  # on a tab click); `@funes_thread` is the leaf routing key stamped at spawn (Slice C — empty/absent
-  # for non-leaf windows, parsed to nil). A three-field line (older fake/format) still parses.
+  # `<active>\t<index>\t<name>\t<@funes_thread>\t<@funes_opening>` — the index is tmux's window
+  # index (select-window on a tab click); `@funes_thread` is the leaf routing key stamped at spawn
+  # (Slice C — empty for non-leaf windows, parsed to nil); `@funes_opening` is the two-phase
+  # opening-turn state ("typed"/"done") persisted in tmux so a cockpit restart never re-types a
+  # live leaf's opening. Shorter lines (older fakes/format) still parse, missing fields nil.
   def parse_tlon_tabs(out) do
     out
     |> String.split("\n", trim: true)
     |> Enum.flat_map(fn line ->
-      case String.split(line, "\t", parts: 4) do
-        [active, index, name, thread] ->
-          [%{name: name, active?: active == "1", index: index, thread_id: parse_thread_id(thread)}]
+      case String.split(line, "\t", parts: 5) do
+        [active, index, name | rest] when rest != [] or name != "" ->
+          [thread, opening] =
+            case rest do
+              [t, o] -> [t, o]
+              [t] -> [t, ""]
+              [] -> ["", ""]
+            end
 
-        [active, index, name] ->
-          [%{name: name, active?: active == "1", index: index, thread_id: nil}]
+          [
+            %{
+              name: name,
+              active?: active == "1",
+              index: index,
+              thread_id: parse_thread_id(thread),
+              opening: if(opening in ["typed", "done"], do: opening)
+            }
+          ]
 
         _ ->
           []

@@ -277,18 +277,22 @@ defmodule Aleph.CockpitTest do
   end
 
   describe "parse_tlon_tabs/1: the workspace's windows as tab data" do
-    test "each `<active>\\t<index>\\t<name>\\t<@funes_thread>` line becomes a tab — leaf thread tag parsed or nil" do
-      out = "1\t1\tpi\t\n0\t2\tclaude\t\n0\t3\treviewer-fix-the-bug\t7\n"
+    test "each `<active>\\t<index>\\t<name>\\t<@funes_thread>\\t<@funes_opening>` line becomes a tab" do
+      out = "1\t1\tpi\t\t\n0\t2\tclaude\t\t\n0\t3\treviewer-fix-the-bug\t7\tdone\n"
 
       assert Cockpit.parse_tlon_tabs(out) == [
-               %{name: "pi", active?: true, index: "1", thread_id: nil},
-               %{name: "claude", active?: false, index: "2", thread_id: nil},
-               %{name: "reviewer-fix-the-bug", active?: false, index: "3", thread_id: 7}
+               %{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil},
+               %{name: "claude", active?: false, index: "2", thread_id: nil, opening: nil},
+               %{name: "reviewer-fix-the-bug", active?: false, index: "3", thread_id: 7, opening: "done"}
              ]
     end
 
-    test "a three-field line (no thread tag) still parses — thread_id nil" do
-      assert Cockpit.parse_tlon_tabs("1\t1\tpi\n") == [%{name: "pi", active?: true, index: "1", thread_id: nil}]
+    test "shorter lines (no thread/opening tags) still parse — missing fields nil" do
+      assert Cockpit.parse_tlon_tabs("1\t1\tpi\n") ==
+               [%{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil}]
+
+      assert Cockpit.parse_tlon_tabs("0\t4\tplanner-x\t9\n") ==
+               [%{name: "planner-x", active?: false, index: "4", thread_id: 9, opening: nil}]
     end
 
     test "empty output (session not up yet) is an empty strip, not a crash" do
@@ -296,7 +300,8 @@ defmodule Aleph.CockpitTest do
     end
 
     test "a malformed line is dropped, not guessed" do
-      assert Cockpit.parse_tlon_tabs("garbage\n1\t1\tpi\n") == [%{name: "pi", active?: true, index: "1", thread_id: nil}]
+      assert Cockpit.parse_tlon_tabs("garbage\n1\t1\tpi\n") ==
+               [%{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil}]
     end
   end
 
