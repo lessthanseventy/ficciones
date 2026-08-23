@@ -182,12 +182,13 @@ defmodule Aleph.Space do
   (HEALTH), plus the `view`-indexed one of the rest — the carousel, CREW default at index 0.
   Also the exact shape the Focus SM navigates, so View/keymap/cockpit can never disagree.
   """
-  @spec visible_right(t(), non_neg_integer()) :: [module() | {module(), atom()}]
+  @spec visible_right(t(), integer()) :: [module() | {module(), atom()}]
   def visible_right(%__MODULE__{right: []}, _view), do: []
   def visible_right(%__MODULE__{right: [pinned]}, _view), do: [pinned]
 
+  # Integer.mod, not rem: the public contract wraps negative views too.
   def visible_right(%__MODULE__{right: [pinned | carousel]}, view),
-    do: [pinned, Enum.at(carousel, rem(view, length(carousel)))]
+    do: [pinned, Enum.at(carousel, Integer.mod(view, length(carousel)))]
 
   @doc "The carousel members (everything after the pinned head) — the tab strip's panels."
   @spec carousel(t()) :: [module() | {module(), atom()}]

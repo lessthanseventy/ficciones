@@ -81,6 +81,11 @@ defmodule Aleph.View do
           assign_digits(boxed(sections, %{x: 0, y: 0, w: w, h: body_h}), 1)
       end
 
+    # A box under 2 rows can't hold a frame (Border renders [] below 2) and its inset content
+    # would poke a row past the column — drop it whole. AFTER digit assignment, so a collapsed
+    # box never renumbers its neighbors (the digits must match the focus layout's ordering).
+    boxes = Enum.reject(boxes, fn {_section, rect, _digit} -> rect.h < 2 end)
+
     # In Tlön nav mode one sidebar pane is focused — its border lights up (the lazygit "active
     # pane" cue). Every other box, and every other space, stays neutral.
     focused = focused_section(reads[:focus], space, right_sections)
@@ -168,7 +173,8 @@ defmodule Aleph.View do
     carousel = Space.carousel(space)
 
     if carousel != [] and section == carousel_active and section in carousel do
-      active = Enum.at(carousel, rem(reads[:right_pane_view] || 0, length(carousel)))
+      # Integer.mod matches Space.visible_right's wrap, so the lit tab is the shown panel.
+      active = Enum.at(carousel, Integer.mod(reads[:right_pane_view] || 0, length(carousel)))
       Enum.map(carousel, fn p -> {section_title(p), p == active} end)
     end
   end
@@ -349,10 +355,11 @@ defmodule Aleph.View do
   defp pinned_boxes([only], rect, _reads), do: boxed([only], rect)
 
   defp pinned_boxes([pinned, carousel_panel], %{x: x, y: y, w: w, h: h}, reads) do
-    # Reserve at least 1 row (+ gap) for the carousel even when the pinned box's intrinsic
-    # content would eat the whole column — a short frame degrades to a sliver, never overflow
-    # (a 0-height box's `inset/1` floors to h:1, which pokes a row past the frame).
-    pinned_h = min(intrinsic_height(pinned, reads, w) + 2, max(h - @gap - 1, 0))
+    # A short column shrinks the pinned head before the carousel dies: capped so the carousel
+    # keeps at least a 2-row frame, floored at a 2-row frame of its own, never past the column.
+    # A half that still lands under 2 rows is dropped whole by `compose/3` — a sliver box's
+    # inset would poke a row past the frame (the no-overflow invariant).
+    pinned_h = h |> min(max(h - @gap - 2, 2)) |> min(intrinsic_height(pinned, reads, w) + 2)
     rest_h = max(h - pinned_h - @gap, 0)
 
     [

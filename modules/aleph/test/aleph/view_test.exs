@@ -283,6 +283,22 @@ defmodule Aleph.ViewTest do
                  false
              end)
     end
+
+    test "a short frame never places a box (or its content) past the body — the status rows stay clean" do
+      # Regression: the pinned head's intrinsic height could leave the carousel a 1-row sliver,
+      # whose inset content landed one row PAST the column bottom (on the status bar). The
+      # invariant is total: at any height, every non-status placement fits inside body_h. Boxes
+      # too short for a real frame (h < 2) must be dropped whole, never emitted as slivers.
+      for h <- [4, 8, 15] do
+        placements = View.compose(reads(%{}), 120, h)
+        body_h = h - 2
+
+        for {panel, _data, rect} <- placements, panel != Panel.StatusBar do
+          assert rect.y + rect.h <= body_h,
+                 "#{inspect(panel)} ends past the body at 120x#{h}: #{inspect(rect)} (body_h #{body_h})"
+        end
+      end
+    end
   end
 
   # C3.1: the tab strip is LEADERS only — a world's roster windows (+ the uqbar console furniture);

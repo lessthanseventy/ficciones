@@ -135,6 +135,8 @@ defmodule Aleph.SpaceTest do
       assert Space.visible_right(space, 0) == [Health, Crew]
       assert Space.visible_right(space, 2) == [Health, Leaves]
       assert Space.visible_right(space, 3) == [Health, Crew]
+      # negative-safe wrap: the public contract must not nil out on a negative view
+      assert Space.visible_right(space, -1) == [Health, Leaves]
     end
 
     test "a single-panel right column (Orbis) is just the pinned panel" do
