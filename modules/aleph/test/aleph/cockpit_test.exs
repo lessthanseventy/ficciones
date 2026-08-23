@@ -277,14 +277,18 @@ defmodule Aleph.CockpitTest do
   end
 
   describe "parse_tlon_tabs/1: the workspace's windows as tab data" do
-    test "each `<active>\\t<index>\\t<name>` line becomes a tab — active flagged, index kept" do
-      out = "1\t1\tpi\n0\t2\tclaude\n0\t3\tterm\n"
+    test "each `<active>\\t<index>\\t<name>\\t<@funes_thread>` line becomes a tab — leaf thread tag parsed or nil" do
+      out = "1\t1\tpi\t\n0\t2\tclaude\t\n0\t3\treviewer-fix-the-bug\t7\n"
 
       assert Cockpit.parse_tlon_tabs(out) == [
-               %{name: "pi", active?: true, index: "1"},
-               %{name: "claude", active?: false, index: "2"},
-               %{name: "term", active?: false, index: "3"}
+               %{name: "pi", active?: true, index: "1", thread_id: nil},
+               %{name: "claude", active?: false, index: "2", thread_id: nil},
+               %{name: "reviewer-fix-the-bug", active?: false, index: "3", thread_id: 7}
              ]
+    end
+
+    test "a three-field line (no thread tag) still parses — thread_id nil" do
+      assert Cockpit.parse_tlon_tabs("1\t1\tpi\n") == [%{name: "pi", active?: true, index: "1", thread_id: nil}]
     end
 
     test "empty output (session not up yet) is an empty strip, not a crash" do
@@ -292,7 +296,7 @@ defmodule Aleph.CockpitTest do
     end
 
     test "a malformed line is dropped, not guessed" do
-      assert Cockpit.parse_tlon_tabs("garbage\n1\t1\tpi\n") == [%{name: "pi", active?: true, index: "1"}]
+      assert Cockpit.parse_tlon_tabs("garbage\n1\t1\tpi\n") == [%{name: "pi", active?: true, index: "1", thread_id: nil}]
     end
   end
 

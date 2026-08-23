@@ -13,6 +13,7 @@ defmodule Aleph.Cockpit do
 
   alias Aleph.Board
   alias Aleph.Keymap
+  alias Aleph.LeafWindow
   alias Aleph.Mouse
   alias Aleph.Panel
   alias Aleph.Panel.WindowBar
@@ -614,18 +615,26 @@ defmodule Aleph.Cockpit do
     cond do
       tid == standing -> {:route, nil}
       is_nil(lead) or not leaf_staffed?(lead, active_world_id(state)) -> {:route, nil}
-      staffed_thread_ready?(tid, state) -> {:route, "t#{tid}"}
+      window = staffed_leaf_window(tid, state) -> {:route, window}
       true -> :skip
     end
   end
 
   defp delivery_target(_row, _state, _lead), do: {:route, nil}
 
-  # A claude-led staffed thread whose `t<id>` window is live and whose opening turn has already
-  # been submitted (`ensure_thread_sessions` set `opening_injected`) — so `mention_notify` may
-  # deliver subsequent turns straight to it without racing or doubling the opening.
-  defp staffed_thread_ready?(tid, state),
-    do: MapSet.member?(state.opening_injected, tid) and not is_nil(tlon_window_index(active_world_id(state), "t#{tid}"))
+  # The live window NAME of a staffed thread's leaf session, once its opening turn has been
+  # submitted (`ensure_thread_sessions` set `opening_injected`) — the `staffed_window` redirect
+  # target `Aleph.Mention.route/3` rewrites the lead onto. Resolved via `leaf_tab` (the
+  # `@funes_thread` routing map — Slice C), so the human window name never gets parsed. nil while
+  # mid-spawn / pre-opening (→ `:skip`; the spawn pass owns the opening turn).
+  defp staffed_leaf_window(tid, state) do
+    if MapSet.member?(state.opening_injected, tid) do
+      case leaf_tab(tlon_tabs(active_world_id(state)), tid) do
+        %{name: name} -> name
+        _ -> nil
+      end
+    end
+  end
 
   # The funes handle of the coworker staffed on this message's thread (its lead), or nil.
   # Read in-process (aleph boots funes); never crash the hub if the lookup fails.
@@ -1152,7 +1161,7 @@ defmodule Aleph.Cockpit do
       %{id: id, lead: lead} ->
         tabs = tlon_tabs(world_id)
 
-        case {window_index(tabs, "t#{id}"), window_index(tabs, lead)} do
+        case {leaf_index(tabs, id), window_index(tabs, lead)} do
           {idx, _} when not is_nil(idx) ->
             select_tlon_window(world_id, %{index: idx})
 
@@ -1822,47 +1831,72 @@ defmodule Aleph.Cockpit do
     tabs = tlon_tabs(key)
     now = System.monotonic_time(:millisecond)
     roster = space_roster(key, spaces)
+    # Window names spawned THIS pass join the taken set, so two new leaves with the same title in
+    # one render can't collide on a name (the tag targets by name once, right after new-window).
+    taken = MapSet.new(tabs, & &1.name)
 
-    Enum.reduce(Funes.staffed_machine_threads(), state, &ensure_thread_session(key, roster, &1, tabs, now, &2))
+    {state, _taken} =
+      Enum.reduce(Funes.staffed_machine_threads(), {state, taken}, fn thread, {st, tk} ->
+        ensure_thread_session(key, roster, thread, tabs, now, st, tk)
+      end)
+
+    state
   end
 
   def ensure_thread_sessions(state, _spaces), do: state
 
-  defp ensure_thread_session(world_id, roster, %{id: id, lead: lead}, tabs, now, state) do
-    window = "t#{id}"
-
+  defp ensure_thread_session(world_id, roster, %{id: id, lead: lead, title: title}, tabs, now, state, taken) do
     cond do
-      # The standing coworker's own thread — it already has a session (pi's/claude's window),
-      # just not one named `t<id>`. Never spawn a duplicate for it.
+      # The standing coworker's own thread — it already has a session (the center window),
+      # just not a leaf one. Never spawn a duplicate for it.
       id == state.standing_thread_id ->
-        state
+        {state, taken}
 
-      Enum.any?(tabs, &(&1.name == window)) ->
-        maybe_inject_opening_turn(world_id, id, tabs, now, state)
+      leaf_tab(tabs, id) ->
+        {maybe_inject_opening_turn(world_id, id, tabs, now, state), taken}
 
       not thread_spawn_due?(state.thread_spawn_retry[id], now) ->
-        state
+        {state, taken}
 
       true ->
-        spawn_leaf(world_id, roster, lead, window, id, now, state)
+        spawn_leaf(world_id, roster, lead, title, id, now, state, taken)
     end
   end
 
   # Dispatch the leaf spawn on the lead's roster profile: claude leads ride `claude_launcher()`,
   # pi leads a windowed `pi_command/1` — both joined to the leaf's OWN thread id, so `FUNES_THREAD`
   # binds the harness to the thread it works. nil profile (meta/unknown lead) spawns nothing.
-  defp spawn_leaf(world_id, roster, lead, window, id, now, state) do
+  # The window gets a HUMAN name (`<archetype>-<title-slug>`, Slice C); the routing key is the
+  # `@funes_thread` option `tag_leaf/4` stamps right after the spawn.
+  defp spawn_leaf(world_id, roster, lead, title, id, now, state, taken) do
     case Profiles.leaf_profile(lead, roster) do
       nil ->
-        state
-
-      %Profile{harness: :claude_code} ->
-        record_thread_spawn(spawn_agent_window(world_id, lead, window, id), state, id, now)
+        {state, taken}
 
       %Profile{} = profile ->
-        record_thread_spawn(spawn_pi_window(world_id, profile, window, id), state, id, now)
+        window = LeafWindow.name(profile.archetype, title, taken)
+
+        result =
+          case profile.harness do
+            :claude_code -> spawn_agent_window(world_id, lead, window, id)
+            _pi -> spawn_pi_window(world_id, profile, window, id)
+          end
+
+        {record_thread_spawn(tag_leaf(result, world_id, window, id), state, id, now), MapSet.put(taken, window)}
     end
   end
+
+  # Stamp the routing key on a just-spawned leaf window: `@funes_thread <id>`. From here on the
+  # window name is cosmetic — delivery/attach resolve thread → window via this option (`leaf_tab`).
+  # Name-targeted exact-match (`=`); safe because the name was minted collision-free against this
+  # pass's taken set. Only a successful spawn tags; a failed one just backs off.
+  defp tag_leaf({_out, 0} = ok, world_id, window, id) do
+    session = world_session(world_id)
+    _ = tlon_run(world_id, ["set-option", "-w", "-t", "#{session}:=#{window}", "@funes_thread", "#{id}"])
+    ok
+  end
+
+  defp tag_leaf(other, _world_id, _window, _id), do: other
 
   defp record_thread_spawn({_out, 0}, state, id, _now),
     do: %{state | thread_spawn_retry: Map.delete(state.thread_spawn_retry, id)}
@@ -1908,7 +1942,7 @@ defmodule Aleph.Cockpit do
 
       Map.has_key?(state.opening_text_at, id) ->
         if now - state.opening_text_at[id] >= @opening_submit_delay_ms do
-          with index when not is_nil(index) <- window_index(tabs, "t#{id}"), do: submit_turn(world_id, index)
+          with index when not is_nil(index) <- leaf_index(tabs, id), do: submit_turn(world_id, index)
           %{state | opening_injected: MapSet.put(state.opening_injected, id)}
         else
           state
@@ -1924,7 +1958,7 @@ defmodule Aleph.Cockpit do
   # stage 2 submits). Best-effort on both reads: a window that vanished between the tabs snapshot
   # and here, or a thread with no operator message yet, is silently skipped — never a render crash.
   defp inject_opening_text(world_id, id, tabs) do
-    index = window_index(tabs, "t#{id}")
+    index = leaf_index(tabs, id)
     message = Funes.latest_operator_message(id)
 
     if index && message do
@@ -2099,7 +2133,13 @@ defmodule Aleph.Cockpit do
   # tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort: the
   # session not being up yet is an empty strip, not a crash.
   defp tlon_tabs(world_id) do
-    args = ["list-windows", "-t", world_session(world_id), "-F", "\#{window_active}\t\#{window_index}\t\#{window_name}"]
+    args = [
+      "list-windows",
+      "-t",
+      world_session(world_id),
+      "-F",
+      "\#{window_active}\t\#{window_index}\t\#{window_name}\t\#{@funes_thread}"
+    ]
 
     case tlon_run(world_id, args) do
       {out, 0} -> parse_tlon_tabs(out)
@@ -2124,16 +2164,43 @@ defmodule Aleph.Cockpit do
 
   @doc false
   # `window_active` is "1" for the current window, "0" otherwise; each line is
-  # `<active>\t<index>\t<name>` — the index is tmux's window index, for select-window on a tab click.
+  # `<active>\t<index>\t<name>\t<@funes_thread>` — the index is tmux's window index (select-window
+  # on a tab click); `@funes_thread` is the leaf routing key stamped at spawn (Slice C — empty/absent
+  # for non-leaf windows, parsed to nil). A three-field line (older fake/format) still parses.
   def parse_tlon_tabs(out) do
     out
     |> String.split("\n", trim: true)
     |> Enum.flat_map(fn line ->
-      case String.split(line, "\t", parts: 3) do
-        [active, index, name] -> [%{name: name, active?: active == "1", index: index}]
-        _ -> []
+      case String.split(line, "\t", parts: 4) do
+        [active, index, name, thread] ->
+          [%{name: name, active?: active == "1", index: index, thread_id: parse_thread_id(thread)}]
+
+        [active, index, name] ->
+          [%{name: name, active?: active == "1", index: index, thread_id: nil}]
+
+        _ ->
+          []
       end
     end)
+  end
+
+  defp parse_thread_id(thread) do
+    case Integer.parse(thread) do
+      {id, ""} -> id
+      _ -> nil
+    end
+  end
+
+  # The tab running thread `id`'s leaf session: the `@funes_thread`-stamped window (Slice C), else
+  # the legacy `t<id>`-named one (a live pre-C window) — nil when the leaf has no window yet.
+  # Routing resolves thread → window HERE, never by parsing a (now human-named) window name.
+  defp leaf_tab(tabs, id), do: Enum.find(tabs, &(&1.thread_id == id)) || Enum.find(tabs, &(&1.name == "t#{id}"))
+
+  defp leaf_index(tabs, id) do
+    case leaf_tab(tabs, id) do
+      %{index: index} -> index
+      _ -> nil
+    end
   end
 
   # Resolve a machine pane's FUNES_* exports by find-or-create: reuse the latest open machine

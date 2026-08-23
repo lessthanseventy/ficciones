@@ -99,10 +99,17 @@ defmodule Aleph.CockpitThreadSessionsTest do
     assert tid == thread.id
     assert opts[:mandate] == "machine"
 
-    window = "t#{thread.id}"
+    # Slice C: a HUMAN window name (`<archetype>-<title-slug>`), not `t<id>` …
+    window = "planner-task-for-borges-machine"
     assert_receive {:tmux, ["-L", "aleph-world-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
     assert script =~ "PI_CODING_AGENT_DIR"
     refute script =~ "modules/manos/claude-code/launch.sh"
+
+    # … with the thread id stamped as the `@funes_thread` routing key, so nothing parses the name.
+    thread_tag = "#{thread.id}"
+    target = "w99:=" <> window
+
+    assert_receive {:tmux, ["-L", "aleph-world-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
   end
 
   test "a claude-harness worker lead still gets its claude leaf window (regression)" do
@@ -112,10 +119,32 @@ defmodule Aleph.CockpitThreadSessionsTest do
 
     assert_receive {:join, _tid, "hronir-machine", _opts}
 
-    window = "t#{thread.id}"
+    window = "builder-task-for-hronir-machine"
     assert_receive {:tmux, ["-L", "aleph-world-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
     assert script =~ "modules/manos/claude-code/launch.sh"
     refute script =~ "PI_CODING_AGENT_DIR"
+
+    thread_tag = "#{thread.id}"
+    target = "w99:=" <> window
+
+    assert_receive {:tmux, ["-L", "aleph-world-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
+  end
+
+  test "a live `@funes_thread`-tagged window suppresses a respawn — the routing map, not the name, is the identity" do
+    thread = staffed_thread("borges-machine")
+    test_pid = self()
+
+    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+      send(test_pid, {:tmux, args})
+
+      if Enum.member?(args, "list-windows"),
+        do: {"1\t0\trufus\t\n0\t1\tanything-at-all\t#{thread.id}\n", 0},
+        else: {"", 0}
+    end)
+
+    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+
+    refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
   end
 
   test "a meta (surveyor) lead never gets a leaf window — the vantage is not a worker" do

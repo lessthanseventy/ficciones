@@ -333,22 +333,37 @@ defmodule Aleph.MachineChat.Loop do
   # turn (no mid-spawn `:skip` gate needed): a live window suffices. Meta/no-lead threads never get
   # a `t<id>`.
   defp staffed_window(lead, thread_id) do
-    window = "t#{thread_id}"
-    if cockpit_staffs?(lead) and window_live?(window), do: window
+    if cockpit_staffs?(lead), do: live_leaf_window(thread_id)
   end
 
-  # Does a named window exist in the world's session? ($TMUX points at its private server, and each
-  # world's server hosts exactly one session (C2.2: `w<id>`, id-derived) — so a bare `tmux`
-  # (no `-t session:`) resolves against the CURRENT session and never needs to know the id.
-  defp window_live?(window) do
-    case System.cmd("tmux", ["list-windows", "-F", "#W"], stderr_to_stdout: true) do
-      {out, 0} -> window in String.split(out, "\n", trim: true)
-      _ -> false
+  # The leaf's live window NAME for `thread_id`: the `@funes_thread`-stamped window (Slice C's
+  # routing map, read from tmux itself), else the legacy `t<id>` name (a pre-C window). nil when
+  # the leaf has no window. ($TMUX points at the world's private server, and each world's server
+  # hosts exactly one session (C2.2: `w<id>`) — so a bare `tmux` (no `-t session:`) resolves
+  # against the CURRENT session and never needs to know the id.)
+  defp live_leaf_window(thread_id) do
+    case System.cmd("tmux", ["list-windows", "-F", "\#{window_name}\t\#{@funes_thread}"], stderr_to_stdout: true) do
+      {out, 0} ->
+        rows =
+          out
+          |> String.split("\n", trim: true)
+          |> Enum.map(&String.split(&1, "\t", parts: 2))
+
+        Enum.find_value(rows, fn
+          [name, tid] -> if tid == "#{thread_id}", do: name
+          _ -> nil
+        end) ||
+          Enum.find_value(rows, fn
+            [name | _] -> if name == "t#{thread_id}", do: name
+          end)
+
+      _ ->
+        nil
     end
   rescue
-    _ -> false
+    _ -> nil
   catch
-    _, _ -> false
+    _, _ -> nil
   end
 
   # Wake each @-mentioned coworker by injecting the message as a turn into its tmux window — the same
