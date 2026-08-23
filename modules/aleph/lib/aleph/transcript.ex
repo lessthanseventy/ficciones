@@ -72,6 +72,13 @@ defmodule Aleph.Transcript do
   end
 
   @doc """
+  ONE thread's transcript rows (turn-grouped, day rules, hanging indent), no surrounding chrome —
+  the machine-chat center conversation; the caller owns the header/composer around it.
+  """
+  @spec thread_rows(map(), pos_integer()) :: [[{String.t(), term()}]]
+  def thread_rows(%{messages: messages}, w), do: message_rows(messages, w)
+
+  @doc """
   The row index of the selected block's HEADER within `render/2`'s list output — what a viewport
   scrolls to so browsing keeps the selection on screen (the loop's reveal). Row counts only (the
   selected-style difference never changes a block's height), so it stays in lockstep with
