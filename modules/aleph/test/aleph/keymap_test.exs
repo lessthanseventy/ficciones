@@ -437,6 +437,76 @@ defmodule Aleph.KeymapTest do
     end
   end
 
+  describe "editing a world's paths — the field 2 sub-list, add/remove (D2.4 Chunk 2b)" do
+    @world_with_paths %{id: 22, name: "Freedonia", type: "code", scope: "machine", paths: ["a", "b"], roster: []}
+
+    defp paths_state(overrides),
+      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: [@world_with_paths]}, overrides))
+
+    test "Enter on field 2 drops into the sub-list: mode: :sub, sub: 0" do
+      s = paths_state(%{author_edit: %{id: 22, field: 2, sub: 0, mode: :field}})
+      assert {%{author_edit: %{mode: :sub, sub: 0, field: 2}}, :repaint} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Enter on field 0/1 (rings) stays in field-list mode — nothing to drop into" do
+      s = paths_state(%{author_edit: %{id: 22, field: 0, sub: 0, mode: :field}})
+      assert {^s, :none} = Keymap.handle(key(:enter), s)
+    end
+
+    test "j/k move sub, clamped to the paths length — no wrap" do
+      s = paths_state(%{author_edit: %{id: 22, field: 2, sub: 0, mode: :sub}})
+      assert {%{author_edit: %{sub: 1}}, :repaint} = Keymap.handle(char("j"), s)
+
+      top = paths_state(%{author_edit: %{id: 22, field: 2, sub: 1, mode: :sub}})
+      assert {%{author_edit: %{sub: 1}}, :repaint} = Keymap.handle(char("j"), top)
+
+      bottom = paths_state(%{author_edit: %{id: 22, field: 2, sub: 0, mode: :sub}})
+      assert {%{author_edit: %{sub: 0}}, :repaint} = Keymap.handle(char("k"), bottom)
+    end
+
+    test "a opens a :new_path input buffer for the edited world" do
+      s = paths_state(%{author_edit: %{id: 22, field: 2, sub: 0, mode: :sub}})
+      assert {%{input: %{kind: :new_path, buffer: "", cursor: 0, world_id: 22}}, :repaint} = Keymap.handle(char("a"), s)
+    end
+
+    test "printable keys accumulate into the :new_path buffer (kind-agnostic reuse)" do
+      s = state(%{input: %{kind: :new_path, buffer: "mo", cursor: 2, world_id: 22}})
+      assert {%{input: %{buffer: "mod"}}, :repaint} = Keymap.handle(char("d"), s)
+    end
+
+    test "Enter on a non-empty :new_path buffer emits {:edit_world, id, %{paths: existing ++ [buf]}}" do
+      s =
+        state(%{
+          active_key: :orbis,
+          author_worlds: [@world_with_paths],
+          input: %{kind: :new_path, buffer: "c", cursor: 1, world_id: 22}
+        })
+
+      assert {%{input: nil}, {:edit_world, 22, %{paths: ["a", "b", "c"]}}} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Enter on a blank :new_path buffer no-ops — same cancel-not-create precedent" do
+      s = state(%{input: %{kind: :new_path, buffer: "", cursor: 0, world_id: 22}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Esc cancels the :new_path buffer" do
+      s = state(%{input: %{kind: :new_path, buffer: "half", cursor: 4, world_id: 22}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+
+    test "x or d removes the sub-selected path: {:edit_world, id, %{paths: List.delete_at(paths, sub)}}" do
+      s = paths_state(%{author_edit: %{id: 22, field: 2, sub: 1, mode: :sub}})
+      assert {^s, {:edit_world, 22, %{paths: ["a"]}}} = Keymap.handle(char("x"), s)
+      assert {^s, {:edit_world, 22, %{paths: ["a"]}}} = Keymap.handle(char("d"), s)
+    end
+
+    test "Esc in sub-list mode steps back to field-list mode, field unchanged" do
+      s = paths_state(%{author_edit: %{id: 22, field: 2, sub: 1, mode: :sub}})
+      assert {%{author_edit: %{mode: :field, field: 2}}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+  end
+
   describe "the live terminal owns the keys by default" do
     test "a printable key forwards, not acted on locally" do
       s = state(%{center_live?: true})

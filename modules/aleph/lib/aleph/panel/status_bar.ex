@@ -125,6 +125,35 @@ defmodule Aleph.Panel.StatusBar do
     Panel.clip([prompt, hints], rect)
   end
 
+  # The field editor's paths sub-list `a` add (D2.4 Chunk 2b): the info line becomes the prompt
+  # over the typed path.
+  @impl Panel
+  def render(%{input: %{kind: :new_path} = input}, rect) do
+    {before, after_} = cursor_split(input)
+
+    prompt = [
+      {" NEW PATH ", :tab},
+      {"  ", :normal},
+      {"▸ ", :accent},
+      {before, :normal},
+      {"▎", :accent},
+      {after_, :normal}
+    ]
+
+    hints = [
+      {"⏎", :header},
+      {" add", :dim},
+      {"   ", :dim},
+      {"←→", :header},
+      {" move", :dim},
+      {"  ", :dim},
+      {"Esc", :header},
+      {" cancel", :dim}
+    ]
+
+    Panel.clip([prompt, hints], rect)
+  end
+
   # A transient result line (a spawn's pane id, or its failure reason) — the operator's feedback
   # that `n`/`s` did something. Shown until the next keypress clears it.
   @impl Panel

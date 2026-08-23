@@ -151,6 +151,11 @@ defmodule Aleph.Keymap do
   def handle(%{key: :enter}, %{input: %{kind: :new_world, template: template, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:register_world, template, buffer}}
 
+  # A non-blank path appends to the edited world's LIVE paths list (author_worlds, threaded per
+  # keypress) and applies immediately. Blank already fell into the empty-buffer clause above.
+  def handle(%{key: :enter}, %{input: %{kind: :new_path, world_id: id, buffer: buffer}} = state),
+    do: {%{state | input: nil}, {:edit_world, id, %{paths: world_field(state, id, :paths) ++ [buffer]}}}
+
   def handle(%{key: :enter}, %{input: %{kind: :compose, thread_id: id, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:post_message, id, buffer}}
 
@@ -351,6 +356,45 @@ defmodule Aleph.Keymap do
   # Esc in field-list mode clears author_edit — back to the list.
   defp command(%{key: :escape}, %{active_key: :orbis, author_edit: %{mode: :field}} = state),
     do: {put_author_edit(state, nil), :repaint}
+
+  # Field-list mode: Enter on fields 2/3 (paths/roster) drops into the sub-list. Fields 0/1's
+  # rings already apply via h/l — nothing for Enter to open, a no-op.
+  defp command(%{key: :enter}, %{active_key: :orbis, author_edit: %{mode: :field, field: f} = edit} = state)
+       when f in [2, 3], do: {put_author_edit(state, %{edit | mode: :sub, sub: 0}), :repaint}
+
+  defp command(%{key: :enter}, %{active_key: :orbis, author_edit: %{mode: :field}} = state), do: {state, :none}
+
+  # Sub-list mode (D2.4 Chunk 2b/2c): j/k move `sub`, clamped to the field's LIVE list length
+  # (paths/roster off author_worlds, threaded per keypress — never stale).
+  defp command(%{key: :char, char: "j"}, %{active_key: :orbis, author_edit: %{mode: :sub} = edit} = state),
+    do: {put_author_edit(state, %{edit | sub: move_sub(state, edit, 1)}), :repaint}
+
+  defp command(%{key: :down}, %{active_key: :orbis, author_edit: %{mode: :sub} = edit} = state),
+    do: {put_author_edit(state, %{edit | sub: move_sub(state, edit, 1)}), :repaint}
+
+  defp command(%{key: :char, char: "k"}, %{active_key: :orbis, author_edit: %{mode: :sub} = edit} = state),
+    do: {put_author_edit(state, %{edit | sub: move_sub(state, edit, -1)}), :repaint}
+
+  defp command(%{key: :up}, %{active_key: :orbis, author_edit: %{mode: :sub} = edit} = state),
+    do: {put_author_edit(state, %{edit | sub: move_sub(state, edit, -1)}), :repaint}
+
+  # Sub-list mode, field 2 (paths): `a` opens a `:new_path` add buffer (state.input, kind-agnostic
+  # reuse of the printable-insert/Enter/Esc machinery, mirrors `:new_world`).
+  defp command(%{key: :char, char: "a"}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 2, id: id}} = state),
+    do: {%{state | input: %{kind: :new_path, buffer: "", cursor: 0, world_id: id}}, :repaint}
+
+  # Sub-list mode, field 2 (paths): x/d removes the sub-selected path immediately — no confirm
+  # (unlike the list's whole-world delete, an add re-creates it; the two-key arm is reserved for
+  # destroying a WORLD).
+  defp command(
+         %{key: :char, char: c},
+         %{active_key: :orbis, author_edit: %{mode: :sub, field: 2, id: id, sub: sub}} = state
+       )
+       when c in ["x", "d"], do: {state, {:edit_world, id, %{paths: List.delete_at(world_field(state, id, :paths), sub)}}}
+
+  # Sub-list mode: Esc steps back to the field list (mode: :field), field unchanged.
+  defp command(%{key: :escape}, %{active_key: :orbis, author_edit: %{mode: :sub} = edit} = state),
+    do: {put_author_edit(state, %{edit | mode: :field}), :repaint}
 
   # The list's n/d/a verbs are blocked while author_edit is set — editing is its own mode; falling
   # through here (rather than to the list clauses below) keeps Chunk 1's create/delete/toggle
@@ -642,6 +686,26 @@ defmodule Aleph.Keymap do
   end
 
   defp field_ring_edit(_state, _edit, _dir), do: :none
+
+  # Sub-list mode's j/k: clamp `sub` into `0..length(field's live list) - 1`, no wrap — same
+  # edge-clamp discipline as `move_author_cursor/2`/`move_survey/2`.
+  defp move_sub(state, %{id: id, field: field, sub: sub}, dir) do
+    max_idx = state |> world_field(id, sub_key(field)) |> length() |> Kernel.-(1) |> max(0)
+    (sub + dir) |> max(0) |> min(max_idx)
+  end
+
+  defp sub_key(2), do: :paths
+  defp sub_key(3), do: :roster
+
+  # The CURRENT value of one list-shaped field (`:paths`/`:roster`) off the LIVE world
+  # (author_worlds, threaded per keypress — never stale). A vanished world (deleted mid-edit)
+  # degrades to `[]` rather than crashing the reducer.
+  defp world_field(state, id, key) do
+    case Enum.find(author_worlds(state), &(&1.id == id)) do
+      nil -> []
+      world -> Map.get(world, key) || []
+    end
+  end
 
   # The live worlds list Orbis' survey cursor/Enter resolve against — the same cached
   # `Aleph.Orbis.rollup/0` the cockpit's `orbis_worlds/1` reads (`state.leaves.worlds`). Kept local

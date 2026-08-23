@@ -11,8 +11,9 @@ defmodule Aleph.Panel.Author do
   The editor is a vertical 4-row field list (0 type · 1 scope · 2 paths · 3 roster), the `field`
   cursor washed `:selected`; fields 0/1 show the ring value inline (h/l cycles it, applied
   immediately — no draft/commit). `name` has no field — it's immutable
-  (`Funes.World.edit_changeset` drops it), called out in the header instead. Paths/roster
-  sub-lists (`mode == :sub`) are Chunk 2b/2c.
+  (`Funes.World.edit_changeset` drops it), called out in the header instead. `Enter` on field 2/3
+  (`edit.mode == :sub`) swaps in that field's sub-list — one row per path/roster entry, the `sub`
+  cursor washed `:selected` — instead of the field list. Roster's sub-list is Chunk 2c.
   """
   @behaviour Aleph.Panel
 
@@ -22,6 +23,7 @@ defmodule Aleph.Panel.Author do
 
   @hints "j/k row · n new · e edit · d delete · a survey"
   @edit_hints "j/k field · h/l cycle · Enter list · Esc back"
+  @sub_hints "j/k row · a add · x/d remove · Esc back"
 
   @impl Aleph.Panel
   def topics(_assigns), do: [Bus.worlds_topic()]
@@ -29,6 +31,7 @@ defmodule Aleph.Panel.Author do
   @impl Aleph.Panel
   def render(%{worlds: worlds} = data, rect) do
     case {Map.get(data, :edit), Enum.find(worlds, &(&1.id == data[:edit][:id]))} do
+      {%{mode: :sub, field: 2} = edit, %{} = world} -> render_paths_sub(world, edit, rect)
       {%{} = edit, %{} = world} -> render_editor(world, edit, rect)
       _ -> render_list(worlds, Map.get(data, :cursor, 0), rect)
     end
@@ -73,6 +76,28 @@ defmodule Aleph.Panel.Author do
     style = if selected?, do: :selected, else: :normal
     gutter = if selected?, do: {"▸ ", :accent}, else: {"  ", :normal}
     [gutter, {String.pad_trailing(label, 8), :dim}, {value, style}]
+  end
+
+  # Field 2's sub-list (D2.4 Chunk 2b): one row per path, the `sub` cursor washed :selected — same
+  # gutter/wash idiom as the list/field views.
+  defp render_paths_sub(world, edit, rect) do
+    header = [line("ORBIS · author · edit · paths", :header), blank()]
+    paths = Map.get(world, :paths) || []
+
+    body =
+      case paths do
+        [] -> [line("no paths yet — a to add one", :dim)]
+        ps -> ps |> Enum.with_index() |> Enum.map(fn {p, i} -> sub_row(p, i == edit.sub) end)
+      end
+
+    footer = [blank(), line(@sub_hints, :dim)]
+    Aleph.Panel.clip(header ++ body ++ footer, rect)
+  end
+
+  defp sub_row(text, selected?) do
+    style = if selected?, do: :selected, else: :normal
+    gutter = if selected?, do: {"▸ ", :accent}, else: {"  ", :normal}
+    [gutter, {text, style}]
   end
 
   # No click target yet — the editor is keyboard-only (Chunk 2a/b/c). Kept as an explicit no-op

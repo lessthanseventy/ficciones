@@ -130,4 +130,47 @@ defmodule Aleph.Panel.AuthorTest do
       assert text =~ "Freedonia"
     end
   end
+
+  describe "the paths sub-list (D2.4 Chunk 2b: mode: :sub, field: 2)" do
+    @world_with_paths %{
+      id: 22,
+      name: "Freedonia",
+      type: "code",
+      scope: "project",
+      paths: ["modules/aleph", "modules/funes"],
+      roster: []
+    }
+
+    defp sub_data(edit) do
+      %{worlds: [@world_with_paths], cursor: 0, edit: edit}
+    end
+
+    test "renders one row per path, the sub cursor washed :selected" do
+      data = sub_data(%{id: 22, field: 2, sub: 1, mode: :sub})
+      rows = Author.render(data, @rect)
+
+      funes_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t == "modules/funes" end))
+      assert Enum.any?(funes_row, fn {_t, s} -> s == :selected end)
+
+      aleph_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t == "modules/aleph" end))
+      refute Enum.any?(aleph_row, fn {_t, s} -> s == :selected end)
+    end
+
+    test "an empty paths list renders a placeholder, no crash" do
+      data = sub_data(%{id: 22, field: 2, sub: 0, mode: :sub})
+      data = put_in(data.worlds, [%{@world_with_paths | paths: []}])
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+      assert text =~ "no paths yet"
+    end
+
+    test "sub-list hints name j/k, a add, x/d remove, Esc back" do
+      data = sub_data(%{id: 22, field: 2, sub: 0, mode: :sub})
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+
+      assert text =~ "j/k row"
+      assert text =~ "a add"
+      assert text =~ "x/d remove"
+      assert text =~ "Esc back"
+    end
+  end
 end
