@@ -167,6 +167,28 @@ defmodule Aleph.CockpitThreadSessionsTest do
     refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
   end
 
+  test "an orphan leaf window (thread closed/cleared while aleph was down) is swept" do
+    thread = staffed_thread("borges-machine")
+    test_pid = self()
+
+    # One live tagged leaf (kept), one tagged for a vanished thread, one legacy t<id> orphan —
+    # and the untagged center/tail windows, which are never sweep candidates.
+    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+      send(test_pid, {:tmux, args})
+
+      if Enum.member?(args, "list-windows"),
+        do: {"1\t0\trufus\t\n0\t1\tplanner-live\t#{thread.id}\n0\t2\treviewer-stale\t999888\n0\t3\tt777666\t\n", 0},
+        else: {"", 0}
+    end)
+
+    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+
+    assert_receive {:tmux, ["-L", "aleph-world-99", "kill-window", "-t", "w99:2"]}
+    assert_receive {:tmux, ["-L", "aleph-world-99", "kill-window", "-t", "w99:3"]}
+    refute_receive {:tmux, ["-L", _, "kill-window", "-t", "w99:0"]}, 20
+    refute_receive {:tmux, ["-L", _, "kill-window", "-t", "w99:1"]}, 20
+  end
+
   test "the standing thread is excluded — the center already runs it" do
     thread = staffed_thread("borges-machine")
 

@@ -1853,19 +1853,44 @@ defmodule Aleph.Cockpit do
     tabs = tlon_tabs(key)
     now = System.monotonic_time(:millisecond)
     roster = space_roster(key, spaces)
+    threads = Funes.staffed_machine_threads()
     # Window names spawned THIS pass join the taken set, so two new leaves with the same title in
     # one render can't collide on a name (the tag targets by name once, right after new-window).
     taken = MapSet.new(tabs, & &1.name)
 
     {state, _taken} =
-      Enum.reduce(Funes.staffed_machine_threads(), {state, taken}, fn thread, {st, tk} ->
+      Enum.reduce(threads, {state, taken}, fn thread, {st, tk} ->
         ensure_thread_session(key, roster, thread, tabs, now, st, tk)
       end)
 
+    sweep_orphan_leaves(key, tabs, MapSet.new(threads, & &1.id))
     state
   end
 
   def ensure_thread_sessions(state, _spaces), do: state
+
+  # Convergent teardown: a leaf window whose thread is no longer open+staffed — closed while
+  # aleph was down, or wholesale-cleared — dies here, not only on the `:thread_closed` Bus event
+  # the cockpit may never have seen. Matches ONLY leaf windows (the `@funes_thread` tag, or the
+  # legacy `t<id>` name); the center/tail/console windows are never candidates. Runs off the same
+  # tabs snapshot as the spawn pass, so a leaf spawned this pass (absent from the snapshot) can't
+  # be swept.
+  defp sweep_orphan_leaves(world_id, tabs, live_ids) do
+    for tab <- tabs, orphan_leaf?(tab, live_ids) do
+      tlon_run(world_id, ["kill-window", "-t", "#{world_session(world_id)}:#{tab.index}"])
+    end
+
+    :ok
+  end
+
+  defp orphan_leaf?(%{thread_id: tid}, live_ids) when is_integer(tid), do: not MapSet.member?(live_ids, tid)
+
+  defp orphan_leaf?(%{name: name}, live_ids) do
+    case Regex.run(~r/\At(\d+)\z/, name) do
+      [_, id] -> not MapSet.member?(live_ids, String.to_integer(id))
+      nil -> false
+    end
+  end
 
   defp ensure_thread_session(world_id, roster, %{id: id, lead: lead, title: title}, tabs, now, state, taken) do
     cond do
