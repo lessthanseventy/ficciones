@@ -231,10 +231,10 @@ defmodule Aleph.MachineChat.Loop do
         Channel.post(%{thread_id: thread.id, author: author, body: text})
 
         case stage_lead(thread.id, text) do
-          # The cockpit (a SEPARATE beam) spawns a dedicated `t<id>` session for a claude-launched
-          # lead and injects the opening turn ITSELF (`ensure_thread_sessions`). Waking the standing
-          # coworker from here too is the "both claudes answered" duplicate — so only wake from here
-          # for a lead the cockpit won't staff (a pi-led thread).
+          # The cockpit (a SEPARATE beam) spawns a dedicated `t<id>` session for any WORKER lead
+          # (claude or pi — Slice A) and injects the opening turn ITSELF (`ensure_thread_sessions`).
+          # Waking the standing coworker from here too is the "both claudes answered" duplicate — so
+          # only wake from here for a lead the cockpit won't staff (a meta/unknown lead).
           {:ok, lead} -> if !cockpit_staffs?(lead), do: wake_mentions(author, text, thread.id)
           {:error, reason} -> note_no_lead(thread.id, reason)
         end
@@ -289,12 +289,12 @@ defmodule Aleph.MachineChat.Loop do
   end
 
   # Does the cockpit spawn a per-thread `t<id>` session for this lead (so it owns the opening turn
-  # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.claude_launched?/2`: a roster
-  # `:claude_code`-harness handle (e.g. the builder → `hronir-machine`) is claude-launched; a
-  # pi-led thread is not.
+  # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.leaf_staffed?/2`: any WORKER roster
+  # lead — claude or pi harness — gets its own leaf window now (Slice A); only a meta (surveyor)
+  # or roster-unknown lead is still woken from here.
   # Against `active_roster/0` (the single World in Slice 1) — a later multi-world Loop would thread
   # this from the thread's own world instead.
-  defp cockpit_staffs?(lead), do: lead in Profiles.claude_code_handles(active_roster())
+  defp cockpit_staffs?(lead), do: lead in Profiles.leaf_handles(active_roster())
 
   # The active World's roster, read STRAIGHT from funes (not via `Space`/`Aleph.Worlds`): this is
   # the machine-chat reader beam — it never starts aleph's supervision tree, so the `Aleph.Worlds`
@@ -321,11 +321,12 @@ defmodule Aleph.MachineChat.Loop do
   end
 
   # Which per-thread window a reply's wake must land on — mirrors `Aleph.Cockpit.delivery_target/3`.
-  # A claude-led STAFFED leaf runs the episode in its own `t<id>` window, so its reply must reach
-  # THAT session, not the lead's standing handle→window slot. The standing claude thread has no
-  # `t<id>` window, so the probe returns nil and routing falls back to the standing window — the same
-  # standing-vs-leaf split the cockpit makes. A reply is always past the opening turn (no mid-spawn
-  # `:skip` gate needed): a live window suffices. Pi-led / no-lead threads never get a `t<id>`.
+  # A worker-led STAFFED leaf (claude or pi — Slice A) runs the episode in its own `t<id>` window,
+  # so its reply must reach THAT session, not the lead's standing handle→window slot. The standing
+  # thread has no `t<id>` window, so the probe returns nil and routing falls back to the standing
+  # window — the same standing-vs-leaf split the cockpit makes. A reply is always past the opening
+  # turn (no mid-spawn `:skip` gate needed): a live window suffices. Meta/no-lead threads never get
+  # a `t<id>`.
   defp staffed_window(lead, thread_id) do
     window = "t#{thread_id}"
     if cockpit_staffs?(lead) and window_live?(window), do: window

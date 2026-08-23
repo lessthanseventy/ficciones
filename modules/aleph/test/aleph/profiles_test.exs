@@ -446,10 +446,24 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.roster_entry(%{archetype: :surveyor, name: "tertius"}) == %{archetype: :surveyor, name: "tertius"}
     end
 
-    test "claude_code_handles returns <name>-machine only for :claude_code entries" do
-      roster = [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
-      assert Profiles.claude_code_handles(roster) == ["hronir-machine"]
-      assert Profiles.claude_code_handles([]) == []
+    test "leaf_handles returns <name>-machine for WORKER entries only — never the meta surveyor" do
+      roster = [
+        %{"archetype" => "surveyor", "name" => "tertius"},
+        %{"archetype" => "builder", "name" => "hronir"},
+        %{"archetype" => "planner", "name" => "borges"},
+        %{"archetype" => "nonesuch", "name" => "ghost"}
+      ]
+
+      assert Profiles.leaf_handles(roster) == ["hronir-machine", "borges-machine"]
+      assert Profiles.leaf_handles([]) == []
+    end
+
+    test "leaf_profile resolves a worker lead handle to its instantiated profile; meta/unknown → nil" do
+      roster = [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "planner", "name" => "borges"}]
+
+      assert %Aleph.Profile{archetype: :planner, harness: :pi} = Profiles.leaf_profile("borges-machine", roster)
+      assert Profiles.leaf_profile("tertius-machine", roster) == nil
+      assert Profiles.leaf_profile("stranger-machine", roster) == nil
     end
 
     test "roster-entry model overrides the archetype default" do

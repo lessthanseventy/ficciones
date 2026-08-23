@@ -597,17 +597,41 @@ defmodule Aleph.Profiles do
     }
   end
 
+  # Meta archetypes — the vantage/synthesis side (tertius). Never a leaf lead: excluded from
+  # per-thread staffing and from the staffing default (per-thread-agents design, 2026-08-22).
+  @meta_archetypes [:surveyor]
+
+  @doc "Is this archetype a META role (vantage, never a leaf lead), as opposed to a WORKER?"
+  @spec meta?(atom() | nil) :: boolean()
+  def meta?(archetype), do: archetype in @meta_archetypes
+
   @doc """
-  The funes handles a roster stamps onto its `:claude_code`-harness entries — `"<name>-machine"`
-  (e.g. the builder → `hronir-machine`). The set the cockpit's `claude_launched?`/the machine-chat
-  loop's `cockpit_staffs?` check a thread lead against; a pi-led entry contributes nothing.
+  The funes handles of a roster's WORKER (non-meta, registry-known) entries — `"<name>-machine"`.
+  The set a thread lead is checked against to decide "does this leaf get its own per-thread
+  session" (any harness — Slice A replaced the claude-only `claude_code_handles/1` gate).
   """
-  @spec claude_code_handles([map()]) :: [String.t()]
-  def claude_code_handles(roster) do
-    Enum.flat_map(roster, fn entry ->
-      %{name: name} = e = roster_entry(entry)
-      if instantiate(e).harness == :claude_code, do: ["#{name}-machine"], else: []
-    end)
+  @spec leaf_handles([map()]) :: [String.t()]
+  def leaf_handles(roster) do
+    roster
+    |> Enum.map(&roster_entry/1)
+    |> Enum.filter(fn %{archetype: a} -> a != nil and not meta?(a) end)
+    |> Enum.map(fn %{name: n} -> "#{n}-machine" end)
+  end
+
+  @doc """
+  The instantiated WORKER `%Profile{}` behind a leaf lead handle (`"<name>-machine"`), resolved
+  against `roster` — nil for a meta or roster-unknown lead (those get no per-thread session).
+  The cockpit dispatches the leaf spawn on this profile's `harness`.
+  """
+  @spec leaf_profile(String.t(), [map()]) :: Profile.t() | nil
+  def leaf_profile(handle, roster) do
+    roster
+    |> Enum.map(&roster_entry/1)
+    |> Enum.find(fn %{archetype: a, name: n} -> a != nil and not meta?(a) and "#{n}-machine" == handle end)
+    |> case do
+      nil -> nil
+      entry -> instantiate(entry)
+    end
   end
 
   defp normalize_archetype(a) when is_atom(a), do: a

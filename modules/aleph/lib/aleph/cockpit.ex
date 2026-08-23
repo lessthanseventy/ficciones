@@ -602,18 +602,18 @@ defmodule Aleph.Cockpit do
   # has its OWN `t<id>` window, so routing depends on which case applies:
   #   * the standing coworker's thread → route globally (`staffed_window: nil`); its lead already
   #     runs in the base `claude`/`pi` window.
-  #   * a claude-led staffed thread that's live AND past its opening turn → route onto `t<id>`, so
-  #     replies reach the session working THAT thread — not the standing coworker (otherwise both
-  #     the `t2` session and the standing `claude` would answer the same post).
-  #   * a claude-led staffed thread mid-spawn / pre-opening → `:skip`: `ensure_thread_sessions`
+  #   * a worker-led staffed thread (claude OR pi — Slice A) that's live AND past its opening turn
+  #     → route onto `t<id>`, so replies reach the session working THAT thread — not the standing
+  #     coworker (otherwise both the `t2` session and the standing one would answer the same post).
+  #   * a worker-led staffed thread mid-spawn / pre-opening → `:skip`: `ensure_thread_sessions`
   #     owns the opening turn (two-phase, race-safe); waking here would double it.
-  #   * no staffed lead, or a pi-led thread (no window spawned for it) → route globally.
+  #   * no staffed lead, or a meta/unknown lead (no leaf window for it) → route globally.
   defp delivery_target(%{thread_id: tid}, state, lead) when is_integer(tid) do
     standing = state.standing_thread_id || machine_thread_id()
 
     cond do
       tid == standing -> {:route, nil}
-      is_nil(lead) or not claude_launched?(lead, active_world_id(state)) -> {:route, nil}
+      is_nil(lead) or not leaf_staffed?(lead, active_world_id(state)) -> {:route, nil}
       staffed_thread_ready?(tid, state) -> {:route, "t#{tid}"}
       true -> :skip
     end
@@ -1802,25 +1802,33 @@ defmodule Aleph.Cockpit do
   defp ensure_log_window(state), do: state
 
   # A staffed-but-session-less machine thread gets its own tmux window (`t<id>`), so a
-  # thread the operator opened outside the standing tertius/hronir coworkers gets a live coworker
+  # thread the operator opened outside the standing coworkers gets a live coworker
   # working IT specifically, not just accumulating unread messages. Two-phase, like the coworker
   # windows: `new-window` first (this pass), the opening turn only injected on a LATER render once
   # the window shows up live in `tlon_tabs()` — send-keys the instant `new-window` returns races
   # the harness's own boot and the first turn lands on the floor.
   #
-  # Restricted to claude-launched leads (`claude_launched?/2`) — `spawn_agent_window` runs
-  # `claude_launcher()`, so it is only correct for a roster :claude_code lead or the third-agent.
-  # Pi-launched staffing is a follow-up.
-  defp ensure_thread_sessions(%{active_key: key} = state) when Space.world?(key) do
+  # EVERY worker roster lead gets a leaf window — claude AND pi harness, dispatched by the lead's
+  # profile (per-thread-agents Slice A; the old `claude_launched?` gate left a pi lead's turns
+  # landing in the ONE standing pi's context — the isolation bug). A meta (surveyor) or
+  # roster-unknown lead gets none.
+  #
+  # Public seam (@doc false) so the suite drives the real dispatch through `:tlon_cmd`/`:tlon_join`
+  # with injected `spaces`, mirroring `ensure_world_roster/2`.
+  @doc false
+  def ensure_thread_sessions(state, spaces \\ Space.all())
+
+  def ensure_thread_sessions(%{active_key: key} = state, spaces) when Space.world?(key) do
     tabs = tlon_tabs(key)
     now = System.monotonic_time(:millisecond)
+    roster = space_roster(key, spaces)
 
-    Enum.reduce(Funes.staffed_machine_threads(), state, &ensure_thread_session(key, &1, tabs, now, &2))
+    Enum.reduce(Funes.staffed_machine_threads(), state, &ensure_thread_session(key, roster, &1, tabs, now, &2))
   end
 
-  defp ensure_thread_sessions(state), do: state
+  def ensure_thread_sessions(state, _spaces), do: state
 
-  defp ensure_thread_session(world_id, %{id: id, lead: lead}, tabs, now, state) do
+  defp ensure_thread_session(world_id, roster, %{id: id, lead: lead}, tabs, now, state) do
     window = "t#{id}"
 
     cond do
@@ -1832,14 +1840,27 @@ defmodule Aleph.Cockpit do
       Enum.any?(tabs, &(&1.name == window)) ->
         maybe_inject_opening_turn(world_id, id, tabs, now, state)
 
-      not claude_launched?(lead, world_id) ->
-        state
-
       not thread_spawn_due?(state.thread_spawn_retry[id], now) ->
         state
 
       true ->
+        spawn_leaf(world_id, roster, lead, window, id, now, state)
+    end
+  end
+
+  # Dispatch the leaf spawn on the lead's roster profile: claude leads ride `claude_launcher()`,
+  # pi leads a windowed `pi_command/1` — both joined to the leaf's OWN thread id, so `FUNES_THREAD`
+  # binds the harness to the thread it works. nil profile (meta/unknown lead) spawns nothing.
+  defp spawn_leaf(world_id, roster, lead, window, id, now, state) do
+    case Profiles.leaf_profile(lead, roster) do
+      nil ->
+        state
+
+      %Profile{harness: :claude_code} ->
         record_thread_spawn(spawn_agent_window(world_id, lead, window, id), state, id, now)
+
+      %Profile{} = profile ->
+        record_thread_spawn(spawn_pi_window(world_id, profile, window, id), state, id, now)
     end
   end
 
@@ -1854,16 +1875,23 @@ defmodule Aleph.Cockpit do
   defp thread_spawn_due?(nil, _now), do: true
   defp thread_spawn_due?(retry_at, now), do: now >= retry_at
 
-  # `spawn_agent_window` always runs claude_launcher() — correct only for a roster :claude_code lead
-  # (this World's builder handle, roster-derived). A pi-led thread is skipped.
-  defp claude_launched?(lead, world_id), do: lead in claude_handles(world_id)
-
-  defp claude_handles(world_id), do: Profiles.claude_code_handles(active_roster(world_id))
+  # Does the cockpit staff a per-thread leaf window for this lead? Any WORKER roster handle
+  # (claude or pi harness) qualifies — the predicate `delivery_target` and the spawn pass share,
+  # so routing and spawning can never disagree about who owns a thread's turns.
+  defp leaf_staffed?(lead, world_id), do: lead in Profiles.leaf_handles(active_roster(world_id))
 
   # This World's roster (`Aleph.Mention.route/3`'s resolution fixture) — funes-down / no roster
   # degrades to `[]` (nobody resolves, nobody wakes).
   defp active_roster(world_id) do
     case Space.fetch(world_id) do
+      %Space{roster: roster} -> roster
+      _ -> []
+    end
+  end
+
+  # Same read against an injected spaces list (the `ensure_thread_sessions/2` test seam).
+  defp space_roster(world_id, spaces) do
+    case Space.fetch(world_id, spaces) do
       %Space{roster: roster} -> roster
       _ -> []
     end
@@ -1959,6 +1987,10 @@ defmodule Aleph.Cockpit do
   defp spawn_pi_window(world_id, %Profile{name: name} = profile, window, thread_id) do
     with id when is_integer(id) <- thread_id,
          {:ok, %{exports: exports}} <- joiner().(id, "#{name}-machine", mandate: "machine") do
+      # Only the center's spawn used to materialise; a windowed pi (roster tail or a Slice-A leaf
+      # lead like a planner) needs its config dir too, or it boots with bare-pi defaults.
+      # Best-effort: a filesystem hiccup degrades to exactly those defaults, never a failed spawn.
+      _ = materialise_profile(profile)
       script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> pi_command(profile)
       tlon_run(world_id, ["new-window", "-d", "-t", world_session(world_id), "-n", window, script])
     end

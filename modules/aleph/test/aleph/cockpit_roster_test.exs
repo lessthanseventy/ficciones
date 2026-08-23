@@ -44,6 +44,12 @@ defmodule Aleph.CockpitRosterTest do
   setup do
     test_pid = self()
 
+    # spawn_pi_window materialises the entry's profile config dir — point the pi root at a tmp dir
+    # so the suite never writes the real ~/.pi.
+    pi_root = Path.join(System.tmp_dir!(), "aleph_roster_pi_#{System.unique_integer([:positive])}")
+    prior = System.get_env("PI_CODING_AGENT_DIR")
+    System.put_env("PI_CODING_AGENT_DIR", Path.join(pi_root, "agent"))
+
     Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
       if Enum.member?(args, "list-windows"), do: {"1\t0\ttertius\n", 0}, else: {"", 0}
@@ -62,6 +68,8 @@ defmodule Aleph.CockpitRosterTest do
     on_exit(fn ->
       Application.delete_env(:aleph, :tlon_cmd)
       Application.delete_env(:aleph, :tlon_join)
+      if prior, do: System.put_env("PI_CODING_AGENT_DIR", prior), else: System.delete_env("PI_CODING_AGENT_DIR")
+      File.rm_rf!(pi_root)
     end)
 
     :ok
