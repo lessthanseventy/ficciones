@@ -62,28 +62,38 @@ defmodule Aleph.View do
         true -> space.surface
       end
 
+    left_sections = [Panel.Spaces | space.left]
+    right_sections = right_panels(space, reads)
+
     columns =
       case layout_for(w) do
         :wide ->
           %{left: left, center: center, right: right} = wide_columns(w, body_h)
 
           [
-            {left, [Panel.Spaces | space.left]},
-            {center, center_panels},
-            {right, right_panels(space, reads)}
+            {left, left_sections, 1},
+            {center, center_panels, :center},
+            {right, right_sections, 1 + length(left_sections)}
           ]
 
         :narrow ->
-          sections = [Panel.Spaces | space.left] ++ center_panels ++ right_panels(space, reads)
-          [{%{x: 0, y: 0, w: w, h: body_h}, sections}]
+          sections = left_sections ++ center_panels ++ right_sections
+          [{%{x: 0, y: 0, w: w, h: body_h}, sections, 1}]
       end
 
-    boxes = Enum.flat_map(columns, fn {rect, panels} -> boxed(panels, rect) end)
+    boxes =
+      Enum.flat_map(columns, fn {rect, panels, digits} ->
+        panels |> boxed(rect) |> assign_digits(digits)
+      end)
 
     # In Tlön nav mode one sidebar pane is focused — its border lights up (the lazygit "active
     # pane" cue). Every other box, and every other space, stays neutral.
     focused = focused_section(reads[:focus], space)
-    borders = Enum.map(boxes, fn {section, rect} -> {Panel.Border, border_data(section, focused), rect} end)
+
+    borders =
+      Enum.map(boxes, fn {section, rect, digit} ->
+        {Panel.Border, border_data(section, digit, focused), rect}
+      end)
 
     # The focused pane alone is fed a slice of the focus — its item cursor (j/k) as `selected` and
     # the active `section` (Tab) — so it lights the row Enter would open and the section Tab landed
@@ -91,7 +101,7 @@ defmodule Aleph.View do
     slice = focus_slice(reads)
 
     contents =
-      Enum.map(boxes, fn {section, rect} ->
+      Enum.map(boxes, fn {section, rect, _digit} ->
         content_for(section, reads, inset(rect), if(section == focused, do: slice))
       end)
 
@@ -132,8 +142,39 @@ defmodule Aleph.View do
 
   defp focused_section(_focus, _space), do: nil
 
-  defp border_data(section, focused) when not is_nil(focused) and section == focused, do: %{focused: true}
-  defp border_data(_section, _focused), do: nil
+  # Sidebar boxes number top-down from `start` (left 1.., right continuing); the center's
+  # terminal box alone is 0 — Alt+0/`0` mean "back to the terminal" (design 2026-08-23).
+  defp assign_digits(boxes, :center),
+    do: Enum.map(boxes, fn {section, rect} -> {section, rect, if(terminal_section?({section, rect}), do: 0)} end)
+
+  defp assign_digits(boxes, start) do
+    boxes
+    |> Enum.with_index(start)
+    |> Enum.map(fn {{section, rect}, d} -> {section, rect, d} end)
+  end
+
+  defp border_data(section, digit, focused) do
+    %{
+      focused: not is_nil(focused) and section == focused,
+      digit: digit,
+      title: section_title(section)
+    }
+  end
+
+  # The on-frame title per section. A section with no entry (Terminal, WindowBar, Pulse, the
+  # center surfaces) gets a bare frame.
+  defp section_title({panel, _read_key}), do: section_title(panel)
+  defp section_title(Panel.Spaces), do: "SPACES"
+  defp section_title(Panel.Stack), do: "STACK"
+  defp section_title(Panel.Memory), do: "MEMORY"
+  defp section_title(Panel.Health), do: "HEALTH"
+  defp section_title(Panel.Crew), do: "CREW"
+  defp section_title(Panel.Activity), do: "ACTIVITY"
+  defp section_title(Panel.Leaves), do: "LEAVES"
+  defp section_title(Panel.Roster), do: "IN FLIGHT"
+  defp section_title(Panel.Triage), do: "TRIAGE"
+  defp section_title(Panel.Dossier), do: "IN SCOPE"
+  defp section_title(_section), do: nil
 
   # True when the Tlön focus has a detail open AND the cockpit resolved content for it — an Enter on
   # a pane with no detail (nil) leaves the terminal in place rather than blanking MAIN.

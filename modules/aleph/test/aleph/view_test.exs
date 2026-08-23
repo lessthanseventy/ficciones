@@ -281,4 +281,37 @@ defmodule Aleph.ViewTest do
       assert rect.h == 20
     end
   end
+
+  describe "border titles + digits (clarity slice 1)" do
+    defp border_of(placements, title) do
+      Enum.find_value(placements, fn
+        {Panel.Border, %{title: ^title} = data, _rect} -> data
+        _ -> nil
+      end)
+    end
+
+    test "world sidebar boxes carry digit-first titles derived from layout order" do
+      placements = View.compose(reads(%{}), 120, 40)
+
+      assert %{digit: 1} = border_of(placements, "SPACES")
+      assert %{digit: 2} = border_of(placements, "STACK")
+      assert %{digit: 3} = border_of(placements, "MEMORY")
+      assert %{digit: 4} = border_of(placements, "HEALTH")
+    end
+
+    test "the center terminal box carries digit 0 and no title" do
+      placements = View.compose(reads(%{}), 120, 40)
+
+      assert Enum.any?(placements, fn
+               {Panel.Border, %{digit: 0, title: nil}, _rect} -> true
+               _ -> false
+             end)
+    end
+
+    test "orbis boxes are titled too (shared pieces inherit)" do
+      placements = View.compose(reads(%{active_key: :orbis, focus: nil}), 120, 40)
+      assert border_of(placements, "IN FLIGHT")
+      assert border_of(placements, "IN SCOPE")
+    end
+  end
 end
