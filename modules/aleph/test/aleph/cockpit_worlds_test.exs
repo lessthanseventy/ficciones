@@ -160,4 +160,69 @@ defmodule Aleph.CockpitWorldsTest do
       assert [%{type: "blank"}] = Worlds.all()
     end
   end
+
+  describe "apply_coworker_knob!/3 — the roster sub-editor's Tab+Enter knob (D2.4 Chunk 2b, absorbs Settings)" do
+    setup do
+      path = Path.join(System.tmp_dir!(), "aleph_coworker_knob_test_#{System.unique_integer([:positive])}.json")
+      previous = Application.get_env(:aleph, :config_path)
+      Application.put_env(:aleph, :config_path, path)
+
+      on_exit(fn ->
+        Application.put_env(:aleph, :config_path, previous)
+        File.rm(path)
+      end)
+
+      %{path: path}
+    end
+
+    defp roster_edit_state(id, overrides \\ %{}),
+      do: state(Map.merge(%{author_edit: %{id: id, field: 3, sub: 0, mode: :sub, knob: :model}}, overrides))
+
+    test ":model cycles the coworker's model ring one step and persists via Config", %{path: path} do
+      {:ok, w} =
+        Worlds.register(%{name: "Freedonia", type: "blank", roster: [%{"archetype" => "surveyor", "name" => "amy"}]})
+
+      next = Cockpit.apply_coworker_knob!(roster_edit_state(w.id), "amy", :model)
+
+      assert next.flash =~ "amy driver"
+      assert next.flash =~ "applies on next spawn"
+      override = Aleph.Config.coworker_model("amy", path)
+      assert override
+      # cycling again lands on the FOLLOWING ring entry — proves it's a cycle, not a fixed write.
+      next2 = Cockpit.apply_coworker_knob!(roster_edit_state(w.id), "amy", :model)
+      assert Aleph.Config.coworker_model("amy", path) == Aleph.Profiles.next_model(override)
+      assert next2.flash =~ "amy driver"
+    end
+
+    test ":yolo flips the coworker's permission policy and persists via Config", %{path: path} do
+      {:ok, w} =
+        Worlds.register(%{name: "Freedonia", type: "blank", roster: [%{"archetype" => "surveyor", "name" => "amy"}]})
+
+      next =
+        Cockpit.apply_coworker_knob!(
+          roster_edit_state(w.id, %{author_edit: %{id: w.id, field: 3, sub: 0, mode: :sub, knob: :yolo}}),
+          "amy",
+          :yolo
+        )
+
+      assert next.flash =~ "amy permissions"
+      assert Aleph.Config.coworker_yolo("amy", path) == true
+
+      next2 = Cockpit.apply_coworker_knob!(next, "amy", :yolo)
+      assert Aleph.Config.coworker_yolo("amy", path) == false
+      assert next2.flash =~ "ask"
+    end
+
+    test "a roster entry that's vanished (renamed/removed mid-edit) flashes, never crashes" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
+      next = Cockpit.apply_coworker_knob!(roster_edit_state(w.id), "ghost", :model)
+
+      assert next.flash =~ "roster entry not found"
+    end
+
+    test "an already-gone world flashes, never crashes" do
+      next = Cockpit.apply_coworker_knob!(roster_edit_state(999_999), "amy", :model)
+      assert next.flash =~ "roster entry not found"
+    end
+  end
 end

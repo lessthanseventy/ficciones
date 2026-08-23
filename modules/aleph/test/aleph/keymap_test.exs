@@ -607,6 +607,66 @@ defmodule Aleph.KeymapTest do
     end
   end
 
+  describe "the roster sub-list's model/yolo knob (D2.4 Chunk 2b, absorbs Settings)" do
+    @world_with_roster %{
+      id: 22,
+      name: "Freedonia",
+      type: "code",
+      scope: "machine",
+      paths: [],
+      roster: [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
+    }
+
+    defp roster_knob_state(overrides),
+      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: [@world_with_roster]}, overrides))
+
+    test "Tab flips the armed knob :model <-> :yolo" do
+      s = roster_knob_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :sub, knob: :model}})
+      assert {%{author_edit: %{knob: :yolo}}, :repaint} = Keymap.handle(key(:tab), s)
+
+      s2 = roster_knob_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :sub, knob: :yolo}})
+      assert {%{author_edit: %{knob: :model}}, :repaint} = Keymap.handle(key(:tab), s2)
+    end
+
+    test "Tab defaults the knob to :model when the state predates the field" do
+      s = roster_knob_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :sub}})
+      assert {%{author_edit: %{knob: :yolo}}, :repaint} = Keymap.handle(key(:tab), s)
+    end
+
+    test "Tab in field-list mode is untouched by the knob clause (author_edit unchanged)" do
+      s = roster_knob_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :field}})
+      {next, :repaint} = Keymap.handle(key(:tab), s)
+      assert next.author_edit == s.author_edit
+    end
+
+    test "Tab in the paths sub-list (field 2) is untouched by the knob clause (author_edit unchanged)" do
+      s = roster_knob_state(%{author_edit: %{id: 22, field: 2, sub: 0, mode: :sub}})
+      {next, :repaint} = Keymap.handle(key(:tab), s)
+      assert next.author_edit == s.author_edit
+    end
+
+    test "Enter applies the armed :model knob to the sub-selected coworker" do
+      s = roster_knob_state(%{author_edit: %{id: 22, field: 3, sub: 1, mode: :sub, knob: :model}})
+      assert {^s, {:coworker_knob, "hronir", :model}} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Space (both wire forms) applies the armed :yolo knob to the sub-selected coworker" do
+      s = roster_knob_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :sub, knob: :yolo}})
+      assert {^s, {:coworker_knob, "tertius", :yolo}} = Keymap.handle(char(" "), s)
+      assert {^s, {:coworker_knob, "tertius", :yolo}} = Keymap.handle(key(:space), s)
+    end
+
+    test "Enter on an empty roster is a no-op, never crashes" do
+      s =
+        roster_knob_state(%{
+          author_worlds: [%{@world_with_roster | roster: []}],
+          author_edit: %{id: 22, field: 3, sub: 0, mode: :sub, knob: :model}
+        })
+
+      assert {^s, :none} = Keymap.handle(key(:enter), s)
+    end
+  end
+
   describe "the live terminal owns the keys by default" do
     test "a printable key forwards, not acted on locally" do
       s = state(%{center_live?: true})

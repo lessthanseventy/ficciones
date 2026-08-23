@@ -48,6 +48,9 @@ defmodule Aleph.Keymap do
     * `{:remove_world, id}` — the second `d` while armed on the SAME id confirms the delete.
     * `{:edit_world, id, attrs}` — the field editor's `h`/`l` rings (type/scope) and the paths/
       roster sub-list's `a`/`x`/`d` (D2.4 Chunk 2a) — apply one attrs map to a world immediately.
+    * `{:coworker_knob, name, knob}` — the roster sub-list's `Tab`-selected knob (`:model` |
+      `:yolo`), applied by `Enter`/`Space` to the sub-selected coworker (D2.4 Chunk 2b — absorbs
+      the Settings modal into the roster editor).
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb),
@@ -82,6 +85,14 @@ defmodule Aleph.Keymap do
   immediately, and `Esc` steps back to `mode: :field`. `Esc` on `mode: :field` clears `author_edit`
   entirely (back to the list). While `author_edit` is set, the list's own `n`/`d`/`a` verbs are
   blocked (`:none`) — editing and list-management stay separate modes, same as `input`/`modal`.
+
+  The roster sub-list ALSO carries `knob :: :model | :yolo` (D2.4 Chunk 2b, default `:model`,
+  read tolerantly via `Map.get/3` so older literal states don't need it) — meaningless outside
+  `mode: :sub, field: 3` (roster), same "meaningless-but-harmless elsewhere" idiom as
+  `orbis_focus`/`right_pane_view`. There `Tab` flips it; `Enter`/`Space` emit
+  `{:coworker_knob, name, knob}` for the sub-selected entry (`name` resolved off the LIVE roster,
+  `world_field/2`, same as the `a`/`x`/`d` clauses) — the Settings modal's model-ring-cycle /
+  yolo-flip, now reached from here. This absorbs Settings; Chunk 2b deletes the `,` modal.
   """
   alias Aleph.Panel
   alias Aleph.Profiles
@@ -115,6 +126,7 @@ defmodule Aleph.Keymap do
           | {:arm_delete, term(), String.t()}
           | {:remove_world, term()}
           | {:edit_world, term(), map()}
+          | {:coworker_knob, String.t(), :model | :yolo}
           | :tlon_enter
           | :tlon_preview
           | :none
@@ -342,8 +354,11 @@ defmodule Aleph.Keymap do
   # empty list, or while ALREADY editing (never re-arms onto a different cursor world mid-edit).
   defp command(%{key: :char, char: "e"}, %{active_key: :orbis} = state) do
     case {orbis_face(state), author_edit(state), Enum.at(author_worlds(state), author_cursor(state))} do
-      {:author, nil, %{id: id}} -> {Map.put(state, :author_edit, %{id: id, field: 0, sub: 0, mode: :field}), :repaint}
-      _ -> {state, :none}
+      {:author, nil, %{id: id}} ->
+        {Map.put(state, :author_edit, %{id: id, field: 0, sub: 0, mode: :field, knob: :model}), :repaint}
+
+      _ ->
+        {state, :none}
     end
   end
 
@@ -431,6 +446,24 @@ defmodule Aleph.Keymap do
        )
        when c in ["x", "d"],
        do: {state, {:edit_world, id, %{roster: List.delete_at(world_field(state, id, :roster), sub)}}}
+
+  # Sub-list mode, field 3 (roster) only: `Tab` flips the knob (:model <-> :yolo) Enter/Space
+  # applies (D2.4 Chunk 2b, absorbs Settings' field-flip). Guarded to field 3 (paths has no knob)
+  # and must precede the generic Tab-switches-space clauses below.
+  defp command(%{key: :tab}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 3} = edit} = state),
+    do: {put_author_edit(state, Map.put(edit, :knob, flip_knob(edit_knob(edit)))), :repaint}
+
+  # Sub-list mode, field 3 (roster) only: Enter/Space applies the active knob to the sub-selected
+  # coworker (the Settings modal's apply, now here) — `name` off the LIVE roster (world_field/2,
+  # same source `a`/`x`/`d` read). A vanished entry (sub past the shrunk list) is a no-op.
+  defp command(%{key: :enter}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 3}} = state),
+    do: roster_knob_apply(state)
+
+  defp command(%{key: :char, char: " "}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 3}} = state),
+    do: roster_knob_apply(state)
+
+  defp command(%{key: :space}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 3}} = state),
+    do: roster_knob_apply(state)
 
   # Sub-list mode: Esc steps back to the field list (mode: :field), field unchanged.
   defp command(%{key: :escape}, %{active_key: :orbis, author_edit: %{mode: :sub} = edit} = state),
@@ -744,6 +777,21 @@ defmodule Aleph.Keymap do
 
   defp sub_key(2), do: :paths
   defp sub_key(3), do: :roster
+
+  # The roster sub-editor's knob (D2.4 Chunk 2b) — tolerant read (default :model) so a state built
+  # before this field existed (an older test's literal author_edit) still works.
+  defp edit_knob(edit), do: Map.get(edit, :knob, :model)
+  defp flip_knob(:model), do: :yolo
+  defp flip_knob(:yolo), do: :model
+
+  # Resolve the sub-selected roster entry's `name` off the LIVE world and emit the apply effect —
+  # a vanished entry (deleted mid-edit, or `sub` past the shrunk list) is a no-op, not a crash.
+  defp roster_knob_apply(%{author_edit: %{id: id, sub: sub} = edit} = state) do
+    case state |> world_field(id, :roster) |> Enum.at(sub) do
+      %{"name" => name} -> {state, {:coworker_knob, name, edit_knob(edit)}}
+      _ -> {state, :none}
+    end
+  end
 
   # The CURRENT value of one list-shaped field (`:paths`/`:roster`) off the LIVE world
   # (author_worlds, threaded per keypress — never stale). A vanished world (deleted mid-edit)

@@ -216,5 +216,59 @@ defmodule Aleph.Panel.AuthorTest do
       assert text =~ "x/d remove"
       assert text =~ "Esc back"
     end
+
+    test "roster hints also name Tab knob and Enter apply (D2.4 Chunk 2b)" do
+      data = roster_sub_data(%{id: 22, field: 3, sub: 0, mode: :sub})
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+
+      assert text =~ "Tab knob"
+      assert text =~ "Enter apply"
+    end
+
+    test "each row shows its effective model (archetype default, no Config override) and yolo/ask" do
+      data = roster_sub_data(%{id: 22, field: 3, sub: 0, mode: :sub})
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+
+      # surveyor's archetype default model + the unset (no Config override) yolo → "ask"
+      assert text =~ "ask"
+      assert Regex.match?(~r/tertius.*\w+\/[\w.-]+.*ask/, text)
+    end
+
+    test "on the sub-selected row, the ARMED knob (edit.knob) washes :accent; the other stays :dim" do
+      data = roster_sub_data(%{id: 22, field: 3, sub: 0, mode: :sub, knob: :model})
+      rows = Author.render(data, @rect)
+
+      tertius_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t =~ "tertius" end))
+      # find the model run (a provider/model pair) and the yolo run ("ask"/"yolo") by content
+      model_run = Enum.find(tertius_row, fn {t, _} -> t =~ "/" end)
+      yolo_run = Enum.find(tertius_row, fn {t, _} -> t in ["ask", "yolo"] end)
+
+      assert elem(model_run, 1) == :accent
+      assert elem(yolo_run, 1) == :dim
+    end
+
+    test "flipping edit.knob to :yolo moves the accent wash to the yolo column" do
+      data = roster_sub_data(%{id: 22, field: 3, sub: 0, mode: :sub, knob: :yolo})
+      rows = Author.render(data, @rect)
+
+      tertius_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t =~ "tertius" end))
+      model_run = Enum.find(tertius_row, fn {t, _} -> t =~ "/" end)
+      yolo_run = Enum.find(tertius_row, fn {t, _} -> t in ["ask", "yolo"] end)
+
+      assert elem(model_run, 1) == :dim
+      assert elem(yolo_run, 1) == :accent
+    end
+
+    test "a non-selected row's knobs are always :dim regardless of edit.knob" do
+      data = roster_sub_data(%{id: 22, field: 3, sub: 0, mode: :sub, knob: :model})
+      rows = Author.render(data, @rect)
+
+      hronir_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t =~ "hronir" end))
+      model_run = Enum.find(hronir_row, fn {t, _} -> t =~ "/" end)
+      yolo_run = Enum.find(hronir_row, fn {t, _} -> t in ["ask", "yolo"] end)
+
+      assert elem(model_run, 1) == :dim
+      assert elem(yolo_run, 1) == :dim
+    end
   end
 end

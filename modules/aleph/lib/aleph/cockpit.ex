@@ -939,6 +939,10 @@ defmodule Aleph.Cockpit do
   # the attrs map immediately — no draft/commit step, matching Settings' per-change apply.
   defp apply_effect({:edit_world, id, attrs}, state), do: {:noreply, render(edit_world!(state, id, attrs))}
 
+  # The roster sub-editor's Tab-armed knob landed on Enter/Space (D2.4 Chunk 2b, absorbs Settings):
+  # apply it via Aleph.Config.
+  defp apply_effect({:coworker_knob, name, knob}, state), do: {:noreply, render(apply_coworker_knob!(state, name, knob))}
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.
@@ -1088,6 +1092,48 @@ defmodule Aleph.Cockpit do
 
   defp sub_list_field(2), do: :paths
   defp sub_list_field(3), do: :roster
+
+  @doc false
+  # The roster sub-editor's Tab+Enter/Space knob (D2.4 Chunk 2b — absorbs the Settings modal):
+  # cycle the sub-selected coworker's model ring, or flip its yolo policy, writing Aleph.Config
+  # (file-backed, applies on the coworker's NEXT SPAWN — same honest scope as the `m` verb/old
+  # Settings). Looks the roster entry up off the LIVE world (Worlds.get, like edit_world!) rather
+  # than trust the effect's bare name, so the entry's archetype (the model ring's default-fallback
+  # source) is available.
+  def apply_coworker_knob!(state, name, knob) do
+    case roster_entry_for(state, name) do
+      nil -> %{state | flash: "#{name}: roster entry not found"}
+      entry -> %{state | flash: apply_knob(entry, knob)}
+    end
+  rescue
+    e -> %{state | flash: "settings write failed: #{Exception.message(e)}"}
+  catch
+    :exit, reason -> %{state | flash: "settings write failed: #{inspect(reason)}"}
+  end
+
+  defp roster_entry_for(%{author_edit: %{id: id}}, name) do
+    case Worlds.get(id) do
+      nil -> nil
+      world -> Enum.find(world.roster || [], &(&1["name"] == name))
+    end
+  end
+
+  defp roster_entry_for(_state, _name), do: nil
+
+  defp apply_knob(entry, :model) do
+    norm = Profiles.roster_entry(entry)
+    next = Profiles.next_model(Profiles.instantiate(norm).model)
+    Aleph.Config.put_coworker_model(norm.name, next)
+    "#{norm.name} driver → #{next.provider}/#{next.model} — applies on next spawn (aleph:reset)"
+  end
+
+  defp apply_knob(entry, :yolo) do
+    name = entry["name"]
+    next = Aleph.Config.coworker_yolo(name) != true
+    Aleph.Config.put_coworker_yolo(name, next)
+    policy = if next, do: "yolo (auto-approve)", else: "ask"
+    "#{name} permissions → #{policy} — applies on next spawn (aleph:reset)"
+  end
 
   # A short "field message, message" sentence from an Ecto changeset — surfaces e.g. a duplicate
   # name's UNIQUE(name) violation ("name has already been taken") without a full inspect dump.

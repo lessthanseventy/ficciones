@@ -14,16 +14,26 @@ defmodule Aleph.Panel.Author do
   (`Funes.World.edit_changeset` drops it), called out in the header instead. `Enter` on field 2/3
   (`edit.mode == :sub`) swaps in that field's sub-list — one row per path/roster entry (roster:
   `archetype · name`), the `sub` cursor washed `:selected` — instead of the field list.
+
+  The roster sub-list (D2.4 Chunk 2b, absorbs the Settings modal) ALSO renders each entry's
+  effective model and yolo — the two knobs Settings used to own. Model resolves
+  Config-or-archetype-default via `Profiles.instantiate/1` (the same precedence the `m` verb and
+  Settings used); yolo reads `Aleph.Config.coworker_yolo/1` directly. On the sub-selected row, the
+  knob `Tab` has armed (`edit.knob`) washes `:accent` — the cue for what `Enter`/`Space` will
+  change.
   """
   @behaviour Aleph.Panel
 
   import Aleph.Panel, only: [line: 2, blank: 0]
 
+  alias Aleph.Config
+  alias Aleph.Profiles
   alias Funes.Bus
 
   @hints "j/k row · n new · e edit · d delete · a survey"
   @edit_hints "j/k field · h/l cycle · Enter list · Esc back"
   @sub_hints "j/k row · a add · x/d remove · Esc back"
+  @roster_hints "j/k row · a add · x/d remove · Tab knob · Enter apply · Esc back"
 
   @impl Aleph.Panel
   def topics(_assigns), do: [Bus.worlds_topic()]
@@ -101,24 +111,58 @@ defmodule Aleph.Panel.Author do
     [gutter, {text, style}]
   end
 
-  # Field 3's sub-list (D2.4 Chunk 2c): one row per roster entry (`archetype · name`, the funes
-  # WIRE shape — string-keyed), the `sub` cursor washed :selected.
+  # Field 3's sub-list (D2.4 Chunk 2b/2c): one row per roster entry (`archetype · name`, the funes
+  # WIRE shape — string-keyed) plus its effective model/yolo (Chunk 2b), the `sub` cursor washed
+  # :selected.
   defp render_roster_sub(world, edit, rect) do
     header = [line("ORBIS · author · edit · roster", :header), blank()]
     roster = Map.get(world, :roster) || []
+    knob = Map.get(edit, :knob, :model)
 
     body =
       case roster do
         [] -> [line("no roster yet — a to add one", :dim)]
-        rs -> rs |> Enum.with_index() |> Enum.map(fn {r, i} -> sub_row(roster_entry_text(r), i == edit.sub) end)
+        rs -> rs |> Enum.with_index() |> Enum.map(fn {r, i} -> roster_row(r, i == edit.sub, knob) end)
       end
 
-    footer = [blank(), line(@sub_hints, :dim)]
+    footer = [blank(), line(@roster_hints, :dim)]
     Aleph.Panel.clip(header ++ body ++ footer, rect)
   end
 
   defp roster_entry_text(%{"archetype" => archetype, "name" => name}), do: "#{archetype} · #{name}"
   defp roster_entry_text(entry), do: inspect(entry)
+
+  # One roster row: archetype · name, then the model/yolo knobs (D2.4 Chunk 2b, absorbs Settings).
+  # On the sub-selected row the ARMED knob (`Tab`) washes :accent — what Enter/Space will change.
+  defp roster_row(entry, selected?, knob) do
+    style = if selected?, do: :selected, else: :normal
+    gutter = if selected?, do: {"▸ ", :accent}, else: {"  ", :normal}
+    norm = Profiles.roster_entry(entry)
+
+    [
+      gutter,
+      {roster_entry_text(entry), style},
+      {"  ", :normal},
+      {format_model(effective_model(norm)), knob_style(selected?, knob, :model)},
+      {"  ", :normal},
+      {yolo_label(Config.coworker_yolo(norm.name)), knob_style(selected?, knob, :yolo)}
+    ]
+  end
+
+  defp knob_style(true, k, k), do: :accent
+  defp knob_style(_selected?, _armed, _field), do: :dim
+
+  # Config-or-archetype-default, same precedence `instantiate/1` folds in for a real spawn. An
+  # unresolvable archetype/name (bad wire data) degrades to nil rather than raising mid-render.
+  defp effective_model(%{archetype: nil}), do: nil
+  defp effective_model(%{name: nil}), do: nil
+  defp effective_model(norm), do: Profiles.instantiate(norm).model
+
+  defp format_model(%{provider: prov, model: model}), do: "#{prov}/#{model}"
+  defp format_model(_), do: "?"
+
+  defp yolo_label(true), do: "yolo"
+  defp yolo_label(_), do: "ask"
 
   # No click target yet — the editor is keyboard-only (Chunk 2a/b/c). Kept as an explicit no-op
   # (not left unimplemented), same idiom as the list's pre-Chunk-2 pick/3.
