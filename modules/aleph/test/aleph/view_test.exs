@@ -301,6 +301,47 @@ defmodule Aleph.ViewTest do
     end
   end
 
+  describe "digit-numbering agreement: View borders ⇄ Focus.jump (clarity slice 4)" do
+    # The title (or, for the carousel box, the active tab's label) View painted at `digit` — the
+    # one drift that would make Alt+N lie: the number on the frame must be the pane Focus.jump/3
+    # actually reaches at that same digit.
+    defp digit_title(placements, digit) do
+      Enum.find_value(placements, fn
+        {Panel.Border, %{digit: ^digit, title: title}, _r} when not is_nil(title) ->
+          title
+
+        {Panel.Border, %{digit: ^digit, tabs: tabs}, _r} when is_list(tabs) ->
+          case Enum.find(tabs, fn {_label, active?} -> active? end) do
+            {label, true} -> label
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end)
+    end
+
+    test "border digits agree with Focus.jump over the same layout (Alt+N reaches pane N)" do
+      placements = View.compose(reads(%{}), 120, 40)
+      space = Aleph.Space.fetch(0)
+
+      layout = %{
+        left: [Panel.Spaces | space.left],
+        right: Aleph.Space.visible_right(space, 0),
+        sections: %{},
+        counts: %{}
+      }
+
+      expected = %{1 => Panel.Spaces, 2 => Panel.Stack, 3 => Panel.Memory, 4 => Panel.Health, 5 => Panel.Crew}
+      titles = %{1 => "SPACES", 2 => "STACK", 3 => "MEMORY", 4 => "HEALTH", 5 => "CREW"}
+
+      for d <- 1..5 do
+        assert %Focus{} |> Focus.jump(layout, d) |> Focus.focused_pane(layout) == expected[d]
+        assert digit_title(placements, d) == titles[d]
+      end
+    end
+  end
+
   # C3.1: the tab strip is LEADERS only — a world's roster windows (+ the uqbar console furniture);
   # `t<id>` leaf windows move to the Leaves panel, not the strip.
   describe "WindowBar leaders only" do
