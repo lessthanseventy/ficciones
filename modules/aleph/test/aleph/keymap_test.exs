@@ -42,7 +42,10 @@ defmodule Aleph.KeymapTest do
           orbis_face: :survey,
           author_cursor: 0,
           author_worlds: [],
-          pending_delete: nil
+          pending_delete: nil,
+          # The field editor's own state (D2.4 Chunk 2a) — nil off the edit screen; the "editing a
+          # world" describe block below sets it.
+          author_edit: nil
         },
         overrides
       )
@@ -340,6 +343,97 @@ defmodule Aleph.KeymapTest do
       s = author_state2(%{author_cursor: 1, pending_delete: 22})
       assert {%{pending_delete: nil}, :repaint} = Keymap.handle(char("j"), s)
       assert {%{pending_delete: nil}, :repaint} = Keymap.handle(key(:escape), author_state2(%{pending_delete: 22}))
+    end
+  end
+
+  describe "editing a world — `e` opens the field editor, h/l cycle type/scope rings (D2.4 Chunk 2a)" do
+    defp editor_state(overrides),
+      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: @two_author_worlds}, overrides))
+
+    test "e on the author cursor world opens author_edit at field 0, sub 0" do
+      s = editor_state(%{author_cursor: 1})
+      assert {%{author_edit: %{id: 22, field: 0, sub: 0, mode: :field}}, :repaint} = Keymap.handle(char("e"), s)
+    end
+
+    test "e on the survey face is a no-op — nothing to edit from the survey" do
+      s = state(%{active_key: :orbis, orbis_face: :survey})
+      assert {^s, :none} = Keymap.handle(char("e"), s)
+    end
+
+    test "e on an empty world list is a no-op" do
+      s = editor_state(%{author_worlds: [], author_cursor: 0})
+      assert {^s, :none} = Keymap.handle(char("e"), s)
+    end
+
+    test "e while already editing is a no-op — doesn't re-arm onto a different cursor world" do
+      s = editor_state(%{author_cursor: 0, author_edit: %{id: 22, field: 1, sub: 0, mode: :field}})
+      assert {^s, :none} = Keymap.handle(char("e"), s)
+    end
+
+    test "j/k move the field cursor 0..3, clamped, no wrap" do
+      s = editor_state(%{author_edit: %{id: 22, field: 0, sub: 0, mode: :field}})
+      assert {%{author_edit: %{field: 1}}, :repaint} = Keymap.handle(char("j"), s)
+      assert {%{author_edit: %{field: 1}}, :repaint} = Keymap.handle(key(:down), s)
+
+      top = editor_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :field}})
+      assert {%{author_edit: %{field: 3}}, :repaint} = Keymap.handle(char("j"), top)
+
+      bottom = editor_state(%{author_edit: %{id: 22, field: 0, sub: 0, mode: :field}})
+      assert {%{author_edit: %{field: 0}}, :repaint} = Keymap.handle(char("k"), bottom)
+      assert {%{author_edit: %{field: 0}}, :repaint} = Keymap.handle(key(:up), bottom)
+    end
+
+    test "h/l on field 0 (type) emits {:edit_world, id, %{type: next}}, cycling the ring, wrapping" do
+      worlds = [%{id: 22, name: "Freedonia", type: "code", scope: "machine", paths: [], roster: []}]
+      s = editor_state(%{author_worlds: worlds, author_edit: %{id: 22, field: 0, sub: 0, mode: :field}})
+
+      assert {_s, {:edit_world, 22, %{type: "life"}}} = Keymap.handle(char("l"), s)
+      assert {_s, {:edit_world, 22, %{type: "blank"}}} = Keymap.handle(char("h"), s)
+
+      blank = %{s | author_worlds: [%{Enum.at(worlds, 0) | type: "blank"}]}
+      assert {_s, {:edit_world, 22, %{type: "code"}}} = Keymap.handle(char("l"), blank)
+    end
+
+    test "h/l on field 1 (scope) emits {:edit_world, id, %{scope: next}}" do
+      # A 2-element ring: from "project" (index 0) BOTH directions land on "machine" (index 1) —
+      # only a 3+ element ring (type) shows h/l diverge, asserted above.
+      worlds = [%{id: 22, name: "Freedonia", type: "code", scope: "project", paths: [], roster: []}]
+      s = editor_state(%{author_worlds: worlds, author_edit: %{id: 22, field: 1, sub: 0, mode: :field}})
+
+      assert {_s, {:edit_world, 22, %{scope: "machine"}}} = Keymap.handle(char("l"), s)
+      assert {_s, {:edit_world, 22, %{scope: "machine"}}} = Keymap.handle(char("h"), s)
+
+      machine = %{s | author_worlds: [%{Enum.at(worlds, 0) | scope: "machine"}]}
+      assert {_s, {:edit_world, 22, %{scope: "project"}}} = Keymap.handle(char("l"), machine)
+      assert {_s, {:edit_world, 22, %{scope: "project"}}} = Keymap.handle(char("h"), machine)
+    end
+
+    test "h/l on field 2/3 (paths/roster) are a no-op — those rings don't apply to lists" do
+      s = editor_state(%{author_edit: %{id: 22, field: 2, sub: 0, mode: :field}})
+      assert {^s, :none} = Keymap.handle(char("h"), s)
+      assert {^s, :none} = Keymap.handle(char("l"), s)
+
+      s2 = editor_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :field}})
+      assert {^s2, :none} = Keymap.handle(char("h"), s2)
+      assert {^s2, :none} = Keymap.handle(char("l"), s2)
+    end
+
+    test "Esc in field-list mode clears author_edit — back to the list" do
+      s = editor_state(%{author_edit: %{id: 22, field: 1, sub: 0, mode: :field}})
+      assert {%{author_edit: nil}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+
+    test "n/d/a are blocked while author_edit is set — Chunk 1's create/delete/toggle stay list-only" do
+      s = editor_state(%{author_edit: %{id: 22, field: 0, sub: 0, mode: :field}})
+      assert {^s, :none} = Keymap.handle(char("n"), s)
+      assert {^s, :none} = Keymap.handle(char("d"), s)
+      assert {^s, :none} = Keymap.handle(char("a"), s)
+    end
+
+    test "Chunk 1 create/delete/toggle are untouched when author_edit is nil (list view)" do
+      s = editor_state(%{author_cursor: 1, author_edit: nil})
+      assert {_s, {:arm_delete, 22, "Freedonia"}} = Keymap.handle(char("d"), s)
+      assert {_s, {:toggle_orbis_face}} = Keymap.handle(char("a"), s)
     end
   end
 

@@ -232,8 +232,9 @@ defmodule Aleph.View do
 
   # The author face's own world list — `Aleph.Worlds.all/0` directly (not the survey's rollup
   # cache), since a thread-less world (a fresh "blank" template) is real here even when
-  # `Aleph.Orbis.rollup/0` has nothing to show (D2.2).
-  def data_for(Panel.Author, r), do: %{worlds: author_worlds(), cursor: r[:author_cursor] || 0}
+  # `Aleph.Orbis.rollup/0` has nothing to show (D2.2). `edit` (D2.4 Chunk 2a) is nil unless `e`
+  # opened the field editor — `Panel.Author` switches its render on its presence.
+  def data_for(Panel.Author, r), do: %{worlds: author_worlds(), cursor: r[:author_cursor] || 0, edit: r[:author_edit]}
 
   def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
   def data_for(Panel.Stack, r), do: r.stack

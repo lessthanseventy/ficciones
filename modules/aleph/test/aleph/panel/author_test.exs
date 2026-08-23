@@ -75,4 +75,59 @@ defmodule Aleph.Panel.AuthorTest do
     data = %{worlds: [%{id: 1, name: "Tlön"}], cursor: 0}
     assert Author.pick(data, @rect, 2) == nil
   end
+
+  describe "the field editor sub-view (D2.4 Chunk 2a: data[:edit] present)" do
+    @world %{
+      id: 22,
+      name: "Freedonia",
+      type: "code",
+      scope: "project",
+      paths: ["modules/*"],
+      roster: [%{"archetype" => "surveyor", "name" => "surveyor"}]
+    }
+
+    defp edit_data(edit, overrides \\ %{}) do
+      Map.merge(%{worlds: [@world], cursor: 0, edit: edit}, overrides)
+    end
+
+    test "renders the world's name (immutable, no field for it) and the type/scope/paths/roster rows" do
+      data = edit_data(%{id: 22, field: 0, sub: 0, mode: :field})
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+
+      assert text =~ "Freedonia"
+      assert text =~ "code"
+      assert text =~ "project"
+      assert text =~ "1 paths"
+      assert text =~ "1 roster"
+      assert text =~ "immutable"
+    end
+
+    test "the field cursor row washes :selected" do
+      data = edit_data(%{id: 22, field: 1, sub: 0, mode: :field})
+      rows = Author.render(data, @rect)
+
+      scope_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t == "project" end))
+      assert Enum.any?(scope_row, fn {_t, s} -> s == :selected end)
+
+      type_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t == "code" end))
+      refute Enum.any?(type_row, fn {_t, s} -> s == :selected end)
+    end
+
+    test "field-list hints name j/k, h/l, Enter, Esc" do
+      data = edit_data(%{id: 22, field: 0, sub: 0, mode: :field})
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+
+      assert text =~ "j/k field"
+      assert text =~ "h/l"
+      assert text =~ "Enter"
+      assert text =~ "Esc"
+    end
+
+    test "an editor pointed at a world not in the list degrades to the plain list (defensive)" do
+      data = edit_data(%{id: 999_999, field: 0, sub: 0, mode: :field})
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+      assert text =~ "ORBIS · author"
+      assert text =~ "Freedonia"
+    end
+  end
 end

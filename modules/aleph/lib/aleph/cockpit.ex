@@ -243,6 +243,10 @@ defmodule Aleph.Cockpit do
             # The author face's delete confirm arm (D2.5): the world id a `d` press armed, or nil.
             # A second `d` on this SAME id confirms; any other key cancels (Aleph.Keymap).
             pending_delete: nil,
+            # The field editor's own state (D2.4 Chunk 2a): `%{id, field, sub, mode}` while `e` has
+            # opened it, else nil. VIEW cursors only — the world's data lives in funes and is
+            # re-read from `Aleph.Worlds.all/0` every render (Aleph.Keymap).
+            author_edit: nil,
             subscribed_thread: nil,
             leader_pending?: false,
             # Tlön's lazygit focus (which sidebar column/pane/section, and whether we're in the
@@ -931,6 +935,10 @@ defmodule Aleph.Cockpit do
   # The second `d` (still armed on this id) landed: remove the world.
   defp apply_effect({:remove_world, id}, state), do: {:noreply, render(remove_world!(state, id))}
 
+  # The field editor's h/l rings and paths/roster sub-list add/remove (D2.4 Chunk 2a) landed: apply
+  # the attrs map immediately — no draft/commit step, matching Settings' per-change apply.
+  defp apply_effect({:edit_world, id, attrs}, state), do: {:noreply, render(edit_world!(state, id, attrs))}
+
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
   # act via funes, then null the memory cache so the pane reflects the shrunk queue on next render.
   # A no-op (flash only) if the focus isn't on a selectable habit.
@@ -1037,6 +1045,49 @@ defmodule Aleph.Cockpit do
   # discipline as the keymap's move_author_cursor, applied here since a delete can shrink the list
   # out from under a cursor sitting on (or past) the new last row.
   defp clamp_author_cursor(cursor), do: max(min(cursor, max(length(Worlds.all()) - 1, 0)), 0)
+
+  @doc false
+  # Apply one field edit (D2.4 Chunk 2a: the editor's type/scope rings, and the paths/roster
+  # sub-list's add/remove) immediately — no draft/commit step, mirroring how Settings applies each
+  # change on the spot. `name` is immutable (`World.edit_changeset` drops it — see funes/world.ex);
+  # nothing here special-cases it. Same missing/error/rescue shape as `register_world!`/
+  # `remove_world!`. On success, re-clamps `author_edit.sub` against the POST-edit paths/roster
+  # length (a removal can strand `sub` past the shrunk list, same reasoning as
+  # `clamp_author_cursor/1` above).
+  def edit_world!(state, id, attrs) do
+    case Worlds.get(id) do
+      nil ->
+        %{state | flash: "world ##{id} already gone"}
+
+      world ->
+        case Worlds.edit(world, attrs) do
+          {:ok, updated} -> reclamp_author_edit_sub(%{state | flash: "updated #{updated.name}"})
+          {:error, changeset} -> %{state | flash: "couldn't update #{world.name} — #{changeset_error(changeset)}"}
+        end
+    end
+  rescue
+    e -> %{state | flash: "edit failed: #{Exception.message(e)}"}
+  catch
+    :exit, reason -> %{state | flash: "edit failed: #{inspect(reason)}"}
+  end
+
+  # Only reachable when `author_edit` is actually mid-edit on a paths/roster sub-list (field 2/3) —
+  # elsewhere (the type/scope rings, or no editor open) this is a no-op via the fallback clause.
+  defp reclamp_author_edit_sub(%{author_edit: %{id: id, field: field} = edit} = state) when field in [2, 3] do
+    case Worlds.get(id) do
+      nil ->
+        state
+
+      world ->
+        len = world |> Map.get(sub_list_field(field)) |> length()
+        %{state | author_edit: %{edit | sub: edit.sub |> min(max(len - 1, 0)) |> max(0)}}
+    end
+  end
+
+  defp reclamp_author_edit_sub(state), do: state
+
+  defp sub_list_field(2), do: :paths
+  defp sub_list_field(3), do: :roster
 
   # A short "field message, message" sentence from an Ecto changeset — surfaces e.g. a duplicate
   # name's UNIQUE(name) violation ("name has already been taken") without a full inspect dump.
@@ -1257,6 +1308,9 @@ defmodule Aleph.Cockpit do
       # Meaningless-but-harmless outside Orbis, same idiom as `right_pane_view`.
       orbis_face: state.orbis_face,
       author_cursor: state.author_cursor,
+      # The field editor (D2.4 Chunk 2a): nil unless `e` opened it. Meaningless-but-harmless
+      # outside Orbis' author face, same idiom as `right_pane_view`.
+      author_edit: state.author_edit,
       terminal: terminal_read(state, focused),
       machine: machine_read(state),
       stack: state.stack || @empty_stack,

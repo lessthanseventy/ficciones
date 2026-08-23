@@ -46,6 +46,8 @@ defmodule Aleph.Keymap do
       face's `n` verb) — register a world from a template + the typed name (D2.3).
     * `{:arm_delete, id, name}` — `d` on the author face's cursor row arms a delete confirm (D2.5).
     * `{:remove_world, id}` — the second `d` while armed on the SAME id confirms the delete.
+    * `{:edit_world, id, attrs}` — the field editor's `h`/`l` rings (type/scope) and the paths/
+      roster sub-list's `a`/`x`/`d` (D2.4 Chunk 2a) — apply one attrs map to a world immediately.
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb),
@@ -65,6 +67,21 @@ defmodule Aleph.Keymap do
   `author_worlds` — the live `Aleph.Worlds.all/0` list, threaded in per keypress (like
   `composer_thread_id`) so this module stays a pure reducer with no funes call of its own.
   `pending_delete` (id | nil) is the two-key delete confirm's arm.
+
+  The field editor (D2.4 Chunk 2a): `author_edit :: nil | %{id, field, sub, mode}` — `e` on the
+  list's cursor world opens it at `field: 0` (type), `mode: :field`. `mode` (`:field | :sub`) is
+  an addition beyond the plan's 3-key shape — the field list and a field's sub-list (paths/roster
+  entries) both drive `j`/`k` over a DIFFERENT cursor (`field` vs `sub`) and need a bit to tell
+  which is live; everything else matches the plan verbatim. `field` cycles the 4 rows (0 type · 1
+  scope · 2 paths · 3 roster) with `j`/`k`, clamped no-wrap. On fields 0/1, `h`/`l` cycle a ring
+  (`@type_ring`/`@scope_ring`) and emit `{:edit_world, id, attrs}` immediately — no draft/commit
+  step. On fields 2/3, `Enter` drops into the sub-list (`mode: :sub`, `sub` resets to 0); there
+  `j`/`k` move `sub` (clamped to the live paths/roster length), `a` opens an add buffer
+  (`state.input` kind `:new_path` or `:new_roster` — the latter also carries an `archetype` ring
+  cycled by `h`/`l`, mirroring `:new_world`'s `template`), `x`/`d` removes the `sub`-selected entry
+  immediately, and `Esc` steps back to `mode: :field`. `Esc` on `mode: :field` clears `author_edit`
+  entirely (back to the list). While `author_edit` is set, the list's own `n`/`d`/`a` verbs are
+  blocked (`:none`) — editing and list-management stay separate modes, same as `input`/`modal`.
   """
   alias Aleph.Panel
   alias Aleph.Profiles
@@ -76,6 +93,11 @@ defmodule Aleph.Keymap do
   # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
   # not just an alias.
   require Space
+
+  # The field editor's rings (D2.4 Chunk 2a) — `h`/`l` cycle these on fields 0/1. Match
+  # `Funes.World`'s DB CHECK closed sets exactly (funes/lib/funes/world.ex).
+  @type_ring ["code", "life", "blank"]
+  @scope_ring ["project", "machine"]
 
   @type effect ::
           :repaint
@@ -92,6 +114,7 @@ defmodule Aleph.Keymap do
           | {:register_world, atom(), String.t()}
           | {:arm_delete, term(), String.t()}
           | {:remove_world, term()}
+          | {:edit_world, term(), map()}
           | :tlon_enter
           | :tlon_preview
           | :none
@@ -290,6 +313,50 @@ defmodule Aleph.Keymap do
   defp command(_key, %{active_key: :orbis, pending_delete: id} = state) when not is_nil(id) do
     {Map.put(state, :pending_delete, nil), :repaint}
   end
+
+  # --- the field editor (D2.4 Chunk 2a): `author_edit != nil` gates its own key table, ahead of
+  # the list's `n`/`d`/`a`/Esc/h/l/j/k so editing and list-management never leak into each other. ---
+
+  # `e` on the list's cursor world opens the editor at field 0. A no-op off the author face, on an
+  # empty list, or while ALREADY editing (never re-arms onto a different cursor world mid-edit).
+  defp command(%{key: :char, char: "e"}, %{active_key: :orbis} = state) do
+    case {orbis_face(state), author_edit(state), Enum.at(author_worlds(state), author_cursor(state))} do
+      {:author, nil, %{id: id}} -> {Map.put(state, :author_edit, %{id: id, field: 0, sub: 0, mode: :field}), :repaint}
+      _ -> {state, :none}
+    end
+  end
+
+  # Field-list mode: j/k move the field cursor 0..3, clamped (no wrap).
+  defp command(%{key: :char, char: "j"}, %{active_key: :orbis, author_edit: %{mode: :field} = edit} = state),
+    do: {put_author_edit(state, %{edit | field: min(edit.field + 1, 3)}), :repaint}
+
+  defp command(%{key: :down}, %{active_key: :orbis, author_edit: %{mode: :field} = edit} = state),
+    do: {put_author_edit(state, %{edit | field: min(edit.field + 1, 3)}), :repaint}
+
+  defp command(%{key: :char, char: "k"}, %{active_key: :orbis, author_edit: %{mode: :field} = edit} = state),
+    do: {put_author_edit(state, %{edit | field: max(edit.field - 1, 0)}), :repaint}
+
+  defp command(%{key: :up}, %{active_key: :orbis, author_edit: %{mode: :field} = edit} = state),
+    do: {put_author_edit(state, %{edit | field: max(edit.field - 1, 0)}), :repaint}
+
+  # Field-list mode: h/l cycle the type (field 0) / scope (field 1) ring against the LIVE world
+  # (author_worlds, threaded per keypress) and emit the edit immediately — no draft/commit step.
+  # Fields 2/3 (paths/roster) have no ring — a no-op, matching the plan's "otherwise no-op".
+  defp command(%{key: :char, char: "h"}, %{active_key: :orbis, author_edit: %{mode: :field} = edit} = state),
+    do: {state, field_ring_edit(state, edit, -1)}
+
+  defp command(%{key: :char, char: "l"}, %{active_key: :orbis, author_edit: %{mode: :field} = edit} = state),
+    do: {state, field_ring_edit(state, edit, 1)}
+
+  # Esc in field-list mode clears author_edit — back to the list.
+  defp command(%{key: :escape}, %{active_key: :orbis, author_edit: %{mode: :field}} = state),
+    do: {put_author_edit(state, nil), :repaint}
+
+  # The list's n/d/a verbs are blocked while author_edit is set — editing is its own mode; falling
+  # through here (rather than to the list clauses below) keeps Chunk 1's create/delete/toggle
+  # list-only, untouched when author_edit is nil.
+  defp command(%{key: :char, char: c}, %{active_key: :orbis, author_edit: %{}} = state) when c in ["n", "d", "a"],
+    do: {state, :none}
 
   defp command(%{key: :char, char: "q"}, state), do: {state, :quit}
 
@@ -553,6 +620,28 @@ defmodule Aleph.Keymap do
   defp survey_cursor(state), do: Map.get(state, :survey_cursor, 0)
   defp orbis_face(state), do: Map.get(state, :orbis_face, :survey)
   defp author_cursor(state), do: Map.get(state, :author_cursor, 0)
+  defp author_edit(state), do: Map.get(state, :author_edit)
+  defp put_author_edit(state, edit), do: Map.put(state, :author_edit, edit)
+
+  # h/l on field 0 (type) / field 1 (scope): find the CURRENT world (author_worlds, threaded per
+  # keypress — never stale), step its ring value by `dir` (wrapping — a ring, not a clamp, same
+  # idiom as `cycle_template/2`), and emit the edit. A world that's vanished (deleted mid-edit,
+  # the Bus race is real but rare) or a field with no ring (2/3) is a no-op.
+  defp field_ring_edit(state, %{id: id, field: field}, dir) when field in [0, 1] do
+    case Enum.find(author_worlds(state), &(&1.id == id)) do
+      %{} = world ->
+        {key, ring} = if field == 0, do: {:type, @type_ring}, else: {:scope, @scope_ring}
+        current = Map.get(world, key)
+        i = Enum.find_index(ring, &(&1 == current)) || 0
+        next = Enum.at(ring, rem(i + dir + length(ring), length(ring)))
+        {:edit_world, id, %{key => next}}
+
+      _ ->
+        :none
+    end
+  end
+
+  defp field_ring_edit(_state, _edit, _dir), do: :none
 
   # The live worlds list Orbis' survey cursor/Enter resolve against — the same cached
   # `Aleph.Orbis.rollup/0` the cockpit's `orbis_worlds/1` reads (`state.leaves.worlds`). Kept local

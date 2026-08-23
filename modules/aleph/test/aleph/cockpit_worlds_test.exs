@@ -117,4 +117,47 @@ defmodule Aleph.CockpitWorldsTest do
       assert next.flash =~ "already gone"
     end
   end
+
+  describe "edit_world!/3 — the field editor's immediate apply (D2.4 Chunk 2a)" do
+    test "a valid attrs map updates the row and flashes success" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "code"})
+      next = Cockpit.edit_world!(state(%{}), w.id, %{type: "life"})
+
+      assert next.flash =~ "updated Freedonia"
+      assert [%{name: "Freedonia", type: "life"}] = Worlds.all()
+    end
+
+    test "scope, paths, and roster all apply through the same wrapper" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
+      Cockpit.edit_world!(state(%{}), w.id, %{scope: "machine"})
+      Cockpit.edit_world!(state(%{}), w.id, %{paths: ["a", "b"]})
+      next = Cockpit.edit_world!(state(%{}), w.id, %{roster: [%{"archetype" => "assistant", "name" => "amy"}]})
+
+      assert next.flash =~ "updated"
+
+      assert [%{scope: "machine", paths: ["a", "b"], roster: [%{"archetype" => "assistant", "name" => "amy"}]}] =
+               Worlds.all()
+    end
+
+    test "a missing world (already gone) flashes, never crashes" do
+      next = Cockpit.edit_world!(state(%{}), 999_999, %{type: "life"})
+      assert next.flash =~ "already gone"
+    end
+
+    test "name is immutable — edit_changeset drops it, no error, no rename" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
+      next = Cockpit.edit_world!(state(%{}), w.id, %{name: "Ignored"})
+
+      assert next.flash =~ "updated Freedonia"
+      assert [%{name: "Freedonia"}] = Worlds.all()
+    end
+
+    test "an invalid type (outside the DB CHECK's closed set) flashes, never crashes" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
+      next = Cockpit.edit_world!(state(%{}), w.id, %{type: "nonsense"})
+
+      assert next.flash =~ "edit failed"
+      assert [%{type: "blank"}] = Worlds.all()
+    end
+  end
 end
