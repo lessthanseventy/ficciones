@@ -1,8 +1,8 @@
-defmodule Aleph.MachineChat.PresenceTest do
+defmodule Aleph.PresenceTest do
   @moduledoc "Presence/typing derivation from a tmux window snapshot — pure, now is an argument."
   use ExUnit.Case, async: true
 
-  alias Aleph.MachineChat.Presence
+  alias Aleph.Presence
 
   @now 1_000_000
 

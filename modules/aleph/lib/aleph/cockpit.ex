@@ -187,6 +187,8 @@ defmodule Aleph.Cockpit do
     # Subscribe before the first read so nothing posted mid-boot is missed.
     Bus.subscribe_sessions()
     Bus.subscribe_threads()
+    # Explicit thinking/idle declarations (funes:presence) — the "typing" indicator's rich half.
+    Bus.subscribe_presence()
     # The global activity topic is a strict superset of messages_topic for `:message_posted`
     # (Bus.broadcast always publishes a message to both) — subscribing to messages_topic too
     # would double-deliver every message. Riding activity alone also brings fact_banked /
@@ -303,7 +305,10 @@ defmodule Aleph.Cockpit do
             opening_text_at: %{},
             opening_injected: MapSet.new(),
             # Threads already told "parked: leaf cap reached" — the note posts once, not per render.
-            parked_noted: MapSet.new()
+            parked_noted: MapSet.new(),
+            # Explicit thinking presence: thread_id => %{agent => started_at}. Seeded from the
+            # store (reconcile-on-connect), then maintained by the funes:presence Bus events.
+            thinking: thinking_snapshot()
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -487,6 +492,19 @@ defmodule Aleph.Cockpit do
   # habit is a quiet queue entry for review, not an interrupt.
   def handle_info({tag, _row}, state) when tag in [:habit_proposed, :habit_approved, :habit_rejected] do
     {:noreply, render(state)}
+  end
+
+  # Explicit presence: idempotent updates, so the double delivery on the focused thread
+  # (funes:presence + its thread topic) just re-writes the same entry.
+  def handle_info({:presence_thinking, %{thread_id: tid, agent: agent, started_at: at}}, state) do
+    thinking = Map.update(state.thinking, tid, %{agent => at}, &Map.put(&1, agent, at))
+    {:noreply, render(%{state | thinking: thinking})}
+  end
+
+  def handle_info({:presence_idle, %{thread_id: tid, agent: agent}}, state) do
+    cleared = state.thinking |> Map.get(tid, %{}) |> Map.delete(agent)
+    thinking = if cleared == %{}, do: Map.delete(state.thinking, tid), else: Map.put(state.thinking, tid, cleared)
+    {:noreply, render(%{state | thinking: thinking})}
   end
 
   def handle_info(:tick, state) do
@@ -1329,6 +1347,7 @@ defmodule Aleph.Cockpit do
     threads = Enum.map(chorus, & &1.thread)
     focused = focused_thread(threads, state.focused_id)
     state = resubscribe(%{state | threads: threads, focused_id: focused && focused.id}, focused)
+    machine = machine_read(state)
 
     reads = %{
       active_key: state.active_key,
@@ -1351,7 +1370,8 @@ defmodule Aleph.Cockpit do
       # outside Orbis' author face, same idiom as `right_pane_view`.
       author_edit: state.author_edit,
       terminal: terminal_read(state, focused),
-      machine: machine_read(state),
+      machine: machine,
+      presence: presence_read(state, focused, machine),
       stack: state.stack || @empty_stack,
       health: state.health,
       activity: state.activity,
@@ -1391,6 +1411,38 @@ defmodule Aleph.Cockpit do
   defp focused_thread([], _id), do: nil
   defp focused_thread(threads, nil), do: List.first(threads)
   defp focused_thread(threads, id), do: Enum.find(threads, List.first(threads), &(&1.id == id))
+
+  # The reconcile-on-connect read: whatever the store already holds when the cockpit boots
+  # (declares made before this subscribe). Degrades to empty if the store isn't up.
+  defp thinking_snapshot do
+    Map.new(Funes.Presence.Thinking.thinking_all(), fn {tid, entries} ->
+      {tid, Map.new(entries, &{&1.agent, &1.started_at})}
+    end)
+  catch
+    :exit, _ -> %{}
+  end
+
+  # The focused thread's presence for Panel.Conversation: explicit thinking declarations plus the
+  # tmux-activity floor. Precedence thinking > working — an agent that DECLARED never re-lists as
+  # merely inferred-working; live/none render nothing.
+  defp presence_read(_state, nil, _machine), do: %{thinking: [], working: []}
+
+  defp presence_read(state, focused, machine) do
+    thinking = state.thinking |> Map.get(focused.id, %{}) |> Map.keys() |> Enum.sort()
+    %{thinking: thinking, working: working_lead(machine, focused, thinking)}
+  end
+
+  defp working_lead(%{tabs: tabs}, focused, thinking) do
+    with :working <- Aleph.Presence.thread_status(tabs, focused.id, System.os_time(:second)),
+         lead when is_binary(lead) <- Funes.thread_lead(focused.id),
+         false <- lead in thinking do
+      [lead]
+    else
+      _ -> []
+    end
+  end
+
+  defp working_lead(_machine, _focused, _thinking), do: []
 
   # No space carries a per-thread native-PTY center since the Slice 0 collapse (Sessions deleted);
   # Tlön's center reads via machine_read, so terminal_read is uniformly `:no_session`.
@@ -2205,7 +2257,7 @@ defmodule Aleph.Cockpit do
       "-t",
       world_session(world_id),
       "-F",
-      "\#{window_active}\t\#{window_index}\t\#{window_name}\t\#{@funes_thread}\t\#{@funes_opening}"
+      "\#{window_active}\t\#{window_index}\t\#{window_name}\t\#{@funes_thread}\t\#{@funes_opening}\t\#{window_activity}"
     ]
 
     case tlon_run(world_id, args) do
@@ -2231,22 +2283,25 @@ defmodule Aleph.Cockpit do
 
   @doc false
   # `window_active` is "1" for the current window, "0" otherwise; each line is
-  # `<active>\t<index>\t<name>\t<@funes_thread>\t<@funes_opening>` — the index is tmux's window
-  # index (select-window on a tab click); `@funes_thread` is the leaf routing key stamped at spawn
-  # (Slice C — empty for non-leaf windows, parsed to nil); `@funes_opening` is the two-phase
-  # opening-turn state ("typed"/"done") persisted in tmux so a cockpit restart never re-types a
-  # live leaf's opening. Shorter lines (older fakes/format) still parse, missing fields nil.
+  # `<active>\t<index>\t<name>\t<@funes_thread>\t<@funes_opening>\t<window_activity>` — the index
+  # is tmux's window index (select-window on a tab click); `@funes_thread` is the leaf routing key
+  # stamped at spawn (Slice C — empty for non-leaf windows, parsed to nil); `@funes_opening` is the
+  # two-phase opening-turn state ("typed"/"done") persisted in tmux so a cockpit restart never
+  # re-types a live leaf's opening; `window_activity` is the last-content-change unix timestamp
+  # `Aleph.Presence` infers "working" from. Shorter lines (older fakes/format) still parse,
+  # missing fields nil.
   def parse_tlon_tabs(out) do
     out
     |> String.split("\n", trim: true)
     |> Enum.flat_map(fn line ->
-      case String.split(line, "\t", parts: 5) do
+      case String.split(line, "\t", parts: 6) do
         [active, index, name | rest] when rest != [] or name != "" ->
-          [thread, opening] =
+          [thread, opening, activity] =
             case rest do
-              [t, o] -> [t, o]
-              [t] -> [t, ""]
-              [] -> ["", ""]
+              [t, o, a] -> [t, o, a]
+              [t, o] -> [t, o, ""]
+              [t] -> [t, "", ""]
+              [] -> ["", "", ""]
             end
 
           [
@@ -2254,8 +2309,9 @@ defmodule Aleph.Cockpit do
               name: name,
               active?: active == "1",
               index: index,
-              thread_id: parse_thread_id(thread),
-              opening: if(opening in ["typed", "done"], do: opening)
+              thread_id: int_or_nil(thread),
+              opening: if(opening in ["typed", "done"], do: opening),
+              activity: int_or_nil(activity)
             }
           ]
 
@@ -2265,8 +2321,8 @@ defmodule Aleph.Cockpit do
     end)
   end
 
-  defp parse_thread_id(thread) do
-    case Integer.parse(thread) do
+  defp int_or_nil(s) do
+    case Integer.parse(s) do
       {id, ""} -> id
       _ -> nil
     end

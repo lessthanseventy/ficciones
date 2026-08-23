@@ -33,10 +33,10 @@ defmodule Aleph.MachineChat.Loop do
   alias Aleph.MachineChat.Crew
   alias Aleph.MachineChat.Host
   alias Aleph.MachineChat.Layout
-  alias Aleph.MachineChat.Presence
   alias Aleph.MachineChat.Rail
   alias Aleph.MachineChat.Staffing
   alias Aleph.Mention
+  alias Aleph.Presence
   alias Aleph.Profiles
   alias Aleph.Transcript
   alias Funes.Channel

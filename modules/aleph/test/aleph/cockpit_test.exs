@@ -277,22 +277,32 @@ defmodule Aleph.CockpitTest do
   end
 
   describe "parse_tlon_tabs/1: the workspace's windows as tab data" do
-    test "each `<active>\\t<index>\\t<name>\\t<@funes_thread>\\t<@funes_opening>` line becomes a tab" do
-      out = "1\t1\tpi\t\t\n0\t2\tclaude\t\t\n0\t3\treviewer-fix-the-bug\t7\tdone\n"
+    test "each `<active>\\t<index>\\t<name>\\t<@funes_thread>\\t<@funes_opening>\\t<activity>` line becomes a tab" do
+      out = "1\t1\tpi\t\t\t\n0\t2\tclaude\t\t\t\n0\t3\treviewer-fix-the-bug\t7\tdone\t1755900000\n"
 
       assert Cockpit.parse_tlon_tabs(out) == [
-               %{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil},
-               %{name: "claude", active?: false, index: "2", thread_id: nil, opening: nil},
-               %{name: "reviewer-fix-the-bug", active?: false, index: "3", thread_id: 7, opening: "done"}
+               %{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil, activity: nil},
+               %{name: "claude", active?: false, index: "2", thread_id: nil, opening: nil, activity: nil},
+               %{
+                 name: "reviewer-fix-the-bug",
+                 active?: false,
+                 index: "3",
+                 thread_id: 7,
+                 opening: "done",
+                 activity: 1_755_900_000
+               }
              ]
     end
 
-    test "shorter lines (no thread/opening tags) still parse — missing fields nil" do
+    test "shorter lines (no thread/opening/activity tags) still parse — missing fields nil" do
       assert Cockpit.parse_tlon_tabs("1\t1\tpi\n") ==
-               [%{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil}]
+               [%{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil, activity: nil}]
 
       assert Cockpit.parse_tlon_tabs("0\t4\tplanner-x\t9\n") ==
-               [%{name: "planner-x", active?: false, index: "4", thread_id: 9, opening: nil}]
+               [%{name: "planner-x", active?: false, index: "4", thread_id: 9, opening: nil, activity: nil}]
+
+      assert Cockpit.parse_tlon_tabs("0\t4\tplanner-x\t9\tdone\n") ==
+               [%{name: "planner-x", active?: false, index: "4", thread_id: 9, opening: "done", activity: nil}]
     end
 
     test "empty output (session not up yet) is an empty strip, not a crash" do
@@ -301,7 +311,7 @@ defmodule Aleph.CockpitTest do
 
     test "a malformed line is dropped, not guessed" do
       assert Cockpit.parse_tlon_tabs("garbage\n1\t1\tpi\n") ==
-               [%{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil}]
+               [%{name: "pi", active?: true, index: "1", thread_id: nil, opening: nil, activity: nil}]
     end
   end
 

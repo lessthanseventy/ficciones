@@ -223,7 +223,9 @@ defmodule Aleph.View do
   # opened the field editor — `Panel.Author` switches its render on its presence.
   def data_for(Panel.Author, r), do: %{worlds: author_worlds(), cursor: r[:author_cursor] || 0, edit: r[:author_edit]}
 
-  def data_for(Panel.Conversation, r), do: %{title: r.focused_title, messages: r.chatter}
+  # `presence` (thinking/working lists for the focused thread) is optional so pure View tests
+  # can compose reads without it — the panel treats missing lists as empty.
+  def data_for(Panel.Conversation, r), do: Map.merge(%{title: r.focused_title, messages: r.chatter}, r[:presence] || %{})
   def data_for(Panel.Stack, r), do: r.stack
   def data_for(Panel.Health, r), do: r.health
   def data_for(Panel.Logbook, r), do: r.logbook

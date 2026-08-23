@@ -5,7 +5,10 @@ defmodule Aleph.Panel.Conversation do
   durable in funes. Serves double duty — the compact left "CHATTER" box and the full-screen
   chat view (Tab) — the only difference is the rect it's handed. Re-renders on the thread topic.
 
-  Data is `%{title: String.t() | nil, messages: [%Funes.Message{}]}`.
+  Data is `%{title: String.t() | nil, messages: [%Funes.Message{}]}`, optionally with
+  `thinking`/`working` agent lists (the focused thread's presence) rendered as a trailing
+  `⋯ <agent> is thinking…` indicator — thinking counts as working, so the explicit declare
+  (accent) outranks the tmux-activity inference (dim).
   """
   @behaviour Aleph.Panel
 
@@ -27,7 +30,18 @@ defmodule Aleph.Panel.Conversation do
         ms -> Enum.flat_map(ms, &message_rows(&1, rect.w))
       end
 
-    Aleph.Panel.clip(header ++ body, rect)
+    Aleph.Panel.clip(header ++ body ++ presence_rows(data), rect)
+  end
+
+  defp presence_rows(data) do
+    rows =
+      Enum.map(data[:thinking] || [], &line("⋯ #{&1} is thinking…", :accent)) ++
+        Enum.map(data[:working] || [], &line("⋯ #{&1} is working…", :dim))
+
+    case rows do
+      [] -> []
+      rows -> [blank() | rows]
+    end
   end
 
   defp head_label(nil), do: "CHAT"

@@ -1,6 +1,6 @@
-defmodule Aleph.MachineChat.Presence do
+defmodule Aleph.Presence do
   @moduledoc """
-  Liveness/typing signals for the machine-chat surface, derived purely from a tmux window
+  Liveness/typing signals for the chat surfaces (uqbar console + cockpit), derived purely from a tmux window
   snapshot — `[%{name, thread_id, activity}]` where `activity` is the window's
   `\#{window_activity}` unix timestamp (last content change). A harness that is thinking/typing
   repaints its pane, so recent activity is the "coworker is working…" indicator; a live-but-quiet

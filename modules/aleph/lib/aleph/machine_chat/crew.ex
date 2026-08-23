@@ -2,7 +2,7 @@ defmodule Aleph.MachineChat.Crew do
   @moduledoc """
   The right CREW rail — the coworker pool at a glance: who exists (the world roster), what each
   one is (archetype · model · harness), whether it's working right now (tmux activity via
-  `Aleph.MachineChat.Presence`), and where (its standing seat or the leaf it leads). Pure rows
+  `Aleph.Presence`), and where (its standing seat or the leaf it leads). Pure rows
   from pre-assembled data `%{coworkers: [%{name, archetype, model, harness, status, seat}],
   leaves: {live, cap}}` — the loop assembles, this renders.
   """
