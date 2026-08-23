@@ -91,6 +91,15 @@ defmodule Aleph.HarnessTest do
       refute cmd =~ "PI_CODING_AGENT_DIR"
     end
 
+    test "claude_code: a write-denying policy (the reviewer) exports the permissions fence" do
+      reviewer = Profiles.instantiate(%{archetype: :reviewer, name: "vera"})
+      builder = Profiles.instantiate(%{archetype: :builder, name: "hronir"})
+
+      assert reviewer.harness == :claude_code
+      assert Harness.driver(:claude_code).launch_command(reviewer) =~ "FUNES_PERMISSIONS_DENY=Write,Edit,NotebookEdit"
+      refute Harness.driver(:claude_code).launch_command(builder) =~ "FUNES_PERMISSIONS_DENY"
+    end
+
     test "claude_code: no persona → the bare launcher, no env prefix" do
       p = %Profile{name: "plain", model: @sonnet}
       cmd = Harness.driver(:claude_code).launch_command(p)

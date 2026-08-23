@@ -46,7 +46,21 @@ if [ -z "${FUNES_MCP_URL:-}" ] || [ -z "${FUNES_THREAD:-}" ] || [ -z "${FUNES_AU
 fi
 
 mcp_json="{\"mcpServers\":{\"funes\":{\"type\":\"http\",\"url\":\"$FUNES_MCP_URL\",\"headersHelper\":\"$cli token\"}}}"
-settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/capture-hook.sh\"}]}]}}"
+
+# A write-fenced role (aleph's claude_code driver sets FUNES_PERMISSIONS_DENY, e.g.
+# "Write,Edit,NotebookEdit" for the reviewer) lands as a real permissions.deny in --settings —
+# a structural fence, not a persona request.
+perms_json=""
+if [ -n "${FUNES_PERMISSIONS_DENY:-}" ]; then
+  deny_list=""
+  IFS=',' read -ra _deny_tools <<<"$FUNES_PERMISSIONS_DENY"
+  for tool in "${_deny_tools[@]}"; do
+    deny_list="$deny_list\"$tool\","
+  done
+  perms_json=",\"permissions\":{\"deny\":[${deny_list%,}]}"
+fi
+
+settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/capture-hook.sh\"}]}]}$perms_json}"
 
 # The funes-citizen protocol, as a system prompt. Without it Claude Code treats a teammate's message
 # (injected into its input as "[funes thread #N] <author>: ...") like the human talking and answers in

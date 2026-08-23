@@ -83,10 +83,7 @@ defmodule Aleph.Harness.ClaudeCode do
   def launch_command(%Profile{} = p) do
     launcher = Path.join(Profiles.repo(), "modules/manos/claude-code/launch.sh")
 
-    role =
-      if p.system_prompt,
-        do: "env FUNES_ROLE_PROMPT_FILE=#{Path.join(Profiles.config_dir(p.name), "system_prompt.md")} ",
-        else: ""
+    envs = role_env(p) <> deny_env(p)
 
     model =
       case p.model do
@@ -94,8 +91,26 @@ defmodule Aleph.Harness.ClaudeCode do
         _ -> ""
       end
 
-    role <> launcher <> model
+    if envs == "", do: launcher <> model, else: "env " <> envs <> launcher <> model
   end
+
+  defp role_env(%Profile{system_prompt: nil}), do: ""
+
+  defp role_env(%Profile{name: name}),
+    do: "FUNES_ROLE_PROMPT_FILE=#{Path.join(Profiles.config_dir(name), "system_prompt.md")} "
+
+  # The write FENCE under the claude harness: a profile whose pi-permission policy denies the
+  # file writers (the reviewer) must be structurally fenced here too — pi-permission-system
+  # config is invisible to Claude Code, so without this the deny was persona-only ("please don't
+  # write") the moment the reviewer bound to claude_code at home. launch.sh merges the list into
+  # its --settings as permissions.deny.
+  defp deny_env(%Profile{permissions: %{"permission" => perm}}) when is_map(perm) do
+    if perm["write"] == "deny" or perm["edit"] == "deny",
+      do: "FUNES_PERMISSIONS_DENY=Write,Edit,NotebookEdit ",
+      else: ""
+  end
+
+  defp deny_env(_p), do: ""
 
   @impl true
   def reset_command, do: "/clear"
