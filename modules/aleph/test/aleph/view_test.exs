@@ -254,4 +254,31 @@ defmodule Aleph.ViewTest do
       refute "t42" in names
     end
   end
+
+  describe "compose box" do
+    defp composer_placements(placements), do: for({Panel.Composer, data, rect} <- placements, do: {data, rect})
+
+    test "no composer is placed while the input is closed" do
+      assert composer_placements(View.compose(reads(%{}), 120, 40)) == []
+    end
+
+    test "an open composer places a box above the status bar sized to the wrapped line count" do
+      input = %{kind: :compose, thread_id: 1, buffer: "one\ntwo\nthree", cursor: 13}
+      placements = View.compose(reads(%{input: input}), 120, 40)
+
+      assert [{%{input: ^input}, rect}] = composer_placements(placements)
+      assert rect.h == 3
+      # Directly above the 2-row status footer, full width.
+      assert rect.y == 40 - 2 - 3
+      assert rect.w == 120
+    end
+
+    test "the box height caps at half the frame — a huge draft scrolls instead of swallowing the screen" do
+      buffer = Enum.map_join(1..60, "\n", &"l#{&1}")
+      input = %{kind: :compose, thread_id: 1, buffer: buffer, cursor: String.length(buffer)}
+
+      assert [{_data, rect}] = composer_placements(View.compose(reads(%{input: input}), 120, 40))
+      assert rect.h == 20
+    end
+  end
 end

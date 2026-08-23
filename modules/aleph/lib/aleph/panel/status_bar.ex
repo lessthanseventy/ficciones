@@ -30,22 +30,12 @@ defmodule Aleph.Panel.StatusBar do
   @impl Panel
   def topics(_assigns), do: []
 
-  # Composer mode: the info line becomes the prompt over the CURRENT line of the buffer (the one
-  # the cursor is on — not always the last, once Up/Down have moved it), split at the cursor so the
-  # marker lands where it actually is, and the hints name the four composer keys. A multiline
-  # body's other lines are dropped from this single visible line; the posted message keeps them all.
+  # Composer mode: the buffer itself renders in the growable compose box above this footer
+  # (`Aleph.Panel.Composer` — full buffer, wrap + grow); the footer keeps the mode chip and the
+  # composer hints.
   @impl Panel
-  def render(%{input: %{kind: :compose} = input}, rect) do
-    {before, after_} = cursor_split(input)
-
-    prompt = [
-      {" COMPOSE ", :tab},
-      {"  ", :normal},
-      {"▸ ", :accent},
-      {before, :normal},
-      {"▎", :accent},
-      {after_, :normal}
-    ]
+  def render(%{input: %{kind: :compose}}, rect) do
+    prompt = [{" COMPOSE ", :tab}]
 
     hints = [
       {"⏎", :header},

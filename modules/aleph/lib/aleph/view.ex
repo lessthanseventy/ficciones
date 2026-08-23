@@ -44,7 +44,8 @@ defmodule Aleph.View do
   @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
   def compose(reads, w, h) do
     space = fetch_space(reads.active_key)
-    body_h = max(h - @status_h, 1)
+    composer_h = composer_height(reads, w, h)
+    body_h = max(h - @status_h - composer_h, 1)
 
     # Each column holds a stack of *sections*, each its own bordered box, so sections read as
     # defined regions. A section is a bare panel module (data resolved by `data_for/2`) or a
@@ -97,8 +98,25 @@ defmodule Aleph.View do
       {Panel.StatusBar, status_data(reads, space), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
 
     # Borders first: panel content paints over each box interior, leaving only the frames.
-    borders ++ contents ++ [status]
+    borders ++ contents ++ composer_placement(reads, composer_h, w, h) ++ [status]
   end
+
+  # The growable compose box: sits between the body and the status bar while the `c` composer is
+  # open. Height = the wrapped line count (wrap + grow, never truncate), capped at half the frame —
+  # past the cap the box scrolls (Panel.Composer keeps the cursor line visible).
+  defp composer_height(%{input: %{kind: :compose} = input}, w, h) do
+    input
+    |> Panel.Composer.lines(Panel.Composer.text_width(w))
+    |> length()
+    |> min(max(div(h, 2), 1))
+  end
+
+  defp composer_height(_reads, _w, _h), do: 0
+
+  defp composer_placement(_reads, 0, _w, _h), do: []
+
+  defp composer_placement(reads, composer_h, w, h),
+    do: [{Panel.Composer, %{input: reads[:input]}, %{x: 0, y: h - @status_h - composer_h, w: w, h: composer_h}}]
 
   defp layout_for(w) when w >= @wide_min, do: :wide
   defp layout_for(_w), do: :narrow
