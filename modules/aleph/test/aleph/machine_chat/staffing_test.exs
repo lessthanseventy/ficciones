@@ -28,16 +28,21 @@ defmodule Aleph.MachineChat.StaffingTest do
 
   describe "default_coworker/1 — the roster-derived default (no @-mention path)" do
     # The regression seam: the machine-chat beam has no `Aleph.Worlds` cache, so it must derive the
-    # default from the LIVE funes roster. Given the live Tlön cast (a lone surveyor), the default
-    # MUST be that entry's registered handle — never a builder from a stale stand-in whose
-    # `-machine` handle was never registered as a funes agent (the leaderless-thread silence bug).
+    # default from the LIVE funes roster — never a stale stand-in whose `-machine` handle was never
+    # registered as a funes agent (the leaderless-thread silence bug).
     test "picks the roster's builder as its -machine handle" do
       assert Staffing.default_coworker(@roster) == "hronir-machine"
     end
 
-    test "a builder-less roster (the live Tlön cast) picks its lead, not a stand-in builder" do
-      assert Staffing.default_coworker([%{"archetype" => "surveyor", "name" => "tertius"}]) ==
-               "tertius-machine"
+    # Slice B (per-thread-agents): the default is WORKER-only — tertius is the vantage, never a
+    # leaf lead. A builder-less roster picks its first worker instead.
+    test "a builder-less roster picks its first WORKER, skipping the meta surveyor" do
+      roster = [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "planner", "name" => "borges"}]
+      assert Staffing.default_coworker(roster) == "borges-machine"
+    end
+
+    test "a worker-less (surveyor-only) roster yields nil — a misconfiguration to surface, not a meta lead" do
+      assert Staffing.default_coworker([%{"archetype" => "surveyor", "name" => "tertius"}]) == nil
     end
 
     test "an empty roster yields nil — never a guessed handle that was never registered" do

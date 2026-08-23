@@ -278,7 +278,7 @@ defmodule Aleph.MachineChat.Loop do
     Channel.post(%{
       thread_id: thread_id,
       author: "aleph",
-      body: "⚠ no coworker staffed (#{inspect(reason)}) — nobody is listening on this thread yet."
+      body: "⚠ no coworker staffed (#{inspect(reason)}) — nobody is listening on this thread yet." <> no_lead_hint(reason)
     })
 
     :ok
@@ -287,6 +287,11 @@ defmodule Aleph.MachineChat.Loop do
   catch
     :exit, _ -> :ok
   end
+
+  # `:no_coworker` = the worker-only default resolved nobody (Slice B: the meta surveyor never
+  # leads) — tell the operator the fix, not just the symptom.
+  defp no_lead_hint(:no_coworker), do: " Add a worker (builder/planner/reviewer/…) to the world's roster."
+  defp no_lead_hint(_reason), do: ""
 
   # Does the cockpit spawn a per-thread `t<id>` session for this lead (so it owns the opening turn
   # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.leaf_staffed?/2`: any WORKER roster

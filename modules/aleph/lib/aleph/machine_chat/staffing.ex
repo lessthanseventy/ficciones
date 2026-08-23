@@ -21,15 +21,17 @@ defmodule Aleph.MachineChat.Staffing do
 
   @doc """
   The roster-derived default lead for a thread with no explicit @-mention: the roster's
-  builder-archetype entry, else its first entry, as a `<name>-machine` handle — or `nil` for an
-  empty roster. Deliberately never invents a stand-in handle: a guessed `-machine` that was never
-  registered as a funes agent gives `Funes.assign_lead/2` nothing to bind, and the thread ends up
-  leaderless with nobody listening (the machine-chat silence bug).
+  builder-archetype entry, else its first WORKER entry — never the meta surveyor (Slice B:
+  tertius is the vantage, not a leaf lead; a worker-less roster is a misconfiguration the caller
+  surfaces as a leaderless thread, not one tertius should absorb). `nil` when no worker resolves.
+  Deliberately never invents a stand-in handle: a guessed `-machine` that was never registered as
+  a funes agent gives `Funes.assign_lead/2` nothing to bind, and the thread ends up leaderless
+  with nobody listening (the machine-chat silence bug).
   """
   @spec default_coworker([map()]) :: String.t() | nil
-  def default_coworker(roster), do: builder_handle(roster) || lead_handle(roster)
+  def default_coworker(roster), do: builder_handle(roster) || worker_handle(roster)
 
-  # The roster's builder-archetype handle, or nil (a builder-less, e.g. surveyor-only, cast).
+  # The roster's builder-archetype handle, or nil (a builder-less cast).
   defp builder_handle(roster) do
     case Enum.find(roster, &(archetype_of(&1) in ["builder", :builder])) do
       nil -> nil
@@ -37,8 +39,9 @@ defmodule Aleph.MachineChat.Staffing do
     end
   end
 
-  defp lead_handle([entry | _]), do: handle(entry)
-  defp lead_handle(_), do: nil
+  # The first worker (non-meta) handle — `Profiles.leaf_handles/1` already normalizes archetypes
+  # and drops meta/unknown entries.
+  defp worker_handle(roster), do: List.first(Aleph.Profiles.leaf_handles(roster))
 
   # The funes handle convention: profile name + "-machine". Tolerates string (JSON) or atom keys.
   defp handle(entry), do: "#{entry["name"] || entry[:name]}-machine"
