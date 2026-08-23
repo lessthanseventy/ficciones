@@ -165,6 +165,35 @@ defmodule Aleph.Tlon.FocusTest do
     end
   end
 
+  describe "jump/3 (Alt+digit)" do
+    # Numbering contract (design 2026-08-23): 0 = terminal; left column 1..n top-down; right
+    # column continues. Must match Aleph.View's border digits — pinned by a view_test.
+    defp jump_layout, do: %{left: [:spaces, :stack, :memory], right: [:health, :crew], sections: %{}, counts: %{}}
+
+    test "0 enters the terminal from nav" do
+      s = %Focus{in_terminal?: false, column: :left, pane: 2}
+      assert Focus.jump(s, jump_layout(), 0).in_terminal? == true
+    end
+
+    test "a left digit lands on that pane, implicit nav, section reset" do
+      s = %Focus{in_terminal?: true, section: 1}
+      j = Focus.jump(s, jump_layout(), 2)
+
+      assert %{in_terminal?: false, column: :left, pane: 1, section: 0} =
+               Map.take(j, [:in_terminal?, :column, :pane, :section])
+    end
+
+    test "a right digit continues past the left column" do
+      j = Focus.jump(%Focus{}, jump_layout(), 5)
+      assert %{in_terminal?: false, column: :right, pane: 1} = Map.take(j, [:in_terminal?, :column, :pane])
+    end
+
+    test "a digit past the last pane is a no-op" do
+      s = %Focus{}
+      assert Focus.jump(s, jump_layout(), 9) == s
+    end
+  end
+
   describe "Enter/Esc — the MAIN detail" do
     test "open_detail flips detail? on; close_detail flips it off" do
       s = nav()

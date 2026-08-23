@@ -84,6 +84,30 @@ defmodule Aleph.Tlon.Focus do
 
   def handle(%__MODULE__{} = s, _layout, _unknown), do: s
 
+  @doc """
+  Jump straight to pane number `digit` (the border-title numbers): 0 = the terminal, left
+  column 1..n top-down, right column continuing — implicit nav, section reset. Out-of-range
+  digits no-op. Works FROM the terminal too (unlike nav intents) — that's the point.
+  """
+  @spec jump(t(), map(), non_neg_integer()) :: t()
+  def jump(%__MODULE__{} = s, _layout, 0), do: %{s | in_terminal?: true}
+
+  def jump(%__MODULE__{} = s, layout, digit) do
+    left = column(layout, :left)
+    right = column(layout, :right)
+
+    cond do
+      digit <= length(left) ->
+        %{s | in_terminal?: false, column: :left, pane: digit - 1, section: 0}
+
+      digit <= length(left) + length(right) ->
+        %{s | in_terminal?: false, column: :right, pane: digit - 1 - length(left), section: 0}
+
+      true ->
+        s
+    end
+  end
+
   # Clamp within the current column (no wrap — h/l is vertical movement, not a carousel); a pane
   # change clears the section.
   defp move_pane(s, layout, delta) do
