@@ -25,6 +25,8 @@ defmodule Funes do
       # Compositions: the worlds context aleph reads to drive its picker/survey/spawn.
       Worlds,
       Presence,
+      # Explicit thinking/idle presence (aleph renders it; harnesses declare via MCP).
+      Presence.Thinking,
       # The agent-to-agent consult (ask a peer; the answer is mirrored back).
       Consult,
       # Migration pre-flight (aleph.run refuses to boot a behind db).

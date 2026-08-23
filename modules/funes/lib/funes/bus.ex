@@ -15,6 +15,7 @@ defmodule Funes.Bus do
                               issues, assignment/close (feeds IN SCOPE)
     * `funes:threads`       — thread lifecycle: opened, closed, assigned (the list)
     * `funes:sessions`      — session start/end (feeds the IN FLIGHT roster)
+    * `funes:presence`      — explicit thinking/idle declarations (`Funes.Presence.Thinking`)
     * `funes:habits`        — habit proposed/approved/rejected (the operator's review queue)
     * `funes:worlds`        — world registered/edited/removed (aleph's picker/survey follow this)
     * `funes:activity`      — every durable write, cross-thread (the machine-wide activity feed)
@@ -27,7 +28,8 @@ defmodule Funes.Bus do
     `{:world_registered, w}` · `{:world_edited, w}` · `{:world_removed, w}`
     `{:thread_opened, thread}`
     `{:thread_closed, thread}` · `{:thread_assigned, thread}` · `{:session_started, s}`
-    `{:session_ended, s}`
+    `{:session_ended, s}` · `{:presence_thinking, %{thread_id, agent, started_at}}`
+    `{:presence_idle, %{thread_id, agent}}`
   """
   @pubsub Funes.PubSub
 
@@ -35,6 +37,7 @@ defmodule Funes.Bus do
   def thread_topic(id), do: "funes:thread:#{id}"
   def threads_topic, do: "funes:threads"
   def sessions_topic, do: "funes:sessions"
+  def presence_topic, do: "funes:presence"
   def habits_topic, do: "funes:habits"
   def worlds_topic, do: "funes:worlds"
   def activity_topic, do: "funes:activity"
@@ -43,6 +46,7 @@ defmodule Funes.Bus do
   def subscribe_thread(id), do: sub(thread_topic(id))
   def subscribe_threads, do: sub(threads_topic())
   def subscribe_sessions, do: sub(sessions_topic())
+  def subscribe_presence, do: sub(presence_topic())
   def subscribe_habits, do: sub(habits_topic())
   def subscribe_worlds, do: sub(worlds_topic())
   def subscribe_activity, do: sub(activity_topic())
@@ -93,6 +97,11 @@ defmodule Funes.Bus do
 
   def broadcast({tag, session} = event) when tag in [:session_started, :session_ended] do
     publish([sessions_topic() | thread_topics(session.thread_id)], event)
+  end
+
+  # Presence is liveness-only (never a durable row), so it skips the activity feed.
+  def broadcast({tag, %{thread_id: thread_id}} = event) when tag in [:presence_thinking, :presence_idle] do
+    publish([presence_topic() | thread_topics(thread_id)], event)
   end
 
   # A thread-scoped row may be unscoped (nil): then it belongs on no thread topic.

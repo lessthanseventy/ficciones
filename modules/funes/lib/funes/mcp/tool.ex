@@ -1012,3 +1012,50 @@ defmodule Funes.MCP.Tool.RemoveWorld do
     end
   end
 end
+
+defmodule Funes.MCP.Tool.PresenceThinking do
+  @moduledoc """
+  Declare THIS connection's agent thinking on its thread — call at turn start, so
+  the cockpit shows "thinking" the moment work begins (thinking counts as working).
+  Self-thread like every write: agent + thread resolve from the token, no args.
+  Idempotent; a stuck declare is swept by `Funes.Presence.Thinking`'s max-age guard.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.MCP.Identity
+  alias Funes.Presence.Thinking
+
+  schema do
+  end
+
+  @impl true
+  def execute(_params, frame) do
+    identity = Identity.from_frame(frame)
+    :ok = Thinking.thinking(identity.thread_id, identity.agent)
+    {:reply, Response.json(Response.tool(), %{"thinking" => identity.agent, "thread_id" => identity.thread_id}), frame}
+  end
+end
+
+defmodule Funes.MCP.Tool.PresenceIdle do
+  @moduledoc """
+  Declare THIS connection's agent done thinking — call at turn end (and on session
+  end as the crash safety net). A no-op when nothing was declared, so hooks can
+  fire it unconditionally.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.MCP.Identity
+  alias Funes.Presence.Thinking
+
+  schema do
+  end
+
+  @impl true
+  def execute(_params, frame) do
+    identity = Identity.from_frame(frame)
+    :ok = Thinking.idle(identity.thread_id, identity.agent)
+    {:reply, Response.json(Response.tool(), %{"idle" => identity.agent, "thread_id" => identity.thread_id}), frame}
+  end
+end

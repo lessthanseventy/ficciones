@@ -84,6 +84,8 @@ defmodule Funes.MCP.ServerTest do
                "consult_peer",
                "spawn_crew",
                "kill_crew",
+               "presence_thinking",
+               "presence_idle",
                "propose_habit",
                "get_dossier",
                "get_facts",
