@@ -15,6 +15,18 @@ defmodule Aleph.Panel.ConversationTest do
     Enum.find_value(rows, fn row -> Enum.find_value(row, fn {t, s} -> if t =~ needle, do: s end) end)
   end
 
+  test "a blank row separates messages; body paragraphs render with a blank line" do
+    rows =
+      Conversation.render(
+        %{title: "t", messages: [%{author: "a", body: "one\n\ntwo"}, %{author: "b", body: "three"}]},
+        @rect
+      )
+
+    texts = lines(rows)
+    # message one: first line, paragraph gap, second paragraph (hanging indent)
+    assert texts |> Enum.drop_while(&(&1 != "a: one")) |> Enum.take(5) == ["a: one", "", "  two", "", "b: three"]
+  end
+
   test "no presence data renders just the messages — no indicator row" do
     text =
       %{title: "t", messages: [%{author: "hronir", body: "hi"}]}

@@ -149,7 +149,8 @@ defmodule Aleph.Transcript do
     lead =
       cond do
         day? -> if(cursor.author, do: [blank()], else: []) ++ [day_divider(at, w), blank()]
-        turn? and cursor.author -> [blank()]
+        # One blank row between message blocks — turn changes AND same-turn follow-ups both breathe.
+        cursor.author != nil -> [blank()]
         true -> []
       end
 
@@ -160,16 +161,18 @@ defmodule Aleph.Transcript do
   # A turn header: the coloured author name, a gap, then a dim `HH:MM`.
   defp header_row(author, at), do: [{author, author_style(author)}, {"  ", :dim}, {time(at), :dim}]
 
-  # The body wrapped to the column (preserving the author's paragraph breaks) with a hanging
+  # The body wrapped to the column (paragraph breaks render as blank rows) with a hanging
   # two-space indent, so author names stay a scannable left edge.
   defp body_rows(body, w) do
     width = max(w - 2, 1)
 
     (body || "")
-    |> String.split("\n")
-    |> Enum.flat_map(&Aleph.Text.wrap(&1, width))
-    |> Enum.map(&line("  " <> &1, :normal))
+    |> Aleph.Text.wrap_paragraphs(width)
+    |> Enum.map(&indent_row/1)
   end
+
+  defp indent_row(""), do: blank()
+  defp indent_row(text), do: line("  " <> text, :normal)
 
   # A centred, dimmed date rule filling the column (`──── Fri, 15 Aug ────`).
   defp day_divider(%DateTime{} = at, w) do

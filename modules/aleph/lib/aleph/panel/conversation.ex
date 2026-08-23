@@ -26,8 +26,15 @@ defmodule Aleph.Panel.Conversation do
 
     body =
       case messages do
-        [] -> [line("no messages yet", :dim)]
-        ms -> Enum.flat_map(ms, &message_rows(&1, rect.w))
+        [] ->
+          [line("no messages yet", :dim)]
+
+        ms ->
+          ms
+          |> Enum.map(&message_rows(&1, rect.w))
+          |> Enum.reject(&(&1 == []))
+          |> Enum.intersperse([blank()])
+          |> Enum.concat()
       end
 
     Aleph.Panel.clip(header ++ body ++ presence_rows(data), rect)
@@ -47,15 +54,19 @@ defmodule Aleph.Panel.Conversation do
   defp head_label(nil), do: "CHAT"
   defp head_label(title), do: "CHAT · #{title}"
 
-  # "author: body", wrapped to the column with a hanging indent so the author stays legible.
+  # "author: body", paragraph-aware wrap with a hanging indent so the author stays legible;
+  # blank lines in the body render as paragraph breaks instead of collapsing.
   defp message_rows(%{author: author, body: body}, w) do
     prefix = "#{author}: "
 
-    case Aleph.Text.wrap(prefix <> body, max(w, 1)) do
+    case Aleph.Text.wrap_paragraphs(prefix <> body, max(w, 1)) do
       [] -> []
-      [first | rest] -> [author_run(first, author) | Enum.map(rest, &line("  " <> &1, :normal))]
+      [first | rest] -> [author_run(first, author) | Enum.map(rest, &continuation/1)]
     end
   end
+
+  defp continuation(""), do: blank()
+  defp continuation(text), do: line("  " <> text, :normal)
 
   # Colour the author name on the first wrapped line; the rest of that line is body text.
   defp author_run(first_line, author) do
