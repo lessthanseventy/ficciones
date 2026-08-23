@@ -7,7 +7,7 @@ defmodule Aleph.Panel.Roster do
   """
   @behaviour Aleph.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Aleph.Panel, only: [line: 2]
 
   alias Funes.Bus
 
@@ -16,23 +16,21 @@ defmodule Aleph.Panel.Roster do
 
   @impl Aleph.Panel
   def render(%{sessions: roster}, rect) do
-    header = [line("IN FLIGHT", :header), blank()]
-
     body =
       case roster do
         [] -> [line("no one on the clock", :dim)]
         rows -> Enum.map(rows, &row/1)
       end
 
-    Aleph.Panel.clip(header ++ body, rect)
+    Aleph.Panel.clip(body, rect)
   end
 
-  # Click a session row → focus the thread it's working. Layout: header (0), blank (1), then one
-  # row per session, so content row 2+i is session i. Scrolled: add the offset to land on content.
+  # Click a session row → focus the thread it's working. Rows start at 0 (title now lives on the
+  # frame); scrolled panels add the offset to land on content.
   @impl Aleph.Panel
   def pick(%{sessions: roster} = data, _rect, local_y) do
     roster
-    |> Aleph.Panel.item_at(Aleph.Panel.scroll_offset(data) + local_y)
+    |> Enum.at(Aleph.Panel.scroll_offset(data) + local_y)
     |> focus_thread()
   end
 

@@ -74,9 +74,7 @@ defmodule Aleph.Panel.Border do
   end
 
   defp tab_runs(tabs) do
-    tabs
-    |> Enum.map(fn {label, active?} -> {label, if(active?, do: :header, else: :dim)} end)
-    |> Enum.intersperse({" · ", :dim})
+    Enum.map_intersperse(tabs, {" · ", :dim}, fn {label, active?} -> {label, if(active?, do: :header, else: :dim)} end)
   end
 
   defp hint_runs(%{hint: hint}) when is_binary(hint), do: [{" ", :normal}, {hint, :dim}, {" ", :normal}]

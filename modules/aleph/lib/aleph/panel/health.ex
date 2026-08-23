@@ -15,11 +15,7 @@ defmodule Aleph.Panel.Health do
   def topics(_assigns), do: []
 
   @impl Aleph.Panel
-  def render(data, rect) do
-    header = [line("HEALTH", :header), blank()]
-    body = rows(data)
-    Aleph.Panel.clip(header ++ body, rect)
-  end
+  def render(data, rect), do: Aleph.Panel.clip(rows(data), rect)
 
   defp rows(data) do
     version_rows(data[:version]) ++

@@ -20,7 +20,7 @@ defmodule Aleph.Panel.Stack do
   """
   @behaviour Aleph.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0, rule: 1]
+  import Aleph.Panel, only: [line: 2, rule: 1]
 
   # Author column width: enough for "Claude Opus 4.8" (a full model name) without ragging the
   # relative-time column too far right on a narrow panel.
@@ -34,7 +34,6 @@ defmodule Aleph.Panel.Stack do
         %{branch: branch, dirty: dirty, ahead: ahead, behind: behind, status_summary: summary, commits: commits} = data,
         rect
       ) do
-    header = [line("STACK", :header), blank()]
     divider = [rule(rect.w)]
 
     branch_section =
@@ -55,8 +54,7 @@ defmodule Aleph.Panel.Stack do
         files -> divider ++ [line("FILES", :label)] ++ Enum.map(files, &file_row/1)
       end
 
-    rows =
-      header ++ branch_section ++ divider ++ commits_section ++ files_section
+    rows = branch_section ++ divider ++ commits_section ++ files_section
 
     Aleph.Panel.clip(rows, rect)
   end

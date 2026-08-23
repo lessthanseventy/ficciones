@@ -11,14 +11,13 @@ defmodule Aleph.Panel.Spaces do
   """
   @behaviour Aleph.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0, pad: 3]
+  import Aleph.Panel, only: [pad: 3]
 
   @impl Aleph.Panel
   def topics(_assigns), do: []
 
   @impl Aleph.Panel
   def render(%{spaces: spaces, active_key: active_key} = data, rect) do
-    header = [line("SPACES", :header), blank()]
     cursor = data[:selected]
 
     body =
@@ -26,15 +25,13 @@ defmodule Aleph.Panel.Spaces do
       |> Enum.with_index()
       |> Enum.map(fn {space, i} -> row(space, space.key == active_key, i == cursor, rect.w) end)
 
-    Aleph.Panel.clip(header ++ body, rect)
+    Aleph.Panel.clip(body, rect)
   end
 
-  # Click a space row → switch to it. Layout: header (0), blank (1), then one row per space.
+  # Click a space row → switch to it. Rows start at 0 (title now lives on the frame).
   @impl Aleph.Panel
   def pick(%{spaces: spaces}, _rect, local_y) do
-    spaces
-    |> Aleph.Panel.item_at(local_y)
-    |> switch_space()
+    spaces |> Enum.at(local_y) |> switch_space()
   end
 
   defp switch_space(nil), do: nil

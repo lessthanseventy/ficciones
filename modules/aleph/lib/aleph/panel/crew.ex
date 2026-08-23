@@ -72,7 +72,7 @@ defmodule Aleph.Panel.Crew do
 
   @impl Aleph.Panel
   def render(%{coworkers: coworkers, leaves: {live, cap}}, rect) do
-    header = [[{"CREW", :header}, {"  leaves #{live}/#{cap}", :dim}], blank()]
+    header = [[{"leaves #{live}/#{cap}", :dim}], blank()]
     Aleph.Panel.clip(header ++ Enum.flat_map(coworkers, &entry(&1, rect.w)), rect)
   end
 

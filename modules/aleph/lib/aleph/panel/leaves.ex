@@ -19,22 +19,22 @@ defmodule Aleph.Panel.Leaves do
 
   alias Funes.Bus
 
-  # The header chrome above the leaf rows: title, blank, the rollup line, blank.
-  @header_rows 4
+  # The header chrome above the leaf rows: the rollup line, blank (title now lives on the frame).
+  @header_rows 2
 
   @impl Aleph.Panel
   def topics(_assigns), do: [Bus.threads_topic(), Bus.sessions_topic()]
 
   @impl Aleph.Panel
   def render(nil, rect) do
-    Aleph.Panel.clip([line("LEAVES", :header), blank(), line("no machine threads", :dim)], rect)
+    Aleph.Panel.clip([line("no machine threads", :dim)], rect)
   end
 
   def render(%{summary: summary, rows: rows} = data, rect) do
     selected = Map.get(data, :selected)
     attached = Map.get(data, :attached)
     rows = ordered(rows, Map.get(data, :focused_lead))
-    header = [line("LEAVES", :header), blank(), summary_row(summary), blank()]
+    header = [summary_row(summary), blank()]
 
     body =
       if rows == [],

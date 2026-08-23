@@ -16,9 +16,8 @@ defmodule Aleph.Panel.ActivityTest do
     Enum.find_value(rows, fn row -> Enum.find_value(row, fn {t, s} -> if t =~ needle, do: s end) end)
   end
 
-  test "empty buffer renders the header and an empty-state row" do
+  test "empty buffer renders an empty-state row (title lives on the frame now)" do
     text = %{events: []} |> Activity.render(@rect) |> lines() |> Enum.join("\n")
-    assert text =~ "funes · activity"
     assert text =~ "no activity"
   end
 

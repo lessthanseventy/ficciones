@@ -12,9 +12,8 @@ defmodule Aleph.Panel.LeavesTest do
     Enum.map(rows, fn row -> Enum.map_join(row, fn {t, _style} -> t end) end)
   end
 
-  test "nil data renders the header and a placeholder, no crash" do
+  test "nil data renders a placeholder, no crash (title lives on the frame now)" do
     text = nil |> Leaves.render(@rect) |> lines() |> Enum.join("\n")
-    assert text =~ "LEAVES"
     assert text =~ "no machine threads"
   end
 
@@ -69,10 +68,10 @@ defmodule Aleph.Panel.LeavesTest do
       rows: [%{id: 7, title: "a", lead: "pi-machine", status: :open, conflicts: 0}]
     }
 
-    # Header block (LEAVES / blank / summary / blank) then the first leaf row.
-    assert Leaves.pick(data, @rect, 4) == {:focus_thread, 7}
+    # Header block (summary / blank) then the first leaf row.
+    assert Leaves.pick(data, @rect, 2) == {:focus_thread, 7}
     assert Leaves.pick(data, @rect, 0) == nil
-    assert Leaves.pick(nil, @rect, 4) == nil
+    assert Leaves.pick(nil, @rect, 2) == nil
   end
 
   test "the selected leaf's title washes :selected; the rest stay :normal" do
@@ -150,7 +149,7 @@ defmodule Aleph.Panel.LeavesTest do
     test "pick honors the floated order — local_y of the first row is the focused leader's leaf" do
       data = grouping_data("hronir-machine")
       # first leaf row sits just below the header chrome (same offset the selected test uses)
-      assert {:focus_thread, 2} = Leaves.pick(data, @rect, 4)
+      assert {:focus_thread, 2} = Leaves.pick(data, @rect, 2)
     end
   end
 end

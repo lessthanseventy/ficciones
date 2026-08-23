@@ -82,10 +82,9 @@ defmodule Aleph.BoardTest do
   end
 
   describe "panels render styled rows" do
-    test "roster: header, one row per session, warmth marked" do
+    test "roster: one row per session, warmth marked (title lives on the frame now)" do
       rect = %{x: 0, y: 0, w: 40, h: 10}
-      assert [header, _blank, sandra, robert] = Roster.render(%{sessions: @roster}, rect)
-      assert text(header) == "IN FLIGHT"
+      assert [sandra, robert] = Roster.render(%{sessions: @roster}, rect)
       assert text(sandra) =~ "Sandra"
       assert text(sandra) =~ "review PR 329"
       assert text(sandra) =~ "●"
@@ -138,7 +137,7 @@ defmodule Aleph.BoardTest do
       assert text(active) =~ "Orbis"
     end
 
-    test "stack (Tlön): header then branch then two rows per commit (subject, then meta line), hash dimmed" do
+    test "stack (Tlön): branch then two rows per commit (subject, then meta line), hash dimmed" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
 
       commits = [
@@ -153,8 +152,7 @@ defmodule Aleph.BoardTest do
       ]
 
       data = %{branch: "main", dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: commits}
-      assert [header, _blank, _label, branch, _rule, _commits_label, subject, meta] = Stack.render(data, rect)
-      assert text(header) == "STACK"
+      assert [_label, branch, _rule, _commits_label, subject, meta] = Stack.render(data, rect)
       assert text(branch) =~ "main"
       assert text(meta) =~ "bc86cc8"
       assert text(meta) =~ "2 hours ago"
@@ -192,7 +190,7 @@ defmodule Aleph.BoardTest do
     test "stack (Tlön): honest when there is no git history" do
       rect = %{x: 0, y: 0, w: 60, h: 10}
       data = %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: []}
-      assert [_header, _blank, _label, branch, _rule, _commits_label, empty] = Stack.render(data, rect)
+      assert [_label, branch, _rule, _commits_label, empty] = Stack.render(data, rect)
       assert text(branch) =~ "no branch"
       assert text(empty) =~ "no git history"
     end
@@ -213,7 +211,6 @@ defmodule Aleph.BoardTest do
 
       rows = Health.render(data, rect)
       joined = Enum.map_join(rows, "\n", &text/1)
-      assert joined =~ "HEALTH"
       assert joined =~ "funes"
       assert joined =~ "tlon"
       assert joined =~ "SYS"
@@ -378,20 +375,20 @@ defmodule Aleph.BoardTest do
       assert ThreadList.pick(data, %{x: 0, y: 0, w: 30, h: 10}, 9) == nil
     end
 
-    test "spaces: a space row switches to it" do
+    test "spaces: a space row switches to it (no header chrome — rows start at 0)" do
       data = %{spaces: Aleph.Space.all(), active_key: :orbis}
       rect = %{x: 0, y: 0, w: 20, h: 10}
-      assert {:switch_space, :orbis} = Spaces.pick(data, rect, 2)
-      assert {:switch_space, 0} = Spaces.pick(data, rect, 3)
-      assert Spaces.pick(data, rect, 0) == nil
+      assert {:switch_space, :orbis} = Spaces.pick(data, rect, 0)
+      assert {:switch_space, 0} = Spaces.pick(data, rect, 1)
+      assert Spaces.pick(data, rect, 99) == nil
     end
 
-    test "roster: a session row focuses the thread it's working" do
+    test "roster: a session row focuses the thread it's working (no header chrome — rows start at 0)" do
       data = %{sessions: @roster, scroll: 0}
       rect = %{x: 0, y: 0, w: 40, h: 10}
-      assert {:focus_thread, 1} = Roster.pick(data, rect, 2)
-      assert {:focus_thread, 2} = Roster.pick(data, rect, 3)
-      assert Roster.pick(data, rect, 0) == nil
+      assert {:focus_thread, 1} = Roster.pick(data, rect, 0)
+      assert {:focus_thread, 2} = Roster.pick(data, rect, 1)
+      assert Roster.pick(data, rect, 99) == nil
     end
 
     test "chorus: clicking a world row zooms to ITS OWN world id; the survey header + blank do not" do

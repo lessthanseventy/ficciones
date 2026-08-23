@@ -12,7 +12,7 @@ defmodule Aleph.Panel.Triage do
   """
   @behaviour Aleph.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Aleph.Panel, only: [line: 2]
 
   alias Funes.Bus
 
@@ -21,15 +21,11 @@ defmodule Aleph.Panel.Triage do
 
   @impl Aleph.Panel
   def render(nil, rect) do
-    Aleph.Panel.clip([line("TRIAGE", :header), blank(), line("switch to Orbis", :dim)], rect)
+    Aleph.Panel.clip([line("switch to Orbis", :dim)], rect)
   end
 
   @impl Aleph.Panel
-  def render(data, rect) do
-    header = [line("TRIAGE", :header), blank()]
-    body = triage_rows(data, rect.w)
-    Aleph.Panel.clip(header ++ body, rect)
-  end
+  def render(data, rect), do: Aleph.Panel.clip(triage_rows(data, rect.w), rect)
 
   defp triage_rows(%{blockers: %{shown: []}, failed_checks: %{shown: []}, unassigned: []}, _w) do
     [line("all clear", :dim)]

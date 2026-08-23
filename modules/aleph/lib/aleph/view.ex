@@ -394,8 +394,9 @@ defmodule Aleph.View do
     resolved
   end
 
-  # The picker box is intrinsically short: header + blank + one row per space, plus its frame.
-  defp fixed_height(Panel.Spaces), do: length(Space.all()) + 4
+  # The picker box is intrinsically short: one row per space, plus its frame (title/digit now on
+  # the frame, not in-content — the 2 header rows are gone).
+  defp fixed_height(Panel.Spaces), do: length(Space.all()) + 2
   # The WindowBar/Pulse bands framing the Tlön terminal: one content row + their own 2-row frame.
   defp fixed_height(Panel.WindowBar), do: 3
   defp fixed_height(Panel.Pulse), do: 3

@@ -9,7 +9,7 @@ defmodule Aleph.Panel.BorderTest do
 
   defp rect(w \\ 20, h \\ 5), do: %{x: 0, y: 0, w: w, h: h}
 
-  defp row_text(row), do: row |> Enum.map(fn {t, _s} -> t end) |> Enum.join()
+  defp row_text(row), do: Enum.map_join(row, fn {t, _s} -> t end)
 
   test "a plain border (no title) renders the bare frame" do
     [top | _] = Border.render(%{focused: false}, rect())

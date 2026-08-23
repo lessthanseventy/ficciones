@@ -17,13 +17,12 @@ defmodule Aleph.Panel.Dossier do
 
   @impl Aleph.Panel
   def render(nil, rect) do
-    Aleph.Panel.clip([line("IN SCOPE", :header), blank(), line("select a thread ↑↓", :dim)], rect)
+    Aleph.Panel.clip([line("select a thread ↑↓", :dim)], rect)
   end
 
   def render(scope, rect) do
     rows =
-      [line("IN SCOPE", :header), blank()] ++
-        section("NORTH STAR", [scope.north_star], rect.w) ++
+      section("NORTH STAR", [scope.north_star], rect.w) ++
         lead_section(scope.lead, rect.w) ++
         section("TODOS", capped_lines(scope.todos, &todo_line(&1, scope.next)), rect.w) ++
         section("LEARNINGS", capped_lines(scope.learnings, & &1.text), rect.w) ++

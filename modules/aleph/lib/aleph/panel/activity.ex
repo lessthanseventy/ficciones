@@ -13,7 +13,7 @@ defmodule Aleph.Panel.Activity do
   """
   @behaviour Aleph.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Aleph.Panel, only: [line: 2]
 
   # The cockpit subscribes to the activity topic once (Bus.subscribe_activity), globally — no
   # per-assigns topic needed here (mirrors Chorus, which does the same for messages).
@@ -22,15 +22,13 @@ defmodule Aleph.Panel.Activity do
 
   @impl Aleph.Panel
   def render(%{events: events}, rect) do
-    header = [line("funes · activity", :header), blank()]
-
     body =
       case events do
         [] -> [line("no activity yet", :dim)]
         evs -> Enum.map(evs, &event_row/1)
       end
 
-    Aleph.Panel.clip(header ++ body, rect)
+    Aleph.Panel.clip(body, rect)
   end
 
   defp event_row(event) do

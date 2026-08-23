@@ -25,15 +25,14 @@ defmodule Aleph.Panel.Memory do
   def topics(_assigns), do: [Bus.habits_topic()]
 
   @impl Aleph.Panel
-  def render(nil, rect), do: Aleph.Panel.clip([line("MEMORY", :header), blank(), line("no recall yet", :dim)], rect)
+  def render(nil, rect), do: Aleph.Panel.clip([line("no recall yet", :dim)], rect)
 
   def render(%{floor: floor, habits: habits} = data, rect) do
     section = Map.get(data, :section, @floor_section)
     selected = Map.get(data, :selected)
 
     rows =
-      [line("MEMORY", :header)] ++
-        coverage_rows(Map.get(data, :coverage)) ++
+      coverage_rows(Map.get(data, :coverage)) ++
         [rule(rect.w)] ++
         floor_rows(floor, section == @floor_section, selected, rect.w) ++
         [blank()] ++
