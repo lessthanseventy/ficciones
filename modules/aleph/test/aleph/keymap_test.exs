@@ -1224,6 +1224,19 @@ defmodule Aleph.KeymapTest do
       {next, :repaint} = Keymap.handle(char("4"), s)
       assert next.focus.column == :right
     end
+
+    test "Alt+h / Alt+j in Orbis are no-ops — chords never drive Orbis nav" do
+      s = state(%{active_key: :orbis, orbis_focus: :survey})
+      assert {^s, :none} = Keymap.handle(char("h", alt: true), s)
+      assert {^s, :none} = Keymap.handle(char("j", alt: true), s)
+    end
+
+    test "a global Alt chord consumes an armed leader — no stuck prefix" do
+      s = state(%{active_key: :orbis, leader_pending?: true})
+      {next, :repaint} = Keymap.handle(char("n", alt: true), s)
+      assert next.input.kind == :new_thread
+      assert next.leader_pending? == false
+    end
   end
 
   describe "LOCK mode (clarity slice 4)" do
@@ -1248,6 +1261,13 @@ defmodule Aleph.KeymapTest do
     test "locked with no live center is a plain no-op (nothing to forward to)" do
       s = tlon(Focus.new(), %{center_live?: false, lock?: true})
       assert {^s, :none} = Keymap.handle(char("1", alt: true), s)
+    end
+
+    test "Alt+g while composing neither locks nor types — the modal blocks the arm" do
+      s = state(%{input: %{kind: :compose, thread_id: 1, buffer: "hi", cursor: 2}})
+      {next, :none} = Keymap.handle(char("g", alt: true), s)
+      refute Map.get(next, :lock?, false)
+      assert next.input.buffer == "hi"
     end
   end
 end

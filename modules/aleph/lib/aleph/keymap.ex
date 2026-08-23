@@ -134,14 +134,13 @@ defmodule Aleph.Keymap do
 
   # --- LOCK mode (design 2026-08-23): total passthrough. Alt+g alone is aleph's; every other
   # key — Alt chords, the leader, Esc — forwards raw so readline/emacs keep their Alt bindings.
-  # Toggled by the same chord. Precedes EVERYTHING, the input modal included.
+  # These LOCKED-state clauses precede everything; the ARM clause sits BELOW the input modal by
+  # design (modal-blocked) — locking mid-compose is never intended, and no modal can open while
+  # locked, so these clauses never conflict with one.
   def handle(%{key: :char, char: "g", alt: true}, %{lock?: true} = state), do: {Map.put(state, :lock?, false), :repaint}
 
   def handle(key, %{lock?: true, center_live?: true} = state), do: {state, {:forward, key}}
   def handle(_key, %{lock?: true} = state), do: {state, :none}
-
-  def handle(%{key: :char, char: "g", alt: true} = k, state) when not is_map_key(k, :ctrl),
-    do: {Map.put(state, :lock?, true), :repaint}
 
   # Shift+Space (Kitty CSI-u \e[32;2u → %{key: :space, shift: true}) is just a space — normalize it
   # to a plain char up front so EVERY downstream path treats it identically: the composer inserts it,
@@ -254,8 +253,9 @@ defmodule Aleph.Keymap do
     do: {%{state | input: cycle_archetype(input, 1)}, :repaint}
 
   # Printable keys insert AT the cursor, not append — so typing after moving the cursor lands
-  # where you moved it, like a normal text box.
-  def handle(%{key: :char, char: c}, %{input: %{}} = state) when is_binary(c),
+  # where you moved it, like a normal text box. Alt-modified chars are chords, not text (Alt+g's
+  # lock arm included) — they fall to the ignore catch-all below.
+  def handle(%{key: :char, char: c} = k, %{input: %{}} = state) when is_binary(c) and not is_map_key(k, :alt),
     do: {%{state | input: insert_at(state.input, c)}, :repaint}
 
   # A space can arrive as %{key: :space} with no `char`: under [>1u disambiguation (which the cockpit
@@ -267,26 +267,34 @@ defmodule Aleph.Keymap do
   # Any other key while typing (function keys, …) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
 
+  # Alt+g arms LOCK — below the modal by design: the modal's catch-all swallows it while typing,
+  # so composing can never silently freeze under a lock.
+  def handle(%{key: :char, char: "g", alt: true} = k, state) when not is_map_key(k, :ctrl),
+    do: {Map.put(state, :lock?, true), :repaint}
+
   # --- Global Alt chords (design 2026-08-23): work from ANY mode — TERM included — and switch
   # mode implicitly. World-only for movement (there's no pane grid elsewhere); n/c everywhere.
-  # Must precede the Tlön routing clause (which would forward them to tmux from TERM).
+  # Must precede the Tlön routing clause (which would forward them to tmux from TERM). Each clears
+  # an armed leader (`clear_leader/1`) — these sit above the leader-consumption clause, so without
+  # it Ctrl+Space then an Alt chord would leave the prefix stuck.
   def handle(%{key: :char, char: d, alt: true} = k, %{active_key: key, focus: %Focus{}} = state)
       when Space.world?(key) and d in ~w(0 1 2 3 4 5 6 7 8 9) and not is_map_key(k, :ctrl),
-      do: {focus_jump(state, String.to_integer(d)), :repaint}
+      do: {state |> clear_leader() |> focus_jump(String.to_integer(d)), :repaint}
 
   def handle(%{key: :char, char: c, alt: true} = k, %{active_key: key, focus: %Focus{}} = state)
-      when Space.world?(key) and c in ~w(h j k l) and not is_map_key(k, :ctrl), do: {alt_move(state, c), :repaint}
+      when Space.world?(key) and c in ~w(h j k l) and not is_map_key(k, :ctrl),
+      do: {state |> clear_leader() |> alt_move(c), :repaint}
 
-  def handle(%{key: :char, char: "]", alt: true}, state), do: {state, {:cycle_pane_view, 1}}
-  def handle(%{key: :char, char: "[", alt: true}, state), do: {state, {:cycle_pane_view, -1}}
+  def handle(%{key: :char, char: "]", alt: true}, state), do: {clear_leader(state), {:cycle_pane_view, 1}}
+  def handle(%{key: :char, char: "[", alt: true}, state), do: {clear_leader(state), {:cycle_pane_view, -1}}
 
   # Alt+n / Alt+c reach the shared command table with the modifier stripped (its clauses are
   # modifier-guarded on purpose — a bare-shaped key is the door).
   def handle(%{key: :char, char: "n", alt: true} = k, state) when not is_map_key(k, :ctrl),
-    do: command(%{key: :char, char: "n"}, state)
+    do: command(%{key: :char, char: "n"}, clear_leader(state))
 
   def handle(%{key: :char, char: "c", alt: true} = k, state) when not is_map_key(k, :ctrl),
-    do: command(%{key: :char, char: "c"}, state)
+    do: command(%{key: :char, char: "c"}, clear_leader(state))
 
   # --- Tlön: the lazygit focus model (design 2026-08-20). The center is a live tmux client, so
   # `Ctrl+Space` is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use.
@@ -562,22 +570,38 @@ defmodule Aleph.Keymap do
 
   # `h`/`l` toggle Orbis' focus between the survey (per-row cursor) and the thread list (the
   # existing `focused_id` nav) — Orbis-only; in a World, h/l belong to Focus pane-nav
-  # (`handle_tlon`), never reaching this table.
-  defp command(%{key: :char, char: "h"}, %{active_key: :orbis} = state), do: {toggle_orbis_focus(state), :repaint}
+  # (`handle_tlon`), never reaching this table. Bare keys only (same modifier discipline as
+  # `a`/`c`/`m`) — a world-guarded Alt chord that fell past the Global Alt block must not leak
+  # into Orbis nav.
+  defp command(%{key: :char, char: "h"} = k, %{active_key: :orbis} = state)
+       when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt),
+       do: {toggle_orbis_focus(state), :repaint}
 
-  defp command(%{key: :char, char: "l"}, %{active_key: :orbis} = state), do: {toggle_orbis_focus(state), :repaint}
+  defp command(%{key: :char, char: "l"} = k, %{active_key: :orbis} = state)
+       when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt),
+       do: {toggle_orbis_focus(state), :repaint}
 
   # j/k/↑/↓ route by `orbis_focus`: :survey moves the survey's per-row cursor (clamped, no wrap);
   # :threads keeps the pre-existing thread-focus move. Orbis-only (World j/k is `handle_tlon`'s).
   defp command(%{key: :up}, %{active_key: :orbis} = state), do: move_orbis(state, -1)
-  defp command(%{key: :char, char: "k"}, %{active_key: :orbis} = state), do: move_orbis(state, -1)
+
+  defp command(%{key: :char, char: "k"} = k, %{active_key: :orbis} = state)
+       when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt), do: move_orbis(state, -1)
+
   defp command(%{key: :down}, %{active_key: :orbis} = state), do: move_orbis(state, 1)
-  defp command(%{key: :char, char: "j"}, %{active_key: :orbis} = state), do: move_orbis(state, 1)
+
+  defp command(%{key: :char, char: "j"} = k, %{active_key: :orbis} = state)
+       when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt), do: move_orbis(state, 1)
 
   defp command(%{key: :up}, state), do: move(state, -1)
-  defp command(%{key: :char, char: "k"}, state), do: move(state, -1)
+
+  defp command(%{key: :char, char: "k"} = k, state)
+       when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt), do: move(state, -1)
+
   defp command(%{key: :down}, state), do: move(state, 1)
-  defp command(%{key: :char, char: "j"}, state), do: move(state, 1)
+
+  defp command(%{key: :char, char: "j"} = k, state)
+       when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt), do: move(state, 1)
 
   # Anything else (Ctrl+C, F-keys, page-up…) is unbound — a no-op, never a quit.
   defp command(_key, state), do: {state, :none}
@@ -644,6 +668,10 @@ defmodule Aleph.Keymap do
   defp focus_intent(state, intent), do: %{state | focus: Focus.handle(state.focus, state.tlon_layout, intent)}
 
   defp focus_jump(state, digit), do: %{state | focus: Focus.jump(state.focus, state.tlon_layout, digit)}
+
+  # A global Alt chord consumes any armed leader — without this, Ctrl+Space then an Alt chord
+  # leaves the prefix stuck (the next Ctrl+Space would silently disarm instead of arming).
+  defp clear_leader(state), do: Map.put(state, :leader_pending?, false)
 
   # Alt+h/j/k/l: directional pane movement, implicit nav (Focus intents no-op in-terminal, so
   # drop out of the terminal first).
