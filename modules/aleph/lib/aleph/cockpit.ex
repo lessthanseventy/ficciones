@@ -17,6 +17,7 @@ defmodule Aleph.Cockpit do
   alias Aleph.LeafWindow
   alias Aleph.Mouse
   alias Aleph.Panel
+  alias Aleph.Panel.Border
   alias Aleph.Panel.WindowBar
   alias Aleph.Profile
   alias Aleph.Profiles
@@ -410,9 +411,15 @@ defmodule Aleph.Cockpit do
   # thread, switch a space — then repaints. Press only: the SGR release carries the same button,
   # and acting on both would double-fire (and re-hit re-laid-out placements after a space switch).
   # Non-selectable panels (Dossier/Stack/Health, the center terminal) return nil → no-op.
+  # A hit on the carousel border's tab strip is checked FIRST — borders are chrome to
+  # `Mouse.hit_panel/3` (never a click target), so the tab strip needs its own routing.
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: sx, y: sy, button: :left, action: :press}}}, state) do
     {x, y} = {Mouse.to_cell(sx), Mouse.to_cell(sy)}
-    dispatch_click(Mouse.hit_panel(state.placements, x, y), x, y, state)
+
+    case border_tab_hit(state.placements, x, y) do
+      nil -> dispatch_click(Mouse.hit_panel(state.placements, x, y), x, y, state)
+      idx -> {:noreply, render(%{state | right_pane_view: idx})}
+    end
   end
 
   # A left drag/release over the terminal body: forwarded to the PTY so tmux does the selecting (and
@@ -780,6 +787,18 @@ defmodule Aleph.Cockpit do
   defp repaint_on_scroll(:scrolled, state), do: {:noreply, render(state)}
   defp repaint_on_scroll(:forwarded, state), do: {:noreply, state}
 
+  # A press on the carousel box's top frame row: which tab (Border.tab_at_x mirrors the drawn
+  # runs)? Borders are chrome to hit_panel, so this runs before it.
+  defp border_tab_hit(placements, x, y) do
+    Enum.find_value(placements, fn
+      {Border, %{tabs: tabs} = data, rect} when is_list(tabs) ->
+        if y == rect.y and x >= rect.x and x < rect.x + rect.w, do: Border.tab_at_x(data, x - rect.x)
+
+      _placement ->
+        nil
+    end)
+  end
+
   defp dispatch_click(nil, _x, _y, state), do: {:noreply, state}
 
   # Clicking the center terminal: forward to the PTY when the embedded program tracks the mouse
@@ -982,16 +1001,23 @@ defmodule Aleph.Cockpit do
   end
 
   @doc false
-  # The pure decision behind `[`/`]`: advance `right_pane_view` by `dir`, wrapped at the active
-  # space's right-column length (0 → no right column → no-op, guards div-by-zero). Public + exposed
-  # (like `attach_leaf/2`/`preview_focused/1`) so it's testable without a live GenServer.
+  # The pure decision behind `[`/`]`: advance `right_pane_view` by `dir`, wrapped at the CAROUSEL's
+  # length (Health is pinned, never cycled — clarity slice 2). No carousel (0/1-panel right column)
+  # → no-op, guards div-by-zero. Public + exposed (like `attach_leaf/2`/`preview_focused/1`) so it's
+  # testable without a live GenServer.
   def cycle_pane_view(%{active_key: key} = state, dir) when Space.world?(key) do
     case Space.fetch(key) do
-      %{right: right} when right != [] ->
-        n = length(right)
-        %{state | right_pane_view: rem(state.right_pane_view + dir + n, n)}
+      %Space{} = space ->
+        case Space.carousel(space) do
+          [] ->
+            state
 
-      _ ->
+          carousel ->
+            n = length(carousel)
+            %{state | right_pane_view: rem(state.right_pane_view + dir + n, n)}
+        end
+
+      nil ->
         state
     end
   end
@@ -1535,7 +1561,9 @@ defmodule Aleph.Cockpit do
       space ->
         %{
           left: [Panel.Spaces | space.left],
-          right: space.right,
+          # Health pinned + carousel (clarity slice 2) — what's actually on screen, so the focus
+          # SM's pane index can't point at a box View didn't draw.
+          right: Space.visible_right(space, state.right_pane_view),
           sections: %{Panel.Memory => memory_sections(state)},
           counts: pane_counts(state)
         }
