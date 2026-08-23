@@ -19,6 +19,7 @@ defmodule Aleph.Space do
 
   alias Aleph.Panel.Activity
   alias Aleph.Panel.Chorus
+  alias Aleph.Panel.Crew
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Health
   alias Aleph.Panel.Leaves
@@ -93,7 +94,7 @@ defmodule Aleph.Space do
       label: world.name,
       surface: [WindowBar, {Terminal, :machine}, Pulse],
       left: [Stack, Memory],
-      right: [Health, Activity, Leaves],
+      right: [Health, Crew, Activity, Leaves],
       coworker: lead_coworker(world.roster),
       roster: world.roster
     }
@@ -111,7 +112,7 @@ defmodule Aleph.Space do
       label: "Tlön",
       surface: [WindowBar, {Terminal, :machine}, Pulse],
       left: [Stack, Memory],
-      right: [Health, Activity, Leaves],
+      right: [Health, Crew, Activity, Leaves],
       coworker: "tertius",
       # Mirrors the funes seed roster for the Tlön world, so C2/C3 get a faithful stand-in.
       roster: [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]

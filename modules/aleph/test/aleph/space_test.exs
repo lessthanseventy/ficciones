@@ -10,6 +10,7 @@ defmodule Aleph.SpaceTest do
   use ExUnit.Case, async: true
 
   alias Aleph.Panel.Activity
+  alias Aleph.Panel.Crew
   alias Aleph.Panel.Health
   alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
@@ -56,7 +57,7 @@ defmodule Aleph.SpaceTest do
       assert tlon.label == "Tlön"
       assert tlon.surface == [WindowBar, {Terminal, :machine}, Pulse]
       assert tlon.left == [Stack, Memory]
-      assert tlon.right == [Health, Activity, Leaves]
+      assert tlon.right == [Health, Crew, Activity, Leaves]
       # The roster lead's name (string-keyed JSON) becomes the center coworker.
       assert tlon.coworker == "tertius"
       # The full roster rides along too (C2/C3 read it), not just the derived coworker name.

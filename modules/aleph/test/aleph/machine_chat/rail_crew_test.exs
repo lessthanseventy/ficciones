@@ -1,8 +1,7 @@
 defmodule Aleph.MachineChat.RailCrewTest do
-  @moduledoc "The THREADS and CREW rails render pre-annotated data; selection stays visible."
+  @moduledoc "The THREADS rail renders pre-annotated data; selection stays visible. (CREW moved to Aleph.Panel.Crew.)"
   use ExUnit.Case, async: true
 
-  alias Aleph.MachineChat.Crew
   alias Aleph.MachineChat.Rail
 
   defp texts(rows), do: Enum.map(rows, fn row -> Enum.map_join(row, "", fn {t, _s} -> t end) end)
@@ -49,35 +48,6 @@ defmodule Aleph.MachineChat.RailCrewTest do
       rows = for i <- 1..30, do: row(i, "thread #{i}")
       rendered = Rail.render(%{rows: rows, selected_id: 25}, %{x: 0, y: 0, w: 26, h: 10})
       assert Enum.any?(texts(rendered), &(&1 =~ "thread 25"))
-    end
-  end
-
-  describe "Crew.render/2" do
-    test "leaves counter + per-coworker archetype, presence, seat, and driver" do
-      data = %{
-        leaves: {2, 6},
-        coworkers: [
-          %{name: "tertius", archetype: :surveyor, model: %{model: "glm-5.2"}, harness: :pi, status: :live, seat: nil},
-          %{
-            name: "vera",
-            archetype: :reviewer,
-            model: %{model: "claude-sonnet-5"},
-            harness: :claude_code,
-            status: :working,
-            seat: "fix the bug"
-          }
-        ]
-      }
-
-      body = texts(Crew.render(data, %{x: 0, y: 0, w: 26, h: 30}))
-
-      assert Enum.at(body, 0) =~ "CREW"
-      assert Enum.at(body, 0) =~ "leaves 2/6"
-      assert Enum.any?(body, &(&1 =~ "tertius" and &1 =~ "surveyor"))
-      assert Enum.any?(body, &(&1 =~ "idle"))
-      assert Enum.any?(body, &(&1 =~ "working" and &1 =~ "fix the bug"))
-      assert Enum.any?(body, &(&1 =~ "glm-5.2" and &1 =~ "pi"))
-      assert Enum.any?(body, &(&1 =~ "claude-sonnet-5" and &1 =~ "· claude"))
     end
   end
 end

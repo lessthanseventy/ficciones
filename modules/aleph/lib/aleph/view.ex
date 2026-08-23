@@ -27,6 +27,7 @@ defmodule Aleph.View do
     Panel.ThreadList,
     Panel.Chorus,
     Panel.Conversation,
+    Panel.Crew,
     Panel.Dossier,
     Panel.Roster,
     Panel.Stack,
@@ -246,6 +247,7 @@ defmodule Aleph.View do
   def data_for(Panel.Conversation, r), do: Map.merge(%{title: r.focused_title, messages: r.chatter}, r[:presence] || %{})
   def data_for(Panel.Stack, r), do: r.stack
   def data_for(Panel.Health, r), do: r.health
+  def data_for(Panel.Crew, r), do: r[:crew]
   def data_for(Panel.Logbook, r), do: r.logbook
   def data_for(Panel.Leaves, r), do: with_focused_lead(r.orbis, r)
   def data_for(Panel.Activity, r), do: %{events: r[:activity] || []}

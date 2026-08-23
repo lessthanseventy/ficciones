@@ -37,7 +37,7 @@ defmodule Aleph.CockpitPreviewTest do
   defp leaves_state(rows, row_idx) do
     %{
       active_key: 0,
-      focus: %Focus{in_terminal?: false, column: :right, pane: 2, cursors: %{Panel.Leaves => row_idx}},
+      focus: %Focus{in_terminal?: false, column: :right, pane: 3, cursors: %{Panel.Leaves => row_idx}},
       leaves: %{summary: %{}, rows: rows},
       stack: nil,
       memory: nil,

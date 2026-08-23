@@ -1,0 +1,118 @@
+defmodule Aleph.Panel.Crew do
+  @moduledoc """
+  The CREW pane — the World's coworker pool at a glance: who exists (the world roster), what
+  each one is (archetype · model · harness), whether it's on the clock right now (declared
+  thinking > tmux-inferred working > idle > off), and where (its standing seat or the leaf it
+  leads). `coworkers/6` is the pure assembly; `render/2` draws the pre-assembled
+  `%{coworkers: [coworker()], leaves: {live, cap}}` — the same pane serves the cockpit sidebar
+  and the uqbar console's right rail.
+  """
+  @behaviour Aleph.Panel
+
+  import Aleph.Panel, only: [blank: 0]
+
+  alias Aleph.Presence
+  alias Aleph.Profiles
+  alias Funes.Bus
+
+  @type coworker :: %{
+          name: String.t(),
+          archetype: atom(),
+          model: term(),
+          harness: atom() | String.t(),
+          status: :thinking | Presence.status(),
+          seat: String.t() | nil
+        }
+
+  @doc """
+  Pure crew assembly — one row per recognized roster entry (unknown archetypes drop), the join
+  of a World roster with a tmux window snapshot, the leaf leads, and the explicit thinking
+  declarations. `led_by` maps a funes handle (`<name>-machine`) to the thread ids it leads;
+  `titles` thread id → title; `thinking` the `thread_id => %{agent => started_at}` declarations
+  map (`%{}` where unavailable). Status precedence: declared thinking > tmux-inferred working >
+  live > none. Pure (`now_s` is an argument) so it tests headless; each surface — the cockpit
+  sidebar, the uqbar console rail — assembles its own inputs.
+  """
+  @spec coworkers([map()], [Presence.window()], map(), map(), map(), integer()) :: [coworker()]
+  def coworkers(roster, windows, led_by, titles, thinking, now_s) do
+    for entry <- roster,
+        %{archetype: arch, name: name} = Profiles.roster_entry(entry),
+        arch != nil do
+      profile = safe_instantiate(arch, name)
+      {status, seat_tid} = seat(windows, name, "#{name}-machine", led_by, thinking, now_s)
+
+      %{
+        name: name,
+        archetype: arch,
+        model: profile && profile.model,
+        harness: (profile && profile.harness) || "?",
+        status: status,
+        seat: seat_tid && titles[seat_tid]
+      }
+    end
+  end
+
+  # A declared thinking wins outright (the explicit signal never re-lists as merely inferred);
+  # else the busiest of the standing window and any led leaf.
+  defp seat(windows, name, handle, led_by, thinking, now_s) do
+    case Enum.find(thinking, fn {_tid, agents} -> Map.has_key?(agents, handle) end) do
+      {tid, _agents} -> {:thinking, tid}
+      nil -> Presence.coworker_seat(windows, name, Map.get(led_by, handle, []), now_s)
+    end
+  end
+
+  defp safe_instantiate(arch, name) do
+    Profiles.instantiate(%{archetype: arch, name: name})
+  rescue
+    _ -> nil
+  end
+
+  @impl Aleph.Panel
+  def topics(_assigns), do: [Bus.sessions_topic()]
+
+  @impl Aleph.Panel
+  def render(%{coworkers: coworkers, leaves: {live, cap}}, rect) do
+    header = [[{"CREW", :header}, {"  leaves #{live}/#{cap}", :dim}], blank()]
+    Aleph.Panel.clip(header ++ Enum.flat_map(coworkers, &entry(&1, rect.w)), rect)
+  end
+
+  # nil data (funes down / not a World) renders nothing rather than crashing the paint.
+  def render(_data, _rect), do: []
+
+  defp entry(cw, w) do
+    {glyph, label} = presence(cw.status)
+
+    [
+      [{clip("#{cw.name}", w - 12), :normal}, {"  #{cw.archetype}", :dim}],
+      [{"  #{glyph} ", glyph_style(cw.status)}, {clip(label <> seat(cw), w - 4), :dim}],
+      [{clip("  #{short_model(cw.model)} · #{harness_label(cw.harness)}", w), :dim}],
+      blank()
+    ]
+  end
+
+  defp presence(:thinking), do: {"⋯", "thinking"}
+  defp presence(:working), do: {"●", "working"}
+  defp presence(:live), do: {"●", "idle"}
+  defp presence(:none), do: {"○", "off"}
+
+  defp glyph_style(:thinking), do: :accent
+  defp glyph_style(:working), do: :accent
+  defp glyph_style(_status), do: :dim
+
+  defp seat(%{status: :none}), do: ""
+  defp seat(%{seat: nil}), do: ""
+  defp seat(%{seat: title}), do: " · #{title}"
+
+  defp harness_label(:claude_code), do: "claude"
+  defp harness_label(other), do: to_string(other)
+
+  defp short_model(nil), do: "base"
+  defp short_model(%{model: m}), do: m
+  defp short_model(m) when is_binary(m), do: m
+
+  defp clip(_text, max) when max < 1, do: ""
+
+  defp clip(text, max) do
+    if String.length(text) > max, do: String.slice(text, 0, max - 1) <> "…", else: text
+  end
+end

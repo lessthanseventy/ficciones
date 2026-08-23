@@ -203,12 +203,12 @@ defmodule Aleph.ViewTest do
       refute right_placed?(placements, Panel.Leaves)
     end
 
-    test "right_pane_view: 1 shows only the second right panel (Activity), not Health or Leaves" do
-      # The World space's right column is [Health, Activity, Leaves] (Aleph.Space).
+    test "right_pane_view: 1 shows only the second right panel (Crew), not Health or Leaves" do
+      # The World space's right column is [Health, Crew, Activity, Leaves] (Aleph.Space).
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 120, 40)
 
-      assert right_placed?(placements, Panel.Activity)
+      assert right_placed?(placements, Panel.Crew)
       refute right_placed?(placements, Panel.Health)
       refute right_placed?(placements, Panel.Leaves)
     end
@@ -231,7 +231,7 @@ defmodule Aleph.ViewTest do
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 60, 40)
 
-      assert right_placed?(placements, Panel.Activity)
+      assert right_placed?(placements, Panel.Crew)
       refute right_placed?(placements, Panel.Health)
       refute right_placed?(placements, Panel.Leaves)
     end

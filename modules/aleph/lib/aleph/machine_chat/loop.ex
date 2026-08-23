@@ -30,12 +30,12 @@ defmodule Aleph.MachineChat.Loop do
 
   alias Aleph.Board
   alias Aleph.Config
-  alias Aleph.MachineChat.Crew
   alias Aleph.MachineChat.Host
   alias Aleph.MachineChat.Layout
   alias Aleph.MachineChat.Rail
   alias Aleph.MachineChat.Staffing
   alias Aleph.Mention
+  alias Aleph.Panel.Crew
   alias Aleph.Presence
   alias Aleph.Profiles
   alias Aleph.Transcript
@@ -542,37 +542,13 @@ defmodule Aleph.MachineChat.Loop do
       |> Enum.group_by(fn {_tid, lead} -> lead end, fn {tid, _lead} -> tid end)
 
     titles = Map.new(state.view.blocks, fn b -> {b.thread.id, b.thread.title} end)
-
-    coworkers =
-      for entry <- state.roster,
-          %{archetype: arch, name: name} = Profiles.roster_entry(entry),
-          arch != nil do
-        profile = safe_instantiate(arch, name)
-
-        {status, seat_tid} =
-          Presence.coworker_seat(state.windows, name, Map.get(led_by, "#{name}-machine", []), state.now_s)
-
-        %{
-          name: name,
-          archetype: arch,
-          model: profile && profile.model,
-          harness: (profile && profile.harness) || "?",
-          status: status,
-          seat: seat_tid && titles[seat_tid]
-        }
-      end
+    coworkers = Crew.coworkers(state.roster, state.windows, led_by, titles, %{}, state.now_s)
 
     Crew.render(%{coworkers: coworkers, leaves: {Enum.count(state.windows, &leaf?/1), Config.max_leaves()}}, rect)
   end
 
   defp leaf?(%{thread_id: tid}) when is_integer(tid), do: true
   defp leaf?(%{name: name}), do: Regex.match?(~r/\At\d+\z/, name)
-
-  defp safe_instantiate(arch, name) do
-    Profiles.instantiate(%{archetype: arch, name: name})
-  rescue
-    _ -> nil
-  end
 
   # The open conversation: a title bar, the turn-grouped transcript, and a working indicator when
   # the leaf's harness is actively painting (the "typing…" of this surface).

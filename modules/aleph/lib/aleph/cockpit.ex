@@ -1372,6 +1372,7 @@ defmodule Aleph.Cockpit do
       terminal: terminal_read(state, focused),
       machine: machine,
       presence: presence_read(state, focused, machine),
+      crew: crew_read(state, machine),
       stack: state.stack || @empty_stack,
       health: state.health,
       activity: state.activity,
@@ -1443,6 +1444,31 @@ defmodule Aleph.Cockpit do
   end
 
   defp working_lead(_machine, _focused, _thinking), do: []
+
+  # The CREW sidebar's read: the active World's roster joined with the tmux snapshot, the leaf
+  # leads, and the thinking declarations (Aleph.Panel.Crew.coworkers/6). Lead lookups go one
+  # funes query per live leaf window — at most the leaf cap.
+  defp crew_read(state, %{tabs: tabs}) do
+    led_by =
+      tabs
+      |> Enum.filter(&is_integer(&1.thread_id))
+      |> Enum.reduce(%{}, fn %{thread_id: tid}, acc ->
+        case Funes.thread_lead(tid) do
+          lead when is_binary(lead) -> Map.update(acc, lead, [tid], &[tid | &1])
+          _ -> acc
+        end
+      end)
+
+    titles = Map.new(state.threads, &{&1.id, &1.title})
+    roster = active_roster(active_world_id(state))
+
+    %{
+      coworkers: Panel.Crew.coworkers(roster, tabs, led_by, titles, state.thinking, System.os_time(:second)),
+      leaves: {Enum.count(tabs, &leaf_window?/1), Aleph.Config.max_leaves()}
+    }
+  end
+
+  defp crew_read(_state, _machine), do: nil
 
   # No space carries a per-thread native-PTY center since the Slice 0 collapse (Sessions deleted);
   # Tlön's center reads via machine_read, so terminal_read is uniformly `:no_session`.

@@ -204,18 +204,19 @@ defmodule Aleph.CockpitTest do
   # `cycle_pane_view/2` is the pure decision `apply_effect({:cycle_pane_view, dir}, state)` runs —
   # exposed (like `attach_leaf/2`/`preview_focused/1`) so it's testable without a live GenServer.
   # Test env's world fallback (funes-down / no live cache) is the hardcoded Tlön space (key 0),
-  # whose right column is `[Health, Activity, Leaves]` — 3 panels.
+  # whose right column is `[Health, Crew, Activity, Leaves]` — 4 panels.
   describe "cycle_pane_view/2: the World's right-pane view index" do
-    test "advances by dir and wraps at the right column's length (3 panels: 0→1→2→0)" do
+    test "advances by dir and wraps at the right column's length (4 panels: 0→1→2→3→0)" do
       state = %{active_key: 0, right_pane_view: 0}
       assert %{right_pane_view: 1} = Cockpit.cycle_pane_view(state, 1)
       assert %{right_pane_view: 2} = Cockpit.cycle_pane_view(%{state | right_pane_view: 1}, 1)
-      assert %{right_pane_view: 0} = Cockpit.cycle_pane_view(%{state | right_pane_view: 2}, 1)
+      assert %{right_pane_view: 3} = Cockpit.cycle_pane_view(%{state | right_pane_view: 2}, 1)
+      assert %{right_pane_view: 0} = Cockpit.cycle_pane_view(%{state | right_pane_view: 3}, 1)
     end
 
     test "wraps backward too (0 - 1 → last panel)" do
       state = %{active_key: 0, right_pane_view: 0}
-      assert %{right_pane_view: 2} = Cockpit.cycle_pane_view(state, -1)
+      assert %{right_pane_view: 3} = Cockpit.cycle_pane_view(state, -1)
     end
 
     test "outside a World (Orbis) it's a no-op — nothing to cycle" do
