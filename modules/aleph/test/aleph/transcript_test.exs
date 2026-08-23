@@ -138,4 +138,23 @@ defmodule Aleph.TranscriptTest do
       assert Transcript.selected_row(view([]), 80) == nil
     end
   end
+
+  test "the operator's turn header and body render :operator pink; agents keep truecolor + green" do
+    rows = Transcript.render(view([block("Tlön", 1, [m("andrew", "do it"), m("pi", "ok")])]), rect())
+    runs = Enum.flat_map(rows, & &1)
+
+    assert {"andrew", :operator} in runs
+    assert {"  do it", :operator} in runs
+    assert author_runs(rows, "pi") != []
+    assert {"  ok", :normal} in runs
+  end
+
+  test "a paragraph break in a body renders as a blank row" do
+    rows = Transcript.render(view([block("Tlön", 1, [m("pi", "one\n\ntwo")])]), rect())
+    body = texts(rows)
+    one = Enum.find_index(body, &(&1 == "  one"))
+    assert one
+    assert Enum.at(body, one + 1) == ""
+    assert Enum.at(body, one + 2) == "  two"
+  end
 end

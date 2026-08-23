@@ -27,6 +27,19 @@ defmodule Aleph.Panel.ConversationTest do
     assert texts |> Enum.drop_while(&(&1 != "a: one")) |> Enum.take(5) == ["a: one", "", "  two", "", "b: three"]
   end
 
+  test "operator messages render pink (:operator); agent messages keep amber author / green body" do
+    rows =
+      Conversation.render(
+        %{title: "t", messages: [%{author: "andrew", body: "ship it"}, %{author: "hronir", body: "on it"}]},
+        @rect
+      )
+
+    assert style_of(rows, "andrew") == :operator
+    assert style_of(rows, "ship it") == :operator
+    assert style_of(rows, "hronir") == :label
+    assert style_of(rows, "on it") == :normal
+  end
+
   test "no presence data renders just the messages — no indicator row" do
     text =
       %{title: "t", messages: [%{author: "hronir", body: "hi"}]}

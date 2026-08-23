@@ -35,6 +35,9 @@ defmodule Aleph.Style do
     header: {@amber, @bg},
     label: {@amber, @bg},
     accent: {0xE0218A, @bg},
+    # The operator's voice in chat — pink, its OWN key (not :accent) so re-theming the operator
+    # doesn't entangle with the cursor/thinking chrome.
+    operator: {0xE0218A, @bg},
     warm: {@amber, @bg},
     dim: {0x9A803F, @bg},
     separator: {0xB5651D, @bg},

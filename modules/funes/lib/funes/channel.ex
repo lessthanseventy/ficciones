@@ -198,15 +198,22 @@ defmodule Funes.Channel do
   agent's paraphrase.
   """
   def latest_operator_message(thread_id) do
-    operator = :funes |> Application.get_env(:operator, "andrew") |> String.downcase()
-
     Repo.one(
       from m in Message,
-        where: m.thread_id == ^thread_id and fragment("lower(?)", m.author) == ^operator,
+        where: m.thread_id == ^thread_id and fragment("lower(?)", m.author) == ^operator(),
         order_by: [desc: m.id],
         limit: 1
     )
   end
+
+  @doc """
+  Is `author` the configured operator (config `:operator`, case-insensitive)? The one
+  operator-detection seam — renderers color by it, `latest_operator_message/1` queries by it.
+  """
+  def operator?(author) when is_binary(author), do: String.downcase(author) == operator()
+  def operator?(_author), do: false
+
+  defp operator, do: :funes |> Application.get_env(:operator, "andrew") |> String.downcase()
 
   @doc """
   Recent messages ACROSS all threads — the Comms rollup feed (a "slack for agents" timeline, not

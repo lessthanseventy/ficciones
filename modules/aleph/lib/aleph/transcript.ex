@@ -30,11 +30,11 @@ defmodule Aleph.Transcript do
   @palette [0x5FAFFF, 0xFFAF5F, 0x87FF87, 0xFF87D7, 0xD7AFFF, 0x5FD7D7, 0xFFD75F, 0xFF8787]
   # claude-machine kept alongside hronir-machine (its C2.3 rename) — old thread history still
   # colors correctly.
+  # The operator is NOT here: `Funes.Channel.operator?/1` routes them to `:operator` pink first.
   @known %{
     "tertius-machine" => 0xFF87D7,
     "hronir-machine" => 0x5FD7FF,
-    "claude-machine" => 0x5FD7FF,
-    "andrew" => 0xFFD75F
+    "claude-machine" => 0x5FD7FF
   }
 
   @impl Panel
@@ -155,24 +155,27 @@ defmodule Aleph.Transcript do
       end
 
     head = if turn?, do: [header_row(author, at)], else: []
-    {lead ++ head ++ body_rows(body, w), %{author: author, at: at}}
+    {lead ++ head ++ body_rows(body, w, body_style(author)), %{author: author, at: at}}
   end
+
+  # The operator's messages read pink whole (`:operator`); agents keep the green body.
+  defp body_style(author), do: if(Funes.Channel.operator?(author), do: :operator, else: :normal)
 
   # A turn header: the coloured author name, a gap, then a dim `HH:MM`.
   defp header_row(author, at), do: [{author, author_style(author)}, {"  ", :dim}, {time(at), :dim}]
 
   # The body wrapped to the column (paragraph breaks render as blank rows) with a hanging
   # two-space indent, so author names stay a scannable left edge.
-  defp body_rows(body, w) do
+  defp body_rows(body, w, style) do
     width = max(w - 2, 1)
 
     (body || "")
     |> Aleph.Text.wrap_paragraphs(width)
-    |> Enum.map(&indent_row/1)
+    |> Enum.map(&indent_row(&1, style))
   end
 
-  defp indent_row(""), do: blank()
-  defp indent_row(text), do: line("  " <> text, :normal)
+  defp indent_row("", _style), do: blank()
+  defp indent_row(text, style), do: line("  " <> text, style)
 
   # A centred, dimmed date rule filling the column (`──── Fri, 15 Aug ────`).
   defp day_divider(%DateTime{} = at, w) do
@@ -195,11 +198,15 @@ defmodule Aleph.Transcript do
   defp gap?(%DateTime{} = last, %DateTime{} = at), do: DateTime.diff(at, last) > 300
   defp gap?(_last, _at), do: false
 
-  # A stable per-author truecolor run style: the hand-picked slot for a known coworker, else a hash
-  # onto the palette so a new voice still lands on its own colour and keeps it.
+  # A stable per-author truecolor run style: the operator reads `:operator` pink, a known
+  # coworker its hand-picked slot, any other voice a hash onto the palette so it keeps its colour.
   defp author_style(author) do
-    fg = Map.get_lazy(@known, author, fn -> Enum.at(@palette, rem(:erlang.phash2(author), length(@palette))) end)
-    {:rgb, fg, Aleph.Style.bg()}
+    if Funes.Channel.operator?(author) do
+      :operator
+    else
+      fg = Map.get_lazy(@known, author, fn -> Enum.at(@palette, rem(:erlang.phash2(author), length(@palette))) end)
+      {:rgb, fg, Aleph.Style.bg()}
+    end
   end
 
   defp time(%DateTime{} = at), do: Calendar.strftime(at, "%H:%M")

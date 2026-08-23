@@ -55,24 +55,28 @@ defmodule Aleph.Panel.Conversation do
   defp head_label(title), do: "CHAT · #{title}"
 
   # "author: body", paragraph-aware wrap with a hanging indent so the author stays legible;
-  # blank lines in the body render as paragraph breaks instead of collapsing.
+  # blank lines in the body render as paragraph breaks instead of collapsing. The operator's
+  # messages render whole in :operator pink; agents keep amber author / green body.
   defp message_rows(%{author: author, body: body}, w) do
     prefix = "#{author}: "
+    body_style = if Funes.Channel.operator?(author), do: :operator, else: :normal
 
     case Aleph.Text.wrap_paragraphs(prefix <> body, max(w, 1)) do
       [] -> []
-      [first | rest] -> [author_run(first, author) | Enum.map(rest, &continuation/1)]
+      [first | rest] -> [author_run(first, author, body_style) | Enum.map(rest, &continuation(&1, body_style))]
     end
   end
 
-  defp continuation(""), do: blank()
-  defp continuation(text), do: line("  " <> text, :normal)
+  defp continuation("", _style), do: blank()
+  defp continuation(text, style), do: line("  " <> text, style)
 
   # Colour the author name on the first wrapped line; the rest of that line is body text.
-  defp author_run(first_line, author) do
+  defp author_run(first_line, author, body_style) do
+    author_style = if body_style == :operator, do: :operator, else: :label
+
     case String.split(first_line, ": ", parts: 2) do
-      [^author, tail] -> [{author, :label}, {": ", :dim}, {tail, :normal}]
-      _ -> [{first_line, :normal}]
+      [^author, tail] -> [{author, author_style}, {": ", :dim}, {tail, body_style}]
+      _ -> [{first_line, body_style}]
     end
   end
 end
