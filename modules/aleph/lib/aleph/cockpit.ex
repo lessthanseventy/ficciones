@@ -287,6 +287,10 @@ defmodule Aleph.Cockpit do
             # The Leaves rollup (machine_overview), cached with the other probes so its item count is
             # available to the keymap for j/k clamping at keypress time (before reads exist).
             leaves: nil,
+            # The Leaves reorder context (the active WindowBar tab's agent), derived once per render
+            # (View.focused_lead) — leaves_data/1 injects it for the render read AND yank/attach/
+            # preview, so cursor indexing always matches the row order on screen.
+            focused_lead: nil,
             # The funes activity feed's bounded buffer (Tlön right sidebar + the footer pulse):
             # `{tag, row}` Bus events, newest-first, capped at 50 by `push_activity/3`.
             activity: [],
@@ -1209,6 +1213,25 @@ defmodule Aleph.Cockpit do
 
   defp selected_habit(_state), do: nil
 
+  # The Leaves data EXACTLY as the panel renders it: the cached rollup + the reorder context
+  # (`focused_lead`, derived once per paint in render/1) + the attached wash. The SINGLE enrichment
+  # the render read (`reads.orbis`) and the nav paths (yank/attach/preview via
+  # `Panel.Leaves.row_at/2`) all consume — cursor indexing can never disagree with the paint.
+  defp leaves_data(state) do
+    case Map.get(state, :leaves) do
+      nil ->
+        nil
+
+      leaves ->
+        leaves
+        |> Map.put(:focused_lead, Map.get(state, :focused_lead))
+        |> Map.put(:attached, attached_leaf(Map.get(state, :focused_session)))
+    end
+  end
+
+  defp attached_leaf({:leaf, id}), do: id
+  defp attached_leaf(_focused_session), do: nil
+
   # The selected leaf → attach its live World window in the center (Worlds Slice 0): the Enter path
   # of the preview-swap. render is un-unit-testable (it paints via termbox); attach_leaf/2 is the
   # pure decision, so it carries the logic + tests.
@@ -1227,10 +1250,10 @@ defmodule Aleph.Cockpit do
   # — it takes its own snapshot, which is safe for its single read but would reintroduce the double
   # read.
   def attach_leaf(state, layout) do
-    rows = (state.leaves || %{rows: []}).rows
     world_id = active_world_id(state)
 
-    case Enum.at(rows, Focus.cursor(state.focus, layout)) do
+    # row_at over leaves_data: the ON-SCREEN row order (focused lead floated), never the raw rollup.
+    case Panel.Leaves.row_at(leaves_data(state), Focus.cursor(state.focus, layout)) do
       %{id: id, lead: lead} ->
         tabs = tlon_tabs(world_id)
 
@@ -1268,10 +1291,10 @@ defmodule Aleph.Cockpit do
   # any other pane/space, leaves the center exactly where it was. commit_preview/1 is what focuses.
   def preview_focused(%{active_key: key} = state) when Space.world?(key) do
     layout = tlon_layout(state)
-    rows = (state.leaves || %{rows: []}).rows
 
     with Panel.Leaves <- Focus.focused_pane(state.focus, layout),
-         %{lead: lead} <- Enum.at(rows, Focus.cursor(state.focus, layout)),
+         # row_at over leaves_data: the ON-SCREEN row order, same as attach/yank.
+         %{lead: lead} <- Panel.Leaves.row_at(leaves_data(state), Focus.cursor(state.focus, layout)),
          idx when not is_nil(idx) <- window_index(tlon_tabs(key), lead) do
       select_tlon_window(key, %{index: idx})
       %{state | previewed_window: idx}
@@ -1391,12 +1414,16 @@ defmodule Aleph.Cockpit do
     focused = focused_thread(threads, state.focused_id)
     state = resubscribe(%{state | threads: threads, focused_id: focused && focused.id}, focused)
     machine = machine_read(state)
+    roster = Staff.roster()
+    # The Leaves reorder context, derived ONCE per paint and cached — leaves_data/1 hands the same
+    # value to the render read below and to yank/attach/preview between paints.
+    state = %{state | focused_lead: View.focused_lead(%{machine: machine, active_key: state.active_key, roster: roster})}
 
     reads = %{
       active_key: state.active_key,
       focused_id: focused && focused.id,
       focused_title: focused && focused.title,
-      roster: Staff.roster(),
+      roster: roster,
       threads: threads,
       scope: focused && Funes.Board.in_scope(focused),
       chatter: (focused && Channel.recent_messages(focused, 30)) || [],
@@ -1420,7 +1447,7 @@ defmodule Aleph.Cockpit do
       health: state.health,
       activity: state.activity,
       memory: if(Space.world?(state.active_key), do: state.memory),
-      orbis: if(Space.world?(state.active_key), do: state.leaves),
+      orbis: if(Space.world?(state.active_key), do: leaves_data(state)),
       focused_session: state.focused_session,
       # Which of the World's right-column panels (Health/Activity/Leaves) to show, full-height —
       # the `[`/`]` cycle (C3.4). View clamps with `rem`, so this is meaningless-but-harmless
@@ -1627,23 +1654,26 @@ defmodule Aleph.Cockpit do
     end
   end
 
+  @doc false
   # The focused selection's clipboard text — pane dispatch mirrors tlon_detail/2. An open detail
-  # wins (yank what's on screen).
-  defp yank_text(%{focus: %Focus{detail?: true}} = state) do
+  # wins (yank what's on screen). Exposed (like `attach_leaf/2`) as the pure decision behind
+  # `apply_effect(:yank, ...)`, testable without the tty write.
+  def yank_text(%{focus: %Focus{detail?: true}} = state) do
     case tlon_detail(state, tlon_layout(state)) do
       %{title: title, lines: lines} -> {"detail", Enum.map_join([{title, nil} | lines], "\n", fn {t, _} -> t end)}
       _ -> nil
     end
   end
 
-  defp yank_text(state) do
+  def yank_text(state) do
     layout = tlon_layout(state)
     cursor = Focus.cursor(state.focus, layout)
 
     case Focus.focused_pane(state.focus, layout) do
       Panel.Stack -> Panel.Stack.yank(state.stack, cursor)
       Panel.Memory -> Panel.Memory.yank(memory_for_yank(state), cursor)
-      Panel.Leaves -> Panel.Leaves.yank(state.leaves, cursor)
+      # leaves_data, not the raw rollup: yank must copy the row render highlighted (float order).
+      Panel.Leaves -> Panel.Leaves.yank(leaves_data(state), cursor)
       _ -> nil
     end
   end

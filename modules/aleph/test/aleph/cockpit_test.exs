@@ -9,6 +9,7 @@ defmodule Aleph.CockpitTest do
 
   alias Aleph.Cockpit
   alias Aleph.Panel.Leaves
+  alias Aleph.Tlon.Focus
   alias Ghostty.KeyEvent
 
   test "a printable char carries its utf8 and its key atom" do
@@ -183,7 +184,7 @@ defmodule Aleph.CockpitTest do
     test "a query for World id 1 targets socket aleph-world-1 and session w1" do
       state = %{
         active_key: 1,
-        focus: %Aleph.Tlon.Focus{in_terminal?: false, column: :right, pane: 0, cursors: %{Leaves => 0}},
+        focus: %Focus{in_terminal?: false, column: :right, pane: 0, cursors: %{Leaves => 0}},
         leaves: %{summary: %{}, rows: [%{id: "t1", title: "x", lead: "hronir"}]},
         stack: nil,
         memory: nil,
@@ -197,6 +198,33 @@ defmodule Aleph.CockpitTest do
 
       assert_received {:tmux, ["-L", "aleph-world-1", "list-windows", "-t", "w1" | _]}
       assert_received {:tmux, ["-L", "aleph-world-1", "select-window", "-t", "w1:1"]}
+    end
+  end
+
+  # Clarity slice 6 regression: `y` must copy the row RENDER highlights. Under a focused lead the
+  # panel floats that lead's leaves to the top (C3.2 `ordered/2`), so indexing the RAW rollup with
+  # the cursor copies a different row. `yank_text/1` is the pure decision `apply_effect(:yank, ...)`
+  # runs — exposed (like `cycle_pane_view/2`) so it's testable without the tty write.
+  describe "yank_text/1 follows the rendered row order" do
+    test "leaves yank under a focused lead copies the row render highlights (A/B/C repro)" do
+      # Raw order A(x) B(y) C(x); lead "x" focused floats C above B — cursor 1 shows C, not B.
+      rows = [
+        %{id: 1, title: "A", lead: "x", status: :open, conflicts: 0},
+        %{id: 2, title: "B", lead: "y", status: :open, conflicts: 0},
+        %{id: 3, title: "C", lead: "x", status: :open, conflicts: 0}
+      ]
+
+      state = %{
+        active_key: 0,
+        focus: %Focus{in_terminal?: false, column: :right, pane: 1, cursors: %{Leaves => 1}},
+        right_pane_view: 2,
+        leaves: %{summary: %{}, rows: rows},
+        focused_lead: "x",
+        stack: nil,
+        memory: nil
+      }
+
+      assert Cockpit.yank_text(state) == {"title", "C"}
     end
   end
 

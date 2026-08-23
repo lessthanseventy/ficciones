@@ -94,6 +94,18 @@ defmodule Aleph.CockpitLeavesAttachTest do
       assert next.flash =~ "no live session"
       assert next.previewed_window == nil
     end
+
+    test "attach follows the rendered row order under a focused lead (same ordering yank uses)" do
+      # Raw order: ghost's leaf first, hronir's second; hronir focused floats its leaf to row 0 on
+      # screen (C3.2), so Enter at cursor 0 must attach hronir's window — not flash on ghost's.
+      rows = [%{id: "t9", title: "x", lead: "ghost"}, %{id: "t1", title: "y", lead: "hronir"}]
+      state = Map.put(leaves_state(rows), :focused_lead, "hronir")
+      next = Cockpit.attach_leaf(state, leaves_layout(rows))
+
+      assert next.previewed_window == "1"
+      assert next.focus.in_terminal? == true
+      assert_received {:tmux, ["-L", _sock, "select-window", "-t", "w0:1"]}
+    end
   end
 
   describe "attach_leaf/2 — C3.3: prefer the leaf's own t<id> window" do

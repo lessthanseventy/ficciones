@@ -50,14 +50,24 @@ defmodule Aleph.Panel.Leaves do
   # Click a leaf row → focus that thread (so composing targets it). The header rows are inert.
   # Uses the SAME `ordered/2` as render so a click lands on the row the operator sees (C3.2).
   @impl Aleph.Panel
-  def pick(%{rows: rows} = data, _rect, local_y) do
-    case Enum.at(ordered(rows, Map.get(data, :focused_lead)), local_y - @header_rows) do
-      %{id: id} when local_y >= @header_rows -> {:focus_thread, id}
+  def pick(%{rows: _} = data, _rect, local_y) do
+    case row_at(data, local_y - @header_rows) do
+      %{id: id} -> {:focus_thread, id}
       _ -> nil
     end
   end
 
   def pick(_data, _rect, _local_y), do: nil
+
+  @doc """
+  The rollup row under `index` in the ON-SCREEN order — the one `ordered/2` reorder render, pick,
+  yank, and the cockpit's attach/preview all index by, so a cursor can never land on a different
+  row than the paint highlighted. nil off the list, below the header, or on nil data.
+  """
+  def row_at(%{rows: rows} = data, index) when is_integer(index) and index >= 0,
+    do: Enum.at(ordered(rows, Map.get(data, :focused_lead)), index)
+
+  def row_at(_data, _index), do: nil
 
   # C3.2: float the focused leader's leaves to the top, stable within each group (split_with keeps
   # source order), so the active leader owns the top of the panel. `focused_lead` = the active
@@ -117,12 +127,10 @@ defmodule Aleph.Panel.Leaves do
   def hints(_data), do: [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}]
 
   @doc "The semantic yank for the cursor row: the leaf title, same float order as render/pick."
-  def yank(%{rows: rows} = data, cursor) do
-    case Enum.at(ordered(rows, Map.get(data, :focused_lead)), cursor) do
+  def yank(data, cursor) do
+    case row_at(data, cursor) do
       %{title: title} when is_binary(title) -> {"title", title}
       _ -> nil
     end
   end
-
-  def yank(_data, _cursor), do: nil
 end

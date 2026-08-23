@@ -303,7 +303,10 @@ defmodule Aleph.View do
   def data_for(Panel.Health, r), do: r.health
   def data_for(Panel.Crew, r), do: r[:crew]
   def data_for(Panel.Logbook, r), do: r.logbook
-  def data_for(Panel.Leaves, r), do: with_focused_lead(r.orbis, r)
+  # `r.orbis` arrives ALREADY enriched with `:focused_lead`/`:attached` (the cockpit's
+  # `leaves_data/1`, the single enrichment its yank/attach/preview paths share), so the row order
+  # here can never disagree with what those paths index.
+  def data_for(Panel.Leaves, r), do: r.orbis
   def data_for(Panel.Activity, r), do: %{events: r[:activity] || []}
   def data_for(Panel.Pulse, r), do: %{events: r[:activity] || []}
   def data_for(Panel.WindowBar, r), do: %{tabs: window_tabs(r), engine: engine_state(), thread: r.focused_id}
@@ -488,19 +491,13 @@ defmodule Aleph.View do
   defp tabs_of(%{tabs: tabs}), do: tabs
   defp tabs_of(_render_state), do: []
 
-  # C3.2: tag the Leaves data with the active leader (the focused WindowBar tab's agent handle) so
-  # the panel floats that leader's leaves to the top. C3.3: also tag the attached leaf's id (nil
-  # unless focused_session is {:leaf, id}) so the panel washes that row :selected. nil orbis (funes
-  # down) stays nil.
-  defp with_focused_lead(nil, _r), do: nil
-
-  defp with_focused_lead(orbis, r),
-    do: orbis |> Map.put(:focused_lead, focused_lead(r)) |> Map.put(:attached, attached_leaf(r))
-
-  defp focused_lead(r), do: r |> window_tabs() |> Enum.find_value(fn t -> if t.active?, do: t.agent end)
-
-  defp attached_leaf(%{focused_session: {:leaf, id}}), do: id
-  defp attached_leaf(_r), do: nil
+  @doc """
+  The active leader — the focused WindowBar tab's agent handle, off `window_tabs/1` (C3.2). The
+  ONE derivation of the Leaves reorder context: the cockpit calls it per render (over the same
+  `machine`/`roster` reads compose sees) and caches it, so render, yank, attach, and preview all
+  float rows by the identical lead. `reads` needs `:machine`, `:active_key`, `:roster`.
+  """
+  def focused_lead(r), do: r |> window_tabs() |> Enum.find_value(fn t -> if t.active?, do: t.agent end)
 
   # The Claude-engine clock readout: `:off` only once the operator has manually clocked "claude"
   # out (`Funes.Presence.clock_out/1`, e.g. from `funes:console`) — nothing calls that today, so
