@@ -133,13 +133,16 @@ defmodule Aleph.MachineChat.Loop do
 
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
-  # COMPOSE: printable keys build the task text; Enter kicks it off; Esc clears or drops to browse.
+  # COMPOSE: printable keys build the task text; Enter kicks it off; Esc drops to browse KEEPING
+  # the draft (a reflex Esc must never eat typed text — Ctrl+U is the deliberate clear); other
+  # ctrl chords are swallowed rather than typed as their bare letters.
+  defp compose_key(%{key: :char, char: "u", ctrl: true}, state), do: {:noreply, schedule_render(%{state | input: ""})}
+  defp compose_key(%{key: :char, ctrl: true}, state), do: {:noreply, state}
   defp compose_key(%{key: :char, char: c}, state), do: {:noreply, schedule_render(%{state | input: state.input <> c})}
   defp compose_key(%{key: :space}, state), do: {:noreply, schedule_render(%{state | input: state.input <> " "})}
   defp compose_key(%{key: :backspace}, state), do: {:noreply, schedule_render(backspace(state))}
   defp compose_key(%{key: :enter}, state), do: {:noreply, schedule_render(submit(state))}
-  defp compose_key(%{key: :escape}, %{input: ""} = state), do: {:noreply, schedule_render(%{state | mode: :browse})}
-  defp compose_key(%{key: :escape}, state), do: {:noreply, schedule_render(%{state | input: ""})}
+  defp compose_key(%{key: :escape}, state), do: {:noreply, schedule_render(%{state | mode: :browse})}
 
   defp compose_key(%{key: k}, state) when k in [:up, :down, :page_up, :page_down, :home, :end],
     do: {:noreply, scroll_key(k, state)}
@@ -405,9 +408,20 @@ defmodule Aleph.MachineChat.Loop do
   defp scroll_key(:home, state), do: schedule_render(%{state | scroll: 0, follow?: false})
   defp scroll_key(:end, state), do: schedule_render(%{state | follow?: true})
 
+  # Follow is armed/disarmed ONLY by explicit user intent: scrolling up unpins; scrolling DOWN
+  # onto the bottom re-pins (plus G/End and a submit). paint/1 must never re-arm it from position
+  # alone — while browsing with the viewport still at the bottom, that re-arm let the next poll
+  # yank the selection back to the newest block (the Esc-then-scroll bug).
   defp scroll_by(state, delta) do
     scroll = (state.scroll + delta) |> min(state.max_scroll) |> max(0)
-    follow? = if delta < 0, do: false, else: state.follow?
+
+    follow? =
+      cond do
+        delta < 0 -> false
+        delta > 0 and scroll >= state.max_scroll -> true
+        true -> state.follow?
+      end
+
     schedule_render(%{state | scroll: scroll, follow?: follow?})
   end
 
@@ -451,6 +465,7 @@ defmodule Aleph.MachineChat.Loop do
     rows = Transcript.render(state.view, %{x: 0, y: 0, w: cw, h: @max_rows})
     max_scroll = max(length(rows) - feed_h, 0)
     scroll = if state.follow?, do: max_scroll, else: min(state.scroll, max_scroll)
+    scroll = reveal_selection(state, cw, scroll, feed_h, max_scroll)
     windowed = rows |> Enum.drop(scroll) |> Enum.take(feed_h)
     top_pad = List.duplicate([], max(feed_h - length(windowed), 0))
 
@@ -459,8 +474,29 @@ defmodule Aleph.MachineChat.Loop do
     box_cells = state |> composer_rows(cw) |> Board.rows_to_cells(%{x: @pad_x, y: sh + feed_h, w: cw, h: @box_rows})
 
     Board.paint(strip_cells ++ feed_cells ++ box_cells)
-    %{state | scroll: scroll, max_scroll: max_scroll, follow?: state.follow? or scroll >= max_scroll}
+    # follow? is NOT re-armed here (see scroll_by/2) — position alone is not intent.
+    %{state | scroll: scroll, max_scroll: max_scroll}
   end
+
+  # Keep the browse selection on screen: j/k move the SELECTION, not the scroll, so once the
+  # cursor walks past the viewport edge the viewport must follow it — otherwise browsing beyond
+  # one screenful highlights rows you can't see. List mode only (zoom scrolls text, compose
+  # scrolls the feed freely); a following viewport is already pinned to the newest = selected.
+  defp reveal_selection(%{mode: :browse, follow?: false, view: %{zoom: nil} = view}, cw, scroll, feed_h, max_scroll) do
+    case Transcript.selected_row(view, cw) do
+      nil ->
+        scroll
+
+      row ->
+        cond do
+          row < scroll -> row
+          row > scroll + feed_h - 1 -> min(row - feed_h + 1, max_scroll)
+          true -> scroll
+        end
+    end
+  end
+
+  defp reveal_selection(_state, _cw, scroll, _feed_h, _max_scroll), do: scroll
 
   # The feed/composer content width: the pane less a gutter on each side.
   defp content_w(state), do: max(state.w - 2 * @pad_x, 1)
@@ -476,8 +512,9 @@ defmodule Aleph.MachineChat.Loop do
 
   # The composer: a blank spacer, a rule, then the input line — the task/reply text with a cursor in
   # COMPOSE, a hint in BROWSE. A zoomed thread turns the prompt into a reply into that thread.
-  defp composer_rows(%{mode: :browse}, cw) do
-    [[], rule(cw), [{"── browse ──  j/k select · z read · Esc/i compose", :dim}]]
+  defp composer_rows(%{mode: :browse, input: input}, cw) do
+    draft = if input == "", do: "", else: "draft kept · "
+    [[], rule(cw), [{"── browse ──  #{draft}j/k select · z read · Esc/i compose", :dim}]]
   end
 
   defp composer_rows(%{mode: :compose, input: ""} = state, cw) do

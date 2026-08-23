@@ -71,6 +71,23 @@ defmodule Aleph.Transcript do
     Panel.clip(body, rect)
   end
 
+  @doc """
+  The row index of the selected block's HEADER within `render/2`'s list output — what a viewport
+  scrolls to so browsing keeps the selection on screen (the loop's reveal). Row counts only (the
+  selected-style difference never changes a block's height), so it stays in lockstep with
+  `render/2` by construction. nil when zoomed (single thread, no list) or empty.
+  """
+  @spec selected_row(map(), pos_integer()) :: non_neg_integer() | nil
+  def selected_row(%{zoom: id}, _w) when not is_nil(id), do: nil
+  def selected_row(%{blocks: []}, _w), do: nil
+
+  def selected_row(%{blocks: blocks} = data, w) do
+    blocks
+    |> Enum.take(data.selected)
+    |> Enum.with_index()
+    |> Enum.reduce(0, fn {block, i}, acc -> acc + length(block_rows(block, i, data, w)) end)
+  end
+
   # A thread block reads as one EPISODE: the `▸/▾ title` header carries its participants, message
   # count, and open/closed state (selected → highlighted, closed → dimmed), then its messages unless
   # folded, then a trailing blank so episodes read apart.

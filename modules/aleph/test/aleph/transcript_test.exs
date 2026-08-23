@@ -110,4 +110,32 @@ defmodule Aleph.TranscriptTest do
     assert Enum.all?(texts(rows), &(String.length(&1) <= 20))
     assert Enum.count(texts(rows), &(&1 =~ "word")) > 1
   end
+
+  # selected_row/2 — the viewport-reveal anchor (the browse j/k fix): the row index of the
+  # selected block's header must equal that block's first row in render/2's output.
+  describe "selected_row/2" do
+    test "the first block's header is row 0; a later block's header lands where render puts it" do
+      blocks = [block("one", 1, [m("pi", "a"), m("pi", "b")]), block("two", 2, [m("pi", "c")])]
+      v = view(blocks, selected: 1)
+
+      row = Transcript.selected_row(v, 80)
+      rendered = texts(Transcript.render(v, rect()))
+
+      assert Transcript.selected_row(view(blocks, selected: 0), 80) == 0
+      assert Enum.at(rendered, row) =~ "two"
+    end
+
+    test "folded blocks above the selection shrink the offset in lockstep with render" do
+      blocks = [block("one", 1, [m("pi", "a"), m("pi", "b")]), block("two", 2, [m("pi", "c")])]
+      v = view(blocks, selected: 1, folded: MapSet.new([1]))
+
+      row = Transcript.selected_row(v, 80)
+      assert Enum.at(texts(Transcript.render(v, rect())), row) =~ "two"
+    end
+
+    test "zoomed or empty views have no list selection to reveal" do
+      assert Transcript.selected_row(view([block("one", 1, [])], zoom: 1), 80) == nil
+      assert Transcript.selected_row(view([]), 80) == nil
+    end
+  end
 end
