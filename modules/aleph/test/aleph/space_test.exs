@@ -127,4 +127,20 @@ defmodule Aleph.SpaceTest do
       assert Space.world?(0)
     end
   end
+
+  describe "visible_right/2 (clarity slice 2)" do
+    test "world right column = pinned Health + the view-indexed carousel panel, CREW at 0" do
+      space = Space.first_world()
+      assert Space.carousel(space) == [Crew, Activity, Leaves]
+      assert Space.visible_right(space, 0) == [Health, Crew]
+      assert Space.visible_right(space, 2) == [Health, Leaves]
+      assert Space.visible_right(space, 3) == [Health, Crew]
+    end
+
+    test "a single-panel right column (Orbis) is just the pinned panel" do
+      [orbis | _] = Space.all([])
+      assert Space.visible_right(orbis, 5) == [Aleph.Panel.Dossier]
+      assert Space.carousel(orbis) == []
+    end
+  end
 end
