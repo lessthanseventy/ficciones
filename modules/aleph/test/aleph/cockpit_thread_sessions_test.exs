@@ -88,7 +88,14 @@ defmodule Aleph.CockpitThreadSessionsTest do
     thread
   end
 
-  defp state, do: %{active_key: 99, standing_thread_id: nil, thread_spawn_retry: %{}, opening_injected: MapSet.new(), opening_text_at: %{}}
+  defp state,
+    do: %{
+      active_key: 99,
+      standing_thread_id: nil,
+      thread_spawn_retry: %{},
+      opening_injected: MapSet.new(),
+      opening_text_at: %{}
+    }
 
   test "a pi-harness worker lead gets its own leaf window (the Slice A isolation fix)" do
     # Slice D: the WORK environment binds the (anthropic-model) planner to pi; at home it would

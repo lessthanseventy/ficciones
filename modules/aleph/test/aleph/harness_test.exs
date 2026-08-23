@@ -130,7 +130,7 @@ defmodule Aleph.HarnessTest do
 
       assert ["/clear", catchup] = Harness.rebind_turns(p, 7, nil)
       assert catchup =~ "thread #7."
-      refute Harness.rebind_turns(p, 7, "") |> Enum.at(1) |> String.contains?("()")
+      refute p |> Harness.rebind_turns(7, "") |> Enum.at(1) |> String.contains?("()")
     end
   end
 end

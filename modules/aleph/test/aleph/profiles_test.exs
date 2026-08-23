@@ -461,7 +461,7 @@ defmodule Aleph.ProfilesTest do
     test "leaf_profile resolves a worker lead handle to its instantiated profile; meta/unknown → nil" do
       roster = [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "planner", "name" => "borges"}]
 
-      assert %Aleph.Profile{archetype: :planner} = Profiles.leaf_profile("borges-machine", roster)
+      assert %Profile{archetype: :planner} = Profiles.leaf_profile("borges-machine", roster)
       assert Profiles.leaf_profile("tertius-machine", roster) == nil
       assert Profiles.leaf_profile("stranger-machine", roster) == nil
     end
