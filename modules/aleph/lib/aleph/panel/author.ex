@@ -12,8 +12,8 @@ defmodule Aleph.Panel.Author do
   cursor washed `:selected`; fields 0/1 show the ring value inline (h/l cycles it, applied
   immediately — no draft/commit). `name` has no field — it's immutable
   (`Funes.World.edit_changeset` drops it), called out in the header instead. `Enter` on field 2/3
-  (`edit.mode == :sub`) swaps in that field's sub-list — one row per path/roster entry, the `sub`
-  cursor washed `:selected` — instead of the field list. Roster's sub-list is Chunk 2c.
+  (`edit.mode == :sub`) swaps in that field's sub-list — one row per path/roster entry (roster:
+  `archetype · name`), the `sub` cursor washed `:selected` — instead of the field list.
   """
   @behaviour Aleph.Panel
 
@@ -32,6 +32,7 @@ defmodule Aleph.Panel.Author do
   def render(%{worlds: worlds} = data, rect) do
     case {Map.get(data, :edit), Enum.find(worlds, &(&1.id == data[:edit][:id]))} do
       {%{mode: :sub, field: 2} = edit, %{} = world} -> render_paths_sub(world, edit, rect)
+      {%{mode: :sub, field: 3} = edit, %{} = world} -> render_roster_sub(world, edit, rect)
       {%{} = edit, %{} = world} -> render_editor(world, edit, rect)
       _ -> render_list(worlds, Map.get(data, :cursor, 0), rect)
     end
@@ -51,8 +52,8 @@ defmodule Aleph.Panel.Author do
     Aleph.Panel.clip(header ++ body ++ footer, rect)
   end
 
-  # Chunk 2a: the field list only (fields 0/1's rings). Chunk 2b/2c extend field 2/3's row with a
-  # sub-list render when `edit.mode == :sub`.
+  # The field list (fields 0/1's rings inline; 2/3 show counts — their own row swaps in a
+  # sub-list, `render_paths_sub`/`render_roster_sub`, when `edit.mode == :sub`).
   defp render_editor(world, edit, rect) do
     header = [
       line("ORBIS · author · edit", :header),
@@ -99,6 +100,25 @@ defmodule Aleph.Panel.Author do
     gutter = if selected?, do: {"▸ ", :accent}, else: {"  ", :normal}
     [gutter, {text, style}]
   end
+
+  # Field 3's sub-list (D2.4 Chunk 2c): one row per roster entry (`archetype · name`, the funes
+  # WIRE shape — string-keyed), the `sub` cursor washed :selected.
+  defp render_roster_sub(world, edit, rect) do
+    header = [line("ORBIS · author · edit · roster", :header), blank()]
+    roster = Map.get(world, :roster) || []
+
+    body =
+      case roster do
+        [] -> [line("no roster yet — a to add one", :dim)]
+        rs -> rs |> Enum.with_index() |> Enum.map(fn {r, i} -> sub_row(roster_entry_text(r), i == edit.sub) end)
+      end
+
+    footer = [blank(), line(@sub_hints, :dim)]
+    Aleph.Panel.clip(header ++ body ++ footer, rect)
+  end
+
+  defp roster_entry_text(%{"archetype" => archetype, "name" => name}), do: "#{archetype} · #{name}"
+  defp roster_entry_text(entry), do: inspect(entry)
 
   # No click target yet — the editor is keyboard-only (Chunk 2a/b/c). Kept as an explicit no-op
   # (not left unimplemented), same idiom as the list's pre-Chunk-2 pick/3.

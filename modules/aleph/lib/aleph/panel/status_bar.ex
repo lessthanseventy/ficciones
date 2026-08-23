@@ -154,6 +154,38 @@ defmodule Aleph.Panel.StatusBar do
     Panel.clip([prompt, hints], rect)
   end
 
+  # The field editor's roster sub-list `a` add (D2.4 Chunk 2c): the info line becomes the prompt
+  # over the typed name, prefixed by the armed archetype — h/l cycles it, named in the hints.
+  @impl Panel
+  def render(%{input: %{kind: :new_roster, archetype: archetype} = input}, rect) do
+    {before, after_} = cursor_split(input)
+
+    prompt = [
+      {" NEW ROSTER ENTRY ", :tab},
+      {"  ", :normal},
+      {"◂ #{archetype} ▸ ", :accent},
+      {before, :normal},
+      {"▎", :accent},
+      {after_, :normal}
+    ]
+
+    hints = [
+      {"⏎", :header},
+      {" add", :dim},
+      {"   ", :dim},
+      {"←→", :header},
+      {" move", :dim},
+      {"  ", :dim},
+      {"h/l", :header},
+      {" archetype", :dim},
+      {"  ", :dim},
+      {"Esc", :header},
+      {" cancel", :dim}
+    ]
+
+    Panel.clip([prompt, hints], rect)
+  end
+
   # A transient result line (a spawn's pane id, or its failure reason) — the operator's feedback
   # that `n`/`s` did something. Shown until the next keypress clears it.
   @impl Panel

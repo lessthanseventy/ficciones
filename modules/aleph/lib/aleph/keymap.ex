@@ -156,6 +156,14 @@ defmodule Aleph.Keymap do
   def handle(%{key: :enter}, %{input: %{kind: :new_path, world_id: id, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:edit_world, id, %{paths: world_field(state, id, :paths) ++ [buffer]}}}
 
+  # A non-blank name appends a wire-shaped roster entry (`%{"archetype" => .., "name" => ..}`,
+  # matching `WorldTemplates.new_world_attrs/2`'s shape) to the edited world's LIVE roster and
+  # applies immediately. Blank already fell into the empty-buffer clause above.
+  def handle(%{key: :enter}, %{input: %{kind: :new_roster, world_id: id, archetype: arch, buffer: buffer}} = state) do
+    entry = %{"archetype" => Atom.to_string(arch), "name" => buffer}
+    {%{state | input: nil}, {:edit_world, id, %{roster: world_field(state, id, :roster) ++ [entry]}}}
+  end
+
   def handle(%{key: :enter}, %{input: %{kind: :compose, thread_id: id, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:post_message, id, buffer}}
 
@@ -215,6 +223,14 @@ defmodule Aleph.Keymap do
 
   def handle(%{key: :char, char: "l"}, %{input: %{kind: :new_world} = input} = state),
     do: {%{state | input: cycle_template(input, 1)}, :repaint}
+
+  # `:new_roster`'s h/l cycle the armed archetype (a ring, `Profiles.archetypes/0`'s keys) —
+  # same precedence reasoning as `:new_world`'s template ring above.
+  def handle(%{key: :char, char: "h"}, %{input: %{kind: :new_roster} = input} = state),
+    do: {%{state | input: cycle_archetype(input, -1)}, :repaint}
+
+  def handle(%{key: :char, char: "l"}, %{input: %{kind: :new_roster} = input} = state),
+    do: {%{state | input: cycle_archetype(input, 1)}, :repaint}
 
   # Printable keys insert AT the cursor, not append — so typing after moving the cursor lands
   # where you moved it, like a normal text box.
@@ -391,6 +407,30 @@ defmodule Aleph.Keymap do
          %{active_key: :orbis, author_edit: %{mode: :sub, field: 2, id: id, sub: sub}} = state
        )
        when c in ["x", "d"], do: {state, {:edit_world, id, %{paths: List.delete_at(world_field(state, id, :paths), sub)}}}
+
+  # Sub-list mode, field 3 (roster): `a` opens a `:new_roster` add flow — the same `state.input`
+  # kit as `:new_path`, plus an `archetype` ring (Profiles.archetypes/0's keys, cycled by h/l
+  # below) armed at the FIRST archetype, mirroring `:new_world`'s `template`.
+  defp command(%{key: :char, char: "a"}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 3, id: id}} = state) do
+    input = %{
+      kind: :new_roster,
+      buffer: "",
+      cursor: 0,
+      world_id: id,
+      archetype: List.first(Map.keys(Profiles.archetypes()))
+    }
+
+    {%{state | input: input}, :repaint}
+  end
+
+  # Sub-list mode, field 3 (roster): x/d removes the sub-selected entry immediately — same no-confirm
+  # reasoning as field 2's paths removal.
+  defp command(
+         %{key: :char, char: c},
+         %{active_key: :orbis, author_edit: %{mode: :sub, field: 3, id: id, sub: sub}} = state
+       )
+       when c in ["x", "d"],
+       do: {state, {:edit_world, id, %{roster: List.delete_at(world_field(state, id, :roster), sub)}}}
 
   # Sub-list mode: Esc steps back to the field list (mode: :field), field unchanged.
   defp command(%{key: :escape}, %{active_key: :orbis, author_edit: %{mode: :sub} = edit} = state),
@@ -656,6 +696,14 @@ defmodule Aleph.Keymap do
     names = WorldTemplates.names()
     i = Enum.find_index(names, &(&1 == template)) || 0
     Map.put(input, :template, Enum.at(names, rem(i + dir + length(names), length(names))))
+  end
+
+  # h/l cycle `input.archetype` through `Profiles.archetypes/0`'s keys, wrapping — same ring
+  # idiom as `cycle_template/2`, for the roster add flow's archetype picker.
+  defp cycle_archetype(%{archetype: archetype} = input, dir) do
+    keys = Map.keys(Profiles.archetypes())
+    i = Enum.find_index(keys, &(&1 == archetype)) || 0
+    Map.put(input, :archetype, Enum.at(keys, rem(i + dir + length(keys), length(keys))))
   end
 
   # Defaults tolerate a state map built before these fields existed (an older test's literal

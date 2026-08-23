@@ -173,4 +173,48 @@ defmodule Aleph.Panel.AuthorTest do
       assert text =~ "Esc back"
     end
   end
+
+  describe "the roster sub-list (D2.4 Chunk 2c: mode: :sub, field: 3)" do
+    @world_with_roster %{
+      id: 22,
+      name: "Freedonia",
+      type: "code",
+      scope: "machine",
+      paths: [],
+      roster: [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
+    }
+
+    defp roster_sub_data(edit, overrides \\ %{}) do
+      Map.merge(%{worlds: [@world_with_roster], cursor: 0, edit: edit}, overrides)
+    end
+
+    test "renders one row per roster entry (archetype · name), the sub cursor washed :selected" do
+      data = roster_sub_data(%{id: 22, field: 3, sub: 1, mode: :sub})
+      rows = Author.render(data, @rect)
+
+      hronir_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t =~ "hronir" end))
+      assert Enum.any?(hronir_row, fn {_t, s} -> s == :selected end)
+      assert Enum.any?(hronir_row, fn {t, _} -> t =~ "builder" end)
+
+      tertius_row = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t =~ "tertius" end))
+      refute Enum.any?(tertius_row, fn {_t, s} -> s == :selected end)
+    end
+
+    test "an empty roster renders a placeholder, no crash" do
+      data = roster_sub_data(%{id: 22, field: 3, sub: 0, mode: :sub})
+      data = put_in(data.worlds, [%{@world_with_roster | roster: []}])
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+      assert text =~ "no roster yet"
+    end
+
+    test "sub-list hints name j/k, a add, x/d remove, Esc back" do
+      data = roster_sub_data(%{id: 22, field: 3, sub: 0, mode: :sub})
+      text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
+
+      assert text =~ "j/k row"
+      assert text =~ "a add"
+      assert text =~ "x/d remove"
+      assert text =~ "Esc back"
+    end
+  end
 end

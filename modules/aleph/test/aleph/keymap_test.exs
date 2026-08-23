@@ -507,6 +507,106 @@ defmodule Aleph.KeymapTest do
     end
   end
 
+  describe "editing a world's roster — the field 3 sub-list, add/remove (D2.4 Chunk 2c)" do
+    @archetypes Map.keys(Aleph.Profiles.archetypes())
+    @world_with_roster %{
+      id: 22,
+      name: "Freedonia",
+      type: "code",
+      scope: "machine",
+      paths: [],
+      roster: [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
+    }
+
+    defp roster_state(overrides),
+      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: [@world_with_roster]}, overrides))
+
+    test "Enter on field 3 drops into the sub-list: mode: :sub, sub: 0" do
+      s = roster_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :field}})
+      assert {%{author_edit: %{mode: :sub, sub: 0, field: 3}}, :repaint} = Keymap.handle(key(:enter), s)
+    end
+
+    test "j/k move sub, clamped to the roster length — no wrap" do
+      s = roster_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :sub}})
+      assert {%{author_edit: %{sub: 1}}, :repaint} = Keymap.handle(char("j"), s)
+
+      bottom = roster_state(%{author_edit: %{id: 22, field: 3, sub: 1, mode: :sub}})
+      assert {%{author_edit: %{sub: 1}}, :repaint} = Keymap.handle(char("j"), bottom)
+    end
+
+    test "a opens a :new_roster input armed with the FIRST archetype" do
+      s = roster_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :sub}})
+
+      assert {%{input: %{kind: :new_roster, buffer: "", cursor: 0, world_id: 22, archetype: arch}}, :repaint} =
+               Keymap.handle(char("a"), s)
+
+      assert arch == List.first(@archetypes)
+    end
+
+    test "h/l cycle input.archetype through Profiles.archetypes/0's keys, wrapping both ways" do
+      first = List.first(@archetypes)
+      last = List.last(@archetypes)
+      s = state(%{input: %{kind: :new_roster, buffer: "", cursor: 0, world_id: 22, archetype: first}})
+
+      {s1, :repaint} = Keymap.handle(char("l"), s)
+      assert s1.input.archetype != first
+
+      wrapped =
+        Enum.reduce(1..length(@archetypes), s, fn _, acc ->
+          {next, :repaint} = Keymap.handle(char("l"), acc)
+          next
+        end)
+
+      assert wrapped.input.archetype == first
+      assert {%{input: %{archetype: ^last}}, :repaint} = Keymap.handle(char("h"), s)
+    end
+
+    test "printable keys accumulate into the :new_roster buffer (kind-agnostic reuse)" do
+      s = state(%{input: %{kind: :new_roster, buffer: "am", cursor: 2, world_id: 22, archetype: :assistant}})
+      assert {%{input: %{buffer: "amy"}}, :repaint} = Keymap.handle(char("y"), s)
+    end
+
+    test "Enter on a non-empty :new_roster buffer emits {:edit_world, id, %{roster: existing ++ [entry]}}" do
+      s =
+        state(%{
+          active_key: :orbis,
+          author_worlds: [@world_with_roster],
+          input: %{kind: :new_roster, buffer: "amy", cursor: 3, world_id: 22, archetype: :assistant}
+        })
+
+      assert {%{input: nil}, {:edit_world, 22, %{roster: roster}}} = Keymap.handle(key(:enter), s)
+
+      assert roster == [
+               %{"archetype" => "surveyor", "name" => "tertius"},
+               %{"archetype" => "builder", "name" => "hronir"},
+               %{"archetype" => "assistant", "name" => "amy"}
+             ]
+    end
+
+    test "Enter on a blank :new_roster buffer no-ops — same cancel-not-create precedent" do
+      s = state(%{input: %{kind: :new_roster, buffer: "", cursor: 0, world_id: 22, archetype: :assistant}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
+    end
+
+    test "Esc cancels the :new_roster buffer" do
+      s = state(%{input: %{kind: :new_roster, buffer: "half", cursor: 4, world_id: 22, archetype: :assistant}})
+      assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+
+    test "x or d removes the sub-selected roster entry: {:edit_world, id, %{roster: List.delete_at(...)}}" do
+      s = roster_state(%{author_edit: %{id: 22, field: 3, sub: 1, mode: :sub}})
+      expected = [%{"archetype" => "surveyor", "name" => "tertius"}]
+
+      assert {^s, {:edit_world, 22, %{roster: ^expected}}} = Keymap.handle(char("x"), s)
+      assert {^s, {:edit_world, 22, %{roster: ^expected}}} = Keymap.handle(char("d"), s)
+    end
+
+    test "Esc in sub-list mode steps back to field-list mode, field unchanged" do
+      s = roster_state(%{author_edit: %{id: 22, field: 3, sub: 1, mode: :sub}})
+      assert {%{author_edit: %{mode: :field, field: 3}}, :repaint} = Keymap.handle(key(:escape), s)
+    end
+  end
+
   describe "the live terminal owns the keys by default" do
     test "a printable key forwards, not acted on locally" do
       s = state(%{center_live?: true})
