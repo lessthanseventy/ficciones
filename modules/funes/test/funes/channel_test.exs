@@ -373,13 +373,13 @@ defmodule Funes.ChannelTest do
       assert Channel.staffed_machine_threads() == []
     end
 
-    test "includes a CLOSED machine thread, still staffed" do
+    test "omits a CLOSED machine thread — the cockpit tears its leaf down on close (Slice F)" do
       {:ok, thread} = Channel.open_thread(%{title: "Tlön · rotated", scope: "machine"})
       {:ok, agent} = Staff.register_agent(%{name: "pi-machine", mandate: "m", engine: "e"})
       {:ok, _} = Staff.assign(thread, agent)
       {:ok, _} = Channel.close_thread(thread)
 
-      assert [%{lead: "pi-machine"}] = Channel.staffed_machine_threads()
+      assert Channel.staffed_machine_threads() == []
     end
   end
 

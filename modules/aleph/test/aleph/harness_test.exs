@@ -114,4 +114,23 @@ defmodule Aleph.HarnessTest do
       assert Harness.driver(:pi).resume_command(%Profile{name: "x"}) =~ "--continue"
     end
   end
+
+  describe "rebind_turns/3 — clear-not-resume (Slice F)" do
+    test "reset first, then the dossier catch-up naming the new leaf" do
+      p = %Profile{name: "borges", harness: :pi}
+
+      assert ["/new", catchup] = Harness.rebind_turns(p, 42, "fix the window naming")
+      assert catchup =~ "thread #42"
+      assert catchup =~ "fix the window naming"
+      assert catchup =~ "get_dossier"
+    end
+
+    test "a claude-bound worker resets via /clear; a blank title is omitted" do
+      p = %Profile{name: "hronir", harness: :claude_code}
+
+      assert ["/clear", catchup] = Harness.rebind_turns(p, 7, nil)
+      assert catchup =~ "thread #7."
+      refute Harness.rebind_turns(p, 7, "") |> Enum.at(1) |> String.contains?("()")
+    end
+  end
 end

@@ -44,6 +44,26 @@ defmodule Aleph.Harness do
   @doc "The driver module for a harness atom (raises on an unknown harness)."
   @spec driver(atom()) :: module()
   def driver(harness), do: Map.fetch!(@drivers, harness)
+
+  @doc """
+  The ordered turns that REBIND a warm worker onto a new leaf (Slice F): `reset_command` first —
+  clear the conversation, keep the process warm — then a catch-up turn pointing the agent at the
+  leaf's dossier (it re-hydrates itself via `get_dossier`; piping a rendered dossier through
+  send-keys is fragile and stale the moment it lands). Never `resume`: resuming a pooled worker
+  onto a DIFFERENT leaf re-imports exactly the context-bleed bug per-thread leads exist to kill —
+  `resume_command/1` is only the return-to-a-leaf's-OWN-agent escape hatch. Pool sizing/eviction
+  stays a later policy over this primitive (fresh-per-leaf is a pool of 1 that never rebinds).
+  """
+  @spec rebind_turns(Aleph.Profile.t(), integer(), String.t() | nil) :: [String.t()]
+  def rebind_turns(%Aleph.Profile{} = profile, thread_id, title) do
+    subject = if title in [nil, ""], do: "", else: " (#{title})"
+
+    [
+      driver(profile.harness).reset_command(),
+      "[funes] you are rebound to thread ##{thread_id}#{subject}. Fresh context, on purpose: " <>
+        "run get_dossier and continue from its FACTS/TODOS/NEXT — assume nothing from before."
+    ]
+  end
 end
 
 defmodule Aleph.Harness.ClaudeCode do

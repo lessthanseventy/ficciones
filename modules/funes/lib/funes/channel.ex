@@ -91,17 +91,19 @@ defmodule Funes.Channel do
   end
 
   @doc """
-  STAFFED machine-scope threads — the `ensure_thread_sessions` candidate list (aleph
-  cockpit.ex): every machine-scope thread with a lead, `%{id, lead, title}` per thread (`lead` is
-  the staffed agent's name; the join makes it never nil). No open/closed filter and no ordering
-  guarantee — the cockpit does its own dedup against live tmux windows and its own retry backoff.
+  STAFFED, OPEN machine-scope threads — the `ensure_thread_sessions` candidate list (aleph
+  cockpit.ex): every open machine-scope thread with a lead, `%{id, lead, title}` per thread
+  (`lead` is the staffed agent's name; the join makes it never nil). Open-only (Slice F): the
+  cockpit tears a leaf's window down when its thread closes, so a closed thread in this list
+  would be killed and respawned every render. No ordering guarantee — the cockpit does its own
+  dedup against live tmux windows and its own retry backoff.
   """
   def staffed_machine_threads do
     Repo.all(
       from t in Thread,
         join: a in Agent,
         on: a.id == t.agent_id,
-        where: t.scope == ^@machine_scope and not is_nil(t.agent_id),
+        where: t.scope == ^@machine_scope and t.state == "open" and not is_nil(t.agent_id),
         select: %{id: t.id, lead: a.name, title: t.title}
     )
   end

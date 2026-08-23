@@ -473,6 +473,7 @@ defmodule Aleph.Cockpit do
       state = %{state | seen_events: cap_seen([seen_key(tag, row) | state.seen_events])}
       desktop_notify(tag, row)
       nudge_tertius_on_finish(tag, row, state)
+      teardown_closed_leaf(tag, row, state)
       state = if tag in @activity_tags, do: push_activity(state, tag, row), else: state
       {:noreply, render(state)}
     else
@@ -576,6 +577,24 @@ defmodule Aleph.Cockpit do
   end
 
   defp nudge_tertius_on_finish(_tag, _row, _state), do: :ok
+
+  # A closed leaf's window is torn down (the driver contract's `teardown`, Slice F): the seat
+  # frees instead of idling forever — the warm-pool groundwork. Safe against the standing center:
+  # `leaf_tab` only matches `@funes_thread`-tagged / legacy `t<id>` windows, never the lead's own
+  # window. Can't respawn-loop: the spawn candidates (`Funes.staffed_machine_threads`) are OPEN
+  # threads only. Best-effort — a vanished window is already what we wanted.
+  defp teardown_closed_leaf(:thread_closed, %{scope: "machine", id: id}, state) when is_integer(id) do
+    world_id = active_world_id(state)
+
+    case leaf_tab(tlon_tabs(world_id), id) do
+      %{index: index} -> tlon_run(world_id, ["kill-window", "-t", "#{world_session(world_id)}:#{index}"])
+      _ -> :ok
+    end
+
+    :ok
+  end
+
+  defp teardown_closed_leaf(_tag, _row, _state), do: :ok
 
   # @-mention delivery: a posted message naming a coworker (`@tertius-machine` / `@claude-machine`) is
   # injected as a turn into that coworker's tmux window, so a cold pane gets woken instead of silently
