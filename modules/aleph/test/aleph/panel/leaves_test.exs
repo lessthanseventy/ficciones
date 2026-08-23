@@ -152,4 +152,8 @@ defmodule Aleph.Panel.LeavesTest do
       assert {:focus_thread, 2} = Leaves.pick(data, @rect, 2)
     end
   end
+
+  test "hints/1 declares the pane's footer verbs" do
+    assert Aleph.Panel.hints(Leaves, %{}) == [{"j/k", "leaves"}, {"⏎", "attach"}]
+  end
 end

@@ -43,4 +43,12 @@ defmodule Aleph.Panel.StackTest do
              _ -> false
            end)
   end
+
+  test "hints/1 declares the pane's footer verbs" do
+    assert Aleph.Panel.hints(Stack, %{}) == [{"j/k", "commits"}, {"⏎", "diff"}, {"y", "sha"}]
+  end
+
+  test "a panel without hints/1 declares nothing" do
+    assert Aleph.Panel.hints(Aleph.Panel.Health, %{}) == []
+  end
 end

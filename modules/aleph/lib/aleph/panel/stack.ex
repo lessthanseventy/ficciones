@@ -119,4 +119,7 @@ defmodule Aleph.Panel.Stack do
   end
 
   defp file_row(path), do: [{"  ", :dim}, {path, :normal}]
+
+  @impl Aleph.Panel
+  def hints(_data), do: [{"j/k", "commits"}, {"⏎", "diff"}, {"y", "sha"}]
 end

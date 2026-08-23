@@ -109,4 +109,8 @@ defmodule Aleph.Panel.Memory do
   end
 
   defp truncate(text, _max), do: text
+
+  # `s` cycles FLOOR/HABITS since the C3.4 reshuffle handed Tab to space-switching.
+  @impl Aleph.Panel
+  def hints(_data), do: [{"s", "section"}, {"j/k", "facts"}, {"⏎", "open"}]
 end

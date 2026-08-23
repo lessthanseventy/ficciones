@@ -66,4 +66,8 @@ defmodule Aleph.Panel.MemoryTest do
     # no trailing blank+placeholder either: the floor takes the space
     refute List.last(texts) == "  —"
   end
+
+  test "hints/1 names the s-keyed section cycle (Tab now switches spaces, not sections)" do
+    assert Aleph.Panel.hints(Memory, %{}) == [{"s", "section"}, {"j/k", "facts"}, {"⏎", "open"}]
+  end
 end

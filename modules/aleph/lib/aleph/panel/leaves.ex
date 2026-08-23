@@ -112,4 +112,7 @@ defmodule Aleph.Panel.Leaves do
   defp status_glyph(:stalled), do: {"▲ ", :label}
   defp status_glyph(:done), do: {"✓ ", :dim}
   defp status_glyph(_open), do: {"▸ ", :accent}
+
+  @impl Aleph.Panel
+  def hints(_data), do: [{"j/k", "leaves"}, {"⏎", "attach"}]
 end

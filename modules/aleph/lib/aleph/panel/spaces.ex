@@ -44,4 +44,7 @@ defmodule Aleph.Panel.Spaces do
   defp row(space, false, true, _w), do: [{"→ ", :accent}, {space.label, :accent}]
 
   defp row(space, false, false, _w), do: [{"  ", :dim}, {space.label, :normal}]
+
+  @impl Aleph.Panel
+  def hints(_data), do: [{"j/k", "spaces"}, {"⏎", "switch"}]
 end

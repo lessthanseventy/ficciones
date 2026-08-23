@@ -33,7 +33,10 @@ defmodule Aleph.Panel do
   """
   @callback pick(data :: term(), rect(), local_y :: non_neg_integer()) :: term() | nil
 
-  @optional_callbacks [pick: 3]
+  @doc "The pane's footer verbs as `{keycap, label}` pairs — the contextual footer's third segment."
+  @callback hints(data :: term()) :: [{String.t(), String.t()}]
+
+  @optional_callbacks [pick: 3, hints: 1]
 
   @doc "A one-run row in a given style — the common case."
   @spec line(String.t(), style()) :: row()
@@ -115,6 +118,15 @@ defmodule Aleph.Panel do
   @spec pick(module(), term(), rect(), non_neg_integer()) :: term() | nil
   def pick(panel, data, rect, local_y) do
     if function_exported?(panel, :pick, 3), do: panel.pick(data, rect, local_y)
+  end
+
+  @doc "A panel's declared footer verbs, or [] — `hints/1` is optional."
+  @spec hints(module(), term()) :: [{String.t(), String.t()}]
+  def hints(panel, data) do
+    # function_exported?/3 is false for an unloaded module (it does NOT load it) — a panel that
+    # hasn't rendered yet this VM would silently read as hint-less without this.
+    Code.ensure_loaded?(panel)
+    if function_exported?(panel, :hints, 1), do: panel.hints(data) || [], else: []
   end
 
   # Every list panel opens with the same chrome: a title row + a blank spacer above the rows.
