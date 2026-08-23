@@ -63,36 +63,36 @@ defmodule Aleph.View do
       end
 
     left_sections = [Panel.Spaces | space.left]
-    right_sections = right_panels(space, reads)
+    # Slice 2: HEALTH pinned + the view-indexed carousel panel (CREW default) — the single
+    # source (Space.visible_right/2) View/keymap/cockpit all read, so they can't disagree.
+    right_sections = Space.visible_right(space, reads[:right_pane_view] || 0)
 
-    columns =
+    boxes =
       case layout_for(w) do
         :wide ->
           %{left: left, center: center, right: right} = wide_columns(w, body_h)
 
-          [
-            {left, left_sections, 1},
-            {center, center_panels, :center},
-            {right, right_sections, 1 + length(left_sections)}
-          ]
+          assign_digits(boxed(left_sections, left), 1) ++
+            assign_digits(boxed(center_panels, center), :center) ++
+            assign_digits(pinned_boxes(right_sections, right, reads), 1 + length(left_sections))
 
         :narrow ->
           sections = left_sections ++ center_panels ++ right_sections
-          [{%{x: 0, y: 0, w: w, h: body_h}, sections, 1}]
+          assign_digits(boxed(sections, %{x: 0, y: 0, w: w, h: body_h}), 1)
       end
-
-    boxes =
-      Enum.flat_map(columns, fn {rect, panels, digits} ->
-        panels |> boxed(rect) |> assign_digits(digits)
-      end)
 
     # In Tlön nav mode one sidebar pane is focused — its border lights up (the lazygit "active
     # pane" cue). Every other box, and every other space, stays neutral.
-    focused = focused_section(reads[:focus], space)
+    focused = focused_section(reads[:focus], space, right_sections)
+
+    # The carousel box's own section (the one right_sections member that isn't the pinned head) —
+    # its border gets the tab strip instead of a plain title.
+    carousel_active = List.last(right_sections)
 
     borders =
       Enum.map(boxes, fn {section, rect, digit} ->
-        {Panel.Border, border_data(section, digit, focused), rect}
+        tabs = carousel_border(space, reads, section, carousel_active)
+        {Panel.Border, border_data(section, digit, focused, tabs), rect}
       end)
 
     # The focused pane alone is fed a slice of the focus — its item cursor (j/k) as `selected` and
@@ -137,10 +137,10 @@ defmodule Aleph.View do
   # terminal is the active pane then). Matches by section module — the panes are distinct, so module
   # identity is unambiguous. SPACES leads the left column here exactly as it does on screen, so its
   # frame lights when the focus navigates onto the space-switcher.
-  defp focused_section(%Focus{in_terminal?: false} = focus, space),
-    do: Focus.focused_pane(focus, %{left: [Panel.Spaces | space.left], right: space.right, sections: %{}})
+  defp focused_section(%Focus{in_terminal?: false} = focus, space, right_sections),
+    do: Focus.focused_pane(focus, %{left: [Panel.Spaces | space.left], right: right_sections, sections: %{}})
 
-  defp focused_section(_focus, _space), do: nil
+  defp focused_section(_focus, _space, _right_sections), do: nil
 
   # Sidebar boxes number top-down from `start` (left 1.., right continuing); the center's
   # terminal box alone is 0 — Alt+0/`0` mean "back to the terminal" (design 2026-08-23).
@@ -153,12 +153,24 @@ defmodule Aleph.View do
     |> Enum.map(fn {{section, rect}, d} -> {section, rect, d} end)
   end
 
-  defp border_data(section, digit, focused) do
+  defp border_data(section, digit, focused, tabs) do
     %{
       focused: not is_nil(focused) and section == focused,
       digit: digit,
-      title: section_title(section)
+      title: if(tabs, do: nil, else: section_title(section)),
+      tabs: tabs
     }
+  end
+
+  # The carousel box's tab strip: every carousel member's title, the visible one lit. nil for
+  # every other box (and when there's no carousel — Orbis).
+  defp carousel_border(space, reads, section, carousel_active) do
+    carousel = Space.carousel(space)
+
+    if carousel != [] and section == carousel_active and section in carousel do
+      active = Enum.at(carousel, rem(reads[:right_pane_view] || 0, length(carousel)))
+      Enum.map(carousel, fn p -> {section_title(p), p == active} end)
+    end
   end
 
   # The on-frame title per section. A section with no entry (Terminal, WindowBar, Pulse, the
@@ -227,15 +239,6 @@ defmodule Aleph.View do
       {_section, rect} -> inset(rect)
       nil -> inset(center_col)
     end
-  end
-
-  # C3.4: the right column shows ONE panel at a time (`[`/`]` cycles `reads.right_pane_view`),
-  # full-height, instead of stacking every `space.right` panel. `rem` clamps so a 1-panel column
-  # (Orbis' `[Dossier]`) degrades cleanly to index 0 regardless of the stored view index.
-  defp right_panels(%{right: []}, _reads), do: []
-
-  defp right_panels(%{right: right}, reads) do
-    [Enum.at(right, rem(reads[:right_pane_view] || 0, length(right)))]
   end
 
   # `Space.fetch/1` returns nil on a miss (Phase C1: no silent Orbis default at the Space layer) —
@@ -339,6 +342,31 @@ defmodule Aleph.View do
   end
 
   @gap 1
+
+  # The right column (design 2026-08-23): the pinned head at intrinsic height (content + 2
+  # frame rows, never flexed), the carousel below at full remaining height.
+  defp pinned_boxes([], _rect, _reads), do: []
+  defp pinned_boxes([only], rect, _reads), do: boxed([only], rect)
+
+  defp pinned_boxes([pinned, carousel_panel], %{x: x, y: y, w: w, h: h}, reads) do
+    # Reserve at least 1 row (+ gap) for the carousel even when the pinned box's intrinsic
+    # content would eat the whole column — a short frame degrades to a sliver, never overflow
+    # (a 0-height box's `inset/1` floors to h:1, which pokes a row past the frame).
+    pinned_h = min(intrinsic_height(pinned, reads, w) + 2, max(h - @gap - 1, 0))
+    rest_h = max(h - pinned_h - @gap, 0)
+
+    [
+      {pinned, %{x: x, y: y, w: w, h: pinned_h}},
+      {carousel_panel, %{x: x, y: y + pinned_h + @gap, w: w, h: rest_h}}
+    ]
+  end
+
+  # Content height at the box's inset width. nil data (probe not run yet — pure tests, boot
+  # frame) gets a stable nominal so the layout doesn't jump when the probe lands ≈ its size.
+  defp intrinsic_height(section, reads, box_w) do
+    {panel, data, _rect} = content_for(section, reads, %{x: 0, y: 0, w: max(box_w - 4, 1), h: 1})
+    if data == nil, do: 10, else: Panel.content_height(panel, data, max(box_w - 4, 1))
+  end
 
   # Stack sections vertically down a column as box rects, a 1-row gap between them. The picker
   # takes a fixed height, the rest split the remainder (the last absorbs the rounding remainder).

@@ -190,34 +190,37 @@ defmodule Aleph.ViewTest do
     end
   end
 
-  # C3.4: the right column shows ONE panel at a time — `[`/`]` cycle it (right_pane_view) instead
-  # of stacking the whole `space.right` list, so the shown panel renders full-height.
-  describe "right-pane view (C3.4)" do
+  # Clarity slice 2: the right column is HEALTH pinned + ONE carousel panel (`[`/`]` cycle
+  # right_pane_view among Crew/Activity/Leaves) — Health always shows, never cycled away.
+  describe "right-pane view (clarity slice 2)" do
     defp right_placed?(placements, mod), do: Enum.any?(placements, &match?({^mod, _, _}, &1))
 
-    test "right_pane_view: 0 (default) shows only the first right panel (Health)" do
+    test "right_pane_view: 0 (default) shows Health pinned + Crew (the carousel default)" do
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 0})
       placements = View.compose(r, 120, 40)
 
       assert right_placed?(placements, Panel.Health)
+      assert right_placed?(placements, Panel.Crew)
       refute right_placed?(placements, Panel.Leaves)
     end
 
-    test "right_pane_view: 1 shows only the second right panel (Crew), not Health or Leaves" do
+    test "right_pane_view: 1 shows Health pinned + Activity (Health never cycles away)" do
       # The World space's right column is [Health, Crew, Activity, Leaves] (Aleph.Space).
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 120, 40)
 
-      assert right_placed?(placements, Panel.Crew)
-      refute right_placed?(placements, Panel.Health)
+      assert right_placed?(placements, Panel.Health)
+      assert right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Crew)
       refute right_placed?(placements, Panel.Leaves)
     end
 
-    test "a missing right_pane_view (key absent from reads) defaults to 0 (the first panel)" do
+    test "a missing right_pane_view (key absent from reads) defaults to 0 (Health + Crew)" do
       r = Map.delete(reads(%{active_key: 0, tlon_layout: layout()}), :right_pane_view)
       placements = View.compose(r, 120, 40)
 
       assert right_placed?(placements, Panel.Health)
+      assert right_placed?(placements, Panel.Crew)
       refute right_placed?(placements, Panel.Leaves)
     end
 
@@ -227,13 +230,58 @@ defmodule Aleph.ViewTest do
       assert right_placed?(placements, Panel.Dossier)
     end
 
-    test "narrow layout applies the same single-pane selection to the right portion" do
+    test "narrow layout applies the same pinned + carousel selection to the right portion" do
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 60, 40)
 
-      assert right_placed?(placements, Panel.Crew)
-      refute right_placed?(placements, Panel.Health)
+      assert right_placed?(placements, Panel.Health)
+      assert right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Crew)
       refute right_placed?(placements, Panel.Leaves)
+    end
+  end
+
+  describe "right column: pinned Health + carousel (clarity slice 2)" do
+    defp health_data,
+      do: %{
+        version: nil,
+        funes_up: true,
+        tlon_up: true,
+        nix_gen: 1,
+        nix_behind: 0,
+        disk_pct: 10,
+        mem_pct: 10,
+        load_avg: 0.1,
+        tools: []
+      }
+
+    test "CREW is the default carousel view, below a pinned HEALTH" do
+      placements = View.compose(reads(%{health: health_data()}), 120, 40)
+
+      assert {_p, _d, health_rect} = Enum.find(placements, &match?({Panel.Health, _, _}, &1))
+      assert {_p, _d, crew_rect} = Enum.find(placements, &match?({Panel.Crew, _, _}, &1))
+      refute Enum.any?(placements, &match?({Panel.Activity, _, _}, &1))
+      assert crew_rect.y > health_rect.y
+      # pinned: Health's box hugs its content instead of splitting the column evenly
+      assert health_rect.h < crew_rect.h
+    end
+
+    test "right_pane_view picks the carousel panel" do
+      placements = View.compose(reads(%{health: health_data(), right_pane_view: 1}), 120, 40)
+      assert Enum.any?(placements, &match?({Panel.Activity, _, _}, &1))
+      refute Enum.any?(placements, &match?({Panel.Crew, _, _}, &1))
+    end
+
+    test "the carousel border is a tab strip with the active tab, digit 5" do
+      placements = View.compose(reads(%{health: health_data()}), 120, 40)
+
+      assert Enum.any?(placements, fn
+               {Panel.Border, %{digit: 5, tabs: [{"CREW", true}, {"ACTIVITY", false}, {"LEAVES", false}]}, _r} ->
+                 true
+
+               _ ->
+                 false
+             end)
     end
   end
 
