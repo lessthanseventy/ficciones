@@ -43,26 +43,28 @@ defmodule Aleph.ConfigTest do
     assert Config.coworker_model("tlon", path).thinking == "medium"
   end
 
-  test "default_coworker/1 reads the configured default, else the roster-derived builder", %{path: path} do
+  test "default_coworker_override reads the persisted override", %{path: path} do
     :ok = Config.put_default_coworker("pi-machine", path)
-    assert Config.default_coworker(path) == "pi-machine"
+    assert Config.default_coworker_override(path) == "pi-machine"
   end
 
-  test "default_coworker/1 falls back to the World's builder handle when unset", %{path: path} do
-    assert Config.default_coworker(path) == "hronir-machine"
+  # Unset / corrupt is nil, not a guessed handle: the roster-derived default now lives with the
+  # staffing decision (`Staffing.default_coworker/1`), fed the LIVE world roster.
+  test "default_coworker_override is nil when unset", %{path: path} do
+    assert Config.default_coworker_override(path) == nil
   end
 
-  test "default_coworker/1 falls back to the World's builder handle on a corrupt file", %{path: path} do
+  test "default_coworker_override is nil on a corrupt file", %{path: path} do
     File.mkdir_p!(Path.dirname(path))
     File.write!(path, "{not json")
-    assert Config.default_coworker(path) == "hronir-machine"
+    assert Config.default_coworker_override(path) == nil
   end
 
   test "put_default_coworker persists without disturbing coworker model overrides", %{path: path} do
     :ok = Config.put_coworker_model("tlon", %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"}, path)
     :ok = Config.put_default_coworker("pi-machine", path)
 
-    assert Config.default_coworker(path) == "pi-machine"
+    assert Config.default_coworker_override(path) == "pi-machine"
     assert Config.coworker_model("tlon", path).model == "claude-sonnet-5"
   end
 

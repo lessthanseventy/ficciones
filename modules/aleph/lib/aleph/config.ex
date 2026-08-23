@@ -75,42 +75,19 @@ defmodule Aleph.Config do
     merge_coworker(profile, %{"yolo" => yolo}, path)
   end
 
-  # The seed-world fallback handle, for the funes-down/no-world case where there's no live roster
-  # to derive from — mirrors the seed roster's builder (post-C2.3 rename from "claude-machine").
-  @fallback_coworker "hronir-machine"
-
   @doc """
-  The configured default coworker handle for new chat threads: the persisted override, else the
-  active World's builder (roster-derived — `Aleph.Space.first_world/0`), falling back to its lead
-  when the roster has no builder, then `@fallback_coworker` when funes is down / no World exists.
+  The operator's persisted default-coworker override for new chat threads, or `nil` when unset.
+  Just the override — the roster-derived default lives with the staffing decision
+  (`Aleph.MachineChat.Staffing.default_coworker/1`), fed the LIVE world roster by the caller, so no
+  stale hardcoded stand-in handle can leak in as a thread lead.
   """
-  @spec default_coworker(String.t()) :: String.t()
-  def default_coworker(path \\ path()) do
+  @spec default_coworker_override(String.t()) :: String.t() | nil
+  def default_coworker_override(path \\ path()) do
     case read(path) do
       %{"default_coworker" => h} when is_binary(h) and h != "" -> h
-      _ -> roster_default_coworker()
+      _ -> nil
     end
   end
-
-  defp roster_default_coworker do
-    case Aleph.Space.first_world() do
-      %{roster: [_ | _] = roster} -> builder_handle(roster) || lead_handle(roster)
-      _ -> @fallback_coworker
-    end
-  end
-
-  # The roster's builder-archetype handle, or nil (no builder in the roster — a pi-only cast).
-  defp builder_handle(roster) do
-    case Enum.find(roster, &(archetype_of(&1) in ["builder", :builder])) do
-      nil -> nil
-      entry -> "#{name_of(entry)}-machine"
-    end
-  end
-
-  defp lead_handle([entry | _]), do: "#{name_of(entry)}-machine"
-
-  defp archetype_of(entry), do: entry["archetype"] || entry[:archetype]
-  defp name_of(entry), do: entry["name"] || entry[:name]
 
   @doc "Persist the default coworker handle."
   @spec put_default_coworker(String.t(), String.t()) :: :ok

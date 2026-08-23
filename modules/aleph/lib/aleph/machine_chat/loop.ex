@@ -31,7 +31,6 @@ defmodule Aleph.MachineChat.Loop do
   alias Aleph.MachineChat.Staffing
   alias Aleph.Mention
   alias Aleph.Profiles
-  alias Aleph.Space
   alias Aleph.Transcript
   alias Funes.Channel
   alias Raxol.Core.Events.Event
@@ -230,13 +229,15 @@ defmodule Aleph.MachineChat.Loop do
     case Channel.open_thread(%{title: text, scope: "machine"}) do
       {:ok, thread} ->
         Channel.post(%{thread_id: thread.id, author: author, body: text})
-        lead = stage_lead(thread.id, text)
 
-        # The cockpit (a SEPARATE beam) spawns a dedicated `t<id>` session for a claude-launched
-        # lead and injects the opening turn ITSELF (`ensure_thread_sessions`). Waking the
-        # standing coworker from here as well is the "both claudes answered" duplicate — so only
-        # wake from here for a lead the cockpit won't staff (a pi-led thread).
-        if !cockpit_staffs?(lead), do: wake_mentions(author, text, thread.id)
+        case stage_lead(thread.id, text) do
+          # The cockpit (a SEPARATE beam) spawns a dedicated `t<id>` session for a claude-launched
+          # lead and injects the opening turn ITSELF (`ensure_thread_sessions`). Waking the standing
+          # coworker from here too is the "both claudes answered" duplicate — so only wake from here
+          # for a lead the cockpit won't staff (a pi-led thread).
+          {:ok, lead} -> if !cockpit_staffs?(lead), do: wake_mentions(author, text, thread.id)
+          {:error, reason} -> note_no_lead(thread.id, reason)
+        end
 
         %{state | input: "", follow?: true}
 
@@ -247,31 +248,76 @@ defmodule Aleph.MachineChat.Loop do
 
   defp operator, do: Application.get_env(:funes, :operator, "andrew")
 
-  # Staff the picked coworker (the composer text's first @-mention, else the operator's
-  # configured default) as the new thread's lead, returning the staged handle. A staffing failure
-  # (an unregistered handle, a DB hiccup) raises up to `submit/1`'s rescue/catch, which just clears
-  # the box — the thread and its opening message are already durable either way.
+  # Staff the picked coworker as the new thread's lead: the composer text's first @-mention, else
+  # the operator's persisted override, else the LIVE world roster's builder/lead. Returns
+  # `{:ok, handle}` on a real staffing, `{:error, reason}` when nobody resolves or `assign_lead`
+  # can't bind the handle (an unregistered coworker) — the caller surfaces it instead of opening a
+  # leaderless, silent thread. The thread + opening message are already durable regardless.
   defp stage_lead(thread_id, text) do
-    handle = Staffing.pick_coworker(text, Config.default_coworker(), active_roster())
-    Funes.assign_lead(thread_id, handle)
-    handle
+    roster = active_roster()
+    default = Config.default_coworker_override() || Staffing.default_coworker(roster)
+
+    case Staffing.pick_coworker(text, default, roster) do
+      nil -> {:error, :no_coworker}
+      handle -> stage(thread_id, handle)
+    end
+  end
+
+  # `Funes.assign_lead/2` returns `{:error, :no_agent}` for a handle that was never registered — a
+  # no-op, not a raise — so we check it rather than assume success.
+  defp stage(thread_id, handle) do
+    case Funes.assign_lead(thread_id, handle) do
+      {:error, reason} -> {:error, reason}
+      _ -> {:ok, handle}
+    end
+  end
+
+  # Surface a leaderless thread in the feed itself (the operator sees WHY it's quiet) rather than
+  # silently eating the message. Best-effort: a post failure just leaves the thread quiet.
+  defp note_no_lead(thread_id, reason) do
+    Channel.post(%{
+      thread_id: thread_id,
+      author: "aleph",
+      body: "⚠ no coworker staffed (#{inspect(reason)}) — nobody is listening on this thread yet."
+    })
+
+    :ok
+  rescue
+    _ -> :ok
+  catch
+    :exit, _ -> :ok
   end
 
   # Does the cockpit spawn a per-thread `t<id>` session for this lead (so it owns the opening turn
   # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.claude_launched?/2`: a roster
   # `:claude_code`-harness handle (e.g. the builder → `hronir-machine`) is claude-launched; a
   # pi-led thread is not.
-  # Against `active_roster/0` (`Space.first_world/0`, single World in Slice 1) — a later multi-world
-  # Loop would thread this from the thread's own world instead.
+  # Against `active_roster/0` (the single World in Slice 1) — a later multi-world Loop would thread
+  # this from the thread's own world instead.
   defp cockpit_staffs?(lead), do: lead in Profiles.claude_code_handles(active_roster())
 
-  # The active World's roster (single World, Slice 1) — the fixture `wake_mentions`/`stage_lead`
-  # resolve handles against. Funes-down / no world degrades to `[]` (nobody resolves, nobody wakes).
+  # The active World's roster, read STRAIGHT from funes (not via `Space`/`Aleph.Worlds`): this is
+  # the machine-chat reader beam — it never starts aleph's supervision tree, so the `Aleph.Worlds`
+  # cache GenServer isn't here and `Space.first_world/0` would degrade to a hardcoded stand-in whose
+  # builder handle was never registered as an agent. Funes-down / no world → `[]` (nobody wakes).
   defp active_roster do
-    case Space.first_world() do
-      %Space{roster: roster} -> roster
+    case live_world() do
+      %{roster: [_ | _] = roster} -> roster
       _ -> []
     end
+  end
+
+  # The first live funes world (Slice 1: the single machine World). A plain `Repo.all` under the
+  # hood — works in any beam funes booted in, unlike the cockpit-only `Aleph.Worlds` cache.
+  defp live_world do
+    case Funes.Worlds.all() do
+      [world | _] -> world
+      _ -> nil
+    end
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
   end
 
   # Which per-thread window a reply's wake must land on — mirrors `Aleph.Cockpit.delivery_target/3`.
