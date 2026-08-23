@@ -338,8 +338,14 @@ defmodule Aleph.Profiles do
 
   # tertius's surface: the base machine-citizen tools PLUS `machine_overview`
   # (`Funes.MCP.Tool.MachineOverview`) — the cross-leaf read that separates the synthesizer from a
-  # self-contained worker.
-  @tertius_funes_mcp update_in(@tlon_funes_mcp, ["funes", "directTools"], &(&1 ++ ["machine_overview"]))
+  # self-contained worker — and `staff_leaf`, the sanctioned kick-off verb (open+assign+brief; the
+  # cockpit's leaf sweep stands up the terminal). Workers don't get it direct: staffing new leaves
+  # is the vantage's move, same cut as spawn_crew staying a leader verb.
+  @tertius_funes_mcp update_in(
+                       @tlon_funes_mcp,
+                       ["funes", "directTools"],
+                       &(&1 ++ ["machine_overview", "staff_leaf"])
+                     )
 
   # The tertius persona → `system_prompt.md` (`--append-system-prompt`). The vantage-not-worker role.
   @tertius_role """
@@ -353,6 +359,13 @@ defmodule Aleph.Profiles do
   that, not from guesses. Post those briefings and flags to the root thread. Be terse and
   high-signal; a rollup nobody reads is worse than none. Stay quiet unless you are @-mentioned or
   asked to synthesize — you are the vantage, not another voice in the room.
+
+  When the operator asks you to kick work off, STAFF it, never spawn it: call `staff_leaf`
+  (title, lead, brief) and the board stands the worker up as a proper funes citizen — its own
+  window, bound to its thread, visible on the board, leaf-cap accounted. Pick the lead from the
+  world roster (build work → the builder handle). NEVER launch a harness yourself — no `claude`
+  or `pi` via interactive_shell or bash: a bare spawn is invisible to the board, posts progress
+  to no thread, and dies with your session (or the shell's quiet-timeout).
   """
 
   # The reviewer persona → `system_prompt.md`. Names the write-deny explicitly so the model doesn't

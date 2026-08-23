@@ -18,6 +18,7 @@ defmodule Funes.MCP.ServerTest do
   alias Funes.Repo
   alias Funes.Session
   alias Funes.Staff
+  alias Funes.Thread
 
   @port 48_631
   @url ~c"http://127.0.0.1:48631/mcp"
@@ -80,6 +81,7 @@ defmodule Funes.MCP.ServerTest do
                "recheck_fact",
                "open_thread",
                "close_thread",
+               "staff_leaf",
                "switch_thread",
                "consult_peer",
                "spawn_crew",
@@ -280,12 +282,12 @@ defmodule Funes.MCP.ServerTest do
     r = call(token, session, 4, "open_thread", %{"title" => "spun-up work"})
     refute r["isError"]
     new_id = decode_tool_json(r)["thread_id"]
-    assert Repo.get(Funes.Thread, new_id).state == "open"
+    assert Repo.get(Thread, new_id).state == "open"
 
     # close it by id — cross-thread by design
     c = call(token, session, 5, "close_thread", %{"thread_id" => new_id})
     refute c["isError"]
-    assert Repo.get(Funes.Thread, new_id).state == "closed"
+    assert Repo.get(Thread, new_id).state == "closed"
 
     # closing a missing thread is refused
     assert call(token, session, 6, "close_thread", %{"thread_id" => 999_999})["isError"]
@@ -536,6 +538,47 @@ defmodule Funes.MCP.ServerTest do
 
     refute call(token, session, 5, "kill_crew", %{})["isError"]
     assert_received {:crew_kill, "reviewer", ^thread_id}
+  end
+
+  test "staff_leaf opens a worker-led thread with the brief as its first message", %{token: token} do
+    {:ok, _} = Staff.register_agent(%{name: "hronir-machine", mandate: "build", engine: "fresh"})
+
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    r =
+      call(token, session, 4, "staff_leaf", %{
+        "title" => "typing presence slices",
+        "lead" => "hronir-machine",
+        "brief" => "Execute docs/plans/2026-08-22 plan, slice by slice."
+      })
+
+    refute r["isError"]
+    payload = decode_tool_json(r)
+    tid = payload["thread_id"]
+    assert payload["lead"] == "hronir-machine"
+
+    # The staffed thread is exactly what the cockpit's leaf sweep spawns from: a worker lead...
+    assert Channel.thread_lead(tid) == "hronir-machine"
+
+    # ...and the brief on the thread (authored by the CALLER — identity from the token, no spoof).
+    [first] = Repo.all(from m in Message, where: m.thread_id == ^tid, order_by: m.id)
+    assert first.author == "Carl"
+    assert first.body =~ "slice by slice"
+  end
+
+  test "staff_leaf refuses an unregistered lead without opening a thread", %{token: token} do
+    session = handshake(token)
+    call(token, session, 3, "register", %{})
+
+    threads_before = Repo.aggregate(Thread, :count)
+
+    r = call(token, session, 4, "staff_leaf", %{"title" => "x", "lead" => "ghost-machine", "brief" => "y"})
+    assert r["isError"]
+    %{"text" => text} = Enum.find(r["content"], &(&1["type"] == "text"))
+    assert text =~ "ghost-machine"
+
+    assert Repo.aggregate(Thread, :count) == threads_before
   end
 
   test "spawn_crew reports unavailable when no crew backend is configured", %{token: token} do

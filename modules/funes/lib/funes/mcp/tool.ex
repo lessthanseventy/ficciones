@@ -588,6 +588,59 @@ defmodule Funes.MCP.Tool.OpenThread do
   end
 end
 
+defmodule Funes.MCP.Tool.StaffLeaf do
+  @moduledoc """
+  Open a NEW worker-led thread — the sanctioned "kick off a leaf" verb. Composes the cross-thread
+  primitives: open a thread titled `title`, assign the registered agent `lead`, and post `brief`
+  (authored by the CALLER's bound identity) as its opening message. Staffing, not spawning: no
+  terminal starts here — the cockpit's convergent leaf sweep sees a worker-led thread without a
+  window and stands one up (human-named, `@funes_thread`-tagged, leaf-cap-accounted, its harness
+  funes-bound). An agent never launches a harness by hand — a bare spawn is not a funes citizen
+  and is invisible to the board; it staffs the thread and lets the board actuate.
+
+  The lead resolves BEFORE the thread opens, so a bad handle refuses cleanly instead of leaving an
+  orphan leaderless thread — the machine-chat silence bug's tool-side twin.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Agent
+  alias Funes.Channel
+  alias Funes.MCP
+  alias Funes.Staff
+
+  schema do
+    field :title, :string, required: true, description: "What the leaf is for (its NORTH STAR)"
+    field :lead, :string, required: true, description: "Registered worker handle to staff as lead (e.g. hronir-machine)"
+    field :brief, :string, required: true, description: "The opening assignment, posted as the thread's first message"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+
+    with {:agent, %Agent{}} <- {:agent, Staff.agent_by_name(params[:lead])},
+         {:ok, thread} <- Channel.open_thread(%{title: params[:title]}),
+         {:ok, _} <- Channel.assign_lead(thread.id, params[:lead]),
+         {:ok, _} <- Channel.post(%{thread_id: thread.id, author: identity.agent, body: params[:brief]}) do
+      {:reply, Response.json(Response.tool(), %{"thread_id" => thread.id, "lead" => params[:lead]}), frame}
+    else
+      {:agent, nil} ->
+        {:reply,
+         Response.error(
+           Response.tool(),
+           "no registered agent named #{inspect(params[:lead])} — staff a handle from the world roster"
+         ), frame}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
+
+      {:error, reason} ->
+        {:reply, Response.error(Response.tool(), "staff_leaf failed: #{inspect(reason)}"), frame}
+    end
+  end
+end
+
 defmodule Funes.MCP.Tool.CloseThread do
   @moduledoc """
   Close a thread by id — the second DELIBERATE cross-thread verb. History outlives the
