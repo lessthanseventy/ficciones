@@ -213,8 +213,27 @@ export default function manos(pi: ExtensionAPI): void {
     }
   });
 
+  // Thinking presence (the cockpit's typing indicator): declare at turn start, clear at turn
+  // end. Best-effort both ways — presence is a nicety and must never disturb the session; a
+  // crash that skips the idle is cleared by funes' own max-age sweep.
+  pi.on("turn_start", async (_event, _ctx) => {
+    if (!client) return;
+    try {
+      await client.connect();
+      await client.presenceThinking();
+    } catch {
+      // best-effort
+    }
+  });
+
   pi.on("turn_end", async (_event, ctx) => {
     if (!client) return;
+    try {
+      await client.connect();
+      await client.presenceIdle();
+    } catch {
+      // best-effort
+    }
     try {
       await client.connect();
       updateWidget(ctx, (await client.getDossier()) as Dossier);

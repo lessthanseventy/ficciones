@@ -57,3 +57,45 @@ test("a 404 (lost session) drops the connection so the next connect() re-handsha
   await c.connect();
   expect(mints()).toBe(2);
 });
+
+// The presence declares are self-thread and argless: the tool NAME is the whole contract, so
+// pin that presence_thinking / presence_idle go out exactly as named.
+test("presenceThinking / presenceIdle call their argless self-thread tools", async () => {
+  const called: string[] = [];
+  const fn = mock(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input instanceof Request ? input.url : input);
+    const body = typeof init?.body === "string" ? init.body : "";
+    if (url.endsWith("/mint")) {
+      return new Response(JSON.stringify({ token: "tok" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (body.includes('"initialize"')) {
+      return new Response('event: message\ndata: {"jsonrpc":"2.0","id":1,"result":{"capabilities":{}}}\n', {
+        status: 200,
+        headers: { "content-type": "text/event-stream", "mcp-session-id": "sess-1" },
+      });
+    }
+    if (body.includes('"notifications/initialized"')) {
+      return new Response("", { status: 202 });
+    }
+    if (body.includes('"tools/call"')) {
+      const name = (JSON.parse(body) as { params: { name: string } }).params.name;
+      called.push(name);
+      return new Response(
+        'event: message\ndata: {"jsonrpc":"2.0","id":2,"result":{"content":[],"isError":false}}\n',
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      );
+    }
+    return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+  });
+  globalThis.fetch = fn as unknown as typeof fetch;
+
+  const c = new FunesClient({ url: "http://127.0.0.1:4041/mcp", threadId: 11, agent: "pi-machine" });
+  await c.connect();
+  await c.presenceThinking();
+  await c.presenceIdle();
+
+  expect(called).toEqual(["presence_thinking", "presence_idle"]);
+});

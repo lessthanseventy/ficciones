@@ -60,6 +60,7 @@ export interface ExtensionAPI {
       ctx: ExtensionContext,
     ) => BeforeAgentStartResult | undefined | Promise<BeforeAgentStartResult | undefined>,
   ): void;
+  on(event: "turn_start", handler: (event: unknown, ctx: ExtensionContext) => void | Promise<void>): void;
   on(event: "turn_end", handler: (event: unknown, ctx: ExtensionContext) => void | Promise<void>): void;
   // Boundary hooks for total-recall capture: before the context is compacted (the key moment to
   // flush the delta) and at session end (best-effort final flush).

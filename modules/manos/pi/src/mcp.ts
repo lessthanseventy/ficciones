@@ -117,6 +117,16 @@ export class FunesClient {
     await this.#callTool("raise_question", { text });
   }
 
+  // Thinking presence (the cockpit's typing indicator). Self-thread: agent + thread resolve
+  // from the token, so both declares take no args.
+  async presenceThinking(): Promise<void> {
+    await this.#callTool("presence_thinking", {});
+  }
+
+  async presenceIdle(): Promise<void> {
+    await this.#callTool("presence_idle", {});
+  }
+
   async #callTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     const { body } = await this.#post({
       jsonrpc: "2.0",
