@@ -284,6 +284,15 @@ defmodule Aleph.ViewTest do
              end)
     end
 
+    test "the carousel border carries the [ ] cycle corner hint" do
+      placements = View.compose(reads(%{health: health_data()}), 120, 40)
+
+      assert Enum.any?(placements, fn
+               {Panel.Border, %{tabs: tabs, hint: "[ ] cycle"}, _r} when is_list(tabs) -> true
+               _ -> false
+             end)
+    end
+
     test "a short frame never places a box (or its content) past the body — the status rows stay clean" do
       # Regression: the pinned head's intrinsic height could leave the carousel a 1-row sliver,
       # whose inset content landed one row PAST the column bottom (on the status bar). The

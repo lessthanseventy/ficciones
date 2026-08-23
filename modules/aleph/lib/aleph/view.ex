@@ -166,7 +166,8 @@ defmodule Aleph.View do
       focused: not is_nil(focused) and section == focused,
       digit: digit,
       title: if(tabs, do: nil, else: section_title(section)),
-      tabs: tabs
+      tabs: tabs,
+      hint: if(tabs, do: "[ ] cycle")
     }
   end
 
