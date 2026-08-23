@@ -112,5 +112,22 @@ defmodule Aleph.Panel.Memory do
 
   # `s` cycles FLOOR/HABITS since the C3.4 reshuffle handed Tab to space-switching.
   @impl Aleph.Panel
-  def hints(_data), do: [{"s", "section"}, {"j/k", "facts"}, {"⏎", "open"}]
+  def hints(_data), do: [{"s", "section"}, {"j/k", "facts"}, {"⏎", "open"}, {"y", "text"}]
+
+  @doc "The semantic yank for the cursor row: section-aware, data carries :section like render/2."
+  def yank(%{habits: habits, section: @habits_section}, cursor) do
+    case Enum.at(habits, cursor) do
+      %{text: text} -> {"habit", text}
+      _ -> nil
+    end
+  end
+
+  def yank(%{floor: floor}, cursor) do
+    case Enum.at(floor, cursor) do
+      %{text: text} -> {"fact", text}
+      _ -> nil
+    end
+  end
+
+  def yank(_data, _cursor), do: nil
 end

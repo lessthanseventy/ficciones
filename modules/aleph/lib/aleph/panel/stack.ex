@@ -122,4 +122,14 @@ defmodule Aleph.Panel.Stack do
 
   @impl Aleph.Panel
   def hints(_data), do: [{"j/k", "commits"}, {"⏎", "diff"}, {"y", "sha"}]
+
+  @doc "The semantic yank for the cursor row: the full sha."
+  def yank(%{commits: commits}, cursor) do
+    case Enum.at(commits, cursor) do
+      %{hash: hash} -> {"sha #{hash}", hash}
+      _ -> nil
+    end
+  end
+
+  def yank(_data, _cursor), do: nil
 end

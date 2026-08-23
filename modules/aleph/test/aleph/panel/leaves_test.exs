@@ -154,6 +154,13 @@ defmodule Aleph.Panel.LeavesTest do
   end
 
   test "hints/1 declares the pane's footer verbs" do
-    assert Aleph.Panel.hints(Leaves, %{}) == [{"j/k", "leaves"}, {"⏎", "attach"}]
+    assert Aleph.Panel.hints(Leaves, %{}) == [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}]
+  end
+
+  test "yank/2 returns the cursor row's title, respecting the same float ordering as render/pick" do
+    data = grouping_data("hronir-machine")
+    assert Leaves.yank(data, 0) == {"title", "hA"}
+    assert Leaves.yank(data, 9) == nil
+    assert Leaves.yank(nil, 0) == nil
   end
 end

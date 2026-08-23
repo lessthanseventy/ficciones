@@ -51,4 +51,11 @@ defmodule Aleph.Panel.StackTest do
   test "a panel without hints/1 declares nothing" do
     assert Aleph.Panel.hints(Aleph.Panel.Health, %{}) == []
   end
+
+  test "yank/2 returns the cursor commit's full sha" do
+    data = base([commit("abc123", "s")])
+    assert Stack.yank(data, 0) == {"sha abc123", "abc123"}
+    assert Stack.yank(data, 9) == nil
+    assert Stack.yank(nil, 0) == nil
+  end
 end
