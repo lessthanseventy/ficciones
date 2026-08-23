@@ -96,22 +96,9 @@ defmodule Aleph.View do
     status =
       {Panel.StatusBar, status_data(reads, space), %{x: 0, y: h - @status_h, w: w, h: @status_h}}
 
-    # Borders first: panel content paints over each box interior, leaving only the frames. The
-    # settings modal (if open) is appended LAST so its opaque box paints over everything — a
-    # floating overlay, not a column swap (the tmux terminal keeps running underneath, unpainted).
-    borders ++ contents ++ [status] ++ modal_placements(reads, w, h)
+    # Borders first: panel content paints over each box interior, leaving only the frames.
+    borders ++ contents ++ [status]
   end
-
-  # The centered settings-modal overlay: a filled Border box + the modal body inset inside it. []
-  # when closed (reads.modal nil). Sized to the content height, capped to the viewport.
-  defp modal_placements(%{modal: %{} = modal}, w, h) do
-    mw = min(60, max(w - 4, 1))
-    mh = min(Panel.SettingsModal.height(modal) + 2, max(h - 2, 1))
-    rect = %{x: div(w - mw, 2), y: div(h - mh, 2), w: mw, h: mh}
-    [{Panel.Border, %{focused: true}, rect}, {Panel.SettingsModal, modal, inset(rect)}]
-  end
-
-  defp modal_placements(_reads, _w, _h), do: []
 
   defp layout_for(w) when w >= @wide_min, do: :wide
   defp layout_for(_w), do: :narrow

@@ -50,7 +50,7 @@ defmodule Aleph.Keymap do
       roster sub-list's `a`/`x`/`d` (D2.4 Chunk 2a) — apply one attrs map to a world immediately.
     * `{:coworker_knob, name, knob}` — the roster sub-list's `Tab`-selected knob (`:model` |
       `:yolo`), applied by `Enter`/`Space` to the sub-selected coworker (D2.4 Chunk 2b — absorbs
-      the Settings modal into the roster editor).
+      the old `,` settings modal into the roster editor; the modal itself is deleted).
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb),
@@ -98,7 +98,6 @@ defmodule Aleph.Keymap do
   alias Aleph.Profiles
   alias Aleph.Space
   alias Aleph.Tlon.Focus
-  alias Aleph.Tlon.Settings
   alias Aleph.WorldTemplates
 
   # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
@@ -117,7 +116,6 @@ defmodule Aleph.Keymap do
           | {:create_thread, String.t()}
           | {:post_message, term(), String.t()}
           | {:cycle_coworker_model, String.t()}
-          | {:settings_apply, {String.t(), :model | :permission}}
           | {:habit_action, :approve | :reject}
           | {:cycle_pane_view, integer()}
           | {:switch_space, atom() | non_neg_integer()}
@@ -257,42 +255,6 @@ defmodule Aleph.Keymap do
 
   # Any other key while typing (function keys, …) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
-
-  # --- Tlön settings modal (design §Settings): a MODAL like `input` — while open, every key belongs
-  # to it (so `q` navigates, never quits) until `,`/Esc dismisses. j/k pick the coworker row, Tab or
-  # h/l flip the model↔permission knob, Enter/Space applies (cycle the model ring / toggle yolo) and
-  # leaves it open so you can keep adjusting. Must precede the Tlön focus dispatch below. ---
-  def handle(%{key: :escape}, %{modal: %Settings{open?: true}} = state), do: {close_modal(state), :repaint}
-  def handle(%{key: :char, char: ","}, %{modal: %Settings{open?: true}} = state), do: {close_modal(state), :repaint}
-
-  def handle(%{key: :char, char: "j"}, %{modal: %Settings{open?: true}} = state),
-    do: {modal_intent(state, :row_next), :repaint}
-
-  def handle(%{key: :down}, %{modal: %Settings{open?: true}} = state), do: {modal_intent(state, :row_next), :repaint}
-
-  def handle(%{key: :char, char: "k"}, %{modal: %Settings{open?: true}} = state),
-    do: {modal_intent(state, :row_prev), :repaint}
-
-  def handle(%{key: :up}, %{modal: %Settings{open?: true}} = state), do: {modal_intent(state, :row_prev), :repaint}
-  def handle(%{key: :tab}, %{modal: %Settings{open?: true}} = state), do: {modal_intent(state, :field_next), :repaint}
-
-  def handle(%{key: :char, char: "l"}, %{modal: %Settings{open?: true}} = state),
-    do: {modal_intent(state, :field_next), :repaint}
-
-  def handle(%{key: :char, char: "h"}, %{modal: %Settings{open?: true}} = state),
-    do: {modal_intent(state, :field_next), :repaint}
-
-  def handle(%{key: :enter}, %{modal: %Settings{open?: true} = m} = state),
-    do: {state, {:settings_apply, Settings.target(m)}}
-
-  def handle(%{key: :char, char: " "}, %{modal: %Settings{open?: true} = m} = state),
-    do: {state, {:settings_apply, Settings.target(m)}}
-
-  def handle(%{key: :space}, %{modal: %Settings{open?: true} = m} = state),
-    do: {state, {:settings_apply, Settings.target(m)}}
-
-  # Every other key is swallowed while the modal is up — nav mode never leaks a stray key to tmux.
-  def handle(_key, %{modal: %Settings{open?: true}} = state), do: {state, :none}
 
   # --- Tlön: the lazygit focus model (design 2026-08-20). The center is a live tmux client, so
   # `Ctrl+Space` is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use.
@@ -600,9 +562,6 @@ defmodule Aleph.Keymap do
     do: {focus_intent(state, :close_detail), :repaint}
 
   defp handle_tlon(%{key: :escape}, state), do: {put_in(state.focus.in_terminal?, true), :repaint}
-  # `,` opens the settings modal — the design's `Ctrl+Space ,` reaches here only in nav mode (an
-  # in-terminal comma forwarded above, a literal `,` to the shell). The modal then owns the keys.
-  defp handle_tlon(%{key: :char, char: ","}, state), do: {open_settings(state), :repaint}
   defp handle_tlon(%{key: :char, char: "l"}, state), do: {focus_intent(state, :pane_next), :repaint}
   defp handle_tlon(%{key: :char, char: "h"}, state), do: {focus_intent(state, :pane_prev), :repaint}
   defp handle_tlon(%{key: :char, char: "L"}, state), do: {focus_intent(state, :col_right), :repaint}
@@ -658,16 +617,6 @@ defmodule Aleph.Keymap do
   # A pane whose selection maps to a live World tmux window — Leaves today (each leaf → its lead's
   # window). Only these drive the center preview.
   defp window_bearing?(state), do: Focus.focused_pane(state.focus, state.tlon_layout) == Panel.Leaves
-
-  # The modal opens over the coworker profiles aleph actually materialises (Profiles.names) — the
-  # only rows whose model/permission it can honestly write. A prior modal's row/field is preserved.
-  defp open_settings(state) do
-    base = state[:modal] || Settings.new(Profiles.names())
-    Map.put(state, :modal, Settings.open(base))
-  end
-
-  defp close_modal(state), do: %{state | modal: Settings.close(state.modal)}
-  defp modal_intent(state, intent), do: %{state | modal: Settings.handle(state.modal, intent)}
 
   defp switch(state, dir) do
     space =

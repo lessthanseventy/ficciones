@@ -22,7 +22,6 @@ defmodule Aleph.Cockpit do
   alias Aleph.Space
   alias Aleph.Terminal
   alias Aleph.Tlon.Focus
-  alias Aleph.Tlon.Settings
   alias Aleph.View
   alias Aleph.WorldTemplates
   alias Funes.Bus
@@ -267,9 +266,6 @@ defmodule Aleph.Cockpit do
             right_pane_view: 0,
             paste_buffer: nil,
             input: nil,
-            # The Tlön settings modal (nil = closed). Persistent like `input`: the keymap opens it
-            # (`,`), navigates it, and the modal owns every key until dismissed.
-            modal: nil,
             flash: nil,
             scrolls: %{},
             placements: [],
@@ -874,30 +870,6 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
   end
 
-  # The settings modal applied a change to the selected coworker: cycle its driver model, or flip
-  # its yolo (permission) policy. Same honest scope as the `m` verb — the running coworker keeps its
-  # config; the override lands on the next spawn. The modal stays open (state.modal untouched).
-  defp apply_effect({:settings_apply, {profile_name, :model}}, state) do
-    {:noreply, render(%{state | flash: cycle_model!(profile_name)})}
-  rescue
-    e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
-  end
-
-  defp apply_effect({:settings_apply, {profile_name, :permission}}, state) do
-    case Settings.next_yolo(Profiles.fetch(profile_name).permissions) do
-      {:ok, next, policy} ->
-        Aleph.Config.put_coworker_yolo(profile_name, next)
-
-        {:noreply,
-         render(%{state | flash: "#{profile_name} permissions → #{policy} — applies on next spawn (aleph:reset)"})}
-
-      :no_policy ->
-        {:noreply, render(%{state | flash: "#{profile_name} has no permission policy to toggle"})}
-    end
-  rescue
-    e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
-  end
-
   # Enter in Tlön nav: on SPACES, switch to the lens under the cursor; on Leaves, attach the leaf's
   # live World window in the center (preview + commit); on any other pane, open its selection's
   # detail in MAIN (set focus.detail?, which the View renders).
@@ -1375,7 +1347,6 @@ defmodule Aleph.Cockpit do
       settings: settings_read(state.active_key),
       scrolls: state.scrolls,
       input: state.input,
-      modal: settings_modal_read(state),
       flash: state.flash,
       leader_pending?: state.leader_pending?,
       # The World space's focus, so the View can light the focused sidebar pane and the status bar
@@ -1662,26 +1633,6 @@ defmodule Aleph.Cockpit do
     next = Profiles.next_model(current && current.model)
     Aleph.Config.put_coworker_model(profile_name, next)
     "coworker driver → #{next.provider}/#{next.model} — applies on next spawn (aleph:reset)"
-  end
-
-  # The settings-modal read: nil when closed, else the selection (row/field) plus a per-coworker row
-  # — its effective model + ring + whether it's overridden + its yolo policy — for the overlay.
-  defp settings_modal_read(%{modal: %Settings{open?: true} = m}) do
-    %{row: m.row, field: m.field, rows: Enum.map(m.coworkers, &coworker_row/1)}
-  end
-
-  defp settings_modal_read(_state), do: nil
-
-  defp coworker_row(name) do
-    p = Profiles.fetch(name)
-
-    %{
-      profile: name,
-      model: p.model,
-      ring: Profiles.model_ring(),
-      override?: Aleph.Config.coworker_model(name) != nil,
-      yolo?: p.permissions && p.permissions["yoloMode"]
-    }
   end
 
   # LOGBOOK reads are only gathered on a World space — the machine thread's issues + recent
