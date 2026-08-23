@@ -56,6 +56,13 @@ leaf threads (B1.4) get their own `t<id>` windows.
   (401), or down node (5xx) by dropping + re-handshaking. A standing coworker outlives an aleph
   restart, so a restart must not strand it.
 
+## Selection & clipboard
+
+- **Arbitrary text:** hold **Shift and drag** — kitty bypasses the cockpit's mouse capture and
+  selects natively (inside the center terminal, tmux copy-mode also works as usual).
+- **Semantic text:** in NAV, `y` copies the focused item's real text (commit SHA, fact/habit
+  text, leaf title, an open detail's body) via OSC 52 — works over SSH.
+
 ## Verify
 
 `mise run aleph:check` — format + warnings-as-errors + the headless suite. Green before commit.

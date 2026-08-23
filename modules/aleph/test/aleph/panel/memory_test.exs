@@ -72,8 +72,8 @@ defmodule Aleph.Panel.MemoryTest do
   end
 
   test "yank/2 is section-aware: floor text in FLOOR, habit text in HABITS" do
-    assert Memory.yank(Map.merge(data(), %{section: 0}), 0) == {"fact", "prefer X"}
-    assert Memory.yank(Map.merge(data(), %{section: 1}), 0) == {"habit", "do Z"}
+    assert Memory.yank(Map.put(data(), :section, 0), 0) == {"fact", "prefer X"}
+    assert Memory.yank(Map.put(data(), :section, 1), 0) == {"habit", "do Z"}
     assert Memory.yank(data(), 9) == nil
     assert Memory.yank(nil, 0) == nil
   end
