@@ -229,7 +229,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
     Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
 
     refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
-    assert [%{body: body}] = Funes.Channel.thread_messages(Funes.Channel.thread(thread.id))
+    assert [%{body: body}] = Channel.thread_messages(Channel.thread(thread.id))
     assert body =~ "parked"
   end
 
