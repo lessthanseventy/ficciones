@@ -5,17 +5,23 @@ defmodule Aleph.MachineChat.Staffing do
   wins, else the operator's configured default — has its own seam to test.
   """
 
+  alias Aleph.MachineChat.Triage
   alias Aleph.Mention
 
   @doc """
-  The coworker to staff on a new thread: the first @-mentioned coworker (resolved against
-  `roster`, see `Aleph.Mention.coworkers/1`), else the default.
+  The coworker to staff on a new thread, in routing order (per-thread-agents Slice E):
+
+    1. the first @-mentioned coworker (resolved against `roster`) — you already decided, no
+       classification hop;
+    2. else intent triage (`Aleph.MachineChat.Triage`): explicit review/plan/research intent
+       staffs that specialist archetype's roster worker;
+    3. else `default` (the operator's persisted override, or the roster's builder-else-worker).
   """
   @spec pick_coworker(String.t(), String.t() | nil, [map()]) :: String.t() | nil
   def pick_coworker(text, default, roster \\ []) do
     case Mention.mentions(text, roster) do
       [{handle, _window} | _] -> handle
-      [] -> default
+      [] -> Triage.lead(text, roster) || default
     end
   end
 

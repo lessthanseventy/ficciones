@@ -26,6 +26,23 @@ defmodule Aleph.MachineChat.StaffingTest do
     assert Staffing.pick_coworker("@tertius-machine do x", "hronir-machine") == "hronir-machine"
   end
 
+  # Slice E: intent triage sits between the mention fast path and the static default.
+  describe "pick_coworker/3 with triage" do
+    @cast @roster ++ [%{"archetype" => "reviewer", "name" => "vera"}]
+
+    test "unrouted review intent staffs the roster's reviewer, not the default" do
+      assert Staffing.pick_coworker("review the staffing diff", "hronir-machine", @cast) == "vera-machine"
+    end
+
+    test "an @-mention still wins over intent — no classification hop on the fast path" do
+      assert Staffing.pick_coworker("@hronir-machine review the diff", "x-machine", @cast) == "hronir-machine"
+    end
+
+    test "intent with no matching roster worker falls through to the default" do
+      assert Staffing.pick_coworker("research the eviction policy", "hronir-machine", @cast) == "hronir-machine"
+    end
+  end
+
   describe "default_coworker/1 — the roster-derived default (no @-mention path)" do
     # The regression seam: the machine-chat beam has no `Aleph.Worlds` cache, so it must derive the
     # default from the LIVE funes roster — never a stale stand-in whose `-machine` handle was never
