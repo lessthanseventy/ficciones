@@ -430,7 +430,16 @@ defmodule Aleph.BoardTest do
   describe "status bar" do
     defp status(overrides \\ %{}) do
       Map.merge(
-        %{space: "Sessions", thread: "flaky test hunt", thread_count: 3, live_count: 1},
+        %{
+          space: "Sessions",
+          thread: "flaky test hunt",
+          thread_count: 3,
+          live_count: 1,
+          mode: nil,
+          world?: false,
+          lock?: false,
+          pane_hints: []
+        },
         overrides
       )
     end

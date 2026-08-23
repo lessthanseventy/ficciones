@@ -194,13 +194,12 @@ defmodule Aleph.Panel.StatusBar do
 
   @impl Panel
   def render(%{space: space} = data, rect) do
-    focus = data[:focus]
     thread = data[:thread] || "—"
     threads = data[:thread_count] || 0
     live = data[:live_count] || 0
 
     left =
-      mode_chip(focus) ++
+      mode_chip(data) ++
         [
           {" #{space} ", :tab},
           {"  ", :normal},
@@ -214,14 +213,15 @@ defmodule Aleph.Panel.StatusBar do
       {" ● #{live} live ", :stat_live}
     ]
 
-    Panel.clip([justify(left, right, rect.w), hints_row(hints_for(space, focus))], rect)
+    Panel.clip([justify(left, right, rect.w), hints_row(assemble_hints(data))], rect)
   end
 
-  # Tlön's nav/terminal mode as a leading chip, so you always know whether keys go to tmux (TERM)
-  # or drive the panes (NAV). Absent for spaces without a focus model.
-  defp mode_chip(%{in_terminal?: true}), do: [{" TERM ", :stat_live}, {" ", :normal}]
-  defp mode_chip(%{in_terminal?: false}), do: [{" NAV ", :stat}, {" ", :normal}]
-  defp mode_chip(_focus), do: []
+  # LOCK outranks TERM/NAV — total keyboard passthrough deserves the loudest chip. Absent for
+  # spaces without a focus model (mode nil, focus nil).
+  defp mode_chip(%{mode: :lock}), do: [{" LOCK ", :stat_warn}, {" ", :normal}]
+  defp mode_chip(%{focus: %{in_terminal?: true}}), do: [{" TERM ", :stat_live}, {" ", :normal}]
+  defp mode_chip(%{focus: %{in_terminal?: false}}), do: [{" NAV ", :stat}, {" ", :normal}]
+  defp mode_chip(_data), do: []
 
   # The CURRENT line of a (possibly multiline) input buffer, split into the text before/after the
   # cursor — what the composer's single visible line renders around the `▎` marker. `cursor`
@@ -243,29 +243,19 @@ defmodule Aleph.Panel.StatusBar do
 
   defp hints_row, do: hints_row(@hints)
 
-  # Tlön drives its panes with the focus model (not the shared leader), so its hints name those
-  # keys and change with the mode. In the terminal only the toggle-out is an aleph key (the rest
-  # forwards to tmux); in nav mode aleph owns the keys — pane/column/section movement plus the
-  # bare verbs. Focus nil (defensive) or any other space falls back to the shared hint table.
-  defp hints_for("Tlön", %{in_terminal?: true}), do: [{"^␣", "nav mode"}]
+  # The contextual footer (design 2026-08-23): mode → space → pane, mode-first because clip/2
+  # trims from the right — pane verbs drop first on a narrow frame, the mode chip survives.
+  # Keyed on world-ness (mode/world? from View.status_data), NEVER the space label — a renamed
+  # or additional World still gets these, unlike the old "Tlön"-keyed table.
+  defp assemble_hints(%{mode: nil}), do: @hints
+  defp assemble_hints(data), do: mode_seg(data.mode) ++ space_seg(data) ++ (data[:pane_hints] || [])
 
-  defp hints_for("Tlön", %{in_terminal?: false}),
-    do: [
-      {"h/l", "pane"},
-      {"H/L", "col"},
-      {"Tab", "section"},
-      {"[/]", "space"},
-      {"c", "post"},
-      {"m", "driver"},
-      {"q", "quit"},
-      {"Esc", "term"}
-    ]
+  defp mode_seg(:term), do: [{"Alt+#", "panes"}, {"^␣", "nav"}]
+  defp mode_seg(:nav), do: [{"Alt+0", "term"}, {"q", "quit"}]
+  defp mode_seg(:lock), do: [{"Alt+g", "unlock"}]
 
-  defp hints_for(space, _focus), do: hints_for(space)
-
-  # Tlön alone carries the settings verb — the only space with a coworker to point it at.
-  defp hints_for("Tlön"), do: @hints ++ [{"^␣m", "driver"}]
-  defp hints_for(_space), do: @hints
+  defp space_seg(%{mode: :nav, world?: true}), do: [{"c", "post"}, {"n", "task"}, {"m", "driver"}]
+  defp space_seg(_data), do: []
 
   defp hints_row(hints) do
     Enum.flat_map(hints, fn

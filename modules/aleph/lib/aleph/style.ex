@@ -47,6 +47,8 @@ defmodule Aleph.Style do
     tab: {0xFFFFFF, @sel},
     stat: {@ink, @amber_chip},
     stat_live: {@ink, @green},
+    # LOCK's chip — total keyboard passthrough deserves the loudest, most alarming color on hand.
+    stat_warn: {@ink, 0xFF5555},
     # A commit diff in MAIN (Commits pane detail): additions green, deletions red, hunk headers
     # cyan. File/meta lines borrow chrome amber (:label) and :dim from above.
     diff_add: {@green, @bg},
