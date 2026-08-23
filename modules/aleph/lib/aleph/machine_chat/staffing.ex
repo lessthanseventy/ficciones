@@ -26,6 +26,21 @@ defmodule Aleph.MachineChat.Staffing do
   end
 
   @doc """
+  Why `pick_coworker/3` chose `handle` for `text` — `:mention` (the operator named them),
+  `:triage` (intent classification), or `:default`. Powers the staffing note posted into the
+  thread, which is both UX (Slack-style "who's on it") and the observability that makes triage
+  misroutes visible instead of guessed at.
+  """
+  @spec route_reason(String.t(), String.t(), [map()]) :: :mention | :triage | :default
+  def route_reason(text, handle, roster) do
+    cond do
+      match?([{^handle, _} | _], Mention.mentions(text, roster)) -> :mention
+      Triage.lead(text, roster) == handle -> :triage
+      true -> :default
+    end
+  end
+
+  @doc """
   The roster-derived default lead for a thread with no explicit @-mention: the roster's
   builder-archetype entry, else its first WORKER entry — never the meta surveyor (Slice B:
   tertius is the vantage, not a leaf lead; a worker-less roster is a misconfiguration the caller

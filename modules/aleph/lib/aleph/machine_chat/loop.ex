@@ -261,9 +261,34 @@ defmodule Aleph.MachineChat.Loop do
     default = Config.default_coworker_override() || Staffing.default_coworker(roster)
 
     case Staffing.pick_coworker(text, default, roster) do
-      nil -> {:error, :no_coworker}
-      handle -> stage(thread_id, handle)
+      nil ->
+        {:error, :no_coworker}
+
+      handle ->
+        with {:ok, ^handle} <- stage(thread_id, handle) do
+          note_staffing(thread_id, handle, Staffing.route_reason(text, handle, roster))
+          {:ok, handle}
+        end
     end
+  end
+
+  # The Slack-style system line: who leads this thread and WHY (mention / triage / default).
+  # The why makes triage misroutes visible in the transcript itself — the observability half.
+  # Best-effort; a post failure never blocks the staffing.
+  defp note_staffing(thread_id, handle, reason) do
+    why =
+      case reason do
+        :mention -> "you named them"
+        :triage -> "triaged from the task text"
+        :default -> "default lead"
+      end
+
+    Channel.post(%{thread_id: thread_id, author: "aleph", body: "→ #{handle} leads (#{why})"})
+    :ok
+  rescue
+    _ -> :ok
+  catch
+    :exit, _ -> :ok
   end
 
   # `Funes.assign_lead/2` returns `{:error, :no_agent}` for a handle that was never registered — a

@@ -90,6 +90,21 @@ defmodule Aleph.Config do
   defp environment_key(_map), do: nil
 
   @doc """
+  The maximum number of CONCURRENT leaf sessions the cockpit will spawn (the runaway-fleet
+  circuit breaker — every leaf is a live harness, most of them on the Claude subscription at
+  home). Config key `"max_leaves"`; default #{6}. Threads staffed past the cap stay open and
+  keep their lead; they just wait ("parked") until a seat frees (a leaf closes) — the next
+  render pass staffs them automatically.
+  """
+  @spec max_leaves(String.t()) :: pos_integer()
+  def max_leaves(path \\ path()) do
+    case read(path) do
+      %{"max_leaves" => n} when is_integer(n) and n > 0 -> n
+      _ -> 6
+    end
+  end
+
+  @doc """
   The operator's persisted default-coworker override for new chat threads, or `nil` when unset.
   Just the override — the roster-derived default lives with the staffing decision
   (`Aleph.MachineChat.Staffing.default_coworker/1`), fed the LIVE world roster by the caller, so no

@@ -43,6 +43,16 @@ defmodule Aleph.MachineChat.StaffingTest do
     end
   end
 
+  describe "route_reason/3 — the staffing note's why" do
+    @cast2 [%{"archetype" => "builder", "name" => "hronir"}, %{"archetype" => "reviewer", "name" => "vera"}]
+
+    test "a named coworker → :mention; intent → :triage; else :default" do
+      assert Staffing.route_reason("@vera-machine check this", "vera-machine", @cast2) == :mention
+      assert Staffing.route_reason("review the diff", "vera-machine", @cast2) == :triage
+      assert Staffing.route_reason("build the thing", "hronir-machine", @cast2) == :default
+    end
+  end
+
   describe "default_coworker/1 — the roster-derived default (no @-mention path)" do
     # The regression seam: the machine-chat beam has no `Aleph.Worlds` cache, so it must derive the
     # default from the LIVE funes roster — never a stale stand-in whose `-machine` handle was never

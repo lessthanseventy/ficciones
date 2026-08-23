@@ -94,7 +94,8 @@ defmodule Aleph.CockpitThreadSessionsTest do
       standing_thread_id: nil,
       thread_spawn_retry: %{},
       opening_injected: MapSet.new(),
-      opening_text_at: %{}
+      opening_text_at: %{},
+      parked_noted: MapSet.new()
     }
 
   test "a pi-harness worker lead gets its own leaf window (the Slice A isolation fix)" do
@@ -200,6 +201,36 @@ defmodule Aleph.CockpitThreadSessionsTest do
 
     assert_receive {:tmux, ["-L", "aleph-world-99", "send-keys", "-t", "w99:1", "Enter"]}
     assert_receive {:tmux, ["-L", "aleph-world-99", "set-option", "-w", "-t", "w99:1", "@funes_opening", "done"]}
+  end
+
+  test "the leaf cap parks spawns past the budget — no new-window, a one-time note" do
+    prior_cfg = Application.get_env(:aleph, :config_path)
+    cfg = Path.join(System.tmp_dir!(), "aleph_cap_#{System.unique_integer([:positive])}.json")
+    File.write!(cfg, ~s({"max_leaves": 1}))
+    Application.put_env(:aleph, :config_path, cfg)
+
+    on_exit(fn ->
+      Application.put_env(:aleph, :config_path, prior_cfg)
+      File.rm(cfg)
+    end)
+
+    thread = staffed_thread("borges-machine")
+    test_pid = self()
+
+    # One live leaf already occupies the only seat.
+    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+      send(test_pid, {:tmux, args})
+
+      if Enum.member?(args, "list-windows"),
+        do: {"1\t0\trufus\t\t\n0\t1\tbuilder-busy\t424242\tdone\n", 0},
+        else: {"", 0}
+    end)
+
+    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+
+    refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
+    assert [%{body: body}] = Funes.Channel.thread_messages(Funes.Channel.thread(thread.id))
+    assert body =~ "parked"
   end
 
   test "an orphan leaf window (thread closed/cleared while aleph was down) is swept" do

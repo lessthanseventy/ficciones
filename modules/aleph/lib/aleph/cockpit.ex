@@ -301,7 +301,9 @@ defmodule Aleph.Cockpit do
             # window; the Enter follows @opening_submit_delay_ms later so a booting TUI doesn't
             # swallow it. `opening_injected`: thread ids already SUBMITTED (done, never re-touched).
             opening_text_at: %{},
-            opening_injected: MapSet.new()
+            opening_injected: MapSet.new(),
+            # Threads already told "parked: leaf cap reached" — the note posts once, not per render.
+            parked_noted: MapSet.new()
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -1847,10 +1849,13 @@ defmodule Aleph.Cockpit do
     # Window names spawned THIS pass join the taken set, so two new leaves with the same title in
     # one render can't collide on a name (the tag targets by name once, right after new-window).
     taken = MapSet.new(tabs, & &1.name)
+    # The leaf-cap budget (Config.max_leaves): seats left after the already-live leaves. A thread
+    # past the cap stays open/staffed and just waits — a later pass staffs it once a seat frees.
+    budget = Aleph.Config.max_leaves() - Enum.count(tabs, &leaf_window?/1)
 
-    {state, _taken} =
-      Enum.reduce(threads, {state, taken}, fn thread, {st, tk} ->
-        ensure_thread_session(key, roster, thread, tabs, now, st, tk)
+    {state, _taken, _budget} =
+      Enum.reduce(threads, {state, taken, budget}, fn thread, {st, tk, bg} ->
+        ensure_thread_session(key, roster, thread, tabs, now, st, tk, bg)
       end)
 
     sweep_orphan_leaves(key, tabs, MapSet.new(threads, & &1.id))
@@ -1858,6 +1863,11 @@ defmodule Aleph.Cockpit do
   end
 
   def ensure_thread_sessions(state, _spaces), do: state
+
+  # Is this tab a LEAF session (vs the center/tail/console windows)? The `@funes_thread` tag, or
+  # the legacy `t<id>` name.
+  defp leaf_window?(%{thread_id: tid}) when is_integer(tid), do: true
+  defp leaf_window?(%{name: name}), do: Regex.match?(~r/\At\d+\z/, name)
 
   # Convergent teardown: a leaf window whose thread is no longer open+staffed — closed while
   # aleph was down, or wholesale-cleared — dies here, not only on the `:thread_closed` Bus event
@@ -1882,21 +1892,49 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  defp ensure_thread_session(world_id, roster, %{id: id, lead: lead, title: title}, tabs, now, state, taken) do
+  defp ensure_thread_session(world_id, roster, %{id: id, lead: lead, title: title}, tabs, now, state, taken, budget) do
     cond do
       # The standing coworker's own thread — it already has a session (the center window),
       # just not a leaf one. Never spawn a duplicate for it.
       id == state.standing_thread_id ->
-        {state, taken}
+        {state, taken, budget}
 
       leaf_tab(tabs, id) ->
-        {maybe_inject_opening_turn(world_id, id, tabs, now, state), taken}
+        {maybe_inject_opening_turn(world_id, id, tabs, now, state), taken, budget}
 
       not thread_spawn_due?(state.thread_spawn_retry[id], now) ->
-        {state, taken}
+        {state, taken, budget}
+
+      budget <= 0 ->
+        {note_parked(state, id), taken, budget}
 
       true ->
-        spawn_leaf(world_id, roster, lead, title, id, now, state, taken)
+        spawn_leaf(world_id, roster, lead, title, id, now, state, taken, budget)
+    end
+  end
+
+  # Tell the thread ONCE why nobody is working it yet — a silently parked leaf reads exactly like
+  # the old silence bug. Best-effort; the note is informational, the parking is the budget check.
+  defp note_parked(state, id) do
+    if MapSet.member?(state.parked_noted, id) do
+      state
+    else
+      _ =
+        try do
+          Channel.post(%{
+            thread_id: id,
+            author: "aleph",
+            body:
+              "⏸ parked — the leaf cap (#{Aleph.Config.max_leaves()}) is reached. This thread keeps its lead " <>
+                "and starts automatically when a seat frees (close an idle leaf, or raise \"max_leaves\")."
+          })
+        rescue
+          _ -> :ok
+        catch
+          :exit, _ -> :ok
+        end
+
+      %{state | parked_noted: MapSet.put(state.parked_noted, id)}
     end
   end
 
@@ -1905,18 +1943,21 @@ defmodule Aleph.Cockpit do
   # thread it works. nil profile (meta/unknown lead) spawns nothing. The window gets a HUMAN name
   # (`<archetype>-<title-slug>`, Slice C); the routing key is the `@funes_thread` option
   # `tag_leaf/4` stamps right after the spawn.
-  defp spawn_leaf(world_id, roster, lead, title, id, now, state, taken) do
+  defp spawn_leaf(world_id, roster, lead, title, id, now, state, taken, budget) do
     case Profiles.leaf_profile(lead, roster) do
       nil ->
-        {state, taken}
+        {state, taken, budget}
 
       %Profile{} = profile ->
         _ = materialise_profile(profile)
         window = LeafWindow.name(profile.archetype, title, taken)
         command = Harness.driver(profile.harness).launch_command(profile)
         result = spawn_harness_window(world_id, lead, window, id, command)
+        state = record_thread_spawn(tag_leaf(result, world_id, window, id), state, id, now)
+        # A parked thread that finally got its seat may park again later; let it re-note then.
+        state = %{state | parked_noted: MapSet.delete(state.parked_noted, id)}
 
-        {record_thread_spawn(tag_leaf(result, world_id, window, id), state, id, now), MapSet.put(taken, window)}
+        {state, MapSet.put(taken, window), budget - 1}
     end
   end
 
