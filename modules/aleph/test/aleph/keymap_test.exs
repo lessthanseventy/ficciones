@@ -1182,4 +1182,72 @@ defmodule Aleph.KeymapTest do
       assert {%{leader_pending?: true}, :repaint} = Keymap.handle(leader(), s)
     end
   end
+
+  describe "global Alt chords (clarity slice 4)" do
+    # A 3-left/2-right layout (mirrors View's [Spaces, Stack, Memory] / [Health, Crew]) so digit
+    # jumps land distinctly across both columns.
+    defp alt_layout, do: %{left: [:a, :b, :c], right: [:d, :e], sections: %{}, counts: %{}}
+
+    test "Alt+digit jumps focus from INSIDE the terminal — implicit nav" do
+      s = tlon(Focus.new(), %{tlon_layout: alt_layout()})
+      {next, :repaint} = Keymap.handle(char("2", alt: true), s)
+      assert next.focus.in_terminal? == false
+      assert next.focus.column == :left
+      assert next.focus.pane == 1
+    end
+
+    test "Alt+0 returns to the terminal from nav" do
+      s = tlon(nav_focus(%{column: :left, pane: 1}), %{tlon_layout: alt_layout()})
+      {next, :repaint} = Keymap.handle(char("0", alt: true), s)
+      assert next.focus.in_terminal? == true
+    end
+
+    test "Alt+j moves a pane down from the terminal (implicit nav)" do
+      s = tlon(Focus.new(), %{tlon_layout: alt_layout()})
+      {next, :repaint} = Keymap.handle(char("j", alt: true), s)
+      assert next.focus.in_terminal? == false
+    end
+
+    test "Alt+] cycles the carousel from anywhere (even from inside the terminal)" do
+      s = tlon(Focus.new())
+      assert {_next, {:cycle_pane_view, 1}} = Keymap.handle(char("]", alt: true), s)
+    end
+
+    test "Alt+c opens the composer from the terminal" do
+      s = tlon(Focus.new(), %{composer_thread_id: 7})
+      {next, :repaint} = Keymap.handle(char("c", alt: true), s)
+      assert next.input.kind == :compose
+    end
+
+    test "bare digit in NAV is the fallback jump (leader-digit path)" do
+      s = tlon(nav_focus(), %{tlon_layout: alt_layout()})
+      {next, :repaint} = Keymap.handle(char("4"), s)
+      assert next.focus.column == :right
+    end
+  end
+
+  describe "LOCK mode (clarity slice 4)" do
+    test "Alt+g locks; everything then forwards; Alt+g unlocks" do
+      s = tlon(Focus.new(), %{center_live?: true, lock?: false})
+
+      {locked, :repaint} = Keymap.handle(char("g", alt: true), s)
+      assert locked.lock?
+
+      # Alt+digit forwards under lock — readline owns it now.
+      assert {_s, {:forward, %{key: :char, char: "1", alt: true}}} =
+               Keymap.handle(char("1", alt: true), locked)
+
+      # Ctrl+Space forwards too — even the mode toggle is the app's under lock.
+      assert {_s, {:forward, %{key: :space, ctrl: true}}} =
+               Keymap.handle(key(:space, ctrl: true), locked)
+
+      {unlocked, :repaint} = Keymap.handle(char("g", alt: true), locked)
+      refute unlocked.lock?
+    end
+
+    test "locked with no live center is a plain no-op (nothing to forward to)" do
+      s = tlon(Focus.new(), %{center_live?: false, lock?: true})
+      assert {^s, :none} = Keymap.handle(char("1", alt: true), s)
+    end
+  end
 end

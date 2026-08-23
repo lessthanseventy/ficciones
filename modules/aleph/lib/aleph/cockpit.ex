@@ -253,6 +253,9 @@ defmodule Aleph.Cockpit do
             author_edit: nil,
             subscribed_thread: nil,
             leader_pending?: false,
+            # LOCK mode (design 2026-08-23): Alt+g total-passthrough to the center — every other
+            # key, Alt chords included, forwards raw so readline/emacs keep their bindings.
+            lock?: false,
             # Tlön's lazygit focus (which sidebar column/pane/section, and whether we're in the
             # center tmux terminal). Persistent across keypresses — the keymap reads+advances it,
             # only in the Tlön space. Defaults in-terminal, so Tlön opens with keys going to tmux.
@@ -1417,6 +1420,8 @@ defmodule Aleph.Cockpit do
       input: state.input,
       flash: state.flash,
       leader_pending?: state.leader_pending?,
+      # LOCK mode (design 2026-08-23) — the footer's loudest chip.
+      lock?: state.lock?,
       # The World space's focus, so the View can light the focused sidebar pane and the status bar
       # can show NAV/TERM. nil elsewhere — no other space navigates panes this way.
       focus: if(Space.world?(state.active_key), do: state.focus),

@@ -132,6 +132,17 @@ defmodule Aleph.Keymap do
   @doc "Map a key event against the current state to the next state and the effect to run."
   @spec handle(map(), map()) :: {map(), effect()}
 
+  # --- LOCK mode (design 2026-08-23): total passthrough. Alt+g alone is aleph's; every other
+  # key — Alt chords, the leader, Esc — forwards raw so readline/emacs keep their Alt bindings.
+  # Toggled by the same chord. Precedes EVERYTHING, the input modal included.
+  def handle(%{key: :char, char: "g", alt: true}, %{lock?: true} = state), do: {Map.put(state, :lock?, false), :repaint}
+
+  def handle(key, %{lock?: true, center_live?: true} = state), do: {state, {:forward, key}}
+  def handle(_key, %{lock?: true} = state), do: {state, :none}
+
+  def handle(%{key: :char, char: "g", alt: true} = k, state) when not is_map_key(k, :ctrl),
+    do: {Map.put(state, :lock?, true), :repaint}
+
   # Shift+Space (Kitty CSI-u \e[32;2u → %{key: :space, shift: true}) is just a space — normalize it
   # to a plain char up front so EVERY downstream path treats it identically: the composer inserts it,
   # a live terminal forwards a real space byte, nav ignores it like a bare space. Without this it
@@ -255,6 +266,27 @@ defmodule Aleph.Keymap do
 
   # Any other key while typing (function keys, …) is ignored, not acted on.
   def handle(_key, %{input: %{}} = state), do: {state, :none}
+
+  # --- Global Alt chords (design 2026-08-23): work from ANY mode — TERM included — and switch
+  # mode implicitly. World-only for movement (there's no pane grid elsewhere); n/c everywhere.
+  # Must precede the Tlön routing clause (which would forward them to tmux from TERM).
+  def handle(%{key: :char, char: d, alt: true} = k, %{active_key: key, focus: %Focus{}} = state)
+      when Space.world?(key) and d in ~w(0 1 2 3 4 5 6 7 8 9) and not is_map_key(k, :ctrl),
+      do: {focus_jump(state, String.to_integer(d)), :repaint}
+
+  def handle(%{key: :char, char: c, alt: true} = k, %{active_key: key, focus: %Focus{}} = state)
+      when Space.world?(key) and c in ~w(h j k l) and not is_map_key(k, :ctrl), do: {alt_move(state, c), :repaint}
+
+  def handle(%{key: :char, char: "]", alt: true}, state), do: {state, {:cycle_pane_view, 1}}
+  def handle(%{key: :char, char: "[", alt: true}, state), do: {state, {:cycle_pane_view, -1}}
+
+  # Alt+n / Alt+c reach the shared command table with the modifier stripped (its clauses are
+  # modifier-guarded on purpose — a bare-shaped key is the door).
+  def handle(%{key: :char, char: "n", alt: true} = k, state) when not is_map_key(k, :ctrl),
+    do: command(%{key: :char, char: "n"}, state)
+
+  def handle(%{key: :char, char: "c", alt: true} = k, state) when not is_map_key(k, :ctrl),
+    do: command(%{key: :char, char: "c"}, state)
 
   # --- Tlön: the lazygit focus model (design 2026-08-20). The center is a live tmux client, so
   # `Ctrl+Space` is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use.
@@ -562,6 +594,11 @@ defmodule Aleph.Keymap do
     do: {focus_intent(state, :close_detail), :repaint}
 
   defp handle_tlon(%{key: :escape}, state), do: {put_in(state.focus.in_terminal?, true), :repaint}
+  # Bare digits in nav: the no-plumbing fallback for the Alt chords (`^␣ 5`) — jump by border
+  # number; 0 re-enters the terminal.
+  defp handle_tlon(%{key: :char, char: d}, state) when d in ~w(0 1 2 3 4 5 6 7 8 9),
+    do: {focus_jump(state, String.to_integer(d)), :repaint}
+
   defp handle_tlon(%{key: :char, char: "l"}, state), do: {focus_intent(state, :pane_next), :repaint}
   defp handle_tlon(%{key: :char, char: "h"}, state), do: {focus_intent(state, :pane_prev), :repaint}
   defp handle_tlon(%{key: :char, char: "L"}, state), do: {focus_intent(state, :col_right), :repaint}
@@ -605,6 +642,17 @@ defmodule Aleph.Keymap do
   defp handle_tlon(_key, state), do: {state, :none}
 
   defp focus_intent(state, intent), do: %{state | focus: Focus.handle(state.focus, state.tlon_layout, intent)}
+
+  defp focus_jump(state, digit), do: %{state | focus: Focus.jump(state.focus, state.tlon_layout, digit)}
+
+  # Alt+h/j/k/l: directional pane movement, implicit nav (Focus intents no-op in-terminal, so
+  # drop out of the terminal first).
+  @alt_moves %{"h" => :col_left, "l" => :col_right, "j" => :pane_next, "k" => :pane_prev}
+
+  defp alt_move(state, c) do
+    focus = %{state.focus | in_terminal?: false}
+    %{state | focus: Focus.handle(focus, state.tlon_layout, @alt_moves[c])}
+  end
 
   # Move the item cursor, then decide the effect: over a window-bearing pane the cockpit should
   # preview (re-point the center) — `:tlon_preview`; elsewhere a plain `:repaint`. The cockpit
