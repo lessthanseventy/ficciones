@@ -113,9 +113,10 @@ defmodule Aleph.CrewTest do
       assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "w0", "-n", "r42", script]}
       assert script =~ ~s(export FUNES_AUTHOR="reviewer-machine")
       assert script =~ "\nexec "
-      # bare pi launch (Cockpit.pi_command/1), NOT profile_launcher's tmux new-session wrapper —
+      # a bare harness launch via the profile's driver (Slice D: the anthropic-model reviewer at
+      # home rides the official claude launcher), NOT profile_launcher's tmux new-session wrapper —
       # execing new-session here would nest a second tmux server on the shared aleph-world-<id> socket
-      assert script =~ "PI_CODING_AGENT_DIR"
+      assert script =~ "modules/manos/claude-code/launch.sh"
       refute script =~ "new-session"
     end
 

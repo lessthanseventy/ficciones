@@ -76,6 +76,20 @@ defmodule Aleph.Config do
   end
 
   @doc """
+  Where aleph is running — the harness-binding signal (per-thread-agents Slice D): `"home"`
+  (personal Anthropic subscription; anthropic-model coworkers must ride the official
+  `claude_code` harness — the ToS rule) or `"work"` (API-billed; pi may drive any provider).
+  Precedence: `ALEPH_ENV` env var > the config file's `"environment"` key > `"home"`.
+  """
+  @spec environment(String.t()) :: String.t()
+  def environment(path \\ path()) do
+    System.get_env("ALEPH_ENV") || environment_key(read(path)) || "home"
+  end
+
+  defp environment_key(%{"environment" => env}) when is_binary(env) and env != "", do: env
+  defp environment_key(_map), do: nil
+
+  @doc """
   The operator's persisted default-coworker override for new chat threads, or `nil` when unset.
   Just the override — the roster-derived default lives with the staffing decision
   (`Aleph.MachineChat.Staffing.default_coworker/1`), fed the LIVE world roster by the caller, so no

@@ -12,6 +12,7 @@ defmodule Aleph.Cockpit do
   use GenServer
 
   alias Aleph.Board
+  alias Aleph.Harness
   alias Aleph.Keymap
   alias Aleph.LeafWindow
   alias Aleph.Mouse
@@ -1786,13 +1787,15 @@ defmodule Aleph.Cockpit do
     state
   end
 
-  # Dispatch a tail window's launcher by its archetype's harness — real Claude (honestly
-  # identified, no pi-multi-account impersonation — see Aleph.Profiles' @seed_roster comment) or a
-  # windowed pi.
-  defp spawn_window(world_id, %Profile{harness: :claude_code, name: name}),
-    do: spawn_agent_window(world_id, "#{name}-machine", name)
-
-  defp spawn_window(world_id, %Profile{harness: :pi} = profile), do: spawn_pi_window(world_id, profile, profile.name)
+  # A tail window's launcher comes from its profile's HARNESS DRIVER (Slice D) — real Claude
+  # (honestly identified, no pi-multi-account impersonation — see Aleph.Profiles' @seed_roster
+  # comment) or a windowed pi; the spawn plumbing is shared. Materialised first: both drivers
+  # read the profile's config dir (pi: the whole dir; claude: system_prompt.md as the role).
+  defp spawn_window(world_id, %Profile{name: name} = profile) do
+    _ = materialise_profile(profile)
+    command = Harness.driver(profile.harness).launch_command(profile)
+    spawn_harness_window(world_id, "#{name}-machine", name, machine_thread_id(), command)
+  end
 
   # The `chat` tab (the third Tlön window): the INTERACTIVE machine-chat — machine-scope threads as
   # foldable blocks with author-turn grouping (fold/zoom/scroll), so the tertius/hronir tabs can stay
@@ -1863,24 +1866,21 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Dispatch the leaf spawn on the lead's roster profile: claude leads ride `claude_launcher()`,
-  # pi leads a windowed `pi_command/1` — both joined to the leaf's OWN thread id, so `FUNES_THREAD`
-  # binds the harness to the thread it works. nil profile (meta/unknown lead) spawns nothing.
-  # The window gets a HUMAN name (`<archetype>-<title-slug>`, Slice C); the routing key is the
-  # `@funes_thread` option `tag_leaf/4` stamps right after the spawn.
+  # Spawn a leaf via the lead's roster profile: the harness DRIVER supplies the exec (Slice D),
+  # the shared plumbing joins the leaf's OWN thread id so `FUNES_THREAD` binds the harness to the
+  # thread it works. nil profile (meta/unknown lead) spawns nothing. The window gets a HUMAN name
+  # (`<archetype>-<title-slug>`, Slice C); the routing key is the `@funes_thread` option
+  # `tag_leaf/4` stamps right after the spawn.
   defp spawn_leaf(world_id, roster, lead, title, id, now, state, taken) do
     case Profiles.leaf_profile(lead, roster) do
       nil ->
         {state, taken}
 
       %Profile{} = profile ->
+        _ = materialise_profile(profile)
         window = LeafWindow.name(profile.archetype, title, taken)
-
-        result =
-          case profile.harness do
-            :claude_code -> spawn_agent_window(world_id, lead, window, id)
-            _pi -> spawn_pi_window(world_id, profile, window, id)
-          end
+        command = Harness.driver(profile.harness).launch_command(profile)
+        result = spawn_harness_window(world_id, lead, window, id, command)
 
         {record_thread_spawn(tag_leaf(result, world_id, window, id), state, id, now), MapSet.put(taken, window)}
     end
@@ -1996,41 +1996,20 @@ defmodule Aleph.Cockpit do
   # absent, and `ensure_windows` retries it on the next render — no backoff needed, `new-window` is
   # cheap and idempotent-by-absence-check above.
 
-  # Open a Claude-Code window named `window` on `thread_id` as funes `agent`, in world `world_id` —
-  # default `machine_thread_id()`, the standing coworkers' shared thread. The roster/third-experiment
-  # windows AND the per-thread windows (`ensure_thread_sessions`) all ride this: same launcher,
-  # distinct identity + tab label + (per-thread) distinct thread, so `FUNES_THREAD` binds the harness
-  # to the thread it's actually meant to work on.
-  defp spawn_agent_window(world_id, agent, window, thread_id \\ machine_thread_id())
-
-  defp spawn_agent_window(world_id, agent, window, thread_id) do
+  # Open a harness window named `window` on `thread_id` as funes handle `handle`, running
+  # `command` (the profile's `Aleph.Harness.Driver.launch_command/1`) in world `world_id`. The
+  # roster tail windows AND the per-thread leaf windows all ride this ONE spawn: identity join +
+  # tmux plumbing are harness-agnostic (Slice D); only the exec differs, and that came from the
+  # driver. `FUNES_THREAD` binds the harness to the thread it's actually meant to work on.
+  defp spawn_harness_window(world_id, handle, window, thread_id, command) do
     with id when is_integer(id) <- thread_id,
-         {:ok, %{exports: exports}} <- joiner().(id, agent, mandate: "machine") do
-      script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> claude_launcher()
-      # `-d`: spawn the window in the background — a coworker starting (a standing claude/third, or
-      # a per-thread session) must NOT yank the operator off whatever window they're on.
+         {:ok, %{exports: exports}} <- joiner().(id, handle, mandate: "machine") do
+      script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> command
+      # `-d`: spawn the window in the background — a coworker starting must NOT yank the operator
+      # off whatever window they're on.
       tlon_run(world_id, ["new-window", "-d", "-t", world_session(world_id), "-n", window, script])
     end
   end
-
-  # The roster's :pi tail entries (a second surveyor/planner riding its own window, not the
-  # embedded center): same shape as `spawn_agent_window`, but execs the bare `pi_command/1` instead
-  # of `claude_launcher/0` — and its funes handle is the roster-derived `"<name>-machine"`.
-  defp spawn_pi_window(world_id, profile, window, thread_id \\ machine_thread_id())
-
-  defp spawn_pi_window(world_id, %Profile{name: name} = profile, window, thread_id) do
-    with id when is_integer(id) <- thread_id,
-         {:ok, %{exports: exports}} <- joiner().(id, "#{name}-machine", mandate: "machine") do
-      # Only the center's spawn used to materialise; a windowed pi (roster tail or a Slice-A leaf
-      # lead like a planner) needs its config dir too, or it boots with bare-pi defaults.
-      # Best-effort: a filesystem hiccup degrades to exactly those defaults, never a failed spawn.
-      _ = materialise_profile(profile)
-      script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> pi_command(profile)
-      tlon_run(world_id, ["new-window", "-d", "-t", world_session(world_id), "-n", window, script])
-    end
-  end
-
-  defp claude_launcher, do: Path.join(Profiles.repo(), "modules/manos/claude-code/launch.sh")
 
   # The identity minter for a tail-window spawn — defaults to the live funes join (mints in-node
   # against the Repo/tokens), overridable via `:aleph, :tlon_join` so a test drives `ensure_windows`
@@ -2071,25 +2050,10 @@ defmodule Aleph.Cockpit do
     e -> {:error, e}
   end
 
-  # The bare `pi` invocation for a profile: config dir as PI_CODING_AGENT_DIR, persona as
-  # --append-system-prompt, driver as --model. Shared by `profile_launcher` (the center's new-session)
-  # and any windowed pi. The model MUST ride as a --model flag: pi resolves settings.json defaultModel
-  # BEFORE pi-multi-account registers `anthropic`, so a claude-* default falls back to glm; the CLI
-  # flag applies after extensions load, so it sticks (verified 2026-08-17).
+  # The bare `pi` invocation for a profile — moved to the pi harness driver (Slice D); kept as a
+  # delegator for `profile_launcher` (the center's new-session) and `Aleph.Crew`.
   @doc false
-  def pi_command(%Profile{} = profile) do
-    base = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
-    dir = Profiles.config_dir(profile.name)
-    prompt = if profile.system_prompt, do: " --append-system-prompt #{Path.join(dir, "system_prompt.md")}", else: ""
-
-    model =
-      case profile.model do
-        %{provider: prov, model: m, thinking: think} -> " --model #{prov}/#{m} --thinking #{think}"
-        _ -> ""
-      end
-
-    "env PI_CODING_AGENT_DIR=#{dir} #{base}#{prompt}#{model}"
-  end
+  def pi_command(%Profile{} = profile), do: Harness.Pi.launch_command(profile)
 
   # The center coworker's launcher: pi on its OWN tmux server (`-L aleph-world-<id>`, id-derived —
   # not name-derived, so a world rename can't orphan it — + the profile's persistence-free

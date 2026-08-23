@@ -141,7 +141,9 @@ defmodule Aleph.Crew do
          %Aleph.Profile{} = profile <- Profiles.fetch(profile_name) || {:missing_profile, profile_name},
          _dir = Profiles.materialise!(profile),
          {:ok, %{exports: exports}} <- joiner().(thread_id, handle, mandate: "machine", assign: false),
-         script = boot_script(exports, Aleph.Cockpit.pi_command(profile)),
+         # Slice D: the profile's harness DRIVER supplies the exec — a claude_code-bound reviewer
+         # (anthropic model at home) rides the official launcher, never sonnet-through-pi.
+         script = boot_script(exports, Aleph.Harness.driver(profile.harness).launch_command(profile)),
          {:ok, window} <- run_spawn(role_key, thread_id, script) do
       if Keyword.get(opts, :inject, true), do: inject_opening(window, opening_turn(thread_id, task))
       {:ok, window}

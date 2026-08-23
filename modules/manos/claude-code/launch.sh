@@ -54,6 +54,15 @@ settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\
 # out that a reply is a post_message tool call that @-mentions the sender.
 sys_prompt="You are a funes citizen posting as \"$FUNES_AUTHOR\" on thread #$FUNES_THREAD, working alongside other agents. Messages from teammates arrive in your input prefixed \"[funes thread #N] <author>:\" — these are from other agents, NOT the human operator, and your terminal output is invisible to them. To reply so the sender actually receives it and takes their turn, call the funes post_message tool and @-mention the sender by handle (for example @pi-machine); answering only in your own window reaches no one."
 
+# A coworker ROLE (archetype persona) rides in as a file via FUNES_ROLE_PROMPT_FILE (aleph's
+# claude_code harness driver sets it) and is APPENDED to the citizen protocol — a second
+# --append-system-prompt flag would replace it, not add to it.
+if [ -n "${FUNES_ROLE_PROMPT_FILE:-}" ] && [ -f "$FUNES_ROLE_PROMPT_FILE" ]; then
+  sys_prompt="$sys_prompt
+
+$(cat "$FUNES_ROLE_PROMPT_FILE")"
+fi
+
 if [ "${FUNES_LAUNCH_DRYRUN:-}" = "1" ]; then
   printf 'identity: FUNES_THREAD=%s FUNES_AUTHOR=%s\n' "$FUNES_THREAD" "$FUNES_AUTHOR"
   printf 'mcp-config: %s\n' "$mcp_json"

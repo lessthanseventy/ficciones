@@ -458,7 +458,6 @@ defmodule Aleph.Profiles do
       add_extensions: [@footer_extension]
     },
     builder: %{
-      harness: :claude_code,
       model: @sonnet,
       mcp: @tlon_funes_mcp,
       sandbox: @tlon_sandbox,
@@ -569,14 +568,18 @@ defmodule Aleph.Profiles do
           Profile.t()
   def instantiate(%{archetype: key, name: name} = entry) do
     t = archetype(key)
+    model = entry[:model] || Aleph.Config.coworker_model(name) || t.model
 
     %Profile{
       name: name,
       archetype: key,
-      harness: Map.get(t, :harness, :pi),
+      # Slice D: the harness is an environment-resolved BINDING from the model (anthropic model at
+      # home → the official claude_code harness; else pi), not an archetype trait. A template
+      # `harness:` key stays an explicit pin (the escape hatch).
+      harness: Map.get(t, :harness) || Aleph.Harness.resolve(model, Aleph.Config.environment()),
       add_extensions: Map.get(t, :add_extensions, []),
       mcp: t.mcp,
-      model: entry[:model] || Aleph.Config.coworker_model(name) || t.model,
+      model: model,
       sandbox: t.sandbox,
       permissions: apply_yolo_override(t.permissions, Aleph.Config.coworker_yolo(name)),
       system_prompt: personalize(t.system_prompt, name)

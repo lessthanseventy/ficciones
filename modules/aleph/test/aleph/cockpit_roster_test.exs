@@ -92,6 +92,11 @@ defmodule Aleph.CockpitRosterTest do
   end
 
   test "a :pi tail entry spawns a windowed pi (bare pi_command), not the claude launcher" do
+    # Slice D: the harness binds from model × environment (anthropic@home → claude_code), so pin
+    # the WORK environment — there every archetype (the planner here) rides pi.
+    System.put_env("ALEPH_ENV", "work")
+    on_exit(fn -> System.delete_env("ALEPH_ENV") end)
+
     worlds = [
       %{
         id: 99,
