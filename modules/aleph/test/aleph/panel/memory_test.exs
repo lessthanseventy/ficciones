@@ -56,4 +56,14 @@ defmodule Aleph.Panel.MemoryTest do
     rows = Memory.render(data(), @rect)
     refute Enum.any?(text(rows), &String.starts_with?(&1, "▸"))
   end
+
+  test "an empty HABITS section collapses to nothing — no label, no dash" do
+    data = %{coverage: nil, floor: [%{text: "a fact"}], habits: []}
+    rows = Memory.render(data, %{x: 0, y: 0, w: 40, h: 20})
+    texts = Enum.map(rows, fn row -> Enum.map_join(row, fn {t, _} -> t end) end)
+
+    refute Enum.any?(texts, &String.contains?(&1, "HABITS"))
+    # no trailing blank+placeholder either: the floor takes the space
+    refute List.last(texts) == "  —"
+  end
 end

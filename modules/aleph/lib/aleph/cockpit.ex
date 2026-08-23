@@ -1536,13 +1536,17 @@ defmodule Aleph.Cockpit do
         %{
           left: [Panel.Spaces | space.left],
           right: space.right,
-          sections: %{Panel.Memory => 2},
+          sections: %{Panel.Memory => memory_sections(state)},
           counts: pane_counts(state)
         }
     end
   end
 
   defp tlon_layout(_state), do: %{left: [], right: [], sections: %{}, counts: %{}}
+
+  # HABITS collapses when empty (Panel.Memory), so the Tab ring must shrink with it.
+  defp memory_sections(%{memory: %{habits: habits}}) when habits != [], do: 2
+  defp memory_sections(_state), do: 1
 
   defp space_at_cursor(state, layout), do: Enum.at(Space.all(), Focus.cursor(state.focus, layout)).key
 

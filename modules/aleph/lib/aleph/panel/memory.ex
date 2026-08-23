@@ -35,8 +35,7 @@ defmodule Aleph.Panel.Memory do
       coverage_rows(Map.get(data, :coverage)) ++
         [rule(rect.w)] ++
         floor_rows(floor, section == @floor_section, selected, rect.w) ++
-        [blank()] ++
-        habit_rows(habits, section == @habits_section, selected, rect.w)
+        habit_block(habits, section == @habits_section, selected, rect.w)
 
     Aleph.Panel.clip(rows, rect)
   end
@@ -76,15 +75,15 @@ defmodule Aleph.Panel.Memory do
     [label | body]
   end
 
+  # Empty HABITS collapses to nothing (design 2026-08-23): FLOOR takes the space, and the
+  # cockpit's section count drops to 1 so Tab can't land on a section that isn't drawn.
+  defp habit_block([], _active?, _selected, _w), do: []
+  defp habit_block(habits, active?, selected, w), do: [blank() | habit_rows(habits, active?, selected, w)]
+
   defp habit_rows(habits, active?, selected, w) do
     hint = if active?, do: [{"  a", :accent}, {" approve  ", :dim}, {"r", :accent}, {" reject", :dim}], else: []
     label = [{"HABITS", section_style(active?)}, {" (#{length(habits)})", :dim}]
-
-    body =
-      case habits do
-        [] -> [line("  —", :dim)]
-        hs -> hs |> Enum.with_index() |> Enum.map(fn {h, i} -> habit_row(h, active? and i == selected, w) end)
-      end
+    body = habits |> Enum.with_index() |> Enum.map(fn {h, i} -> habit_row(h, active? and i == selected, w) end)
 
     [label | body] ++ [hint]
   end
