@@ -9,6 +9,11 @@ defmodule Aleph.Panel.Conversation do
   `thinking`/`working` agent lists (the focused thread's presence) rendered as a trailing
   `⋯ <agent> is thinking…` indicator — thinking counts as working, so the explicit declare
   (accent) outranks the tmux-activity inference (dim).
+
+  A message carrying `attachment: %{w, h}` renders `Aleph.Graphics.placeholder/2` after its
+  body (design 2026-08-23 §Images) — the seam's proof, not a feature. Funes doesn't emit
+  attachments yet; real thumbnails (`images/2` on this panel + the funes write-path) land with
+  the coming Spaces work.
   """
   @behaviour Aleph.Panel
 
@@ -57,15 +62,21 @@ defmodule Aleph.Panel.Conversation do
   # "author: body", paragraph-aware wrap with a hanging indent so the author stays legible;
   # blank lines in the body render as paragraph breaks instead of collapsing. The operator's
   # messages render whole in :operator pink; agents keep amber author / green body.
-  defp message_rows(%{author: author, body: body}, w) do
+  defp message_rows(%{author: author, body: body} = msg, w) do
     prefix = "#{author}: "
     body_style = if Funes.Channel.operator?(author), do: :operator, else: :normal
 
-    case Aleph.Text.wrap_paragraphs(prefix <> body, max(w, 1)) do
-      [] -> []
-      [first | rest] -> [author_run(first, author, body_style) | Enum.map(rest, &continuation(&1, body_style))]
-    end
+    rows =
+      case Aleph.Text.wrap_paragraphs(prefix <> body, max(w, 1)) do
+        [] -> []
+        [first | rest] -> [author_run(first, author, body_style) | Enum.map(rest, &continuation(&1, body_style))]
+      end
+
+    rows ++ attachment_row(Map.get(msg, :attachment))
   end
+
+  defp attachment_row(%{w: w, h: h}), do: [Aleph.Graphics.placeholder(w, h)]
+  defp attachment_row(_attachment), do: []
 
   defp continuation("", _style), do: blank()
   defp continuation(text, style), do: line("  " <> text, style)

@@ -74,4 +74,19 @@ defmodule Aleph.Panel.ConversationTest do
     assert text =~ "⋯ hronir is working…"
     assert style_of(rows, "is working") == :dim
   end
+
+  test "a message with an attachment renders a placeholder row after its body (graphics seam)" do
+    rows =
+      Conversation.render(
+        %{title: "t", messages: [%{author: "a", body: "look", attachment: %{w: 24, h: 6}}]},
+        @rect
+      )
+
+    assert Aleph.Graphics.placeholder(24, 6) in rows
+  end
+
+  test "a message without an attachment renders no placeholder row" do
+    rows = Conversation.render(%{title: "t", messages: [%{author: "a", body: "hi"}]}, @rect)
+    refute Enum.any?(rows, &(Enum.map_join(&1, fn {t, _} -> t end) =~ "image"))
+  end
 end
