@@ -1968,8 +1968,14 @@ defmodule Aleph.Cockpit do
 
       true ->
         case spawn_center(world_id, lead) do
-          pid when is_pid(pid) -> capture_standing_thread_id(state)
-          _ -> %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
+          pid when is_pid(pid) ->
+            # Harnesses inside the center can emit kitty graphics themselves — tmux must pass the
+            # APC through instead of eating it (design 2026-08-23 §Images rider).
+            _ = tlon_run(world_id, ["set-option", "-g", "allow-passthrough", "on"])
+            capture_standing_thread_id(state)
+
+          _ ->
+            %{state | machine_retry_at: now + @machine_spawn_backoff_ms}
         end
     end
   end
