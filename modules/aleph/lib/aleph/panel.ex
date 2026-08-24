@@ -36,7 +36,10 @@ defmodule Aleph.Panel do
   @doc "The pane's footer verbs as `{keycap, label}` pairs — the contextual footer's third segment."
   @callback hints(data :: term()) :: [{String.t(), String.t()}]
 
-  @optional_callbacks [pick: 3, hints: 1]
+  @doc "Image placements to draw over this panel's rect (kitty hosts) — `%{id, data, rect}`s."
+  @callback images(data :: term(), rect()) :: [map()]
+
+  @optional_callbacks [pick: 3, hints: 1, images: 2]
 
   @doc "A one-run row in a given style — the common case."
   @spec line(String.t(), style()) :: row()
@@ -127,6 +130,13 @@ defmodule Aleph.Panel do
     # hasn't rendered yet this VM would silently read as hint-less without this.
     Code.ensure_loaded?(panel)
     if function_exported?(panel, :hints, 1), do: panel.hints(data) || [], else: []
+  end
+
+  @doc "A panel's image placements, or [] — `images/2` is optional (same load-first footgun as hints/2)."
+  @spec images(module(), term(), rect()) :: [map()]
+  def images(panel, data, rect) do
+    Code.ensure_loaded?(panel)
+    if function_exported?(panel, :images, 2), do: panel.images(data, rect) || [], else: []
   end
 
   # Every list panel opens with the same chrome: a title row + a blank spacer above the rows.

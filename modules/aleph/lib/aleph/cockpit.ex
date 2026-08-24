@@ -317,7 +317,10 @@ defmodule Aleph.Cockpit do
             parked_noted: MapSet.new(),
             # Explicit thinking presence: thread_id => %{agent => started_at}. Seeded from the
             # store (reconcile-on-connect), then maintained by the funes:presence Bus events.
-            thinking: thinking_snapshot()
+            thinking: thinking_snapshot(),
+            # Transmitted kitty-graphics ids (design 2026-08-23 §Images) — the sync/2 cache so a
+            # placement already on the tty isn't re-transmitted every frame.
+            graphics: MapSet.new()
           })
 
         Process.send_after(self(), :tick, @tick_ms)
@@ -343,7 +346,10 @@ defmodule Aleph.Cockpit do
     # exceeds what termbox will actually render at. The tick catches this too as a backstop.
     state = refresh_size(state)
     resize_focused_terminal(state)
-    {:noreply, render(state)}
+    # Every placed image's cell rect is now stale — clear the tty and the sync cache so the next
+    # paint re-places (and re-transmits, since the cache is gone) at the new geometry.
+    if Aleph.Graphics.kitty?(), do: IO.write(Aleph.Graphics.delete_all())
+    {:noreply, render(%{state | graphics: MapSet.new()})}
   end
 
   def handle_cast({:dispatch, %Event{type: :paste, data: %{phase: :start}}}, state) do
@@ -1478,7 +1484,22 @@ defmodule Aleph.Cockpit do
     |> Board.compose(state.w, state.h)
     |> Board.paint()
 
+    state = sync_graphics(state, placements)
+
     %{state | placements: placements}
+  end
+
+  # The kitty-graphics pass (design 2026-08-23): after the cell paint, place/refresh every
+  # panel-declared image. Non-kitty hosts skip it wholesale (panels showed placeholder runs).
+  defp sync_graphics(state, placements) do
+    if Aleph.Graphics.kitty?() do
+      wanted = Enum.flat_map(placements, fn {panel, data, rect} -> Panel.images(panel, data, rect) end)
+      {io, cache} = Aleph.Graphics.sync(wanted, state.graphics)
+      if io != [[], [], []], do: IO.write(io)
+      %{state | graphics: cache}
+    else
+      state
+    end
   end
 
   defp focused_thread([], _id), do: nil
@@ -2523,6 +2544,14 @@ defmodule Aleph.Cockpit do
   def terminate(_reason, state), do: teardown(state)
 
   defp teardown(state) do
+    # Best-effort: clear any placed images before the alt screen goes away. A failure here must
+    # never skip the tty restore below (a wedged shell is worse than a stray image).
+    try do
+      if Aleph.Graphics.kitty?(), do: IO.write(Aleph.Graphics.delete_all())
+    catch
+      _, _ -> :ok
+    end
+
     # Pop Kitty while still ON the alt screen (the spec gives main and alternate screens
     # INDEPENDENT keyboard-flag stacks, so the pop must land on the screen the push landed on).
     # Straight to /dev/tty, not stdout — the io server may already be winding down on a crash.
