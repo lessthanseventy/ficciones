@@ -15,6 +15,16 @@ defmodule Aleph.GraphicsTest do
     assert Enum.all?(seqs, &String.ends_with?(&1, "\e\\"))
   end
 
+  test "transmit/2 with a single-chunk payload emits exactly one APC with no m param" do
+    seqs = Graphics.transmit(3, <<1, 2, 3>>)
+
+    assert [only] = seqs
+    assert only =~ "\e_G"
+    assert only =~ "i=3"
+    refute only =~ "m="
+    assert String.ends_with?(only, "\e\\")
+  end
+
   test "place/2 saves the cursor, moves to the cell, places, restores" do
     io = 7 |> Graphics.place(%{x: 4, y: 2, w: 10, h: 5}) |> IO.iodata_to_binary()
     assert io =~ "\e[3;5H"

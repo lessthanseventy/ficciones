@@ -115,3 +115,7 @@ mode × focused pane, keymap tests for Alt/lock events and digit jumps, carousel
 graphics placement emission (sequence builders pure; the tty write is the only IO). Live
 smoke: one pass through every pane by digit in the real cockpit, shift+drag, a `y` yank, a
 thumbnail in kitty + placeholder under a non-kitty TERM.
+
+Known tradeoff: at extreme terminal heights a height-dropped box keeps its digit, so `Alt+N`
+can focus a pane whose box isn't drawn — accepted (digits never renumber); real cockpits
+don't run that short.

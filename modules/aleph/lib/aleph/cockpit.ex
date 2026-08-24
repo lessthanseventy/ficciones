@@ -1495,7 +1495,7 @@ defmodule Aleph.Cockpit do
     if Aleph.Graphics.kitty?() do
       wanted = Enum.flat_map(placements, fn {panel, data, rect} -> Panel.images(panel, data, rect) end)
       {io, cache} = Aleph.Graphics.sync(wanted, state.graphics)
-      if io != [[], [], []], do: IO.write(io)
+      if IO.iodata_length(io) > 0, do: IO.write(io)
       %{state | graphics: cache}
     else
       state
@@ -2550,10 +2550,11 @@ defmodule Aleph.Cockpit do
   def terminate(_reason, state), do: teardown(state)
 
   defp teardown(state) do
-    # Best-effort: clear any placed images before the alt screen goes away. A failure here must
-    # never skip the tty restore below (a wedged shell is worse than a stray image).
+    # Best-effort: clear any placed images before the alt screen goes away. Straight to /dev/tty
+    # like the Kitty pop below (the io server may already be winding down on a crash), and a
+    # failure here must never skip the tty restore (a wedged shell is worse than a stray image).
     try do
-      if Aleph.Graphics.kitty?(), do: IO.write(Aleph.Graphics.delete_all())
+      if Aleph.Graphics.kitty?(), do: File.write("/dev/tty", Aleph.Graphics.delete_all())
     catch
       _, _ -> :ok
     end
