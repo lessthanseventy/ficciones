@@ -25,38 +25,20 @@ defmodule Funes.Eval.Judge.Claude do
     e in ErlangError -> {:error, {:judge_missing, Exception.message(e)}}
   end
 
-  # The reply is ONLY-JSON by contract, but models decorate — try the whole trimmed output,
-  # then every first-brace..closing-brace candidate from the END inward (a trailing footnote
-  # with braces must not corrupt the real object). Score keys stay STRINGS: the runner only
-  # reads values, and atomizing model-authored keys would mint unbounded atoms.
+  # Score keys stay STRINGS: the runner only reads values, and atomizing model-authored
+  # keys would mint unbounded atoms. Blob extraction is Funes.JsonBlob's (shared).
   @doc false
   def parse(out) do
-    out
-    |> candidates()
-    |> Enum.find_value({:error, {:unparseable_judgement, String.slice(out, 0, 200)}}, fn blob ->
-      case Jason.decode(blob) do
-        {:ok, %{"scores" => scores, "rationale" => rationale}} when map_size(scores) > 0 ->
-          {:ok, %{scores: scores, rationale: rationale}}
-
-        _ ->
-          nil
-      end
-    end)
-  end
-
-  defp candidates(out) do
-    trimmed = String.trim(out)
-
-    case :binary.match(trimmed, "{") do
-      :nomatch ->
-        []
-
-      {start, _} ->
-        tail = binary_part(trimmed, start, byte_size(trimmed) - start)
-        closers = for {i, _} <- :binary.matches(tail, "}"), do: binary_part(tail, 0, i + 1)
-        [trimmed | Enum.reverse(closers)]
+    case Funes.JsonBlob.first_valid(out, &shape/1) do
+      nil -> {:error, {:unparseable_judgement, String.slice(out, 0, 200)}}
+      judgement -> {:ok, judgement}
     end
   end
+
+  defp shape(%{"scores" => scores, "rationale" => rationale}) when map_size(scores) > 0,
+    do: %{scores: scores, rationale: rationale}
+
+  defp shape(_decoded), do: nil
 
   defp cmd, do: Application.get_env(:funes, :eval_judge_cmd, "claude")
   defp model, do: Application.get_env(:funes, :eval_judge_model, "haiku")

@@ -21,6 +21,10 @@ if root = System.get_env("FUNES_WORKLINE_ROOT") do
   config :funes, workline_root: root
 end
 
+# The post-response memory pass (worklines slice 5) is opt-in: presence_idle → cheap
+# extractor → banked facts. Off by default so a dev shell never shells a model unasked.
+config :funes, memory_pass: System.get_env("FUNES_MEMORY_PASS") in ~w(1 true yes)
+
 # The operator's handle — who the human IS on this machine's channel. Local
 # configuration, never identity in the design (§8); the same default aleph uses.
 # `Dossier.bank_stated_fact` trusts only this author for `stated` provenance.
