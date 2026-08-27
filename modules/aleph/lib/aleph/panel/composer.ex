@@ -63,7 +63,8 @@ defmodule Aleph.Panel.Composer do
   defp row(line, 0), do: [{"▸ ", :accent} | marker_runs(line)]
   defp row(line, _i), do: [{"  ", :normal} | marker_runs(line)]
 
-  defp marker_runs(line) do
+  @doc "Style runs for a wrapped line — the `▎` marker accented, the text around it plain."
+  def marker_runs(line) do
     case String.split(line, @marker, parts: 2) do
       [pre, post] -> [{pre, :normal}, {@marker, :accent}, {post, :normal}]
       [plain] -> [{plain, :normal}]

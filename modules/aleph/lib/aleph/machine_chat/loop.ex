@@ -35,6 +35,7 @@ defmodule Aleph.MachineChat.Loop do
   alias Aleph.MachineChat.Rail
   alias Aleph.MachineChat.Staffing
   alias Aleph.Mention
+  alias Aleph.Panel
   alias Aleph.Panel.Crew
   alias Aleph.Presence
   alias Aleph.Profiles
@@ -463,7 +464,8 @@ defmodule Aleph.MachineChat.Loop do
   end
 
   defp paint(state) do
-    l = Layout.compute(state.w, state.h)
+    cw = Layout.compute(state.w, state.h).composer.w - 2
+    l = Layout.compute(state.w, state.h, length(compose_lines(state.view.input, cw)))
 
     rows = conversation_rows(state, l.center.w - 2)
     max_scroll = max(length(rows) - l.center.h, 0)
@@ -478,7 +480,7 @@ defmodule Aleph.MachineChat.Loop do
         Board.rows_to_cells(top_pad ++ windowed, inset(l.center)) ++
         pane_cells(l.crew, crew_rows(state, l.crew)) ++
         sep_cells(l.crew_sep) ++
-        Board.rows_to_cells(composer_rows(state, l.composer.w - 2), inset(l.composer))
+        Board.rows_to_cells(composer_rows(state, cw, l.composer.h), inset(l.composer))
 
     Board.paint(cells)
     %{state | scroll: scroll, max_scroll: max_scroll}
@@ -576,18 +578,34 @@ defmodule Aleph.MachineChat.Loop do
     end
   end
 
-  # The composer: a blank spacer, a rule, then the input line — reply into the open thread by
-  # default, a new task after Ctrl+N.
-  defp composer_rows(state, cw) do
+  # The composer: a blank spacer, a rule, then the FULL buffer wrapped to the width — the box
+  # grows with it (Layout caps at half the body; past the cap the window keeps the cursor's
+  # tail line). Reply into the open thread by default, a new task after Ctrl+N.
+  @doc false
+  def composer_rows(state, cw, box_h) do
     input = state.view.input
     {glyph, hint} = composer_prompt(state)
 
-    line =
+    lines =
       if input == "",
-        do: [{glyph, :accent}, {hint, :dim}],
-        else: [{glyph, :accent}, {input, :normal}, {"▌", :accent}]
+        do: [[{glyph, :accent}, {hint, :dim}]],
+        else: input |> compose_lines(cw) |> Enum.take(-(box_h - 2)) |> glyph_rows(glyph)
 
-    [[], [{String.duplicate("─", max(cw, 1)), :separator}], line]
+    [[], [{String.duplicate("─", max(cw, 1)), :separator}] | lines]
+  end
+
+  # The wrapped buffer with the `▎` cursor marker at the tail — Panel.Composer's wrap, the
+  # cockpit compose box's exact behavior. Layout sizes the box from its length.
+  @doc false
+  def compose_lines(input, cw) do
+    Panel.Composer.lines(%{buffer: input, cursor: String.length(input)}, Panel.Composer.text_width(cw))
+  end
+
+  defp glyph_rows([first | rest], glyph) do
+    [
+      [{glyph, :accent} | Panel.Composer.marker_runs(first)]
+      | Enum.map(rest, &[{"  ", :normal} | Panel.Composer.marker_runs(&1)])
+    ]
   end
 
   defp composer_prompt(%{view: %{intent: :new}}), do: {"＋ ", "new task — type and press Enter · Esc back to reply"}
