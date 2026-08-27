@@ -29,7 +29,8 @@ defmodule Funes.Application do
         maybe(:start_consult_mirror, true, Funes.Consult.Mirror) ++
         maybe(:start_switchboard, false, Funes.Switchboard.Server) ++
         maybe(:start_mcp, false, mcp_children()) ++
-        maybe(:memory_pass, false, {Funes.Memory.TurnPass, []})
+        maybe(:memory_pass, false, {Funes.Memory.TurnPass, []}) ++
+        maybe(:maintain, false, {Funes.Maintain.Monitor, []})
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Funes.Supervisor)
   end

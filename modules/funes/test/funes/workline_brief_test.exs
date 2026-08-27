@@ -77,7 +77,7 @@ defmodule Funes.WorklineBriefTest do
     bodies = fn -> Message |> Repo.all() |> Enum.filter(&(&1.thread_id == thread.id)) |> Enum.map(& &1.body) end
     assert Enum.any?(bodies.(), &(&1 =~ "approve #{thread.id}"))
 
-    {:ok, at_plan} = Workline.approve(parked)
+    {:ok, at_plan} = Workline.approve(parked, artifacts: AllPresent)
     assert at_plan.stage == "plan"
     assert Enum.any?(bodies.(), &(&1 =~ "PLAN"))
   end

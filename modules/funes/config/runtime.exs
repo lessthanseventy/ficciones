@@ -21,6 +21,10 @@ if root = System.get_env("FUNES_WORKLINE_ROOT") do
   config :funes, workline_root: root
 end
 
+# The Maintain monitor (worklines slice 6) is opt-in the same way: control-band sweeps that
+# nag stale gates and flag stalled worklines as gated machine-born intents.
+config :funes, maintain: System.get_env("FUNES_MAINTAIN") in ~w(1 true yes)
+
 # The post-response memory pass (worklines slice 5) is opt-in: presence_idle → cheap
 # extractor → banked facts. Off by default so a dev shell never shells a model unasked.
 config :funes, memory_pass: System.get_env("FUNES_MEMORY_PASS") in ~w(1 true yes)

@@ -70,7 +70,7 @@ defmodule Funes.WorklineTest do
     assert parked.stage == "intent"
     assert {:error, :awaiting_operator} = Workline.advance(parked, artifacts: AllPresent)
 
-    assert {:ok, approved} = Workline.approve(parked)
+    assert {:ok, approved} = Workline.approve(parked, artifacts: AllPresent)
     assert approved.stage == "spec"
     assert approved.awaiting == nil
   end
@@ -80,14 +80,14 @@ defmodule Funes.WorklineTest do
 
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
-    {:ok, thread} = Workline.approve(thread)
+    {:ok, thread} = Workline.approve(thread, artifacts: AllPresent)
     assert thread.stage == "plan"
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     assert thread.stage == "review"
     {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
-    {:ok, thread} = Workline.approve(thread)
+    {:ok, thread} = Workline.approve(thread, artifacts: AllPresent)
 
     assert thread.stage == "merged"
     assert {:error, :terminal} = Workline.advance(thread, artifacts: AllPresent)
@@ -168,7 +168,7 @@ defmodule Funes.WorklineTest do
     thread = open!(%{slug: "restaffed", world_id: world.id})
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
-    {:ok, thread} = Workline.approve(thread)
+    {:ok, thread} = Workline.approve(thread, artifacts: AllPresent)
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:ok, at_review} = Workline.advance(thread, artifacts: AllPresent)
@@ -181,7 +181,7 @@ defmodule Funes.WorklineTest do
     thread = open!(%{slug: "no-reviewer"})
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
-    {:ok, thread} = Workline.approve(thread)
+    {:ok, thread} = Workline.approve(thread, artifacts: AllPresent)
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:ok, at_review} = Workline.advance(thread, artifacts: AllPresent)

@@ -18,6 +18,7 @@ defmodule Funes.Workline do
   alias Funes.Dossier
   alias Funes.Repo
   alias Funes.Thread
+  alias Funes.Workline.Artifacts.Git
   alias Funes.Workline.Brief
 
   @stages ~w(intent spec plan build verify review merged)
@@ -60,7 +61,7 @@ defmodule Funes.Workline do
   otherwise. `opts[:artifacts]` swaps the checker (tests stub it; default is git).
   """
   def advance(%Thread{} = thread, opts \\ []) do
-    checker = Keyword.get(opts, :artifacts, Funes.Workline.Artifacts.Git)
+    checker = Keyword.get(opts, :artifacts, Git)
 
     with :ok <- advanceable(thread),
          :ok <- verified_artifact(thread, checker) do
@@ -69,15 +70,38 @@ defmodule Funes.Workline do
   end
 
   @doc """
-  Complete a parked gate — the operator's verb (funes-cli `approve` today; the cockpit
-  surface lands in slice 2). `{:ok, thread}` or `{:error, :nothing_awaiting}`.
+  Complete a parked gate — the operator's verb (funes-cli `approve`). RE-VERIFIES the owed
+  artifact before flipping: a flag-parked intent (or an artifact that vanished since the
+  park) cannot ride approval past the invariant. `{:ok, thread}`,
+  `{:error, {:artifact_missing, why}}` (still parked), or `{:error, :nothing_awaiting}`.
   """
-  def approve(%Thread{awaiting: awaiting} = thread) when not is_nil(awaiting) do
-    {:ok, cleared} = thread |> Thread.workline_stage_changeset(%{awaiting: nil}) |> Repo.update()
-    flip(cleared)
+  def approve(thread, opts \\ [])
+
+  def approve(%Thread{awaiting: awaiting} = thread, opts) when not is_nil(awaiting) do
+    checker = Keyword.get(opts, :artifacts, Git)
+
+    with :ok <- verified_artifact(thread, checker) do
+      {:ok, cleared} = thread |> Thread.workline_stage_changeset(%{awaiting: nil}) |> Repo.update()
+      flip(cleared)
+    end
   end
 
-  def approve(%Thread{}), do: {:error, :nothing_awaiting}
+  def approve(%Thread{}, _opts), do: {:error, :nothing_awaiting}
+
+  @doc """
+  The Maintain back-edge's verb: open a MACHINE-BORN workline already parked at the intent
+  gate, breach evidence as the opening message. Nothing advances until the operator
+  approves — the monitor acts with no human in the invocation path, yet never unsupervised.
+  """
+  def flag(attrs, evidence) do
+    with {:ok, thread} <- open(Map.put(attrs, :born, "machine")) do
+      post_brief(thread, evidence)
+      {:ok, parked} = thread |> Thread.workline_stage_changeset(%{awaiting: "andrew"}) |> Repo.update()
+      Funes.Bus.broadcast({:workline_gated, parked})
+      post_brief(parked, Brief.gate_message(parked))
+      {:ok, parked}
+    end
+  end
 
   defp advanceable(%Thread{stage: nil}), do: {:error, :not_a_workline}
   defp advanceable(%Thread{stage: "merged"}), do: {:error, :terminal}
