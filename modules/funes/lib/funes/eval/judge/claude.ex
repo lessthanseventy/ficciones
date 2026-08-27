@@ -17,12 +17,9 @@ defmodule Funes.Eval.Judge.Claude do
 
   @impl true
   def score(prompt) do
-    case System.cmd(cmd(), ["-p", @contract <> "\n" <> prompt, "--model", model()], stderr_to_stdout: true) do
-      {out, 0} -> parse(out)
-      {out, code} -> {:error, {:judge_exit, code, String.slice(out, 0, 200)}}
+    with {:ok, out} <- Funes.ModelCli.prompt(@contract <> "\n" <> prompt, :eval_judge_cmd, :eval_judge_model) do
+      parse(out)
     end
-  rescue
-    e in ErlangError -> {:error, {:judge_missing, Exception.message(e)}}
   end
 
   # Score keys stay STRINGS: the runner only reads values, and atomizing model-authored
@@ -39,7 +36,4 @@ defmodule Funes.Eval.Judge.Claude do
     do: %{scores: scores, rationale: rationale}
 
   defp shape(_decoded), do: nil
-
-  defp cmd, do: Application.get_env(:funes, :eval_judge_cmd, "claude")
-  defp model, do: Application.get_env(:funes, :eval_judge_model, "haiku")
 end

@@ -30,6 +30,9 @@ defmodule Aleph.Orbis do
   def rollup do
     rows =
       Channel.machine_threads()
+      # Worklines share the chat read-model but are WORK ITEMS, not coworker leaves — the
+      # survey's lead/status semantics were never theirs (they carry a stage instead).
+      |> Enum.reject(&Map.get(&1.thread, :stage))
       |> Enum.map(&row(&1.thread))
       |> Enum.sort_by(&status_rank(&1.status))
 

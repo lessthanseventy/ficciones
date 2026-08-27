@@ -17,4 +17,14 @@ if config_env() != :test do
 
   File.mkdir_p!(Path.dirname(database))
   config :funes, Funes.Repo, database: database
+  config :funes, maintain: System.get_env("FUNES_MAINTAIN") in ~w(1 true yes)
+
+  # Mirror funes' own runtime flags: a dependency's config/*.exs is NOT evaluated when aleph
+  # is the root app, so without these the memory pass / maintain monitor / workline root are
+  # silently unreachable for aleph-embedded funes (the 4041 node).
+  config :funes, memory_pass: System.get_env("FUNES_MEMORY_PASS") in ~w(1 true yes)
+
+  if workline_root = System.get_env("FUNES_WORKLINE_ROOT") do
+    config :funes, workline_root: workline_root
+  end
 end

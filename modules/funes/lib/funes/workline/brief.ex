@@ -1,10 +1,12 @@
 defmodule Funes.Workline.Brief do
   @moduledoc """
   The stage brief — the message that IS the wake (worklines slice 2). When a workline flips,
-  funes posts the entered stage's brief on the thread; delivery rides the existing lead-wake
-  path (a funes-authored message with no mention falls back to the staffed lead). Pure text
-  here: playbook + read-list + owed exit artifact + the advance verb. Stage playbooks are
-  the ADVISORY half of governance (skills, not hooks) — world knobs can override later.
+  funes posts the entered stage's brief on the thread; delivery rides the lead-wake path —
+  live in the node that runs the switchboard, and via the switchboard DRAIN (undelivered
+  rows, oldest first) when the flip happened in another node (a CLI advance into the
+  service). Pure text here: playbook + read-list + owed exit artifact + the advance verb.
+  Stage playbooks are the ADVISORY half of governance (skills, not hooks) — world knobs can
+  override later.
   """
 
   alias Funes.Thread

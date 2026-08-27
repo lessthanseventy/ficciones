@@ -20,6 +20,7 @@ defmodule Funes.Workline do
   alias Funes.Thread
   alias Funes.Workline.Artifacts.Git
   alias Funes.Workline.Brief
+  alias Funes.Workline.Scribe
 
   @stages ~w(intent spec plan build verify review merged)
   @owed %{
@@ -51,7 +52,12 @@ defmodule Funes.Workline do
   `{:ok, thread}` or `{:error, changeset}` (a taken slug is a UNIQUE refusal).
   """
   def open(attrs) do
-    attrs |> Thread.workline_changeset() |> Repo.insert() |> Funes.Bus.announce(:thread_opened)
+    with {:ok, thread} <-
+           attrs |> Thread.workline_changeset() |> Repo.insert() |> Funes.Bus.announce(:thread_opened) do
+      # The brief IS the wake from stage one — the intent playbook must not wait for an advance.
+      post_brief(thread, Brief.stage_message(thread))
+      {:ok, thread}
+    end
   end
 
   @doc """
@@ -79,6 +85,13 @@ defmodule Funes.Workline do
 
   def approve(%Thread{awaiting: awaiting} = thread, opts) when not is_nil(awaiting) do
     checker = Keyword.get(opts, :artifacts, Git)
+
+    # A machine-born intent's approval IS its acceptance: funes materializes intent.md from
+    # the breach evidence so the chain stays intact and approve stays one verb. Only against
+    # the REAL checker — a test stub must never make funes commit into the live repo.
+    if thread.stage == "intent" and thread.born == "machine" and checker == Git do
+      Scribe.materialize_intent(thread)
+    end
 
     with :ok <- verified_artifact(thread, checker) do
       {:ok, cleared} = thread |> Thread.workline_stage_changeset(%{awaiting: nil}) |> Repo.update()
@@ -168,16 +181,19 @@ defmodule Funes.Workline do
         flipped
       end)
 
-    Funes.Bus.broadcast({:workline_advanced, flipped})
+    # Restaff BEFORE broadcasting: subscribers acting on the advance must never observe the
+    # builder still leading a review stage.
     flipped = if flipped.stage == "review", do: restaff_reviewer(flipped), else: flipped
+    Funes.Bus.broadcast({:workline_advanced, flipped})
     post_brief(flipped, Brief.stage_message(flipped))
     {:ok, flipped}
   end
 
   # Entering review: the world's reviewer takes the lead — the builder never approves its own
-  # work by proxy. Best-effort: no world / no reviewer archetype / unregistered handle → the
-  # current lead stands and the brief still lands.
-  defp restaff_reviewer(%Thread{world_id: nil} = thread), do: thread
+  # work by proxy. Best-effort (the stage already flipped and broadcast; a restaff fault must
+  # not fail the advance) — but a MISS is posted, never silent: the operator sees that the
+  # builder still holds a review it shouldn't.
+  defp restaff_reviewer(%Thread{world_id: nil} = thread), do: restaff_miss(thread, "no world bound")
 
   defp restaff_reviewer(thread) do
     with %{roster: roster} when is_list(roster) <- Repo.get(Funes.World, thread.world_id),
@@ -186,8 +202,16 @@ defmodule Funes.Workline do
       post_brief(restaffed, "→ #{name}-machine leads (review stage)")
       restaffed
     else
-      _ -> thread
+      {:error, reason} -> restaff_miss(thread, inspect(reason))
+      _ -> restaff_miss(thread, "no reviewer in the world's roster")
     end
+  rescue
+    e -> restaff_miss(thread, Exception.message(e))
+  end
+
+  defp restaff_miss(thread, why) do
+    post_brief(thread, "⚠ review stage could not restaff a reviewer (#{why}) — the current lead still holds it")
+    thread
   end
 
   # The brief IS the wake: a funes-authored message rides the lead-wake path (slice 2).

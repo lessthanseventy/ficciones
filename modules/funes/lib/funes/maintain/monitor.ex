@@ -42,7 +42,7 @@ defmodule Funes.Maintain.Monitor do
   def init(opts) do
     opts = Keyword.merge(@defaults, opts)
     Process.send_after(self(), :sweep, opts[:sweep_interval_ms])
-    {:ok, %{opts: opts, nagged: %{}}}
+    {:ok, %{opts: opts}}
   end
 
   @impl true
@@ -56,23 +56,29 @@ defmodule Funes.Maintain.Monitor do
 
   def handle_info(_message, state), do: {:noreply, state}
 
-  defp sweep_gates(%{opts: opts, nagged: nagged} = state) do
-    now = System.monotonic_time(:millisecond)
+  # Nag recency derives from the DURABLE nag message itself — a restart can't renag-storm,
+  # because the last reminder is a row, not process state.
+  defp sweep_gates(%{opts: opts} = state) do
+    for thread <- parked_gates(),
+        stale?(thread, opts[:gate_stale_ms]),
+        not nagged_recently?(thread, opts[:renag_ms]) do
+      post(thread, "⏸ workline #{thread.slug} still parked at #{thread.stage} — approve #{thread.id}")
+    end
 
-    nagged =
-      for thread <- parked_gates(), stale?(thread, opts[:gate_stale_ms]), reduce: nagged do
-        acc ->
-          last = Map.get(acc, thread.id, 0)
+    state
+  end
 
-          if last == 0 or now - last >= opts[:renag_ms] do
-            post(thread, "⏸ workline #{thread.slug} still parked at #{thread.stage} — approve #{thread.id}")
-            Map.put(acc, thread.id, now)
-          else
-            acc
-          end
-      end
+  defp nagged_recently?(thread, renag_ms) do
+    last =
+      Repo.one(
+        from m in Funes.Message,
+          where: m.thread_id == ^thread.id and m.author == "funes" and like(m.body, "% still parked at %"),
+          order_by: [desc: m.id],
+          limit: 1,
+          select: m.created_at
+      )
 
-    %{state | nagged: nagged}
+    last != nil and DateTime.diff(DateTime.utc_now(), last, :millisecond) < renag_ms
   end
 
   defp sweep_stalled(%{opts: opts} = state) do
@@ -80,11 +86,16 @@ defmodule Funes.Maintain.Monitor do
         stale?(thread, opts[:stalled_ms]),
         not String.starts_with?(thread.slug, "maint-"),
         is_nil(Repo.get_by(Thread, slug: "maint-#{thread.slug}")) do
-      Workline.flag(
-        %{title: "maintain: #{thread.slug} stalled at #{thread.stage}", slug: "maint-#{thread.slug}"},
-        "breach: workline #{thread.slug} (##{thread.id}) has not advanced past #{thread.stage} " <>
-          "within the control band — decide: push it, restaff it, or delete it."
-      )
+      # Check-then-insert: under a (declared-out) second monitor node, the slug UNIQUE
+      # index is the real guard — a lost race is a changeset refusal, deliberately dropped.
+      case Workline.flag(
+             %{title: "maintain: #{thread.slug} stalled at #{thread.stage}", slug: "maint-#{thread.slug}"},
+             "breach: workline #{thread.slug} (##{thread.id}) has not advanced past #{thread.stage} " <>
+               "within the control band — decide: push it, restaff it, or delete it."
+           ) do
+        {:ok, _flagged} -> :ok
+        {:error, _changeset} -> :ok
+      end
     end
 
     state
@@ -120,5 +131,7 @@ defmodule Funes.Maintain.Monitor do
     :ok
   rescue
     _ -> :ok
+  catch
+    :exit, _ -> :ok
   end
 end

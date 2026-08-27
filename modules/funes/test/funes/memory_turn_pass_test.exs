@@ -95,6 +95,20 @@ defmodule Funes.MemoryTurnPassTest do
     assert length(Repo.all(Fact)) == 1
   end
 
+  test "machine-authored process text (briefs, nags) neither counts nor extracts" do
+    {:ok, thread} = Channel.open_thread(%{title: "briefs only"})
+
+    for n <- 1..3 do
+      {:ok, _} = Channel.post(%{thread_id: thread.id, author: "funes", body: "▶ STAGE #{n} — workline x"})
+    end
+
+    pass = start_pass(extractor: StubExtractor, min_messages: 3)
+    send(pass, {:presence_idle, %{thread_id: thread.id, agent: "a"}})
+    :ok = TurnPass.drain(pass)
+
+    assert Repo.all(Fact) == []
+  end
+
   test "an empty extraction is a quiet no-op" do
     thread = thread_with_messages(3)
     pass = start_pass(extractor: EmptyExtractor, min_messages: 1)

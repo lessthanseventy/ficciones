@@ -29,9 +29,10 @@ set -euo pipefail
 FUNES="$(dirname "$0")/../modules/funes/_build/prod/rel/funes/bin/funes"
 [ -x "$FUNES" ] || { echo "no release at $FUNES — run 'mise run funes:release' first" >&2; exit 1; }
 
-# Escape a string for embedding as an Elixir "..." literal: backslash first, then quote.
-# rpc evaluates IN the service node, so args cross as code, not env.
-esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+# Escape a string for embedding as an Elixir "..." literal: backslash first, then quote,
+# then `#{` — gate output routinely contains interpolation syntax (compiler errors, test
+# diffs), and an unescaped `#{` would EXECUTE inside the rpc eval on the service node.
+esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/#{/\\#{/g'; }
 int() { case "$1" in ('' | *[!0-9]*) return 1 ;; (*) return 0 ;; esac; }
 
 # Mint a fresh token against FUNES_MCP_URL's origin /mint (Funes.MCP.Gateway) — the same
@@ -153,6 +154,8 @@ case "$cmd" in
     tid="${1:-}"
     int "$tid" || { echo 'usage: funes-cli.sh approve <thread-id>' >&2; exit 2; }
     # Complete a workline's parked gate (awaiting: andrew) — the operator's approval verb.
+    # approve RE-VERIFIES the owed artifact via git in the SERVICE node — like `advance`,
+    # the service needs FUNES_WORKLINE_ROOT pointed at the worktree.
     exec "$FUNES" rpc "case Funes.Repo.get(Funes.Thread, $tid) do nil -> IO.puts(\"no thread #$tid\"); t -> case Funes.Workline.approve(t) do {:ok, a} -> IO.puts(\"approved — thread #$tid now at #{a.stage}\"); {:error, why} -> IO.puts(\"refused: #{inspect(why)}\") end end"
     ;;
 

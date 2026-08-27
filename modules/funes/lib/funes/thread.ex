@@ -54,6 +54,9 @@ defmodule Funes.Thread do
     |> cast(Map.merge(%{born: "operator", scope: "machine"}, attrs), [:title, :scope, :slug, :born, :world_id])
     |> validate_required([:title, :slug])
     |> validate_inclusion(:born, ["operator", "machine"])
+    # The slug names filesystem paths (work/<slug>/, branch, lock files) — a separator or
+    # dot-segment would traverse out of them. Closed charset, no exceptions.
+    |> validate_format(:slug, ~r/\A[a-z0-9][a-z0-9-]*\z/)
     |> unique_constraint(:slug)
     |> put_change(:stage, "intent")
     |> put_change(:state, "open")

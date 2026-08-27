@@ -60,6 +60,8 @@ defmodule Funes.Repo.Migrations.ThreadStageCheck do
       "DROP TABLE thread",
       "ALTER TABLE thread_new RENAME TO thread",
       "CREATE UNIQUE INDEX thread_slug_index ON thread (slug) WHERE slug IS NOT NULL",
+      # DROP TABLE took every old index with it — recreate the staffing lookup's.
+      "CREATE INDEX thread_agent_id_index ON thread (agent_id)",
       "PRAGMA foreign_keys = ON"
     ]
   end

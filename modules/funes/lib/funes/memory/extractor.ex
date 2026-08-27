@@ -37,12 +37,9 @@ defmodule Funes.Memory.Extractor.Claude do
         "\n\nMESSAGES:\n" <>
         Enum.map_join(messages, "\n", &"#{&1.author}: #{&1.body}")
 
-    case System.cmd(cmd(), ["-p", prompt, "--model", model()], stderr_to_stdout: true) do
-      {out, 0} -> parse(out)
-      {out, code} -> {:error, {:extractor_exit, code, String.slice(out, 0, 200)}}
+    with {:ok, out} <- Funes.ModelCli.prompt(prompt, :memory_extractor_cmd, :memory_extractor_model) do
+      parse(out)
     end
-  rescue
-    e in ErlangError -> {:error, {:extractor_missing, Exception.message(e)}}
   end
 
   @doc false
@@ -60,7 +57,4 @@ defmodule Funes.Memory.Extractor.Claude do
   end
 
   defp shape(_decoded), do: nil
-
-  defp cmd, do: Application.get_env(:funes, :memory_extractor_cmd, "claude")
-  defp model, do: Application.get_env(:funes, :memory_extractor_model, "haiku")
 end

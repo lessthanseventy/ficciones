@@ -9,10 +9,11 @@ defmodule Funes.MaintainTest do
   alias Funes.Repo
   alias Funes.Thread
   alias Funes.Workline
+  alias Funes.Workline.Artifacts
 
   defmodule AllPresent do
     @moduledoc false
-    @behaviour Funes.Workline.Artifacts
+    @behaviour Artifacts
 
     @impl true
     def check(_thread, _requirement), do: {:ok, "present"}
@@ -40,14 +41,43 @@ defmodule Funes.MaintainTest do
     assert Enum.any?(bodies, &(&1 =~ "breach"))
   end
 
-  test "approve re-verifies the owed artifact — a flagged intent cannot skip the invariant" do
-    {:ok, flagged} = Workline.flag(%{title: "no artifact", slug: "maint-bare"}, "evidence")
+  defmodule NonePresent do
+    @moduledoc false
+    @behaviour Artifacts
 
-    assert {:error, {:artifact_missing, _}} = Workline.approve(flagged)
-    assert Repo.get!(Thread, flagged.id).awaiting == "andrew"
+    @impl true
+    def check(_thread, requirement), do: {:error, "missing #{inspect(requirement)}"}
+  end
 
-    assert {:ok, approved} = Workline.approve(flagged, artifacts: AllPresent)
+  test "approve re-verifies the owed artifact — a vanished artifact keeps the gate parked" do
+    thread = open_parked_gate("reverify")
+
+    assert {:error, {:artifact_missing, _}} = Workline.approve(thread, artifacts: NonePresent)
+    assert Repo.get!(Thread, thread.id).awaiting == "andrew"
+
+    assert {:ok, approved} = Workline.approve(thread, artifacts: AllPresent)
+    assert approved.stage == "plan"
+  end
+
+  test "approving a machine-born intent materializes intent.md from the evidence — one verb, chain intact" do
+    tmp = Path.join(System.tmp_dir!(), "workline-flag-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(tmp)
+    {_, 0} = System.cmd("git", ["-C", tmp, "init", "-q"], stderr_to_stdout: true)
+    {_, 0} = System.cmd("git", ["-C", tmp, "config", "user.email", "t@t"], stderr_to_stdout: true)
+    {_, 0} = System.cmd("git", ["-C", tmp, "config", "user.name", "t"], stderr_to_stdout: true)
+    previous = Application.get_env(:funes, :workline_root)
+    Application.put_env(:funes, :workline_root, tmp)
+
+    on_exit(fn ->
+      Application.put_env(:funes, :workline_root, previous)
+      File.rm_rf!(tmp)
+    end)
+
+    {:ok, flagged} = Workline.flag(%{title: "no artifact", slug: "maint-bare"}, "breach evidence text")
+
+    assert {:ok, approved} = Workline.approve(flagged)
     assert approved.stage == "spec"
+    assert File.read!(Path.join(tmp, "work/maint-bare/intent.md")) =~ "breach evidence text"
   end
 
   test "a stale parked gate gets a reminder post, once per nag interval" do
