@@ -64,4 +64,38 @@ defmodule Funes.Workline.Ledger do
 
   defp date(%DateTime{} = at), do: Calendar.strftime(at, "%Y-%m-%d")
   defp date(_at), do: "?"
+
+  @doc """
+  One workline's live status (aleph panel read-model): stage, gate, and `blocking` — the
+  cmd/tail of the LATEST verify-stage check when it's a `check_failed`, `nil` when the
+  latest is a pass or no verify check has run yet. Read fresh, not cached — the check state
+  can flip between panel renders.
+  """
+  def status_for(%Thread{} = t) do
+    %{
+      id: t.id,
+      slug: t.slug,
+      title: t.title,
+      stage: t.stage,
+      awaiting: t.awaiting,
+      blocking: blocking_check(t)
+    }
+  end
+
+  defp blocking_check(t) do
+    correlation = "workline:#{t.slug}:verify"
+
+    latest =
+      from(e in Event,
+        where: e.thread_id == ^t.id and e.correlation == ^correlation and e.kind in ["check_passed", "check_failed"],
+        order_by: [desc: e.id],
+        limit: 1
+      )
+      |> Repo.one()
+
+    case latest do
+      %Event{kind: "check_failed", detail: detail} -> %{cmd: detail["cmd"], tail: detail["tail"]}
+      _ -> nil
+    end
+  end
 end

@@ -48,4 +48,56 @@ defmodule Funes.WorklineLedgerTest do
     assert report.worklines == []
     assert Ledger.render(report) =~ "no worklines"
   end
+
+  describe "status_for/1" do
+    test "a workline with no verify checks yet has no blocking status" do
+      {:ok, t} = Workline.open(%{title: "one", slug: "line-c"})
+
+      status = Ledger.status_for(t)
+
+      assert status.stage == "intent"
+      assert status.awaiting == nil
+      assert status.blocking == nil
+    end
+
+    test "the latest failing verify check is blocking, carrying its cmd and tail" do
+      {:ok, t} = Workline.open(%{title: "one", slug: "line-d"})
+
+      Funes.Dossier.record_check(%{
+        thread_id: t.id,
+        cmd: "mix test",
+        exit: 1,
+        tail: "1 failure",
+        correlation: "workline:line-d:verify"
+      })
+
+      status = Ledger.status_for(t)
+
+      assert status.blocking == %{cmd: "mix test", tail: "1 failure"}
+    end
+
+    test "a passing check after a failing one clears the blocking status" do
+      {:ok, t} = Workline.open(%{title: "one", slug: "line-e"})
+
+      Funes.Dossier.record_check(%{
+        thread_id: t.id,
+        cmd: "mix test",
+        exit: 1,
+        tail: "1 failure",
+        correlation: "workline:line-e:verify"
+      })
+
+      Funes.Dossier.record_check(%{
+        thread_id: t.id,
+        cmd: "mix test",
+        exit: 0,
+        tail: "ok",
+        correlation: "workline:line-e:verify"
+      })
+
+      status = Ledger.status_for(t)
+
+      assert status.blocking == nil
+    end
+  end
 end
