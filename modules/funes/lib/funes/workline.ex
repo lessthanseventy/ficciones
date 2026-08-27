@@ -18,6 +18,7 @@ defmodule Funes.Workline do
   alias Funes.Dossier
   alias Funes.Repo
   alias Funes.Thread
+  alias Funes.Workline.Brief
 
   @stages ~w(intent spec plan build verify review merged)
   @owed %{
@@ -120,6 +121,7 @@ defmodule Funes.Workline do
   defp park(thread) do
     {:ok, parked} = thread |> Thread.workline_stage_changeset(%{awaiting: "andrew"}) |> Repo.update()
     Funes.Bus.broadcast({:workline_gated, parked})
+    post_brief(parked, Brief.gate_message(parked))
     {:awaiting, parked}
   end
 
@@ -143,7 +145,19 @@ defmodule Funes.Workline do
       end)
 
     Funes.Bus.broadcast({:workline_advanced, flipped})
+    post_brief(flipped, Brief.stage_message(flipped))
     {:ok, flipped}
+  end
+
+  # The brief IS the wake: a funes-authored message rides the lead-wake path (slice 2).
+  # Best-effort — a post failure never blocks the (already durable) transition.
+  defp post_brief(thread, body) do
+    Funes.Channel.post(%{thread_id: thread.id, author: "funes", body: body})
+    :ok
+  rescue
+    _ -> :ok
+  catch
+    :exit, _ -> :ok
   end
 
   defp next(stage), do: Enum.at(@stages, Enum.find_index(@stages, &(&1 == stage)) + 1)

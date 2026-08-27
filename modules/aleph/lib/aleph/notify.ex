@@ -26,6 +26,11 @@ defmodule Aleph.Notify do
   def for_event(:session_ended, row),
     do: {"aleph — session ended", "#{row_agent(row)} finished (thread #{row_thread(row)})"}
 
+  def for_event(:workline_gated, row),
+    do:
+      {"aleph — gate awaits you",
+       "“#{Map.get(row, :title)}” parked at #{Map.get(row, :stage)} — approve #{Map.get(row, :id)}"}
+
   def for_event(_tag, _row), do: nil
 
   @doc """

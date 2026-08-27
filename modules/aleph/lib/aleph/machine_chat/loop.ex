@@ -534,6 +534,8 @@ defmodule Aleph.MachineChat.Loop do
   defp header_row(state) do
     open = Enum.count(state.view.blocks, &(&1.thread.state != "closed"))
     working = Presence.working_count(state.windows, state.now_s)
+    gated = Enum.count(state.view.blocks, &Map.get(&1.thread, :awaiting))
+    gate_seg = if gated > 0, do: [{" · #{gated} gated", :warm}], else: []
 
     orbis =
       case state.rollup do
@@ -541,7 +543,7 @@ defmodule Aleph.MachineChat.Loop do
         _ -> []
       end
 
-    [{" TLÖN ", :header}, {"· #{open} threads · #{working} working", :dim}] ++ orbis
+    [{" TLÖN ", :header}, {"· #{open} threads · #{working} working", :dim}] ++ gate_seg ++ orbis
   end
 
   defp rail_rows(_state, nil), do: []
@@ -558,7 +560,9 @@ defmodule Aleph.MachineChat.Loop do
           title: rail_title(block, id, state.root_id),
           state: block.thread.state,
           status: Presence.thread_status(state.windows, id, state.now_s),
-          unread: Host.unread(state.view, block)
+          unread: Host.unread(state.view, block),
+          stage: Map.get(block.thread, :stage),
+          awaiting: Map.get(block.thread, :awaiting)
         }
       end)
 

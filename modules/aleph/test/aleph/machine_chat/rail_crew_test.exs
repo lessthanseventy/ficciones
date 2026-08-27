@@ -49,5 +49,19 @@ defmodule Aleph.MachineChat.RailCrewTest do
       rendered = Rail.render(%{rows: rows, selected_id: 25}, %{x: 0, y: 0, w: 26, h: 10})
       assert Enum.any?(texts(rendered), &(&1 =~ "thread 25"))
     end
+
+    test "a workline row wears its stage chip; a parked gate outranks it; plain rows don't" do
+      rows = [
+        row(1, "plain thread"),
+        2 |> row("workline") |> Map.merge(%{stage: "spec", awaiting: nil}),
+        3 |> row("parked") |> Map.merge(%{stage: "spec", awaiting: "andrew"})
+      ]
+
+      body = %{rows: rows, selected_id: 1} |> Rail.render(%{x: 0, y: 0, w: 26, h: 20}) |> texts()
+
+      assert Enum.any?(body, &(&1 =~ "·spec"))
+      assert Enum.any?(body, &(&1 =~ "⏸gate"))
+      refute Enum.any?(body, &(&1 =~ "plain thread ·"))
+    end
   end
 end

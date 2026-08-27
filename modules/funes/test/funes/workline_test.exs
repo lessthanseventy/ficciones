@@ -140,10 +140,16 @@ defmodule Funes.WorklineTest do
     assert gated_id == parked.id
   end
 
-  test "a stage outside the ring is a typed refusal" do
+  test "a stage outside the ring is refused by the DATABASE itself (§4 closed set)" do
     thread = open!(%{slug: "drifted"})
-    {:ok, drifted} = thread |> Thread.workline_stage_changeset(%{stage: "deploy"}) |> Repo.update()
-    assert {:error, {:invalid_stage, "deploy"}} = Workline.advance(drifted, artifacts: AllPresent)
+
+    assert_raise Ecto.ConstraintError, fn ->
+      thread |> Thread.workline_stage_changeset(%{stage: "deploy"}) |> Repo.update()
+    end
+
+    # The Elixir-side typed refusal stays as insurance for raw-SQL edits the CHECK can't see
+    # (a detached struct) — advance never crashes on a value outside the ring.
+    assert {:error, {:invalid_stage, "deploy"}} = Workline.advance(%{thread | stage: "deploy"}, artifacts: AllPresent)
   end
 
   test "approve with nothing parked is refused; a plain thread is not a workline" do

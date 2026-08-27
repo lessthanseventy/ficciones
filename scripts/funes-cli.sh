@@ -20,6 +20,7 @@
 #   post <id> <text…>              post as the operator
 #   delete-thread <id>             operator hard delete (messages go too; facts survive unlinked)
 #   forget-fact <id>               operator tombstone — out of recall, row kept
+#   workline "<title>" <slug>      open a workline at stage intent (operator kickoff)
 #   approve <id>                   complete a workline's parked gate (awaiting: andrew)
 set -euo pipefail
 
@@ -120,6 +121,15 @@ case "$cmd" in
     exec "$FUNES" rpc "op = Application.get_env(:funes, :operator, \"andrew\"); {:ok, m} = Funes.Channel.post(%{thread_id: $tid, author: op, body: \"$(esc "$body")\"}); IO.puts(\"posted ##{m.id} to thread #$tid as #{op}\")"
     ;;
 
+  workline)
+    title="${1:-}"; slug="${2:-}"
+    { [ -n "$title" ] && [ -n "$slug" ]; } ||
+      { echo 'usage: funes-cli.sh workline "<title>" <slug>' >&2; exit 2; }
+    # Open a workline at stage intent — the operator's kickoff. The stage machine takes it
+    # from here (advance_stage / approve).
+    exec "$FUNES" rpc "case Funes.Workline.open(%{title: \"$(esc "$title")\", slug: \"$(esc "$slug")\"}) do {:ok, t} -> IO.puts(\"workline ##{t.id} #{t.slug} at #{t.stage} — folder work/#{t.slug}/\"); {:error, cs} -> IO.puts(\"refused: #{inspect(cs.errors)}\") end"
+    ;;
+
   approve)
     tid="${1:-}"
     int "$tid" || { echo 'usage: funes-cli.sh approve <thread-id>' >&2; exit 2; }
@@ -143,7 +153,7 @@ case "$cmd" in
     ;;
 
   *)
-    echo "usage: funes-cli.sh {spawn|token|roster|dossier|post|approve|delete-thread|forget-fact} [args]" >&2
+    echo "usage: funes-cli.sh {spawn|token|roster|dossier|post|workline|approve|delete-thread|forget-fact} [args]" >&2
     exit 2
     ;;
 esac

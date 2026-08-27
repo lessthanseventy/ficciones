@@ -33,15 +33,22 @@ defmodule Aleph.MachineChat.Rail do
     rows |> Enum.drop(start) |> Enum.take(budget)
   end
 
-  defp row(%{title: title, state: state, status: status, unread: unread}, selected?, w) do
+  defp row(%{title: title, state: state, status: status, unread: unread} = r, selected?, w) do
     {glyph, glyph_style} = glyph(state, status)
     badge = if unread > 0, do: " •#{min(unread, 99)}", else: ""
+    {chip_text, chip_style} = stage_chip(r)
     title_style = title_style(selected?, state)
-    text = clip(title || "untitled", w - 2 - String.length(badge))
+    text = clip(title || "untitled", w - 2 - String.length(badge) - String.length(chip_text))
 
     [{glyph <> " ", glyph_style}, {text, title_style}] ++
-      if(badge == "", do: [], else: [{badge, :accent}])
+      if(badge == "", do: [], else: [{badge, :accent}]) ++
+      if(chip_text == "", do: [], else: [{chip_text, chip_style}])
   end
+
+  # A workline row wears its stage; a parked gate outranks it — the operator's cue.
+  defp stage_chip(%{awaiting: awaiting}) when not is_nil(awaiting), do: {" ⏸gate", :warm}
+  defp stage_chip(%{stage: stage}) when is_binary(stage), do: {" ·#{stage}", :dim}
+  defp stage_chip(_row), do: {"", :dim}
 
   defp glyph("closed", _status), do: {"✓", :dim}
   defp glyph(_state, :working), do: {"●", :accent}

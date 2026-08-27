@@ -512,6 +512,15 @@ defmodule Aleph.Cockpit do
     end
   end
 
+  # Workline stage machinery (slice 2): a GATE is the operator's — flash it; an advance is
+  # ambient — just repaint so stage chips/counts stay live.
+  def handle_info({:workline_gated, thread}, state) do
+    desktop_notify(:workline_gated, thread)
+    {:noreply, render(%{state | flash: "⏸ workline “#{thread.title}” parked at #{thread.stage} — approve #{thread.id}"})}
+  end
+
+  def handle_info({:workline_advanced, _thread}, state), do: {:noreply, render(state)}
+
   # Habit review events refresh the Habits panel (Tlön). No desktop notification — a proposed
   # habit is a quiet queue entry for review, not an interrupt.
   def handle_info({tag, _row}, state) when tag in [:habit_proposed, :habit_approved, :habit_rejected] do
