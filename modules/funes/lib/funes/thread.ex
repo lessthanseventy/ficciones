@@ -16,6 +16,13 @@ defmodule Funes.Thread do
     # A thread has 0..1 agent (aleph §3), staffed via Funes.Staff. Nullable FK;
     # the assignment reference lives on the thread.
     belongs_to :agent, Funes.Agent
+    # Workline state (slice 1) — all nil on a plain thread. `stage` is the machine's position,
+    # `slug` names `work/<slug>/`, `born` who authored the intent, `awaiting` the parked gate.
+    field :stage, :string
+    field :slug, :string
+    field :born, :string
+    field :awaiting, :string
+    belongs_to :world, Funes.World
   end
 
   @doc ~s{A new thread, opened now. Title is required; state is not caller-settable. `scope`
@@ -37,5 +44,32 @@ defmodule Funes.Thread do
   """
   def state_changeset(thread, state) do
     change(thread, state: state)
+  end
+
+  @doc ~s{A new WORKLINE thread (slice 1): opens at stage "intent", machine-scoped by default
+  (worklines are machine work — the root machine thread stays oldest, so leaf ordering holds).
+  `born` defaults to "operator"; the Maintain back-edge opens with "machine" and gates.}
+  def workline_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:title, :scope, :slug, :born, :world_id])
+    |> validate_required([:title, :slug])
+    |> validate_inclusion(:born, ["operator", "machine"])
+    |> put_new_change(:born, "operator")
+    |> put_new_change(:scope, "machine")
+    |> put_change(:stage, "intent")
+    |> put_change(:state, "open")
+    |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
+  end
+
+  @doc "Flip workline machinery — `stage` and/or `awaiting` — on an existing thread."
+  def workline_stage_changeset(thread, changes) do
+    change(thread, Map.take(changes, [:stage, :awaiting]))
+  end
+
+  defp put_new_change(changeset, key, value) do
+    case fetch_change(changeset, key) do
+      {:ok, _present} -> changeset
+      :error -> put_change(changeset, key, value)
+    end
   end
 end

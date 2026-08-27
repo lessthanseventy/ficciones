@@ -70,6 +70,7 @@ defmodule Funes.MCP.ServerTest do
              Enum.sort([
                "register",
                "post_message",
+               "advance_stage",
                "bank_fact",
                "raise_issue",
                "record_done",

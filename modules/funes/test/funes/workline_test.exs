@@ -1,0 +1,120 @@
+defmodule Funes.WorklineTest do
+  # Worklines slice 1: the stage state machine. intent → spec → plan → build → verify →
+  # review → merged, advancing only past a committed owed artifact (checker is a behaviour —
+  # stubs here, git in the default impl), gating on spec→plan, review→merged, and
+  # machine-born intents. The DB is the bus: every assertion reads back through SQLite.
+  use ExUnit.Case, async: false
+
+  alias Funes.Channel
+  alias Funes.Event
+  alias Funes.Repo
+  alias Funes.Thread
+  alias Funes.Workline
+  alias Funes.Workline.Artifacts
+
+  defmodule AllPresent do
+    @moduledoc false
+    @behaviour Artifacts
+
+    @impl true
+    def check(_thread, {:file, name}), do: {:ok, "committed #{name}"}
+    def check(_thread, :branch), do: {:ok, "work/x @ abc123"}
+    def check(_thread, :checks), do: {:ok, "1 verify check_passed"}
+  end
+
+  defmodule NonePresent do
+    @moduledoc false
+    @behaviour Artifacts
+
+    @impl true
+    def check(_thread, requirement), do: {:error, "missing #{inspect(requirement)}"}
+  end
+
+  setup do
+    Funes.TestDB.clean!()
+    :ok
+  end
+
+  defp open!(attrs \\ %{}) do
+    {:ok, thread} = Workline.open(Map.merge(%{title: "fix the composer", slug: "composer-wrap"}, attrs))
+    thread
+  end
+
+  test "open starts a workline at intent, operator-born, machine-scoped" do
+    thread = open!()
+    assert thread.stage == "intent"
+    assert thread.slug == "composer-wrap"
+    assert thread.born == "operator"
+    assert thread.state == "open"
+    assert thread.scope == "machine"
+  end
+
+  test "advance refuses without the owed artifact — the invariant advance_stage carries" do
+    thread = open!()
+    assert {:error, {:artifact_missing, reason}} = Workline.advance(thread, artifacts: NonePresent)
+    assert reason =~ "intent.md"
+    assert Repo.get!(Thread, thread.id).stage == "intent"
+  end
+
+  test "operator-born intent auto-advances to spec once intent.md is committed" do
+    assert {:ok, advanced} = Workline.advance(open!(), artifacts: AllPresent)
+    assert advanced.stage == "spec"
+    assert advanced.awaiting == nil
+  end
+
+  test "machine-born intent parks awaiting the operator; approve completes the transition" do
+    thread = open!(%{born: "machine", slug: "machine-born"})
+
+    assert {:awaiting, parked} = Workline.advance(thread, artifacts: AllPresent)
+    assert parked.awaiting == "andrew"
+    assert parked.stage == "intent"
+    assert {:error, :awaiting_operator} = Workline.advance(parked, artifacts: AllPresent)
+
+    assert {:ok, approved} = Workline.approve(parked)
+    assert approved.stage == "spec"
+    assert approved.awaiting == nil
+  end
+
+  test "the full pipeline: gates at spec→plan and review→merged, terminal at merged" do
+    thread = open!(%{slug: "full-run"})
+
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, thread} = Workline.approve(thread)
+    assert thread.stage == "plan"
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    assert thread.stage == "review"
+    {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, thread} = Workline.approve(thread)
+
+    assert thread.stage == "merged"
+    assert {:error, :terminal} = Workline.advance(thread, artifacts: AllPresent)
+  end
+
+  test "every completed flip records a stage_advanced event — the ledger for free" do
+    thread = open!(%{slug: "ledger"})
+    {:ok, _} = Workline.advance(thread, artifacts: AllPresent)
+
+    assert [event] = Event |> Repo.all() |> Enum.filter(&(&1.thread_id == thread.id and &1.kind == "stage_advanced"))
+    assert event.detail["from"] == "intent"
+    assert event.detail["to"] == "spec"
+  end
+
+  test "artifact verification lands in CHECKS, correlated to the workline, pass and fail" do
+    {:ok, _} = Workline.advance(open!(%{slug: "checked"}), artifacts: AllPresent)
+    {:error, _} = Workline.advance(open!(%{slug: "reject"}), artifacts: NonePresent)
+
+    by_corr = fn corr -> Event |> Repo.all() |> Enum.filter(&(&1.correlation == corr)) |> Enum.map(& &1.kind) end
+    assert "check_passed" in by_corr.("workline:checked:artifact")
+    assert by_corr.("workline:reject:artifact") == ["check_failed"]
+  end
+
+  test "approve with nothing parked is refused; a plain thread is not a workline" do
+    assert {:error, :nothing_awaiting} = Workline.approve(open!())
+
+    {:ok, plain} = Channel.open_thread(%{title: "not a workline"})
+    assert {:error, :not_a_workline} = Workline.advance(plain, artifacts: AllPresent)
+  end
+end

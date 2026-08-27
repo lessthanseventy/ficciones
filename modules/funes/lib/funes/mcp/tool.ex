@@ -1112,3 +1112,53 @@ defmodule Funes.MCP.Tool.PresenceIdle do
     {:reply, Response.json(Response.tool(), %{"idle" => identity.agent, "thread_id" => identity.thread_id}), frame}
   end
 end
+
+defmodule Funes.MCP.Tool.AdvanceStage do
+  @moduledoc """
+  Advance THIS thread's workline past its current stage (worklines slice 1) — the single
+  sanctioned mutation. Refused without the stage's owed artifact COMMITTED (the check lands
+  in CHECKS either way); gated transitions (spec→plan, review→merged, machine-born intent)
+  park `awaiting: andrew` — the operator approves, an agent never can. Identity-bound: no
+  thread parameter, you advance the workline you are standing on.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Channel
+  alias Funes.MCP.Identity
+  alias Funes.Workline
+
+  schema do
+  end
+
+  @impl true
+  def execute(_params, frame) do
+    thread_id = Identity.from_frame(frame).thread_id
+
+    case Channel.thread(thread_id) do
+      nil ->
+        {:reply, Response.error(Response.tool(), "no such thread: #{thread_id}"), frame}
+
+      thread ->
+        reply(Workline.advance(thread), frame)
+    end
+  end
+
+  defp reply({:ok, thread}, frame),
+    do: {:reply, Response.json(Response.tool(), %{"stage" => thread.stage, "awaiting" => nil}), frame}
+
+  defp reply({:awaiting, thread}, frame),
+    do:
+      {:reply,
+       Response.json(Response.tool(), %{
+         "stage" => thread.stage,
+         "awaiting" => thread.awaiting,
+         "note" => "gated — the operator approves this transition"
+       }), frame}
+
+  defp reply({:error, {:artifact_missing, why}}, frame),
+    do: {:reply, Response.error(Response.tool(), "owed artifact missing: #{why}"), frame}
+
+  defp reply({:error, reason}, frame),
+    do: {:reply, Response.error(Response.tool(), "cannot advance: #{inspect(reason)}"), frame}
+end

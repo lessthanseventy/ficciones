@@ -20,6 +20,7 @@
 #   post <id> <text…>              post as the operator
 #   delete-thread <id>             operator hard delete (messages go too; facts survive unlinked)
 #   forget-fact <id>               operator tombstone — out of recall, row kept
+#   approve <id>                   complete a workline's parked gate (awaiting: andrew)
 set -euo pipefail
 
 FUNES="$(dirname "$0")/../modules/funes/_build/prod/rel/funes/bin/funes"
@@ -119,6 +120,13 @@ case "$cmd" in
     exec "$FUNES" rpc "op = Application.get_env(:funes, :operator, \"andrew\"); {:ok, m} = Funes.Channel.post(%{thread_id: $tid, author: op, body: \"$(esc "$body")\"}); IO.puts(\"posted ##{m.id} to thread #$tid as #{op}\")"
     ;;
 
+  approve)
+    tid="${1:-}"
+    int "$tid" || { echo 'usage: funes-cli.sh approve <thread-id>' >&2; exit 2; }
+    # Complete a workline's parked gate (awaiting: andrew) — the operator's approval verb.
+    exec "$FUNES" rpc "case Funes.Repo.get(Funes.Thread, $tid) do nil -> IO.puts(\"no thread #$tid\"); t -> case Funes.Workline.approve(t) do {:ok, a} -> IO.puts(\"approved — thread #$tid now at #{a.stage}\"); {:error, why} -> IO.puts(\"refused: #{inspect(why)}\") end end"
+    ;;
+
   delete-thread)
     tid="${1:-}"
     int "$tid" || { echo 'usage: funes-cli.sh delete-thread <thread-id>' >&2; exit 2; }
@@ -135,7 +143,7 @@ case "$cmd" in
     ;;
 
   *)
-    echo "usage: funes-cli.sh {spawn|token|roster|dossier|post|delete-thread|forget-fact} [args]" >&2
+    echo "usage: funes-cli.sh {spawn|token|roster|dossier|post|approve|delete-thread|forget-fact} [args]" >&2
     exit 2
     ;;
 esac
