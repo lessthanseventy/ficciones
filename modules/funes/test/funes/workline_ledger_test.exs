@@ -100,4 +100,26 @@ defmodule Funes.WorklineLedgerTest do
       assert status.blocking == nil
     end
   end
+
+  describe "statuses/0" do
+    test "every open workline's status, in id order" do
+      {:ok, _a} = Workline.open(%{title: "one", slug: "line-f"})
+      {:ok, b} = Workline.open(%{title: "two", slug: "line-g"})
+
+      Funes.Dossier.record_check(%{
+        thread_id: b.id,
+        cmd: "mix test",
+        exit: 1,
+        tail: "boom",
+        correlation: "workline:line-g:verify"
+      })
+
+      [a, b] = Ledger.statuses()
+
+      assert a.slug == "line-f"
+      assert a.blocking == nil
+      assert b.slug == "line-g"
+      assert b.blocking == %{cmd: "mix test", tail: "boom"}
+    end
+  end
 end

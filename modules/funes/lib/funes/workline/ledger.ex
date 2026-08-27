@@ -65,6 +65,15 @@ defmodule Funes.Workline.Ledger do
   defp date(%DateTime{} = at), do: Calendar.strftime(at, "%Y-%m-%d")
   defp date(_at), do: "?"
 
+  @doc "Every open workline's live status (aleph panel read-model), in id order — see `status_for/1`."
+  def statuses do
+    Thread
+    |> where([t], not is_nil(t.stage))
+    |> order_by([t], asc: t.id)
+    |> Repo.all()
+    |> Enum.map(&status_for/1)
+  end
+
   @doc """
   One workline's live status (aleph panel read-model): stage, gate, and `blocking` — the
   cmd/tail of the LATEST verify-stage check when it's a `check_failed`, `nil` when the
