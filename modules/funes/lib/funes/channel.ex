@@ -199,7 +199,9 @@ defmodule Funes.Channel do
   def machine_threads(per_thread \\ 20) do
     by_thread = 300 |> recent_across() |> Enum.group_by(& &1.thread_id)
 
-    from(t in Thread, where: t.scope == ^@machine_scope and is_nil(t.stage))
+    # Worklines stay IN the chat surface — the spec interview happens on the workline thread.
+    # Only ROOT resolution (machine_thread/0) and the surveyor's leaf set exclude them.
+    from(t in Thread, where: t.scope == ^@machine_scope)
     |> Repo.all()
     |> Enum.map(fn t ->
       messages = by_thread |> Map.get(t.id, []) |> Enum.take(-per_thread)
