@@ -102,13 +102,48 @@ defmodule Funes.WorklineTest do
     assert event.detail["to"] == "spec"
   end
 
-  test "artifact verification lands in CHECKS, correlated to the workline, pass and fail" do
+  test "artifact verification lands in CHECKS, stage-correlated, pass and fail" do
     {:ok, _} = Workline.advance(open!(%{slug: "checked"}), artifacts: AllPresent)
     {:error, _} = Workline.advance(open!(%{slug: "reject"}), artifacts: NonePresent)
 
     by_corr = fn corr -> Event |> Repo.all() |> Enum.filter(&(&1.correlation == corr)) |> Enum.map(& &1.kind) end
-    assert "check_passed" in by_corr.("workline:checked:artifact")
-    assert by_corr.("workline:reject:artifact") == ["check_failed"]
+    assert "check_passed" in by_corr.("workline:checked:artifact:intent")
+    assert by_corr.("workline:reject:artifact:intent") == ["check_failed"]
+  end
+
+  test "a taken slug is a changeset refusal, not a raise" do
+    _first = open!(%{slug: "taken"})
+    assert {:error, changeset} = Workline.open(%{title: "again", slug: "taken"})
+    refute changeset.valid?
+  end
+
+  test "a workline never masquerades as the machine ROOT or a coworker leaf" do
+    {:ok, root} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+    workline = open!(%{slug: "not-a-leaf"})
+
+    assert Channel.machine_thread().id == root.id
+    refute workline.id in Enum.map(Channel.open_machine_threads(), & &1.id)
+
+    {:ok, _} = Channel.close_thread(root)
+    assert Channel.machine_thread() == nil
+  end
+
+  test "stage flips and gates announce on the Bus" do
+    Funes.Bus.subscribe_threads()
+
+    {:ok, advanced} = Workline.advance(open!(%{slug: "loud"}), artifacts: AllPresent)
+    assert_receive {:workline_advanced, %Thread{id: id}}
+    assert id == advanced.id
+
+    {:awaiting, parked} = Workline.advance(advanced, artifacts: AllPresent)
+    assert_receive {:workline_gated, %Thread{id: gated_id}}
+    assert gated_id == parked.id
+  end
+
+  test "a stage outside the ring is a typed refusal" do
+    thread = open!(%{slug: "drifted"})
+    {:ok, drifted} = thread |> Thread.workline_stage_changeset(%{stage: "deploy"}) |> Repo.update()
+    assert {:error, {:invalid_stage, "deploy"}} = Workline.advance(drifted, artifacts: AllPresent)
   end
 
   test "approve with nothing parked is refused; a plain thread is not a workline" do

@@ -31,7 +31,7 @@ defmodule Funes.Workline.Artifacts.Git do
 
     case git(["ls-files", "--error-unmatch", rel]) do
       {_out, 0} -> {:ok, "committed #{rel}"}
-      {_out, _} -> {:error, "#{rel} is not committed"}
+      {_out, _} -> sane_root_or(fn -> {:error, "#{rel} is not committed"} end)
     end
   end
 
@@ -40,7 +40,7 @@ defmodule Funes.Workline.Artifacts.Git do
 
     case git(["rev-parse", "--verify", "--quiet", branch]) do
       {sha, 0} -> {:ok, "#{branch} @ #{String.slice(String.trim(sha), 0, 12)}"}
-      {_out, _} -> {:error, "branch #{branch} does not exist"}
+      {_out, _} -> sane_root_or(fn -> {:error, "branch #{branch} does not exist"} end)
     end
   end
 
@@ -59,6 +59,15 @@ defmodule Funes.Workline.Artifacts.Git do
   end
 
   defp git(args), do: System.cmd("git", ["-C", root() | args], stderr_to_stdout: true)
+
+  # A failed check on a broken root would otherwise read as "not committed" — an actionable-
+  # sounding but FALSE diagnosis that wedges every workline. Distinguish the environment fault.
+  defp sane_root_or(not_committed) do
+    case git(["rev-parse", "--git-dir"]) do
+      {_out, 0} -> not_committed.()
+      {_out, _} -> {:error, "workline root #{root()} is not a git worktree — set FUNES_WORKLINE_ROOT"}
+    end
+  end
 
   defp root, do: Application.get_env(:funes, :workline_root) || File.cwd!()
 end

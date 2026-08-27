@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Funes.Eval do
 
   @impl Mix.Task
   def run(argv) do
-    mode = if "--deterministic" in argv, do: :deterministic, else: :all
+    mode = Funes.Eval.mode(argv)
 
     for suffix <- ["", "-wal", "-shm"], do: File.rm(@eval_db <> suffix)
     System.put_env("FUNES_DB", Path.expand(@eval_db))

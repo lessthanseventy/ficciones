@@ -5,5 +5,6 @@ defmodule Funes.Eval.Judge do
   """
 
   @callback score(prompt :: String.t()) ::
-              {:ok, %{scores: %{atom() => number()}, rationale: String.t()}} | {:error, term()}
+              {:ok, %{scores: %{optional(atom() | String.t()) => number()}, rationale: String.t()}}
+              | {:error, term()}
 end

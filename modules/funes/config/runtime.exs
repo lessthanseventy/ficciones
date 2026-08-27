@@ -14,6 +14,13 @@ if config_env() != :test do
   config :funes, Funes.Repo, database: database
 end
 
+# Where workline artifact checks run git (`Funes.Workline.Artifacts.Git`) — the world's
+# checkout. Unset → cwd, right for dev shells, WRONG for a release whose cwd is elsewhere
+# (the checker then reports the environment fault, not a fake "not committed").
+if root = System.get_env("FUNES_WORKLINE_ROOT") do
+  config :funes, workline_root: root
+end
+
 # The operator's handle — who the human IS on this machine's channel. Local
 # configuration, never identity in the design (§8); the same default aleph uses.
 # `Dossier.bank_stated_fact` trusts only this author for `stated` provenance.

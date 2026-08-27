@@ -13,8 +13,8 @@ defmodule Mix.Tasks.Aleph.Eval do
 
   @impl Mix.Task
   def run(argv) do
-    mode = if "--deterministic" in argv, do: :deterministic, else: :all
     Mix.Task.run("compile")
+    mode = Funes.Eval.mode(argv)
 
     report = "evals" |> Funes.Eval.load() |> Funes.Eval.run(mode: mode)
     Mix.shell().info(Funes.Eval.scorecard(report))

@@ -90,9 +90,12 @@ defmodule Funes.EvalTest do
     assert report.ok?
   end
 
-  test "the Claude adapter parses a contract reply, tolerates preamble, refuses garbage" do
+  test "the Claude adapter parses a contract reply, tolerates decoration, refuses garbage" do
     reply = ~s(Sure! {"scores": {"clarity": 4, "grounding": 3}, "rationale": "fine"})
-    assert {:ok, %{scores: %{clarity: 4, grounding: 3}, rationale: "fine"}} = Claude.parse(reply)
+    assert {:ok, %{scores: %{"clarity" => 4, "grounding" => 3}, rationale: "fine"}} = Claude.parse(reply)
+
+    trailing = ~s({"scores": {"clarity": 5}, "rationale": "good"} Note: I used {strict} scoring.)
+    assert {:ok, %{scores: %{"clarity" => 5}}} = Claude.parse(trailing)
 
     assert {:error, {:unparseable_judgement, _}} = Claude.parse("I cannot score this.")
     assert {:error, {:unparseable_judgement, _}} = Claude.parse(~s({"scores": {}, "rationale": "empty"}))

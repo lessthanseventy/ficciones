@@ -1145,7 +1145,7 @@ defmodule Funes.MCP.Tool.AdvanceStage do
   end
 
   defp reply({:ok, thread}, frame),
-    do: {:reply, Response.json(Response.tool(), %{"stage" => thread.stage, "awaiting" => nil}), frame}
+    do: {:reply, Response.json(Response.tool(), %{"stage" => thread.stage, "awaiting" => thread.awaiting}), frame}
 
   defp reply({:awaiting, thread}, frame),
     do:

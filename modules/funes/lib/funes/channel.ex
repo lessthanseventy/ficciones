@@ -115,7 +115,12 @@ defmodule Funes.Channel do
   rotation/`clear-machine-threads` must not do).
   """
   def machine_thread do
-    Repo.one(from t in Thread, where: t.state == "open" and t.scope == ^@machine_scope, order_by: [asc: t.id], limit: 1)
+    Repo.one(
+      from t in Thread,
+        where: t.state == "open" and t.scope == ^@machine_scope and is_nil(t.stage),
+        order_by: [asc: t.id],
+        limit: 1
+    )
   end
 
   @doc """
@@ -124,7 +129,11 @@ defmodule Funes.Channel do
   in flight, not the closed history.
   """
   def open_machine_threads do
-    Repo.all(from t in Thread, where: t.state == "open" and t.scope == ^@machine_scope, order_by: [asc: t.id])
+    Repo.all(
+      from t in Thread,
+        where: t.state == "open" and t.scope == ^@machine_scope and is_nil(t.stage),
+        order_by: [asc: t.id]
+    )
   end
 
   @doc """
@@ -190,7 +199,7 @@ defmodule Funes.Channel do
   def machine_threads(per_thread \\ 20) do
     by_thread = 300 |> recent_across() |> Enum.group_by(& &1.thread_id)
 
-    from(t in Thread, where: t.scope == ^@machine_scope)
+    from(t in Thread, where: t.scope == ^@machine_scope and is_nil(t.stage))
     |> Repo.all()
     |> Enum.map(fn t ->
       messages = by_thread |> Map.get(t.id, []) |> Enum.take(-per_thread)

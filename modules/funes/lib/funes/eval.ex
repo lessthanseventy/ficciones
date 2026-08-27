@@ -25,8 +25,7 @@ defmodule Funes.Eval do
     judge = Keyword.get(opts, :judge, Funes.Eval.Judge.Claude)
 
     results = Enum.map(scenarios, &result(&1, mode, judge))
-    scores = for %{score: score} <- results, score != nil, do: score
-    judged_avg = if scores == [], do: nil, else: Float.round(Enum.sum(scores) / length(scores), 2)
+    judged_avg = avg(for %{score: score} <- results, score != nil, do: score)
     failed = count(results, :failed)
 
     %{
@@ -70,7 +69,7 @@ defmodule Funes.Eval do
 
     case judge.score(s.judge_prompt.(output)) do
       {:ok, %{scores: scores, rationale: rationale}} ->
-        s |> row(:scored, rationale) |> Map.put(:score, Float.round(Enum.sum(Map.values(scores)) / map_size(scores), 2))
+        s |> row(:scored, rationale) |> Map.put(:score, scores |> Map.values() |> avg())
 
       {:error, reason} ->
         row(s, :failed, "judge failed: #{inspect(reason)}")
@@ -82,6 +81,13 @@ defmodule Funes.Eval do
   defp row(s, status, detail \\ nil), do: %{name: s.name, family: s.family, status: status, detail: detail, score: nil}
 
   defp count(results, status), do: Enum.count(results, &(&1.status == status))
+
+  # One rounding rule for both the per-scenario score and the report-level gate average.
+  defp avg([]), do: nil
+  defp avg(values), do: Float.round(Enum.sum(values) / length(values), 2)
+
+  @doc "The shared CLI contract for the per-module eval mix tasks."
+  def mode(argv), do: if("--deterministic" in argv, do: :deterministic, else: :all)
 
   defp line(%{status: :passed, name: name}), do: "  ✓ #{name}"
   defp line(%{status: :failed, name: name, detail: detail}), do: "  ✗ #{name} — #{detail}"

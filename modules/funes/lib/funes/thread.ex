@@ -46,16 +46,15 @@ defmodule Funes.Thread do
     change(thread, state: state)
   end
 
-  @doc ~s{A new WORKLINE thread (slice 1): opens at stage "intent", machine-scoped by default
-  (worklines are machine work — the root machine thread stays oldest, so leaf ordering holds).
-  `born` defaults to "operator"; the Maintain back-edge opens with "machine" and gates.}
+  @doc ~s{A new WORKLINE thread (slice 1): opens at stage "intent", machine-scoped by default.
+  `attrs` is atom-keyed (internal callers only). `born` defaults to "operator"; the Maintain
+  back-edge opens with "machine" and gates. A taken slug is a UNIQUE refusal, as a changeset.}
   def workline_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:title, :scope, :slug, :born, :world_id])
+    |> cast(Map.merge(%{born: "operator", scope: "machine"}, attrs), [:title, :scope, :slug, :born, :world_id])
     |> validate_required([:title, :slug])
     |> validate_inclusion(:born, ["operator", "machine"])
-    |> put_new_change(:born, "operator")
-    |> put_new_change(:scope, "machine")
+    |> unique_constraint(:slug)
     |> put_change(:stage, "intent")
     |> put_change(:state, "open")
     |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
@@ -64,12 +63,5 @@ defmodule Funes.Thread do
   @doc "Flip workline machinery — `stage` and/or `awaiting` — on an existing thread."
   def workline_stage_changeset(thread, changes) do
     change(thread, Map.take(changes, [:stage, :awaiting]))
-  end
-
-  defp put_new_change(changeset, key, value) do
-    case fetch_change(changeset, key) do
-      {:ok, _present} -> changeset
-      :error -> put_change(changeset, key, value)
-    end
   end
 end

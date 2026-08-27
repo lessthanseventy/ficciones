@@ -31,6 +31,16 @@ defmodule Funes.Workline do
   # Stages whose EXIT waits on the operator; a machine-born intent gates its exit too.
   @gated ~w(spec review)
 
+  # The ring, the owed map, and the gate list drift independently unless something ties them:
+  # every non-terminal stage MUST owe an artifact, every gated stage must be in the ring.
+  for stage <- Enum.drop(@stages, -1) do
+    Map.has_key?(@owed, stage) || raise "stage #{stage} has no owed artifact in @owed"
+  end
+
+  for stage <- @gated do
+    stage in @stages || raise "gated stage #{stage} is not in @stages"
+  end
+
   @doc "The stage ring, first to terminal."
   def stages, do: @stages
 
@@ -71,7 +81,9 @@ defmodule Funes.Workline do
   defp advanceable(%Thread{stage: nil}), do: {:error, :not_a_workline}
   defp advanceable(%Thread{stage: "merged"}), do: {:error, :terminal}
   defp advanceable(%Thread{awaiting: awaiting}) when not is_nil(awaiting), do: {:error, :awaiting_operator}
-  defp advanceable(%Thread{}), do: :ok
+  defp advanceable(%Thread{stage: stage}) when stage in @stages, do: :ok
+  # A stage outside the ring (hand-edited row, drifted data) is a typed refusal, not a crash.
+  defp advanceable(%Thread{stage: stage}), do: {:error, {:invalid_stage, stage}}
 
   # The owed-artifact check, recorded as a CHECK either way — the audit half of the invariant.
   defp verified_artifact(thread, checker) do
@@ -94,7 +106,8 @@ defmodule Funes.Workline do
       cmd: "workline artifact #{describe(requirement)}",
       exit: exit_code,
       tail: tail,
-      correlation: "workline:#{thread.slug}:artifact"
+      # Stage-suffixed so the ledger can filter per-stage history on the indexed column.
+      correlation: "workline:#{thread.slug}:artifact:#{thread.stage}"
     })
   end
 
@@ -110,16 +123,24 @@ defmodule Funes.Workline do
     {:awaiting, parked}
   end
 
+  # One transaction: the stage flip and its ledger row commit together or not at all.
   defp flip(thread) do
     to = next(thread.stage)
-    {:ok, flipped} = thread |> Thread.workline_stage_changeset(%{stage: to}) |> Repo.update()
 
-    Dossier.record_event(%{
-      thread_id: thread.id,
-      kind: "stage_advanced",
-      correlation: "workline:#{thread.slug}",
-      detail: %{"from" => thread.stage, "to" => to}
-    })
+    {:ok, flipped} =
+      Repo.transaction(fn ->
+        {:ok, flipped} = thread |> Thread.workline_stage_changeset(%{stage: to}) |> Repo.update()
+
+        {:ok, _event} =
+          Dossier.record_event(%{
+            thread_id: thread.id,
+            kind: "stage_advanced",
+            correlation: "workline:#{thread.slug}",
+            detail: %{"from" => thread.stage, "to" => to}
+          })
+
+        flipped
+      end)
 
     Funes.Bus.broadcast({:workline_advanced, flipped})
     {:ok, flipped}
