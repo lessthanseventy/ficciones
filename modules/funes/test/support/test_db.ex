@@ -10,12 +10,10 @@ defmodule Funes.TestDB do
   alias Funes.Repo
 
   # fact → thread+session, event/issue/message/habit → thread, session → agent+thread,
-  # thread → agent. So: the leaf rows, then message/session, then thread, then agent.
+  # thread → agent AND world (workline slice 1: thread.world_id). So: the leaf rows,
+  # then message/session, then thread, then its parents agent + world.
   # habit.source_thread_id → thread, so it clears with the other thread-children.
-  # world has no FK relationships (a machine-global composition), so it clears
-  # independently — order-free, listed first.
   @ordered [
-    Funes.World,
     Funes.Fact,
     Funes.Event,
     Funes.Issue,
@@ -25,7 +23,8 @@ defmodule Funes.TestDB do
     Funes.Message,
     Funes.Session,
     Funes.Thread,
-    Funes.Agent
+    Funes.Agent,
+    Funes.World
   ]
 
   @doc "Delete every domain row, children before parents."

@@ -71,6 +71,7 @@ defmodule Funes.MCP.ServerTest do
                "register",
                "post_message",
                "advance_stage",
+               "submit_review",
                "bank_fact",
                "raise_issue",
                "record_done",

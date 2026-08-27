@@ -35,6 +35,7 @@ defmodule Funes.MCP.Server do
   component(Funes.MCP.Tool.OpenThread, name: "open_thread")
   component(Funes.MCP.Tool.CloseThread, name: "close_thread")
   component(Funes.MCP.Tool.AdvanceStage, name: "advance_stage")
+  component(Funes.MCP.Tool.SubmitReview, name: "submit_review")
   component(Funes.MCP.Tool.SwitchThread, name: "switch_thread")
   component(Funes.MCP.Tool.ConsultPeer, name: "consult_peer")
   component(Funes.MCP.Tool.StaffLeaf, name: "staff_leaf")

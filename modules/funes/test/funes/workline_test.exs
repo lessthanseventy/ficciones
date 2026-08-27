@@ -152,6 +152,44 @@ defmodule Funes.WorklineTest do
     assert {:error, {:invalid_stage, "deploy"}} = Workline.advance(%{thread | stage: "deploy"}, artifacts: AllPresent)
   end
 
+  test "entering review restaffs the world's reviewer as lead — never the builder reviews" do
+    {:ok, world} =
+      Funes.Worlds.register(%{
+        name: "ReviewWorld",
+        type: "code",
+        scope: "machine",
+        paths: [],
+        roster: [%{"archetype" => "reviewer", "name" => "menard"}]
+      })
+
+    {:ok, _} =
+      Funes.Staff.register_agent(%{name: "menard-machine", mandate: "review", engine: "sonnet"})
+
+    thread = open!(%{slug: "restaffed", world_id: world.id})
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, thread} = Workline.approve(thread)
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, at_review} = Workline.advance(thread, artifacts: AllPresent)
+
+    assert at_review.stage == "review"
+    assert Channel.thread_lead(thread.id) == "menard-machine"
+  end
+
+  test "entering review with no reviewer in the roster leaves the lead alone" do
+    thread = open!(%{slug: "no-reviewer"})
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, thread} = Workline.approve(thread)
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
+    {:ok, at_review} = Workline.advance(thread, artifacts: AllPresent)
+
+    assert at_review.stage == "review"
+    assert Channel.thread_lead(thread.id) == nil
+  end
+
   test "approve with nothing parked is refused; a plain thread is not a workline" do
     assert {:error, :nothing_awaiting} = Workline.approve(open!())
 

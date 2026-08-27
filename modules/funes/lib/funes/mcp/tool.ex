@@ -1162,3 +1162,38 @@ defmodule Funes.MCP.Tool.AdvanceStage do
   defp reply({:error, reason}, frame),
     do: {:reply, Response.error(Response.tool(), "cannot advance: #{inspect(reason)}"), frame}
 end
+
+defmodule Funes.MCP.Tool.SubmitReview do
+  @moduledoc """
+  The write-fenced reviewer's ONE door (worklines slice 3): funes writes and commits
+  work/<slug>/review.md itself — the reviewer profile structurally cannot (write/edit
+  denied). Identity-bound to THIS thread, refused outside the review stage. Verdict at
+  the top of the body; then call advance_stage to hand the merge gate to the operator.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.Channel
+  alias Funes.MCP.Identity
+  alias Funes.Workline.Review
+
+  schema do
+    field :body, :string, required: true, description: "The full review.md content — verdict first, then findings"
+  end
+
+  @impl true
+  def execute(params, frame) do
+    identity = Identity.from_frame(frame)
+
+    with %Funes.Thread{} = thread <- Channel.thread(identity.thread_id) || {:error, :no_thread},
+         {:ok, rel} <- Review.submit(thread, params[:body], identity.agent) do
+      {:reply, Response.json(Response.tool(), %{"committed" => rel}), frame}
+    else
+      {:error, {:not_in_review, stage}} ->
+        {:reply, Response.error(Response.tool(), "not in review — this workline is at #{stage}"), frame}
+
+      {:error, reason} ->
+        {:reply, Response.error(Response.tool(), "submit_review failed: #{inspect(reason)}"), frame}
+    end
+  end
+end

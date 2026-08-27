@@ -145,8 +145,25 @@ defmodule Funes.Workline do
       end)
 
     Funes.Bus.broadcast({:workline_advanced, flipped})
+    flipped = if flipped.stage == "review", do: restaff_reviewer(flipped), else: flipped
     post_brief(flipped, Brief.stage_message(flipped))
     {:ok, flipped}
+  end
+
+  # Entering review: the world's reviewer takes the lead — the builder never approves its own
+  # work by proxy. Best-effort: no world / no reviewer archetype / unregistered handle → the
+  # current lead stands and the brief still lands.
+  defp restaff_reviewer(%Thread{world_id: nil} = thread), do: thread
+
+  defp restaff_reviewer(thread) do
+    with %{roster: roster} when is_list(roster) <- Repo.get(Funes.World, thread.world_id),
+         %{"name" => name} <- Enum.find(roster, &(&1["archetype"] == "reviewer" || &1[:archetype] == "reviewer")),
+         {:ok, restaffed} <- Funes.Channel.assign_lead(thread.id, "#{name}-machine") do
+      post_brief(restaffed, "→ #{name}-machine leads (review stage)")
+      restaffed
+    else
+      _ -> thread
+    end
   end
 
   # The brief IS the wake: a funes-authored message rides the lead-wake path (slice 2).

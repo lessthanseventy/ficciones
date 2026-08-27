@@ -69,5 +69,6 @@ defmodule Funes.Workline.Artifacts.Git do
     end
   end
 
-  defp root, do: Application.get_env(:funes, :workline_root) || File.cwd!()
+  @doc "The workline git root — shared with Review.submit so both sides act on one tree."
+  def root, do: Application.get_env(:funes, :workline_root) || File.cwd!()
 end
