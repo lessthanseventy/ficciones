@@ -561,6 +561,34 @@ defmodule Funes.DossierTest do
     end
   end
 
+  describe "forget_fact/1 — the operator's manual tombstone" do
+    setup do
+      {:ok, thread} = Channel.open_thread(%{title: "a subject"})
+      %{thread: thread}
+    end
+
+    test "stamps forgotten_at; the fact leaves every recall surface but keeps its row", %{thread: thread} do
+      {:ok, fact} =
+        Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "obsolete lore", provenance: "derived"})
+
+      {:ok, forgotten} = Dossier.forget_fact(fact)
+
+      assert %DateTime{} = forgotten.forgotten_at
+      assert Dossier.facts_for_thread(thread) == []
+      assert Funes.Search.facts("obsolete").shown == []
+      assert Repo.get!(Fact, fact.id).text == "obsolete lore"
+    end
+
+    test "a forgotten stated constraint leaves the always-loaded floor", %{thread: thread} do
+      {:ok, fact} =
+        Dossier.bank_fact(%{thread_id: thread.id, kind: "constraint", text: "old rule", provenance: "stated"})
+
+      assert Enum.any?(Dossier.always_loaded_constraints(), &(&1.id == fact.id))
+      {:ok, _} = Dossier.forget_fact(fact)
+      refute Enum.any?(Dossier.always_loaded_constraints(), &(&1.id == fact.id))
+    end
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
   end

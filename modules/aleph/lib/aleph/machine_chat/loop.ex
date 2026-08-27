@@ -94,6 +94,7 @@ defmodule Aleph.MachineChat.Loop do
           leads: %{},
           roster: [],
           root_id: nil,
+          pending_delete: nil,
           now_s: System.os_time(:second)
         }
 
@@ -114,24 +115,7 @@ defmodule Aleph.MachineChat.Loop do
   @impl true
   def handle_info(:poll, state) do
     Process.send_after(self(), :poll, @poll_ms)
-    blocks = poll_blocks(state)
-    windows = poll_windows()
-    leads = poll_leads(blocks, state)
-    roster = active_roster()
-    root_id = root_id(blocks, leads, roster)
-
-    state = %{
-      refresh_size(state)
-      | view: Host.merge(state.view, blocks, root_id),
-        windows: windows,
-        leads: leads,
-        roster: roster,
-        root_id: root_id,
-        rollup: safe_rollup(state),
-        now_s: System.os_time(:second)
-    }
-
-    {:noreply, schedule_render(state)}
+    {:noreply, schedule_render(poll_refresh(state))}
   end
 
   def handle_info(:render, %{render_armed?: false} = state), do: {:noreply, state}
@@ -153,6 +137,16 @@ defmodule Aleph.MachineChat.Loop do
   def handle_cast({:dispatch, _event}, state), do: {:noreply, state}
 
   # MODELESS: the composer takes printables, the rail takes arrows, the center takes paging.
+  # A delete refusal notice is transient — the next keypress of any kind clears it.
+  defp handle_key(key, %{pending_delete: {:refused, _}} = state), do: handle_key(key, %{state | pending_delete: nil})
+
+  # Ctrl+D on the rail-selected thread: first press arms (the composer shows what's about to
+  # die), second press executes. Esc cancels. The operator's delete verb — Channel refuses root.
+  defp handle_key(%{key: :char, char: "d", ctrl: true}, state), do: {:noreply, schedule_render(delete_selected(state))}
+
+  defp handle_key(%{key: :escape}, %{pending_delete: {:armed, _}} = state),
+    do: {:noreply, schedule_render(%{state | pending_delete: nil})}
+
   defp handle_key(%{key: :char, char: "u", ctrl: true}, state), do: host(state, :clear)
   defp handle_key(%{key: :char, char: "n", ctrl: true}, state), do: host(state, :new_task)
   defp handle_key(%{key: :char, ctrl: true}, state), do: {:noreply, state}
@@ -451,6 +445,47 @@ defmodule Aleph.MachineChat.Loop do
 
   defp page(state), do: max(Layout.compute(state.w, state.h).center.h - 1, 1)
 
+  # The :poll body, callable inline (post-delete) without re-arming the poll timer.
+  defp poll_refresh(state) do
+    blocks = poll_blocks(state)
+    windows = poll_windows()
+    leads = poll_leads(blocks, state)
+    roster = active_roster()
+    root_id = root_id(blocks, leads, roster)
+
+    %{
+      refresh_size(state)
+      | view: Host.merge(state.view, blocks, root_id),
+        windows: windows,
+        leads: leads,
+        roster: roster,
+        root_id: root_id,
+        rollup: safe_rollup(state),
+        now_s: System.os_time(:second)
+    }
+  end
+
+  # Second Ctrl+D on the ARMED thread: hard-delete and refresh the view in place.
+  defp delete_selected(%{pending_delete: {:armed, id}} = state) do
+    state = %{state | pending_delete: nil}
+
+    with %{thread: %{id: ^id} = thread} <- Host.selected_block(state.view),
+         {:ok, _} <- Channel.delete_thread(thread) do
+      poll_refresh(state)
+    else
+      {:error, reason} -> %{state | pending_delete: {:refused, inspect(reason)}}
+      _ -> state
+    end
+  end
+
+  # First Ctrl+D: arm on the rail-selected thread (no selection → no-op).
+  defp delete_selected(state) do
+    case Host.selected_block(state.view) do
+      nil -> state
+      block -> %{state | pending_delete: {:armed, block.thread.id}}
+    end
+  end
+
   defp refresh_size(state) do
     :termbox2_nif.tb_resize()
     %{state | w: max(:termbox2_nif.tb_width(), 1), h: max(:termbox2_nif.tb_height(), 1)}
@@ -587,12 +622,28 @@ defmodule Aleph.MachineChat.Loop do
     {glyph, hint} = composer_prompt(state)
 
     lines =
-      if input == "",
-        do: [[{glyph, :accent}, {hint, :dim}]],
-        else: input |> compose_lines(cw) |> Enum.take(-(box_h - 2)) |> glyph_rows(glyph)
+      cond do
+        confirm = confirm_row(state) -> [confirm]
+        input == "" -> [[{glyph, :accent}, {hint, :dim}]]
+        true -> input |> compose_lines(cw) |> Enum.take(-(box_h - 2)) |> glyph_rows(glyph)
+      end
 
     [[], [{String.duplicate("─", max(cw, 1)), :separator}] | lines]
   end
+
+  # The delete confirm/refusal line takes the composer over — a draft survives underneath.
+  defp confirm_row(%{pending_delete: {:armed, _id}} = state) do
+    title =
+      case Host.selected_block(state.view) do
+        %{thread: %{title: t}} -> t || "untitled"
+        _ -> "untitled"
+      end
+
+    [{"✕ ", :accent}, {"delete \"#{title}\" and its messages? Ctrl+D confirms · Esc cancels", :dim}]
+  end
+
+  defp confirm_row(%{pending_delete: {:refused, why}}), do: [{"✕ ", :accent}, {"delete refused: #{why}", :dim}]
+  defp confirm_row(_state), do: nil
 
   # The wrapped buffer with the `▎` cursor marker at the tail — Panel.Composer's wrap, the
   # cockpit compose box's exact behavior. Layout sizes the box from its length.

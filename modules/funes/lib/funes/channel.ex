@@ -59,6 +59,43 @@ defmodule Funes.Channel do
     |> Funes.Bus.announce(:thread_closed)
   end
 
+  @doc """
+  Hard-delete a thread — the operator's cleanup verb, never an agent tool. Thread-scoped
+  rows (messages, todos, questions, sessions) go with it; knowledge and ledger rows
+  (facts, issues, events) survive with the thread link cleared. The ROOT machine thread
+  is refused: it is the standing coworkers' permanent home (see `machine_thread/0`).
+  """
+  def delete_thread(%Thread{} = thread) do
+    if root_machine_thread?(thread) do
+      {:error, :root_machine_thread}
+    else
+      {:ok, deleted} = Repo.transaction(fn -> purge_thread(thread) end)
+      Funes.Bus.announce({:ok, deleted}, :thread_deleted)
+    end
+  end
+
+  # The transactional body: unlink the surviving rows, delete the thread-scoped ones, then the row.
+  defp purge_thread(thread) do
+    for schema <- [Fact, Issue, Event] do
+      Repo.update_all(from(r in schema, where: r.thread_id == ^thread.id), set: [thread_id: nil])
+    end
+
+    for schema <- [Message, Todo, Question, Session] do
+      Repo.delete_all(from(r in schema, where: r.thread_id == ^thread.id))
+    end
+
+    Repo.delete!(thread)
+  end
+
+  defp root_machine_thread?(%Thread{scope: @machine_scope} = thread) do
+    case machine_thread() do
+      %Thread{id: root_id} -> root_id == thread.id
+      nil -> false
+    end
+  end
+
+  defp root_machine_thread?(_thread), do: false
+
   @doc "Open PROJECT threads only, newest first — closed and machine-scope threads are omitted.
   The machine thread (the Tlön coworker) is filtered out of the project surfaces; reach it via
   `machine_thread/0` or by id."

@@ -1148,6 +1148,23 @@ defmodule Aleph.KeymapTest do
       assert {^s, {:forward, ^k}} = Keymap.handle(k, s)
     end
 
+    test "d in nav emits :tlon_delete_arm; armed d confirms with the arm-time target; any other key cancels" do
+      assert {_s, :tlon_delete_arm} = Keymap.handle(char("d"), tlon(nav_focus()))
+
+      target = {:fact, %{id: 7}, "forget fact #7"}
+      armed = tlon(nav_focus(), %{tlon_delete: target})
+      assert {%{tlon_delete: nil}, {:tlon_delete, ^target}} = Keymap.handle(char("d"), armed)
+
+      assert {%{tlon_delete: nil} = disarmed, :repaint} = Keymap.handle(char("j"), armed)
+      assert disarmed.focus == armed.focus
+    end
+
+    test "d in the terminal forwards — the delete verb never fires while typing" do
+      s = tlon()
+      k = char("d")
+      assert {^s, {:forward, ^k}} = Keymap.handle(k, s)
+    end
+
     test "in nav mode with no detail open, Esc returns to the terminal" do
       {next, :repaint} = Keymap.handle(key(:escape), tlon(nav_focus()))
       assert next.focus.in_terminal? == true

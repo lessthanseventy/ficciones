@@ -154,7 +154,7 @@ defmodule Aleph.Panel.LeavesTest do
   end
 
   test "hints/1 declares the pane's footer verbs" do
-    assert Aleph.Panel.hints(Leaves, %{}) == [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}]
+    assert Aleph.Panel.hints(Leaves, %{}) == [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}, {"d", "delete"}]
   end
 
   test "yank/2 returns the cursor row's title, respecting the same float ordering as render/pick" do

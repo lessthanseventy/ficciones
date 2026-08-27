@@ -27,7 +27,7 @@ defmodule Funes.Bus do
     `{:habit_proposed, h}` · `{:habit_approved, h}` · `{:habit_rejected, h}`
     `{:world_registered, w}` · `{:world_edited, w}` · `{:world_removed, w}`
     `{:thread_opened, thread}`
-    `{:thread_closed, thread}` · `{:thread_assigned, thread}` · `{:session_started, s}`
+    `{:thread_closed, thread}` · `{:thread_deleted, thread}` · `{:thread_assigned, thread}` · `{:session_started, s}`
     `{:session_ended, s}` · `{:presence_thinking, %{thread_id, agent, started_at}}`
     `{:presence_idle, %{thread_id, agent}}`
   """
@@ -67,6 +67,7 @@ defmodule Funes.Bus do
   def broadcast({tag, %{thread_id: thread_id} = _row} = event)
       when tag in [
              :fact_banked,
+             :fact_forgotten,
              :event_recorded,
              :issue_raised,
              :issue_resolved,
@@ -91,7 +92,7 @@ defmodule Funes.Bus do
     publish([worlds_topic(), activity_topic()], event)
   end
 
-  def broadcast({tag, thread} = event) when tag in [:thread_opened, :thread_closed, :thread_assigned] do
+  def broadcast({tag, thread} = event) when tag in [:thread_opened, :thread_closed, :thread_deleted, :thread_assigned] do
     publish([threads_topic() | thread_topics(thread.id)], event)
   end
 

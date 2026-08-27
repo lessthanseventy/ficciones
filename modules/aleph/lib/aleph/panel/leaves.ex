@@ -124,7 +124,7 @@ defmodule Aleph.Panel.Leaves do
   defp status_glyph(_open), do: {"▸ ", :accent}
 
   @impl Aleph.Panel
-  def hints(_data), do: [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}]
+  def hints(_data), do: [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}, {"d", "delete"}]
 
   @doc "The semantic yank for the cursor row: the leaf title, same float order as render/pick."
   def yank(data, cursor) do

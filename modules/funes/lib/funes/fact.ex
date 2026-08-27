@@ -23,6 +23,8 @@ defmodule Funes.Fact do
     # the model that produced it, so a model swap is a detectable re-embed.
     field :embedding, Funes.VectorColumn
     field :embedding_model, :string
+    # The operator's manual tombstone — set means out of every recall surface, row kept.
+    field :forgotten_at, :utc_datetime
     belongs_to :thread, Funes.Thread
     belongs_to :source_session, Funes.Session
   end
@@ -30,6 +32,11 @@ defmodule Funes.Fact do
   @doc "Attach an embedding vector + its model to an existing fact (not part of the write path)."
   def embedding_changeset(%__MODULE__{} = fact, vector, model) when is_list(vector) do
     change(fact, embedding: vector, embedding_model: model)
+  end
+
+  @doc "Tombstone a fact — stamps `forgotten_at`; the row and its provenance stay."
+  def forget_changeset(%__MODULE__{} = fact) do
+    change(fact, forgotten_at: DateTime.utc_now(:second))
   end
 
   @doc """

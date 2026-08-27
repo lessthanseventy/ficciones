@@ -68,7 +68,7 @@ defmodule Funes.Search do
                    f.created_at
             FROM fact_fts
             JOIN fact f ON f.id = fact_fts.rowid
-            WHERE fact_fts MATCH ?
+            WHERE fact_fts MATCH ? AND f.forgotten_at IS NULL
             ORDER BY bm25(fact_fts)
             LIMIT ?
             """,
@@ -80,7 +80,7 @@ defmodule Funes.Search do
             %{fact_id: id, thread_id: thread_id, kind: kind, text: text, snippet: snippet, at: at}
           end)
 
-        %{shown: shown, more: max(count("fact_fts", match) - length(shown), 0)}
+        %{shown: shown, more: max(remembered_fact_count(match) - length(shown), 0)}
     end
   end
 
@@ -108,6 +108,17 @@ defmodule Funes.Search do
 
   defp count(table, match) do
     %{rows: [[n]]} = Repo.query!("SELECT count(*) FROM #{table} WHERE #{table} MATCH ?", [match])
+    n
+  end
+
+  # Fact matches that are still remembered — `more` must not count tombstoned rows.
+  defp remembered_fact_count(match) do
+    %{rows: [[n]]} =
+      Repo.query!(
+        "SELECT count(*) FROM fact_fts JOIN fact f ON f.id = fact_fts.rowid WHERE fact_fts MATCH ? AND f.forgotten_at IS NULL",
+        [match]
+      )
+
     n
   end
 

@@ -78,4 +78,15 @@ defmodule Funes do
       habit -> act.(habit)
     end
   end
+
+  @doc """
+  Hard-delete a thread by id (the cockpit's `d` on a LEAVES leaf) — loads fresh, so a stale
+  row can't be acted on. `{:ok, thread}` · `{:error, :not_found}` · `{:error, :root_machine_thread}`.
+  """
+  def delete_thread(id) do
+    case Funes.Channel.thread(id) do
+      nil -> {:error, :not_found}
+      thread -> Funes.Channel.delete_thread(thread)
+    end
+  end
 end

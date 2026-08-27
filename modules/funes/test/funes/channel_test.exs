@@ -442,6 +442,39 @@ defmodule Funes.ChannelTest do
     end
   end
 
+  describe "delete_thread/1 — the operator's hard delete" do
+    setup do
+      {:ok, thread} = Channel.open_thread(%{title: "test clutter"})
+      {:ok, _} = Channel.post(%{thread_id: thread.id, author: "andrew", body: "hello"})
+      %{thread: thread}
+    end
+
+    test "removes the thread, its messages, and its thread-scoped rows", %{thread: thread} do
+      {:ok, todo} = Funes.Dossier.add_todo(%{thread_id: thread.id, text: "a step"})
+
+      assert {:ok, %Thread{}} = Channel.delete_thread(thread)
+      assert Repo.get(Thread, thread.id) == nil
+      assert Repo.get_by(Message, thread_id: thread.id) == nil
+      assert Repo.get(Funes.Todo, todo.id) == nil
+    end
+
+    test "facts born on the thread survive with the thread link cleared", %{thread: thread} do
+      {:ok, fact} =
+        Funes.Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "kept", provenance: "derived"})
+
+      {:ok, _} = Channel.delete_thread(thread)
+      assert Repo.get!(Funes.Fact, fact.id).thread_id == nil
+    end
+
+    test "the ROOT machine thread is refused — the standing coworkers' home" do
+      {:ok, root} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      {:ok, leaf} = Channel.open_thread(%{title: "a leaf", scope: "machine"})
+
+      assert {:error, :root_machine_thread} = Channel.delete_thread(root)
+      assert {:ok, _} = Channel.delete_thread(leaf)
+    end
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
   end

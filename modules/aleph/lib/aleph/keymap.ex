@@ -607,6 +607,16 @@ defmodule Aleph.Keymap do
   # Anything else (Ctrl+C, F-keys, page-up…) is unbound — a no-op, never a quit.
   defp command(_key, state), do: {state, :none}
 
+  # --- Tlön's delete confirm (mirrors Orbis'): `d` arms on the focused pane's selection (the
+  # cockpit resolves the target + flashes), the SECOND `d` — still armed — confirms with the
+  # ARM-TIME target; literally any other key cancels. Both precede every other clause so a stale
+  # keypress can never confirm. ---
+  defp handle_tlon(%{key: :char, char: "d"}, %{tlon_delete: target} = state) when not is_nil(target),
+    do: {%{state | tlon_delete: nil}, {:tlon_delete, target}}
+
+  defp handle_tlon(_key, %{tlon_delete: target} = state) when not is_nil(target),
+    do: {%{state | tlon_delete: nil}, :repaint}
+
   # --- Tlön focus routing. Ctrl+Space toggles the terminal; in the terminal every key forwards;
   # out of it the nav keys drive the focus SM and the bare commands (quit, space-switch, composer,
   # driver ring) stay reachable. Anything else no-ops — nav mode never leaks a key to tmux. ---
@@ -653,6 +663,9 @@ defmodule Aleph.Keymap do
   # `y` — semantic yank: the cockpit resolves the focused pane's real text (sha/fact/title) and
   # writes it to the clipboard via OSC 52. Detail-open yanks the detail body.
   defp handle_tlon(%{key: :char, char: "y"}, state), do: {state, :yank}
+  # `d` — the operator's delete verb: the cockpit resolves the focused pane's selection (MEMORY
+  # fact → forget, LEAVES leaf → window + thread) and arms the two-key confirm above.
+  defp handle_tlon(%{key: :char, char: "d"}, state), do: {state, :tlon_delete_arm}
   # C3.4 reshuffle: Tab/Shift+Tab switch spaces (matching the command level) instead of cycling
   # sections — Shift+Tab must precede the bare :tab clause below, which also matches it.
   defp handle_tlon(%{key: :tab, shift: true}, state), do: switch(state, :prev)

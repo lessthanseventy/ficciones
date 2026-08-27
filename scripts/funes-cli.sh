@@ -18,6 +18,8 @@
 #   roster                         who's on the clock (warm ●/cold ○)
 #   dossier <id>                   render a thread's brief
 #   post <id> <text…>              post as the operator
+#   delete-thread <id>             operator hard delete (messages go too; facts survive unlinked)
+#   forget-fact <id>               operator tombstone — out of recall, row kept
 set -euo pipefail
 
 FUNES="$(dirname "$0")/../modules/funes/_build/prod/rel/funes/bin/funes"
@@ -117,8 +119,23 @@ case "$cmd" in
     exec "$FUNES" rpc "op = Application.get_env(:funes, :operator, \"andrew\"); {:ok, m} = Funes.Channel.post(%{thread_id: $tid, author: op, body: \"$(esc "$body")\"}); IO.puts(\"posted ##{m.id} to thread #$tid as #{op}\")"
     ;;
 
+  delete-thread)
+    tid="${1:-}"
+    int "$tid" || { echo 'usage: funes-cli.sh delete-thread <thread-id>' >&2; exit 2; }
+    # The operator's hard delete: thread + its messages/todos/questions/sessions; facts survive
+    # unlinked. The root machine thread is refused by Channel.delete_thread itself.
+    exec "$FUNES" rpc "case Funes.Repo.get(Funes.Thread, $tid) do nil -> IO.puts(\"no thread #$tid\"); t -> case Funes.Channel.delete_thread(t) do {:ok, _} -> IO.puts(\"deleted thread #$tid — #{t.title}\"); {:error, why} -> IO.puts(\"refused: #{inspect(why)}\") end end"
+    ;;
+
+  forget-fact)
+    fid="${1:-}"
+    int "$fid" || { echo 'usage: funes-cli.sh forget-fact <fact-id>' >&2; exit 2; }
+    # The operator's tombstone: out of every recall surface, row + provenance kept.
+    exec "$FUNES" rpc "case Funes.Repo.get(Funes.Fact, $fid) do nil -> IO.puts(\"no fact #$fid\"); f -> {:ok, _} = Funes.Dossier.forget_fact(f); IO.puts(\"forgot fact #$fid — #{f.text}\") end"
+    ;;
+
   *)
-    echo "usage: funes-cli.sh {spawn|token|roster|dossier|post} [args]" >&2
+    echo "usage: funes-cli.sh {spawn|token|roster|dossier|post|delete-thread|forget-fact} [args]" >&2
     exit 2
     ;;
 esac

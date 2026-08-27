@@ -47,6 +47,15 @@ defmodule Funes.Dossier do
   end
 
   @doc """
+  Manually forget a fact — the operator's tombstone, distinct from the recall engine's
+  budget-driven forgetting. The row and its provenance stay; every recall surface
+  (dossier, floor, search) drops it. `{:ok, fact}` or `{:error, changeset}`.
+  """
+  def forget_fact(%Fact{} = fact) do
+    fact |> Fact.forget_changeset() |> Repo.update() |> Bus.announce(:fact_forgotten)
+  end
+
+  @doc """
   Bank a STATED fact from the operator's own message — §4's capture path made
   mechanical (pi doc §2a). `stated` outranks everything by construction, so it is
   reachable only THROUGH a message row: the fact quotes the message body VERBATIM
@@ -91,14 +100,16 @@ defmodule Funes.Dossier do
 
     Repo.all(
       from f in Fact,
-        where: f.provenance == "stated" and f.kind == "constraint" and f.id not in subquery(superseded),
+        where:
+          f.provenance == "stated" and f.kind == "constraint" and f.id not in subquery(superseded) and
+            is_nil(f.forgotten_at),
         order_by: [desc: f.id]
     )
   end
 
   @doc "A thread's facts, scoped to it, newest first — the raw material for LEARNINGS."
   def facts_for_thread(%Thread{} = thread) do
-    Repo.all(from f in Fact, where: f.thread_id == ^thread.id, order_by: [desc: f.id])
+    Repo.all(from f in Fact, where: f.thread_id == ^thread.id and is_nil(f.forgotten_at), order_by: [desc: f.id])
   end
 
   @doc "A fact by id, or nil — the load path for `recheck_fact`, scope-checked by its tool."

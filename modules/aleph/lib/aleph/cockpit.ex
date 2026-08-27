@@ -248,6 +248,9 @@ defmodule Aleph.Cockpit do
             # The author face's delete confirm arm (D2.5): the world id a `d` press armed, or nil.
             # A second `d` on this SAME id confirms; any other key cancels (Aleph.Keymap).
             pending_delete: nil,
+            # Tlön nav's delete confirm arm: the `{kind, payload, label}` a `d` press resolved
+            # (MEMORY fact / LEAVES leaf), or nil. Second `d` confirms; any other key cancels.
+            tlon_delete: nil,
             # The field editor's own state (D2.4 Chunk 2a): `%{id, field, sub, mode}` while `e` has
             # opened it, else nil. VIEW cursors only — the world's data lives in funes and is
             # re-read from `Aleph.Worlds.all/0` every render (Aleph.Keymap).
@@ -1014,6 +1017,37 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "habit action failed: #{Exception.message(e)}"})}
   end
 
+  # `d` in Tlön nav landed: arm the two-key confirm on the focused pane's selection — a MEMORY
+  # floor fact (forget) or a LEAVES leaf (window + thread). Anywhere else: flash the miss.
+  defp apply_effect(:tlon_delete_arm, state) do
+    case tlon_delete_target(state) do
+      nil ->
+        {:noreply, render(%{state | flash: "nothing deletable under the cursor"})}
+
+      {_kind, _payload, label} = target ->
+        {:noreply, render(%{state | tlon_delete: target, flash: "press d again to #{label}"})}
+    end
+  end
+
+  # The second `d` (still armed) landed: execute against the ARM-TIME target.
+  defp apply_effect({:tlon_delete, {:fact, fact, _label}}, state) do
+    flash =
+      case Dossier.forget_fact(fact) do
+        {:ok, _} -> "forgot fact ##{fact.id}"
+        _ -> "couldn't forget fact ##{fact.id}"
+      end
+
+    {:noreply, render(%{state | memory: nil, flash: flash})}
+  rescue
+    e -> {:noreply, render(%{state | flash: "forget failed: #{Exception.message(e)}"})}
+  end
+
+  defp apply_effect({:tlon_delete, {:leaf, id, _label}}, state) do
+    {:noreply, render(delete_leaf!(state, id))}
+  rescue
+    e -> {:noreply, render(%{state | flash: "leaf delete failed: #{Exception.message(e)}"})}
+  end
+
   # `y` landed: resolve the focused pane's semantic text, OSC-52 it to the host clipboard
   # (through the tty, so it works over SSH), and flash what was taken.
   defp apply_effect(:yank, state) do
@@ -1218,6 +1252,60 @@ defmodule Aleph.Cockpit do
   end
 
   defp selected_habit(_state), do: nil
+
+  # What `d` would delete under the current focus: a MEMORY floor fact (forget) or a LEAVES
+  # leaf (its window + thread). The label rides along for the arm flash.
+  defp tlon_delete_target(state) do
+    cond do
+      fact = selected_floor_fact(state) -> {:fact, fact, "forget fact ##{fact.id}"}
+      leaf = selected_leaf(state) -> {:leaf, leaf.id, "delete leaf ##{leaf.id} (window + thread)"}
+      true -> nil
+    end
+  end
+
+  # The floor fact the focus points at — selected_habit's twin for the floor section (0).
+  defp selected_floor_fact(
+         %{active_key: key, memory: %{floor: floor}, focus: %{in_terminal?: false, section: 0} = focus} = state
+       )
+       when Space.world?(key) do
+    layout = tlon_layout(state)
+    if Focus.focused_pane(focus, layout) == Panel.Memory, do: Enum.at(floor, Focus.cursor(focus, layout))
+  end
+
+  defp selected_floor_fact(_state), do: nil
+
+  # The leaf row under the Leaves cursor in nav — the same on-screen ordering attach/yank use.
+  defp selected_leaf(%{focus: %{in_terminal?: false} = focus} = state) do
+    layout = tlon_layout(state)
+
+    with Panel.Leaves <- Focus.focused_pane(focus, layout),
+         %{} = data <- leaves_data(state) do
+      Panel.Leaves.row_at(data, Focus.cursor(focus, layout))
+    else
+      _ -> nil
+    end
+  end
+
+  defp selected_leaf(_state), do: nil
+
+  # Kill the leaf's live `t<id>` window (if any), then hard-delete its thread through the funes
+  # facade — it refuses the root machine thread, which flashes instead of half-deleting.
+  defp delete_leaf!(state, id) do
+    world_id = active_world_id(state)
+
+    case leaf_index(tlon_tabs(world_id), id) do
+      nil -> :ok
+      idx -> tlon_run(world_id, ["kill-window", "-t", "#{world_session(world_id)}:#{idx}"])
+    end
+
+    flash =
+      case Funes.delete_thread(id) do
+        {:ok, thread} -> "deleted leaf ##{id} — #{thread.title}"
+        {:error, reason} -> "delete refused: #{inspect(reason)}"
+      end
+
+    %{state | leaves: nil, flash: flash}
+  end
 
   # The Leaves data EXACTLY as the panel renders it: the cached rollup + the reorder context
   # (`focused_lead`, derived once per paint in render/1) + the attached wash. The SINGLE enrichment

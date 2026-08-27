@@ -68,7 +68,13 @@ defmodule Aleph.Panel.MemoryTest do
   end
 
   test "hints/1 names the s-keyed section cycle (Tab now switches spaces, not sections)" do
-    assert Aleph.Panel.hints(Memory, %{}) == [{"s", "section"}, {"j/k", "facts"}, {"⏎", "open"}, {"y", "text"}]
+    assert Aleph.Panel.hints(Memory, %{}) == [
+             {"s", "section"},
+             {"j/k", "facts"},
+             {"⏎", "open"},
+             {"y", "text"},
+             {"d", "forget"}
+           ]
   end
 
   test "yank/2 is section-aware: floor text in FLOOR, habit text in HABITS" do
