@@ -739,7 +739,15 @@
                 };
                 Service = {
                   Type = "exec";
-                  Environment = [ "FUNES_START_MCP=1" "FUNES_MCP_PORT=4040" ];
+                  # Worklines: artifact checks run git in the repo checkout; the memory pass +
+                  # maintain monitor are on for the always-up node (both post/park, never act).
+                  Environment = [
+                    "FUNES_START_MCP=1"
+                    "FUNES_MCP_PORT=4040"
+                    "FUNES_WORKLINE_ROOT=${repo}"
+                    "FUNES_MEMORY_PASS=1"
+                    "FUNES_MAINTAIN=1"
+                  ];
                   ExecStartPre = [
                     "${funesRel}/bin/funes eval Funes.Release.migrate()"
                     "${funesRel}/bin/funes eval Funes.Release.seed_world()"
