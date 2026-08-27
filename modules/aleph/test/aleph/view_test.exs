@@ -205,7 +205,7 @@ defmodule Aleph.ViewTest do
     end
 
     test "right_pane_view: 1 shows Health pinned + Activity (Health never cycles away)" do
-      # The World space's right column is [Health, Crew, Activity, Leaves] (Aleph.Space).
+      # The World space's right column is [Health, Crew, Activity, Leaves, Workline] (Aleph.Space).
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 120, 40)
 
@@ -276,7 +276,8 @@ defmodule Aleph.ViewTest do
       placements = View.compose(reads(%{health: health_data()}), 120, 40)
 
       assert Enum.any?(placements, fn
-               {Panel.Border, %{digit: 5, tabs: [{"CREW", true}, {"ACTIVITY", false}, {"LEAVES", false}]}, _r} ->
+               {Panel.Border,
+                %{digit: 5, tabs: [{"CREW", true}, {"ACTIVITY", false}, {"LEAVES", false}, {"WORKLINES", false}]}, _r} ->
                  true
 
                _ ->

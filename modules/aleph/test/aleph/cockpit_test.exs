@@ -221,24 +221,26 @@ defmodule Aleph.CockpitTest do
         leaves: %{summary: %{}, rows: rows},
         focused_lead: "x",
         stack: nil,
-        memory: nil
+        memory: nil,
+        worklines: nil
       }
 
       assert Cockpit.yank_text(state) == {"title", "C"}
     end
   end
 
-  # Clarity slice 2: `[`/`]` cycle the World's CAROUSEL (Crew/Activity/Leaves) — Health is pinned,
-  # never cycled away, so the wrap length is the carousel's (3), not the full right column's (4).
+  # Clarity slice 2: `[`/`]` cycle the World's CAROUSEL (Crew/Activity/Leaves/Workline) — Health is
+  # pinned, never cycled away, so the wrap length is the carousel's (4), not the full right
+  # column's (5).
   # `cycle_pane_view/2` is the pure decision `apply_effect({:cycle_pane_view, dir}, state)` runs —
   # exposed (like `attach_leaf/2`/`preview_focused/1`) so it's testable without a live GenServer.
   # Test env's world fallback (funes-down / no live cache) is the hardcoded Tlön space (key 0).
   describe "cycle_pane_view/2: the World's right-pane view index" do
-    test "cycle_pane_view wraps the CAROUSEL (Health excluded): 0→1→2→0" do
+    test "cycle_pane_view wraps the CAROUSEL (Health excluded): 0→1→2→3→0" do
       state = %{active_key: 0, right_pane_view: 0}
       assert Cockpit.cycle_pane_view(state, 1).right_pane_view == 1
-      assert Cockpit.cycle_pane_view(%{state | right_pane_view: 2}, 1).right_pane_view == 0
-      assert Cockpit.cycle_pane_view(state, -1).right_pane_view == 2
+      assert Cockpit.cycle_pane_view(%{state | right_pane_view: 3}, 1).right_pane_view == 0
+      assert Cockpit.cycle_pane_view(state, -1).right_pane_view == 3
     end
 
     test "outside a World (Orbis) it's a no-op — nothing to cycle" do

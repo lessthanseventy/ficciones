@@ -290,6 +290,9 @@ defmodule Aleph.Cockpit do
             # The Leaves rollup (machine_overview), cached with the other probes so its item count is
             # available to the keymap for j/k clamping at keypress time (before reads exist).
             leaves: nil,
+            # The WORKLINES pane's read (every open workline's stage/gate/blocking check), cached
+            # with the other probes on the same @probe_ms throttle — Panel.Workline.
+            worklines: nil,
             # The Leaves reorder context (the active WindowBar tab's agent), derived once per render
             # (View.focused_lead) — leaves_data/1 injects it for the render read AND yank/attach/
             # preview, so cursor indexing always matches the row order on screen.
@@ -1563,6 +1566,7 @@ defmodule Aleph.Cockpit do
       activity: state.activity,
       memory: if(Space.world?(state.active_key), do: state.memory),
       orbis: if(Space.world?(state.active_key), do: leaves_data(state)),
+      worklines: if(Space.world?(state.active_key), do: state.worklines),
       focused_session: state.focused_session,
       # Which of the World's right-column panels (Health/Activity/Leaves) to show, full-height —
       # the `[`/`]` cycle (C3.4). View clamps with `rem`, so this is meaningless-but-harmless
@@ -1762,12 +1766,16 @@ defmodule Aleph.Cockpit do
       Panel.Spaces => length(Space.all()),
       Panel.Stack => length((state.stack || @empty_stack).commits),
       Panel.Memory => memory_section_count(state),
-      Panel.Leaves => leaf_count(state.leaves)
+      Panel.Leaves => leaf_count(state.leaves),
+      Panel.Workline => worklines_count(state.worklines)
     }
   end
 
   defp leaf_count(%{rows: rows}), do: length(rows)
   defp leaf_count(_), do: 0
+
+  defp worklines_count(%{worklines: worklines}), do: length(worklines)
+  defp worklines_count(_), do: 0
 
   defp memory_section_count(%{memory: nil}), do: 0
   defp memory_section_count(%{focus: %{section: 1}, memory: m}), do: length(m.habits)
@@ -1869,7 +1877,7 @@ defmodule Aleph.Cockpit do
   # Expire cached probes once @probe_ms has passed; render's ensure_probes refills lazily.
   defp maybe_expire_probes(state) do
     if System.monotonic_time(:millisecond) - state.probed_at >= @probe_ms do
-      %{state | stack: nil, health: nil, memory: nil, leaves: nil}
+      %{state | stack: nil, health: nil, memory: nil, leaves: nil, worklines: nil}
     else
       state
     end
@@ -1884,6 +1892,7 @@ defmodule Aleph.Cockpit do
         health: health_read(),
         memory: memory_read(),
         leaves: orbis_read(key),
+        worklines: worklines_read(),
         probed_at: System.monotonic_time(:millisecond)
     }
   end
@@ -1900,6 +1909,11 @@ defmodule Aleph.Cockpit do
   # The Memory pane read: coverage stats + the always-loaded floor + the pending-habit queue.
   defp memory_read do
     %{coverage: Funes.recall_coverage(), floor: Funes.floor(), habits: Funes.pending_habits()}
+  end
+
+  # The WORKLINES pane read: every open workline's stage/gate/blocking-check status.
+  defp worklines_read do
+    %{worklines: Funes.workline_statuses()}
   end
 
   # The STACK read: branch, dirty status, ahead/behind, status summary, enriched commits.

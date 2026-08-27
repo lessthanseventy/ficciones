@@ -68,6 +68,9 @@ defmodule Funes do
   @doc "Habits awaiting the operator's review — the Memory pane's approval queue, newest first."
   defdelegate pending_habits(), to: Funes.Dossier
 
+  @doc "Every open workline's live status (stage, gate, blocking check) — the WORKLINES pane read."
+  defdelegate workline_statuses(), to: Funes.Workline.Ledger, as: :statuses
+
   @doc """
   Approve a pending habit by id (the Memory pane's `a`) — loads fresh, so a stale row the pane
   rendered can't be acted on. `{:ok, habit}` · `{:error, :not_found}` · `{:error, changeset}`.

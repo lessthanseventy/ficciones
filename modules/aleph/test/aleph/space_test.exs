@@ -18,6 +18,7 @@ defmodule Aleph.SpaceTest do
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.WindowBar
+  alias Aleph.Panel.Workline
   alias Aleph.Space
 
   # `Space.world?/1` is a `defguard` (Phase C1.3), which requires the module, not just an alias.
@@ -57,7 +58,7 @@ defmodule Aleph.SpaceTest do
       assert tlon.label == "Tlön"
       assert tlon.surface == [WindowBar, {Terminal, :machine}, Pulse]
       assert tlon.left == [Stack, Memory]
-      assert tlon.right == [Health, Crew, Activity, Leaves]
+      assert tlon.right == [Health, Crew, Activity, Leaves, Workline]
       # The roster lead's name (string-keyed JSON) becomes the center coworker.
       assert tlon.coworker == "tertius"
       # The full roster rides along too (C2/C3 read it), not just the derived coworker name.
@@ -131,12 +132,12 @@ defmodule Aleph.SpaceTest do
   describe "visible_right/2 (clarity slice 2)" do
     test "world right column = pinned Health + the view-indexed carousel panel, CREW at 0" do
       space = Space.first_world()
-      assert Space.carousel(space) == [Crew, Activity, Leaves]
+      assert Space.carousel(space) == [Crew, Activity, Leaves, Workline]
       assert Space.visible_right(space, 0) == [Health, Crew]
       assert Space.visible_right(space, 2) == [Health, Leaves]
-      assert Space.visible_right(space, 3) == [Health, Crew]
+      assert Space.visible_right(space, 3) == [Health, Workline]
       # negative-safe wrap: the public contract must not nil out on a negative view
-      assert Space.visible_right(space, -1) == [Health, Leaves]
+      assert Space.visible_right(space, -1) == [Health, Workline]
     end
 
     test "a single-panel right column (Orbis) is just the pinned panel" do
