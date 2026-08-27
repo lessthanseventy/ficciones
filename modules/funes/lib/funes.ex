@@ -31,6 +31,11 @@ defmodule Funes do
       Consult,
       # Migration pre-flight (aleph.run refuses to boot a behind db).
       Doctor,
+      # The steering-config eval harness (worklines slice 0) — aleph's scenarios use the
+      # same runner/judge, so each module gates its own steering.
+      Eval,
+      Eval.Scenario,
+      Eval.Judge,
       # Identity minting for spawned harnesses (the funes-citizen handshake).
       MCP.Spawn,
       # The arbiter behaviour a host implements (aleph's terminal-writing arbiter).
