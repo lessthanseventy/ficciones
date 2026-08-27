@@ -21,6 +21,8 @@
 #   delete-thread <id>             operator hard delete (messages go too; facts survive unlinked)
 #   forget-fact <id>               operator tombstone — out of recall, row kept
 #   workline "<title>" <slug>      open a workline at stage intent (operator kickoff)
+#   advance <id>                   advance a workline past its current stage (verifier green path)
+#   record-verify <id> <slug> <exit> <cmd> <tail…>  record verify-stage CHECK evidence
 #   approve <id>                   complete a workline's parked gate (awaiting: andrew)
 set -euo pipefail
 
@@ -130,6 +132,23 @@ case "$cmd" in
     exec "$FUNES" rpc "case Funes.Workline.open(%{title: \"$(esc "$title")\", slug: \"$(esc "$slug")\"}) do {:ok, t} -> IO.puts(\"workline ##{t.id} #{t.slug} at #{t.stage} — folder work/#{t.slug}/\"); {:error, cs} -> IO.puts(\"refused: #{inspect(cs.errors)}\") end"
     ;;
 
+  advance)
+    tid="${1:-}"
+    int "$tid" || { echo 'usage: funes-cli.sh advance <thread-id>' >&2; exit 2; }
+    # Advance a workline past its current stage (the git artifact checker runs in the SERVICE
+    # node — set FUNES_WORKLINE_ROOT there). The verifier script's green-path exit.
+    exec "$FUNES" rpc "case Funes.Repo.get(Funes.Thread, $tid) do nil -> IO.puts(\"no thread #$tid\"); t -> case Funes.Workline.advance(t) do {:ok, a} -> IO.puts(\"advanced — thread #$tid now at #{a.stage}\"); {:awaiting, a} -> IO.puts(\"gated at #{a.stage} — awaiting #{a.awaiting}\"); {:error, why} -> IO.puts(\"refused: #{inspect(why)}\") end end"
+    ;;
+
+  record-verify)
+    tid="${1:-}"; slug="${2:-}"; code="${3:-}"; cmd="${4:-}"; shift 4 || true; tail="$*"
+    { int "$tid" && [ -n "$slug" ] && int "$code" && [ -n "$cmd" ]; } ||
+      { echo 'usage: funes-cli.sh record-verify <thread-id> <slug> <exit> <cmd> <tail…>' >&2; exit 2; }
+    # The verifier script's evidence path: a measured check correlated workline:<slug>:verify —
+    # exactly what the verify stage's owed :checks artifact looks for.
+    exec "$FUNES" rpc "{:ok, e} = Funes.Dossier.record_check(%{thread_id: $tid, cmd: \"$(esc "$cmd")\", exit: $code, tail: \"$(esc "$tail")\", correlation: \"workline:$(esc "$slug"):verify\"}); IO.puts(\"recorded ##{e.id} #{e.kind}\")"
+    ;;
+
   approve)
     tid="${1:-}"
     int "$tid" || { echo 'usage: funes-cli.sh approve <thread-id>' >&2; exit 2; }
@@ -153,7 +172,7 @@ case "$cmd" in
     ;;
 
   *)
-    echo "usage: funes-cli.sh {spawn|token|roster|dossier|post|workline|approve|delete-thread|forget-fact} [args]" >&2
+    echo "usage: funes-cli.sh {spawn|token|roster|dossier|post|workline|advance|record-verify|approve|delete-thread|forget-fact} [args]" >&2
     exit 2
     ;;
 esac

@@ -519,6 +519,18 @@ defmodule Aleph.Cockpit do
     {:noreply, render(%{state | flash: "⏸ workline “#{thread.title}” parked at #{thread.stage} — approve #{thread.id}"})}
   end
 
+  # Entering verify dispatches the DETERMINISTIC verifier (scripts/workline-verify.sh):
+  # gates run + evidence recorded + advance-on-green, independent of the builder by
+  # construction. Fire-and-forget — the script reports through funes, not this process.
+  def handle_info({:workline_advanced, %{stage: "verify"} = thread}, state) do
+    {:ok, _pid} =
+      Task.start(fn ->
+        System.cmd("mise", ["run", "workline:verify", "--", to_string(thread.id), thread.slug], stderr_to_stdout: true)
+      end)
+
+    {:noreply, render(%{state | flash: "▶ verifier dispatched for #{thread.slug}"})}
+  end
+
   def handle_info({:workline_advanced, _thread}, state), do: {:noreply, render(state)}
 
   # Habit review events refresh the Habits panel (Tlön). No desktop notification — a proposed
