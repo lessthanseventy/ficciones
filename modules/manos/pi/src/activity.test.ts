@@ -3,7 +3,9 @@ import {
   buildHeartbeatPrompt,
   fallbackLine,
   formatDuration,
+  heartbeatDue,
   lastToolActivity,
+  nextHeartbeatState,
   phraseHeartbeat,
   type Entry,
 } from "./activity.ts";
@@ -116,5 +118,32 @@ describe("phraseHeartbeat — the sidecar call, mechanical fallback on any hiccu
     };
     const line = await phraseHeartbeat(undefined, 5, complete);
     expect(line).toBe(fallbackLine(undefined, 5));
+  });
+});
+
+// Claude Code's PostToolUse fires a fresh process every tool call (no long-lived closure like
+// pi's extension) — this is the cadence gate a state file persists across those calls: "how long
+// since the turn started" and "how long since the last heartbeat post" collapse to one `anchor`.
+describe("nextHeartbeatState / heartbeatDue — the cross-process cadence gate (Claude Code side)", () => {
+  test("no prior state → a fresh turn, anchored to now", () => {
+    expect(nextHeartbeatState(null, 1_000, 600_000)).toEqual({ turnStartedAt: 1_000, anchor: 1_000 });
+  });
+
+  test("prior state within the reset window → carries turnStartedAt, anchors on the last post", () => {
+    const prior = { turnStartedAt: 500, lastPostAt: 900 };
+    expect(nextHeartbeatState(prior, 1_000, 600_000)).toEqual({ turnStartedAt: 500, anchor: 900 });
+  });
+
+  test("prior state past the reset window (long idle gap) → treated as a fresh turn", () => {
+    const prior = { turnStartedAt: 500, lastPostAt: 900 };
+    expect(nextHeartbeatState(prior, 900 + 600_001, 600_000)).toEqual({
+      turnStartedAt: 900 + 600_001,
+      anchor: 900 + 600_001,
+    });
+  });
+
+  test("heartbeatDue: not yet at the interval → false; at or past it → true", () => {
+    expect(heartbeatDue(1_000, 1_000 + 44_999, 45_000)).toBe(false);
+    expect(heartbeatDue(1_000, 1_000 + 45_000, 45_000)).toBe(true);
   });
 });

@@ -102,3 +102,32 @@ export async function phraseHeartbeat(
     return fallbackLine(activity, elapsedSeconds);
   }
 }
+
+// Claude Code's PostToolUse fires a fresh process every tool call — no long-lived closure like
+// pi's extension.ts, so the cadence gate lives in a state file instead of an interval timer.
+// `anchor` collapses two questions into one number: "how long since the turn started" (for a
+// turn's very first heartbeat) and "how long since the last post" (for every one after) — both
+// answered by `now - anchor >= minIntervalMs`.
+export interface HeartbeatState {
+  turnStartedAt: number;
+  lastPostAt: number;
+}
+
+// A gap past `turnResetMs` since the last post reads as a NEW turn (or a long-idle session),
+// not a continuation — otherwise a session left open overnight would report elapsed time in
+// hours on its very next heartbeat.
+export function nextHeartbeatState(
+  prior: HeartbeatState | null,
+  now: number,
+  turnResetMs: number,
+): { turnStartedAt: number; anchor: number } {
+  const freshTurn = !prior || now - prior.lastPostAt > turnResetMs;
+  return {
+    turnStartedAt: freshTurn ? now : prior.turnStartedAt,
+    anchor: freshTurn ? now : prior.lastPostAt,
+  };
+}
+
+export function heartbeatDue(anchor: number, now: number, minIntervalMs: number): boolean {
+  return now - anchor >= minIntervalMs;
+}
