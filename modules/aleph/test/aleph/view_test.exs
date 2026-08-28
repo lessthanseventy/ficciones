@@ -52,10 +52,10 @@ defmodule Aleph.ViewTest do
   end
 
   # A Tlön layout with commits count, so Focus.cursor/2 clamps and the Commits pane is navigable.
-  # SPACES leads the left column, matching production `tlon_layout` (View prepends it on screen too).
+  # The Sidebar leads the left column, matching production `tlon_layout` (View prepends it on screen too).
   defp layout(counts \\ %{Panel.Stack => 3}),
     do: %{
-      left: [Panel.Spaces, Panel.Stack, Panel.Settings],
+      left: [Panel.Sidebar, Panel.Stack, Panel.Settings],
       right: [Panel.Health, Panel.Leaves],
       sections: %{},
       counts: counts
@@ -63,6 +63,25 @@ defmodule Aleph.ViewTest do
 
   # The rects of every border flagged as focused.
   defp focused_borders(placements), do: for({Panel.Border, %{focused: true}, rect} <- placements, do: rect)
+
+  describe "the Slack sidebar (reshape slice D)" do
+    test "the left column leads with Panel.Sidebar fed from reads[:sidebar]; SPACES is gone" do
+      groups = [%{workspace: %{id: 1, name: "ficciones"}, threads: [], crew: []}]
+      placements = View.compose(reads(%{active_key: :orbis, sidebar: groups}), 120, 40)
+
+      assert {Panel.Sidebar, data, _rect} =
+               Enum.find(placements, &match?({Panel.Sidebar, _, _}, &1))
+
+      assert data.groups == groups
+      assert data.active_key == :orbis
+      refute Enum.any?(placements, &match?({Panel.Spaces, _, _}, &1))
+    end
+
+    test "a missing sidebar read degrades to empty groups, not a crash" do
+      placements = View.compose(reads(%{active_key: :orbis}), 120, 40)
+      assert {Panel.Sidebar, %{groups: []}, _rect} = Enum.find(placements, &match?({Panel.Sidebar, _, _}, &1))
+    end
+  end
 
   describe "Tlön focus highlight" do
     test "in nav mode, exactly one sidebar border lights — the focused pane, in the left column" do
@@ -341,14 +360,14 @@ defmodule Aleph.ViewTest do
       space = Aleph.Space.fetch(0)
 
       layout = %{
-        left: [Panel.Spaces | space.left],
+        left: [Panel.Sidebar | space.left],
         right: Aleph.Space.visible_right(space, 0),
         sections: %{},
         counts: %{}
       }
 
-      expected = %{1 => Panel.Spaces, 2 => Panel.Stack, 3 => Panel.Memory, 4 => Panel.Health, 5 => Panel.Crew}
-      titles = %{1 => "SPACES", 2 => "STACK", 3 => "MEMORY", 4 => "HEALTH", 5 => "CREW"}
+      expected = %{1 => Panel.Sidebar, 2 => Panel.Stack, 3 => Panel.Memory, 4 => Panel.Health, 5 => Panel.Crew}
+      titles = %{1 => "WORKSPACES", 2 => "STACK", 3 => "MEMORY", 4 => "HEALTH", 5 => "CREW"}
 
       for d <- 1..5 do
         assert %Focus{} |> Focus.jump(layout, d) |> Focus.focused_pane(layout) == expected[d]
@@ -413,7 +432,7 @@ defmodule Aleph.ViewTest do
     test "world sidebar boxes carry digit-first titles derived from layout order" do
       placements = View.compose(reads(%{}), 120, 40)
 
-      assert %{digit: 1} = border_of(placements, "SPACES")
+      assert %{digit: 1} = border_of(placements, "WORKSPACES")
       assert %{digit: 2} = border_of(placements, "STACK")
       assert %{digit: 3} = border_of(placements, "MEMORY")
       assert %{digit: 4} = border_of(placements, "HEALTH")

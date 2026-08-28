@@ -25,8 +25,9 @@ defmodule Aleph.View do
   # Below this width (phone / a shrunk tile) the three columns collapse to one (Addendum §D).
   @wide_min 80
   # Panels whose content can overflow their box and so accept a `:scroll` offset (wheel scroll).
-  # The center Terminal, the Spaces picker (a fixed 3 rows), and StatusBar/Border never overflow.
+  # The center Terminal and StatusBar/Border never overflow.
   @scrollable [
+    Panel.Sidebar,
     Panel.ThreadList,
     Panel.Chorus,
     Panel.Conversation,
@@ -65,7 +66,7 @@ defmodule Aleph.View do
         true -> space.surface
       end
 
-    left_sections = [Panel.Spaces | space.left]
+    left_sections = [Panel.Sidebar | space.left]
     # Slice 2: HEALTH pinned + the view-indexed carousel panel (CREW default) — the single
     # source (Space.visible_right/2) View/keymap/cockpit all read, so they can't disagree.
     right_sections = Space.visible_right(space, reads[:right_pane_view] || 0)
@@ -143,10 +144,10 @@ defmodule Aleph.View do
   # The sidebar pane the Tlön focus sits on — only in nav mode (out of the terminal), so the frame
   # lights the instant you Ctrl+Space out. nil for other spaces and while in the terminal (the
   # terminal is the active pane then). Matches by section module — the panes are distinct, so module
-  # identity is unambiguous. SPACES leads the left column here exactly as it does on screen, so its
-  # frame lights when the focus navigates onto the space-switcher.
+  # identity is unambiguous. The Sidebar leads the left column here exactly as it does on screen, so
+  # its frame lights when the focus navigates onto the workspace nav.
   defp focused_section(%Focus{in_terminal?: false} = focus, space, right_sections),
-    do: Focus.focused_pane(focus, %{left: [Panel.Spaces | space.left], right: right_sections, sections: %{}})
+    do: Focus.focused_pane(focus, %{left: [Panel.Sidebar | space.left], right: right_sections, sections: %{}})
 
   defp focused_section(_focus, _space, _right_sections), do: nil
 
@@ -186,7 +187,7 @@ defmodule Aleph.View do
   # The on-frame title per section. A section with no entry (Terminal, WindowBar, Pulse, the
   # center surfaces) gets a bare frame.
   defp section_title({panel, _read_key}), do: section_title(panel)
-  defp section_title(Panel.Spaces), do: "SPACES"
+  defp section_title(Panel.Sidebar), do: "WORKSPACES"
   defp section_title(Panel.Stack), do: "STACK"
   defp section_title(Panel.Memory), do: "MEMORY"
   defp section_title(Panel.Health), do: "HEALTH"
@@ -281,7 +282,7 @@ defmodule Aleph.View do
   defp merge_slice(data, _slice), do: data
 
   @doc "Resolve the data a panel is fed from the assembled reads (keeps spaces plain data)."
-  def data_for(Panel.Spaces, r), do: %{spaces: Space.all(), active_key: r.active_key}
+  def data_for(Panel.Sidebar, r), do: %{groups: r[:sidebar] || [], active_key: r.active_key}
   def data_for(Panel.Roster, r), do: %{sessions: r.roster}
 
   def data_for(Panel.ThreadList, r), do: %{threads: r.threads, roster: r.roster, selected_id: r.focused_id}
@@ -456,9 +457,6 @@ defmodule Aleph.View do
     resolved
   end
 
-  # The picker box is intrinsically short: one row per space, plus its frame (title/digit now on
-  # the frame, not in-content — the 2 header rows are gone).
-  defp fixed_height(Panel.Spaces), do: length(Space.all()) + 2
   # The WindowBar/Pulse bands framing the Tlön terminal: one content row + their own 2-row frame.
   defp fixed_height(Panel.WindowBar), do: 3
   defp fixed_height(Panel.Pulse), do: 3

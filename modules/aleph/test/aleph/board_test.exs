@@ -37,7 +37,7 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.Logbook
   alias Aleph.Panel.Pulse
   alias Aleph.Panel.Roster
-  alias Aleph.Panel.Spaces
+  alias Aleph.Panel.Sidebar
   alias Aleph.Panel.Stack
   alias Aleph.Panel.StatusBar
   alias Aleph.Panel.Terminal
@@ -128,19 +128,6 @@ defmodule Aleph.BoardTest do
       assert text(live) =~ "Carl"
       assert Enum.any?(live, fn {t, s} -> s == :accent and t =~ "Carl" end)
       refute text(idle) =~ "Carl"
-    end
-
-    test "spaces picker marks the active space" do
-      rows =
-        Spaces.render(%{spaces: Aleph.Space.all(), active_key: :orbis}, %{
-          x: 0,
-          y: 0,
-          w: 20,
-          h: 10
-        })
-
-      active = Enum.find(rows, &(text(&1) =~ "▸"))
-      assert text(active) =~ "Orbis"
     end
 
     test "stack (Tlön): branch then two rows per commit (subject, then meta line), hash dimmed" do
@@ -381,14 +368,6 @@ defmodule Aleph.BoardTest do
       assert ThreadList.pick(data, %{x: 0, y: 0, w: 30, h: 10}, 9) == nil
     end
 
-    test "spaces: a space row switches to it (no header chrome — rows start at 0)" do
-      data = %{spaces: Aleph.Space.all(), active_key: :orbis}
-      rect = %{x: 0, y: 0, w: 20, h: 10}
-      assert {:switch_space, :orbis} = Spaces.pick(data, rect, 0)
-      assert {:switch_space, 0} = Spaces.pick(data, rect, 1)
-      assert Spaces.pick(data, rect, 99) == nil
-    end
-
     test "roster: a session row focuses the thread it's working (no header chrome — rows start at 0)" do
       data = %{sessions: @roster, scroll: 0}
       rect = %{x: 0, y: 0, w: 40, h: 10}
@@ -524,7 +503,7 @@ defmodule Aleph.BoardTest do
       placements = View.compose(reads(), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
 
-      assert Spaces in mods
+      assert Sidebar in mods
       assert Chorus in mods
       assert Dossier in mods
       assert StatusBar in mods

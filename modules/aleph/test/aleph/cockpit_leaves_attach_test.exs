@@ -66,7 +66,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
   # this test; `focus.pane: 2` in leaves_state/1 mirrors Leaves' position in that column.
   defp leaves_layout(rows) do
     %{
-      left: [Panel.Spaces, Panel.Stack, Panel.Memory],
+      left: [Panel.Sidebar, Panel.Stack, Panel.Memory],
       right: Space.fetch(0).right,
       sections: %{},
       counts: %{Panel.Leaves => length(rows)}

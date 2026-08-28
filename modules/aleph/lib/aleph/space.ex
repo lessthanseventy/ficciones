@@ -9,7 +9,7 @@ defmodule Aleph.Space do
   (Funes.Bootstrap), so no fallback World is fabricated here (reshape slice A).
   Sessions is gone (its per-thread native-PTY center folded into the tmux center).
   The
-  `Aleph.Panel.Spaces` picker switches the active one; the center renders that space's `surface`.
+  `Aleph.Panel.Sidebar` workspace nav switches the active one; the center renders that space's `surface`.
 
   A surface is a LIST of sections stacked down the center — usually one (Orbis), but Tlön frames its
   Terminal with two more: WindowBar above, Pulse below. A section is either a bare

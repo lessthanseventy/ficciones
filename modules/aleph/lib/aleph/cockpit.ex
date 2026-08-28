@@ -991,14 +991,14 @@ defmodule Aleph.Cockpit do
     e -> {:noreply, render(%{state | flash: "settings write failed: #{Exception.message(e)}"})}
   end
 
-  # Enter in Tlön nav: on SPACES, switch to the lens under the cursor; on Leaves, attach the leaf's
-  # live World window in the center (preview + commit); on any other pane, open its selection's
-  # detail in MAIN (set focus.detail?, which the View renders).
+  # Enter in Tlön nav: on the Sidebar, switch to the space under the cursor; on Leaves, attach the
+  # leaf's live World window in the center (preview + commit); on any other pane, open its
+  # selection's detail in MAIN (set focus.detail?, which the View renders).
   defp apply_effect(:tlon_enter, state) do
     layout = tlon_layout(state)
 
     case Focus.focused_pane(state.focus, layout) do
-      Panel.Spaces -> apply_pick({:switch_space, space_at_cursor(state, layout)}, state)
+      Panel.Sidebar -> apply_pick({:switch_space, space_at_cursor(state, layout)}, state)
       Panel.Leaves -> jump_to_leaf(state, layout)
       _ -> {:noreply, render(put_in(state.focus.detail?, true))}
     end
@@ -1595,6 +1595,9 @@ defmodule Aleph.Cockpit do
       focused_title: focused && focused.title,
       roster: roster,
       threads: threads,
+      # The Slack sidebar's read-model (reshape slice C): workspace groups with their unified
+      # thread list + crew working flags.
+      sidebar: Board.safe_read(:sidebar, [], fn -> Funes.Board.sidebar() end),
       scope: Board.safe_read(:scope, nil, fn -> focused && Funes.Board.in_scope(focused) end),
       chatter: Board.safe_read(:chatter, [], fn -> (focused && Channel.recent_messages(focused, 30)) || [] end),
       worlds: Board.safe_read(:worlds, [], fn -> if(state.active_key == :orbis, do: orbis_worlds(state), else: []) end),
@@ -1788,8 +1791,8 @@ defmodule Aleph.Cockpit do
   # ITEM counts (what j/k clamps against), derived from the live reads in `state`. Keyed by pane
   # module, matching space.left/right. nil-ish layout for other spaces (the keymap only reads it in
   # Tlön anyway).
-  # SPACES leads the left column in the FOCUS layout exactly as it does on screen (View prepends it
-  # to `space.left`), so `h`/`H` can land on the space-switcher and `Enter` there switches lens.
+  # The Sidebar leads the left column in the FOCUS layout exactly as it does on screen (View
+  # prepends it to `space.left`), so `h`/`H` can land on the workspace nav and `Enter` switches.
   defp tlon_layout(%{active_key: key} = state) when Space.world?(key) do
     case Space.fetch(key) do
       # A stale/removed active_key mid-render (Space.fetch/1 returns nil on a miss) — degrade to
@@ -1799,7 +1802,7 @@ defmodule Aleph.Cockpit do
 
       space ->
         %{
-          left: [Panel.Spaces | space.left],
+          left: [Panel.Sidebar | space.left],
           # Health pinned + carousel (clarity slice 2) — what's actually on screen, so the focus
           # SM's pane index can't point at a box View didn't draw.
           right: Space.visible_right(space, state.right_pane_view),
@@ -1822,7 +1825,9 @@ defmodule Aleph.Cockpit do
   # focus.section. Panes without a list are absent (0 → j/k is a no-op there).
   defp pane_counts(state) do
     %{
-      Panel.Spaces => length(Space.all()),
+      # Home + one row per workspace — the Sidebar's pickable rows (its groups mirror
+      # Space.all/0's [Orbis | worlds] order, so the count and the cursor→key math agree).
+      Panel.Sidebar => length(Space.all()),
       Panel.Stack => length((state.stack || @empty_stack).commits),
       Panel.Memory => memory_section_count(state),
       Panel.Leaves => leaf_count(state.leaves)
