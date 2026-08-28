@@ -1073,6 +1073,46 @@ defmodule Funes.MCP.Tool.RemoveWorld do
   end
 end
 
+defmodule Funes.MCP.Tool.TrackThread do
+  @moduledoc """
+  Promote THIS connection's thread into the stage machine at "build" — tracking is
+  the lazy path (reshape slice B): the harness hooks call this mechanically on the
+  first successful `git commit`, so the ticket condenses out of the work. Agents may
+  also call it deliberately ("track this thread"). Idempotent; self-thread like every
+  write — no thread parameter exists to misdirect.
+  """
+  use Anubis.Server.Component, type: :tool
+
+  alias Anubis.Server.Response
+  alias Funes.MCP
+  alias Funes.Repo
+  alias Funes.Thread
+  alias Funes.Workline
+
+  schema do
+  end
+
+  @impl true
+  def execute(_params, frame) do
+    identity = MCP.Identity.from_frame(frame)
+
+    case Repo.get(Thread, identity.thread_id) do
+      nil ->
+        {:reply, Response.error(Response.tool(), "no thread ##{identity.thread_id}"), frame}
+
+      thread ->
+        case Workline.promote(thread) do
+          {:ok, tracked} ->
+            payload = %{"stage" => tracked.stage, "slug" => tracked.slug}
+            {:reply, Response.json(Response.tool(), payload), frame}
+
+          {:error, :root_machine_thread} ->
+            {:reply, Response.error(Response.tool(), "refused: the root machine thread is not a work item"), frame}
+        end
+    end
+  end
+end
+
 defmodule Funes.MCP.Tool.PresenceThinking do
   @moduledoc """
   Declare THIS connection's agent thinking on its thread — call at turn start, so
