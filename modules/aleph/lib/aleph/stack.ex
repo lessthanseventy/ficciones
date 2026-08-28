@@ -352,11 +352,16 @@ defmodule Aleph.Stack do
   aleph-world-<id>`, id-derived, rename-proof).
   """
   def tlon_up? do
-    id = Aleph.Space.first_world().id
+    case Aleph.Space.first_world() do
+      # No world at all (funes down; the fallback World is gone, reshape slice A) — nothing is up.
+      nil ->
+        false
 
-    case cmd("tmux", ["-L", "aleph-world-#{id}", "has-session", "-t", "w#{id}"]) do
-      {:ok, _} -> true
-      :error -> false
+      %{id: id} ->
+        case cmd("tmux", ["-L", "aleph-world-#{id}", "has-session", "-t", "w#{id}"]) do
+          {:ok, _} -> true
+          :error -> false
+        end
     end
   end
 

@@ -13,6 +13,12 @@ defmodule Aleph.KeymapTest do
   """
   use ExUnit.Case, async: true
 
+  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
+  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  setup do
+    Aleph.TestWorlds.put()
+  end
+
   alias Aleph.Keymap
   alias Aleph.Panel.Leaves
   alias Aleph.Tlon.Focus

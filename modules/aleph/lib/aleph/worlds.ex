@@ -34,8 +34,19 @@ defmodule Aleph.Worlds do
     GenServer.start_link(__MODULE__, opts, name: Keyword.get(opts, :name, __MODULE__))
   end
 
-  @doc "The cached worlds as aleph-shaped `%{id, name, type, paths, roster, scope}` maps."
-  def all(server \\ __MODULE__), do: GenServer.call(server, :all)
+  @doc """
+  The cached worlds as aleph-shaped `%{id, name, type, paths, roster, scope}` maps.
+
+  Cache down (boot race, or the test env where this GenServer never runs) degrades to
+  the caller-process fixture `Process.get(:aleph_worlds, [])` — the seam tests push a
+  world list through now that the hardcoded fallback World is gone (reshape slice A).
+  Process-scoped so async suites can't race each other's fixtures.
+  """
+  def all(server \\ __MODULE__) do
+    GenServer.call(server, :all)
+  catch
+    :exit, _ -> Process.get(:aleph_worlds, [])
+  end
 
   @impl true
   def init(_opts) do

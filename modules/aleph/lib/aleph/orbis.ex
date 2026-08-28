@@ -21,11 +21,6 @@ defmodule Aleph.Orbis do
 
   alias Funes.Channel
 
-  # The survey row when funes yields no worlds (down / unseeded — the seed only runs after
-  # home:switch). Keyed `0` — the same sentinel `Aleph.Space`'s Tlön fallback uses, so a click/Enter
-  # on this row resolves to the same World the fallback space is keyed under.
-  @fallback_world %{id: 0, name: "Tlön"}
-
   @spec rollup() :: %{summary: map(), rows: [map()], worlds: [map()]} | nil
   def rollup do
     rows =
@@ -56,13 +51,13 @@ defmodule Aleph.Orbis do
   the survey can't resolve a click/Enter to a world without one). Per-world leaf attribution is
   still coarse (Phase B): the first world carries all machine leaves; any further worlds get an
   empty, zeroed row — a real per-leaf world membership isn't modeled yet, so this is the Slice-1
-  floor, not the final grouping. No world refs (funes down / unseeded) falls back to the literal
-  "Tlön" (id 0) so the survey never breaks.
+  floor, not the final grouping. No world refs (funes genuinely down — the app self-seeds at
+  boot) yields no rows; the survey renders empty rather than fabricating a world (reshape slice A).
   """
   @spec worlds([map()], [%{id: term(), name: String.t()}]) :: [
           %{id: term(), name: String.t(), summary: map(), leaves: [map()]}
         ]
-  def worlds(rows, []), do: [Map.merge(@fallback_world, %{summary: summarize(rows), leaves: rows})]
+  def worlds(_rows, []), do: []
 
   def worlds(rows, [first | rest]) do
     [
@@ -71,7 +66,7 @@ defmodule Aleph.Orbis do
     ]
   end
 
-  # The funes world refs, guarded: a cache hiccup degrades to [] (→ literal "Tlön" fallback).
+  # The funes world refs, guarded: a cache hiccup degrades to [] (→ empty survey).
   defp world_refs do
     Enum.map(Aleph.Worlds.all(), &%{id: &1.id, name: &1.name})
   rescue

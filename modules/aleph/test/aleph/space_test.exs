@@ -34,16 +34,16 @@ defmodule Aleph.SpaceTest do
     roster: [%{"archetype" => "surveyor", "name" => "tertius"}]
   }
 
-  test "the picker offers exactly Orbis and the fallback World; Sessions is gone" do
-    # Space.all/0 reads the live Aleph.Worlds cache (funes down under test → []), so this exercises
-    # the hardcoded-Tlön FALLBACK, keyed as the sentinel 0 — proving aleph never boots without a
-    # World.
-    assert Enum.map(Space.all(), & &1.key) == [:orbis, 0]
+  test "funes down → the picker is Orbis alone; no fake World (reshape slice A)" do
+    # Space.all/0 reads the live Aleph.Worlds cache (funes down under test → []). The hardcoded
+    # Tlön fallback is gone: funes self-seeds a default workspace at boot (Funes.Bootstrap), so an
+    # empty world list means funes is genuinely down — rendered honestly, not papered over.
+    assert Enum.map(Space.all(), & &1.key) == [:orbis]
   end
 
-  test "Tab from Orbis lands on the fallback World (no Sessions in between)" do
-    assert Space.next(:orbis).key == 0
-    assert Space.next(0).key == :orbis
+  test "Tab with no worlds wraps Orbis to itself" do
+    assert Space.next(:orbis).key == :orbis
+    assert Space.prev(:orbis).key == :orbis
   end
 
   describe "all/1 (derived from funes worlds)" do
@@ -65,8 +65,8 @@ defmodule Aleph.SpaceTest do
       assert tlon.roster == @tlon.roster
     end
 
-    test "empty worlds → hardcoded-Tlön fallback still yields [:orbis, 0]" do
-      assert Enum.map(Space.all([]), & &1.key) == [:orbis, 0]
+    test "empty worlds → Orbis alone, no fabricated World" do
+      assert Enum.map(Space.all([]), & &1.key) == [:orbis]
     end
 
     test "two worlds → [:orbis, 1, 2], keyed by funes id" do
@@ -97,9 +97,10 @@ defmodule Aleph.SpaceTest do
     end
   end
 
-  describe "the funes-down fallback" do
-    test "keys as the sentinel 0 (real funes ids start at 1)" do
-      assert [%{key: :orbis}, %{key: 0, label: "Tlön"}] = Space.all([])
+  describe "first_world/0 with no worlds" do
+    test "is nil — funes-genuinely-empty, no sentinel" do
+      # Reads the live cache (down under test → []); callers own the nil.
+      assert Space.first_world() == nil
     end
   end
 
@@ -131,7 +132,7 @@ defmodule Aleph.SpaceTest do
 
   describe "visible_right/2 (clarity slice 2)" do
     test "world right column = pinned Health + the view-indexed carousel panel, CREW at 0" do
-      space = Space.first_world()
+      space = Enum.find(Space.all([@tlon]), &Space.world?(&1.key))
       assert Space.carousel(space) == [Crew, Activity, Leaves, Workline]
       assert Space.visible_right(space, 0) == [Health, Crew]
       assert Space.visible_right(space, 2) == [Health, Leaves]

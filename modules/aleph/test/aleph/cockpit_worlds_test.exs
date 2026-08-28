@@ -82,14 +82,24 @@ defmodule Aleph.CockpitWorldsTest do
 
   describe "remove_world!/2 — the author face's two-key `d` confirm (D2.5)" do
     test "removes the world and flashes success" do
+      {:ok, _keep} = Worlds.register(%{name: "Home", type: "blank"})
       {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
       next = Cockpit.remove_world!(state(%{}), w.id)
 
       assert next.flash =~ "deleted Freedonia"
-      assert Worlds.all() == []
+      assert Enum.map(Worlds.all(), & &1.name) == ["Home"]
+    end
+
+    test "the LAST world is refused with a flash (threads must have a home)" do
+      {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
+      next = Cockpit.remove_world!(state(%{}), w.id)
+
+      assert next.flash =~ "last workspace"
+      assert length(Worlds.all()) == 1
     end
 
     test "removing the ACTIVE world resolves active_key to :orbis — never stranded on a dead space" do
+      {:ok, _keep} = Worlds.register(%{name: "Home", type: "blank"})
       {:ok, w} = Worlds.register(%{name: "Freedonia", type: "blank"})
       next = Cockpit.remove_world!(state(%{active_key: w.id}), w.id)
 

@@ -39,23 +39,12 @@ defmodule Aleph.OrbisTest do
   end
 
   describe "worlds/1" do
-    # rollup/0 wraps its per-thread rows under a single hardcoded world (Slice 0, funes down under
-    # test). rollup/0 itself reads funes (exercised live, like the cockpit reads); this pins the
-    # pure grouping it delegates to, so the survey face's world shape can never drift.
-    test "groups the rollup rows under one hardcoded world (Tlön, id 0), carrying summary + leaves" do
-      rows = [
-        %{status: :open, conflicts: 0},
-        %{status: :stalled, conflicts: 2},
-        %{status: :done, conflicts: 0}
-      ]
-
-      assert [%{id: 0, name: "Tlön", summary: summary, leaves: ^rows}] = Orbis.worlds(rows)
-      assert summary == %{open: 1, stalled: 1, done: 1, conflicts: 2}
-    end
-
-    test "an empty board is still one world, with a zeroed summary and no leaves" do
-      assert [%{id: 0, name: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}] =
-               Orbis.worlds([])
+    # worlds/1 reads the live Aleph.Worlds cache (funes down under test → []). The literal-Tlön
+    # fallback is gone (reshape slice A): no world refs means no survey rows — honest, since funes
+    # self-seeds a default workspace at boot.
+    test "funes down → no survey rows, no fake world" do
+      rows = [%{status: :open, conflicts: 0}]
+      assert Orbis.worlds(rows) == []
     end
   end
 
@@ -81,9 +70,9 @@ defmodule Aleph.OrbisTest do
       assert summary == %{open: 0, stalled: 0, done: 0, conflicts: 0}
     end
 
-    test "no world refs → the literal \"Tlön\" (id 0) fallback so the survey never breaks" do
+    test "no world refs → no rows (the fake-Tlön fallback is gone)" do
       rows = [%{status: :open, conflicts: 0}]
-      assert [%{id: 0, name: "Tlön", leaves: ^rows}] = Orbis.worlds(rows, [])
+      assert Orbis.worlds(rows, []) == []
     end
   end
 end

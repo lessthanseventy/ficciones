@@ -4,9 +4,10 @@ defmodule Aleph.Space do
   unit the top-left switcher picks (design Addendum §B). **Orbis** (the god-view survey — tertius'
   per-world rollup, the default) leads, then one **World** space per funes world (`Aleph.Worlds`,
   Slice 1) — the machine/stack as a live embedded terminal. World spaces are keyed by the funes
-  world id (Phase C1, not a name slug), so `[:orbis, 1]` with the single seeded Tlön world;
-  funes-down falls back to the hardcoded Tlön keyed as the sentinel `0` so aleph never boots
-  without a World. Sessions is gone (its per-thread native-PTY center folded into the tmux center).
+  world id (Phase C1, not a name slug), so `[:orbis, 1]` with the single seeded world;
+  funes-down degrades to Orbis alone — funes self-seeds a default workspace at boot
+  (Funes.Bootstrap), so no fallback World is fabricated here (reshape slice A).
+  Sessions is gone (its per-thread native-PTY center folded into the tmux center).
   The
   `Aleph.Panel.Spaces` picker switches the active one; the center renders that space's `surface`.
 
@@ -78,10 +79,9 @@ defmodule Aleph.Space do
     }
   end
 
-  # One World space per funes world. FALLBACK: an empty list (funes down / unseeded — the seed only
-  # runs after home:switch) yields the hardcoded Tlön space, so aleph never boots without a World.
-  # With one seeded Tlön world (funes id 1) this is `[:orbis, 1]`.
-  defp world_spaces([]), do: [tlon_space()]
+  # One World space per funes world. An empty list means funes is genuinely down — the app
+  # self-seeds a default workspace at boot (Funes.Bootstrap), so no fake World is fabricated
+  # here (reshape slice A); the picker degrades to Orbis alone.
   defp world_spaces(worlds), do: Enum.map(worlds, &space_from_world/1)
 
   # A World space built from a funes world (aleph-shaped `%{id, name, roster, ...}`). Keyed by the
@@ -101,26 +101,7 @@ defmodule Aleph.Space do
     }
   end
 
-  # The hardcoded Tlön World — the fallback when funes yields no worlds. Its center is literal tmux
-  # (an embedded client on the standing `tlon` session, surviving aleph restarts): tertius is window
-  # 0, the builder (hronir) and console (uqbar) ride as further windows. WindowBar frames the
-  # terminal on top, Pulse (the latest funes event) below — each its own bordered band. Keyed `0`:
-  # the sentinel, since real funes world ids start at 1 (never collides with a live world).
-  defp tlon_space do
-    %__MODULE__{
-      key: 0,
-      id: 0,
-      label: "Tlön",
-      surface: [WindowBar, {Terminal, :machine}, Pulse],
-      left: [Stack, Memory],
-      right: [Health, Crew, Activity, Leaves, Workline],
-      coworker: "tertius",
-      # Mirrors the funes seed roster for the Tlön world, so C2/C3 get a faithful stand-in.
-      roster: [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
-    }
-  end
-
-  # Read the cached worlds, degrading to [] (→ Tlön fallback) if the cache is down mid-render.
+  # Read the cached worlds, degrading to [] (→ Orbis-only picker) if the cache is down mid-render.
   defp fetch_worlds do
     Aleph.Worlds.all()
   rescue

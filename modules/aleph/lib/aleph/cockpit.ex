@@ -1157,6 +1157,9 @@ defmodule Aleph.Cockpit do
             |> Map.put(:author_cursor, clamp_author_cursor(state.author_cursor))
             |> Map.put(:flash, "deleted #{world.name}")
 
+          {:error, :last_world} ->
+            %{state | flash: "couldn't delete #{world.name} — the last workspace; threads must have a home"}
+
           {:error, changeset} ->
             %{state | flash: "couldn't delete #{world.name} — #{changeset_error(changeset)}"}
         end
