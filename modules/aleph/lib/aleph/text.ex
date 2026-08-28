@@ -52,4 +52,16 @@ defmodule Aleph.Text do
   end
 
   defp blank_line?(line), do: String.trim(line) == ""
+
+  @doc """
+  A ticking elapsed-time label: `"45s"` under a minute, `"3m12s"` under an hour, `"1h05m"`
+  beyond — deliberately sub-minute-precise (unlike `Aleph.Stack.relative_time/2`'s "5 minutes
+  ago" bucketing) so a presence indicator visibly counts up between renders instead of reading
+  as frozen. Negative input (clock skew) clamps to `"0s"`.
+  """
+  @spec duration(integer()) :: String.t()
+  def duration(seconds) when seconds < 0, do: duration(0)
+  def duration(seconds) when seconds < 60, do: "#{seconds}s"
+  def duration(seconds) when seconds < 3_600, do: "#{div(seconds, 60)}m#{rem(seconds, 60)}s"
+  def duration(seconds), do: "#{div(seconds, 3_600)}h#{div(rem(seconds, 3_600), 60)}m"
 end
