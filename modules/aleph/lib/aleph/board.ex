@@ -49,6 +49,25 @@ defmodule Aleph.Board do
   defp panel_name(panel), do: inspect(panel)
 
   @doc """
+  `safe_rows/3`'s twin, one layer up: guard a cockpit READ (the per-frame funes/tmux assembly —
+  crew, presence, logbook…) so a raise OR an exit (a down funes GenServer) degrades that one read
+  to `fallback` and a crash-log entry instead of taking the whole cockpit down. Panels already
+  tolerate their read's empty shape, so a degraded read renders as that panel's quiet state.
+  """
+  @spec safe_read(atom(), term(), (-> term())) :: term()
+  def safe_read(label, fallback, fun) do
+    fun.()
+  rescue
+    e ->
+      Aleph.CrashLog.append("read error: #{label}", Exception.format(:error, e, __STACKTRACE__))
+      fallback
+  catch
+    kind, reason ->
+      Aleph.CrashLog.append("read error: #{label}", Exception.format(kind, reason, __STACKTRACE__))
+      fallback
+  end
+
+  @doc """
   Turn already-rendered rows into cells at the rect's offset — the guts of `compose/3` for a single
   panel's rows, exposed so a caller that renders + windows rows itself (e.g. a scrolling loop) can
   paint them without a second `render/2` pass.

@@ -7,6 +7,12 @@ defmodule Aleph.CrashLog do
 
   @spec path() :: String.t()
   def path do
+    # :crash_log_path (test.exs) points suites that exercise the degrade-and-log paths on
+    # purpose (BoomProbe) at a scratch file, so they never pollute the operator's real log.
+    Application.get_env(:aleph, :crash_log_path) || default_path()
+  end
+
+  defp default_path do
     cache = System.get_env("XDG_CACHE_HOME") || Path.join(System.user_home!() || "/tmp", ".cache")
     Path.join([cache, "aleph", "crash.log"])
   end

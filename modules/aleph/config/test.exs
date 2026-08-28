@@ -4,6 +4,10 @@ import Config
 # never leak into test assertions; Aleph.Config tests pass explicit paths.
 config :aleph, config_path: "/nonexistent/aleph-test-config.json"
 
+# The suites probe the degrade-and-log seams on purpose (BoomProbe render raises, read-seam
+# fallbacks) — keep that noise out of the operator's real ~/.cache/aleph/crash.log.
+config :aleph, crash_log_path: Path.join(System.tmp_dir!(), "aleph-test-crash.log")
+
 # Don't run the app-global Aleph.Worlds cache under test. It subscribes to the funes worlds Bus at
 # boot, so worlds registered by the async DB tests (worlds_test.exs) would leak into its cache and
 # pollute Space.all/0 for the pure-render tests. Unstarted, fetch_worlds/0 degrades to [] → the

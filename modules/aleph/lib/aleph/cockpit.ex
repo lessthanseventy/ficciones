@@ -139,19 +139,15 @@ defmodule Aleph.Cockpit do
             # Capture a crashed exit — the alt-screen otherwise swallows it silently. (No-op on a
             # clean quit, so a normal `q` never spams the log.)
             log_crash(reason)
-            act_on(resurrect_decision(reason, strikes, System.monotonic_time(:millisecond) - started))
+            act_on(resurrect_decision(reason, strikes, System.monotonic_time(:millisecond) - started, stdio_alive?()))
         end
 
       {:error, {:tb_init_failed, code}} ->
-        IO.puts(
-          :stderr,
-          "aleph needs a real terminal (tb_init returned #{code}) — run this in ghostty."
-        )
-
+        note("aleph needs a real terminal (tb_init returned #{code}) — run this in ghostty.")
         :ok
 
       {:error, reason} ->
-        IO.puts(:stderr, "aleph failed to start: #{inspect(reason)}")
+        note("aleph failed to start: #{inspect(reason)}")
         :ok
     end
   end
@@ -161,26 +157,53 @@ defmodule Aleph.Cockpit do
   #   :quit              — a clean operator quit (:normal / :shutdown), end the session.
   #   {:resurrect, n}    — a crash; relaunch, now on strike n.
   #   {:stop, n}         — the nth crash in a row hit the ceiling; stay down.
+  #   :dead_io           — a crash, but :standard_io died with it; a relaunch would raise on
+  #                        init's alt-screen writes ("aleph failed to start"), so stay down.
   # `crash_report/1` is the clean-vs-crash oracle (nil = normal/shutdown). A run that lasted at
   # least @resurrect_healthy_ms resets the strike count, so an isolated crash always heals.
-  def resurrect_decision(reason, prev_strikes, alive_ms) do
-    if is_nil(crash_report(reason)) do
-      :quit
-    else
-      strikes = if alive_ms >= @resurrect_healthy_ms, do: 1, else: prev_strikes + 1
-      if strikes >= @resurrect_max_fails, do: {:stop, strikes}, else: {:resurrect, strikes}
+  def resurrect_decision(reason, prev_strikes, alive_ms, io_alive? \\ true) do
+    cond do
+      is_nil(crash_report(reason)) ->
+        :quit
+
+      not io_alive? ->
+        :dead_io
+
+      true ->
+        strikes = if alive_ms >= @resurrect_healthy_ms, do: 1, else: prev_strikes + 1
+        if strikes >= @resurrect_max_fails, do: {:stop, strikes}, else: {:resurrect, strikes}
     end
+  end
+
+  # :io requests to a dead device return {:error, :terminated} instead of raising — the probe a
+  # resurrect runs before writing anything to :standard_io again.
+  defp stdio_alive?, do: match?(opts when is_list(opts), :io.getopts(:standard_io))
+
+  # stderr can be as dead as stdio after a host-side teardown — a status line is never worth a
+  # second crash in the recovery path.
+  defp note(msg) do
+    IO.puts(:stderr, msg)
+  rescue
+    _ -> :ok
+  catch
+    _, _ -> :ok
   end
 
   defp act_on(:quit), do: :ok
 
+  defp act_on(:dead_io) do
+    Aleph.CrashLog.append("resurrect skipped", "stdio died with the cockpit — staying down")
+    note("aleph crashed and its terminal is gone — staying down. Trace: #{Aleph.CrashLog.path()}")
+    :ok
+  end
+
   defp act_on({:stop, n}) do
-    IO.puts(:stderr, "aleph crashed #{n}× in a row — staying down. Trace: #{Aleph.CrashLog.path()}")
+    note("aleph crashed #{n}× in a row — staying down. Trace: #{Aleph.CrashLog.path()}")
     :ok
   end
 
   defp act_on({:resurrect, n}) do
-    IO.puts(:stderr, "aleph crashed — recovering in place… (#{n}/#{@resurrect_max_fails})")
+    note("aleph crashed — recovering in place… (#{n}/#{@resurrect_max_fails})")
     run(n)
   end
 
@@ -1517,27 +1540,54 @@ defmodule Aleph.Cockpit do
     %{state | render_scheduled?: true}
   end
 
+  # The frame is guarded at two grains. Each funes/tmux READ below degrades individually through
+  # Board.safe_read — one bad read renders as that panel's quiet state while the rest of the frame
+  # stays live — and this wrapper is the backstop for anything left (View.compose, the paint): log
+  # and keep the previous frame's state instead of dying. The read seam is exactly where the
+  # 2026-08-28 DateTime crash rode past safe_rows (crew_read raised upstream of any panel render)
+  # and took the whole cockpit down.
   defp render(state) do
-    # Fill the probe cache (Tlön only) and find-or-spawn the World's roster — both stateful,
-    # both rate-limited, both OUT of the per-frame hot path.
-    state =
+    do_render(state)
+  rescue
+    e ->
+      Aleph.CrashLog.append("render error", Exception.format(:error, e, __STACKTRACE__))
       state
-      |> ensure_probes()
-      |> ensure_world_roster()
-      |> ensure_log_window()
-      |> ensure_thread_sessions()
+  catch
+    kind, reason ->
+      Aleph.CrashLog.append("render error", Exception.format(kind, reason, __STACKTRACE__))
+      state
+  end
+
+  defp do_render(state) do
+    # Fill the probe cache (Tlön only) and find-or-spawn the World's roster — both stateful,
+    # both rate-limited, both OUT of the per-frame hot path. Each step degrades to the state it
+    # was handed, so a tmux/funes hiccup skips that step this frame instead of losing the frame.
+    state = Board.safe_read(:probes, state, fn -> ensure_probes(state) end)
+    state = Board.safe_read(:world_roster, state, fn -> ensure_world_roster(state) end)
+    state = Board.safe_read(:log_window, state, fn -> ensure_log_window(state) end)
+    state = Board.safe_read(:thread_sessions, state, fn -> ensure_thread_sessions(state) end)
 
     # The chorus (thread blocks, most-recent-activity first) is the ONE ordering the whole cockpit
     # navigates by, so ↑/↓ move the highlight down the feed and every open thread is reachable.
-    chorus = Channel.chorus()
+    chorus = Board.safe_read(:chorus, [], fn -> Channel.chorus() end)
     threads = Enum.map(chorus, & &1.thread)
     focused = focused_thread(threads, state.focused_id)
-    state = resubscribe(%{state | threads: threads, focused_id: focused && focused.id}, focused)
-    machine = machine_read(state)
-    roster = Staff.roster()
+    state = %{state | threads: threads, focused_id: focused && focused.id}
+    state = Board.safe_read(:resubscribe, state, fn -> resubscribe(state, focused) end)
+    machine = Board.safe_read(:machine, :no_session, fn -> machine_read(state) end)
+    roster = Board.safe_read(:roster, [], fn -> Staff.roster() end)
     # The Leaves reorder context, derived ONCE per paint and cached — leaves_data/1 hands the same
     # value to the render read below and to yank/attach/preview between paints.
-    state = %{state | focused_lead: View.focused_lead(%{machine: machine, active_key: state.active_key, roster: roster})}
+    focused_lead =
+      Board.safe_read(:focused_lead, nil, fn ->
+        View.focused_lead(%{machine: machine, active_key: state.active_key, roster: roster})
+      end)
+
+    state = %{state | focused_lead: focused_lead}
+
+    # Computed once — the layout read and the detail read below share it (the detail is resolved
+    # against the same frame's layout).
+    tlon_layout = Board.safe_read(:tlon_layout, nil, fn -> if(Space.world?(state.active_key), do: tlon_layout(state)) end)
 
     reads = %{
       active_key: state.active_key,
@@ -1545,9 +1595,9 @@ defmodule Aleph.Cockpit do
       focused_title: focused && focused.title,
       roster: roster,
       threads: threads,
-      scope: focused && Funes.Board.in_scope(focused),
-      chatter: (focused && Channel.recent_messages(focused, 30)) || [],
-      worlds: if(state.active_key == :orbis, do: orbis_worlds(state), else: []),
+      scope: Board.safe_read(:scope, nil, fn -> focused && Funes.Board.in_scope(focused) end),
+      chatter: Board.safe_read(:chatter, [], fn -> (focused && Channel.recent_messages(focused, 30)) || [] end),
+      worlds: Board.safe_read(:worlds, [], fn -> if(state.active_key == :orbis, do: orbis_worlds(state), else: []) end),
       # The survey's focus + per-row cursor, so Chorus can wash the cursor row :selected — only
       # meaningful in Orbis (`right_pane_view`'s same "harmless elsewhere" idiom).
       orbis_focus: state.orbis_focus,
@@ -1561,22 +1611,23 @@ defmodule Aleph.Cockpit do
       author_edit: state.author_edit,
       terminal: terminal_read(state, focused),
       machine: machine,
-      presence: presence_read(state, focused, machine),
-      crew: crew_read(state, machine),
+      presence:
+        Board.safe_read(:presence, %{thinking: [], working: []}, fn -> presence_read(state, focused, machine) end),
+      crew: Board.safe_read(:crew, nil, fn -> crew_read(state, machine) end),
       stack: state.stack || @empty_stack,
       health: state.health,
       activity: state.activity,
       memory: if(Space.world?(state.active_key), do: state.memory),
-      orbis: if(Space.world?(state.active_key), do: leaves_data(state)),
+      orbis: Board.safe_read(:orbis, nil, fn -> if(Space.world?(state.active_key), do: leaves_data(state)) end),
       focused_session: state.focused_session,
       # Which of the World's right-column panels (Health/Activity/Leaves) to show, full-height —
       # the `[`/`]` cycle (C3.4). View clamps with `rem`, so this is meaningless-but-harmless
       # outside a World.
       right_pane_view: state.right_pane_view,
-      logbook: logbook_read(state.active_key),
-      triage: if(state.active_key == :orbis, do: triage_read(threads)),
-      habits: habits_read(state.active_key),
-      settings: settings_read(state.active_key),
+      logbook: Board.safe_read(:logbook, nil, fn -> logbook_read(state.active_key) end),
+      triage: Board.safe_read(:triage, nil, fn -> if(state.active_key == :orbis, do: triage_read(threads)) end),
+      habits: Board.safe_read(:habits, nil, fn -> habits_read(state.active_key) end),
+      settings: Board.safe_read(:settings, nil, fn -> settings_read(state.active_key) end),
       scrolls: state.scrolls,
       input: state.input,
       flash: state.flash,
@@ -1588,8 +1639,11 @@ defmodule Aleph.Cockpit do
       focus: if(Space.world?(state.active_key), do: state.focus),
       # The layout the View reads for the focused pane + item cursor (counts), and the resolved
       # MAIN detail (nil unless the focus opened one). Both nil outside a World space.
-      tlon_layout: if(Space.world?(state.active_key), do: tlon_layout(state)),
-      detail: if(Space.world?(state.active_key) and state.focus.detail?, do: tlon_detail(state, tlon_layout(state)))
+      tlon_layout: tlon_layout,
+      detail:
+        Board.safe_read(:detail, nil, fn ->
+          if(Space.world?(state.active_key) and state.focus.detail?, do: tlon_detail(state, tlon_layout))
+        end)
     }
 
     placements = View.compose(reads, state.w, state.h)

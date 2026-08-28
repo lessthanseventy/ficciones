@@ -377,5 +377,20 @@ defmodule Aleph.CockpitTest do
     test "a cockpit that stayed up a while resets the strike count — an isolated crash still heals" do
       assert Cockpit.resurrect_decision({:badmatch, nil}, 2, 30_000) == {:resurrect, 1}
     end
+
+    # A relaunch into a dead :standard_io would raise on init's alt-screen writes and turn a
+    # recoverable crash into "aleph failed to start" — detect it up front and stay down cleanly.
+    test "a crash with dead stdio stays down instead of relaunching into a dead terminal" do
+      assert Cockpit.resurrect_decision({:badmatch, nil}, 0, 50, false) == :dead_io
+      assert Cockpit.resurrect_decision({:badmatch, nil}, 2, 30_000, false) == :dead_io
+    end
+
+    test "a clean quit with dead stdio is still just a quit" do
+      assert Cockpit.resurrect_decision(:normal, 0, 10, false) == :quit
+    end
+
+    test "live stdio keeps the resurrect behavior (explicit 4-arity)" do
+      assert Cockpit.resurrect_decision({:badmatch, nil}, 0, 50, true) == {:resurrect, 1}
+    end
   end
 end

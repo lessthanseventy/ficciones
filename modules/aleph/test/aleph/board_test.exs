@@ -691,6 +691,33 @@ defmodule Aleph.BoardTest do
       assert Enum.any?(cells, &(&1.y == 5))
     end
 
+    test "safe_read returns the fun's value on success" do
+      assert Board.safe_read(:crew, nil, fn -> %{coworkers: []} end) == %{coworkers: []}
+    end
+
+    test "safe_read degrades a raise to the fallback and logs it" do
+      File.rm(Aleph.CrashLog.path())
+
+      assert Board.safe_read(:crew, :fallback, fn -> raise "kaboom" end) == :fallback
+
+      log = File.read!(Aleph.CrashLog.path())
+      assert log =~ "read error: crew"
+      assert log =~ "kaboom"
+    end
+
+    test "safe_read degrades an exit (a dead funes GenServer) to the fallback and logs it" do
+      File.rm(Aleph.CrashLog.path())
+
+      read = fn -> GenServer.call(:no_such_process_anywhere, :probe) end
+      assert Board.safe_read(:presence, %{}, read) == %{}
+
+      assert File.read!(Aleph.CrashLog.path()) =~ "read error: presence"
+    end
+
+    test "safe_read degrades a throw to the fallback" do
+      assert Board.safe_read(:stack, [], fn -> throw(:oops) end) == []
+    end
+
     test "control bytes in panel content are never emitted to the terminal" do
       # A stray ESC (27) or other C0/C1 control byte from a captured tmux pane would, painted
       # raw, be read by the terminal as the start of an escape sequence and shift the whole
