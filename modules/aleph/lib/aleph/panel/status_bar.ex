@@ -280,7 +280,7 @@ defmodule Aleph.Panel.StatusBar do
   defp mode_seg(:nav), do: [{"Alt+0", "term"}, {"q", "quit"}]
   defp mode_seg(:lock), do: [{"Alt+g", "unlock"}]
 
-  defp space_seg(%{mode: :nav, world?: true}), do: [{"c", "post"}, {"n", "task"}, {"m", "driver"}]
+  defp space_seg(%{mode: :nav, world?: true}), do: [{"c", "post"}, {"n", "task"}, {"v", "chat"}, {"m", "driver"}]
   defp space_seg(_data), do: []
 
   defp hints_row(hints) do

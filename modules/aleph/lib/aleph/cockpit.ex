@@ -278,6 +278,9 @@ defmodule Aleph.Cockpit do
             # composer command has it open, else nil. Cleared by any pane Enter (:tlon_enter);
             # Esc closes it through the ordinary detail mode.
             status_detail: nil,
+            # The World center's face (reshape slice D): the live PTY (:terminal, the default)
+            # or the attached thread's conversation (:chat). The `v` verb flips it.
+            center_view: :terminal,
             # The field editor's own state (D2.4 Chunk 2a): `%{id, field, sub, mode}` while `e` has
             # opened it, else nil. VIEW cursors only — the world's data lives in funes and is
             # re-read from `Aleph.Worlds.all/0` every render (Aleph.Keymap).
@@ -991,6 +994,10 @@ defmodule Aleph.Cockpit do
   defp apply_effect({:show_status, _thread_id}, state),
     do: {:noreply, render(%{state | flash: "no health read here — /status works in a workspace"})}
 
+  # The `v` verb landed (reshape slice D): flip the World center between the live PTY and the
+  # attached thread's conversation.
+  defp apply_effect(:toggle_center_view, state), do: {:noreply, render(toggle_center_view(state))}
+
   # The `Enter` verb landed: enter-or-spawn on the focused thread. The result flashes in the footer.
   # UNREFERENCED since Slice 0 collapse (Sessions deleted) — no keymap clause emits :enter_or_spawn
   # now; kept intact, teardown TBD.
@@ -1640,6 +1647,13 @@ defmodule Aleph.Cockpit do
       memory: if(Space.world?(state.active_key), do: state.memory),
       orbis: Board.safe_read(:orbis, nil, fn -> if(Space.world?(state.active_key), do: leaves_data(state)) end),
       focused_session: state.focused_session,
+      # The center's face + the chat face's read (reshape slice D). The chat read only runs
+      # while the chat face is up — no per-frame DB tail while the PTY holds the center.
+      center_view: state.center_view,
+      center_chat:
+        if(Space.world?(state.active_key) and state.center_view == :chat,
+          do: Board.safe_read(:center_chat, nil, fn -> chat_read(state) end)
+        ),
       # Which of the World's right-column panels (Health/Activity/Leaves) to show, full-height —
       # the `[`/`]` cycle (C3.4). View clamps with `rem`, so this is meaningless-but-harmless
       # outside a World.
@@ -1797,11 +1811,43 @@ defmodule Aleph.Cockpit do
   defp center_terminal(_state), do: nil
 
   # The thread `c` composes onto, derived per keypress (like center_live?): the focused project
-  # thread in Orbis; in a World space the MACHINE thread — the operator working the box posts to
-  # the machine coworker, never a stale project thread id carried over from Orbis. nil (no thread)
-  # makes `c` a no-op.
-  defp composer_thread_id(%{active_key: key}) when Space.world?(key), do: machine_thread_id()
+  # thread in Orbis; in a World space the ATTACHED leaf's thread when one holds the center, else
+  # the MACHINE thread — you post to whoever you're looking at (reshape slice D: the thread is
+  # the address, fixing the "who am I talking to" decoupling). nil (no thread) makes `c` a no-op.
+  defp composer_thread_id(%{active_key: key} = state) when Space.world?(key) do
+    case state.focused_session do
+      {:leaf, id} -> id
+      _leader -> machine_thread_id()
+    end
+  end
+
   defp composer_thread_id(state), do: state.focused_id
+
+  @doc false
+  # The pure flip behind the `v` verb — exposed (like cycle_pane_view/2) for TTY-less tests.
+  def toggle_center_view(%{center_view: :chat} = state), do: %{state | center_view: :terminal}
+  def toggle_center_view(state), do: %{state | center_view: :chat}
+
+  # The chat face's read: the center's CURRENT thread — the attached leaf's, else the machine
+  # thread — with its message tail and declared-thinking presence (same normalization as
+  # presence_read). nil (no thread / funes down via safe_read) degrades the View back to the PTY.
+  defp chat_read(%{focused_session: {:leaf, id}} = state), do: chat_read_thread(Channel.thread(id), state)
+  defp chat_read(state), do: chat_read_thread(Channel.machine_thread(), state)
+
+  defp chat_read_thread(nil, _state), do: nil
+
+  defp chat_read_thread(thread, state) do
+    declared = Map.get(state.thinking, thread.id, %{})
+    now = System.os_time(:second)
+    thinking = declared |> Map.keys() |> Enum.sort() |> Enum.map(&{&1, max(now - declared[&1], 0)})
+
+    %{
+      title: thread.title,
+      messages: Channel.recent_messages(thread, 30),
+      thinking: thinking,
+      working: []
+    }
+  end
 
   # The shape the Tlön focus SM navigates: the space's two sidebar columns, per-pane section counts
   # (empty until a multi-section pane lands — Memory's coverage/floor/habits split), and per-pane

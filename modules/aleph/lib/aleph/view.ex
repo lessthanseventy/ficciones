@@ -63,7 +63,7 @@ defmodule Aleph.View do
       cond do
         detail_open?(reads) -> [Panel.Detail]
         reads.active_key == :orbis and reads[:orbis_face] == :author -> [Panel.Author]
-        true -> space.surface
+        true -> chat_center(space.surface, reads)
       end
 
     left_sections = [Panel.Sidebar | space.left]
@@ -120,6 +120,23 @@ defmodule Aleph.View do
     # Borders first: panel content paints over each box interior, leaving only the frames.
     borders ++ contents ++ composer_placement(reads, composer_h, w, h) ++ [status]
   end
+
+  # The center's chat face (reshape slice D): `v` flipped center_view to :chat — swap the Terminal
+  # section for the attached thread's conversation, keeping the WindowBar/Pulse frame around it.
+  # Only when the chat read resolved: a failed/empty read (no thread, funes down) degrades to the
+  # PTY, never a blank center.
+  defp chat_center(surface, %{center_view: :chat} = reads) do
+    if is_map(reads[:center_chat]) do
+      Enum.map(surface, fn
+        {Panel.Terminal, _read_key} -> {Panel.Conversation, :center_chat}
+        other -> other
+      end)
+    else
+      surface
+    end
+  end
+
+  defp chat_center(surface, _reads), do: surface
 
   # The growable compose box: sits between the body and the status bar while the `c` composer is
   # open. Height = the wrapped line count (wrap + grow, never truncate), capped at half the frame —

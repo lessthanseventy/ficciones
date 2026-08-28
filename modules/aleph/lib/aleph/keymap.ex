@@ -684,6 +684,8 @@ defmodule Aleph.Keymap do
   # time) — the cockpit resolves the active space's right-column length and wraps the index.
   defp handle_tlon(%{key: :char, char: "]"}, state), do: {state, {:cycle_pane_view, 1}}
   defp handle_tlon(%{key: :char, char: "["}, state), do: {state, {:cycle_pane_view, -1}}
+  # The center [chat]|[terminal] toggle (reshape slice D): flip which face the World center shows.
+  defp handle_tlon(%{key: :char, char: "v"}, state), do: {state, :toggle_center_view}
   defp handle_tlon(%{key: :char, char: "c"} = k, state), do: command(k, state)
   defp handle_tlon(%{key: :char, char: "m"} = k, state), do: command(k, state)
   defp handle_tlon(_key, state), do: {state, :none}

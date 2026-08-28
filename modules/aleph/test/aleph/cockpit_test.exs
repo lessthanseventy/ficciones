@@ -80,6 +80,14 @@ defmodule Aleph.CockpitTest do
     end
   end
 
+  # The center [chat]|[terminal] toggle (reshape slice D) — the pure flip behind the `v` verb.
+  describe "toggle_center_view/1" do
+    test "flips terminal ↔ chat" do
+      assert Cockpit.toggle_center_view(%{center_view: :terminal}).center_view == :chat
+      assert Cockpit.toggle_center_view(%{center_view: :chat}).center_view == :terminal
+    end
+  end
+
   # /status (reshape slice D): HEALTH's full readout as a MAIN detail, built from the same
   # health read the footer condenses. Pure so the composer command is testable without a TTY.
   describe "status_detail_content/1 — the /status readout" do

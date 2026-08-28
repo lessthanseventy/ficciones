@@ -83,6 +83,49 @@ defmodule Aleph.ViewTest do
     end
   end
 
+  describe "the center [chat]|[terminal] toggle (reshape slice D)" do
+    defp placed?(placements, mod), do: Enum.any?(placements, &match?({^mod, _, _}, &1))
+
+    test "center_view :chat swaps the Terminal section for the thread conversation" do
+      chat = %{title: "Tlön", messages: [], thinking: [], working: []}
+      placements = View.compose(reads(%{center_view: :chat, center_chat: chat}), 120, 40)
+
+      assert {Panel.Conversation, data, _rect} = Enum.find(placements, &match?({Panel.Conversation, _, _}, &1))
+      assert data.title == "Tlön"
+      refute placed?(placements, Panel.Terminal)
+      # the WindowBar tab strip and the Pulse ticker frame the chat exactly as they frame the PTY
+      assert placed?(placements, Panel.WindowBar)
+      assert placed?(placements, Panel.Pulse)
+    end
+
+    test "center_view :terminal (the default) keeps the live PTY" do
+      placements = View.compose(reads(%{center_view: :terminal}), 120, 40)
+      assert placed?(placements, Panel.Terminal)
+      refute placed?(placements, Panel.Conversation)
+    end
+
+    test "a reads map without center_view (older/minimal) defaults to the terminal" do
+      placements = View.compose(reads(%{}), 120, 40)
+      assert placed?(placements, Panel.Terminal)
+    end
+
+    test "an open detail still outranks the chat face" do
+      focus = %Focus{in_terminal?: false, column: :left, pane: 0, detail?: true}
+      detail = %{title: "commit abc · x", lines: [{"+added", :diff_add}]}
+      chat = %{title: "Tlön", messages: []}
+
+      placements =
+        View.compose(
+          reads(%{focus: focus, tlon_layout: layout(), detail: detail, center_view: :chat, center_chat: chat}),
+          120,
+          40
+        )
+
+      assert placed?(placements, Panel.Detail)
+      refute placed?(placements, Panel.Conversation)
+    end
+  end
+
   describe "Tlön focus highlight" do
     test "in nav mode, exactly one sidebar border lights — the focused pane, in the left column" do
       focus = %Focus{in_terminal?: false, column: :left, pane: 0}

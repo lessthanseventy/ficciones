@@ -1202,6 +1202,18 @@ defmodule Aleph.KeymapTest do
       assert {_s, :quit} = Keymap.handle(char("q"), tlon(nav_focus()))
     end
 
+    # The center [chat]|[terminal] toggle (reshape slice D): `v` in nav flips which face the
+    # World center shows — the live PTY or the attached thread's conversation.
+    test "in nav mode, v toggles the center view" do
+      s = tlon(nav_focus())
+      assert {^s, :toggle_center_view} = Keymap.handle(char("v"), s)
+    end
+
+    test "in the terminal, v forwards like any other key — no toggle hijack" do
+      s = tlon(Focus.new())
+      assert {_s, {:forward, _key}} = Keymap.handle(char("v"), s)
+    end
+
     test "in nav mode, ] and [ cycle the right-pane view (C3.4 — space-switch moved to Tab)" do
       s = tlon(nav_focus())
       assert {^s, {:cycle_pane_view, 1}} = Keymap.handle(char("]"), s)
