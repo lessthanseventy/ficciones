@@ -23,6 +23,94 @@ defmodule Funes.Board do
   @cap 5
 
   @doc """
+  The sidebar read-model (reshape slice C) — the contract the Slack-shaped UI sits on.
+  One group per workspace (oldest first): its OPEN threads as ONE unified list — a chat
+  thread and a tracked thread are the same kind of row, `stage` nil or set — root first,
+  then newest activity; and the workspace's crew with working flags. Each thread row:
+  `%{id, title, root, stage, awaiting, lead, working, last_at}`.
+  """
+  def sidebar do
+    thinking = Funes.Presence.Thinking.thinking_all()
+    root_id = with %Thread{id: id} <- Channel.machine_thread(), do: id
+    last_by_thread = last_message_at()
+
+    threads =
+      from(t in Thread, where: t.state == "open")
+      |> Repo.all()
+      |> Enum.map(&sidebar_row(&1, root_id, thinking, last_by_thread))
+
+    working_agents =
+      thinking |> Map.values() |> List.flatten() |> MapSet.new(& &1.agent)
+
+    for world <- Repo.all(from w in Funes.World, order_by: [asc: w.id]) do
+      rows =
+        threads
+        |> Enum.filter(&(&1.world_id == world.id))
+        |> Enum.sort_by(&{!&1.root, invert(&1.last_at)})
+
+      %{
+        workspace: %{id: world.id, name: world.name},
+        threads: rows,
+        crew: crew_rows(world.roster, working_agents)
+      }
+    end
+  end
+
+  defp sidebar_row(thread, root_id, thinking, last_by_thread) do
+    %{
+      id: thread.id,
+      world_id: thread.world_id,
+      title: thread.title,
+      root: thread.id == root_id,
+      stage: thread.stage,
+      awaiting: thread.awaiting,
+      lead: Channel.thread_lead(thread.id),
+      working: Map.get(thinking, thread.id, []) != [],
+      last_at: Map.get(last_by_thread, thread.id, thread.created_at)
+    }
+  end
+
+  # DateTime sorts descending via this trick: negate the unix stamp so Enum.sort_by asc works.
+  defp invert(nil), do: 0
+  defp invert(%DateTime{} = at), do: -DateTime.to_unix(at)
+
+  defp last_message_at do
+    from(m in Funes.Message,
+      group_by: m.thread_id,
+      select: {m.thread_id, max(m.created_at)}
+    )
+    |> Repo.all()
+    |> Map.new(fn {id, at} -> {id, coerce_at(at)} end)
+  end
+
+  # SQLite's max() aggregate hands the TEXT column back raw — coerce so sorting stays typed.
+  defp coerce_at(%DateTime{} = at), do: at
+
+  defp coerce_at(text) when is_binary(text) do
+    case DateTime.from_iso8601(text) do
+      {:ok, at, _offset} -> at
+      _ -> nil
+    end
+  end
+
+  defp coerce_at(_), do: nil
+
+  # A roster name matches a working agent bare or with the harness "-machine" suffix.
+  defp crew_rows(roster, working_agents) when is_list(roster) do
+    Enum.map(roster, fn entry ->
+      name = entry["name"] || entry[:name]
+
+      %{
+        name: name,
+        archetype: entry["archetype"] || entry[:archetype],
+        working: name in working_agents or "#{name}-machine" in working_agents
+      }
+    end)
+  end
+
+  defp crew_rows(_roster, _working), do: []
+
+  @doc """
   The IN SCOPE brief for a thread — read fresh from the DB (the argument is just an
   id handle): NORTH STAR (title), the assigned lead, SHIPPED, LEARNINGS and
   BLOCKERS each `%{shown, more}`, and CHATTER (the message tail).
