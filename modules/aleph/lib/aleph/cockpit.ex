@@ -274,6 +274,10 @@ defmodule Aleph.Cockpit do
             # Tlön nav's delete confirm arm: the `{kind, payload, label}` a `d` press resolved
             # (MEMORY fact / LEAVES leaf), or nil. Second `d` confirms; any other key cancels.
             tlon_delete: nil,
+            # The /status readout (reshape slice D): a %{title, lines} MAIN detail while the
+            # composer command has it open, else nil. Cleared by any pane Enter (:tlon_enter);
+            # Esc closes it through the ordinary detail mode.
+            status_detail: nil,
             # The field editor's own state (D2.4 Chunk 2a): `%{id, field, sub, mode}` while `e` has
             # opened it, else nil. VIEW cursors only — the world's data lives in funes and is
             # re-read from `Aleph.Worlds.all/0` every render (Aleph.Keymap).
@@ -976,6 +980,17 @@ defmodule Aleph.Cockpit do
     :exit, reason -> {:noreply, render(%{state | flash: "post failed: #{inspect(reason)}"})}
   end
 
+  # The composer's /status command (reshape slice D): the full HEALTH readout — the panel demoted
+  # to a footer line — as a MAIN detail in a World space; Esc closes it like any detail. Orbis has
+  # no detail surface (and no health probe), so it degrades to an honest flash.
+  defp apply_effect({:show_status, _thread_id}, %{active_key: key} = state) when Space.world?(key) do
+    state = %{put_in(state.focus.detail?, true) | status_detail: status_detail_content(state.health)}
+    {:noreply, render(state)}
+  end
+
+  defp apply_effect({:show_status, _thread_id}, state),
+    do: {:noreply, render(%{state | flash: "no health read here — /status works in a workspace"})}
+
   # The `Enter` verb landed: enter-or-spawn on the focused thread. The result flashes in the footer.
   # UNREFERENCED since Slice 0 collapse (Sessions deleted) — no keymap clause emits :enter_or_spawn
   # now; kept intact, teardown TBD.
@@ -995,6 +1010,8 @@ defmodule Aleph.Cockpit do
   # leaf's live World window in the center (preview + commit); on any other pane, open its
   # selection's detail in MAIN (set focus.detail?, which the View renders).
   defp apply_effect(:tlon_enter, state) do
+    # A pane Enter always resolves ITS detail — never a leftover /status readout.
+    state = %{state | status_detail: nil}
     layout = tlon_layout(state)
 
     case Focus.focused_pane(state.focus, layout) do
@@ -1844,12 +1861,30 @@ defmodule Aleph.Cockpit do
   # MAIN's detail for the focused pane's current selection, or nil (this pane has no detail, or
   # nothing is selected) → the terminal stays. Dispatch per pane; Commits resolves the selected
   # commit's diff via Aleph.Stack.show, Memory the selected floor fact / pending habit.
+  # An open /status readout wins — only reachable while focus.detail? (the reads gate), and any
+  # pane Enter clears it first, so it can never shadow a pane's own detail.
+  defp tlon_detail(%{status_detail: %{} = status}, _layout), do: status
+
   defp tlon_detail(state, layout) do
     case Focus.focused_pane(state.focus, layout) do
       Panel.Stack -> commit_detail(state, Focus.cursor(state.focus, layout))
       Panel.Memory -> memory_detail(state, Focus.cursor(state.focus, layout))
       _ -> nil
     end
+  end
+
+  @doc false
+  # The /status detail's content, from the same read the footer condenses — Panel.Health's own
+  # rows flattened to detail lines, so the two surfaces can't drift. Pure; exposed for tests.
+  def status_detail_content(nil), do: %{title: "status", lines: [{"health probe hasn't run yet", :dim}]}
+
+  def status_detail_content(health) do
+    lines =
+      health
+      |> Panel.Health.render(%{x: 0, y: 0, w: 80, h: 100})
+      |> Enum.map(fn row -> {Enum.map_join(row, fn {t, _style} -> t end), :normal} end)
+
+    %{title: "status", lines: lines}
   end
 
   @doc false

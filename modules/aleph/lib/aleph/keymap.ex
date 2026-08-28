@@ -185,8 +185,14 @@ defmodule Aleph.Keymap do
     {%{state | input: nil}, {:edit_world, id, %{roster: world_field(state, id, :roster) ++ [entry]}}}
   end
 
-  def handle(%{key: :enter}, %{input: %{kind: :compose, thread_id: id, buffer: buffer}} = state),
-    do: {%{state | input: nil}, {:post_message, id, buffer}}
+  # Slash commands are the composer's other door (reshape slice D): /status is the full HEALTH
+  # readout (the panel demoted to a footer line), never posted as a chat message.
+  def handle(%{key: :enter}, %{input: %{kind: :compose, thread_id: id, buffer: buffer}} = state) do
+    case String.trim(buffer) do
+      "/status" -> {%{state | input: nil}, {:show_status, id}}
+      _body -> {%{state | input: nil}, {:post_message, id, buffer}}
+    end
+  end
 
   # Backspace deletes the grapheme BEFORE the cursor (not always the buffer's last char — the
   # cursor can sit mid-buffer once Up/Down/Left/Right have moved it). A cursor at 0 is a no-op.

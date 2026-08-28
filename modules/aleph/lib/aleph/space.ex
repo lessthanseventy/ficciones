@@ -22,7 +22,6 @@ defmodule Aleph.Space do
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Crew
   alias Aleph.Panel.Dossier
-  alias Aleph.Panel.Health
   alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
   alias Aleph.Panel.Pulse
@@ -95,8 +94,8 @@ defmodule Aleph.Space do
       surface: [WindowBar, {Terminal, :machine}, Pulse],
       left: [Stack, Memory],
       # Leaves IS the unified thread list now (reshape slice C — tracked rows chip their
-      # stage inline), so the separate WORKLINES pane is gone from the carousel.
-      right: [Health, Crew, Activity, Leaves],
+      # stage inline). HEALTH demoted to the footer + /status (slice D) — CREW pins the column.
+      right: [Crew, Activity, Leaves],
       coworker: lead_coworker(world.roster),
       roster: world.roster
     }

@@ -345,6 +345,8 @@ defmodule Aleph.View do
       thread: reads.focused_title,
       thread_count: length(reads.threads),
       live_count: Enum.count(reads.roster, & &1.warm?),
+      # HEALTH demoted to the footer (reshape slice D) — the condensed segment's read.
+      health: reads[:health],
       # When the operator is typing a new-thread title, the footer becomes the prompt.
       input: reads[:input],
       # A transient result line (a spawn's pane id or failure), shown until the next keypress.

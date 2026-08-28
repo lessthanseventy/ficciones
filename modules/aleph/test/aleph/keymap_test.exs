@@ -887,6 +887,22 @@ defmodule Aleph.KeymapTest do
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
     end
 
+    # HEALTH demoted to the footer (reshape slice D) — /status in the composer is the full
+    # readout: a slash command, never posted as a chat message.
+    test "Enter on /status emits {:show_status, thread_id} instead of posting" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "/status"}})
+      assert {%{input: nil}, {:show_status, 2}} = Keymap.handle(key(:enter), s)
+
+      # surrounding whitespace still reads as the command
+      s2 = state(%{input: %{kind: :compose, thread_id: 2, buffer: "  /status "}})
+      assert {%{input: nil}, {:show_status, 2}} = Keymap.handle(key(:enter), s2)
+    end
+
+    test "a message merely mentioning /status still posts normally" do
+      s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "try /status sometime"}})
+      assert {%{input: nil}, {:post_message, 2, "try /status sometime"}} = Keymap.handle(key(:enter), s)
+    end
+
     test "Esc cancels the composer, posting nothing" do
       s = state(%{input: %{kind: :compose, thread_id: 2, buffer: "half typed"}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)

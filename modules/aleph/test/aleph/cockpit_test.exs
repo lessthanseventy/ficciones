@@ -80,6 +80,34 @@ defmodule Aleph.CockpitTest do
     end
   end
 
+  # /status (reshape slice D): HEALTH's full readout as a MAIN detail, built from the same
+  # health read the footer condenses. Pure so the composer command is testable without a TTY.
+  describe "status_detail_content/1 — the /status readout" do
+    test "a live health read becomes a titled detail with the panel's lines" do
+      health = %{
+        funes_up: true,
+        tlon_up: true,
+        nix_gen: 36,
+        nix_behind: 0,
+        disk_pct: 68,
+        mem_pct: 28,
+        load_avg: 2.18,
+        tools: [%{name: "pi", version: "0.84.2"}]
+      }
+
+      assert %{title: "status", lines: lines} = Cockpit.status_detail_content(health)
+      joined = Enum.map_join(lines, "\n", fn {t, _style} -> t end)
+      assert joined =~ "funes"
+      assert joined =~ "disk 68%"
+      assert joined =~ "pi"
+    end
+
+    test "a nil health read (probe not run) says so instead of crashing" do
+      assert %{title: "status", lines: [{line, _style}]} = Cockpit.status_detail_content(nil)
+      assert line =~ "health"
+    end
+  end
+
   describe "crash_report/1: only a real crash gets logged" do
     test "a clean quit (:normal / :shutdown) produces no report" do
       assert Cockpit.crash_report(:normal) == nil
@@ -223,7 +251,7 @@ defmodule Aleph.CockpitTest do
       state = %{
         active_key: 0,
         focus: %Focus{in_terminal?: false, column: :right, pane: 1, cursors: %{Leaves => 1}},
-        right_pane_view: 2,
+        right_pane_view: 1,
         leaves: %{summary: %{}, rows: rows},
         focused_lead: "x",
         stack: nil,
@@ -241,11 +269,11 @@ defmodule Aleph.CockpitTest do
   # exposed (like `attach_leaf/2`/`preview_focused/1`) so it's testable without a live GenServer.
   # Test env's world fallback (funes-down / no live cache) is the hardcoded Tlön space (key 0).
   describe "cycle_pane_view/2: the World's right-pane view index" do
-    test "cycle_pane_view wraps the CAROUSEL (Health excluded): 0→1→2→0" do
+    test "cycle_pane_view wraps the CAROUSEL (the pinned CREW excluded): 0→1→0" do
       state = %{active_key: 0, right_pane_view: 0}
       assert Cockpit.cycle_pane_view(state, 1).right_pane_view == 1
-      assert Cockpit.cycle_pane_view(%{state | right_pane_view: 2}, 1).right_pane_view == 0
-      assert Cockpit.cycle_pane_view(state, -1).right_pane_view == 2
+      assert Cockpit.cycle_pane_view(%{state | right_pane_view: 1}, 1).right_pane_view == 0
+      assert Cockpit.cycle_pane_view(state, -1).right_pane_view == 1
     end
 
     test "outside a World (Orbis) it's a no-op — nothing to cycle" do

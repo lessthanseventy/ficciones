@@ -207,14 +207,40 @@ defmodule Aleph.Panel.StatusBar do
           {thread, :normal}
         ]
 
-    right = [
-      {" ◷ #{threads} threads ", :stat},
-      {" ", :normal},
-      {" ● #{live} live ", :stat_live}
-    ]
+    right =
+      health_seg(data[:health]) ++
+        [
+          {" ◷ #{threads} threads ", :stat},
+          {" ", :normal},
+          {" ● #{live} live ", :stat_live}
+        ]
 
     Panel.clip([justify(left, right, rect.w), hints_row(assemble_hints(data))], rect)
   end
+
+  # HEALTH demoted to a one-line footer segment (reshape slice D): service dots + disk/mem/load,
+  # dim so it frames rather than shouts. The full readout is `/status` in the composer. nil
+  # (probe not run — Orbis, boot frame) renders nothing.
+  defp health_seg(%{funes_up: funes, tlon_up: tlon} = h) do
+    [
+      {"#{service_dot(funes)} ", service_style(funes)},
+      {"funes ", :dim},
+      {"#{service_dot(tlon)} ", service_style(tlon)},
+      {"tlon ", :dim},
+      {"· d#{h[:disk_pct]}% m#{h[:mem_pct]}% l#{short_load(h[:load_avg])} ", :dim},
+      {" ", :normal}
+    ]
+  end
+
+  defp health_seg(_health), do: []
+
+  defp service_dot(true), do: "●"
+  defp service_dot(_up), do: "○"
+  defp service_style(true), do: :stat_live
+  defp service_style(_up), do: :stat_warn
+
+  defp short_load(load) when is_number(load), do: :erlang.float_to_binary(load / 1, decimals: 1)
+  defp short_load(_load), do: "?"
 
   # LOCK outranks TERM/NAV — total keyboard passthrough deserves the loudest chip. Absent for
   # spaces without a focus model (mode nil, focus nil).

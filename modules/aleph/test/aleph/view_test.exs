@@ -215,37 +215,38 @@ defmodule Aleph.ViewTest do
     end
   end
 
-  # Clarity slice 2: the right column is HEALTH pinned + ONE carousel panel (`[`/`]` cycle
-  # right_pane_view among Crew/Activity/Leaves) — Health always shows, never cycled away.
+  # The right column is CREW pinned + ONE carousel panel (`[`/`]` cycle right_pane_view among
+  # Activity/Leaves) — Crew always shows; HEALTH demoted to the footer + /status (reshape slice D).
   describe "right-pane view (clarity slice 2)" do
     defp right_placed?(placements, mod), do: Enum.any?(placements, &match?({^mod, _, _}, &1))
 
-    test "right_pane_view: 0 (default) shows Health pinned + Crew (the carousel default)" do
+    test "right_pane_view: 0 (default) shows Crew pinned + Activity (the carousel default)" do
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 0})
       placements = View.compose(r, 120, 40)
 
-      assert right_placed?(placements, Panel.Health)
       assert right_placed?(placements, Panel.Crew)
+      assert right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Health)
       refute right_placed?(placements, Panel.Leaves)
     end
 
-    test "right_pane_view: 1 shows Health pinned + Activity (Health never cycles away)" do
-      # The World space's right column is [Health, Crew, Activity, Leaves] (Aleph.Space).
+    test "right_pane_view: 1 shows Crew pinned + Leaves (Crew never cycles away)" do
+      # The World space's right column is [Crew, Activity, Leaves] (Aleph.Space).
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 120, 40)
 
-      assert right_placed?(placements, Panel.Health)
-      assert right_placed?(placements, Panel.Activity)
-      refute right_placed?(placements, Panel.Crew)
-      refute right_placed?(placements, Panel.Leaves)
+      assert right_placed?(placements, Panel.Crew)
+      assert right_placed?(placements, Panel.Leaves)
+      refute right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Health)
     end
 
-    test "a missing right_pane_view (key absent from reads) defaults to 0 (Health + Crew)" do
+    test "a missing right_pane_view (key absent from reads) defaults to 0 (Crew + Activity)" do
       r = Map.delete(reads(%{active_key: 0, tlon_layout: layout()}), :right_pane_view)
       placements = View.compose(r, 120, 40)
 
-      assert right_placed?(placements, Panel.Health)
       assert right_placed?(placements, Panel.Crew)
+      assert right_placed?(placements, Panel.Activity)
       refute right_placed?(placements, Panel.Leaves)
     end
 
@@ -259,49 +260,36 @@ defmodule Aleph.ViewTest do
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 60, 40)
 
-      assert right_placed?(placements, Panel.Health)
-      assert right_placed?(placements, Panel.Activity)
-      refute right_placed?(placements, Panel.Crew)
-      refute right_placed?(placements, Panel.Leaves)
+      assert right_placed?(placements, Panel.Crew)
+      assert right_placed?(placements, Panel.Leaves)
+      refute right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Health)
     end
   end
 
-  describe "right column: pinned Health + carousel (clarity slice 2)" do
-    defp health_data,
-      do: %{
-        version: nil,
-        funes_up: true,
-        tlon_up: true,
-        nix_gen: 1,
-        nix_behind: 0,
-        disk_pct: 10,
-        mem_pct: 10,
-        load_avg: 0.1,
-        tools: []
-      }
+  describe "right column: pinned Crew + carousel (clarity slice 2)" do
+    test "ACTIVITY is the default carousel view, below a pinned CREW" do
+      placements = View.compose(reads(%{}), 120, 40)
 
-    test "CREW is the default carousel view, below a pinned HEALTH" do
-      placements = View.compose(reads(%{health: health_data()}), 120, 40)
-
-      assert {_p, _d, health_rect} = Enum.find(placements, &match?({Panel.Health, _, _}, &1))
       assert {_p, _d, crew_rect} = Enum.find(placements, &match?({Panel.Crew, _, _}, &1))
-      refute Enum.any?(placements, &match?({Panel.Activity, _, _}, &1))
-      assert crew_rect.y > health_rect.y
-      # pinned: Health's box hugs its content instead of splitting the column evenly
-      assert health_rect.h < crew_rect.h
+      assert {_p, _d, activity_rect} = Enum.find(placements, &match?({Panel.Activity, _, _}, &1))
+      refute Enum.any?(placements, &match?({Panel.Leaves, _, _}, &1))
+      assert activity_rect.y > crew_rect.y
+      # pinned: Crew's box hugs its content instead of splitting the column evenly
+      assert crew_rect.h < activity_rect.h
     end
 
     test "right_pane_view picks the carousel panel" do
-      placements = View.compose(reads(%{health: health_data(), right_pane_view: 1}), 120, 40)
-      assert Enum.any?(placements, &match?({Panel.Activity, _, _}, &1))
-      refute Enum.any?(placements, &match?({Panel.Crew, _, _}, &1))
+      placements = View.compose(reads(%{right_pane_view: 1}), 120, 40)
+      assert Enum.any?(placements, &match?({Panel.Leaves, _, _}, &1))
+      refute Enum.any?(placements, &match?({Panel.Activity, _, _}, &1))
     end
 
     test "the carousel border is a tab strip with the active tab, digit 5" do
-      placements = View.compose(reads(%{health: health_data()}), 120, 40)
+      placements = View.compose(reads(%{}), 120, 40)
 
       assert Enum.any?(placements, fn
-               {Panel.Border, %{digit: 5, tabs: [{"CREW", true}, {"ACTIVITY", false}, {"THREADS", false}]}, _r} ->
+               {Panel.Border, %{digit: 5, tabs: [{"ACTIVITY", true}, {"THREADS", false}]}, _r} ->
                  true
 
                _ ->
@@ -310,7 +298,7 @@ defmodule Aleph.ViewTest do
     end
 
     test "the carousel border carries the [ ] cycle corner hint" do
-      placements = View.compose(reads(%{health: health_data()}), 120, 40)
+      placements = View.compose(reads(%{}), 120, 40)
 
       assert Enum.any?(placements, fn
                {Panel.Border, %{tabs: tabs, hint: "[ ] cycle"}, _r} when is_list(tabs) -> true
@@ -366,8 +354,8 @@ defmodule Aleph.ViewTest do
         counts: %{}
       }
 
-      expected = %{1 => Panel.Sidebar, 2 => Panel.Stack, 3 => Panel.Memory, 4 => Panel.Health, 5 => Panel.Crew}
-      titles = %{1 => "WORKSPACES", 2 => "STACK", 3 => "MEMORY", 4 => "HEALTH", 5 => "CREW"}
+      expected = %{1 => Panel.Sidebar, 2 => Panel.Stack, 3 => Panel.Memory, 4 => Panel.Crew, 5 => Panel.Activity}
+      titles = %{1 => "WORKSPACES", 2 => "STACK", 3 => "MEMORY", 4 => "CREW", 5 => "ACTIVITY"}
 
       for d <- 1..5 do
         assert %Focus{} |> Focus.jump(layout, d) |> Focus.focused_pane(layout) == expected[d]
@@ -435,7 +423,7 @@ defmodule Aleph.ViewTest do
       assert %{digit: 1} = border_of(placements, "WORKSPACES")
       assert %{digit: 2} = border_of(placements, "STACK")
       assert %{digit: 3} = border_of(placements, "MEMORY")
-      assert %{digit: 4} = border_of(placements, "HEALTH")
+      assert %{digit: 4} = border_of(placements, "CREW")
     end
 
     test "the center terminal box carries digit 0 and no title" do

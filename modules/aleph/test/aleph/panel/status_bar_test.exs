@@ -28,6 +28,36 @@ defmodule Aleph.Panel.StatusBarTest do
     )
   end
 
+  # HEALTH demoted to the footer (reshape slice D): a condensed one-line segment on the info
+  # line's right — service dots + disk/mem/load. The full readout moved to /status.
+  test "the info line carries a condensed health segment when the read is up" do
+    health = %{
+      funes_up: true,
+      tlon_up: false,
+      nix_gen: 36,
+      nix_behind: 0,
+      disk_pct: 68,
+      mem_pct: 28,
+      load_avg: 2.18,
+      tools: []
+    }
+
+    [info, _hints] = StatusBar.render(base(%{health: health}), rect())
+    line = Enum.map_join(info, fn {t, _} -> t end)
+
+    assert line =~ "funes"
+    assert line =~ "tlon"
+    assert line =~ "d68%"
+    assert line =~ "m28%"
+    assert line =~ "l2.2"
+  end
+
+  test "a nil health read (probe not run) leaves the footer clean" do
+    [info, _hints] = StatusBar.render(base(%{health: nil}), rect())
+    line = Enum.map_join(info, fn {t, _} -> t end)
+    refute line =~ "funes"
+  end
+
   test "TERM mode: the mode segment names the Alt door and the nav toggle" do
     [_info, hints] = StatusBar.render(base(%{mode: :term, world?: true}), rect())
     line = Enum.map_join(hints, fn {t, _} -> t end)
