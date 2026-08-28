@@ -748,9 +748,10 @@
                     "FUNES_MEMORY_PASS=1"
                     "FUNES_MAINTAIN=1"
                   ];
+                  # Seed + repair moved into app boot (Funes.Bootstrap) — only the
+                  # schema migration stays a pre-step.
                   ExecStartPre = [
                     "${funesRel}/bin/funes eval Funes.Release.migrate()"
-                    "${funesRel}/bin/funes eval Funes.Release.seed_world()"
                   ];
                   ExecStart = "${funesRel}/bin/funes start";
                   Restart = "on-failure";

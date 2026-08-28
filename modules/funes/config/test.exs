@@ -13,6 +13,10 @@ config :funes, start_consult_mirror: false
 # never the real one.
 config :funes, start_repo: false
 
+# Bootstrap (seed + repair) is driven explicitly by its own suite; an app-boot
+# run against the harness-owned repo would race the per-test TestDB.clean!.
+config :funes, bootstrap: false
+
 # A fixed signing key for the stateless MCP tokens, so tests mint/resolve deterministically with
 # no secret-file IO (Funes.MCP.Secret reads this before touching disk).
 config :funes, token_secret: "test-only-token-secret-not-for-any-real-world-32b"
