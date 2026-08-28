@@ -127,6 +127,11 @@ export class FunesClient {
     await this.#callTool("presence_idle", {});
   }
 
+  // Post to this connection's thread — the heartbeat check-in's vehicle (funes thread #3).
+  async postMessage(body: string): Promise<void> {
+    await this.#callTool("post_message", { body });
+  }
+
   async #callTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     const { body } = await this.#post({
       jsonrpc: "2.0",
