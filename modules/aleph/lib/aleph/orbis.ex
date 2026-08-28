@@ -47,23 +47,31 @@ defmodule Aleph.Orbis do
   def worlds(rows), do: worlds(rows, world_refs())
 
   @doc """
-  Group `rows` under explicit `%{id, name}` world refs — every row carries its funes **id** (D0.3:
-  the survey can't resolve a click/Enter to a world without one). Per-world leaf attribution is
-  still coarse (Phase B): the first world carries all machine leaves; any further worlds get an
-  empty, zeroed row — a real per-leaf world membership isn't modeled yet, so this is the Slice-1
-  floor, not the final grouping. No world refs (funes genuinely down — the app self-seeds at
-  boot) yields no rows; the survey renders empty rather than fabricating a world (reshape slice A).
+  Group `rows` under explicit `%{id, name}` world refs — every row carries its funes **id** (D0.3)
+  and, since reshape slice C, its `world_id`: membership is REAL (slice A made `thread.world_id`
+  enforced), so each world's survey row carries exactly its own threads. A row matching no ref
+  lands in the first world — belt over the boot repair, never a dropped thread. No world refs
+  (funes genuinely down — the app self-seeds at boot) yields no rows; the survey renders empty
+  rather than fabricating a world (reshape slice A).
   """
   @spec worlds([map()], [%{id: term(), name: String.t()}]) :: [
           %{id: term(), name: String.t(), summary: map(), leaves: [map()]}
         ]
   def worlds(_rows, []), do: []
 
-  def worlds(rows, [first | rest]) do
-    [
-      %{id: first.id, name: first.name, summary: summarize(rows), leaves: rows}
-      | Enum.map(rest, &%{id: &1.id, name: &1.name, summary: summarize([]), leaves: []})
-    ]
+  def worlds(rows, [first | _rest] = refs) do
+    known = MapSet.new(refs, & &1.id)
+
+    by_world =
+      Enum.group_by(rows, fn row ->
+        world_id = Map.get(row, :world_id)
+        if world_id in known, do: world_id, else: first.id
+      end)
+
+    Enum.map(refs, fn ref ->
+      leaves = Map.get(by_world, ref.id, [])
+      %{id: ref.id, name: ref.name, summary: summarize(leaves), leaves: leaves}
+    end)
   end
 
   # The funes world refs, guarded: a cache hiccup degrades to [] (→ empty survey).
@@ -78,7 +86,15 @@ defmodule Aleph.Orbis do
   defp row(thread) do
     scope = Funes.Board.in_scope(thread)
     conflicts = length(scope.blockers.shown) + scope.blockers.more + failed_checks(scope)
-    %{id: thread.id, title: thread.title, lead: scope.lead, status: status(thread.state, conflicts), conflicts: conflicts}
+
+    %{
+      id: thread.id,
+      title: thread.title,
+      lead: scope.lead,
+      status: status(thread.state, conflicts),
+      conflicts: conflicts,
+      world_id: thread.world_id
+    }
   end
 
   @doc """

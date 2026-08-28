@@ -61,13 +61,29 @@ defmodule Aleph.OrbisTest do
       assert summary == %{open: 1, stalled: 1, done: 0, conflicts: 1}
     end
 
-    test "a second world gets a zeroed row, still carrying its OWN id (coarse leaf attribution)" do
-      rows = [%{status: :open, conflicts: 0}]
+    test "rows group under THEIR OWN world (real membership, reshape slice C)" do
+      rows = [
+        %{status: :open, conflicts: 0, world_id: 1},
+        %{status: :stalled, conflicts: 2, world_id: 2},
+        %{status: :open, conflicts: 0, world_id: 2}
+      ]
 
-      assert [%{id: 1, name: "Freedonia"}, %{id: 2, name: "Ruritania", summary: summary, leaves: []}] =
+      assert [freedonia, ruritania] =
                Orbis.worlds(rows, [%{id: 1, name: "Freedonia"}, %{id: 2, name: "Ruritania"}])
 
-      assert summary == %{open: 0, stalled: 0, done: 0, conflicts: 0}
+      assert %{id: 1, name: "Freedonia", summary: %{open: 1, stalled: 0}} = freedonia
+      assert length(freedonia.leaves) == 1
+      assert %{id: 2, name: "Ruritania", summary: %{open: 1, stalled: 1, conflicts: 2}} = ruritania
+      assert length(ruritania.leaves) == 2
+    end
+
+    test "a row matching no ref lands in the FIRST world — belt over slice A's repair" do
+      rows = [%{status: :open, conflicts: 0, world_id: 999}, %{status: :open, conflicts: 0}]
+
+      assert [%{id: 1, leaves: leaves}, %{id: 2, leaves: []}] =
+               Orbis.worlds(rows, [%{id: 1, name: "A"}, %{id: 2, name: "B"}])
+
+      assert length(leaves) == 2
     end
 
     test "no world refs → no rows (the fake-Tlön fallback is gone)" do
