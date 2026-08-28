@@ -62,10 +62,10 @@ fi
 
 # Presence (thinking counts as working): UserPromptSubmit declares thinking, Stop clears it
 # (parallel to the capture reflex, so a slow extraction never delays the idle), SessionEnd is
-# the exit/crash safety net. PostToolUse is the heartbeat (funes thread #3): a cadence-gated
-# "here's what's happening" check-in posted to the thread during a long single turn, mirroring
-# pi's turn_start/turn_end interval — see heartbeat-hook.sh.
-settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}],\"UserPromptSubmit\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/thinking-hook.sh\"}]}],\"PostToolUse\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/heartbeat-hook.sh\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/capture-hook.sh\"},{\"type\":\"command\",\"command\":\"$adapter/thinking-hook.sh idle\"}]}],\"SessionEnd\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/thinking-hook.sh idle\"}]}]}$perms_json}"
+# the exit/crash safety net. PostToolUse carries the heartbeat (funes thread #3, cadence-gated
+# check-ins during a long turn — heartbeat-hook.sh) AND auto-track (reshape slice B: a landed
+# `git commit` promotes the thread into the stage machine — track-hook.sh).
+settings_json="{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/brief-hook.sh\"}]}],\"UserPromptSubmit\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/thinking-hook.sh\"}]}],\"PostToolUse\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/heartbeat-hook.sh\"},{\"type\":\"command\",\"command\":\"$adapter/track-hook.sh\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/capture-hook.sh\"},{\"type\":\"command\",\"command\":\"$adapter/thinking-hook.sh idle\"}]}],\"SessionEnd\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$adapter/thinking-hook.sh idle\"}]}]}$perms_json}"
 
 # The funes-citizen protocol, as a system prompt. Without it Claude Code treats a teammate's message
 # (injected into its input as "[funes thread #N] <author>: ...") like the human talking and answers in
