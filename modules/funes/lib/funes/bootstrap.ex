@@ -16,6 +16,8 @@ defmodule Funes.Bootstrap do
   alias Funes.World
   alias Funes.Worlds
 
+  require Logger
+
   @default %{
     name: "ficciones",
     type: "code",
@@ -43,15 +45,44 @@ defmodule Funes.Bootstrap do
   @doc """
   `ensure/0` for the supervision tree: any raise/exit (schema not yet migrated on
   a first boot, repo briefly down) is absorbed to `:skipped` — bootstrap must
-  never take the app down with it.
+  never take the app down with it. Every non-ok outcome is LOGGED: a broken
+  bootstrap would otherwise present exactly like honest funes-down (Orbis-only
+  picker) with no diagnostic anywhere.
   """
   @spec ensure_safe() :: {:ok, World.t()} | {:error, Ecto.Changeset.t()} | :skipped
   def ensure_safe do
-    ensure()
+    case ensure() do
+      {:ok, _world} = ok ->
+        ok
+
+      {:error, reason} = error ->
+        Logger.warning("Funes.Bootstrap: seed failed — #{inspect(reason)}; repair skipped this boot")
+        error
+    end
   rescue
-    _ -> :skipped
+    e ->
+      Logger.warning("Funes.Bootstrap: skipped — #{Exception.message(e)}")
+      :skipped
   catch
-    :exit, _ -> :skipped
+    :exit, reason ->
+      Logger.warning("Funes.Bootstrap: skipped — exit #{inspect(reason)}")
+      :skipped
+  end
+
+  @doc """
+  Supervision-tree entry: runs `ensure_safe/0` SYNCHRONOUSLY during child startup and
+  returns `:ignore` — the supervisor only proceeds to later children (consult mirror,
+  MCP/Bandit) once seed + repair are done, so nothing serves against an unseeded db.
+  A `{Task, fun}` child would return immediately and leave a serve-before-seed window.
+  """
+  def start_link do
+    ensure_safe()
+    :ignore
+  end
+
+  @doc false
+  def child_spec(_opts) do
+    %{id: __MODULE__, start: {__MODULE__, :start_link, []}, restart: :temporary}
   end
 
   defp default_world do

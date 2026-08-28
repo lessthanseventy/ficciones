@@ -42,16 +42,20 @@ defmodule Funes.Worlds do
     heir = Repo.one(from w in World, where: w.id != ^world.id, order_by: [asc: w.id], limit: 1)
 
     if heir do
-      {:ok, result} =
-        Repo.transaction(fn ->
-          Repo.update_all(from(t in Funes.Thread, where: t.world_id == ^world.id),
-            set: [world_id: heir.id]
-          )
+      fn ->
+        Repo.update_all(from(t in Funes.Thread, where: t.world_id == ^world.id),
+          set: [world_id: heir.id]
+        )
 
-          Repo.delete(world)
-        end)
-
-      Bus.announce(result, :world_removed)
+        # A delete refusal must roll the rehousing back with it — without this, a future
+        # table gaining a world FK would silently move threads while the world survives.
+        case Repo.delete(world) do
+          {:ok, removed} -> removed
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end
+      |> Repo.transaction()
+      |> Bus.announce(:world_removed)
     else
       {:error, :last_world}
     end

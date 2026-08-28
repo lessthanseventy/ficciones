@@ -62,8 +62,10 @@ defmodule Aleph.Crew do
   end
 
   # The tmux session/socket for the ACTIVE world's workspace — id-derived (rename-proof), not
-  # lead-name-derived. Slice 1's one-world bridge (`Space.first_world/0`, same fallback the
-  # Cockpit's `tlon_tmux/2` uses); C2.3+ picks the truly active world once there's more than one.
+  # lead-name-derived. Slice 1's one-world bridge (`Space.first_world/0`); C2.3+ picks the truly
+  # active world once there's more than one. `first_world/0` can be nil now that the hardcoded
+  # fallback World is gone (reshape slice A) — spawn/kill guard BEFORE reaching these, so the
+  # raise here is a bug sentinel, not a reachable path.
   defp world_id, do: Space.first_world().id
   defp world_session, do: "w#{world_id()}"
   defp world_socket, do: "aleph-world-#{world_id()}"
@@ -137,7 +139,8 @@ defmodule Aleph.Crew do
   @spec spawn(String.t(), integer() | String.t(), String.t(), keyword()) ::
           {:ok, String.t()} | {:error, term()}
   def spawn(role_key, thread_id, task, opts \\ []) do
-    with %{handle: handle, profile: profile_name} <- role(role_key) || :unknown_role,
+    with {:world, %{}} <- {:world, Space.first_world()},
+         %{handle: handle, profile: profile_name} <- role(role_key) || :unknown_role,
          %Aleph.Profile{} = profile <- Profiles.fetch(profile_name) || {:missing_profile, profile_name},
          _dir = Profiles.materialise!(profile),
          {:ok, %{exports: exports}} <- joiner().(thread_id, handle, mandate: "machine", assign: false),
@@ -148,6 +151,9 @@ defmodule Aleph.Crew do
       if Keyword.get(opts, :inject, true), do: inject_opening(window, opening_turn(thread_id, task))
       {:ok, window}
     else
+      # No workspace at all (funes down — the fallback World is gone, reshape slice A):
+      # there is no tmux server to target, refuse rather than nil-crash.
+      {:world, nil} -> {:error, :no_workspace}
       :unknown_role -> {:error, {:unknown_role, role_key}}
       {:missing_profile, _} = err -> {:error, err}
       {:error, _} = err -> err
@@ -165,10 +171,14 @@ defmodule Aleph.Crew do
     end
   end
 
-  @doc "Tear down a role's window on a thread. Best-effort; a missing window is not an error."
+  @doc "Tear down a role's window on a thread. Best-effort; a missing window (or no
+  workspace at all) is not an error."
   @spec kill(String.t(), integer() | String.t()) :: :ok
   def kill(role_key, thread_id) do
-    _ = cmd_runner().("tmux", kill_argv(role_key, thread_id), stderr_to_stdout: true)
+    if Space.first_world() do
+      _ = cmd_runner().("tmux", kill_argv(role_key, thread_id), stderr_to_stdout: true)
+    end
+
     :ok
   end
 

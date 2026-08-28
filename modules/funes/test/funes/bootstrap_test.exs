@@ -97,5 +97,14 @@ defmodule Funes.BootstrapTest do
       {:ok, thread} = Channel.open_thread(%{title: "pre-bootstrap"})
       assert thread.world_id == nil
     end
+
+    test "an explicit DANGLING world_id is refused by the FK itself (§10 single source)" do
+      {:ok, _} = Bootstrap.ensure()
+
+      # SQLite's own foreign key raises — never a mirrored app-side check that could drift.
+      assert_raise Ecto.ConstraintError, fn ->
+        Channel.open_thread(%{title: "nowhere", world_id: 999})
+      end
+    end
   end
 end

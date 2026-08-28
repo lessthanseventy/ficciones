@@ -741,7 +741,7 @@ defmodule Aleph.Cockpit do
   # The tmux target world id for a call site that only has `state` (not a `Space.world?`-guarded
   # `active_key`) in scope — a background Bus handler, or a click that landed on a World-only panel.
   # `state.active_key` when it names a World, else the funes-down/no-active-world fallback
-  # (`Space.first_world/0`) — the same degradation `tlon_tmux/2` falls back to.
+  # (`Space.first_world/0`) — nil when no world exists at all; `tlon_run/2` no-ops on nil.
   defp active_world_id(%{active_key: key}) when Space.world?(key), do: key
 
   defp active_world_id(_state) do
@@ -2556,16 +2556,18 @@ defmodule Aleph.Cockpit do
   # Every World tmux call — queries, re-points, AND the send-keys injects — routes through here:
   # one seam over the coworker's private server, so a test can inject a fake runner
   # (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
+  # No world id (funes genuinely down — the fallback World is gone, reshape slice A): there is
+  # no coworker server to target, and dropping the `-L` flag would aim kill-window/send-keys at
+  # the user's PERSONAL tmux server. No-op with a nonzero "exit" so callers read it as a miss.
+  defp tlon_run(nil, _args), do: {"no active world", 1}
+
   defp tlon_run(world_id, args) do
     runner = Application.get_env(:aleph, :tlon_cmd, &System.cmd/3)
     runner.("tmux", tlon_tmux(world_id, args), stderr_to_stdout: true)
   end
 
   # Every tmux call about a World's coworker targets ITS private server (`-L aleph-world-<id>`),
-  # never the user's default one. Degrades to no `-L` flag if there's no active world id (funes-down
-  # with the fallback World somehow also gone — never happens today: `Space.world_spaces/1` always
-  # yields at least the sentinel).
-  defp tlon_tmux(nil, args), do: args
+  # never the user's default one.
   defp tlon_tmux(world_id, args), do: ["-L", world_socket(world_id)] ++ args
 
   @doc false

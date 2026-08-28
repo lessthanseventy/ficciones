@@ -18,7 +18,9 @@ defmodule Funes.Application do
     # off so the pure maybe_mirror tests don't double-fire.
     # Boot integrity (reshape slice A): seed the default workspace if none, repair
     # dangling thread→workspace refs. Replaces the flake's ExecStartPre seed_world.
-    # After the Repo, before anything serves; :temporary — a one-shot.
+    # Funes.Bootstrap's start_link runs the work synchronously and returns :ignore,
+    # so children after it (consult mirror, MCP/Bandit) start only once seed+repair
+    # are done — nothing serves against an unseeded db.
     children =
       [
         {Phoenix.PubSub, name: Funes.PubSub},
@@ -29,7 +31,7 @@ defmodule Funes.Application do
         Funes.Presence.Thinking
       ] ++
         maybe(:start_repo, true, Funes.Repo) ++
-        maybe(:bootstrap, true, {Task, &Funes.Bootstrap.ensure_safe/0}) ++
+        maybe(:bootstrap, true, Funes.Bootstrap) ++
         maybe(:start_consult_mirror, true, Funes.Consult.Mirror) ++
         maybe(:start_switchboard, false, Funes.Switchboard.Server) ++
         maybe(:start_mcp, false, mcp_children()) ++
