@@ -40,7 +40,7 @@ defmodule Aleph.CockpitPreviewTest do
 
   # A Tlön nav state focused on the Leaves pane, the item cursor on `row_idx`, keys NOT forwarding
   # (in_terminal? false). Clarity slice 2: the right column is HEALTH pinned + ONE carousel panel,
-  # so `right_pane_view: 2` picks LEAVES (carousel index 2 of [Crew, Activity, Leaves, Workline]) —
+  # so `right_pane_view: 2` picks THREADS (carousel index 2 of [Crew, Activity, Leaves]) —
   # it then
   # sits at column pane index 1 (Health is 0), not the old 4-panel column's index 3.
   defp leaves_state(rows, row_idx) do
@@ -51,7 +51,6 @@ defmodule Aleph.CockpitPreviewTest do
       leaves: %{summary: %{}, rows: rows},
       stack: nil,
       memory: nil,
-      worklines: nil,
       previewed_window: nil
     }
   end

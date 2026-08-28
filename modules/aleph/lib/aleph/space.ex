@@ -31,7 +31,6 @@ defmodule Aleph.Space do
   alias Aleph.Panel.Terminal
   alias Aleph.Panel.Triage
   alias Aleph.Panel.WindowBar
-  alias Aleph.Panel.Workline
 
   @enforce_keys [:key, :label, :surface]
   defstruct [:key, :label, :surface, :id, left: [], right: [], coworker: nil, roster: []]
@@ -95,7 +94,9 @@ defmodule Aleph.Space do
       label: world.name,
       surface: [WindowBar, {Terminal, :machine}, Pulse],
       left: [Stack, Memory],
-      right: [Health, Crew, Activity, Leaves, Workline],
+      # Leaves IS the unified thread list now (reshape slice C — tracked rows chip their
+      # stage inline), so the separate WORKLINES pane is gone from the carousel.
+      right: [Health, Crew, Activity, Leaves],
       coworker: lead_coworker(world.roster),
       roster: world.roster
     }

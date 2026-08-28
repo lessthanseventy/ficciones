@@ -192,8 +192,8 @@ defmodule Aleph.View do
   defp section_title(Panel.Health), do: "HEALTH"
   defp section_title(Panel.Crew), do: "CREW"
   defp section_title(Panel.Activity), do: "ACTIVITY"
-  defp section_title(Panel.Leaves), do: "LEAVES"
-  defp section_title(Panel.Workline), do: "WORKLINES"
+  # THREADS since reshape slice C: chat + tracked threads are ONE list; stage rides as a chip.
+  defp section_title(Panel.Leaves), do: "THREADS"
   defp section_title(Panel.Roster), do: "IN FLIGHT"
   defp section_title(Panel.Triage), do: "TRIAGE"
   defp section_title(Panel.Dossier), do: "IN SCOPE"
@@ -315,7 +315,6 @@ defmodule Aleph.View do
   def data_for(Panel.Habits, r), do: r.habits
   def data_for(Panel.Settings, r), do: r.settings
   def data_for(Panel.Memory, r), do: r[:memory]
-  def data_for(Panel.Workline, r), do: r[:worklines]
   def data_for(Panel.Detail, r), do: r[:detail]
   def data_for(_other, _r), do: nil
 

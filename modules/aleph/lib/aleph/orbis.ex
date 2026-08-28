@@ -40,9 +40,10 @@ defmodule Aleph.Orbis do
     :exit, _ -> nil
   end
 
-  # slug → not needed; keyed by thread id. Guarded like every funes gather here.
+  # Keyed by thread id; through the Funes facade (the Ledger module is boundary-private).
+  # Guarded like every funes gather here.
   defp blocking_by_thread do
-    Map.new(Funes.Workline.Ledger.statuses(), &{&1.id, %{awaiting: &1.awaiting, blocking: &1.blocking}})
+    Map.new(Funes.workline_statuses(), &{&1.id, %{awaiting: &1.awaiting, blocking: &1.blocking}})
   rescue
     _ -> %{}
   catch

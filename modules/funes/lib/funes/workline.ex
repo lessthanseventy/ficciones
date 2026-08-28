@@ -89,26 +89,7 @@ defmodule Funes.Workline do
     result =
       Repo.transaction(fn ->
         fresh = Repo.get!(Thread, thread.id)
-
-        if fresh.stage do
-          {:already_tracked, fresh}
-        else
-          case fresh |> Thread.promote_changeset("build", slug) |> Repo.update() do
-            {:ok, tracked} ->
-              {:ok, _event} =
-                Dossier.record_event(%{
-                  thread_id: thread.id,
-                  kind: "stage_advanced",
-                  correlation: "workline:#{slug}",
-                  detail: %{"from" => nil, "to" => "build", "promoted" => true}
-                })
-
-              {:promoted, tracked}
-
-            {:error, changeset} ->
-              Repo.rollback(changeset)
-          end
-        end
+        if fresh.stage, do: {:already_tracked, fresh}, else: land_promotion(fresh, slug)
       end)
 
     case result do
@@ -122,6 +103,25 @@ defmodule Funes.Workline do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:error, changeset}
+    end
+  end
+
+  # Runs inside do_promote's transaction: stage+slug landing and the ledger row are one write.
+  defp land_promotion(fresh, slug) do
+    case fresh |> Thread.promote_changeset("build", slug) |> Repo.update() do
+      {:ok, tracked} ->
+        {:ok, _event} =
+          Dossier.record_event(%{
+            thread_id: fresh.id,
+            kind: "stage_advanced",
+            correlation: "workline:#{slug}",
+            detail: %{"from" => nil, "to" => "build", "promoted" => true}
+          })
+
+        {:promoted, tracked}
+
+      {:error, changeset} ->
+        Repo.rollback(changeset)
     end
   end
 

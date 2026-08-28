@@ -16,9 +16,12 @@ defmodule Funes.Board do
   alias Funes.Agent
   alias Funes.Channel
   alias Funes.Dossier
+  alias Funes.Message
+  alias Funes.Presence.Thinking
   alias Funes.Recall
   alias Funes.Repo
   alias Funes.Thread
+  alias Funes.World
 
   @cap 5
 
@@ -30,7 +33,7 @@ defmodule Funes.Board do
   `%{id, title, root, stage, awaiting, lead, working, last_at}`.
   """
   def sidebar do
-    thinking = Funes.Presence.Thinking.thinking_all()
+    thinking = Thinking.thinking_all()
     root_id = with %Thread{id: id} <- Channel.machine_thread(), do: id
     last_by_thread = last_message_at()
 
@@ -42,7 +45,7 @@ defmodule Funes.Board do
     working_agents =
       thinking |> Map.values() |> List.flatten() |> MapSet.new(& &1.agent)
 
-    for world <- Repo.all(from w in Funes.World, order_by: [asc: w.id]) do
+    for world <- Repo.all(from w in World, order_by: [asc: w.id]) do
       rows =
         threads
         |> Enum.filter(&(&1.world_id == world.id))
@@ -75,7 +78,7 @@ defmodule Funes.Board do
   defp invert(%DateTime{} = at), do: -DateTime.to_unix(at)
 
   defp last_message_at do
-    from(m in Funes.Message,
+    from(m in Message,
       group_by: m.thread_id,
       select: {m.thread_id, max(m.created_at)}
     )
