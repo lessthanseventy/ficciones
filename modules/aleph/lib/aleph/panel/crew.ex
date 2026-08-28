@@ -21,7 +21,8 @@ defmodule Aleph.Panel.Crew do
           model: term(),
           harness: atom() | String.t(),
           status: :thinking | Presence.status(),
-          seat: String.t() | nil
+          seat: String.t() | nil,
+          elapsed_s: non_neg_integer() | nil
         }
 
   @doc """
@@ -39,7 +40,7 @@ defmodule Aleph.Panel.Crew do
         %{archetype: arch, name: name} = Profiles.roster_entry(entry),
         arch != nil do
       profile = safe_instantiate(arch, name)
-      {status, seat_tid} = seat(windows, name, "#{name}-machine", led_by, thinking, now_s)
+      {status, seat_tid, elapsed_s} = seat(windows, name, "#{name}-machine", led_by, thinking, now_s)
 
       %{
         name: name,
@@ -47,17 +48,25 @@ defmodule Aleph.Panel.Crew do
         model: profile && profile.model,
         harness: (profile && profile.harness) || "?",
         status: status,
-        seat: seat_tid && titles[seat_tid]
+        seat: seat_tid && titles[seat_tid],
+        elapsed_s: elapsed_s
       }
     end
   end
 
   # A declared thinking wins outright (the explicit signal never re-lists as merely inferred);
-  # else the busiest of the standing window and any led leaf.
+  # else the busiest of the standing window and any led leaf. `elapsed_s` (now - started_at) is
+  # the trust signal (funes thread #3): a coworker "thinking" a long single turn must visibly
+  # count up, not sit on a static word — only meaningful for the declared-thinking branch, since
+  # tmux-inferred presence carries no start timestamp.
   defp seat(windows, name, handle, led_by, thinking, now_s) do
     case Enum.find(thinking, fn {_tid, agents} -> Map.has_key?(agents, handle) end) do
-      {tid, _agents} -> {:thinking, tid}
-      nil -> Presence.coworker_seat(windows, name, Map.get(led_by, handle, []), now_s)
+      {tid, agents} ->
+        {:thinking, tid, max(now_s - agents[handle], 0)}
+
+      nil ->
+        {status, seat_tid} = Presence.coworker_seat(windows, name, Map.get(led_by, handle, []), now_s)
+        {status, seat_tid, nil}
     end
   end
 
@@ -81,6 +90,7 @@ defmodule Aleph.Panel.Crew do
 
   defp entry(cw, w) do
     {glyph, label} = presence(cw.status)
+    label = label <> elapsed_suffix(cw[:elapsed_s])
 
     [
       [{clip("#{cw.name}", w - 12), :normal}, {"  #{cw.archetype}", :dim}],
@@ -89,6 +99,9 @@ defmodule Aleph.Panel.Crew do
       blank()
     ]
   end
+
+  defp elapsed_suffix(nil), do: ""
+  defp elapsed_suffix(seconds), do: " #{Aleph.Text.duration(seconds)}"
 
   defp presence(:thinking), do: {"⋯", "thinking"}
   defp presence(:working), do: {"●", "working"}

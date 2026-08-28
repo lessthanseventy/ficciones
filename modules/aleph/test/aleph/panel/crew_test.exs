@@ -41,7 +41,14 @@ defmodule Aleph.Panel.CrewTest do
 
       coworkers = Crew.coworkers(@roster, windows, %{}, @titles, thinking, @now)
 
-      assert %{status: :thinking, seat: "write the doc"} = by_name(coworkers, "hronir")
+      assert %{status: :thinking, seat: "write the doc", elapsed_s: 1} = by_name(coworkers, "hronir")
+    end
+
+    test "a non-thinking coworker carries no elapsed_s" do
+      windows = [%{name: "tertius", thread_id: nil, activity: @now - 600}]
+      coworkers = Crew.coworkers(@roster, windows, %{}, @titles, %{}, @now)
+
+      assert %{status: :live, elapsed_s: nil} = by_name(coworkers, "tertius")
     end
 
     test "profile fields ride along; an unknown archetype drops" do
@@ -101,6 +108,46 @@ defmodule Aleph.Panel.CrewTest do
     assert Enum.any?(body, &(&1 =~ "⋯" and &1 =~ "thinking" and &1 =~ "write the"))
     accents = rendered |> Enum.flat_map(& &1) |> Enum.filter(fn {_t, s} -> s == :accent end)
     assert Enum.any?(accents, fn {t, _s} -> t =~ "⋯" end)
+  end
+
+  # The elapsed clock is the trust signal (funes thread #3, 2026-08-27): a coworker that's been
+  # "thinking" for a while must visibly count up, not just sit on a static word that reads as
+  # frozen during a long single turn.
+  test "a declared thinking with elapsed_s appends a ticking duration" do
+    data = %{
+      leaves: {0, 6},
+      coworkers: [
+        %{
+          name: "hronir",
+          archetype: :builder,
+          model: nil,
+          harness: :claude_code,
+          status: :thinking,
+          seat: "write the doc",
+          elapsed_s: 192
+        }
+      ]
+    }
+
+    body = texts(Crew.render(data, %{x: 0, y: 0, w: 40, h: 30}))
+    assert Enum.any?(body, &(&1 =~ "thinking 3m12s"))
+  end
+
+  test "no elapsed_s (nil, or the key absent) appends nothing" do
+    coworker = %{
+      name: "tertius",
+      archetype: :surveyor,
+      model: nil,
+      harness: :pi,
+      status: :live,
+      seat: nil,
+      elapsed_s: nil
+    }
+
+    data = %{leaves: {0, 6}, coworkers: [coworker]}
+    body = texts(Crew.render(data, %{x: 0, y: 0, w: 40, h: 30}))
+    assert Enum.any?(body, &(&1 =~ "idle"))
+    refute Enum.any?(body, &(&1 =~ ~r/idle\s*\d/))
   end
 
   test "rows clip to the rect" do
