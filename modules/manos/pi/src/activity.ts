@@ -154,7 +154,9 @@ export function isCommitCommand(command: string): boolean {
 // carries `{type: "toolCall", id, name, arguments}` blocks, and the result is a WHOLE message
 // `{role: "toolResult", toolCallId, isError}`. A bash toolCall whose arguments.command is a
 // commit invocation, answered by a non-error toolResult, flips this true — mechanically, no
-// LLM — and the extension promotes the thread via track_thread.
+// LLM — and the extension promotes the thread via track_thread. INTENTIONALLY pi-native only
+// (unlike lastToolActivity's dual-shape): only pi's extension calls this, and accepting the
+// Anthropic shape too would let a wrongly-fabricated test go green again.
 export function sawSuccessfulCommit(entries: Entry[]): boolean {
   const commitIds = new Set<string>();
   for (const e of entries) {

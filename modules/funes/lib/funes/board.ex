@@ -36,19 +36,27 @@ defmodule Funes.Board do
     thinking = Thinking.thinking_all()
     root_id = with %Thread{id: id} <- Channel.machine_thread(), do: id
     last_by_thread = last_message_at()
+    leads = leads_by_thread()
+    worlds = Repo.all(from w in World, order_by: [asc: w.id])
+    known = MapSet.new(worlds, & &1.id)
+    default_id = with %World{id: id} <- List.first(worlds), do: id
 
     threads =
       from(t in Thread, where: t.state == "open")
       |> Repo.all()
-      |> Enum.map(&sidebar_row(&1, root_id, thinking, last_by_thread))
+      |> Enum.map(&sidebar_row(&1, root_id, thinking, last_by_thread, leads))
 
     working_agents =
       thinking |> Map.values() |> List.flatten() |> MapSet.new(& &1.agent)
 
-    for world <- Repo.all(from w in World, order_by: [asc: w.id]) do
+    for world <- worlds do
       rows =
         threads
-        |> Enum.filter(&(&1.world_id == world.id))
+        # A thread whose world is gone lands in the DEFAULT (oldest) workspace — same
+        # never-drop-a-thread stance as Orbis' grouping; the boot repair rehomes it durably.
+        |> Enum.filter(fn t ->
+          t.world_id == world.id or (world.id == default_id and t.world_id not in known)
+        end)
         |> Enum.sort_by(&{!&1.root, invert(&1.last_at)})
 
       %{
@@ -59,7 +67,7 @@ defmodule Funes.Board do
     end
   end
 
-  defp sidebar_row(thread, root_id, thinking, last_by_thread) do
+  defp sidebar_row(thread, root_id, thinking, last_by_thread, leads) do
     %{
       id: thread.id,
       world_id: thread.world_id,
@@ -67,9 +75,9 @@ defmodule Funes.Board do
       root: thread.id == root_id,
       stage: thread.stage,
       awaiting: thread.awaiting,
-      lead: Channel.thread_lead(thread.id),
+      lead: Map.get(leads, thread.id),
       working: Map.get(thinking, thread.id, []) != [],
-      last_at: Map.get(last_by_thread, thread.id, thread.created_at)
+      last_at: Map.get(last_by_thread, thread.id) || thread.created_at
     }
   end
 
@@ -77,26 +85,26 @@ defmodule Funes.Board do
   defp invert(nil), do: 0
   defp invert(%DateTime{} = at), do: -DateTime.to_unix(at)
 
+  # Ecto loads the max() aggregate through the field's type, so these are real DateTimes.
   defp last_message_at do
     from(m in Message,
       group_by: m.thread_id,
       select: {m.thread_id, max(m.created_at)}
     )
     |> Repo.all()
-    |> Map.new(fn {id, at} -> {id, coerce_at(at)} end)
+    |> Map.new()
   end
 
-  # SQLite's max() aggregate hands the TEXT column back raw — coerce so sorting stays typed.
-  defp coerce_at(%DateTime{} = at), do: at
-
-  defp coerce_at(text) when is_binary(text) do
-    case DateTime.from_iso8601(text) do
-      {:ok, at, _offset} -> at
-      _ -> nil
-    end
+  # One join for every lead (mirrors staffed_machine_threads), not a per-thread point query.
+  defp leads_by_thread do
+    from(t in Thread,
+      join: a in Agent,
+      on: a.id == t.agent_id,
+      select: {t.id, a.name}
+    )
+    |> Repo.all()
+    |> Map.new()
   end
-
-  defp coerce_at(_), do: nil
 
   # A roster name matches a working agent bare or with the harness "-machine" suffix.
   defp crew_rows(roster, working_agents) when is_list(roster) do
@@ -160,6 +168,10 @@ defmodule Funes.Board do
         thread_id: thread.id,
         title: thread.title,
         lead: s.lead,
+        # TRACKED leaves are in this set now (slice C) — carry the signal that says so,
+        # or the meta agent sees the thread but not that it's staged/parked on a gate.
+        stage: thread.stage,
+        awaiting: thread.awaiting,
         next: s.next && s.next.text,
         blockers: Enum.map(s.blockers.shown, & &1.summary),
         recent: Enum.map(s.chatter, &%{author: &1.author, body: &1.body})

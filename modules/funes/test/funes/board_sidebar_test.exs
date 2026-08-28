@@ -61,6 +61,28 @@ defmodule Funes.BoardSidebarTest do
     assert housed_id == housed.id
   end
 
+  test "threads order by newest activity after the root" do
+    {:ok, _world} = Bootstrap.ensure()
+    {:ok, older} = Channel.open_thread(%{title: "older but recently active"})
+    {:ok, newer} = Channel.open_thread(%{title: "newer but quiet"})
+    {:ok, _} = Channel.post(%{thread_id: older.id, author: "andrew", body: "still on this one"})
+
+    [%{threads: threads}] = Board.sidebar()
+    assert Enum.map(threads, & &1.id) == [older.id, newer.id]
+  end
+
+  test "a thread whose workspace is GONE lands in the default group — never dropped" do
+    {:ok, world} = Bootstrap.ensure()
+    {:ok, thread} = Channel.open_thread(%{title: "orphan"})
+    Funes.Repo.query!("PRAGMA foreign_keys = OFF")
+    Funes.Repo.query!("UPDATE thread SET world_id = 999 WHERE id = ?", [thread.id])
+    Funes.Repo.query!("PRAGMA foreign_keys = ON")
+
+    [%{workspace: %{id: default_id}, threads: threads}] = Board.sidebar()
+    assert default_id == world.id
+    assert Enum.any?(threads, &(&1.id == thread.id))
+  end
+
   test "working and lead ride on the row; crew carries working flags" do
     {:ok, _world} = Bootstrap.ensure()
     {:ok, thread} = Channel.open_thread(%{title: "busy thread"})

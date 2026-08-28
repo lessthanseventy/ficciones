@@ -9,7 +9,9 @@ defmodule Aleph.Orbis do
   rule never drifts between them.
 
   Pure data, no styling: `rollup/0` returns `%{summary: %{open, stalled, done, conflicts},
-  rows: [%{id, title, lead, status, conflicts}], worlds: [%{id, name, summary, leaves}]}` (status
+  rows: [%{id, title, lead, status, conflicts, world_id, stage, awaiting, blocking}]
+  (the last three nil on an untracked thread — chat and tracked are ONE list since slice C),
+  worlds: [%{id, name, summary, leaves}]}` (status
   `:open | :stalled | :done`), or `nil` when funes is down / there are no machine threads. `summary`
   and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `worlds` is the
   survey's per-world rollup — grouped under the live funes worlds (`Aleph.Worlds`, Slice 1), each
@@ -71,13 +73,17 @@ defmodule Aleph.Orbis do
         ]
   def worlds(_rows, []), do: []
 
-  def worlds(rows, [first | _rest] = refs) do
+  def worlds(rows, refs) do
     known = MapSet.new(refs, & &1.id)
+    # Orphans land in the OLDEST world (the seeded default) — the cache hands refs
+    # newest-first, so the list head would be the wrong home the moment a second
+    # world exists.
+    default_id = Enum.min_by(refs, & &1.id).id
 
     by_world =
       Enum.group_by(rows, fn row ->
         world_id = Map.get(row, :world_id)
-        if world_id in known, do: world_id, else: first.id
+        if world_id in known, do: world_id, else: default_id
       end)
 
     Enum.map(refs, fn ref ->

@@ -1,15 +1,17 @@
 defmodule Aleph.Panel.Leaves do
   @moduledoc """
-  LEAVES — the machine-scoped **rollup lens** over Tlön's leaf threads (was `Panel.Orbis`, renamed
-  so it stops colliding with the Orbis *space*). A header count line (open / stalled / done, with
-  conflicts called out) then one row per leaf — its lead and status, a stalled leaf surfacing its
-  conflict count. The glance-value summary the operator reads without switching to the chat tab.
+  THREADS (reshape slice C; module name pending the surface-rename slice) — the machine-scoped
+  **unified thread list**: chat threads and TRACKED threads are one list. A header count line
+  (open / stalled / done, with conflicts called out) then one row per thread — lead + status,
+  and on a tracked row its stage chip, a ⏸ gate when parked on the operator, and the failing
+  check when verify is red. The glance-value summary the operator reads without switching tabs.
 
   Navigable in Tlön nav mode: `j/k` selects a leaf (the cursor row washes :selected), `Enter`
   attaches that leaf in the World center — re-points the tmux window (Slice 0 collapse; was a jump
   into the now-deleted Sessions space); its own `t<id>` window if live, else its lead's (C3.3). Data
-  is `%{summary: %{open, stalled, done, conflicts}, rows: [%{id, title, lead, status, conflicts}],
-  selected, attached}` — `selected` (cursor) and `attached` (the leaf whose own window IS the
+  is `%{summary: %{open, stalled, done, conflicts}, rows: [%{id, title, lead, status, conflicts,
+  world_id, stage, awaiting, blocking}], selected, attached}` (the last four nil on a plain chat
+  thread) — `selected` (cursor) and `attached` (the leaf whose own window IS the
   center, persistent) both injected by the View, either `nil`; either washes the row :selected — or
   `nil` when funes is down / there are no machine threads. Pure over `Aleph.Orbis.rollup/0`.
   """

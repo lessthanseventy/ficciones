@@ -27,6 +27,9 @@ export interface PostToolUseInput {
 // demote verb — a thread where nothing landed would be staged "build" forever), so refusal
 // shapes are checked first; only then does an unmarked response count as success.
 const FAILURE_STDERR = /nothing to commit|fatal:|error:|rejected|hook failed|no changes added/i;
+// stdout gets ANCHORED refusal shapes only — a successful commit's subject line echoes into
+// stdout, so a commit titled "fix: error: handling" must not read as a failure.
+const FAILURE_STDOUT = /^(nothing to commit|no changes added|On branch .*\nnothing to commit)/m;
 
 export function shouldTrack(input: PostToolUseInput): boolean {
   if (input.tool_name !== "Bash") return false;
@@ -36,11 +39,10 @@ export function shouldTrack(input: PostToolUseInput): boolean {
   if (!response) return true;
   if (response["is_error"] === true || response["success"] === false) return false;
   if (response["interrupted"] === true) return false;
-  // git writes "nothing to commit" to STDOUT and hook/ref refusals to STDERR — scan both.
-  for (const key of ["stderr", "stdout"]) {
-    const text = response[key];
-    if (typeof text === "string" && FAILURE_STDERR.test(text)) return false;
-  }
+  const stderr = response["stderr"];
+  if (typeof stderr === "string" && FAILURE_STDERR.test(stderr)) return false;
+  const stdout = response["stdout"];
+  if (typeof stdout === "string" && FAILURE_STDOUT.test(stdout)) return false;
   return true;
 }
 

@@ -29,6 +29,10 @@ describe("shouldTrack — the PostToolUse gate for auto-tracking (reshape slice 
     expect(shouldTrack({ ...base, tool_response: { stdout: "", stderr: "fatal: not a git repository" } })).toBe(false);
     expect(shouldTrack({ ...base, tool_response: { stdout: "", stderr: "pre-commit hook failed" } })).toBe(false);
     expect(shouldTrack({ ...base, tool_response: { stdout: "[main abc1234] fix", stderr: "" } })).toBe(true);
+    // A commit SUBJECT containing "error:" echoes into stdout — must still track.
+    expect(
+      shouldTrack({ ...base, tool_response: { stdout: "[main abc1234] fix: error: handling in parser", stderr: "" } }),
+    ).toBe(true);
   });
 
   test("a response that reads as failure does not track", () => {
