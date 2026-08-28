@@ -63,6 +63,64 @@ defmodule Funes.Workline do
   end
 
   @doc """
+  Promote a plain chat thread INTO the stage machine at `"build"` — tracking is the lazy
+  path (reshape slice B): when real work lands on an untracked thread (both harnesses call
+  this on the first successful `git commit`), the ticket condenses out of the work instead
+  of competing with it. Slug derives from the title; a collision or unslugifiable title
+  falls back to an id-suffixed name. Idempotent: an already-tracked thread is `{:ok, thread}`
+  untouched. The ROOT machine thread is refused — the standing home is not a work item.
+  """
+  def promote(%Thread{stage: stage} = thread) when not is_nil(stage), do: {:ok, thread}
+
+  def promote(%Thread{} = thread) do
+    if Funes.Channel.root_machine_thread?(thread) do
+      {:error, :root_machine_thread}
+    else
+      do_promote(thread, promote_slug(thread))
+    end
+  end
+
+  # Mirror flip/1: the stage landing and its ledger row commit together or not at all.
+  defp do_promote(thread, slug) do
+    {:ok, tracked} =
+      Repo.transaction(fn ->
+        {:ok, tracked} = thread |> Thread.promote_changeset("build", slug) |> Repo.update()
+
+        {:ok, _event} =
+          Dossier.record_event(%{
+            thread_id: thread.id,
+            kind: "stage_advanced",
+            correlation: "workline:#{slug}",
+            detail: %{"from" => nil, "to" => "build", "promoted" => true}
+          })
+
+        tracked
+      end)
+
+    Funes.Bus.broadcast({:workline_advanced, tracked})
+    post_brief(tracked, Brief.stage_message(tracked))
+    {:ok, tracked}
+  end
+
+  defp promote_slug(%Thread{} = thread) do
+    base =
+      thread.title
+      |> String.downcase()
+      |> String.replace(~r/[^a-z0-9]+/u, "-")
+      |> String.trim("-")
+      |> String.slice(0, 40)
+      |> String.trim("-")
+
+    cond do
+      base == "" -> "thread-#{thread.id}"
+      slug_taken?(base) -> "#{base}-#{thread.id}"
+      true -> base
+    end
+  end
+
+  defp slug_taken?(slug), do: Repo.get_by(Thread, slug: slug) != nil
+
+  @doc """
   Advance past the current stage. `{:ok, thread}` on a flip, `{:awaiting, thread}` when the
   transition gates on the operator, `{:error, {:artifact_missing, why}}` when the owed
   artifact isn't committed, `{:error, :awaiting_operator | :terminal | :not_a_workline}`

@@ -91,14 +91,16 @@ defmodule Funes.Channel do
     Repo.delete!(thread)
   end
 
-  defp root_machine_thread?(%Thread{scope: @machine_scope} = thread) do
+  @doc "Whether `thread` IS the root machine thread — the standing coworkers' permanent home.
+  Public: delete_thread refuses it here, and Workline.promote refuses to track it (slice B)."
+  def root_machine_thread?(%Thread{scope: @machine_scope} = thread) do
     case machine_thread() do
       %Thread{id: root_id} -> root_id == thread.id
       nil -> false
     end
   end
 
-  defp root_machine_thread?(_thread), do: false
+  def root_machine_thread?(_thread), do: false
 
   @doc "Open PROJECT threads only, newest first — closed and machine-scope threads are omitted.
   The machine thread (the Tlön coworker) is filtered out of the project surfaces; reach it via

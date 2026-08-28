@@ -67,4 +67,13 @@ defmodule Funes.Thread do
   def workline_stage_changeset(thread, changes) do
     change(thread, Map.take(changes, [:stage, :awaiting]))
   end
+
+  @doc ~s{Promote a plain thread INTO the stage machine (reshape slice B): stage + slug land
+  together. Same slug charset rule as workline_changeset — it names work/<slug>/ paths.}
+  def promote_changeset(thread, stage, slug) do
+    thread
+    |> change(stage: stage, slug: slug)
+    |> validate_format(:slug, ~r/\A[a-z0-9][a-z0-9-]*\z/)
+    |> unique_constraint(:slug)
+  end
 end

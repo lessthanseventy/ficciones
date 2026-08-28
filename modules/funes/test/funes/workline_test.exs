@@ -196,4 +196,60 @@ defmodule Funes.WorklineTest do
     {:ok, plain} = Channel.open_thread(%{title: "not a workline"})
     assert {:error, :not_a_workline} = Workline.advance(plain, artifacts: AllPresent)
   end
+
+  describe "promote/1 — tracking is the lazy path (reshape slice B)" do
+    import Ecto.Query
+
+    test "a plain chat thread promotes to build: derived slug, ledger event, build brief" do
+      {:ok, plain} = Channel.open_thread(%{title: "Fix the CHAT feed!"})
+
+      assert {:ok, tracked} = Workline.promote(plain)
+      assert tracked.stage == "build"
+      assert tracked.slug == "fix-the-chat-feed"
+
+      assert [event] =
+               Repo.all(from e in Event, where: e.thread_id == ^plain.id and e.kind == "stage_advanced")
+
+      assert event.detail == %{"from" => nil, "to" => "build", "promoted" => true}
+      assert event.correlation == "workline:fix-the-chat-feed"
+
+      # The build brief lands on the thread — the worker learns the machinery it's now inside.
+      bodies = Repo.all(from m in Funes.Message, where: m.thread_id == ^plain.id, select: m.body)
+      assert Enum.any?(bodies, &(&1 =~ "BUILD"))
+    end
+
+    test "an already-tracked thread is a no-op — no second event" do
+      thread = open!(%{slug: "already-tracked"})
+      assert {:ok, same} = Workline.promote(thread)
+      assert same.stage == "intent"
+      assert same.slug == "already-tracked"
+
+      events =
+        Repo.all(from e in Event, where: e.thread_id == ^thread.id and e.kind == "stage_advanced")
+
+      assert events == []
+    end
+
+    test "the ROOT machine thread is refused — the standing home is not a work item" do
+      {:ok, root} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
+      assert root.id == Channel.machine_thread().id
+
+      assert {:error, :root_machine_thread} = Workline.promote(root)
+    end
+
+    test "a slug collision falls back to slug-<thread id>" do
+      open!(%{slug: "fix-the-chat-feed"})
+      {:ok, plain} = Channel.open_thread(%{title: "Fix the CHAT feed!"})
+
+      assert {:ok, tracked} = Workline.promote(plain)
+      assert tracked.slug == "fix-the-chat-feed-#{plain.id}"
+    end
+
+    test "an unslugifiable title falls back to thread-<id>" do
+      {:ok, plain} = Channel.open_thread(%{title: "🎉🎉"})
+
+      assert {:ok, tracked} = Workline.promote(plain)
+      assert tracked.slug == "thread-#{plain.id}"
+    end
+  end
 end
