@@ -48,4 +48,15 @@ defmodule Aleph.PresenceTest do
 
     assert Presence.working_count(windows, @now) == 1
   end
+
+  describe "started_s/1 — funes time normalized to unix seconds at the TUI boundary" do
+    test "a funes DateTime becomes unix seconds (the live crash shape: int - DateTime)" do
+      at = ~U[2026-08-28 04:22:31Z]
+      assert Presence.started_s(at) == DateTime.to_unix(at)
+    end
+
+    test "an already-unix integer passes through" do
+      assert Presence.started_s(1_787_890_951) == 1_787_890_951
+    end
+  end
 end

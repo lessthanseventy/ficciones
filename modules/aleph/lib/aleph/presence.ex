@@ -88,4 +88,15 @@ defmodule Aleph.Presence do
   def working_count(windows, now_s) do
     Enum.count(windows, &(status(&1, now_s) == :working))
   end
+
+  @doc """
+  A thinking declaration's `started_at` as UNIX SECONDS — the one seam where funes time
+  (idiomatic DateTimes, on the Bus event and in `thinking_all/0`) becomes cockpit time
+  (the integers `Crew.seat`/`presence_read` subtract). The live 2026-08-28 crash was this
+  conversion missing: `now_s - ~U[...]` is an ArithmeticError, and every fixture had been
+  fabricating integers, so no test could see it.
+  """
+  @spec started_s(DateTime.t() | integer()) :: integer()
+  def started_s(%DateTime{} = at), do: DateTime.to_unix(at)
+  def started_s(seconds) when is_integer(seconds), do: seconds
 end

@@ -542,6 +542,8 @@ defmodule Aleph.Cockpit do
   # Explicit presence: idempotent updates, so the double delivery on the focused thread
   # (funes:presence + its thread topic) just re-writes the same entry.
   def handle_info({:presence_thinking, %{thread_id: tid, agent: agent, started_at: at}}, state) do
+    # Funes sends a DateTime; cockpit state holds unix seconds (Crew/presence subtract).
+    at = Aleph.Presence.started_s(at)
     thinking = Map.update(state.thinking, tid, %{agent => at}, &Map.put(&1, agent, at))
     {:noreply, render(%{state | thinking: thinking})}
   end
@@ -1622,7 +1624,8 @@ defmodule Aleph.Cockpit do
   # (declares made before this subscribe). Degrades to empty if the store isn't up.
   defp thinking_snapshot do
     Map.new(Funes.Presence.Thinking.thinking_all(), fn {tid, entries} ->
-      {tid, Map.new(entries, &{&1.agent, &1.started_at})}
+      # Same normalization as the live event path — cockpit state holds unix seconds.
+      {tid, Map.new(entries, &{&1.agent, Aleph.Presence.started_s(&1.started_at)})}
     end)
   catch
     :exit, _ -> %{}
