@@ -18,16 +18,16 @@ defmodule Aleph.CockpitLeavesAttachTest do
   """
   use ExUnit.Case, async: false
 
+  alias Aleph.Cockpit
+  alias Aleph.Panel
+  alias Aleph.Space
+  alias Aleph.Tlon.Focus
+
   # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
   # that render or drive a World push one through the Aleph.Worlds cache-down seam.
   setup do
     Aleph.TestWorlds.put()
   end
-
-  alias Aleph.Cockpit
-  alias Aleph.Panel
-  alias Aleph.Space
-  alias Aleph.Tlon.Focus
 
   setup do
     test_pid = self()

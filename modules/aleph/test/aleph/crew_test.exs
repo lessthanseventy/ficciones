@@ -1,13 +1,13 @@
 defmodule Aleph.CrewTest do
   use ExUnit.Case, async: true
 
+  alias Aleph.Crew
+
   # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
   # that render or drive a World push one through the Aleph.Worlds cache-down seam.
   setup do
     Aleph.TestWorlds.put()
   end
-
-  alias Aleph.Crew
 
   describe "roles/0 and role/1" do
     test "reviewer is a known role with its handle, window prefix, and profile" do

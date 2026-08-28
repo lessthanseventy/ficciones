@@ -28,12 +28,6 @@ defmodule Aleph.BoardTest do
   """
   use ExUnit.Case, async: true
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
-  setup do
-    Aleph.TestWorlds.put()
-  end
-
   alias Aleph.Board
   alias Aleph.Panel
   alias Aleph.Panel.Border
@@ -50,6 +44,12 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.ThreadList
   alias Aleph.Panel.WindowBar
   alias Aleph.View
+
+  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
+  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  setup do
+    Aleph.TestWorlds.put()
+  end
 
   # Flatten a styled row to its text, for assertions.
   defp text(row), do: Enum.map_join(row, fn {t, _style} -> t end)

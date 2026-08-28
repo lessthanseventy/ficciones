@@ -14,18 +14,18 @@ defmodule Aleph.CockpitRosterTest do
   """
   use ExUnit.Case, async: false
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
-  setup do
-    Aleph.TestWorlds.put()
-  end
-
   alias Aleph.Cockpit
   alias Aleph.Sessions
   alias Aleph.Space
   alias Ecto.Adapters.SQLite3
   alias Funes.Channel
   alias Funes.Repo
+
+  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
+  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  setup do
+    Aleph.TestWorlds.put()
+  end
 
   setup_all do
     db = Path.join(System.tmp_dir!(), "aleph_cockpit_roster_test_#{System.unique_integer([:positive])}.db")

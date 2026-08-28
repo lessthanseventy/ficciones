@@ -76,6 +76,7 @@ defmodule Funes.Bootstrap do
   defp repair(%World{id: id}) do
     live = from(w in World, select: w.id)
 
-    Repo.update_all(from(t in Thread, where: is_nil(t.world_id) or t.world_id not in subquery(live)), set: [world_id: id])
+    adrift = from(t in Thread, where: is_nil(t.world_id) or t.world_id not in subquery(live))
+    Repo.update_all(adrift, set: [world_id: id])
   end
 end

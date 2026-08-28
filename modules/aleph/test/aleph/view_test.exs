@@ -7,15 +7,15 @@ defmodule Aleph.ViewTest do
   """
   use ExUnit.Case, async: true
 
+  alias Aleph.Panel
+  alias Aleph.Tlon.Focus
+  alias Aleph.View
+
   # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
   # that render or drive a World push one through the Aleph.Worlds cache-down seam.
   setup do
     Aleph.TestWorlds.put()
   end
-
-  alias Aleph.Panel
-  alias Aleph.Tlon.Focus
-  alias Aleph.View
 
   # A minimal reads map: compose only needs the keys to exist (it lays out boxes; panel content is
   # rendered later), so the data can be empty/nil. Overrides set the space + focus under test.

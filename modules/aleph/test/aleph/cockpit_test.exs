@@ -7,16 +7,16 @@ defmodule Aleph.CockpitTest do
   """
   use ExUnit.Case, async: true
 
+  alias Aleph.Cockpit
+  alias Aleph.Panel.Leaves
+  alias Aleph.Tlon.Focus
+  alias Ghostty.KeyEvent
+
   # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
   # that render or drive a World push one through the Aleph.Worlds cache-down seam.
   setup do
     Aleph.TestWorlds.put()
   end
-
-  alias Aleph.Cockpit
-  alias Aleph.Panel.Leaves
-  alias Aleph.Tlon.Focus
-  alias Ghostty.KeyEvent
 
   test "a printable char carries its utf8 and its key atom" do
     ev = Cockpit.ghostty_key(%{key: :char, char: "x"})
