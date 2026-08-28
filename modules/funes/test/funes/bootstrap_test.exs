@@ -69,4 +69,33 @@ defmodule Funes.BootstrapTest do
   test "ensure_safe on a healthy schema behaves like ensure" do
     assert {:ok, %Funes.World{}} = Bootstrap.ensure_safe()
   end
+
+  describe "threads open into a workspace" do
+    test "open_thread lands in the default workspace" do
+      {:ok, world} = Bootstrap.ensure()
+
+      {:ok, thread} = Channel.open_thread(%{title: "housed from birth"})
+      assert thread.world_id == world.id
+    end
+
+    test "an explicit world_id is respected" do
+      {:ok, _default} = Bootstrap.ensure()
+      {:ok, other} = Worlds.register(%{name: "other", type: "code", scope: "project", paths: [], roster: []})
+
+      {:ok, thread} = Channel.open_thread(%{title: "placed", world_id: other.id})
+      assert thread.world_id == other.id
+    end
+
+    test "a workline opens into the default workspace too" do
+      {:ok, world} = Bootstrap.ensure()
+
+      {:ok, thread} = Funes.Workline.open(%{title: "tracked", slug: "housed-line"})
+      assert thread.world_id == world.id
+    end
+
+    test "with no world at all, open_thread still works (world_id nil)" do
+      {:ok, thread} = Channel.open_thread(%{title: "pre-bootstrap"})
+      assert thread.world_id == nil
+    end
+  end
 end

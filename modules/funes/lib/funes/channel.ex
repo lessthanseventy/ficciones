@@ -33,7 +33,11 @@ defmodule Funes.Channel do
   @doc ~s(Open a thread on the board. Returns `{:ok, thread}` or `{:error, changeset}`.
   `scope` defaults to `"project"`; the Tlön machine-coworker path opens with `"machine"`.)
   def open_thread(attrs) do
-    attrs |> Thread.open_changeset() |> Repo.insert() |> Funes.Bus.announce(:thread_opened)
+    attrs
+    |> Map.put_new_lazy(:world_id, &Funes.Bootstrap.default_world_id/0)
+    |> Thread.open_changeset()
+    |> Repo.insert()
+    |> Funes.Bus.announce(:thread_opened)
   end
 
   @doc """

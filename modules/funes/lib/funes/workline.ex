@@ -52,6 +52,8 @@ defmodule Funes.Workline do
   `{:ok, thread}` or `{:error, changeset}` (a taken slug is a UNIQUE refusal).
   """
   def open(attrs) do
+    attrs = Map.put_new_lazy(attrs, :world_id, &Funes.Bootstrap.default_world_id/0)
+
     with {:ok, thread} <-
            attrs |> Thread.workline_changeset() |> Repo.insert() |> Funes.Bus.announce(:thread_opened) do
       # The brief IS the wake from stage one — the intent playbook must not wait for an advance.

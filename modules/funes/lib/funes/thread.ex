@@ -30,7 +30,7 @@ defmodule Funes.Thread do
   project surfaces (chorus / open_threads) can filter it out — see the thread_scope migration.}
   def open_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:title, :scope])
+    |> cast(attrs, [:title, :scope, :world_id])
     |> validate_required([:title])
     |> put_change(:state, "open")
     |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))

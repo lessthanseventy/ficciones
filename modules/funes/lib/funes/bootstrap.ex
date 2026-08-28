@@ -61,6 +61,16 @@ defmodule Funes.Bootstrap do
     end
   end
 
+  @doc """
+  The default workspace's id — the oldest world, or nil when none exists yet
+  (a pre-bootstrap open proceeds unhoused; the boot repair houses it). The
+  open-thread paths call this so every new thread has a home from birth.
+  """
+  @spec default_world_id() :: integer() | nil
+  def default_world_id do
+    Repo.one(from w in World, order_by: [asc: w.id], limit: 1, select: w.id)
+  end
+
   # One UPDATE: every thread whose world_id is NULL or names no live world moves
   # to the default. Runs with FKs on — the target id is real by construction.
   defp repair(%World{id: id}) do
