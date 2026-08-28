@@ -81,25 +81,48 @@ defmodule Funes.Workline do
   end
 
   # Mirror flip/1: the stage landing and its ledger row commit together or not at all.
+  # Re-reads INSIDE the transaction — two near-simultaneous callers (a cc hook and a pi
+  # turn_end on one thread) must not double-promote and skew the ledger with twin events.
+  # A changeset refusal (slug collision under the fallback's own TOCTOU) rolls back to a
+  # tuple, never a raise — the MCP tool surfaces it.
   defp do_promote(thread, slug) do
-    {:ok, tracked} =
+    result =
       Repo.transaction(fn ->
-        {:ok, tracked} = thread |> Thread.promote_changeset("build", slug) |> Repo.update()
+        fresh = Repo.get!(Thread, thread.id)
 
-        {:ok, _event} =
-          Dossier.record_event(%{
-            thread_id: thread.id,
-            kind: "stage_advanced",
-            correlation: "workline:#{slug}",
-            detail: %{"from" => nil, "to" => "build", "promoted" => true}
-          })
+        if fresh.stage do
+          {:already_tracked, fresh}
+        else
+          case fresh |> Thread.promote_changeset("build", slug) |> Repo.update() do
+            {:ok, tracked} ->
+              {:ok, _event} =
+                Dossier.record_event(%{
+                  thread_id: thread.id,
+                  kind: "stage_advanced",
+                  correlation: "workline:#{slug}",
+                  detail: %{"from" => nil, "to" => "build", "promoted" => true}
+                })
 
-        tracked
+              {:promoted, tracked}
+
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
+        end
       end)
 
-    Funes.Bus.broadcast({:workline_advanced, tracked})
-    post_brief(tracked, Brief.stage_message(tracked))
-    {:ok, tracked}
+    case result do
+      {:ok, {:already_tracked, fresh}} ->
+        {:ok, fresh}
+
+      {:ok, {:promoted, tracked}} ->
+        Funes.Bus.broadcast({:workline_advanced, tracked})
+        post_brief(tracked, Brief.stage_message(tracked))
+        {:ok, tracked}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, changeset}
+    end
   end
 
   defp promote_slug(%Thread{} = thread) do

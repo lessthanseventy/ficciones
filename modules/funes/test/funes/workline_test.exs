@@ -117,12 +117,14 @@ defmodule Funes.WorklineTest do
     refute changeset.valid?
   end
 
-  test "a workline never masquerades as the machine ROOT or a coworker leaf" do
+  test "a workline never masquerades as the machine ROOT, but IS in the open leaf set (slice C)" do
     {:ok, root} = Channel.open_thread(%{title: "Tlön", scope: "machine"})
-    workline = open!(%{slug: "not-a-leaf"})
+    workline = open!(%{slug: "not-the-root"})
 
     assert Channel.machine_thread().id == root.id
-    refute workline.id in Enum.map(Channel.open_machine_threads(), & &1.id)
+    # Unified (reshape slice C): tracked threads stay visible to the meta overview — the old
+    # exclusion made exactly the leaves doing real work vanish from the surveyor's eye.
+    assert workline.id in Enum.map(Channel.open_machine_threads(), & &1.id)
 
     {:ok, _} = Channel.close_thread(root)
     assert Channel.machine_thread() == nil

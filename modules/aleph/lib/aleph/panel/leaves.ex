@@ -104,8 +104,10 @@ defmodule Aleph.Panel.Leaves do
   defp stalled_style(0), do: :normal
   defp stalled_style(_n), do: :label
 
-  # One leaf: a status glyph, the title, and the lead; a stalled leaf trails its conflict count. The
-  # selected leaf (j/k) washes :selected so the eye lands on which Enter would jump to.
+  # One thread: a status glyph, the title, and the lead; a stalled row trails its conflict count.
+  # A TRACKED row (reshape slice C: stage non-nil — chat and tracked are one list) appends its
+  # stage chip, a ⏸ gate when parked on the operator, and the failing check when verify is red.
+  # The selected row (j/k) washes :selected so the eye lands on which Enter would jump to.
   defp leaf_row(%{title: title, lead: lead, status: status} = row, selected?, _w) do
     {glyph, glyph_style} = status_glyph(status)
     who = if lead && lead != "", do: lead, else: "?"
@@ -113,10 +115,25 @@ defmodule Aleph.Panel.Leaves do
 
     base = [{glyph, glyph_style}, {title || "untitled", title_style}, {" · ", :dim}, {who, :accent}]
 
+    base = base ++ stage_chips(row)
+
     case {status, row[:conflicts] || 0} do
       {:stalled, n} when n > 0 -> base ++ [{" · ", :dim}, {"#{n}⚠", :label}]
       _ -> base
     end
+  end
+
+  defp stage_chips(row) do
+    chip = if stage = row[:stage], do: [{" · ", :dim}, {stage, :accent}], else: []
+    gate = if awaiting = row[:awaiting], do: [{" ⏸ awaiting #{awaiting}", :label}], else: []
+
+    warn =
+      case row[:blocking] do
+        %{cmd: cmd, tail: tail} -> [{" ⚠ #{cmd} — #{tail}", :warm}]
+        _ -> []
+      end
+
+    chip ++ gate ++ warn
   end
 
   defp status_glyph(:stalled), do: {"▲ ", :label}

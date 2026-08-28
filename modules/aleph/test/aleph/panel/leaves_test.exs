@@ -163,4 +163,31 @@ defmodule Aleph.Panel.LeavesTest do
     assert Leaves.yank(data, 9) == nil
     assert Leaves.yank(nil, 0) == nil
   end
+
+  test "a TRACKED row carries its stage chip, gate, and blocking check (reshape slice C)" do
+    data = %{
+      summary: %{open: 2, stalled: 0, done: 0, conflicts: 0},
+      rows: [
+        %{id: 1, title: "plain chat", lead: "hronir-machine", status: :open, conflicts: 0},
+        %{
+          id: 2,
+          title: "tracked work",
+          lead: "hronir-machine",
+          status: :open,
+          conflicts: 0,
+          stage: "build",
+          awaiting: "andrew",
+          blocking: %{cmd: "mix test", tail: "1 failure"}
+        }
+      ]
+    }
+
+    text = data |> Leaves.render(@rect) |> lines() |> Enum.join("\n")
+
+    assert text =~ "tracked work"
+    assert text =~ "build"
+    assert text =~ "⏸ awaiting andrew"
+    assert text =~ "⚠ mix test — 1 failure"
+    refute text =~ "plain chat · ⏸"
+  end
 end

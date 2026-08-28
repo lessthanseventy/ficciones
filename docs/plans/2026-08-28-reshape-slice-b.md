@@ -33,3 +33,12 @@ Implementation: `Thread.promote_changeset/2` (sets stage "build" + slug, validat
 ### Task B5: gates
 
 `mise run check` + `mise run flake:check` (launch.sh changed → flake copies it? verify), fix fallout, commit residue.
+
+## Recorded residue (post-review)
+
+- A promoted thread's build brief points at `work/<slug>/spec.md`/`plan.md` and `advance`
+  out of build owes the `work/<slug>` branch — neither exists for a promoted chat thread,
+  so it parks at build until a branch appears. Deliberate cut: the promotion's value is the
+  ledger visibility; the artifact backfill belongs to a later slice.
+- Two bun cold-starts per PostToolUse (heartbeat + track hooks); fold into one dispatcher
+  if it ever shows up in tool-call latency.

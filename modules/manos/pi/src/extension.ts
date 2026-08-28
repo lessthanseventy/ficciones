@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { lastToolActivity, phraseHeartbeat, sawSuccessfulCommit } from "./activity.ts";
 import { renderBrief, type Dossier } from "./brief.ts";
-import { FunesClient, FunesUnreachable, type FunesConfig } from "./mcp.ts";
+import { FunesClient, FunesRejected, FunesUnreachable, type FunesConfig } from "./mcp.ts";
 import { detectCorrection } from "./recall.ts";
 import {
   buildExtractionPrompt,
@@ -283,8 +283,11 @@ export default function manos(pi: ExtensionAPI): void {
           await client.trackThread();
           threadTracked = true;
         }
-      } catch {
-        // best-effort
+      } catch (e) {
+        // A REFUSAL (e.g. the root machine thread — its standing coworkers commit constantly)
+        // latches too: retrying a doomed promote every turn_end forever helps no one. Only a
+        // transport failure (funes down) leaves the latch open for a later retry.
+        if (e instanceof FunesRejected) threadTracked = true;
       }
     }
     // Cadence capture (slice C): every Nth turn, flush the delta. Bounded input, so it never

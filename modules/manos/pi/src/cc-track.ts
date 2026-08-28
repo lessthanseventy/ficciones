@@ -21,15 +21,26 @@ export interface PostToolUseInput {
 }
 
 // The pure gate: a Bash tool call whose command is a commit invocation and whose response does
-// not read as a failure. Claude Code's Bash tool_response has no single error flag across
-// versions, so this checks the shapes that exist (`is_error`, `success: false`) and otherwise
-// assumes success — a false promote is idempotent and cheap; a missed one costs the workflow.
+// not read as a failure. Claude Code's Bash tool_response is `{stdout, stderr, interrupted, …}`
+// with no single error flag, so failure is inferred: an interrupt, an explicit flag where one
+// exists, or a stderr that names a git refusal. A wrong promote is NOT harmless (there is no
+// demote verb — a thread where nothing landed would be staged "build" forever), so refusal
+// shapes are checked first; only then does an unmarked response count as success.
+const FAILURE_STDERR = /nothing to commit|fatal:|error:|rejected|hook failed|no changes added/i;
+
 export function shouldTrack(input: PostToolUseInput): boolean {
   if (input.tool_name !== "Bash") return false;
   const cmd = (input.tool_input as Record<string, unknown> | null)?.["command"];
   if (typeof cmd !== "string" || !isCommitCommand(cmd)) return false;
   const response = input.tool_response as Record<string, unknown> | null;
-  if (response && (response["is_error"] === true || response["success"] === false)) return false;
+  if (!response) return true;
+  if (response["is_error"] === true || response["success"] === false) return false;
+  if (response["interrupted"] === true) return false;
+  // git writes "nothing to commit" to STDOUT and hook/ref refusals to STDERR — scan both.
+  for (const key of ["stderr", "stdout"]) {
+    const text = response[key];
+    if (typeof text === "string" && FAILURE_STDERR.test(text)) return false;
+  }
   return true;
 }
 

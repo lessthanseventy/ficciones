@@ -18,6 +18,8 @@
 
 Returns `[%{workspace: %{id, name}, threads: [...], crew: [...]}]` per world (oldest world first): threads = OPEN threads with that `world_id`, any scope, root flagged `root: true` and sorted first, then last-activity desc; each `%{id, title, root, stage, awaiting, lead, working, last_at}` (lead via `Channel.thread_lead/1`, working via `Funes.Presence.Thinking.thinking_for/1`, last_at = newest message created_at or thread created_at). crew = the world's roster entries with a `working` flag (any thinking declared by that name, `-machine` suffix tolerated). Tests: grouping, root-first ordering, stage riding through, working flags. Commit.
 
-### Task C3: `Aleph.Panel.Threads` replaces Leaves + Workline (TDD)
+### Task C3: ONE thread list — Leaves absorbs Workline (TDD)
 
-New panel module (THREADS): rows `▸/· title · stage-chip` with `⏸ awaiting x`, `⋯ working`, lead tag; pick → `{:focus_thread, id}`; hints j/k ⏎. Cockpit read `threads:` assembled from `Funes.Board.sidebar/0` filtered to the active world. `Space.space_from_world` right column becomes `[Health, Crew, Activity, Threads]`; delete `Panel.Leaves` + `Panel.Workline` + their view title entries + tests; update view/keymap/cockpit tests that index the carousel. Gates: `mise run check` + flake. Commit.
+*(Revised from "new Panel.Threads": Panel.Leaves already carries the attach/yank/reorder machinery slice D will replace wholesale — porting it into a transitional panel is waste. Unify the DATA instead.)*
+
+`Aleph.Orbis.rollup/0` stops rejecting staged threads; rows gain `stage`/`awaiting` (+ `blocking` from `Workline.Ledger.statuses/0`, guarded). `Panel.Leaves` renders the chips on rows that have them (`· <stage>`, `⏸ awaiting x`, `⚠ cmd — tail`) and its frame title becomes **THREADS** (view.ex). `Panel.Workline` dies: out of the Space carousel, module + tests deleted, cockpit `worklines:` read/state keys removed. Update orbis/leaves/view/keymap/cockpit tests. Gates: `mise run check` + flake. Commit.

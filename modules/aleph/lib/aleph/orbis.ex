@@ -23,12 +23,14 @@ defmodule Aleph.Orbis do
 
   @spec rollup() :: %{summary: map(), rows: [map()], worlds: [map()]} | nil
   def rollup do
+    # ONE list (reshape slice C): chat threads and tracked threads are the same kind of row —
+    # a tracked one carries stage/awaiting/blocking and the panel chips it. The old reject
+    # made worklines a parallel universe; that split is what let real work bypass the machine.
+    blocking = blocking_by_thread()
+
     rows =
       Channel.machine_threads()
-      # Worklines share the chat read-model but are WORK ITEMS, not coworker leaves — the
-      # survey's lead/status semantics were never theirs (they carry a stage instead).
-      |> Enum.reject(&Map.get(&1.thread, :stage))
-      |> Enum.map(&row(&1.thread))
+      |> Enum.map(&row(&1.thread, blocking))
       |> Enum.sort_by(&status_rank(&1.status))
 
     if rows == [], do: nil, else: %{summary: summarize(rows), rows: rows, worlds: worlds(rows)}
@@ -36,6 +38,15 @@ defmodule Aleph.Orbis do
     _ -> nil
   catch
     :exit, _ -> nil
+  end
+
+  # slug → not needed; keyed by thread id. Guarded like every funes gather here.
+  defp blocking_by_thread do
+    Map.new(Funes.Workline.Ledger.statuses(), &{&1.id, %{awaiting: &1.awaiting, blocking: &1.blocking}})
+  rescue
+    _ -> %{}
+  catch
+    :exit, _ -> %{}
   end
 
   @doc """
@@ -83,9 +94,10 @@ defmodule Aleph.Orbis do
     :exit, _ -> []
   end
 
-  defp row(thread) do
+  defp row(thread, blocking_by_thread) do
     scope = Funes.Board.in_scope(thread)
     conflicts = length(scope.blockers.shown) + scope.blockers.more + failed_checks(scope)
+    ledger = Map.get(blocking_by_thread, thread.id, %{})
 
     %{
       id: thread.id,
@@ -93,7 +105,10 @@ defmodule Aleph.Orbis do
       lead: scope.lead,
       status: status(thread.state, conflicts),
       conflicts: conflicts,
-      world_id: thread.world_id
+      world_id: thread.world_id,
+      stage: thread.stage,
+      awaiting: thread.awaiting,
+      blocking: Map.get(ledger, :blocking)
     }
   end
 

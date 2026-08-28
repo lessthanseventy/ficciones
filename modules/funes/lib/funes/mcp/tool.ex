@@ -1108,6 +1108,9 @@ defmodule Funes.MCP.Tool.TrackThread do
 
           {:error, :root_machine_thread} ->
             {:reply, Response.error(Response.tool(), "refused: the root machine thread is not a work item"), frame}
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
         end
     end
   end

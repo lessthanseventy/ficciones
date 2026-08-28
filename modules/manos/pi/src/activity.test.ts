@@ -164,29 +164,36 @@ describe("isCommitCommand — a real `git … commit` invocation (reshape slice 
     expect(isCommitCommand("git status")).toBe(false);
     expect(isCommitCommand("mix test")).toBe(false);
   });
+
+  test("commit inside a flag's VALUE does not match (the backtracking hole)", () => {
+    expect(isCommitCommand("git -c commit.gpgsign=false push")).toBe(false);
+    expect(isCommitCommand("git -c commit.gpgsign=false commit -m x")).toBe(true);
+  });
 });
 
-describe("sawSuccessfulCommit — a Bash commit tool_use with a non-error result", async () => {
+describe("sawSuccessfulCommit — a bash toolCall with a non-error toolResult (pi's NATIVE shape)", async () => {
   const { sawSuccessfulCommit } = await import("./activity.ts");
 
-  const bashUse = (id: string, command: string): Entry => ({
-    message: { role: "assistant", content: [{ type: "tool_use", id, name: "Bash", input: { command } }] },
+  // Fabricated to pi-ai's real Message types (toolCall blocks + whole toolResult messages) —
+  // a review caught an earlier cut fabricating the Anthropic wire format instead, which made
+  // the detector pass its tests while matching nothing live.
+  const bashCall = (id: string, command: string): Entry => ({
+    message: { role: "assistant", content: [{ type: "toolCall", id, name: "bash", arguments: { command } }] },
   });
-  const result = (tool_use_id: string, is_error?: boolean): Entry => ({
-    message: { role: "toolResult", content: [{ type: "tool_result", tool_use_id, is_error }] },
-  });
+  const result = (toolCallId: string, isError = false): Entry =>
+    ({ message: { role: "toolResult", toolCallId, isError, content: [] } }) as Entry;
 
   test("commit + ok result → true", () => {
-    expect(sawSuccessfulCommit([bashUse("t1", "git commit -m x"), result("t1")])).toBe(true);
+    expect(sawSuccessfulCommit([bashCall("t1", "git commit -m x"), result("t1")])).toBe(true);
   });
 
   test("commit whose result errored → false", () => {
-    expect(sawSuccessfulCommit([bashUse("t1", "git commit -m x"), result("t1", true)])).toBe(false);
+    expect(sawSuccessfulCommit([bashCall("t1", "git commit -m x"), result("t1", true)])).toBe(false);
   });
 
   test("non-commit tools and other results → false", () => {
-    expect(sawSuccessfulCommit([bashUse("t1", "mix test"), result("t1")])).toBe(false);
-    expect(sawSuccessfulCommit([bashUse("t1", "git commit -m x"), result("t9")])).toBe(false);
+    expect(sawSuccessfulCommit([bashCall("t1", "mix test"), result("t1")])).toBe(false);
+    expect(sawSuccessfulCommit([bashCall("t1", "git commit -m x"), result("t9")])).toBe(false);
     expect(sawSuccessfulCommit([])).toBe(false);
   });
 });
