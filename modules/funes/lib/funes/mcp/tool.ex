@@ -1060,8 +1060,15 @@ defmodule Funes.MCP.Tool.RemoveWorld do
         {:reply, Response.error(Response.tool(), "no such world: #{params[:name]}"), frame}
 
       world ->
-        {:ok, removed} = Worlds.remove(world)
-        {:reply, Response.json(Response.tool(), %{"removed" => removed.name}), frame}
+        case Worlds.remove(world) do
+          {:ok, removed} ->
+            {:reply, Response.json(Response.tool(), %{"removed" => removed.name}), frame}
+
+          {:error, :last_world} ->
+            {:reply,
+             Response.error(Response.tool(), "refused: #{world.name} is the last world — threads must have a home"),
+             frame}
+        end
     end
   end
 end

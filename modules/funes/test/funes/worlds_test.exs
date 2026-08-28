@@ -65,14 +65,25 @@ defmodule Funes.WorldsTest do
   end
 
   describe "remove/1" do
-    test "deletes the world and announces" do
+    test "deletes the world, rehouses its threads in the oldest remaining, announces" do
       Bus.subscribe_worlds()
-      {:ok, world} = Worlds.register(%{name: "Tlön"})
+      {:ok, keep} = Worlds.register(%{name: "keep"})
+      {:ok, doomed} = Worlds.register(%{name: "doomed"})
+      {:ok, thread} = Funes.Channel.open_thread(%{title: "tenant"})
+      Funes.Repo.update_all(Funes.Thread, set: [world_id: doomed.id])
 
-      {:ok, _} = Worlds.remove(world)
+      {:ok, _} = Worlds.remove(doomed)
 
-      assert Worlds.get(world.id) == nil
+      assert Worlds.get(doomed.id) == nil
+      assert Funes.Repo.get(Funes.Thread, thread.id).world_id == keep.id
       assert_receive {:world_removed, %World{}}
+    end
+
+    test "the last world is refused — threads must always have a home" do
+      {:ok, only} = Worlds.register(%{name: "only"})
+
+      assert {:error, :last_world} = Worlds.remove(only)
+      assert Worlds.get(only.id)
     end
   end
 end

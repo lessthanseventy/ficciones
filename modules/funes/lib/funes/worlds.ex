@@ -32,8 +32,28 @@ defmodule Funes.Worlds do
     world |> World.edit_changeset(attrs) |> Repo.update() |> Bus.announce(:world_edited)
   end
 
-  @doc "Remove a world. `{:ok, world}` or `{:error, changeset}`."
+  @doc """
+  Remove a world. Its threads are rehoused in the oldest remaining world first —
+  a remove must never orphan a thread's `world_id` (the pre-integrity version did,
+  and the dangling refs surfaced as phantom workspaces). The last world is refused
+  (`{:error, :last_world}`): threads always have a home.
+  """
   def remove(%World{} = world) do
-    world |> Repo.delete() |> Bus.announce(:world_removed)
+    heir = Repo.one(from w in World, where: w.id != ^world.id, order_by: [asc: w.id], limit: 1)
+
+    if heir do
+      {:ok, result} =
+        Repo.transaction(fn ->
+          Repo.update_all(from(t in Funes.Thread, where: t.world_id == ^world.id),
+            set: [world_id: heir.id]
+          )
+
+          Repo.delete(world)
+        end)
+
+      Bus.announce(result, :world_removed)
+    else
+      {:error, :last_world}
+    end
   end
 end

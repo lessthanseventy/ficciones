@@ -115,12 +115,22 @@ defmodule Funes.MCP.WorldToolsTest do
 
   describe "remove_world" do
     test "deletes a world by name" do
+      {:ok, _} = Worlds.register(%{name: "keep"})
       {:ok, _} = Worlds.register(%{name: "Tlön"})
 
       {:reply, resp, _} = Tool.RemoveWorld.execute(%{name: "Tlön"}, @frame)
       refute resp.isError
       assert json(resp)["removed"] == "Tlön"
       assert Worlds.by_name("Tlön") == nil
+    end
+
+    test "the last world is refused, as a tool error" do
+      {:ok, _} = Worlds.register(%{name: "only"})
+
+      {:reply, resp, _} = Tool.RemoveWorld.execute(%{name: "only"}, @frame)
+      assert resp.isError
+      assert error_text(resp) =~ "last world"
+      assert Worlds.by_name("only")
     end
 
     test "a missing world is an error" do
