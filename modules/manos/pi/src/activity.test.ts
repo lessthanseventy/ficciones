@@ -147,3 +147,46 @@ describe("nextHeartbeatState / heartbeatDue — the cross-process cadence gate (
     expect(heartbeatDue(1_000, 1_000 + 45_000, 45_000)).toBe(true);
   });
 });
+
+describe("isCommitCommand — a real `git … commit` invocation (reshape slice B)", async () => {
+  const { isCommitCommand } = await import("./activity.ts");
+
+  test("plain and flagged commit forms match", () => {
+    expect(isCommitCommand("git commit -m 'fix'")).toBe(true);
+    expect(isCommitCommand("git -C /repo commit --amend")).toBe(true);
+    expect(isCommitCommand("git add -A && git commit -F msg.txt")).toBe(true);
+    expect(isCommitCommand("cd x; git commit -m x")).toBe(true);
+  });
+
+  test("commit as a mere word does not match", () => {
+    expect(isCommitCommand("git log --oneline | grep commit")).toBe(false);
+    expect(isCommitCommand("grep -rn commit lib/")).toBe(false);
+    expect(isCommitCommand("git status")).toBe(false);
+    expect(isCommitCommand("mix test")).toBe(false);
+  });
+});
+
+describe("sawSuccessfulCommit — a Bash commit tool_use with a non-error result", async () => {
+  const { sawSuccessfulCommit } = await import("./activity.ts");
+
+  const bashUse = (id: string, command: string): Entry => ({
+    message: { role: "assistant", content: [{ type: "tool_use", id, name: "Bash", input: { command } }] },
+  });
+  const result = (tool_use_id: string, is_error?: boolean): Entry => ({
+    message: { role: "toolResult", content: [{ type: "tool_result", tool_use_id, is_error }] },
+  });
+
+  test("commit + ok result → true", () => {
+    expect(sawSuccessfulCommit([bashUse("t1", "git commit -m x"), result("t1")])).toBe(true);
+  });
+
+  test("commit whose result errored → false", () => {
+    expect(sawSuccessfulCommit([bashUse("t1", "git commit -m x"), result("t1", true)])).toBe(false);
+  });
+
+  test("non-commit tools and other results → false", () => {
+    expect(sawSuccessfulCommit([bashUse("t1", "mix test"), result("t1")])).toBe(false);
+    expect(sawSuccessfulCommit([bashUse("t1", "git commit -m x"), result("t9")])).toBe(false);
+    expect(sawSuccessfulCommit([])).toBe(false);
+  });
+});

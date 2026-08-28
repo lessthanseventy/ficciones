@@ -131,3 +131,46 @@ export function nextHeartbeatState(
 export function heartbeatDue(anchor: number, now: number, minIntervalMs: number): boolean {
   return now - anchor >= minIntervalMs;
 }
+
+// --- auto-track (reshape slice B): the ticket condenses out of the work -------------------
+
+// A real `git … commit` invocation at the start of a command (or after && / ; / || / newline),
+// tolerating git's own pre-subcommand flags (-C path, --no-pager, …). A "commit" that is merely
+// a word in some other command (grep, log) never matches. Deliberately not quote-aware — an
+// echoed "git commit" is vanishingly rare, and the server-side promote is idempotent.
+const COMMIT_RE = /(^|&&|\|\||;|\n)\s*git\s+(?:-{1,2}[^\s]+(?:\s+\S+)?\s+)*commit\b/;
+
+export function isCommitCommand(command: string): boolean {
+  return COMMIT_RE.test(command);
+}
+
+// Did this turn land a commit? A Bash tool_use whose command is a commit invocation, with a
+// matching tool_result that did not error. The extension calls track_thread when this flips —
+// mechanically, no LLM — so an untracked chat thread becomes a tracked one the moment real
+// work lands on it.
+export function sawSuccessfulCommit(entries: Entry[]): boolean {
+  const commitIds = new Set<string>();
+  for (const e of entries) {
+    const content = e.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const raw of content) {
+      const b = raw as {
+        type?: string;
+        id?: string;
+        name?: string;
+        input?: unknown;
+        tool_use_id?: string;
+        is_error?: boolean;
+      } | null;
+      if (!b) continue;
+      if (b.type === "tool_use" && typeof b.name === "string" && b.name.toLowerCase() === "bash") {
+        const cmd = (b.input as Record<string, unknown> | null)?.["command"];
+        if (typeof cmd === "string" && isCommitCommand(cmd) && typeof b.id === "string") commitIds.add(b.id);
+      }
+      if (b.type === "tool_result" && b.is_error !== true && typeof b.tool_use_id === "string" && commitIds.has(b.tool_use_id)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
