@@ -6,9 +6,11 @@ defmodule Aleph.Panel.Conversation do
   chat view (Tab) — the only difference is the rect it's handed. Re-renders on the thread topic.
 
   Data is `%{title: String.t() | nil, messages: [%Funes.Message{}]}`, optionally with
-  `thinking`/`working` agent lists (the focused thread's presence) rendered as a trailing
-  `⋯ <agent> is thinking…` indicator — thinking counts as working, so the explicit declare
-  (accent) outranks the tmux-activity inference (dim).
+  `thinking`/`working` (the focused thread's presence) rendered as a trailing indicator —
+  thinking counts as working, so the explicit declare (accent) outranks the tmux-activity
+  inference (dim). `thinking` is `[{agent, elapsed_s}]` — `⋯ <agent> is thinking… (3m12s)` —
+  so a long single turn visibly counts up instead of sitting on a static word that reads as
+  frozen (funes thread #3); `working` stays a bare name list (no start timestamp to show).
 
   A message carrying `attachment: %{w, h}` renders `Aleph.Graphics.placeholder/2` after its
   body (design 2026-08-23 §Images) — the seam's proof, not a feature. Funes doesn't emit
@@ -47,7 +49,7 @@ defmodule Aleph.Panel.Conversation do
 
   defp presence_rows(data) do
     rows =
-      Enum.map(data[:thinking] || [], &line("⋯ #{&1} is thinking…", :accent)) ++
+      Enum.map(data[:thinking] || [], &thinking_row/1) ++
         Enum.map(data[:working] || [], &line("⋯ #{&1} is working…", :dim))
 
     case rows do
@@ -55,6 +57,11 @@ defmodule Aleph.Panel.Conversation do
       rows -> [blank() | rows]
     end
   end
+
+  # `elapsed_s` (now - the declare's started_at) is the trust signal (funes thread #3): a
+  # coworker stuck on "thinking" through a long single turn must visibly count up, not sit on
+  # a static word that reads as frozen.
+  defp thinking_row({agent, elapsed_s}), do: line("⋯ #{agent} is thinking… (#{Aleph.Text.duration(elapsed_s)})", :accent)
 
   defp head_label(nil), do: "CHAT"
   defp head_label(title), do: "CHAT · #{title}"

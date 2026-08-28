@@ -51,26 +51,26 @@ defmodule Aleph.Panel.ConversationTest do
     refute text =~ "working"
   end
 
-  test "a thinking agent renders an accent indicator after the messages" do
+  test "a thinking agent renders an accent indicator with its ticking elapsed time" do
     rows =
       Conversation.render(
-        %{title: "t", messages: [%{author: "hronir", body: "hi"}], thinking: ["tertius"], working: []},
+        %{title: "t", messages: [%{author: "hronir", body: "hi"}], thinking: [{"tertius", 192}], working: []},
         @rect
       )
 
-    assert rows |> lines() |> Enum.join("\n") =~ "⋯ tertius is thinking…"
+    assert rows |> lines() |> Enum.join("\n") =~ "⋯ tertius is thinking… (3m12s)"
     assert style_of(rows, "is thinking") == :accent
   end
 
   test "a working (tmux-inferred) agent renders dim; both can show at once" do
     rows =
       Conversation.render(
-        %{title: "t", messages: [], thinking: ["tertius"], working: ["hronir"]},
+        %{title: "t", messages: [], thinking: [{"tertius", 5}], working: ["hronir"]},
         @rect
       )
 
     text = rows |> lines() |> Enum.join("\n")
-    assert text =~ "⋯ tertius is thinking…"
+    assert text =~ "⋯ tertius is thinking… (5s)"
     assert text =~ "⋯ hronir is working…"
     assert style_of(rows, "is working") == :dim
   end

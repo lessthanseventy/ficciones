@@ -1635,8 +1635,11 @@ defmodule Aleph.Cockpit do
   defp presence_read(_state, nil, _machine), do: %{thinking: [], working: []}
 
   defp presence_read(state, focused, machine) do
-    thinking = state.thinking |> Map.get(focused.id, %{}) |> Map.keys() |> Enum.sort()
-    %{thinking: thinking, working: working_lead(machine, focused, thinking)}
+    declared = Map.get(state.thinking, focused.id, %{})
+    names = declared |> Map.keys() |> Enum.sort()
+    now = System.os_time(:second)
+    thinking = Enum.map(names, &{&1, max(now - declared[&1], 0)})
+    %{thinking: thinking, working: working_lead(machine, focused, names)}
   end
 
   defp working_lead(%{tabs: tabs}, focused, thinking) do
