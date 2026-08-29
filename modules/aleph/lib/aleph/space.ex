@@ -67,7 +67,7 @@ defmodule Aleph.Space do
   defp orbis_space do
     %__MODULE__{
       key: :orbis,
-      label: "Orbis",
+      label: "Home",
       # The chorus IS the center now, so thread navigation lives in the feed (the focused
       # thread's block is highlighted) and the left carries presence (IN FLIGHT) instead of a
       # list the middle already shows. TRIAGE below IN FLIGHT shows cross-thread trouble.

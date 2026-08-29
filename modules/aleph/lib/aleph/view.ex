@@ -209,7 +209,7 @@ defmodule Aleph.View do
   defp section_title(Panel.Activity), do: "ACTIVITY"
   # THREADS since reshape slice C: chat + tracked threads are ONE list; stage rides as a chip.
   defp section_title(Panel.Leaves), do: "THREADS"
-  defp section_title(Panel.Roster), do: "IN FLIGHT"
+  defp section_title(Panel.Roster), do: "ACTIVE"
   defp section_title(Panel.Triage), do: "TRIAGE"
   defp section_title(Panel.Brief), do: "BRIEF"
   defp section_title(_section), do: nil

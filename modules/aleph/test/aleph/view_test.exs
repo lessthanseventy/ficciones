@@ -523,7 +523,7 @@ defmodule Aleph.ViewTest do
 
     test "orbis boxes are titled too (shared pieces inherit)" do
       placements = View.compose(reads(%{active_key: :orbis, focus: nil}), 120, 40)
-      assert border_of(placements, "IN FLIGHT")
+      assert border_of(placements, "ACTIVE")
       assert border_of(placements, "BRIEF")
     end
   end
