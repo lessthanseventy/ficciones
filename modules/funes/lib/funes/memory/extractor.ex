@@ -1,23 +1,23 @@
-defmodule Funes.Memory.Extractor do
+defmodule Server.Memory.Extractor do
   @moduledoc """
   The turn-pass extraction seam: completed-turn messages + the thread's existing facts →
   0..3 durable fact candidates. A behaviour so the pass tests with a stub and the adapter
   (model, CLI) stays configuration.
   """
 
-  @callback extract(messages :: [Funes.Message.t()], existing_facts :: [Funes.Fact.t()]) ::
+  @callback extract(messages :: [Server.Message.t()], existing_facts :: [Server.Fact.t()]) ::
               {:ok, [%{required(:kind) => String.t(), required(:text) => String.t(), optional(:intent) => String.t()}]}
               | {:error, term()}
 end
 
-defmodule Funes.Memory.Extractor.Claude do
+defmodule Server.Memory.Extractor.Claude do
   @moduledoc """
   Extraction over a headless CLI — command and model are configuration, not design
-  (`config :funes, memory_extractor_cmd: ..., memory_extractor_model: ...`; defaults
+  (`config :server, memory_extractor_cmd: ..., memory_extractor_model: ...`; defaults
   `claude`/`haiku` — the cheap tier, per the routing rule).
   """
 
-  @behaviour Funes.Memory.Extractor
+  @behaviour Server.Memory.Extractor
 
   @contract """
   You extract DURABLE knowledge from an agent conversation turn. From the messages below,
@@ -37,14 +37,14 @@ defmodule Funes.Memory.Extractor.Claude do
         "\n\nMESSAGES:\n" <>
         Enum.map_join(messages, "\n", &"#{&1.author}: #{&1.body}")
 
-    with {:ok, out} <- Funes.ModelCli.prompt(prompt, :memory_extractor_cmd, :memory_extractor_model) do
+    with {:ok, out} <- Server.ModelCli.prompt(prompt, :memory_extractor_cmd, :memory_extractor_model) do
       parse(out)
     end
   end
 
   @doc false
   def parse(out) do
-    case Funes.JsonBlob.first_valid(out, &shape/1) do
+    case Server.JsonBlob.first_valid(out, &shape/1) do
       nil -> {:error, {:unparseable_extraction, String.slice(out, 0, 200)}}
       facts -> {:ok, facts}
     end

@@ -1,10 +1,10 @@
-defmodule Aleph.Panel.ActivityTest do
+defmodule Console.Panel.ActivityTest do
   # The funes activity feed (Tlön right sidebar): one row per buffered `{tag, row}` Bus event,
-  # newest-first, colored by `Aleph.Style`'s semantic event styles. Headless: pins the
+  # newest-first, colored by `Console.Style`'s semantic event styles. Headless: pins the
   # event → styled-row mapping (`summarize/1`, shared with the footer pulse) without a TTY.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Activity
+  alias Console.Panel.Activity
 
   @rect %{x: 0, y: 0, w: 80, h: 100}
 

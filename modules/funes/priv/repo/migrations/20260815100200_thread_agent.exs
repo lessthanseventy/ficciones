@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.ThreadAgent do
+defmodule Server.Repo.Migrations.ThreadAgent do
   use Ecto.Migration
 
   # 006 thread.agent_id (aleph §3, §9.3). A thread has 0..1 agent — staffing a

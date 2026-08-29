@@ -1,4 +1,4 @@
-defmodule Funes.Secrets do
+defmodule Server.Secrets do
   @moduledoc """
   A conservative secret scanner for the write path (total-recall slice B): it refuses to let the
   ledger store an obvious credential, so the durable memory — and the automated capture that will

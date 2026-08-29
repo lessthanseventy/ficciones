@@ -1,13 +1,13 @@
-defmodule Aleph.Panel.SidebarTest do
+defmodule Console.Panel.SidebarTest do
   @moduledoc """
   The Slack-shaped left sidebar (reshape slice D): Home, then one group per workspace —
   its unified thread list (working/stage/awaiting chips) and its crew with presence —
-  rendered over `Funes.Board.sidebar/0`'s read. Replaces the SPACES picker: workspace
+  rendered over `Server.Board.sidebar/0`'s read. Replaces the SPACES picker: workspace
   headers ARE the space nav (click/Enter switches), threads focus on click.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Sidebar
+  alias Console.Panel.Sidebar
 
   defp text(row), do: Enum.map_join(row, fn {t, _style} -> t end)
   defp texts(rows), do: Enum.map(rows, &text/1)

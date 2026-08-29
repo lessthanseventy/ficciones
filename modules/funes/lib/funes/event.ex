@@ -1,4 +1,4 @@
-defmodule Funes.Event do
+defmodule Server.Event do
   @moduledoc """
   Append-only, what happened — for happenings with **no other home** (spec §4).
   The closed `kind` the DB CHECKs is the outcomes and
@@ -16,9 +16,9 @@ defmodule Funes.Event do
   schema "event" do
     field :kind, :string
     field :correlation, :string
-    field :detail, Funes.JSONColumn
+    field :detail, Server.JSONColumn
     field :created_at, :utc_datetime
-    belongs_to :thread, Funes.Thread
+    belongs_to :thread, Server.Thread
   end
 
   @doc """

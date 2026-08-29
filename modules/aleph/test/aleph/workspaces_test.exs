@@ -1,40 +1,40 @@
-defmodule Aleph.WorkspacesDownTest do
+defmodule Console.WorkspacesDownTest do
   @moduledoc """
   The funes-down guard (Task B1), isolated from the DB suite below: aleph's test env
-  keeps funes' Repo DOWN (config/test.exs `start_repo: false`), so `Funes.Workspaces.all/0`
-  raises here. `Aleph.Workspaces` must swallow that at init and serve `[]` — proving a funes
+  keeps funes' Repo DOWN (config/test.exs `start_repo: false`), so `Server.Workspaces.all/0`
+  raises here. `Console.Workspaces` must swallow that at init and serve `[]` — proving a funes
   hiccup can never crash aleph boot. No Repo is started, so nothing to tear down.
   """
   use ExUnit.Case, async: false
 
   test "funes down at init is swallowed → [] (aleph boot never crashes)" do
     name = :"workspaces_down_#{System.unique_integer([:positive])}"
-    {:ok, pid} = Aleph.Workspaces.start_link(name: name)
+    {:ok, pid} = Console.Workspaces.start_link(name: name)
     on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
 
-    assert Aleph.Workspaces.all(pid) == []
+    assert Console.Workspaces.all(pid) == []
   end
 end
 
-defmodule Aleph.WorkspacesTest do
+defmodule Console.WorkspacesTest do
   @moduledoc """
-  The `Aleph.Workspaces` cache (workspaces/orbis Slice 1, Task B1): an event-driven read of
+  The `Console.Workspaces` cache (workspaces/orbis Slice 1, Task B1): an event-driven read of
   funes' `workspace` table, so the per-render hot paths (`Space.all/0`, the survey) hit a
   cached list instead of the DB every frame. funes runs in-process in aleph, so we drive
-  the real `Funes.Workspaces`/`Funes.Bus` — but aleph's test env keeps funes' Repo DOWN
+  the real `Server.Workspaces`/`Server.Bus` — but aleph's test env keeps funes' Repo DOWN
   (config/test.exs `start_repo: false`), so this suite boots the Repo itself, mirroring
   funes' own test_helper. It is the only aleph suite that touches the DB → `async: false`.
   """
   use ExUnit.Case, async: false
 
   alias Ecto.Adapters.SQLite3
-  alias Funes.Repo
-  alias Funes.Workspace
-  alias Funes.Workspaces
+  alias Server.Repo
+  alias Server.Workspace
+  alias Server.Workspaces
 
   setup_all do
     db = Path.join(System.tmp_dir!(), "aleph_workspaces_test_#{System.unique_integer([:positive])}.db")
-    Application.put_env(:funes, Repo, Keyword.merge(Application.get_env(:funes, Repo, []), database: db, pool_size: 1))
+    Application.put_env(:server, Repo, Keyword.merge(Application.get_env(:server, Repo, []), database: db, pool_size: 1))
 
     config = Repo.config()
     _ = SQLite3.storage_down(config)
@@ -59,7 +59,7 @@ defmodule Aleph.WorkspacesTest do
   # An isolated cache instance (the app already supervises one under the module name).
   defp start_workspaces do
     name = :"workspaces_#{System.unique_integer([:positive])}"
-    {:ok, pid} = Aleph.Workspaces.start_link(name: name)
+    {:ok, pid} = Console.Workspaces.start_link(name: name)
     on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
     pid
   end
@@ -76,7 +76,7 @@ defmodule Aleph.WorkspacesTest do
 
     pid = start_workspaces()
 
-    assert [workspace] = Aleph.Workspaces.all(pid)
+    assert [workspace] = Console.Workspaces.all(pid)
 
     assert workspace == %{
              id: registered.id,
@@ -93,24 +93,24 @@ defmodule Aleph.WorkspacesTest do
 
     pid = start_workspaces()
 
-    assert [%{id: id, name: "Test"}] = Aleph.Workspaces.all(pid)
+    assert [%{id: id, name: "Test"}] = Console.Workspaces.all(pid)
     assert id == w.id
   end
 
   test "a :workspace_registered Bus event refreshes the cache" do
     pid = start_workspaces()
-    assert Aleph.Workspaces.all(pid) == []
+    assert Console.Workspaces.all(pid) == []
 
     # register/1 announces on the workspaces topic; the cache is subscribed and reloads.
     # FIFO mailbox: the broadcast lands before the following all/0 call, so no sleep.
     {:ok, _} = Workspaces.register(%{name: "Orbis", type: "code"})
 
-    assert [%{name: "Orbis"}] = Aleph.Workspaces.all(pid)
+    assert [%{name: "Orbis"}] = Console.Workspaces.all(pid)
   end
 
   test "all/0 serves the cache, not a live DB read: a direct insert stays invisible until its event lands" do
     pid = start_workspaces()
-    assert Aleph.Workspaces.all(pid) == []
+    assert Console.Workspaces.all(pid) == []
 
     # Insert straight through the Repo, BYPASSING Workspaces.register/1 so NO :workspace_registered
     # is announced. A naive per-call live read would see this row; a genuine cache does not.
@@ -118,17 +118,17 @@ defmodule Aleph.WorkspacesTest do
 
     # Still stale — the row is in the DB but the cache never re-read it on the call.
     # This assertion is what distinguishes a cache from a live read: a live read fails here.
-    assert Aleph.Workspaces.all(pid) == []
+    assert Console.Workspaces.all(pid) == []
 
     # Deliver the event the real write pipe (Workspaces.register/1) would have broadcast. FIFO
     # mailbox: this handle_info runs before the following all/0 call, so no sleep is needed.
     # The cache refreshes ONLY now → the EVENT, not the call, drives the reload.
     send(pid, {:workspace_registered, ghost})
-    assert [%{name: "Ghost"}] = Aleph.Workspaces.all(pid)
+    assert [%{name: "Ghost"}] = Console.Workspaces.all(pid)
   end
 
   test "no workspaces → []" do
     pid = start_workspaces()
-    assert Aleph.Workspaces.all(pid) == []
+    assert Console.Workspaces.all(pid) == []
   end
 end

@@ -1,8 +1,8 @@
-defmodule Aleph.Transcript do
+defmodule Console.Transcript do
   @moduledoc """
-  The Tlön machine-chat renderer — machine-scope threads (`Funes.Channel.machine_threads/1`) as
+  The Tlön machine-chat renderer — machine-scope threads (`Server.Channel.machine_threads/1`) as
   **foldable blocks**, each with its messages turn-grouped Slack-style. A pure
-  `view_state → [row]` function in the `Aleph.Panel` row model (`{text, style}` runs), so it is
+  `view_state → [row]` function in the `Console.Panel` row model (`{text, style}` runs), so it is
   headlessly testable and slots straight into the cockpit as a panel (the same renderer the Tlön
   `chat` tab drives via db-polling — the "one renderer, two surfaces" seam).
 
@@ -19,18 +19,18 @@ defmodule Aleph.Transcript do
   Each author gets a stable truecolor (`{:rgb, fg, bg}` run style) so a speaker is scannable down
   the column — known coworkers hand-picked, any other voice hashed onto the palette.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Console.Panel, only: [line: 2, blank: 0]
 
-  alias Aleph.Panel
+  alias Console.Panel
 
   # A spread of distinct truecolor foregrounds for unknown/hashed voices, plus hand-picked slots
   # for the known coworkers — carried in spirit from the Pass 1 stream palette.
   @palette [0x5FAFFF, 0xFFAF5F, 0x87FF87, 0xFF87D7, 0xD7AFFF, 0x5FD7D7, 0xFFD75F, 0xFF8787]
   # claude-machine kept alongside hronir-machine (its C2.3 rename) — old thread history still
   # colors correctly.
-  # The operator is NOT here: `Funes.Channel.operator?/1` routes them to `:operator` pink first.
+  # The operator is NOT here: `Server.Channel.operator?/1` routes them to `:operator` pink first.
   @known %{
     "tertius-machine" => 0xFF87D7,
     "hronir-machine" => 0x5FD7FF,
@@ -159,7 +159,7 @@ defmodule Aleph.Transcript do
   end
 
   # The operator's messages read pink whole (`:operator`); agents keep the green body.
-  defp body_style(author), do: if(Funes.Channel.operator?(author), do: :operator, else: :normal)
+  defp body_style(author), do: if(Server.Channel.operator?(author), do: :operator, else: :normal)
 
   # A turn header: the coloured author name, a gap, then a dim `HH:MM`.
   defp header_row(author, at), do: [{author, author_style(author)}, {"  ", :dim}, {time(at), :dim}]
@@ -170,7 +170,7 @@ defmodule Aleph.Transcript do
     width = max(w - 2, 1)
 
     (body || "")
-    |> Aleph.Text.wrap_paragraphs(width)
+    |> Console.Text.wrap_paragraphs(width)
     |> Enum.map(&indent_row(&1, style))
   end
 
@@ -201,11 +201,11 @@ defmodule Aleph.Transcript do
   # A stable per-author truecolor run style: the operator reads `:operator` pink, a known
   # coworker its hand-picked slot, any other voice a hash onto the palette so it keeps its colour.
   defp author_style(author) do
-    if Funes.Channel.operator?(author) do
+    if Server.Channel.operator?(author) do
       :operator
     else
       fg = Map.get_lazy(@known, author, fn -> Enum.at(@palette, rem(:erlang.phash2(author), length(@palette))) end)
-      {:rgb, fg, Aleph.Style.bg()}
+      {:rgb, fg, Console.Style.bg()}
     end
   end
 

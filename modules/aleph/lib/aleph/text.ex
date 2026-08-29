@@ -1,4 +1,4 @@
-defmodule Aleph.Text do
+defmodule Console.Text do
   @moduledoc "Tiny text helpers for panels: greedy word-wrap to a column width."
 
   @doc """
@@ -55,7 +55,7 @@ defmodule Aleph.Text do
 
   @doc """
   A ticking elapsed-time label: `"45s"` under a minute, `"3m12s"` under an hour, `"1h05m"`
-  beyond — deliberately sub-minute-precise (unlike `Aleph.Stack.relative_time/2`'s "5 minutes
+  beyond — deliberately sub-minute-precise (unlike `Console.Stack.relative_time/2`'s "5 minutes
   ago" bucketing) so a presence indicator visibly counts up between renders instead of reading
   as frozen. Negative input (clock skew) clamps to `"0s"`.
   """

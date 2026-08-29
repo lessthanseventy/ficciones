@@ -1,7 +1,7 @@
-defmodule Aleph.Application do
+defmodule Console.Application do
   @moduledoc """
   aleph's OTP entrypoint. Supervises the session layer — a `DynamicSupervisor` for the embedded
-  session terminals (`Aleph.Terminal`) and the `Aleph.Sessions` registry over it — so a session
+  session terminals (`Console.Terminal`) and the `Console.Sessions` registry over it — so a session
   outlives a render and a crash never takes the cockpit down. The cockpit itself grabs the TTY and
   is NOT supervised here (it runs only under `mix aleph.run`).
   """
@@ -11,11 +11,11 @@ defmodule Aleph.Application do
   def start(_type, _args) do
     children =
       [
-        {DynamicSupervisor, name: Aleph.TerminalSup, strategy: :one_for_one},
-        Aleph.Sessions
+        {DynamicSupervisor, name: Console.TerminalSup, strategy: :one_for_one},
+        Console.Sessions
       ] ++ maybe_workspaces()
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: Aleph.Supervisor)
+    Supervisor.start_link(children, strategy: :one_for_one, name: Console.Supervisor)
   end
 
   # Event-driven cache of funes' workspaces so the per-render picker/survey never hit the DB. Gated
@@ -24,6 +24,6 @@ defmodule Aleph.Application do
   # pure-render tests. With it unstarted, fetch_workspaces/0 degrades to [] → the deterministic Tlön
   # fallback the render tests rely on.
   defp maybe_workspaces do
-    if Application.get_env(:aleph, :start_workspaces, true), do: [Aleph.Workspaces], else: []
+    if Application.get_env(:console, :start_workspaces, true), do: [Console.Workspaces], else: []
   end
 end

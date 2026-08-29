@@ -11,37 +11,37 @@ if config_env() != :test do
   database = System.get_env("FUNES_DB") || Path.join([data_home, "funes", "wb.db"])
   File.mkdir_p!(Path.dirname(database))
 
-  config :funes, Funes.Repo, database: database
+  config :server, Server.Repo, database: database
 end
 
-# Where workline artifact checks run git (`Funes.Workline.Artifacts.Git`) — the workspace's
+# Where workline artifact checks run git (`Server.Workline.Artifacts.Git`) — the workspace's
 # checkout. Unset → cwd, right for dev shells, WRONG for a release whose cwd is elsewhere
 # (the checker then reports the environment fault, not a fake "not committed").
 if root = System.get_env("FUNES_WORKLINE_ROOT") do
-  config :funes, workline_root: root
+  config :server, workline_root: root
 end
 
 # The Maintain monitor (worklines slice 6) is opt-in the same way: control-band sweeps that
 # nag stale gates and flag stalled worklines as gated machine-born intents.
-config :funes, maintain: System.get_env("FUNES_MAINTAIN") in ~w(1 true yes)
+config :server, maintain: System.get_env("FUNES_MAINTAIN") in ~w(1 true yes)
 
 # The post-response memory pass (worklines slice 5) is opt-in: presence_idle → cheap
 # extractor → banked facts. Off by default so a dev shell never shells a model unasked.
-config :funes, memory_pass: System.get_env("FUNES_MEMORY_PASS") in ~w(1 true yes)
+config :server, memory_pass: System.get_env("FUNES_MEMORY_PASS") in ~w(1 true yes)
 
 # The operator's handle — who the human IS on this machine's channel. Local
 # configuration, never identity in the design (§8); the same default aleph uses.
 # `Dossier.bank_stated_fact` trusts only this author for `stated` provenance.
-config :funes, operator: System.get_env("FUNES_OPERATOR") || "andrew"
+config :server, operator: System.get_env("FUNES_OPERATOR") || "andrew"
 
 # The sovereign channel is opt-in (pi doc §2a): a node that serves agents flips it on.
 # `mise run funes:serve` sets FUNES_START_MCP=1 so a hand-spawned pi pane has something to
 # register with. Guarded out of :test — the suite owns its own MCP lifecycle on its own
 # port, and this guard means a stray FUNES_START_MCP=1 in a dev shell can't bind Bandit
-# during `mix test`. The port is loopback-only (Funes.Application); FUNES_MCP_PORT lets a
+# during `mix test`. The port is loopback-only (Server.Application); FUNES_MCP_PORT lets a
 # second node avoid a clash.
 if config_env() != :test do
-  config :funes,
+  config :server,
     start_mcp: System.get_env("FUNES_START_MCP") in ~w(1 true yes),
     mcp_port: String.to_integer(System.get_env("FUNES_MCP_PORT") || "4040")
 end

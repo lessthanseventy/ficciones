@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.SessionOneLivePerThreadAgent do
+defmodule Server.Repo.Migrations.SessionOneLivePerThreadAgent do
   use Ecto.Migration
 
   # 015 the zombie guard (pi doc §4c.2). A crashed agent leaves `ended_at` NULL —

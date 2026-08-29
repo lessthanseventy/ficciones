@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.Stack do
+defmodule Console.Panel.Stack do
   @moduledoc """
   STACK — the machine's own changelog for the Tlön space: the current branch with tracking
   status, working-tree summary, recent `ficciones` commits (newest first), and the files that
@@ -18,18 +18,18 @@ defmodule Aleph.Panel.Stack do
   human's git identity every dogfood commit is pushed under — a plain human commit (no trailer)
   shows the git author instead, in label amber.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, rule: 1]
+  import Console.Panel, only: [line: 2, rule: 1]
 
   # Author column width: enough for "Claude Opus 4.8" (a full model name) without ragging the
   # relative-time column too far right on a narrow panel.
   @author_col 16
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(
         %{branch: branch, dirty: dirty, ahead: ahead, behind: behind, status_summary: summary, commits: commits} = data,
         rect
@@ -56,7 +56,7 @@ defmodule Aleph.Panel.Stack do
 
     rows = branch_section ++ divider ++ commits_section ++ files_section
 
-    Aleph.Panel.clip(rows, rect)
+    Console.Panel.clip(rows, rect)
   end
 
   defp status_rows(nil), do: []
@@ -120,7 +120,7 @@ defmodule Aleph.Panel.Stack do
 
   defp file_row(path), do: [{"  ", :dim}, {path, :normal}]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def hints(_data), do: [{"j/k", "commits"}, {"⏎", "diff"}, {"y", "sha"}]
 
   @doc "The semantic yank for the cursor row: the full sha."

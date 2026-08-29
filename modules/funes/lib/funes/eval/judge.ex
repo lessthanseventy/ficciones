@@ -1,4 +1,4 @@
-defmodule Funes.Eval.Judge do
+defmodule Server.Eval.Judge do
   @moduledoc """
   The judge seam: score an eval prompt 1–5 per dimension with a rationale. A behaviour so
   the runner tests with a stub and the adapter (model, CLI, transport) swaps freely.

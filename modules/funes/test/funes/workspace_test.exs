@@ -1,14 +1,14 @@
-defmodule Funes.WorkspaceTest do
-  # `Funes.Workspace` schema + changesets (workspaces/orbis Slice 1). The DB is the guard
+defmodule Server.WorkspaceTest do
+  # `Server.Workspace` schema + changesets (workspaces/orbis Slice 1). The DB is the guard
   # (§10): the closed sets on `type`/`scope` raise at insert, never re-checked here.
   # JSON columns round-trip through SQLite, so assertions read back through the DB.
   use ExUnit.Case, async: false
 
-  alias Funes.Repo
-  alias Funes.Workspace
+  alias Server.Repo
+  alias Server.Workspace
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 

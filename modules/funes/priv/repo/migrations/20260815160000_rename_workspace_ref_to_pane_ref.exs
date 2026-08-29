@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.RenameWorkspaceRefToPaneRef do
+defmodule Server.Repo.Migrations.RenameWorkspaceRefToPaneRef do
   use Ecto.Migration
 
   # 006 rename session.workspace_ref → session.pane_ref (aleph design §7). The

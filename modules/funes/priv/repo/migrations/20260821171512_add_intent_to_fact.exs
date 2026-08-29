@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.AddIntentToFact do
+defmodule Server.Repo.Migrations.AddIntentToFact do
   use Ecto.Migration
 
   def change do

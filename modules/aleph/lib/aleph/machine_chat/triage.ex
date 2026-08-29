@@ -1,4 +1,4 @@
-defmodule Aleph.MachineChat.Triage do
+defmodule Console.MachineChat.Triage do
   @moduledoc """
   Intent triage for UNROUTED threads (per-thread-agents Slice E): when the operator opens a
   thread without @-naming a coworker, classify the opening text to a specialist archetype and
@@ -41,7 +41,7 @@ defmodule Aleph.MachineChat.Triage do
   def lead(text, roster) do
     with arch when not is_nil(arch) <- archetype(text) do
       roster
-      |> Enum.map(&Aleph.Profiles.roster_entry/1)
+      |> Enum.map(&Console.Profiles.roster_entry/1)
       |> Enum.find_value(fn %{archetype: a, name: n} -> if a == arch, do: "#{n}-machine" end)
     end
   end

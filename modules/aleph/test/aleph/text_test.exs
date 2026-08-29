@@ -1,9 +1,9 @@
-defmodule Aleph.TextTest do
+defmodule Console.TextTest do
   # wrap_paragraphs: hard newlines keep their breaks, blank-line runs collapse to ONE empty
   # line between paragraphs — the message-readability seam both chat renderers share.
   use ExUnit.Case, async: true
 
-  alias Aleph.Text
+  alias Console.Text
 
   describe "wrap_paragraphs/2" do
     test "a blank line separates paragraphs with exactly one empty line" do

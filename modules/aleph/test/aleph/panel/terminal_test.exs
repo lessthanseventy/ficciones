@@ -1,11 +1,11 @@
-defmodule Aleph.Panel.TerminalTest do
+defmodule Console.Panel.TerminalTest do
   @moduledoc """
   The center terminal is mostly cell-blitting (eye-tested live) — it renders edge-to-edge, no
-  header row (the Tlön window strip moved out to `Aleph.Panel.WindowBar`; see its own test).
+  header row (the Tlön window strip moved out to `Console.Panel.WindowBar`; see its own test).
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Terminal
+  alias Console.Panel.Terminal
 
   @rect %{x: 0, y: 0, w: 40, h: 5}
 

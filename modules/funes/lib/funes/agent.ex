@@ -1,4 +1,4 @@
-defmodule Funes.Agent do
+defmodule Server.Agent do
   @moduledoc """
   The durable identity (aleph §3): a named role — Sandra, Robert — that outlives
   every workspace and session. Its profile lives inline: a `mandate`, an `engine`
@@ -20,7 +20,7 @@ defmodule Funes.Agent do
     field :trust, :string
     field :sandbox, :string
     field :created_at, :utc_datetime
-    has_many :sessions, Funes.Session
+    has_many :sessions, Server.Session
   end
 
   @axes [:context, :sight, :hands, :trust, :sandbox]

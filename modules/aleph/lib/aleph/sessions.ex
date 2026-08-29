@@ -1,6 +1,6 @@
-defmodule Aleph.Sessions do
+defmodule Console.Sessions do
   @moduledoc """
-  The live session terminals — one `Aleph.Terminal` per thread. A registry over a
+  The live session terminals — one `Console.Terminal` per thread. A registry over a
   `DynamicSupervisor`: `ensure/2` starts a terminal for a thread (or returns the existing one),
   `terminal/1` looks it up, `all/0` lists them (for the roster). A
   terminal that exits (the child process ended) is dropped, so the map is never stale — the
@@ -11,9 +11,9 @@ defmodule Aleph.Sessions do
   """
   use GenServer
 
-  alias Aleph.Terminal
+  alias Console.Terminal
 
-  @sup Aleph.TerminalSup
+  @sup Console.TerminalSup
 
   def start_link(_opts \\ []), do: GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
 
@@ -31,7 +31,7 @@ defmodule Aleph.Sessions do
   def spawn_harness(thread_id, exports, opts \\ []) do
     # `:launcher` overrides the configured default — the Tlön center launches pi via a custom tmux
     # launcher (Cockpit.tlon_launcher) through this same seam.
-    {launcher, opts} = Keyword.pop(opts, :launcher, Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi"))
+    {launcher, opts} = Keyword.pop(opts, :launcher, Application.get_env(:console, :spawn_launcher, "mise exec -- pi"))
     # `env --default-signal` resets the child's signal dispositions to default before exec. The BEAM
     # runs SIGCHLD in a non-default state (it reaps its own children), and Ghostty.PTY's forkpty child
     # execs WITHOUT resetting signals (pty_nif.zig) — so a harness inherits it and every subprocess it

@@ -1,4 +1,4 @@
-defmodule Funes.MCP.TokensTest do
+defmodule Server.MCP.TokensTest do
   # The identity seam (pi doc §2a): a token binds an MCP connection to its (thread, agent), so
   # identity is a property of the connection, never a call parameter. STATELESS + signed: the
   # token IS its claims (HMAC over thread/agent), so it survives a node restart — the aleph hub
@@ -6,12 +6,12 @@ defmodule Funes.MCP.TokensTest do
   # time, so a token never grants a stale one.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.MCP.Tokens
-  alias Funes.Staff
+  alias Server.Channel
+  alias Server.MCP.Tokens
+  alias Server.Staff
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
     {:ok, agent} = Staff.register_agent(%{name: "Carl", mandate: "m", engine: "e"})
     %{thread: thread, agent: agent}
@@ -43,7 +43,7 @@ defmodule Funes.MCP.TokensTest do
     thread: thread,
     agent: agent
   } do
-    # A node restart re-reads the same workspace key (Funes.MCP.Secret), so a token minted before it
+    # A node restart re-reads the same workspace key (Server.MCP.Secret), so a token minted before it
     # verifies after: determinism IS the restart-survival property the registry lacked.
     assert Tokens.mint(thread, agent) == Tokens.mint(thread, agent)
   end

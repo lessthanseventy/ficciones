@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.StatusBar do
+defmodule Console.Panel.StatusBar do
   @moduledoc """
   The bottom status footer — two rows, always present:
 
@@ -9,9 +9,9 @@ defmodule Aleph.Panel.StatusBar do
   The gap between left and right is neutral (never a chip background), so the footer frames the
   screen instead of flooding it. Data is `%{space, thread, thread_count, live_count}`.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  alias Aleph.Panel
+  alias Console.Panel
 
   # {keycap, label} pairs — keycaps lit in amber, labels dim. The tmux-style model: the center
   # owns the keys by default, so aleph's commands are reached through the ^B leader. (In a
@@ -31,7 +31,7 @@ defmodule Aleph.Panel.StatusBar do
   def topics(_assigns), do: []
 
   # Composer mode: the buffer itself renders in the growable compose box above this footer
-  # (`Aleph.Panel.Composer` — full buffer, wrap + grow); the footer keeps the mode chip and the
+  # (`Console.Panel.Composer` — full buffer, wrap + grow); the footer keeps the mode chip and the
   # composer hints.
   @impl Panel
   def render(%{input: %{kind: :compose}}, rect) do

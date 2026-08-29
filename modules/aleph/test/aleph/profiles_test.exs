@@ -1,9 +1,9 @@
-defmodule Aleph.ProfilesTest do
+defmodule Console.ProfilesTest do
   @moduledoc "The coworker-profile registry, the pure render seam, and the materialiser (into a tmp dir)."
   use ExUnit.Case, async: true
 
-  alias Aleph.Profile
-  alias Aleph.Profiles
+  alias Console.Profile
+  alias Console.Profiles
 
   @base_settings %{
     "extensions" => [
@@ -165,16 +165,21 @@ defmodule Aleph.ProfilesTest do
       assert Profiles.repo() =~ ~r{ficciones$}
     end
 
-    test "an operator override (Aleph.Config) is merged over the compiled model" do
+    test "an operator override (Console.Config) is merged over the compiled model" do
       dir = Path.join(System.tmp_dir!(), "aleph-prof-cfg-#{System.unique_integer([:positive])}")
       path = Path.join(dir, "config.json")
-      Aleph.Config.put_coworker_model("tertius", %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}, path)
 
-      previous = Application.get_env(:aleph, :config_path)
-      Application.put_env(:aleph, :config_path, path)
+      Console.Config.put_coworker_model(
+        "tertius",
+        %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"},
+        path
+      )
+
+      previous = Application.get_env(:console, :config_path)
+      Application.put_env(:console, :config_path, path)
 
       on_exit(fn ->
-        Application.put_env(:aleph, :config_path, previous)
+        Application.put_env(:console, :config_path, previous)
         File.rm_rf!(dir)
       end)
 
@@ -187,13 +192,13 @@ defmodule Aleph.ProfilesTest do
       override = %{provider: "ollama-cloud", model: "kimi-k2.7-code", thinking: "medium"}
       dir = Path.join(System.tmp_dir!(), "aleph-prof-ovr-#{System.unique_integer([:positive])}")
       path = Path.join(dir, "config.json")
-      Aleph.Config.put_coworker_model("tertius", override, path)
+      Console.Config.put_coworker_model("tertius", override, path)
 
-      previous = Application.get_env(:aleph, :config_path)
-      Application.put_env(:aleph, :config_path, path)
+      previous = Application.get_env(:console, :config_path)
+      Application.put_env(:console, :config_path, path)
 
       on_exit(fn ->
-        Application.put_env(:aleph, :config_path, previous)
+        Application.put_env(:console, :config_path, previous)
         File.rm_rf!(dir)
       end)
 
@@ -203,13 +208,13 @@ defmodule Aleph.ProfilesTest do
     test "an operator yolo override flips permissions.yoloMode but leaves the deny-floor intact" do
       dir = Path.join(System.tmp_dir!(), "aleph-prof-yolo-#{System.unique_integer([:positive])}")
       path = Path.join(dir, "config.json")
-      Aleph.Config.put_coworker_yolo("tertius", false, path)
+      Console.Config.put_coworker_yolo("tertius", false, path)
 
-      previous = Application.get_env(:aleph, :config_path)
-      Application.put_env(:aleph, :config_path, path)
+      previous = Application.get_env(:console, :config_path)
+      Application.put_env(:console, :config_path, path)
 
       on_exit(fn ->
-        Application.put_env(:aleph, :config_path, previous)
+        Application.put_env(:console, :config_path, previous)
         File.rm_rf!(dir)
       end)
 

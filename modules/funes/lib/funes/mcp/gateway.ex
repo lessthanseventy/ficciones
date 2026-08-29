@@ -1,4 +1,4 @@
-defmodule Funes.MCP.Gateway do
+defmodule Server.MCP.Gateway do
   @moduledoc """
   The loopback HTTP gateway in front of the MCP server. One job: route `POST /mint`
   to a fresh-token mint, and forward everything else to the anubis StreamableHTTP
@@ -33,8 +33,8 @@ defmodule Funes.MCP.Gateway do
   import Plug.Conn
 
   alias Anubis.Server.Transport.StreamableHTTP.Plug, as: AnubisTransport
-  alias Funes.MCP.Server, as: McpServer
-  alias Funes.MCP.Spawn
+  alias Server.MCP.Endpoint, as: McpServer
+  alias Server.MCP.Spawn
 
   @impl true
   def init(_opts) do

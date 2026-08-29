@@ -1,18 +1,18 @@
-defmodule Aleph.MachineChat.Loop do
+defmodule Console.MachineChat.Loop do
   @moduledoc """
   The termbox host loop for the Tlön machine-chat tab (`general`) — Slack-shaped since the 2026-08
   reshape: a one-row header (workspace · thread/working counts · the ORBIS rollup), a left THREADS
   rail, ONE open conversation in the center with its composer underneath, and a right CREW rail
   showing the coworker pool with live working/typing indicators (tmux window activity). Pure
-  logical state lives in `Aleph.MachineChat.Host`; geometry in `Layout`; the rails render in
+  logical state lives in `Console.MachineChat.Host`; geometry in `Layout`; the rails render in
   `Rail`/`Crew`; presence derives in `Presence`. This module owns the TTY, the poll timer, the
   center scroll, and the tmux/db edges. Not unit-tested — it grabs the TTY (aleph's law: test the
   pure seams, run the loop live).
 
-  It's a READER for the feed (polls `Funes.Channel.machine_threads/1` off the shared `FUNES_DB`,
-  since the node-local `Funes.Bus` isn't reachable cross-process) but a WRITER for the composer:
+  It's a READER for the feed (polls `Server.Channel.machine_threads/1` off the shared `FUNES_DB`,
+  since the node-local `Server.Bus` isn't reachable cross-process) but a WRITER for the composer:
   it posts as the operator straight through `Channel`, and wakes coworkers itself by tmux
-  send-keys (the pure `Aleph.Mention` routing) — the cockpit only wakes agents for messages on
+  send-keys (the pure `Console.Mention` routing) — the cockpit only wakes agents for messages on
   ITS own bus, which it never sees from here.
 
   MODELESS input (the Slack model — no compose/browse split):
@@ -26,22 +26,22 @@ defmodule Aleph.MachineChat.Loop do
   """
   use GenServer
 
-  import Aleph.Panel, only: [blank: 0]
+  import Console.Panel, only: [blank: 0]
 
-  alias Aleph.Board
-  alias Aleph.Config
-  alias Aleph.MachineChat.Host
-  alias Aleph.MachineChat.Layout
-  alias Aleph.MachineChat.Rail
-  alias Aleph.MachineChat.Staffing
-  alias Aleph.Mention
-  alias Aleph.Panel
-  alias Aleph.Panel.Crew
-  alias Aleph.Presence
-  alias Aleph.Profiles
-  alias Aleph.Transcript
-  alias Funes.Channel
+  alias Console.Board
+  alias Console.Config
+  alias Console.MachineChat.Host
+  alias Console.MachineChat.Layout
+  alias Console.MachineChat.Rail
+  alias Console.MachineChat.Staffing
+  alias Console.Mention
+  alias Console.Panel
+  alias Console.Panel.Crew
+  alias Console.Presence
+  alias Console.Profiles
+  alias Console.Transcript
   alias Raxol.Core.Events.Event
+  alias Server.Channel
 
   @poll_ms 700
   @render_coalesce_ms 8
@@ -221,7 +221,7 @@ defmodule Aleph.MachineChat.Loop do
     end
   end
 
-  defp operator, do: Application.get_env(:funes, :operator, "andrew")
+  defp operator, do: Application.get_env(:server, :operator, "andrew")
 
   # Staff the picked coworker as the new thread's lead: the composer text's first @-mention, else
   # intent triage, else the operator's persisted override / the LIVE workspace roster's worker
@@ -244,10 +244,10 @@ defmodule Aleph.MachineChat.Loop do
     end
   end
 
-  # `Funes.assign_lead/2` returns `{:error, :no_agent}` for a handle that was never registered — a
+  # `Server.assign_lead/2` returns `{:error, :no_agent}` for a handle that was never registered — a
   # no-op, not a raise — so we check it rather than assume success.
   defp stage(thread_id, handle) do
-    case Funes.assign_lead(thread_id, handle) do
+    case Server.assign_lead(thread_id, handle) do
       {:error, reason} -> {:error, reason}
       _ -> {:ok, handle}
     end
@@ -294,14 +294,14 @@ defmodule Aleph.MachineChat.Loop do
   defp no_lead_hint(_reason), do: ""
 
   # Does the cockpit spawn a per-thread leaf session for this lead (so it owns the opening turn
-  # and we must NOT also wake here)? Mirrors `Aleph.Cockpit.leaf_staffed?/2`: any WORKER roster
+  # and we must NOT also wake here)? Mirrors `Console.Cockpit.leaf_staffed?/2`: any WORKER roster
   # lead — claude or pi harness — gets its own leaf window; only a meta (surveyor) or
   # roster-unknown lead is still woken from here.
   defp cockpit_staffs?(lead), do: lead in Profiles.leaf_handles(active_roster())
 
-  # The active Workspace's roster, read STRAIGHT from funes (not via `Space`/`Aleph.Workspaces`): this is
-  # the machine-chat reader beam — it never starts aleph's supervision tree, so the `Aleph.Workspaces`
-  # cache GenServer isn't here. Funes-down / no workspace → `[]` (nobody wakes).
+  # The active Workspace's roster, read STRAIGHT from funes (not via `Space`/`Console.Workspaces`): this is
+  # the machine-chat reader beam — it never starts aleph's supervision tree, so the `Console.Workspaces`
+  # cache GenServer isn't here. Server-down / no workspace → `[]` (nobody wakes).
   defp active_roster do
     case live_workspace() do
       %{roster: [_ | _] = roster} -> roster
@@ -310,9 +310,9 @@ defmodule Aleph.MachineChat.Loop do
   end
 
   # The first live funes workspace (Slice 1: the single machine Workspace). A plain `Repo.all` under the
-  # hood — works in any beam funes booted in, unlike the cockpit-only `Aleph.Workspaces` cache.
+  # hood — works in any beam funes booted in, unlike the cockpit-only `Console.Workspaces` cache.
   defp live_workspace do
-    case Funes.Workspaces.all() do
+    case Server.Workspaces.all() do
       [workspace | _] -> workspace
       _ -> nil
     end
@@ -322,7 +322,7 @@ defmodule Aleph.MachineChat.Loop do
     :exit, _ -> nil
   end
 
-  # Which per-thread window a reply's wake must land on — mirrors `Aleph.Cockpit.delivery_target/3`.
+  # Which per-thread window a reply's wake must land on — mirrors `Console.Cockpit.delivery_target/3`.
   # A worker-led STAFFED leaf runs the episode in its own window, so its reply must reach THAT
   # session, not the lead's standing handle→window slot. The standing thread has no leaf window,
   # so the probe returns nil and routing falls back to the standing window.
@@ -357,9 +357,9 @@ defmodule Aleph.MachineChat.Loop do
     _ -> :ok
   end
 
-  # Guarded so a Funes hiccup degrades to "wake nobody", never a crash.
+  # Guarded so a Server hiccup degrades to "wake nobody", never a crash.
   defp safe_thread_lead(tid) do
-    Funes.thread_lead(tid)
+    Server.thread_lead(tid)
   rescue
     _ -> nil
   catch
@@ -419,7 +419,7 @@ defmodule Aleph.MachineChat.Loop do
   end
 
   defp safe_rollup(state) do
-    Aleph.Orbis.rollup()
+    Console.Orbis.rollup()
   rescue
     _ -> state.rollup
   catch
@@ -539,7 +539,7 @@ defmodule Aleph.MachineChat.Loop do
 
     orbis =
       case state.rollup do
-        %{summary: summary} -> [{"  ORBIS ", :accent} | Aleph.Panel.Leaves.summary_row(summary)]
+        %{summary: summary} -> [{"  ORBIS ", :accent} | Console.Panel.Leaves.summary_row(summary)]
         _ -> []
       end
 

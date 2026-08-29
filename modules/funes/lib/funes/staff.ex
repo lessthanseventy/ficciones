@@ -1,8 +1,8 @@
-defmodule Funes.Staff do
+defmodule Server.Staff do
   @moduledoc """
   The staff (aleph §3b): the durable `agent` roster and the ephemeral `session`s
   that run them, plus staffing a thread with an agent. This context owns the
-  agent/session data model and assignment; `Funes.Channel` keeps owning
+  agent/session data model and assignment; `Server.Channel` keeps owning
   thread/message.
 
   Deliberately out of scope, and deferred (§3b/§10): presence ("clocked out" is
@@ -11,11 +11,11 @@ defmodule Funes.Staff do
   """
   import Ecto.Query
 
-  alias Funes.Agent
-  alias Funes.Presence
-  alias Funes.Repo
-  alias Funes.Session
-  alias Funes.Thread
+  alias Server.Agent
+  alias Server.Presence
+  alias Server.Repo
+  alias Server.Session
+  alias Server.Thread
 
   @doc "Register a durable agent. `{:ok, agent}` or `{:error, changeset}` (e.g. a duplicate name)."
   def register_agent(attrs) do
@@ -29,7 +29,7 @@ defmodule Funes.Staff do
 
   @doc """
   The IN FLIGHT roster (aleph §4): every live session across all threads with its
-  agent, thread, and a warm/cold flag (`Funes.Presence`). Ended sessions omitted,
+  agent, thread, and a warm/cold flag (`Server.Presence`). Ended sessions omitted,
   newest first — the read the board renders as "who's on the clock."
   """
   def roster do
@@ -62,7 +62,7 @@ defmodule Funes.Staff do
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.force_change(:agent_id, agent.id)
     |> Repo.update()
-    |> Funes.Bus.announce(:thread_assigned)
+    |> Server.Bus.announce(:thread_assigned)
   end
 
   @doc "Clear a thread's agent back to unassigned."
@@ -109,8 +109,8 @@ defmodule Funes.Staff do
     |> Repo.transaction()
     |> case do
       {:ok, {session, superseded}} ->
-        Enum.each(superseded, &Funes.Bus.broadcast({:session_ended, &1}))
-        Funes.Bus.broadcast({:session_started, session})
+        Enum.each(superseded, &Server.Bus.broadcast({:session_ended, &1}))
+        Server.Bus.broadcast({:session_started, session})
         {:ok, session}
 
       {:error, changeset} ->
@@ -143,7 +143,7 @@ defmodule Funes.Staff do
 
   @doc "End a session — stamp `ended_at`. Sessions die; you brief a new one (§3b)."
   def end_session(%Session{} = session) do
-    session |> Session.end_changeset() |> Repo.update() |> Funes.Bus.announce(:session_ended)
+    session |> Session.end_changeset() |> Repo.update() |> Server.Bus.announce(:session_ended)
   end
 
   @doc """
@@ -183,7 +183,7 @@ defmodule Funes.Staff do
 
   @doc """
   The live session for a specific (thread, agent), or nil — the identity a stateless token
-  resolves to at read time (`Funes.MCP.Tokens`). The partial unique index guarantees at most one
+  resolves to at read time (`Server.MCP.Tokens`). The partial unique index guarantees at most one
   live session per pair, so this is the current holder of that identity, never a stale one.
   """
   def live_session(thread_id, agent_id) do

@@ -1,12 +1,12 @@
-defmodule Aleph.TerminalTest do
+defmodule Console.TerminalTest do
   @moduledoc """
   The embedded terminal (design §4) — a real PTY through Ghostty's VT engine, not a capture. These
   drive a live child and read its screen back, so they exercise the actual native loop.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Cockpit
-  alias Aleph.Terminal
+  alias Console.Cockpit
+  alias Console.Terminal
 
   test "runs a command in a real PTY, pings on output, reads the screen back with color" do
     {:ok, t} =

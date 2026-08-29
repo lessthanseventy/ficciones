@@ -1,31 +1,31 @@
-defmodule Aleph.Panel.Memory do
+defmodule Console.Panel.Memory do
   @moduledoc """
   MEMORY — what funes knows, closing the loop with the forgetting engine (design §Memory). A header
   of coverage stats over two navigable sections the focus cycles with `Tab`:
 
-    * **PINNED** — the always-loaded constraint facts (`Funes.pinned/0`). `Enter` opens a
+    * **PINNED** — the always-loaded constraint facts (`Server.pinned/0`). `Enter` opens a
       fact's full text in MAIN.
-    * **HABITS** — pending habits (`Funes.pending_habits/0`) as candidate constraints: `a` approves
+    * **HABITS** — pending habits (`Server.pending_habits/0`) as candidate constraints: `a` approves
       one into the pinned set, `r` rejects it. This is the write-path into memory.
 
   Data is `%{coverage, pinned: [fact], habits: [habit], section, selected}` — `section` (0=pinned,
   1=habits) and `selected` (the j/k cursor) are injected by the View only when this pane is focused,
   so an unfocused Memory shows the pinned with no cursor. A thin view: no funes calls here.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0, rule: 1]
+  import Console.Panel, only: [line: 2, blank: 0, rule: 1]
 
-  alias Funes.Bus
+  alias Server.Bus
 
   @pinned_section 0
   @habits_section 1
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: [Bus.habits_topic()]
 
-  @impl Aleph.Panel
-  def render(nil, rect), do: Aleph.Panel.clip([line("no recall yet", :dim)], rect)
+  @impl Console.Panel
+  def render(nil, rect), do: Console.Panel.clip([line("no recall yet", :dim)], rect)
 
   def render(%{pinned: pinned, habits: habits} = data, rect) do
     section = Map.get(data, :section, @pinned_section)
@@ -37,7 +37,7 @@ defmodule Aleph.Panel.Memory do
         pinned_rows(pinned, section == @pinned_section, selected, rect.w) ++
         habit_block(habits, section == @habits_section, selected, rect.w)
 
-    Aleph.Panel.clip(rows, rect)
+    Console.Panel.clip(rows, rect)
   end
 
   # coverage: "embedded 30/30 · pinned 8 ~1.1k/4k tok · N forgotten" — the corpus at a glance. A
@@ -111,7 +111,7 @@ defmodule Aleph.Panel.Memory do
   defp truncate(text, _max), do: text
 
   # `s` cycles PINNED/HABITS since the C3.4 reshuffle handed Tab to space-switching.
-  @impl Aleph.Panel
+  @impl Console.Panel
   def hints(_data), do: [{"s", "section"}, {"j/k", "facts"}, {"⏎", "open"}, {"y", "text"}, {"d", "forget"}]
 
   @doc "The semantic yank for the cursor row: section-aware, data carries :section like render/2."

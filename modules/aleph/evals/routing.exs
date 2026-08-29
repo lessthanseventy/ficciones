@@ -1,8 +1,8 @@
 # Steering evals — ROUTING family (worklines slice 0). Deterministic: pure functions over the
 # staffing pipeline (mention → triage → default), the config that decides who leads a thread.
 # Run via `mix aleph.eval`; the deterministic set gates aleph's precommit.
-alias Aleph.MachineChat.Staffing
-alias Funes.Eval.Scenario
+alias Console.MachineChat.Staffing
+alias Server.Eval.Scenario
 
 cast = [
   %{"archetype" => "surveyor", "name" => "tertius"},

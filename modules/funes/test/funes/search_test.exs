@@ -1,16 +1,16 @@
-defmodule Funes.SearchTest do
+defmodule Server.SearchTest do
   # Total recall (design: funes-total-recall) slice A — FTS5 search over the message channel and
   # the fact corpus, so a successor can SEARCH past sessions, not only read the curated brief. The
   # index is external-content FTS5 kept in sync by triggers; every assertion reads back through it.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Repo
-  alias Funes.Search
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Repo
+  alias Server.Search
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     {:ok, thread} = Channel.open_thread(%{title: "search subject"})
     %{thread: thread}
   end

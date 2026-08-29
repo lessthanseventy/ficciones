@@ -1,16 +1,16 @@
-defmodule Funes.ReactivityTest do
+defmodule Server.ReactivityTest do
   # Every write announces itself (aleph §5): the board reacts to typed events on
   # focused topics instead of polling. The write is durable first (§10); the
   # broadcast is the nudge. Here we subscribe and assert each context emits.
   use ExUnit.Case, async: false
 
-  alias Funes.Bus
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Staff
+  alias Server.Bus
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Staff
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 

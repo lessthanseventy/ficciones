@@ -1,4 +1,4 @@
-defmodule Aleph.MouseTest do
+defmodule Console.MouseTest do
   @moduledoc """
   The pure half of mouse routing (design §8): which panel a screen cell hits, how a scroll offset
   clamps, and the wheel button → direction/step mapping. No TTY, no funes — the Cockpit interprets
@@ -6,11 +6,11 @@ defmodule Aleph.MouseTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Mouse
-  alias Aleph.Panel.Border
-  alias Aleph.Panel.Sidebar
-  alias Aleph.Panel.StatusBar
-  alias Aleph.Panel.Terminal
+  alias Console.Mouse
+  alias Console.Panel.Border
+  alias Console.Panel.Sidebar
+  alias Console.Panel.StatusBar
+  alias Console.Panel.Terminal
 
   # Synthetic placements with known rects — hit_panel only cares about the rect + the module
   # (to skip chrome). This mirrors the shape View.compose produces without depending on it.

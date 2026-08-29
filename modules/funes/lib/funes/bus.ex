@@ -1,4 +1,4 @@
-defmodule Funes.Bus do
+defmodule Server.Bus do
   @moduledoc """
   The reactive substrate over the durable bus (aleph §5). `Phoenix.PubSub` fans
   **typed events** out to **focused topics**, so a consumer subscribes to exactly
@@ -15,7 +15,7 @@ defmodule Funes.Bus do
                               issues, assignment/close (feeds IN SCOPE)
     * `funes:threads`       — thread lifecycle: opened, closed, assigned (the list)
     * `funes:sessions`      — session start/end (feeds the IN FLIGHT roster)
-    * `funes:presence`      — explicit thinking/idle declarations (`Funes.Presence.Thinking`)
+    * `funes:presence`      — explicit thinking/idle declarations (`Server.Presence.Thinking`)
     * `funes:habits`        — habit proposed/approved/rejected (the operator's review queue)
     * `funes:workspaces`        — workspace registered/edited/removed (aleph's picker/survey follow this)
     * `funes:activity`      — every durable write, cross-thread (the machine-wide activity feed)
@@ -32,7 +32,7 @@ defmodule Funes.Bus do
     `{:session_ended, s}` · `{:presence_thinking, %{thread_id, agent, started_at}}`
     `{:presence_idle, %{thread_id, agent}}`
   """
-  @pubsub Funes.PubSub
+  @pubsub Server.PubSub
 
   def messages_topic, do: "funes:messages"
   def thread_topic(id), do: "funes:thread:#{id}"
@@ -83,13 +83,13 @@ defmodule Funes.Bus do
   # Habits are machine-wide (no thread_id key of their own), so they ride their own topic
   # plus the topic of the thread that PROPOSED them (source_thread_id, for provenance) when
   # there was one — letting the cockpit's review surface and that thread both hear it.
-  def broadcast({tag, %Funes.Habit{} = habit} = event) when tag in [:habit_proposed, :habit_approved, :habit_rejected] do
+  def broadcast({tag, %Server.Habit{} = habit} = event) when tag in [:habit_proposed, :habit_approved, :habit_rejected] do
     publish([habits_topic() | thread_topics(habit.source_thread_id)], event)
   end
 
   # Workspaces are machine-global (no thread_id of their own): they ride their own topic
   # plus the cross-thread activity feed.
-  def broadcast({tag, %Funes.Workspace{}} = event)
+  def broadcast({tag, %Server.Workspace{}} = event)
       when tag in [:workspace_registered, :workspace_edited, :workspace_removed] do
     publish([workspaces_topic(), activity_topic()], event)
   end

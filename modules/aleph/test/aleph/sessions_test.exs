@@ -1,9 +1,9 @@
-defmodule Aleph.SessionsTest do
+defmodule Console.SessionsTest do
   @moduledoc "The session registry — one embedded terminal per thread, dropped when it exits."
   # The registry is a shared named process (started by the app), so run serially.
   use ExUnit.Case, async: false
 
-  alias Aleph.Sessions
+  alias Console.Sessions
 
   test "ensure starts one terminal per thread, is idempotent, and drops it when it exits" do
     {:ok, pid} = Sessions.ensure(9101, cmd: "/bin/cat", cols: 40, rows: 4)

@@ -1,4 +1,4 @@
-defmodule Aleph.TermboxNifTest do
+defmodule Console.TermboxNifTest do
   use ExUnit.Case, async: true
 
   # raxol_terminal 2.6.1's Makefile copies the built termbox2 NIF into the build-output

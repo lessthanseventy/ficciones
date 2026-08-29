@@ -1,7 +1,7 @@
-defmodule Aleph.KeymapTest do
+defmodule Console.KeymapTest do
   @moduledoc """
   The keyhandling contract, tested as a pure reducer with no TTY (design §8: the cockpit's one
-  brain, extracted from its paint). `Aleph.Keymap.handle/2` maps `(key_event, state)` to
+  brain, extracted from its paint). `Console.Keymap.handle/2` maps `(key_event, state)` to
   `{new_state, effect}`; the Cockpit interprets the effect (`:repaint` / `:quit` /
   `{:forward, key}` / `{:create_thread, title}` / `:none`).
 
@@ -13,14 +13,14 @@ defmodule Aleph.KeymapTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Keymap
-  alias Aleph.Panel.Leaves
-  alias Aleph.Tlon.Focus
+  alias Console.Keymap
+  alias Console.Panel.Leaves
+  alias Console.Tlon.Focus
 
   # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
-  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
+  # that render or drive a Workspace push one through the Console.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorkspaces.put()
+    Console.TestWorkspaces.put()
   end
 
   # The slice of cockpit state the keymap reads. Threads are anything with an `.id`.
@@ -278,7 +278,7 @@ defmodule Aleph.KeymapTest do
   end
 
   describe "creating a workspace — the author face's `n` verb + :new_workspace input (D2.3)" do
-    @templates Aleph.WorkspaceTemplates.names()
+    @templates Console.WorkspaceTemplates.names()
 
     test "n in the author face opens :new_workspace input armed with the FIRST template" do
       s = state(%{active_key: :orbis, orbis_face: :author})
@@ -528,7 +528,7 @@ defmodule Aleph.KeymapTest do
   end
 
   describe "editing a workspace's roster — the field 3 sub-list, add/remove (D2.4 Chunk 2c)" do
-    @archetypes Map.keys(Aleph.Profiles.archetypes())
+    @archetypes Map.keys(Console.Profiles.archetypes())
     @workspace_with_roster %{
       id: 22,
       name: "Freedonia",
@@ -1068,7 +1068,7 @@ defmodule Aleph.KeymapTest do
 
   # Tlön's lazygit focus model (design 2026-08-20): the center is a live tmux client, so Ctrl+Space
   # is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use. In the terminal
-  # every key forwards to tmux; out of it aleph owns the keys and drives the pure `Aleph.Tlon.Focus`
+  # every key forwards to tmux; out of it aleph owns the keys and drives the pure `Console.Tlon.Focus`
   # SM over `tlon_layout`. Both `focus` (persistent) and `tlon_layout` (derived per keypress, like
   # center_live?) are supplied by the cockpit only for this space.
   describe "Tlön focus nav" do

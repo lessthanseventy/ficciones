@@ -1,10 +1,10 @@
-defmodule Funes.FactTest do
+defmodule Server.FactTest do
   # `bank_changeset/1` unit tests. §4: `intent` (what a fact is FOR) rides the
   # write path so Cut 3's value gradient has something to grade against; it is
   # optional (not part of validate_required) — a fact can be banked without one.
   use ExUnit.Case, async: true
 
-  alias Funes.Fact
+  alias Server.Fact
 
   test "bank_changeset casts intent (what the fact was for)" do
     cs =

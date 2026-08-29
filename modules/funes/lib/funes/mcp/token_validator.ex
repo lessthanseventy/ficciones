@@ -1,16 +1,16 @@
-defmodule Funes.MCP.TokenValidator do
+defmodule Server.MCP.TokenValidator do
   @moduledoc """
-  Resolves a bearer token against `Funes.MCP.Tokens` — the whole authorization
+  Resolves a bearer token against `Server.MCP.Tokens` — the whole authorization
   model on a single-human machine: a token this node minted, or 401. The claims
   carry the binding (thread, agent, session) every tool reads from its frame,
   plus the token itself so `register` can bind its session back here. `aud`
   mirrors the configured resource because anubis validates audience
   unconditionally; there is no `exp` — validity rests on the HMAC signature
-  (`Funes.MCP.Tokens`), not a clock.
+  (`Server.MCP.Tokens`), not a clock.
   """
   @behaviour Anubis.Server.Authorization.Validator
 
-  alias Funes.MCP.Tokens
+  alias Server.MCP.Tokens
 
   @impl true
   def validate_token(token, config) do

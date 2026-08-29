@@ -1,4 +1,4 @@
-defmodule Funes.Board do
+defmodule Server.Board do
   @moduledoc """
   The board's read models (aleph §4): pure aggregates a TUI (later a LiveView)
   renders, composed from the contexts. §7 — the board holds no truth of its own, it
@@ -13,15 +13,15 @@ defmodule Funes.Board do
   """
   import Ecto.Query
 
-  alias Funes.Agent
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Message
-  alias Funes.Presence.Thinking
-  alias Funes.Recall
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workspace
+  alias Server.Agent
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Message
+  alias Server.Presence.Thinking
+  alias Server.Recall
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workspace
 
   @cap 5
 

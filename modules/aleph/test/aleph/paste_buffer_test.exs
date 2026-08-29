@@ -1,4 +1,4 @@
-defmodule Aleph.PasteBufferTest do
+defmodule Console.PasteBufferTest do
   @moduledoc """
   The bracketed-paste buffer state machine (pure — the cockpit holds the buffer in its state, this
   module owns the transitions). On paste-start the cockpit starts a buffer; while pasting, content
@@ -8,7 +8,7 @@ defmodule Aleph.PasteBufferTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.PasteBuffer
+  alias Console.PasteBuffer
 
   test "start → accumulate chars and newlines → finish wraps in the markers" do
     buffer =

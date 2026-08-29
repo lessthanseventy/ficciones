@@ -1,22 +1,22 @@
-defmodule Funes.WorklineLedgerTest do
+defmodule Server.WorklineLedgerTest do
   # Worklines slice 6: the value ledger — a READ-MODEL over rows the stage machine already
   # writes (stage_advanced events + thread state). No new telemetry system; the metrics are
   # a side effect of coordination.
   use ExUnit.Case, async: false
 
-  alias Funes.Workline
-  alias Funes.Workline.Ledger
+  alias Server.Workline
+  alias Server.Workline.Ledger
 
   defmodule AllPresent do
     @moduledoc false
-    @behaviour Funes.Workline.Artifacts
+    @behaviour Server.Workline.Artifacts
 
     @impl true
     def check(_thread, _requirement), do: {:ok, "present"}
   end
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -63,7 +63,7 @@ defmodule Funes.WorklineLedgerTest do
     test "the latest failing verify check is blocking, carrying its cmd and tail" do
       {:ok, t} = Workline.open(%{title: "one", slug: "line-d"})
 
-      Funes.Dossier.record_check(%{
+      Server.Dossier.record_check(%{
         thread_id: t.id,
         cmd: "mix test",
         exit: 1,
@@ -79,7 +79,7 @@ defmodule Funes.WorklineLedgerTest do
     test "a passing check after a failing one clears the blocking status" do
       {:ok, t} = Workline.open(%{title: "one", slug: "line-e"})
 
-      Funes.Dossier.record_check(%{
+      Server.Dossier.record_check(%{
         thread_id: t.id,
         cmd: "mix test",
         exit: 1,
@@ -87,7 +87,7 @@ defmodule Funes.WorklineLedgerTest do
         correlation: "workline:line-e:verify"
       })
 
-      Funes.Dossier.record_check(%{
+      Server.Dossier.record_check(%{
         thread_id: t.id,
         cmd: "mix test",
         exit: 0,
@@ -106,7 +106,7 @@ defmodule Funes.WorklineLedgerTest do
       {:ok, _a} = Workline.open(%{title: "one", slug: "line-f"})
       {:ok, b} = Workline.open(%{title: "two", slug: "line-g"})
 
-      Funes.Dossier.record_check(%{
+      Server.Dossier.record_check(%{
         thread_id: b.id,
         cmd: "mix test",
         exit: 1,

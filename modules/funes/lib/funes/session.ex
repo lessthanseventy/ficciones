@@ -1,4 +1,4 @@
-defmodule Funes.Session do
+defmodule Server.Session do
   @moduledoc """
   The ephemeral instance of an agent (aleph §3): it runs in a pane, on an engine,
   on one thread, and it compacts and dies (§10). It references an `agent` and a
@@ -19,8 +19,8 @@ defmodule Funes.Session do
     # cache window (~1h) is cold, and the switchboard must not wake a cold session.
     # The switchboard bumps this as the session acts; a fresh session starts warm.
     field :last_active_at, :utc_datetime
-    belongs_to :agent, Funes.Agent
-    belongs_to :thread, Funes.Thread
+    belongs_to :agent, Server.Agent
+    belongs_to :thread, Server.Thread
   end
 
   @doc """

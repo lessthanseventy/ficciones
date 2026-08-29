@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.WorldToWorkspace do
+defmodule Server.Repo.Migrations.WorldToWorkspace do
   use Ecto.Migration
 
   # Clarity rename (design slice E): the `world` composition IS a workspace. Rename the table and

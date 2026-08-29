@@ -1,8 +1,8 @@
-defmodule Aleph.Panel.CrewTest do
+defmodule Console.Panel.CrewTest do
   @moduledoc "The CREW pane: pure assembly (roster ⋈ windows ⋈ leads ⋈ thinking) + render."
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Crew
+  alias Console.Panel.Crew
 
   defp texts(rows), do: Enum.map(rows, fn row -> Enum.map_join(row, "", fn {t, _s} -> t end) end)
 

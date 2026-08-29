@@ -1,10 +1,10 @@
-defmodule Funes.BusTest do
+defmodule Server.BusTest do
   # The reactive substrate (aleph §5): typed events routed to focused topics so the
   # board can subscribe to one thread (IN SCOPE) or the roster (IN FLIGHT) rather
   # than filtering a firehose. Pure PubSub — no DB.
   use ExUnit.Case, async: false
 
-  alias Funes.Bus
+  alias Server.Bus
 
   test "a posted message reaches both the firehose and its thread topic" do
     Bus.subscribe_messages()

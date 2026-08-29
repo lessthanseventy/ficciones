@@ -1,8 +1,8 @@
-defmodule Aleph.ConfigTest do
+defmodule Console.ConfigTest do
   @moduledoc "The operator settings file: best-effort reads, atomic writes, the coworker-model knob."
   use ExUnit.Case, async: true
 
-  alias Aleph.Config
+  alias Console.Config
 
   setup do
     dir = Path.join(System.tmp_dir!(), "aleph-config-#{System.unique_integer([:positive])}")

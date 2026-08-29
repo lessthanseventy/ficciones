@@ -1,4 +1,4 @@
-defmodule Funes.MixProject do
+defmodule Server.MixProject do
   use Mix.Project
 
   # funes — the machine-side memory and coordination layer, as an OTP application.
@@ -6,7 +6,7 @@ defmodule Funes.MixProject do
   # measured, still sqlite3-inspectable and 2am-repairable.
   def project do
     [
-      app: :funes,
+      app: :server,
       version: "0.1.0",
       elixir: "~> 1.18",
       # Boundary enforcement (lib/funes.ex declares the surface) — violations are compile
@@ -23,7 +23,7 @@ defmodule Funes.MixProject do
   # The always-up channel ships as a self-contained release: it bundles ERTS, so a
   # systemd --user unit runs one absolute path with no toolchain on PATH, and it
   # hands us `bin/funes eval` (migrate before boot) plus `bin/funes remote`/`rpc`
-  # (into the LIVE node — the only place a token minted by Funes.MCP.Spawn survives,
+  # (into the LIVE node — the only place a token minted by Server.MCP.Spawn survives,
   # since the Tokens registry dies with its node). Built locally today
   # (`mix release`); nix packages the same release later (capability-map move A).
   defp releases do
@@ -48,14 +48,14 @@ defmodule Funes.MixProject do
     ]
   end
 
-  # Test support (e.g. Funes.TestDB) compiles only under :test.
+  # Test support (e.g. Server.TestDB) compiles only under :test.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
   def application do
     [
       extra_applications: [:logger],
-      mod: {Funes.Application, []}
+      mod: {Server.Application, []}
     ]
   end
 

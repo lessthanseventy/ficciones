@@ -1,16 +1,16 @@
-defmodule Funes.EvalTest do
+defmodule Server.EvalTest do
   # Slice 0 of the worklines design: the steering-config eval harness. The runner is pure —
   # scenarios are data, the judge is a behaviour seam — so the whole scorecard is testable
   # without a model call.
   use ExUnit.Case, async: true
 
-  alias Funes.Eval
-  alias Funes.Eval.Judge.Claude
-  alias Funes.Eval.Scenario
+  alias Server.Eval
+  alias Server.Eval.Judge.Claude
+  alias Server.Eval.Scenario
 
   defmodule FixedJudge do
     @moduledoc false
-    @behaviour Funes.Eval.Judge
+    @behaviour Server.Eval.Judge
 
     @impl true
     def score("good " <> _), do: {:ok, %{scores: %{clarity: 5, grounding: 4}, rationale: "solid"}}

@@ -1,14 +1,14 @@
-defmodule Funes.Recall.WorkingSetTest do
+defmodule Server.Recall.WorkingSetTest do
   # The DB-backed gatherer: real thread facts → strength-ranked, budgeted working set
   # (design: docs/plans/2026-08-19-funes-forgetting-design.md). Reads back through SQLite.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Recall
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Recall
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     {:ok, thread} = Channel.open_thread(%{title: "recall thread"})
     %{thread: thread}
   end

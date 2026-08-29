@@ -1,4 +1,4 @@
-defmodule Aleph.MachineChat.Rail do
+defmodule Console.MachineChat.Rail do
   @moduledoc """
   The left THREADS rail — one row per machine thread, Slack-channel-style: a liveness glyph
   (● working / ● live / ○ no session / ✓ closed), the title, and an unread badge. Pure rows from
@@ -7,7 +7,7 @@ defmodule Aleph.MachineChat.Rail do
   selected thread is always on screen.
   """
 
-  import Aleph.Panel, only: [blank: 0]
+  import Console.Panel, only: [blank: 0]
 
   @doc "The rail's rows, windowed to `rect.h` with the selection kept visible."
   @spec render(map(), map()) :: [[{String.t(), term()}]]

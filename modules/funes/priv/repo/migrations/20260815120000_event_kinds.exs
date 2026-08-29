@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.EventKinds do
+defmodule Server.Repo.Migrations.EventKinds do
   use Ecto.Migration
 
   # 010 narrow event.kind (spec §4, amended 2026-08-15). `event` holds only

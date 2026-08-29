@@ -1,11 +1,11 @@
-defmodule Funes.Habit do
+defmodule Server.Habit do
   @moduledoc """
   A HABIT — how the agent should WORK with the operator. The third axis beside FACTS
   (what's true — memory) and skills (how to do a task — procedures): a working preference
   ("run `mise run check` before proposing a commit", "prefer the Claude bucket"), *agent-
   proposed and human-approved*.
 
-  Distinct from a `stated` constraint (`Funes.Fact` provenance='stated'), which quotes the
+  Distinct from a `stated` constraint (`Server.Fact` provenance='stated'), which quotes the
   operator's OWN words: a habit is the machine's suggestion, promoted into the always-loaded
   set only by his approval. It lands `pending`; `approve_habit` flips it `approved` (stamping
   `approved_at`) and it then loads every session via `Dossier.approved_habits/0` — machine-
@@ -26,7 +26,7 @@ defmodule Funes.Habit do
     field :proposed_by, :string
     field :approved_at, :utc_datetime
     field :created_at, :utc_datetime
-    belongs_to :source_thread, Funes.Thread, foreign_key: :source_thread_id
+    belongs_to :source_thread, Server.Thread, foreign_key: :source_thread_id
   end
 
   @doc """

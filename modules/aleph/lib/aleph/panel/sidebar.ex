@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.Sidebar do
+defmodule Console.Panel.Sidebar do
   @moduledoc """
   The Slack-shaped left sidebar (reshape slice D) — replaces the SPACES picker. **Home** (the
   Orbis god-view, the collapsed state) leads; then one group per workspace: its header (the
@@ -6,20 +6,20 @@ defmodule Aleph.Panel.Sidebar do
   (`⋯` working, stage chip, `⏸` awaiting; the root thread renders as the workspace's `#`
   channel), and its crew with presence (`●` working / `○` idle).
 
-  Pure over `Funes.Board.sidebar/0`'s read: data is `%{groups, active_key}`, plus `selected`
+  Pure over `Server.Board.sidebar/0`'s read: data is `%{groups, active_key}`, plus `selected`
   (the nav cursor over the PICKABLE rows — Home then each workspace header, the same order
   `key_at/2` resolves) injected only while this pane holds the focus, and `:scroll` via the View.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0, pad: 3]
+  import Console.Panel, only: [line: 2, blank: 0, pad: 3]
 
-  alias Funes.Bus
+  alias Server.Bus
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: [Bus.threads_topic(), Bus.sessions_topic()]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(%{groups: groups, active_key: active_key} = data, rect) do
     cursor = data[:selected]
 
@@ -30,14 +30,14 @@ defmodule Aleph.Panel.Sidebar do
 
     note = if groups == [], do: [line("no workspaces — is funes up?", :dim)], else: []
 
-    Aleph.Panel.clip(body ++ note, rect)
+    Console.Panel.clip(body ++ note, rect)
   end
 
-  def render(_data, rect), do: Aleph.Panel.clip([line("no workspaces — is funes up?", :dim)], rect)
+  def render(_data, rect), do: Console.Panel.clip([line("no workspaces — is funes up?", :dim)], rect)
 
   # Click → the row under local_y, same list render walked. Workspace headers (and Home) switch
   # the space; a thread row focuses its thread; crew rows and spacers are inert.
-  @impl Aleph.Panel
+  @impl Console.Panel
   def pick(%{groups: _} = data, _rect, local_y) do
     case data |> rows_of() |> Enum.at(local_y) do
       {:home, _i} -> {:switch_space, :orbis}
@@ -117,6 +117,6 @@ defmodule Aleph.Panel.Sidebar do
     chip ++ gate
   end
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def hints(_data), do: [{"j/k", "workspaces"}, {"⏎", "switch"}]
 end

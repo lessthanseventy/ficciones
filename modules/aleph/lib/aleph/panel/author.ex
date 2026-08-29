@@ -1,44 +1,44 @@
-defmodule Aleph.Panel.Author do
+defmodule Console.Panel.Author do
   @moduledoc """
   ORBIS' AUTHOR face: the editable funes-workspace list — create (`n`) and delete (`d`) from the LIST
   view (D2, Chunk 1); `e` on the cursor workspace opens the in-place FIELD EDITOR (D2.4 Chunk 2a),
-  `data[:edit]` present. List: one row per `Aleph.Workspaces.all/0` workspace (name · type · path/roster
+  `data[:edit]` present. List: one row per `Console.Workspaces.all/0` workspace (name · type · path/roster
   counts), the `author_cursor` row washed `:selected` — same wash idiom as
-  `Aleph.Panel.Overview`/`Leaves`. Data is `%{workspaces: [%{id, name, type, paths, roster, scope}],
+  `Console.Panel.Overview`/`Leaves`. Data is `%{workspaces: [%{id, name, type, paths, roster, scope}],
   cursor, edit}` (`cursor`/`edit` View-injected). Replaces Overview as Orbis' center only while
-  `orbis_face == :author` (`Aleph.View.compose/3`).
+  `orbis_face == :author` (`Console.View.compose/3`).
 
   The editor is a vertical 4-row field list (0 type · 1 scope · 2 paths · 3 roster), the `field`
   cursor washed `:selected`; fields 0/1 show the ring value inline (h/l cycles it, applied
   immediately — no draft/commit). `name` has no field — it's immutable
-  (`Funes.Workspace.edit_changeset` drops it), called out in the header instead. `Enter` on field 2/3
+  (`Server.Workspace.edit_changeset` drops it), called out in the header instead. `Enter` on field 2/3
   (`edit.mode == :sub`) swaps in that field's sub-list — one row per path/roster entry (roster:
   `archetype · name`), the `sub` cursor washed `:selected` — instead of the field list.
 
   The roster sub-list (D2.4 Chunk 2b, absorbs the Settings modal) ALSO renders each entry's
   effective model and yolo — the two knobs Settings used to own. Model resolves
   Config-or-archetype-default via `Profiles.instantiate/1` (the same precedence the `m` verb and
-  Settings used); yolo reads `Aleph.Config.coworker_yolo/1` directly. On the sub-selected row, the
+  Settings used); yolo reads `Console.Config.coworker_yolo/1` directly. On the sub-selected row, the
   knob `Tab` has armed (`edit.knob`) washes `:accent` — the cue for what `Enter`/`Space` will
   change.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Console.Panel, only: [line: 2, blank: 0]
 
-  alias Aleph.Config
-  alias Aleph.Profiles
-  alias Funes.Bus
+  alias Console.Config
+  alias Console.Profiles
+  alias Server.Bus
 
   @hints "j/k row · n new · e edit · d delete · a survey"
   @edit_hints "j/k field · h/l cycle · Enter list · Esc back"
   @sub_hints "j/k row · a add · x/d remove · Esc back"
   @roster_hints "j/k row · a add · x/d remove · Tab knob · Enter apply · Esc back"
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: [Bus.workspaces_topic()]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(%{workspaces: workspaces} = data, rect) do
     case {Map.get(data, :edit), Enum.find(workspaces, &(&1.id == data[:edit][:id]))} do
       {%{mode: :sub, field: 2} = edit, %{} = workspace} -> render_paths_sub(workspace, edit, rect)
@@ -59,7 +59,7 @@ defmodule Aleph.Panel.Author do
 
     footer = [blank(), line(@hints, :dim)]
 
-    Aleph.Panel.clip(header ++ body ++ footer, rect)
+    Console.Panel.clip(header ++ body ++ footer, rect)
   end
 
   # The field list (fields 0/1's rings inline; 2/3 show counts — their own row swaps in a
@@ -80,7 +80,7 @@ defmodule Aleph.Panel.Author do
 
     footer = [blank(), line(@edit_hints, :dim)]
 
-    Aleph.Panel.clip(header ++ body ++ footer, rect)
+    Console.Panel.clip(header ++ body ++ footer, rect)
   end
 
   defp field_row(label, value, selected?) do
@@ -102,7 +102,7 @@ defmodule Aleph.Panel.Author do
       end
 
     footer = [blank(), line(@sub_hints, :dim)]
-    Aleph.Panel.clip(header ++ body ++ footer, rect)
+    Console.Panel.clip(header ++ body ++ footer, rect)
   end
 
   defp sub_row(text, selected?) do
@@ -126,7 +126,7 @@ defmodule Aleph.Panel.Author do
       end
 
     footer = [blank(), line(@roster_hints, :dim)]
-    Aleph.Panel.clip(header ++ body ++ footer, rect)
+    Console.Panel.clip(header ++ body ++ footer, rect)
   end
 
   defp roster_entry_text(%{"archetype" => archetype, "name" => name}), do: "#{archetype} · #{name}"
@@ -166,7 +166,7 @@ defmodule Aleph.Panel.Author do
 
   # No click target yet — the editor is keyboard-only (Chunk 2a/b/c). Kept as an explicit no-op
   # (not left unimplemented), same idiom as the list's pre-Chunk-2 pick/3.
-  @impl Aleph.Panel
+  @impl Console.Panel
   def pick(_data, _rect, _local_y), do: nil
 
   defp workspace_row(w, selected?) do

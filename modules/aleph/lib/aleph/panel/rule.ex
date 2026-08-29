@@ -1,12 +1,12 @@
-defmodule Aleph.Panel.Rule do
+defmodule Console.Panel.Rule do
   @moduledoc "A vertical column separator — the `│` gutter between the cockpit's regions."
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(_data, %{h: h} = rect) do
-    "│" |> Aleph.Panel.line(:separator) |> List.duplicate(h) |> Aleph.Panel.clip(rect)
+    "│" |> Console.Panel.line(:separator) |> List.duplicate(h) |> Console.Panel.clip(rect)
   end
 end

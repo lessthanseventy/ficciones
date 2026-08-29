@@ -5,10 +5,10 @@ defmodule FunesTest do
   # functions don't.
   use ExUnit.Case, async: false
 
-  alias Funes.Dossier
+  alias Server.Dossier
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -16,21 +16,21 @@ defmodule FunesTest do
     test "approve_habit(id) loads the pending habit and approves it" do
       {:ok, habit} = Dossier.propose_habit(%{text: "prefer the Claude bucket", proposed_by: "glm-5.2"})
 
-      assert {:ok, approved} = Funes.approve_habit(habit.id)
+      assert {:ok, approved} = Server.approve_habit(habit.id)
       assert approved.state == "approved"
-      assert Enum.map(Funes.pending_habits(), & &1.id) == []
+      assert Enum.map(Server.pending_habits(), & &1.id) == []
     end
 
     test "reject_habit(id) loads the pending habit and rejects it" do
       {:ok, habit} = Dossier.propose_habit(%{text: "a bad idea", proposed_by: "glm-5.2"})
 
-      assert {:ok, rejected} = Funes.reject_habit(habit.id)
+      assert {:ok, rejected} = Server.reject_habit(habit.id)
       assert rejected.state == "rejected"
     end
 
     test "a missing id is {:error, :not_found}, not a crash" do
-      assert Funes.approve_habit(999_999) == {:error, :not_found}
-      assert Funes.reject_habit(999_999) == {:error, :not_found}
+      assert Server.approve_habit(999_999) == {:error, :not_found}
+      assert Server.reject_habit(999_999) == {:error, :not_found}
     end
   end
 
@@ -39,13 +39,13 @@ defmodule FunesTest do
       {:ok, _} = Dossier.propose_habit(%{text: "first", proposed_by: "a"})
       {:ok, second} = Dossier.propose_habit(%{text: "second", proposed_by: "a"})
 
-      assert Enum.map(Funes.pending_habits(), & &1.text) == ["second", "first"]
-      assert {:ok, _} = Funes.approve_habit(second.id)
-      assert Enum.map(Funes.pending_habits(), & &1.text) == ["first"]
+      assert Enum.map(Server.pending_habits(), & &1.text) == ["second", "first"]
+      assert {:ok, _} = Server.approve_habit(second.id)
+      assert Enum.map(Server.pending_habits(), & &1.text) == ["first"]
     end
 
     test "pinned/0 mirrors always_loaded_constraints/0" do
-      assert Funes.pinned() == Dossier.always_loaded_constraints()
+      assert Server.pinned() == Dossier.always_loaded_constraints()
     end
   end
 end

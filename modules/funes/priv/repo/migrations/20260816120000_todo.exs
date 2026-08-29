@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Todo do
+defmodule Server.Repo.Migrations.Todo do
   use Ecto.Migration
 
   # 016 todo (pi doc §5 slice 3, the activity axis). A plan step scoped to a thread:

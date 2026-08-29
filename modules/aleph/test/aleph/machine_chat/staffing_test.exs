@@ -1,4 +1,4 @@
-defmodule Aleph.MachineChat.StaffingTest do
+defmodule Console.MachineChat.StaffingTest do
   @moduledoc """
   The pure pick for who gets staffed as a new chat thread's lead: the composer text's first
   @-mentioned coworker, else the configured default. Pulled out of `Loop` (which grabs the TTY)
@@ -6,7 +6,7 @@ defmodule Aleph.MachineChat.StaffingTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.MachineChat.Staffing
+  alias Console.MachineChat.Staffing
 
   @roster [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
 
@@ -54,7 +54,7 @@ defmodule Aleph.MachineChat.StaffingTest do
   end
 
   describe "default_coworker/1 — the roster-derived default (no @-mention path)" do
-    # The regression seam: the machine-chat beam has no `Aleph.Workspaces` cache, so it must derive the
+    # The regression seam: the machine-chat beam has no `Console.Workspaces` cache, so it must derive the
     # default from the LIVE funes roster — never a stale stand-in whose `-machine` handle was never
     # registered as a funes agent (the leaderless-thread silence bug).
     test "picks the roster's builder as its -machine handle" do

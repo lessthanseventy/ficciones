@@ -1,7 +1,7 @@
-defmodule Funes.Recall.Certainty do
+defmodule Server.Recall.Certainty do
   @moduledoc """
   Time-aware certainty (design: `docs/plans/2026-08-19-funes-forgetting-design.md`), the
-  verification half-life. `stated > checked > opinion` like `Funes.MCP.Brief.certainty/1`, but
+  verification half-life. `stated > checked > opinion` like `Server.MCP.Brief.certainty/1`, but
   a `:checked` label is EARNED and PERISHABLE: it requires a check that actually *passed*, and
   it decays back to `:opinion` once that pass is older than the half-life. "We verified X" stops
   being trusted unless someone re-runs it. Pure.

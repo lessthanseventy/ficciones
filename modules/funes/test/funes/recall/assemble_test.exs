@@ -1,11 +1,11 @@
-defmodule Funes.Recall.AssembleTest do
+defmodule Server.Recall.AssembleTest do
   # The working-set assembler's pure core (design:
   # docs/plans/2026-08-19-funes-forgetting-design.md): rank candidates by relevance × strength,
   # keep the pinned constraint floor always, fill a token budget from the top, drop the rest
   # (out of context, not off disk). Pure — no DB.
   use ExUnit.Case, async: true
 
-  alias Funes.Recall
+  alias Server.Recall
 
   defp cand(id, rel, str, tokens, pinned? \\ false),
     do: %{id: id, relevance: rel, strength: str, tokens: tokens, pinned?: pinned?}

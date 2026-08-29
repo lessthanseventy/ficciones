@@ -1,4 +1,4 @@
-defmodule Aleph.PasteBuffer do
+defmodule Console.PasteBuffer do
   @moduledoc """
   The bracketed-paste buffer state machine (pure — the cockpit holds the buffer in its state, this
   module owns the transitions). aleph enables `\\e[?2004h` on the host tty, so ghostty wraps a paste
@@ -6,12 +6,12 @@ defmodule Aleph.PasteBuffer do
   paste-end events and the content between them as ordinary `:key` events. On paste-start the
   cockpit starts a buffer; while pasting, content keys accumulate here (a newline stays `\\n`, NOT
   `:enter`); on paste-end the whole buffer is forwarded to the center terminal wrapped back in the
-  markers via `Aleph.Terminal.feed/2` — tmux passes bracketed paste through, and pi honors it as one
+  markers via `Console.Terminal.feed/2` — tmux passes bracketed paste through, and pi honors it as one
   multi-line paste instead of N submits.
   """
 
   # The bracketed-paste markers, re-emitted around the accumulated content when forwarding to the
-  # center terminal. Byte-identical to the host-mode enable/disable in Aleph.Cockpit.
+  # center terminal. Byte-identical to the host-mode enable/disable in Console.Cockpit.
   @paste_enable "\e[200~"
   @paste_disable "\e[201~"
 

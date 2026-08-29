@@ -1,22 +1,22 @@
-defmodule Aleph.CockpitWorkspacesTest do
+defmodule Console.CockpitWorkspacesTest do
   @moduledoc """
-  D2, Chunk 1: `Aleph.Cockpit.register_workspace!/3` (D2.3) and `remove_workspace!/2` (D2.5) — the author
-  face's `n`/`d` funes writes. Exercises the REAL `Funes.Workspaces` write pipe (register/remove)
+  D2, Chunk 1: `Console.Cockpit.register_workspace!/3` (D2.3) and `remove_workspace!/2` (D2.5) — the author
+  face's `n`/`d` funes writes. Exercises the REAL `Server.Workspaces` write pipe (register/remove)
   through the cockpit's public, pure-ish wrappers (like `cycle_pane_view/2`/`attach_leaf/2`),
-  mirroring `Aleph.WorkspacesTest`'s temp-DB setup — aleph's `config/test.exs` keeps funes' Repo down,
+  mirroring `Console.WorkspacesTest`'s temp-DB setup — aleph's `config/test.exs` keeps funes' Repo down,
   so this suite boots it itself. One of the few aleph suites touching the DB → `async: false`.
   """
   use ExUnit.Case, async: false
 
-  alias Aleph.Cockpit
+  alias Console.Cockpit
   alias Ecto.Adapters.SQLite3
-  alias Funes.Repo
-  alias Funes.Workspace
-  alias Funes.Workspaces
+  alias Server.Repo
+  alias Server.Workspace
+  alias Server.Workspaces
 
   setup_all do
     db = Path.join(System.tmp_dir!(), "aleph_cockpit_workspaces_test_#{System.unique_integer([:positive])}.db")
-    Application.put_env(:funes, Repo, Keyword.merge(Application.get_env(:funes, Repo, []), database: db, pool_size: 1))
+    Application.put_env(:server, Repo, Keyword.merge(Application.get_env(:server, Repo, []), database: db, pool_size: 1))
 
     config = Repo.config()
     _ = SQLite3.storage_down(config)
@@ -33,7 +33,7 @@ defmodule Aleph.CockpitWorkspacesTest do
   end
 
   setup do
-    # A clean workspace table per test — this suite writes rows (mirrors Aleph.WorkspacesTest).
+    # A clean workspace table per test — this suite writes rows (mirrors Console.WorkspacesTest).
     Repo.delete_all(Workspace)
     :ok
   end
@@ -50,7 +50,7 @@ defmodule Aleph.CockpitWorkspacesTest do
       assert [%{name: "Ficciones2", type: "code"}] = Workspaces.all()
     end
 
-    test "the end-to-end release-bar chain: register_workspace! → Funes.Workspaces gets a 2nd row" do
+    test "the end-to-end release-bar chain: register_workspace! → Server.Workspaces gets a 2nd row" do
       {:ok, _tlon} = Workspaces.register(%{name: "Tlön", type: "code"})
       next = Cockpit.register_workspace!(state(%{}), :blank, "Ficciones2")
 
@@ -174,11 +174,11 @@ defmodule Aleph.CockpitWorkspacesTest do
   describe "apply_coworker_knob!/3 — the roster sub-editor's Tab+Enter knob (D2.4 Chunk 2b, absorbs Settings)" do
     setup do
       path = Path.join(System.tmp_dir!(), "aleph_coworker_knob_test_#{System.unique_integer([:positive])}.json")
-      previous = Application.get_env(:aleph, :config_path)
-      Application.put_env(:aleph, :config_path, path)
+      previous = Application.get_env(:console, :config_path)
+      Application.put_env(:console, :config_path, path)
 
       on_exit(fn ->
-        Application.put_env(:aleph, :config_path, previous)
+        Application.put_env(:console, :config_path, previous)
         File.rm(path)
       end)
 
@@ -196,11 +196,11 @@ defmodule Aleph.CockpitWorkspacesTest do
 
       assert next.flash =~ "amy driver"
       assert next.flash =~ "applies on next spawn"
-      override = Aleph.Config.coworker_model("amy", path)
+      override = Console.Config.coworker_model("amy", path)
       assert override
       # cycling again lands on the FOLLOWING ring entry — proves it's a cycle, not a fixed write.
       next2 = Cockpit.apply_coworker_knob!(roster_edit_state(w.id), "amy", :model)
-      assert Aleph.Config.coworker_model("amy", path) == Aleph.Profiles.next_model(override)
+      assert Console.Config.coworker_model("amy", path) == Console.Profiles.next_model(override)
       assert next2.flash =~ "amy driver"
     end
 
@@ -216,10 +216,10 @@ defmodule Aleph.CockpitWorkspacesTest do
         )
 
       assert next.flash =~ "amy permissions"
-      assert Aleph.Config.coworker_yolo("amy", path) == true
+      assert Console.Config.coworker_yolo("amy", path) == true
 
       next2 = Cockpit.apply_coworker_knob!(next, "amy", :yolo)
-      assert Aleph.Config.coworker_yolo("amy", path) == false
+      assert Console.Config.coworker_yolo("amy", path) == false
       assert next2.flash =~ "ask"
     end
 

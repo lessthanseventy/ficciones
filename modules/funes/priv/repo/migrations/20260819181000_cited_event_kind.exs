@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.CitedEventKind do
+defmodule Server.Repo.Migrations.CitedEventKind do
   use Ecto.Migration
 
   # Add `cited` to event.kind (forgetting engine, design: docs/plans/2026-08-19-funes-forgetting-design.md):

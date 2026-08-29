@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.ConsultIdIndex do
+defmodule Server.Repo.Migrations.ConsultIdIndex do
   use Ecto.Migration
 
   # `Consult.find_ask/1` filters `consult_id == ^id and mirrored == false` on every consult

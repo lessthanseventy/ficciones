@@ -1,4 +1,4 @@
-defmodule Aleph.CrashLog do
+defmodule Console.CrashLog do
   @moduledoc """
   Append-only failure log at `$XDG_CACHE_HOME/aleph/crash.log` (else `~/.cache`). aleph holds the
   TTY in the alt-screen, which swallows a crash's stderr — this leaves the trace on disk so a
@@ -9,7 +9,7 @@ defmodule Aleph.CrashLog do
   def path do
     # :crash_log_path (test.exs) points suites that exercise the degrade-and-log paths on
     # purpose (BoomProbe) at a scratch file, so they never pollute the operator's real log.
-    Application.get_env(:aleph, :crash_log_path) || default_path()
+    Application.get_env(:console, :crash_log_path) || default_path()
   end
 
   defp default_path do

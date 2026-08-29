@@ -1,8 +1,8 @@
-defmodule Aleph.Config do
+defmodule Console.Config do
   @moduledoc """
   The operator's **runtime settings file** — the knobs the cockpit exposes in-app (the SETTINGS
   panel + verbs) so changing them never means editing Elixir source or re-running `home:switch`.
-  A plain JSON map at `~/.config/aleph/config.json` (override with `config :aleph, :config_path`,
+  A plain JSON map at `~/.config/aleph/config.json` (override with `config :console, :config_path`,
   which the test env points away from the real home).
 
   Shape (all keys optional — absent means "the compiled default wins"):
@@ -13,16 +13,16 @@ defmodule Aleph.Config do
         }
       }
 
-  `Aleph.Profiles.fetch/1` merges `coworkers.<profile>` over the profile's compiled `model`, so a
+  `Console.Profiles.fetch/1` merges `coworkers.<profile>` over the profile's compiled `model`, so a
   settings change applies wherever the profile flows (materialised settings.json AND the launcher's
   `--model` flag) the next time the coworker spawns. Best-effort on read (a missing or corrupt file
   is just "no overrides"); writes are atomic (tmp + rename) so a crash mid-write can't truncate it.
   """
 
-  @doc "The settings file path (`config :aleph, :config_path` override, else ~/.config/aleph/config.json)."
+  @doc "The settings file path (`config :console, :config_path` override, else ~/.config/aleph/config.json)."
   @spec path() :: String.t()
   def path do
-    Application.get_env(:aleph, :config_path) ||
+    Application.get_env(:console, :config_path) ||
       Path.join([xdg_config_home(), "aleph", "config.json"])
   end
 
@@ -38,7 +38,7 @@ defmodule Aleph.Config do
 
   @doc """
   The operator's model override for a coworker profile, or nil (compiled default wins).
-  Returned in the `Aleph.Profile.model` shape: `%{provider, model, thinking}` with atom keys.
+  Returned in the `Console.Profile.model` shape: `%{provider, model, thinking}` with atom keys.
   """
   @spec coworker_model(String.t(), String.t()) :: map() | nil
   def coworker_model(profile, path \\ path()) do
@@ -107,7 +107,7 @@ defmodule Aleph.Config do
   @doc """
   The operator's persisted default-coworker override for new chat threads, or `nil` when unset.
   Just the override — the roster-derived default lives with the staffing decision
-  (`Aleph.MachineChat.Staffing.default_coworker/1`), fed the LIVE workspace roster by the caller, so no
+  (`Console.MachineChat.Staffing.default_coworker/1`), fed the LIVE workspace roster by the caller, so no
   stale hardcoded stand-in handle can leak in as a thread lead.
   """
   @spec default_coworker_override(String.t()) :: String.t() | nil

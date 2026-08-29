@@ -1,4 +1,4 @@
-defmodule Funes.Fact do
+defmodule Server.Fact do
   @moduledoc """
   A durable thing learned (spec §4): the judgement a system cannot derive. One row is one claim with one `provenance` — `stated` (the owner
   said it, verbatim) or `derived` (we produced it) — and reproducibility rides a
@@ -21,12 +21,12 @@ defmodule Funes.Fact do
     field :created_at, :utc_datetime
     # Semantic-recall index (written AFTER the fact, off the write path) — the embedding vector and
     # the model that produced it, so a model swap is a detectable re-embed.
-    field :embedding, Funes.VectorColumn
+    field :embedding, Server.VectorColumn
     field :embedding_model, :string
     # The operator's manual tombstone — set means out of every recall surface, row kept.
     field :forgotten_at, :utc_datetime
-    belongs_to :thread, Funes.Thread
-    belongs_to :source_session, Funes.Session
+    belongs_to :thread, Server.Thread
+    belongs_to :source_session, Server.Session
   end
 
   @doc "Attach an embedding vector + its model to an existing fact (not part of the write path)."
@@ -67,7 +67,7 @@ defmodule Funes.Fact do
   # the automated capture that will feed it — must never store a secret. Returned as a changeset
   # error, so it rides the same {:error, changeset} path as any other invalid write.
   defp validate_no_secret(changeset, field) do
-    case Funes.Secrets.scan(get_field(changeset, field)) do
+    case Server.Secrets.scan(get_field(changeset, field)) do
       :ok ->
         changeset
 

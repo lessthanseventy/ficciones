@@ -1,19 +1,19 @@
-defmodule Funes.Consult.Mirror do
+defmodule Server.Consult.Mirror do
   @moduledoc """
   The consult mirror as a supervised process: subscribes to the message bus and, for each
-  posted message, runs `Funes.Consult.maybe_mirror/1` — the bidirectional bridge that
+  posted message, runs `Server.Consult.maybe_mirror/1` — the bidirectional bridge that
   carries a consult's replies between the two sides. Always-on (it only writes DB rows, it
   never pokes a pane, so it is safe where the switchboard is deliberately opt-in).
 
   A mirror failure must never take down the process that posted the original message, so
-  the mirror runs here, isolated from `Funes.Channel.post`, and a raise is caught and
+  the mirror runs here, isolated from `Server.Channel.post`, and a raise is caught and
   logged rather than crash-looping the supervisor. The ask itself is already a durable row
   before this runs; a missed mirror is a lost round-trip, never a lost message.
   """
   use GenServer
 
-  alias Funes.Bus
-  alias Funes.Consult
+  alias Server.Bus
+  alias Server.Consult
 
   require Logger
 

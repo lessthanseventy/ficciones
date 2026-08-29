@@ -1,12 +1,12 @@
-defmodule Aleph.StackTest do
+defmodule Console.StackTest do
   @moduledoc """
-  Aleph.Stack.show/1 — the Commits pane's `Enter` detail. Driven against a throwaway git repo so
+  Console.Stack.show/1 — the Commits pane's `Enter` detail. Driven against a throwaway git repo so
   the classification (the pure part the renderer colors off) is exercised end-to-end, not mocked.
   The rest of Stack shells out to git/df/nix and is left to the `verify` skill.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Stack
+  alias Console.Stack
 
   setup do
     dir = Path.join(System.tmp_dir!(), "aleph-stack-#{System.unique_integer([:positive])}")

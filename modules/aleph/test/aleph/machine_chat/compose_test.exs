@@ -1,9 +1,9 @@
-defmodule Aleph.MachineChat.ComposeTest do
+defmodule Console.MachineChat.ComposeTest do
   @moduledoc "The machine-chat compose box grows: full buffer wrapped, cursor pinned visible."
   use ExUnit.Case, async: true
 
-  alias Aleph.MachineChat.Layout
-  alias Aleph.MachineChat.Loop
+  alias Console.MachineChat.Layout
+  alias Console.MachineChat.Loop
 
   test "compose_lines wraps the full buffer and carries the cursor marker at the tail" do
     lines = Loop.compose_lines("one two three four five six seven", 12)

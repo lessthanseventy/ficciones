@@ -1,4 +1,4 @@
-defmodule Funes.JsonBlob do
+defmodule Server.JsonBlob do
   @moduledoc """
   Pull the ONE valid JSON object out of decorated CLI/model output. Models are told
   "ONLY JSON" and decorate anyway — try the whole trimmed output, then every

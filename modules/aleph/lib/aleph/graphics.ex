@@ -1,4 +1,4 @@
-defmodule Aleph.Graphics do
+defmodule Console.Graphics do
   @moduledoc """
   The kitty-graphics seam (design 2026-08-23 §Images): pure APC sequence builders + a placement
   differ, capability-gated. Panels declare image placements `%{id, data, rect}` (raw PNG bytes;
@@ -37,7 +37,7 @@ defmodule Aleph.Graphics do
   end
 
   @doc "Place transmitted `id` over a cell rect: save cursor, move, place, restore."
-  @spec place(non_neg_integer(), Aleph.Panel.rect()) :: iodata()
+  @spec place(non_neg_integer(), Console.Panel.rect()) :: iodata()
   def place(id, %{x: x, y: y, w: w, h: h}),
     do: ["\e7", "\e[#{y + 1};#{x + 1}H", "\e_Ga=p,q=2,i=#{id},c=#{w},r=#{h}\e\\", "\e8"]
 

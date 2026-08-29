@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.StageEventKind do
+defmodule Server.Repo.Migrations.StageEventKind do
   use Ecto.Migration
 
   # Add `stage_advanced` to event.kind (worklines slice 1): every completed stage flip is a

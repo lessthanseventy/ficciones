@@ -1,8 +1,8 @@
-defmodule Aleph.MachineChat.TriageTest do
+defmodule Console.MachineChat.TriageTest do
   @moduledoc "Slice E: unrouted-thread intent → specialist archetype → roster worker handle."
   use ExUnit.Case, async: true
 
-  alias Aleph.MachineChat.Triage
+  alias Console.MachineChat.Triage
 
   @roster [
     %{"archetype" => "surveyor", "name" => "tertius"},

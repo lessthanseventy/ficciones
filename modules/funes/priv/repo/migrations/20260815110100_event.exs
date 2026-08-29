@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Event do
+defmodule Server.Repo.Migrations.Event do
   use Ecto.Migration
 
   # 008 event (spec §4, aleph §9.4/§9.5). Append-only, what happened — everything

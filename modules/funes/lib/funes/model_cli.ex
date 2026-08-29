@@ -1,4 +1,4 @@
-defmodule Funes.ModelCli do
+defmodule Server.ModelCli do
   @moduledoc """
   One headless model-CLI invocation shape for every adapter (eval judge, memory extractor,
   whatever's next): command + model come from config keys (vendor is never design — funes
@@ -8,8 +8,8 @@ defmodule Funes.ModelCli do
 
   @doc "Run `prompt` through the configured CLI. `{:ok, stdout}` or `{:error, typed}`."
   def prompt(prompt, cmd_key, model_key, {default_cmd, default_model} \\ {"claude", "haiku"}) do
-    cmd = Application.get_env(:funes, cmd_key, default_cmd)
-    model = Application.get_env(:funes, model_key, default_model)
+    cmd = Application.get_env(:server, cmd_key, default_cmd)
+    model = Application.get_env(:server, model_key, default_model)
 
     case System.cmd(cmd, ["-p", prompt, "--model", model], stderr_to_stdout: true) do
       {out, 0} -> {:ok, out}

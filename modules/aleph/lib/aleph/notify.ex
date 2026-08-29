@@ -1,4 +1,4 @@
-defmodule Aleph.Notify do
+defmodule Console.Notify do
   @moduledoc """
   Native desktop notifications, the pure half (design: the operator can be on another
   workspace and still learn that an agent finished or is WAITING on them). aleph holds the
@@ -10,7 +10,7 @@ defmodule Aleph.Notify do
   This module only DECIDES and FORMATS: `for_event/2` maps an operator-relevant Bus event to
   `{title, body}` (nil for noise), `osc/2` builds the escape. The one-line tty write lives in
   the Cockpit (thin edge). `question_raised`/`issue_raised` now reach the cockpit cross-thread:
-  the Cockpit subscribes to `Funes.Bus`'s global `activity` topic, so these fire for ANY thread,
+  the Cockpit subscribes to `Server.Bus`'s global `activity` topic, so these fire for ANY thread,
   not just the focused one (the meta-topic that was once outstanding funes work).
   """
 

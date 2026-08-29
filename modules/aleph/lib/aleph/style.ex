@@ -1,10 +1,10 @@
-defmodule Aleph.Style do
+defmodule Console.Style do
   @moduledoc """
   The one palette. Panels render in **semantic styles** (`:header`, `:warm`, `:selected`, …),
   never raw hex — so the whole cockpit reads as one surface and a re-theme is one edit here,
   not a hunt through every panel (design §3: panels are thin; presentation is centralized).
 
-  Colors are 24-bit RGB for termbox2's `TB_OUTPUT_TRUECOLOR` (see `Mix.Tasks.Aleph.Run`);
+  Colors are 24-bit RGB for termbox2's `TB_OUTPUT_TRUECOLOR` (see `Mix.Tasks.Console.Run`);
   `@bg` is `0x000000`, which truecolor maps to the terminal's own background.
   """
 

@@ -1,15 +1,15 @@
-defmodule Funes.MaintainTest do
+defmodule Server.MaintainTest do
   # Worklines slice 6: the Maintain back-edge. Deterministic monitors detect control-band
   # breaches and act with NO human in the invocation path — but everything they open lands
   # GATED (machine-born), so the loop closes without ever acting unsupervised.
   use ExUnit.Case, async: false
 
-  alias Funes.Maintain.Monitor
-  alias Funes.Message
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workline
-  alias Funes.Workline.Artifacts
+  alias Server.Maintain.Monitor
+  alias Server.Message
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workline
+  alias Server.Workline.Artifacts
 
   defmodule AllPresent do
     @moduledoc false
@@ -20,7 +20,7 @@ defmodule Funes.MaintainTest do
   end
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -65,11 +65,11 @@ defmodule Funes.MaintainTest do
     {_, 0} = System.cmd("git", ["-C", tmp, "init", "-q"], stderr_to_stdout: true)
     {_, 0} = System.cmd("git", ["-C", tmp, "config", "user.email", "t@t"], stderr_to_stdout: true)
     {_, 0} = System.cmd("git", ["-C", tmp, "config", "user.name", "t"], stderr_to_stdout: true)
-    previous = Application.get_env(:funes, :workline_root)
-    Application.put_env(:funes, :workline_root, tmp)
+    previous = Application.get_env(:server, :workline_root)
+    Application.put_env(:server, :workline_root, tmp)
 
     on_exit(fn ->
-      Application.put_env(:funes, :workline_root, previous)
+      Application.put_env(:server, :workline_root, previous)
       File.rm_rf!(tmp)
     end)
 

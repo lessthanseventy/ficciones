@@ -1,4 +1,4 @@
-defmodule Funes.Workline.Review do
+defmodule Server.Workline.Review do
   @moduledoc """
   The reviewer's ONE door (worklines slice 3). The reviewer profile is structurally
   write-fenced (@reviewer_permissions denies write/edit + bash redirects), so review.md
@@ -7,8 +7,8 @@ defmodule Funes.Workline.Review do
   a hook, not an advisory.
   """
 
-  alias Funes.Thread
-  alias Funes.Workline.Scribe
+  alias Server.Thread
+  alias Server.Workline.Scribe
 
   @doc """
   Write + commit the review verdict. `{:ok, rel_path}`, `{:error, {:not_in_review, stage}}`

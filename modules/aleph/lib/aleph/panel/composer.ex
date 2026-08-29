@@ -1,16 +1,16 @@
-defmodule Aleph.Panel.Composer do
+defmodule Console.Panel.Composer do
   @moduledoc """
   The compose box — a growable multi-line input above the status bar (the `c` verb). Renders
   the FULL buffer wrapped to the width, with the `▎` cursor on its actual line/col: the marker
   is inserted into the text before wrapping, so it travels with the wrap instead of assuming
-  the cursor sits on the current line. `Aleph.View` sizes the box to the wrapped line count
+  the cursor sits on the current line. `Console.View` sizes the box to the wrapped line count
   (capped at half the frame); past the cap the window scrolls to keep the cursor visible.
 
   Data is `%{input: %{kind: :compose, buffer, cursor}}`.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  alias Aleph.Panel
+  alias Console.Panel
 
   @marker "▎"
   # The "▸ " prompt gutter on the box's first row; continuation rows indent to align under it.
@@ -40,7 +40,7 @@ defmodule Aleph.Panel.Composer do
     marked
     |> String.split("\n")
     |> Enum.flat_map(fn hard ->
-      case Aleph.Text.wrap(hard, width) do
+      case Console.Text.wrap(hard, width) do
         [] -> [""]
         wrapped -> wrapped
       end

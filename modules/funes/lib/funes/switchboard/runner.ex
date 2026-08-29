@@ -1,12 +1,12 @@
-defmodule Funes.Switchboard.Server do
+defmodule Server.Switchboard.Runner do
   @moduledoc """
   The switchboard as a supervised process (aleph §6): subscribes to the bus and
   wakes recipients as messages are posted. Its liveness never makes a message
   *exist* (§10) — on start it `drain/0`s the DB, so anything posted while it was
   down is still delivered; while up, it reacts to PubSub for low latency.
 
-  Opt-in (`config :funes, :start_switchboard, true`) and off by default: it should
-  not auto-poke real panes until presence-gating exists (see `Funes.Switchboard`).
+  Opt-in (`config :server, :start_switchboard, true`) and off by default: it should
+  not auto-poke real panes until presence-gating exists (see `Server.Switchboard`).
 
   Follow-up, to land alongside a real arbiter: wakes actuate synchronously in this
   process, so a slow shell-out backend would stall every thread's delivery behind
@@ -14,9 +14,9 @@ defmodule Funes.Switchboard.Server do
   """
   use GenServer
 
-  alias Funes.Bus
-  alias Funes.Doctor
-  alias Funes.Switchboard
+  alias Server.Bus
+  alias Server.Doctor
+  alias Server.Switchboard
 
   require Logger
 

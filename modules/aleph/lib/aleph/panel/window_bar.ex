@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.WindowBar do
+defmodule Console.Panel.WindowBar do
   @moduledoc """
   The top band framing the Tlön center: aleph's own window strip — tmux's status bar is off, so
   this is the only window chrome — moved OUT of the terminal into a standalone bordered panel (the
@@ -6,23 +6,23 @@ defmodule Aleph.Panel.WindowBar do
   agent, the active window highlighted. Right: the Claude-engine clock state + the focused thread.
 
   Data is `%{tabs: [%{name, active?, index, agent, warm?}], engine: :on | :off, thread: id | nil}`
-  — tabs pre-joined to roster presence by `Aleph.View.data_for/2` (window → agent handle via
-  `Aleph.Mention.coworkers/0`, warmth via `Funes.Staff.roster/0`), so this panel stays a pure
+  — tabs pre-joined to roster presence by `Console.View.data_for/2` (window → agent handle via
+  `Console.Mention.coworkers/0`, warmth via `Server.Staff.roster/0`), so this panel stays a pure
   render with no funes reads of its own.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [row_width: 1]
+  import Console.Panel, only: [row_width: 1]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(%{tabs: tabs, engine: engine, thread: thread}, rect) do
     left = Enum.map(tabs, &tab_run/1)
     right = engine_run(engine) ++ [{"  ", :normal}, {"##{thread || "—"}", :dim}]
 
-    Aleph.Panel.clip([justify(left, right, rect.w)], rect)
+    Console.Panel.clip([justify(left, right, rect.w)], rect)
   end
 
   defp tab_run(t), do: {tab_label(t), if(t[:active?], do: :selected, else: :dim)}

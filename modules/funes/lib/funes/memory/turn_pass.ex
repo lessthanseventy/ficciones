@@ -1,4 +1,4 @@
-defmodule Funes.Memory.TurnPass do
+defmodule Server.Memory.TurnPass do
   @moduledoc """
   The post-response memory pass (worklines slice 5): when an agent's turn completes
   (`presence_idle`), a cheap extractor turns the turn's NEW messages into 0..3 banked
@@ -12,14 +12,14 @@ defmodule Funes.Memory.TurnPass do
 
   import Ecto.Query
 
-  alias Funes.Dossier
-  alias Funes.Message
-  alias Funes.Recall
-  alias Funes.Repo
-  alias Funes.Thread
+  alias Server.Dossier
+  alias Server.Message
+  alias Server.Recall
+  alias Server.Repo
+  alias Server.Thread
 
   @defaults [
-    extractor: Funes.Memory.Extractor.Claude,
+    extractor: Server.Memory.Extractor.Claude,
     min_messages: 3,
     min_interval_ms: to_timeout(minute: 10),
     subscribe: true
@@ -39,7 +39,7 @@ defmodule Funes.Memory.TurnPass do
   @impl true
   def init(opts) do
     opts = Keyword.merge(@defaults, opts)
-    if opts[:subscribe], do: Funes.Bus.subscribe_presence()
+    if opts[:subscribe], do: Server.Bus.subscribe_presence()
     {:ok, %{opts: opts, seen: %{}}}
   end
 

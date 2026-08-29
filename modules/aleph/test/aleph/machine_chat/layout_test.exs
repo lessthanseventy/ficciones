@@ -1,8 +1,8 @@
-defmodule Aleph.MachineChat.LayoutTest do
+defmodule Console.MachineChat.LayoutTest do
   @moduledoc "The Slack-shaped geometry: rails collapse on narrow terminals; the center always wins."
   use ExUnit.Case, async: true
 
-  alias Aleph.MachineChat.Layout
+  alias Console.MachineChat.Layout
 
   test "wide: header + both rails + separators + center + composer, all disjoint and in-bounds" do
     l = Layout.compute(160, 40)

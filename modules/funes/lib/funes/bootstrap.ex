@@ -1,4 +1,4 @@
-defmodule Funes.Bootstrap do
+defmodule Server.Bootstrap do
   @moduledoc """
   Boot-time integrity (reshape slice A). Two invariants, restored on every start:
   a default workspace exists, and every thread points at a workspace that is real.
@@ -11,10 +11,10 @@ defmodule Funes.Bootstrap do
   """
   import Ecto.Query
 
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workspace
-  alias Funes.Workspaces
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workspace
+  alias Server.Workspaces
 
   require Logger
 
@@ -56,16 +56,16 @@ defmodule Funes.Bootstrap do
         ok
 
       {:error, reason} = error ->
-        Logger.warning("Funes.Bootstrap: seed failed — #{inspect(reason)}; repair skipped this boot")
+        Logger.warning("Server.Bootstrap: seed failed — #{inspect(reason)}; repair skipped this boot")
         error
     end
   rescue
     e ->
-      Logger.warning("Funes.Bootstrap: skipped — #{Exception.message(e)}")
+      Logger.warning("Server.Bootstrap: skipped — #{Exception.message(e)}")
       :skipped
   catch
     :exit, reason ->
-      Logger.warning("Funes.Bootstrap: skipped — exit #{inspect(reason)}")
+      Logger.warning("Server.Bootstrap: skipped — exit #{inspect(reason)}")
       :skipped
   end
 

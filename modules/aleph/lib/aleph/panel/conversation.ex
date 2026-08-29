@@ -1,33 +1,33 @@
-defmodule Aleph.Panel.Conversation do
+defmodule Console.Panel.Conversation do
   @moduledoc """
   CHAT — the slack-style conversation on a thread (the coordination spine, funes `Channel`).
   This is not a tmux session: agents and the human posting to a thread *is* the chat, already
   durable in funes. Serves double duty — the compact left "CHATTER" box and the full-screen
   chat view (Tab) — the only difference is the rect it's handed. Re-renders on the thread topic.
 
-  Data is `%{title: String.t() | nil, messages: [%Funes.Message{}]}`, optionally with
+  Data is `%{title: String.t() | nil, messages: [%Server.Message{}]}`, optionally with
   `thinking`/`working` (the focused thread's presence) rendered as a trailing indicator —
   thinking counts as working, so the explicit declare (accent) outranks the tmux-activity
   inference (dim). `thinking` is `[{agent, elapsed_s}]` — `⋯ <agent> is thinking… (3m12s)` —
   so a long single turn visibly counts up instead of sitting on a static word that reads as
   frozen (funes thread #3); `working` stays a bare name list (no start timestamp to show).
 
-  A message carrying `attachment: %{w, h}` renders `Aleph.Graphics.placeholder/2` after its
-  body (design 2026-08-23 §Images) — the seam's proof, not a feature. Funes doesn't emit
+  A message carrying `attachment: %{w, h}` renders `Console.Graphics.placeholder/2` after its
+  body (design 2026-08-23 §Images) — the seam's proof, not a feature. Server doesn't emit
   attachments yet; real thumbnails (`images/2` on this panel + the funes write-path) land with
   the coming Spaces work.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Console.Panel, only: [line: 2, blank: 0]
 
-  alias Funes.Bus
+  alias Server.Bus
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(%{focused_id: id}) when not is_nil(id), do: [Bus.thread_topic(id)]
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(%{messages: messages} = data, rect) do
     header = [line(head_label(data[:title]), :header), blank()]
 
@@ -44,7 +44,7 @@ defmodule Aleph.Panel.Conversation do
           |> Enum.concat()
       end
 
-    Aleph.Panel.clip(header ++ body ++ presence_rows(data), rect)
+    Console.Panel.clip(header ++ body ++ presence_rows(data), rect)
   end
 
   defp presence_rows(data) do
@@ -61,7 +61,8 @@ defmodule Aleph.Panel.Conversation do
   # `elapsed_s` (now - the declare's started_at) is the trust signal (funes thread #3): a
   # coworker stuck on "thinking" through a long single turn must visibly count up, not sit on
   # a static word that reads as frozen.
-  defp thinking_row({agent, elapsed_s}), do: line("⋯ #{agent} is thinking… (#{Aleph.Text.duration(elapsed_s)})", :accent)
+  defp thinking_row({agent, elapsed_s}),
+    do: line("⋯ #{agent} is thinking… (#{Console.Text.duration(elapsed_s)})", :accent)
 
   defp head_label(nil), do: "CHAT"
   defp head_label(title), do: "CHAT · #{title}"
@@ -71,10 +72,10 @@ defmodule Aleph.Panel.Conversation do
   # messages render whole in :operator pink; agents keep amber author / green body.
   defp message_rows(%{author: author, body: body} = msg, w) do
     prefix = "#{author}: "
-    body_style = if Funes.Channel.operator?(author), do: :operator, else: :normal
+    body_style = if Server.Channel.operator?(author), do: :operator, else: :normal
 
     rows =
-      case Aleph.Text.wrap_paragraphs(prefix <> body, max(w, 1)) do
+      case Console.Text.wrap_paragraphs(prefix <> body, max(w, 1)) do
         [] -> []
         [first | rest] -> [author_run(first, author, body_style) | Enum.map(rest, &continuation(&1, body_style))]
       end
@@ -82,7 +83,7 @@ defmodule Aleph.Panel.Conversation do
     rows ++ attachment_row(Map.get(msg, :attachment))
   end
 
-  defp attachment_row(%{w: w, h: h}), do: [Aleph.Graphics.placeholder(w, h)]
+  defp attachment_row(%{w: w, h: h}), do: [Console.Graphics.placeholder(w, h)]
   defp attachment_row(_attachment), do: []
 
   defp continuation("", _style), do: blank()

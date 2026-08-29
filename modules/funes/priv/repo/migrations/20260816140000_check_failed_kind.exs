@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.CheckFailedKind do
+defmodule Server.Repo.Migrations.CheckFailedKind do
   use Ecto.Migration
 
   # 018 add `check_failed` to event.kind (roadmap #5, measured verification). record_check

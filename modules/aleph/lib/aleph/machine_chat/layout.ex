@@ -1,4 +1,4 @@
-defmodule Aleph.MachineChat.Layout do
+defmodule Console.MachineChat.Layout do
   @moduledoc """
   The machine-chat screen's geometry — pure `{w, h} → rects`, Slack-shaped: a one-row header,
   a left THREADS rail, the center conversation, a right CREW rail, and a 3-row composer under

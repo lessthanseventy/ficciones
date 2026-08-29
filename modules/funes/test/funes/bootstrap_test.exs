@@ -1,17 +1,17 @@
-defmodule Funes.BootstrapTest do
+defmodule Server.BootstrapTest do
   # Reshape slice A: boot-time integrity — the default workspace creates itself,
   # and no thread points at a workspace that isn't there (the live db carried a
   # thread → workspace_id=5 with only workspace 1 existing; remove_workspace orphaned it).
   use ExUnit.Case, async: false
 
-  alias Funes.Bootstrap
-  alias Funes.Channel
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workspaces
+  alias Server.Bootstrap
+  alias Server.Channel
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workspaces
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -67,7 +67,7 @@ defmodule Funes.BootstrapTest do
   end
 
   test "ensure_safe on a healthy schema behaves like ensure" do
-    assert {:ok, %Funes.Workspace{}} = Bootstrap.ensure_safe()
+    assert {:ok, %Server.Workspace{}} = Bootstrap.ensure_safe()
   end
 
   describe "threads open into a workspace" do
@@ -89,7 +89,7 @@ defmodule Funes.BootstrapTest do
     test "a workline opens into the default workspace too" do
       {:ok, workspace} = Bootstrap.ensure()
 
-      {:ok, thread} = Funes.Workline.open(%{title: "tracked", slug: "housed-line"})
+      {:ok, thread} = Server.Workline.open(%{title: "tracked", slug: "housed-line"})
       assert thread.workspace_id == workspace.id
     end
 

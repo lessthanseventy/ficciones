@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.SessionLastActive do
+defmodule Server.Repo.Migrations.SessionLastActive do
   use Ecto.Migration
 
   # 012 session.last_active_at (aleph §3b, the warmth window). Presence's concrete

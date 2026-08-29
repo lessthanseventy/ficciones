@@ -1,4 +1,4 @@
-defmodule Funes.Issue do
+defmodule Server.Issue do
   @moduledoc """
   A finding that outlives the session that found it (spec §5): what was found, the
   evidence, what would settle it, who found it, and a `state` the DB CHECKs. Ticket-
@@ -16,7 +16,7 @@ defmodule Funes.Issue do
     field :found_by, :string
     field :state, :string, default: "open"
     field :created_at, :utc_datetime
-    belongs_to :thread, Funes.Thread
+    belongs_to :thread, Server.Thread
   end
 
   @doc """

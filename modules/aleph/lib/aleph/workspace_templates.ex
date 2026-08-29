@@ -1,16 +1,16 @@
-defmodule Aleph.WorkspaceTemplates do
+defmodule Console.WorkspaceTemplates do
   @moduledoc """
-  The **workspace-archetype registry** — nix-owned *capabilities* (compiled, like `Aleph.Profiles`'
+  The **workspace-archetype registry** — nix-owned *capabilities* (compiled, like `Console.Profiles`'
   coworker archetypes, not runtime-editable). A template is the STARTER shape the author face's
   "new workspace" composes a funes `workspace` row from: a `type`, default `paths`, a starter `roster` of
   coworker-archetype entries, and `knobs`. The operator names it and edits from there; the created
   row is a *composition* (funes-owned, runtime-editable) — the config seam the reshape settled.
 
-  Distinct from `Aleph.Profiles.@archetypes`: those template a single COWORKER; these template a
+  Distinct from `Console.Profiles.@archetypes`: those template a single COWORKER; these template a
   whole WORKSPACE (which references coworker archetypes by atom in its `roster`).
   """
 
-  # roster entries reference the coworker archetype registry (`Aleph.Profiles`) by atom; `name` is a
+  # roster entries reference the coworker archetype registry (`Console.Profiles`) by atom; `name` is a
   # generic role placeholder the operator renames in the author face.
   @templates %{
     code: %{
@@ -46,7 +46,7 @@ defmodule Aleph.WorkspaceTemplates do
   def names, do: Map.keys(@templates)
 
   @doc """
-  A `Funes.Workspaces.register/1` attrs map from a template + an operator-given `name`. The roster is
+  A `Server.Workspaces.register/1` attrs map from a template + an operator-given `name`. The roster is
   emitted in the funes WIRE shape (string-keyed maps, matching the seed roster) so it round-trips
   through the changeset unchanged.
   """

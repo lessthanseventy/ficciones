@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.ThreadScope do
+defmodule Server.Repo.Migrations.ThreadScope do
   use Ecto.Migration
 
   # 019 thread.scope (aleph Tlön isolation, 2026-08-16). A thread belongs to either a

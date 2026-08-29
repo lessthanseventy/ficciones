@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Search do
+defmodule Server.Repo.Migrations.Search do
   use Ecto.Migration
 
   # 022 total recall (design: funes-total-recall, slice A). FTS5 full-text search over the message
@@ -7,7 +7,7 @@ defmodule Funes.Repo.Migrations.Search do
   # without duplicating the text; the AFTER INSERT/UPDATE/DELETE triggers keep the index in lockstep
   # with the base table (the `('delete', …)` special insert is FTS5's contentless-delete form); a
   # backfill seeds rows that already exist. FTS5 is compiled into exqlite's SQLite (probed before
-  # building). Reads rank by bm25 in `Funes.Search`. `Funes.Doctor.tables/0` filters the `*_fts*`
+  # building). Reads rank by bm25 in `Server.Search`. `Server.Doctor.tables/0` filters the `*_fts*`
   # shadow tables so they don't read as domain tables.
   def up do
     execute("CREATE VIRTUAL TABLE message_fts USING fts5(body, content='message', content_rowid='id')")

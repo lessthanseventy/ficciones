@@ -1,4 +1,4 @@
-defmodule Funes.MCP.Identity do
+defmodule Server.MCP.Identity do
   @moduledoc """
   Who a tool call IS: the binding the validator attached to this connection,
   read from the frame — never from a call parameter, so misdirection is
@@ -8,7 +8,7 @@ defmodule Funes.MCP.Identity do
   resolves identity through this one door.
   """
   alias Anubis.Server.Frame
-  alias Funes.Staff
+  alias Server.Staff
 
   @type t :: %{
           thread_id: integer(),

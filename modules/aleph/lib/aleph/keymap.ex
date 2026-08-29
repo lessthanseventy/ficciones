@@ -1,8 +1,8 @@
-defmodule Aleph.Keymap do
+defmodule Console.Keymap do
   @moduledoc """
   The cockpit's keyhandling as a **pure reducer** (design §8): `(key_event, state) → {new_state,
   effect}`, with no TTY, no tmux, and no paint. Extracting the decision from the side effect is
-  what makes every binding testable headlessly (`Aleph.KeymapTest`) — the `Aleph.Cockpit`
+  what makes every binding testable headlessly (`Console.KeymapTest`) — the `Console.Cockpit`
   GenServer stays a thin interpreter of the returned effect.
 
   **Input model — tmux-style** (see `docs/plans/2026-08-16-aleph-tmux-style-input.md`): the center
@@ -21,7 +21,7 @@ defmodule Aleph.Keymap do
   onto: the focused thread, or the machine thread in Tlön), `leader_pending?` (the prefix is
   armed), `input` (the typing modal), `orbis_focus` (`:survey | :threads` — which cursor Orbis'
   `j/k` drives; `h`/`l` toggle it), `survey_cursor` (the Orbis survey's per-row cursor, clamped to
-  the live workspace count), and `leaves` (the cached `Aleph.Orbis.rollup/0`, read-only here for its
+  the live workspace count), and `leaves` (the cached `Console.Orbis.rollup/0`, read-only here for its
   `workspaces` list — the same cache the cockpit's `orbis_workspaces/1` reads). A `key_event` is the
   `Raxol.Core.Events.Event` `data` map, e.g. `%{key: :up}` or `%{key: :char, char: "j"}`.
 
@@ -34,7 +34,7 @@ defmodule Aleph.Keymap do
     * `{:post_message, thread_id, body}` — post the composer's body to the focused thread as the
       operator (the `c` verb).
     * `{:cycle_coworker_model, profile}` — advance the active space's coworker driver model one
-      step round `Aleph.Profiles.model_ring/0` and persist it (the `m` verb — the SETTINGS knob;
+      step round `Console.Profiles.model_ring/0` and persist it (the `m` verb — the SETTINGS knob;
       only in a space with a coworker).
     * `{:cycle_pane_view, dir}` — cycle the Workspace's right-pane view (Health↔Activity↔Leaves, one
       panel shown full-height at a time) by `dir` (+1/-1, the `[`/`]` verb, Workspace nav only).
@@ -65,9 +65,9 @@ defmodule Aleph.Keymap do
   bodies) instead of submitting.
 
   Orbis' AUTHOR face (D2, Chunk 1): `orbis_face :: :survey | :author` (default `:survey`) picks
-  which center panel `Aleph.View` renders — `a` toggles it on, Esc steps back off. `author_cursor`
+  which center panel `Console.View` renders — `a` toggles it on, Esc steps back off. `author_cursor`
   is the author list's own per-row cursor (mirrors `survey_cursor`), clamped against
-  `author_workspaces` — the live `Aleph.Workspaces.all/0` list, threaded in per keypress (like
+  `author_workspaces` — the live `Console.Workspaces.all/0` list, threaded in per keypress (like
   `composer_thread_id`) so this module stays a pure reducer with no funes call of its own.
   `pending_delete` (id | nil) is the two-key delete confirm's arm.
 
@@ -94,18 +94,18 @@ defmodule Aleph.Keymap do
   `workspace_field/2`, same as the `a`/`x`/`d` clauses) — the Settings modal's model-ring-cycle /
   yolo-flip, now reached from here. This absorbs Settings; Chunk 2b deletes the `,` modal.
   """
-  alias Aleph.Panel
-  alias Aleph.Profiles
-  alias Aleph.Space
-  alias Aleph.Tlon.Focus
-  alias Aleph.WorkspaceTemplates
+  alias Console.Panel
+  alias Console.Profiles
+  alias Console.Space
+  alias Console.Tlon.Focus
+  alias Console.WorkspaceTemplates
 
   # `Space.workspace?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
   # not just an alias.
   require Space
 
   # The field editor's rings (D2.4 Chunk 2a) — `h`/`l` cycle these on fields 0/1. Match
-  # `Funes.Workspace`'s DB CHECK closed sets exactly (funes/lib/funes/workspace.ex).
+  # `Server.Workspace`'s DB CHECK closed sets exactly (funes/lib/funes/workspace.ex).
   @type_ring ["code", "life", "blank"]
   @scope_ring ["project", "machine"]
 
@@ -306,7 +306,7 @@ defmodule Aleph.Keymap do
   # --- Tlön: the lazygit focus model (design 2026-08-20). The center is a live tmux client, so
   # `Ctrl+Space` is a STICKY toggle in/out of it — NOT the arm-next-key leader other spaces use.
   # In the terminal every key forwards to tmux; out of it aleph owns the keys and drives the pure
-  # `Aleph.Tlon.Focus` SM over `tlon_layout` (h/l pane · H/L column · s section · Esc→terminal).
+  # `Console.Tlon.Focus` SM over `tlon_layout` (h/l pane · H/L column · s section · Esc→terminal).
   # `focus` (persistent) and `tlon_layout` (derived per keypress, like center_live?) are supplied by
   # the cockpit only for this space; the guard keeps every other space on the leader path below. ---
   def handle(key, %{active_key: k, focus: %Focus{}} = state) when Space.workspace?(k), do: handle_tlon(key, state)
@@ -855,8 +855,8 @@ defmodule Aleph.Keymap do
   end
 
   # The live workspaces list Orbis' survey cursor/Enter resolve against — the same cached
-  # `Aleph.Orbis.rollup/0` the cockpit's `orbis_workspaces/1` reads (`state.leaves.workspaces`). Kept local
-  # (not a call into `Aleph.Cockpit`) so the keymap stays a pure reducer over its passed-in state.
+  # `Console.Orbis.rollup/0` the cockpit's `orbis_workspaces/1` reads (`state.leaves.workspaces`). Kept local
+  # (not a call into `Console.Cockpit`) so the keymap stays a pure reducer over its passed-in state.
   defp survey_workspaces(state) do
     case Map.get(state, :leaves) do
       %{workspaces: workspaces} -> workspaces
@@ -864,7 +864,7 @@ defmodule Aleph.Keymap do
     end
   end
 
-  # The author face's own workspace list — `Aleph.Workspaces.all/0`, threaded in per keypress by the
+  # The author face's own workspace list — `Console.Workspaces.all/0`, threaded in per keypress by the
   # cockpit (like `composer_thread_id`) so this stays a pure reducer with no funes call of its
   # own. Distinct from `survey_workspaces/1` (the Orbis rollup, which is `nil` whenever there are no
   # MACHINE THREADS yet — a freshly-created, thread-less workspace would vanish from that list even

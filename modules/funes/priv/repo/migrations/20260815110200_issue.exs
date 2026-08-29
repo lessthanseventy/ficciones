@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Issue do
+defmodule Server.Repo.Migrations.Issue do
   use Ecto.Migration
 
   # 009 issue (spec §5, aleph §9.4). A finding that outlives the session that found

@@ -1,7 +1,7 @@
-defmodule Aleph.TranscriptTest do
+defmodule Console.TranscriptTest do
   use ExUnit.Case, async: true
 
-  alias Aleph.Transcript
+  alias Console.Transcript
 
   # A wide rect so nothing wraps unless a test wants it to.
   defp rect(w \\ 80, h \\ 1000), do: %{x: 0, y: 0, w: w, h: h}

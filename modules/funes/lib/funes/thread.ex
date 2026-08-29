@@ -1,4 +1,4 @@
-defmodule Funes.Thread do
+defmodule Server.Thread do
   @moduledoc """
   The atom of work (aleph §2). A subject promoted to a first-class row; `message`
   and, later, the dossier tables (`fact`/`event`/`issue`) hang off it. Its `state`
@@ -13,16 +13,16 @@ defmodule Funes.Thread do
     field :state, :string, default: "open"
     field :scope, :string, default: "project"
     field :created_at, :utc_datetime
-    # A thread has 0..1 agent (aleph §3), staffed via Funes.Staff. Nullable FK;
+    # A thread has 0..1 agent (aleph §3), staffed via Server.Staff. Nullable FK;
     # the assignment reference lives on the thread.
-    belongs_to :agent, Funes.Agent
+    belongs_to :agent, Server.Agent
     # Workline state (slice 1) — all nil on a plain thread. `stage` is the machine's position,
     # `slug` names `work/<slug>/`, `born` who authored the intent, `awaiting` the parked gate.
     field :stage, :string
     field :slug, :string
     field :born, :string
     field :awaiting, :string
-    belongs_to :workspace, Funes.Workspace
+    belongs_to :workspace, Server.Workspace
   end
 
   @doc ~s{A new thread, opened now. Title is required; state is not caller-settable. `scope`

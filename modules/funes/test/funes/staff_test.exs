@@ -1,4 +1,4 @@
-defmodule Funes.StaffTest do
+defmodule Server.StaffTest do
   # Step 3: the agent, the session, and staffing a thread (aleph §3, §9.3). An
   # AGENT is the durable identity + profile (Sandra, Robert) — a row that outlives
   # everything. A SESSION is an ephemeral running instance of an agent, in a pane,
@@ -8,18 +8,18 @@ defmodule Funes.StaffTest do
   # reads back through SQLite, never through the struct we were handed.
   use ExUnit.Case, async: false
 
-  alias Funes.Agent
-  alias Funes.Channel
-  alias Funes.Repo
-  alias Funes.Session
-  alias Funes.Staff
-  alias Funes.Thread
+  alias Server.Agent
+  alias Server.Channel
+  alias Server.Repo
+  alias Server.Session
+  alias Server.Staff
+  alias Server.Thread
 
   # This suite shares one DB (no sandbox, like step 2), but unlike thread/message,
   # `agent.name` is UNIQUE — so a reused name across tests would collide. Isolate
   # each test by clearing the domain rows first (FK-safe, via the shared helper).
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -272,7 +272,7 @@ defmodule Funes.StaffTest do
     } do
       # The roster is reactive (aleph §4): it must see the zombie leave and the
       # replacement arrive, or IN FLIGHT shows a pane that no longer exists.
-      Funes.Bus.subscribe_sessions()
+      Server.Bus.subscribe_sessions()
 
       {:ok, first} =
         Staff.start_session(%{agent_id: agent.id, thread_id: thread.id, pane_ref: "w1"})

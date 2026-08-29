@@ -1,13 +1,13 @@
-defmodule Funes.MCP.GatewayTest do
-  # The /mint endpoint (Funes.MCP.Gateway): an adapter mints a fresh token per connect
+defmodule Server.MCP.GatewayTest do
+  # The /mint endpoint (Server.MCP.Gateway): an adapter mints a fresh token per connect
   # against its FUNES_MCP_URL origin, so a pane is never stranded by a token-model
   # change or a secret regeneration. Proven END TO END over the wire (Bandit serves the
   # Gateway on a real loopback port, :httpc posts) — the same harness server_test uses.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.MCP
-  alias Funes.Staff
+  alias Server.Channel
+  alias Server.MCP
+  alias Server.Staff
 
   @port 48_641
   @mint_url ~c"http://127.0.0.1:48641/mint"
@@ -19,9 +19,9 @@ defmodule Funes.MCP.GatewayTest do
   end
 
   setup do
-    Funes.TestDB.clean!()
-    start_supervised!({MCP.Server, transport: :streamable_http})
-    start_supervised!({Bandit, plug: {Funes.MCP.Gateway, []}, ip: {127, 0, 0, 1}, port: @port})
+    Server.TestDB.clean!()
+    start_supervised!({MCP.Endpoint, transport: :streamable_http})
+    start_supervised!({Bandit, plug: {Server.MCP.Gateway, []}, ip: {127, 0, 0, 1}, port: @port})
 
     {:ok, thread} = Channel.open_thread(%{title: "vision consult"})
     {:ok, agent} = Staff.register_agent(%{name: "pi-machine", mandate: "m", engine: "e"})

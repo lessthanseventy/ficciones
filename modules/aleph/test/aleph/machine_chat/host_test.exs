@@ -1,11 +1,11 @@
-defmodule Aleph.MachineChat.HostTest do
+defmodule Console.MachineChat.HostTest do
   @moduledoc """
   The machine-chat interaction state (the Slack reshape): id-keyed selection that survives rail
   reorders, unread accounting, the composer draft, and the reply/new intent.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.MachineChat.Host
+  alias Console.MachineChat.Host
 
   defp block(id, title, n_messages, state \\ "open") do
     %{

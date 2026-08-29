@@ -1,4 +1,4 @@
-defmodule Aleph.CockpitPreviewTest do
+defmodule Console.CockpitPreviewTest do
   @moduledoc """
   The selection-driven center re-point (Workspaces Slice 0, tweak #1): in Tlön nav mode a hover over a
   window-bearing pane (Leaves — each leaf maps to a live Workspace tmux window by its lead) PREVIEWS
@@ -6,19 +6,19 @@ defmodule Aleph.CockpitPreviewTest do
   keyboard focus or sending keys; only a COMMIT (`commit_preview/1`) drops into the terminal.
 
   These exercise the pure state transforms the cockpit's `:tlon_preview`/commit paths run — the
-  tmux runner is injected (`:aleph, :tlon_cmd`) so the argv is asserted without a live server, the
-  same seam `Aleph.CrewTest` uses.
+  tmux runner is injected (`:console, :tlon_cmd`) so the argv is asserted without a live server, the
+  same seam `Console.CrewTest` uses.
   """
   use ExUnit.Case, async: false
 
-  alias Aleph.Cockpit
-  alias Aleph.Panel
-  alias Aleph.Tlon.Focus
+  alias Console.Cockpit
+  alias Console.Panel
+  alias Console.Tlon.Focus
 
   # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
-  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
+  # that render or drive a Workspace push one through the Console.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorkspaces.put()
+    Console.TestWorkspaces.put()
   end
 
   setup do
@@ -26,7 +26,7 @@ defmodule Aleph.CockpitPreviewTest do
 
     # Fake tmux runner: records argv; `list-windows` reports three Workspace windows
     # (tertius@0, hronir@1, general@2), everything else (select-window) is a no-op success.
-    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+    Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
 
       if Enum.member?(args, "list-windows"),
@@ -34,7 +34,7 @@ defmodule Aleph.CockpitPreviewTest do
         else: {"", 0}
     end)
 
-    on_exit(fn -> Application.delete_env(:aleph, :tlon_cmd) end)
+    on_exit(fn -> Application.delete_env(:console, :tlon_cmd) end)
     :ok
   end
 

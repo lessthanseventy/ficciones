@@ -1,18 +1,18 @@
-defmodule Funes.ChannelTest do
+defmodule Server.ChannelTest do
   # Step 2: the thread + message spine (aleph §9.2, spec §5b). The thread is the
   # atom of work; the message is the channel and §4's capture path — a message a
   # participant writes is already a durable row. The DB is the bus (§10): every
   # assertion here reads back through SQLite, never through in-memory state.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Message
-  alias Funes.Repo
-  alias Funes.Staff
-  alias Funes.Thread
+  alias Server.Channel
+  alias Server.Message
+  alias Server.Repo
+  alias Server.Staff
+  alias Server.Thread
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -123,7 +123,7 @@ defmodule Funes.ChannelTest do
     end
 
     # Delivery-stamping is the switchboard's atomic claim, tested in
-    # Funes.SwitchboardTest ("marks delivered once the addressee was woken"). The
+    # Server.SwitchboardTest ("marks delivered once the addressee was woken"). The
     # channel's own contract here is only that a sender cannot assert it.
 
     test "there is no `read` column — nothing can prove a read, so it does not exist" do
@@ -385,8 +385,8 @@ defmodule Funes.ChannelTest do
 
   describe "latest_operator_message/1 — B1.4's opening-turn source" do
     setup do
-      Application.put_env(:funes, :operator, "andrew")
-      on_exit(fn -> Application.delete_env(:funes, :operator) end)
+      Application.put_env(:server, :operator, "andrew")
+      on_exit(fn -> Application.delete_env(:server, :operator) end)
     end
 
     test "returns the most recent message authored by the configured operator" do
@@ -450,20 +450,20 @@ defmodule Funes.ChannelTest do
     end
 
     test "removes the thread, its messages, and its thread-scoped rows", %{thread: thread} do
-      {:ok, todo} = Funes.Dossier.add_todo(%{thread_id: thread.id, text: "a step"})
+      {:ok, todo} = Server.Dossier.add_todo(%{thread_id: thread.id, text: "a step"})
 
       assert {:ok, %Thread{}} = Channel.delete_thread(thread)
       assert Repo.get(Thread, thread.id) == nil
       assert Repo.get_by(Message, thread_id: thread.id) == nil
-      assert Repo.get(Funes.Todo, todo.id) == nil
+      assert Repo.get(Server.Todo, todo.id) == nil
     end
 
     test "facts born on the thread survive with the thread link cleared", %{thread: thread} do
       {:ok, fact} =
-        Funes.Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "kept", provenance: "derived"})
+        Server.Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "kept", provenance: "derived"})
 
       {:ok, _} = Channel.delete_thread(thread)
-      assert Repo.get!(Funes.Fact, fact.id).thread_id == nil
+      assert Repo.get!(Server.Fact, fact.id).thread_id == nil
     end
 
     test "the ROOT machine thread is refused — the standing coworkers' home" do

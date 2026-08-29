@@ -1,9 +1,9 @@
-defmodule Funes.MCP.Tool do
+defmodule Server.MCP.Tool do
   @moduledoc """
   The slice-1 tool surface (pi doc §2a/§5.1) — every tool a thin caller of the
   contexts, never a second writer (§10). Identity (thread, agent, session) rides
-  the connection via `Funes.MCP.Identity`, so no tool takes a thread parameter:
-  misdirection is unrepresentable. Grouped in one file the way `Funes.Arbiter`
+  the connection via `Server.MCP.Identity`, so no tool takes a thread parameter:
+  misdirection is unrepresentable. Grouped in one file the way `Server.Arbiter`
   groups its backends — one seam, several small faces.
   """
 
@@ -15,7 +15,7 @@ defmodule Funes.MCP.Tool do
   end
 end
 
-defmodule Funes.MCP.Tool.Register do
+defmodule Server.MCP.Tool.Register do
   @moduledoc """
   Claim a live session for this connection's (thread, agent). Call once at
   session start. Supersedes any crashed predecessor's session — the zombie guard.
@@ -23,8 +23,8 @@ defmodule Funes.MCP.Tool.Register do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP.Identity
-  alias Funes.Staff
+  alias Server.MCP.Identity
+  alias Server.Staff
 
   schema do
     field :pane_ref, :string, description: "Opaque pane handle (e.g. $TMUX_PANE)"
@@ -53,7 +53,7 @@ defmodule Funes.MCP.Tool.Register do
   end
 end
 
-defmodule Funes.MCP.Tool.PostMessage do
+defmodule Server.MCP.Tool.PostMessage do
   @moduledoc """
   Post to this connection's thread — talk on your thread, don't work in the void.
   The author is the bound agent; a reply targets the quoted message's author.
@@ -61,8 +61,8 @@ defmodule Funes.MCP.Tool.PostMessage do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Channel
-  alias Funes.MCP
+  alias Server.Channel
+  alias Server.MCP
 
   schema do
     field :body, :string, required: true
@@ -88,7 +88,7 @@ defmodule Funes.MCP.Tool.PostMessage do
   end
 end
 
-defmodule Funes.MCP.Tool.BankFact do
+defmodule Server.MCP.Tool.BankFact do
   @moduledoc """
   Bank a durable fact on this thread. Your own finding is `derived` — pass
   `check_cmd` when the claim is reproducible, or it ranks as an unverified
@@ -100,10 +100,10 @@ defmodule Funes.MCP.Tool.BankFact do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.MCP
-  alias Funes.Recall
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.MCP
+  alias Server.Recall
 
   schema do
     field :kind, :enum, values: ["decision", "constraint", "learned"], required: true
@@ -184,7 +184,7 @@ defmodule Funes.MCP.Tool.BankFact do
   defp normalize({:error, %Ecto.Changeset{} = cs}), do: {:error, MCP.Tool.changeset_error(cs)}
 end
 
-defmodule Funes.MCP.Tool.RaiseIssue do
+defmodule Server.MCP.Tool.RaiseIssue do
   @moduledoc """
   Record a defect in the STACK itself — the machine's own tracker, never product
   work or a task question (a knowledge gap is a question; being stuck is a
@@ -193,8 +193,8 @@ defmodule Funes.MCP.Tool.RaiseIssue do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.MCP
 
   schema do
     field :summary, :string, required: true
@@ -220,7 +220,7 @@ defmodule Funes.MCP.Tool.RaiseIssue do
   end
 end
 
-defmodule Funes.MCP.Tool.RecordDone do
+defmodule Server.MCP.Tool.RecordDone do
   @moduledoc """
   Record work landed on this thread. Evidence is REQUIRED — the command run, the
   commit, the passing gate. A claim that something works is backed by having run
@@ -229,8 +229,8 @@ defmodule Funes.MCP.Tool.RecordDone do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.MCP
 
   schema do
     field :text, :string, required: true, description: "What shipped, one line"
@@ -258,7 +258,7 @@ defmodule Funes.MCP.Tool.RecordDone do
   end
 end
 
-defmodule Funes.MCP.Tool.GetBrief do
+defmodule Server.MCP.Tool.GetBrief do
   @moduledoc """
   This thread's brief: goal, lead, learnings (with certainty), blockers, shipped,
   recent — each capped WITH a count. Use get_facts to read past a cap.
@@ -266,9 +266,9 @@ defmodule Funes.MCP.Tool.GetBrief do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Board
-  alias Funes.MCP
-  alias Funes.Thread
+  alias Server.Board
+  alias Server.MCP
+  alias Server.Thread
 
   schema do
   end
@@ -281,14 +281,14 @@ defmodule Funes.MCP.Tool.GetBrief do
   end
 end
 
-defmodule Funes.MCP.Tool.GetFacts do
+defmodule Server.MCP.Tool.GetFacts do
   @moduledoc "Every fact on this thread, newest first — the full read past the brief's cap."
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
-  alias Funes.Thread
+  alias Server.Dossier
+  alias Server.MCP
+  alias Server.Thread
 
   schema do
   end
@@ -306,14 +306,14 @@ defmodule Funes.MCP.Tool.GetFacts do
   end
 end
 
-defmodule Funes.MCP.Tool.GetMessages do
+defmodule Server.MCP.Tool.GetMessages do
   @moduledoc "This thread's recent messages in chat order, capped by limit."
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Channel
-  alias Funes.MCP
-  alias Funes.Thread
+  alias Server.Channel
+  alias Server.MCP
+  alias Server.Thread
 
   schema do
     field :limit, :integer, default: 50
@@ -332,7 +332,7 @@ defmodule Funes.MCP.Tool.GetMessages do
   end
 end
 
-defmodule Funes.MCP.Tool.AddTodo do
+defmodule Server.MCP.Tool.AddTodo do
   @moduledoc """
   Add a plan step to this thread — `add_todo` as you plan (pi doc §5 slice 3). Thread-
   scoped by the connection's identity; it opens open. Order is insertion order, so the
@@ -341,8 +341,8 @@ defmodule Funes.MCP.Tool.AddTodo do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.MCP
 
   schema do
     field :text, :string, required: true, description: "The plan step, one line"
@@ -362,7 +362,7 @@ defmodule Funes.MCP.Tool.AddTodo do
   end
 end
 
-defmodule Funes.MCP.Tool.CompleteTodo do
+defmodule Server.MCP.Tool.CompleteTodo do
   @moduledoc """
   Mark a plan step done — `complete_todo(id)` as you finish (pi doc §5 slice 3). The
   todo must belong to THIS connection's thread; completing another thread's step is
@@ -372,9 +372,9 @@ defmodule Funes.MCP.Tool.CompleteTodo do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
-  alias Funes.Todo
+  alias Server.Dossier
+  alias Server.MCP
+  alias Server.Todo
 
   schema do
     field :id, :integer, required: true, description: "The todo id (from add_todo or the brief)"
@@ -398,7 +398,7 @@ defmodule Funes.MCP.Tool.CompleteTodo do
   end
 end
 
-defmodule Funes.MCP.Tool.RaiseQuestion do
+defmodule Server.MCP.Tool.RaiseQuestion do
   @moduledoc """
   Surface a knowledge gap in the WORK — `raise_question(text)` (pi doc §5 slice 4).
   "does raxol support embedding?" Thread-scoped by the connection's identity; it opens
@@ -408,8 +408,8 @@ defmodule Funes.MCP.Tool.RaiseQuestion do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.MCP
 
   schema do
     field :text, :string, required: true, description: "The question — a knowledge gap in the work"
@@ -429,7 +429,7 @@ defmodule Funes.MCP.Tool.RaiseQuestion do
   end
 end
 
-defmodule Funes.MCP.Tool.ResolveQuestion do
+defmodule Server.MCP.Tool.ResolveQuestion do
   @moduledoc """
   Resolve a question — `resolve_question(id, resolution)` (pi doc §5 slice 4). The
   question must belong to THIS connection's thread; resolving another thread's is
@@ -440,9 +440,9 @@ defmodule Funes.MCP.Tool.ResolveQuestion do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
-  alias Funes.Question
+  alias Server.Dossier
+  alias Server.MCP
+  alias Server.Question
 
   schema do
     field :id, :integer, required: true, description: "The question id (from raise_question or the brief)"
@@ -467,7 +467,7 @@ defmodule Funes.MCP.Tool.ResolveQuestion do
   end
 end
 
-defmodule Funes.MCP.Tool.RecordCheck do
+defmodule Server.MCP.Tool.RecordCheck do
   @moduledoc """
   Record a MEASURED check (roadmap #5): the command you ran, its real `exit` code, and a
   `tail` of output. funes lands a `check_passed` (exit 0) or `check_failed` event —
@@ -478,8 +478,8 @@ defmodule Funes.MCP.Tool.RecordCheck do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.MCP
 
   schema do
     field :cmd, :string, required: true, description: "The exact command you ran"
@@ -506,7 +506,7 @@ defmodule Funes.MCP.Tool.RecordCheck do
   end
 end
 
-defmodule Funes.MCP.Tool.RecheckFact do
+defmodule Server.MCP.Tool.RecheckFact do
   @moduledoc """
   Re-verify a fact by re-running its OWN `check_cmd` — is the claim you are about to
   build on STILL true? Run the fact's command yourself (via `cap`) and report the real
@@ -519,9 +519,9 @@ defmodule Funes.MCP.Tool.RecheckFact do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.Fact
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.Fact
+  alias Server.MCP
 
   schema do
     field :id, :integer, required: true, description: "The fact id (from the brief or get_facts)"
@@ -559,18 +559,18 @@ defmodule Funes.MCP.Tool.RecheckFact do
   end
 end
 
-defmodule Funes.MCP.Tool.OpenThread do
+defmodule Server.MCP.Tool.OpenThread do
   @moduledoc """
   Open a NEW thread — a fresh unit of work. One of the two DELIBERATE cross-thread verbs:
   unlike every other tool, it does not act on the connection's own thread (there is no
   thread to misdirect — it is creating one). An orchestrator opens threads for work to be
-  picked up; the returned id is how a pane is then spawned onto it (`Funes.MCP.Spawn`).
+  picked up; the returned id is how a pane is then spawned onto it (`Server.MCP.Spawn`).
   """
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Channel
-  alias Funes.MCP
+  alias Server.Channel
+  alias Server.MCP
 
   schema do
     field :title, :string, required: true, description: "What the thread is for (its NORTH STAR)"
@@ -588,7 +588,7 @@ defmodule Funes.MCP.Tool.OpenThread do
   end
 end
 
-defmodule Funes.MCP.Tool.StaffLeaf do
+defmodule Server.MCP.Tool.StaffLeaf do
   @moduledoc """
   Open a NEW worker-led thread — the sanctioned "kick off a leaf" verb. Composes the cross-thread
   primitives: open a thread titled `title`, assign the registered agent `lead`, and post `brief`
@@ -604,10 +604,10 @@ defmodule Funes.MCP.Tool.StaffLeaf do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Agent
-  alias Funes.Channel
-  alias Funes.MCP
-  alias Funes.Staff
+  alias Server.Agent
+  alias Server.Channel
+  alias Server.MCP
+  alias Server.Staff
 
   schema do
     field :title, :string, required: true, description: "What the leaf is for (its NORTH STAR)"
@@ -641,7 +641,7 @@ defmodule Funes.MCP.Tool.StaffLeaf do
   end
 end
 
-defmodule Funes.MCP.Tool.CloseThread do
+defmodule Server.MCP.Tool.CloseThread do
   @moduledoc """
   Close a thread by id — the second DELIBERATE cross-thread verb. History outlives the
   close (messages are untouched); a closed thread just leaves the open list. It takes a
@@ -652,7 +652,7 @@ defmodule Funes.MCP.Tool.CloseThread do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Channel
+  alias Server.Channel
 
   schema do
     field :thread_id, :integer, required: true, description: "The thread to close"
@@ -671,7 +671,7 @@ defmodule Funes.MCP.Tool.CloseThread do
   end
 end
 
-defmodule Funes.MCP.Tool.SwitchThread do
+defmodule Server.MCP.Tool.SwitchThread do
   @moduledoc """
   Move THIS connection onto another thread — the coordination act behind episode ROTATION. Mints a
   fresh token bound to `{thread_id, this agent}` and returns it; the adapter re-handshakes with it,
@@ -686,8 +686,8 @@ defmodule Funes.MCP.Tool.SwitchThread do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP.Identity
-  alias Funes.MCP.Spawn
+  alias Server.MCP.Identity
+  alias Server.MCP.Spawn
 
   schema do
     field :thread_id, :integer, required: true, description: "The thread to move this connection onto"
@@ -708,20 +708,20 @@ defmodule Funes.MCP.Tool.SwitchThread do
   end
 end
 
-defmodule Funes.MCP.Tool.ConsultPeer do
+defmodule Server.MCP.Tool.ConsultPeer do
   @moduledoc """
   Ask a peer agent a question — the third DELIBERATE cross-thread verb (after
   open_thread/close_thread). The caller names a peer AGENT, never a thread id; funes
   resolves the peer's target thread (agent-filtered, with a defined tie-break) and
   delivers the ask there. The peer's answer is mirrored back to the caller's own thread
-  (see `Funes.Consult`), so the caller reads it in its own dossier. A missing or
+  (see `Server.Consult`), so the caller reads it in its own dossier. A missing or
   ambiguous peer is refused.
   """
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Consult
-  alias Funes.MCP
+  alias Server.Consult
+  alias Server.MCP
 
   schema do
     field :peer, :string, required: true, description: "The peer agent's name to ask"
@@ -746,7 +746,7 @@ defmodule Funes.MCP.Tool.ConsultPeer do
   end
 end
 
-defmodule Funes.MCP.Tool.ProposeHabit do
+defmodule Server.MCP.Tool.ProposeHabit do
   @moduledoc """
   Propose a HABIT — how you should WORK with the operator (a durable working preference,
   not a fact about the world and not a task step). It lands PENDING: the operator approves
@@ -758,8 +758,8 @@ defmodule Funes.MCP.Tool.ProposeHabit do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.MCP
 
   schema do
     field :text, :string,
@@ -788,7 +788,7 @@ defmodule Funes.MCP.Tool.ProposeHabit do
   end
 end
 
-defmodule Funes.MCP.Tool.SearchHistory do
+defmodule Server.MCP.Tool.SearchHistory do
   @moduledoc """
   Search PAST conversations across the whole channel — episodic recall the curated brief does not
   hold. Full-text, bm25-ranked; a multi-word query ANDs its terms. Reach for it to answer "did we
@@ -799,7 +799,7 @@ defmodule Funes.MCP.Tool.SearchHistory do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Search
+  alias Server.Search
 
   schema do
     field :query, :string, required: true, description: "Words to search for (multiple words AND together)"
@@ -812,7 +812,7 @@ defmodule Funes.MCP.Tool.SearchHistory do
   end
 end
 
-defmodule Funes.MCP.Tool.SearchFacts do
+defmodule Server.MCP.Tool.SearchFacts do
   @moduledoc """
   Search the FACT corpus — the whole ledger, past the brief's cap. Full-text, bm25-ranked. Use it
   to find a banked finding by a remembered word when it is not in the current thread's brief.
@@ -821,7 +821,7 @@ defmodule Funes.MCP.Tool.SearchFacts do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Search
+  alias Server.Search
 
   schema do
     field :query, :string, required: true, description: "Words to search for (multiple words AND together)"
@@ -834,7 +834,7 @@ defmodule Funes.MCP.Tool.SearchFacts do
   end
 end
 
-defmodule Funes.MCP.Tool.MachineOverview do
+defmodule Server.MCP.Tool.MachineOverview do
   @moduledoc """
   The machine META-view: every OPEN machine thread as a compact brief (title, lead, next step,
   open blockers, recent messages) — the cross-leaf read the Orbis Tertius meta agent synthesizes
@@ -846,9 +846,9 @@ defmodule Funes.MCP.Tool.MachineOverview do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Board
-  alias Funes.Channel
-  alias Funes.MCP.Identity
+  alias Server.Board
+  alias Server.Channel
+  alias Server.MCP.Identity
 
   schema do
   end
@@ -867,22 +867,22 @@ defmodule Funes.MCP.Tool.MachineOverview do
   end
 end
 
-defmodule Funes.MCP.Tool.SpawnCrew do
+defmodule Server.MCP.Tool.SpawnCrew do
   @moduledoc """
   Staff a crew role onto THIS thread — the leader's spawn verb (funes crew MVP). Mints the role's
   funes identity on your thread and stands up its terminal, then hands it `task` as its opening
   assignment. MVP role is `reviewer`. Like every self-thread tool it takes no thread parameter: the
   role joins the connection's own thread, so a leader spawns a reviewer onto the work it is leading.
 
-  Actuated by the configured crew backend (`Funes.Crew`) — on the aleph hub that spawns the window
+  Actuated by the configured crew backend (`Server.Crew`) — on the aleph hub that spawns the window
   in the live node. With no backend (the standalone service) it reports unavailable rather than
   faking a spawn.
   """
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Crew
-  alias Funes.MCP
+  alias Server.Crew
+  alias Server.MCP
 
   schema do
     field :task, :string, required: true, description: "The opening assignment — what the role should do"
@@ -909,7 +909,7 @@ defmodule Funes.MCP.Tool.SpawnCrew do
   end
 end
 
-defmodule Funes.MCP.Tool.KillCrew do
+defmodule Server.MCP.Tool.KillCrew do
   @moduledoc """
   Tear down a crew role's terminal on THIS thread — the leader's teardown verb (funes crew MVP).
   Thread-scoped by the connection's identity; role defaults to `reviewer`. Best-effort: a role that
@@ -918,8 +918,8 @@ defmodule Funes.MCP.Tool.KillCrew do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Crew
-  alias Funes.MCP
+  alias Server.Crew
+  alias Server.MCP
 
   schema do
     field :role, :string, description: "Crew role to tear down (default reviewer)"
@@ -944,19 +944,19 @@ defmodule Funes.MCP.Tool.KillCrew do
   end
 end
 
-defmodule Funes.MCP.Tool.RegisterWorkspace do
+defmodule Server.MCP.Tool.RegisterWorkspace do
   @moduledoc """
   Register a WORKSPACE — a first-class composition (workspaces/orbis Slice 1): a git-tracked
   scope (`paths`), a `roster` of archetype instances, and free-form `knobs` that aleph
   reads to drive its picker/survey/spawn. Unlike the thread-scoped tools this is
   machine-GLOBAL — it takes no identity, it writes the shared `workspace` table via
-  `Funes.Workspaces`. `name` is unique; a duplicate is a graceful error, not a crash.
+  `Server.Workspaces`. `name` is unique; a duplicate is a graceful error, not a crash.
   """
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP
-  alias Funes.Workspaces
+  alias Server.MCP
+  alias Server.Workspaces
 
   schema do
     field :name, :string, required: true, description: "The workspace's unique name"
@@ -979,7 +979,7 @@ defmodule Funes.MCP.Tool.RegisterWorkspace do
   end
 end
 
-defmodule Funes.MCP.Tool.ListWorkspaces do
+defmodule Server.MCP.Tool.ListWorkspaces do
   @moduledoc """
   Every WORKSPACE, newest-first — the machine-global read aleph's Orbis survey/picker maps
   over. Takes no identity: workspaces are not thread-scoped.
@@ -987,8 +987,8 @@ defmodule Funes.MCP.Tool.ListWorkspaces do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP
-  alias Funes.Workspaces
+  alias Server.MCP
+  alias Server.Workspaces
 
   schema do
   end
@@ -1000,7 +1000,7 @@ defmodule Funes.MCP.Tool.ListWorkspaces do
   end
 end
 
-defmodule Funes.MCP.Tool.EditWorkspace do
+defmodule Server.MCP.Tool.EditWorkspace do
   @moduledoc """
   Edit a WORKSPACE's mutable fields (`type`/`scope`/`paths`/`roster`/`knobs`), identified by
   its unique `name` — a workspace's identity is immutable, so name is the handle, not a
@@ -1009,8 +1009,8 @@ defmodule Funes.MCP.Tool.EditWorkspace do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP
-  alias Funes.Workspaces
+  alias Server.MCP
+  alias Server.Workspaces
 
   schema do
     field :name, :string, required: true, description: "The workspace to edit (its unique name)"
@@ -1039,7 +1039,7 @@ defmodule Funes.MCP.Tool.EditWorkspace do
   end
 end
 
-defmodule Funes.MCP.Tool.RemoveWorkspace do
+defmodule Server.MCP.Tool.RemoveWorkspace do
   @moduledoc """
   Remove a WORKSPACE by its unique `name` — machine-global, thread-independent. A missing
   workspace is refused rather than reported as removed.
@@ -1047,7 +1047,7 @@ defmodule Funes.MCP.Tool.RemoveWorkspace do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Workspaces
+  alias Server.Workspaces
 
   schema do
     field :name, :string, required: true, description: "The workspace to remove (its unique name)"
@@ -1075,7 +1075,7 @@ defmodule Funes.MCP.Tool.RemoveWorkspace do
   end
 end
 
-defmodule Funes.MCP.Tool.TrackThread do
+defmodule Server.MCP.Tool.TrackThread do
   @moduledoc """
   Promote THIS connection's thread into the stage machine at "build" — tracking is
   the lazy path (reshape slice B): the harness hooks call this mechanically on the
@@ -1086,10 +1086,10 @@ defmodule Funes.MCP.Tool.TrackThread do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workline
+  alias Server.MCP
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workline
 
   schema do
   end
@@ -1118,18 +1118,18 @@ defmodule Funes.MCP.Tool.TrackThread do
   end
 end
 
-defmodule Funes.MCP.Tool.PresenceThinking do
+defmodule Server.MCP.Tool.PresenceThinking do
   @moduledoc """
   Declare THIS connection's agent thinking on its thread — call at turn start, so
   the cockpit shows "thinking" the moment work begins (thinking counts as working).
   Self-thread like every write: agent + thread resolve from the token, no args.
-  Idempotent; a stuck declare is swept by `Funes.Presence.Thinking`'s max-age guard.
+  Idempotent; a stuck declare is swept by `Server.Presence.Thinking`'s max-age guard.
   """
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP.Identity
-  alias Funes.Presence.Thinking
+  alias Server.MCP.Identity
+  alias Server.Presence.Thinking
 
   schema do
   end
@@ -1142,7 +1142,7 @@ defmodule Funes.MCP.Tool.PresenceThinking do
   end
 end
 
-defmodule Funes.MCP.Tool.PresenceIdle do
+defmodule Server.MCP.Tool.PresenceIdle do
   @moduledoc """
   Declare THIS connection's agent done thinking — call at turn end (and on session
   end as the crash safety net). A no-op when nothing was declared, so hooks can
@@ -1151,8 +1151,8 @@ defmodule Funes.MCP.Tool.PresenceIdle do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.MCP.Identity
-  alias Funes.Presence.Thinking
+  alias Server.MCP.Identity
+  alias Server.Presence.Thinking
 
   schema do
   end
@@ -1165,7 +1165,7 @@ defmodule Funes.MCP.Tool.PresenceIdle do
   end
 end
 
-defmodule Funes.MCP.Tool.AdvanceStage do
+defmodule Server.MCP.Tool.AdvanceStage do
   @moduledoc """
   Advance THIS thread's workline past its current stage (worklines slice 1) — the single
   sanctioned mutation. Refused without the stage's owed artifact COMMITTED (the check lands
@@ -1176,9 +1176,9 @@ defmodule Funes.MCP.Tool.AdvanceStage do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Channel
-  alias Funes.MCP.Identity
-  alias Funes.Workline
+  alias Server.Channel
+  alias Server.MCP.Identity
+  alias Server.Workline
 
   schema do
   end
@@ -1215,7 +1215,7 @@ defmodule Funes.MCP.Tool.AdvanceStage do
     do: {:reply, Response.error(Response.tool(), "cannot advance: #{inspect(reason)}"), frame}
 end
 
-defmodule Funes.MCP.Tool.SubmitReview do
+defmodule Server.MCP.Tool.SubmitReview do
   @moduledoc """
   The write-fenced reviewer's ONE door (worklines slice 3): funes writes and commits
   work/<slug>/review.md itself — the reviewer profile structurally cannot (write/edit
@@ -1225,9 +1225,9 @@ defmodule Funes.MCP.Tool.SubmitReview do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Channel
-  alias Funes.MCP.Identity
-  alias Funes.Workline.Review
+  alias Server.Channel
+  alias Server.MCP.Identity
+  alias Server.Workline.Review
 
   schema do
     field :body, :string, required: true, description: "The full review.md content — verdict first, then findings"
@@ -1237,7 +1237,7 @@ defmodule Funes.MCP.Tool.SubmitReview do
   def execute(params, frame) do
     identity = Identity.from_frame(frame)
 
-    with %Funes.Thread{} = thread <- Channel.thread(identity.thread_id) || {:error, :no_thread},
+    with %Server.Thread{} = thread <- Channel.thread(identity.thread_id) || {:error, :no_thread},
          {:ok, rel} <- Review.submit(thread, params[:body], identity.agent) do
       {:reply, Response.json(Response.tool(), %{"committed" => rel}), frame}
     else

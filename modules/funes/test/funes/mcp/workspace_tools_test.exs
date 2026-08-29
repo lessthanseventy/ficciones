@@ -1,20 +1,20 @@
-defmodule Funes.MCP.WorkspaceToolsTest do
+defmodule Server.MCP.WorkspaceToolsTest do
   # The workspace tools (register_workspace/list_workspaces/edit_workspace/remove_workspace)
   # are machine-GLOBAL: unlike every thread-scoped tool they read no identity from the
   # frame, so they are driven here by calling `execute/2` directly with a bare frame —
   # the honest unit of a tool that operates on the global `workspace` table via
-  # `Funes.Workspaces`. Every assertion reads back through the context (never Repo), the same one-source law
+  # `Server.Workspaces`. Every assertion reads back through the context (never Repo), the same one-source law
   # the tools obey.
   use ExUnit.Case, async: false
 
   alias Anubis.Server.Frame
-  alias Funes.MCP.Tool
-  alias Funes.Workspaces
+  alias Server.MCP.Tool
+  alias Server.Workspaces
 
   @frame %Frame{}
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 

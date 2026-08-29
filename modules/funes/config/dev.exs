@@ -1,3 +1,3 @@
 import Config
 
-config :funes, Funes.Repo, pool_size: 5
+config :server, Server.Repo, pool_size: 5

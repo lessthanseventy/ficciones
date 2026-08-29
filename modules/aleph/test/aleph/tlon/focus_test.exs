@@ -1,4 +1,4 @@
-defmodule Aleph.Tlon.FocusTest do
+defmodule Console.Tlon.FocusTest do
   @moduledoc """
   The Tlön lazygit focus state machine (design: docs/plans/2026-08-20-tlon-lazygit-panels-design.md):
   a pure reducer over (which column, which pane in it, which section, in the terminal?). Render and
@@ -6,7 +6,7 @@ defmodule Aleph.Tlon.FocusTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Tlon.Focus
+  alias Console.Tlon.Focus
 
   # left column stacks Commits then Memory (3 sections); right column is Leaves (1 section).
   # `counts` is the item count per pane — what j/k clamps against.
@@ -167,7 +167,7 @@ defmodule Aleph.Tlon.FocusTest do
 
   describe "jump/3 (Alt+digit)" do
     # Numbering contract (design 2026-08-23): 0 = terminal; left column 1..n top-down; right
-    # column continues. Must match Aleph.View's border digits — pinned by a view_test.
+    # column continues. Must match Console.View's border digits — pinned by a view_test.
     defp jump_layout, do: %{left: [:spaces, :stack, :memory], right: [:health, :crew], sections: %{}, counts: %{}}
 
     test "0 enters the terminal from nav" do

@@ -1,9 +1,9 @@
-defmodule Funes.SecretsTest do
+defmodule Server.SecretsTest do
   # Total-recall slice B — the write-path secret scanner. Pattern-based on purpose: it must NOT flag
   # the technical facts funes exists to remember (commit SHAs, hex, base64), only real credentials.
   use ExUnit.Case, async: true
 
-  alias Funes.Secrets
+  alias Server.Secrets
 
   test "passes ordinary technical text — no false positives on shas, hex, or prose" do
     assert Secrets.scan("exqlite sets busy_timeout via a NIF; see commit 3fa9c2e") == :ok

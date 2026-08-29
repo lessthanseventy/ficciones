@@ -1,4 +1,4 @@
-defmodule Aleph.Tlon.Focus do
+defmodule Console.Tlon.Focus do
   @moduledoc """
   The Tlön lazygit focus state machine (design: `docs/plans/2026-08-20-tlon-lazygit-panels-design.md`):
   a PURE reducer over where keyboard focus sits — which sidebar column, which pane down that column,

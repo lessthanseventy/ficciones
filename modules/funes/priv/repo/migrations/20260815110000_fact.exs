@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Fact do
+defmodule Server.Repo.Migrations.Fact do
   use Ecto.Migration
 
   # 007 fact (spec §4, aleph §9.4). Durable things learned — the successor to v1's

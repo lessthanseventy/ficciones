@@ -1,15 +1,15 @@
-defmodule Aleph.Crew do
+defmodule Console.Crew do
   @moduledoc """
   The funes crew — roles the leader spawns onto a task thread and tears down when done.
 
   This is the aleph-side crew backend: funes' `spawn_crew`/`kill_crew` tools dispatch through the
-  `Funes.Crew` behaviour (`config :funes, :crew, Aleph.Crew`) into `spawn_role/3` / `kill_role/2`,
+  `Server.Crew` behaviour (`config :server, :crew, Console.Crew`) into `spawn_role/3` / `kill_role/2`,
   which run IN the live cockpit node — the same node holding funes' Repo, tokens, and the `tlon`
   tmux server. No second BEAM boots and no port is re-bound; the leader staffs a reviewer from the
   thread it is leading and the window lands beside it.
 
   A **role** is a seat, not an identity: a `%{handle, window_prefix, profile}` naming the funes
-  author the seat posts as, the tmux window it runs in, and the `Aleph.Profile` that materialises
+  author the seat posts as, the tmux window it runs in, and the `Console.Profile` that materialises
   its pi config. MVP staffs one role, `reviewer`.
 
   The per-thread window name (`crew_window/2`) is a PURE function of (role, thread id), so this
@@ -19,17 +19,17 @@ defmodule Aleph.Crew do
   Pure tmux command builders (`spawn_argv/3`, `kill_argv/2`, `boot_script/2`) live below; the IO
   wrappers (`spawn/4`, `kill/2`) mint identity, materialise the profile, shell out to tmux, and
   inject the leader's opening turn. The command runner and identity minter are injected via app env
-  (`:aleph, :crew_cmd` / `:crew_join`) so the seam tests headless, same pattern as the cockpit's
+  (`:console, :crew_cmd` / `:crew_join`) so the seam tests headless, same pattern as the cockpit's
   `:spawn_launcher`.
   """
 
-  # The crew backend funes dispatches to (`config :funes, :crew, Aleph.Crew`) — the same seam as
-  # Aleph.Arbiter. funes' `spawn_crew`/`kill_crew` tools call through `Funes.Crew` and land in
+  # The crew backend funes dispatches to (`config :server, :crew, Console.Crew`) — the same seam as
+  # Console.Arbiter. funes' `spawn_crew`/`kill_crew` tools call through `Server.Crew` and land in
   # `spawn_role/3` / `kill_role/2` below, run IN this live node, so no second BEAM boots.
-  @behaviour Funes.Crew
+  @behaviour Server.Crew
 
-  alias Aleph.Profiles
-  alias Aleph.Space
+  alias Console.Profiles
+  alias Console.Space
 
   @roles %{
     "reviewer" => %{handle: "reviewer-machine", window_prefix: "r", profile: "reviewer"}
@@ -109,16 +109,16 @@ defmodule Aleph.Crew do
   end
 
   # The reviewer runs on the SAME funes the cockpit uses — the injected minter defaults to
-  # Funes.MCP.Spawn.join, which mints in-node against the live Repo/tokens (this backend runs inside
+  # Server.MCP.Spawn.join, which mints in-node against the live Repo/tokens (this backend runs inside
   # the cockpit BEAM), so the identity is valid the instant the reviewer's pi connects to :4041.
-  defp cmd_runner, do: Application.get_env(:aleph, :crew_cmd, &System.cmd/3)
-  defp joiner, do: Application.get_env(:aleph, :crew_join, &Funes.MCP.Spawn.join/3)
+  defp cmd_runner, do: Application.get_env(:console, :crew_cmd, &System.cmd/3)
+  defp joiner, do: Application.get_env(:console, :crew_join, &Server.MCP.Spawn.join/3)
 
   # Wait between window boot and injecting the opening turn — the profile pi's TUI must settle before
   # send-keys, same reason as Cockpit's @opening_submit_delay_ms two-phase inject. Overridable via app
-  # env (`:aleph, :crew_settle_ms`) so tests don't pay the real delay.
+  # env (`:console, :crew_settle_ms`) so tests don't pay the real delay.
   @opening_settle_ms 1_500
-  defp opening_settle_ms, do: Application.get_env(:aleph, :crew_settle_ms, @opening_settle_ms)
+  defp opening_settle_ms, do: Application.get_env(:console, :crew_settle_ms, @opening_settle_ms)
 
   # Readiness gate for the opening inject: a fresh-profile pi boots for several seconds (npm
   # bootstrap of its extensions, MCP refresh, funes register) — far longer than a fixed settle — so
@@ -128,8 +128,8 @@ defmodule Aleph.Crew do
   @ready_marker "registered"
   @ready_poll_ms 500
   @ready_timeout_ms 20_000
-  defp ready_poll_ms, do: Application.get_env(:aleph, :crew_poll_ms, @ready_poll_ms)
-  defp ready_timeout_ms, do: Application.get_env(:aleph, :crew_ready_timeout_ms, @ready_timeout_ms)
+  defp ready_poll_ms, do: Application.get_env(:console, :crew_poll_ms, @ready_poll_ms)
+  defp ready_timeout_ms, do: Application.get_env(:console, :crew_ready_timeout_ms, @ready_timeout_ms)
 
   @doc """
   Spawn `role_key` onto task `thread_id` as a funes citizen, then inject the leader's `task` as its
@@ -141,12 +141,12 @@ defmodule Aleph.Crew do
   def spawn(role_key, thread_id, task, opts \\ []) do
     with {:workspace, %{}} <- {:workspace, Space.first_workspace()},
          %{handle: handle, profile: profile_name} <- role(role_key) || :unknown_role,
-         %Aleph.Profile{} = profile <- Profiles.fetch(profile_name) || {:missing_profile, profile_name},
+         %Console.Profile{} = profile <- Profiles.fetch(profile_name) || {:missing_profile, profile_name},
          _dir = Profiles.materialise!(profile),
          {:ok, %{exports: exports}} <- joiner().(thread_id, handle, mandate: "machine", assign: false),
          # Slice D: the profile's harness DRIVER supplies the exec — a claude_code-bound reviewer
          # (anthropic model at home) rides the official launcher, never sonnet-through-pi.
-         script = boot_script(exports, Aleph.Harness.driver(profile.harness).launch_command(profile)),
+         script = boot_script(exports, Console.Harness.driver(profile.harness).launch_command(profile)),
          {:ok, window} <- run_spawn(role_key, thread_id, script) do
       if Keyword.get(opts, :inject, true), do: inject_opening(window, opening_turn(thread_id, task))
       {:ok, window}
@@ -182,13 +182,13 @@ defmodule Aleph.Crew do
     :ok
   end
 
-  # `Funes.Crew` behaviour — the doors funes' spawn_crew/kill_crew tools land in. Thin delegates to
+  # `Server.Crew` behaviour — the doors funes' spawn_crew/kill_crew tools land in. Thin delegates to
   # the IO wrappers above; the leader's handle in `opening_turn/2` is claude-machine (MVP lead).
   # spawn/4 (not spawn/3) — a local spawn/3 call is ambiguous with Kernel.spawn/3.
-  @impl Funes.Crew
+  @impl Server.Crew
   def spawn_role(role_key, thread_id, task), do: spawn(role_key, thread_id, task, [])
 
-  @impl Funes.Crew
+  @impl Server.Crew
   def kill_role(role_key, thread_id), do: kill(role_key, thread_id)
 
   # The opening assignment the leader hands the reviewer. Names the leader handle so the reviewer's

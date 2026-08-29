@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Agent do
+defmodule Server.Repo.Migrations.Agent do
   use Ecto.Migration
 
   # 004 agent (aleph §3, §9.3). The durable identity that outlives everything: a

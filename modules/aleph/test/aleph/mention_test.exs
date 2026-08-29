@@ -1,4 +1,4 @@
-defmodule Aleph.MentionTest do
+defmodule Console.MentionTest do
   @moduledoc """
   The @-mention router — who gets woken, and what they're shown. Pure: the cockpit edge does the
   tmux send-keys. The loop guard (never echo back to the sender) and the handle→window mapping are
@@ -6,9 +6,9 @@ defmodule Aleph.MentionTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Mention
+  alias Console.Mention
 
-  # The seed roster (Aleph.Space's fallback Tlön workspace) — the fixture every roster-derived test
+  # The seed roster (Console.Space's fallback Tlön workspace) — the fixture every roster-derived test
   # below threads through mentions/route instead of a compile-time @base_coworkers. The builder's
   # handle is "hronir-machine" (post-C2.3 rename), NOT the legacy "claude-machine".
   @roster [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]

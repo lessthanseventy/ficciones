@@ -1,4 +1,4 @@
-defmodule Aleph.Presence do
+defmodule Console.Presence do
   @moduledoc """
   Liveness/typing signals for the chat surfaces (general console + cockpit), derived purely from a tmux window
   snapshot — `[%{name, thread_id, activity}]` where `activity` is the window's

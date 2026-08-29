@@ -1,20 +1,20 @@
-defmodule Funes.DossierTest do
+defmodule Server.DossierTest do
   # Step 4: the dossier (aleph §9.4, spec §4/§5). `fact`, `event`, and `issue`
   # scoped to a thread are the thread's accumulated state — LEARNINGS, SHIPPED,
   # BLOCKERS. The DB is the bus (§10): every assertion reads back through SQLite.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Event
-  alias Funes.Fact
-  alias Funes.Habit
-  alias Funes.Issue
-  alias Funes.Repo
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Event
+  alias Server.Fact
+  alias Server.Habit
+  alias Server.Issue
+  alias Server.Repo
 
   # Shared DB, no sandbox (like steps 2–3). Clear domain rows first, FK-safe.
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -150,7 +150,7 @@ defmodule Funes.DossierTest do
     end
   end
 
-  describe "event.detail — a JSON column (Funes.JSONColumn)" do
+  describe "event.detail — a JSON column (Server.JSONColumn)" do
     test "an absent detail round-trips as nil, not an empty map" do
       {:ok, event} = Dossier.record_event(%{kind: "handoff_opened"})
       assert Repo.get!(Event, event.id).detail == nil
@@ -575,7 +575,7 @@ defmodule Funes.DossierTest do
 
       assert %DateTime{} = forgotten.forgotten_at
       assert Dossier.facts_for_thread(thread) == []
-      assert Funes.Search.facts("obsolete").shown == []
+      assert Server.Search.facts("obsolete").shown == []
       assert Repo.get!(Fact, fact.id).text == "obsolete lore"
     end
 

@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.WindowBarTest do
+defmodule Console.Panel.WindowBarTest do
   @moduledoc """
   The top band framing the Tlön center: aleph's own window strip (moved out of the terminal, which
   now renders edge-to-edge) plus the engine/thread readout. A pure seam — same contract
@@ -6,7 +6,7 @@ defmodule Aleph.Panel.WindowBarTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.WindowBar
+  alias Console.Panel.WindowBar
 
   @rect %{x: 0, y: 0, w: 100, h: 3}
 

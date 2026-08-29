@@ -1,11 +1,11 @@
-defmodule Aleph.Panel.BorderTest do
+defmodule Console.Panel.BorderTest do
   @moduledoc """
   The on-frame section label (design 2026-08-23): digit-first titles, the carousel tab strip,
   the bottom-corner hint — and tab_at_x/2 agreeing with what render/2 draws.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Border
+  alias Console.Panel.Border
 
   defp rect(w \\ 20, h \\ 5), do: %{x: 0, y: 0, w: w, h: h}
 

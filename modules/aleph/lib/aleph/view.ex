@@ -1,26 +1,26 @@
-defmodule Aleph.View do
+defmodule Console.View do
   @moduledoc """
   Composition: turn the cockpit's state into placed panels (design §3, "a view is plain data").
   Given the assembled funes `reads` and the terminal size, `compose/3` lays out the fixed frame —
   left sidebar (space picker + the active space's situational panels), the center surface, the
   right sidebar — each section in its own bordered box — and the status footer, as a list of
-  `{panel, data, rect}` placements the `Aleph.Board` paints. Pure and testable: no TTY, no funes.
+  `{panel, data, rect}` placements the `Console.Board` paints. Pure and testable: no TTY, no funes.
 
   `reads` is the map the Cockpit assembles:
     `%{active_key, focused_id, focused_title, roster, threads, scope, chatter, session}`
   """
-  alias Aleph.Mention
-  alias Aleph.Panel
-  alias Aleph.Space
-  alias Aleph.Tlon.Focus
-  alias Aleph.Workspaces
-  alias Funes.Presence
+  alias Console.Mention
+  alias Console.Panel
+  alias Console.Space
+  alias Console.Tlon.Focus
+  alias Console.Workspaces
+  alias Server.Presence
 
   # Space.workspace?/1 is a defguard — usable outside a guard too, but only once required.
   require Space
 
   @min_col 16
-  # The bottom footer: an info line + a hints line (Aleph.Panel.StatusBar).
+  # The bottom footer: an info line + a hints line (Console.Panel.StatusBar).
   @status_h 2
   # Below this width (phone / a shrunk tile) the three columns collapse to one (Addendum §D).
   @wide_min 80
@@ -42,7 +42,7 @@ defmodule Aleph.View do
     Panel.Author
   ]
 
-  @spec compose(map(), pos_integer(), pos_integer()) :: [Aleph.Board.placement()]
+  @spec compose(map(), pos_integer(), pos_integer()) :: [Console.Board.placement()]
   def compose(reads, w, h) do
     space = fetch_space(reads.active_key)
     composer_h = composer_height(reads, w, h)
@@ -251,7 +251,7 @@ defmodule Aleph.View do
   The content rect the center Terminal renders into for a `space_key`/`w`×`h` cockpit — the single
   source of truth the embedded PTY sizes to, so pi never draws wider or taller than the visible
   area. Orbis carries no center Terminal (its surface is `[Overview]`, the survey) → this falls back
-  to the full center column. Tlön's WindowBar/Ticker bands (`Aleph.Space`) share the column with its
+  to the full center column. Tlön's WindowBar/Ticker bands (`Console.Space`) share the column with its
   Terminal, so its box is smaller — found via the SAME `boxed/2` stacking `compose/3` uses, not a
   second formula that could drift. (The PTY is only sized in the wide layout — a real cockpit is
   never below the narrow threshold.)
@@ -304,9 +304,9 @@ defmodule Aleph.View do
   def data_for(Panel.Overview, r),
     do: %{workspaces: r[:workspaces] || [], survey_cursor: r[:survey_cursor], orbis_focus: r[:orbis_focus]}
 
-  # The author face's own workspace list — `Aleph.Workspaces.all/0` directly (not the survey's rollup
+  # The author face's own workspace list — `Console.Workspaces.all/0` directly (not the survey's rollup
   # cache), since a thread-less workspace (a fresh "blank" template) is real here even when
-  # `Aleph.Orbis.rollup/0` has nothing to show (D2.2). `edit` (D2.4 Chunk 2a) is nil unless `e`
+  # `Console.Orbis.rollup/0` has nothing to show (D2.2). `edit` (D2.4 Chunk 2a) is nil unless `e`
   # opened the field editor — `Panel.Author` switches its render on its presence.
   def data_for(Panel.Author, r),
     do: %{workspaces: author_workspaces(), cursor: r[:author_cursor] || 0, edit: r[:author_edit]}
@@ -337,9 +337,9 @@ defmodule Aleph.View do
 
   defp scroll_data(_panel, data, _reads), do: data
 
-  # `Aleph.Workspaces` isn't started under `mix test` (config/test.exs `start_workspaces: false` — it
+  # `Console.Workspaces` isn't started under `mix test` (config/test.exs `start_workspaces: false` — it
   # would subscribe to the funes workspaces Bus and pollute the pure-render tests), so a call here
-  # degrades to `[]` instead of crashing the paint — same guard as `Aleph.Space.fetch_workspaces/0`.
+  # degrades to `[]` instead of crashing the paint — same guard as `Console.Space.fetch_workspaces/0`.
   defp author_workspaces do
     Workspaces.all()
   rescue
@@ -476,7 +476,7 @@ defmodule Aleph.View do
 
   # The Tlön window strip, presence-joined: `reads.machine`'s tabs (from `tlon_tabs()`, forked
   # once per render by the Cockpit) each get their agent handle (window → agent via
-  # `Aleph.Mention.coworkers/1`, inverted, sourced from the active space's roster) and warmth
+  # `Console.Mention.coworkers/1`, inverted, sourced from the active space's roster) and warmth
   # (`reads.roster`, already fetched for the sidebar) — so WindowBar stays a pure render with no
   # funes reads of its own.
   # C3.1: the strip is LEADERS only — `t<id>` leaf windows (spawned by ensure_thread_sessions) move
@@ -510,9 +510,9 @@ defmodule Aleph.View do
   def focused_lead(r), do: r |> window_tabs() |> Enum.find_value(fn t -> if t.active?, do: t.agent end)
 
   # The Claude-engine clock readout: `:off` only once the operator has manually clocked "claude"
-  # out (`Funes.Presence.clock_out/1`, e.g. from `funes:console`) — nothing calls that today, so
+  # out (`Server.Presence.clock_out/1`, e.g. from `funes:console`) — nothing calls that today, so
   # this reads `:on` until that console verb exists. A real per-agent engine reader (§3b,
-  # `Funes.Presence.Engine`) is a later, local backend swapped into the same seam.
+  # `Server.Presence.Engine`) is a later, local backend swapped into the same seam.
   defp engine_state, do: if("claude" in Presence.clocked_out_engines(), do: :off, else: :on)
 
   defp clamp_col(v, w), do: v |> max(@min_col) |> min(max(div(w, 3), @min_col))

@@ -1,7 +1,7 @@
-defmodule Aleph.GraphicsTest do
+defmodule Console.GraphicsTest do
   use ExUnit.Case, async: true
 
-  alias Aleph.Graphics
+  alias Console.Graphics
 
   test "transmit/2 chunks base64 PNG into APC sequences, m=1 until the last" do
     png = :crypto.strong_rand_bytes(5000)

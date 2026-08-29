@@ -1,9 +1,9 @@
-defmodule Aleph.Panel.DetailTest do
+defmodule Console.Panel.DetailTest do
   # MAIN's detail view: a dumb printer of the cockpit's resolved %{title, lines}. Pins the
   # panel → styled-rows path headlessly; the real paint is the eye test.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Detail
+  alias Console.Panel.Detail
 
   @rect %{x: 0, y: 0, w: 80, h: 100}
 

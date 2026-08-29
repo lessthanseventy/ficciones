@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Aleph.Seed do
+defmodule Mix.Tasks.Console.Seed do
   @shortdoc "Seed the funes DB with sample threads/agents/sessions/messages for the cockpit"
   @moduledoc """
   Populate `FUNES_DB` with a small, believable workspace so the cockpit has something to render and
@@ -6,11 +6,11 @@ defmodule Mix.Tasks.Aleph.Seed do
   Writes only through funes' public API (never raw rows) — the same path agents and the human use.
   """
   use Mix.Task
-  use Boundary, classify_to: Aleph
+  use Boundary, classify_to: Console
 
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Staff
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Staff
 
   @requirements ["app.config"]
 
@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Aleph.Seed do
 
   @impl Mix.Task
   def run(_args) do
-    {:ok, _} = Application.ensure_all_started(:aleph)
+    {:ok, _} = Application.ensure_all_started(:console)
 
     agents = Map.new(@agents, &{&1.name, ensure_agent(&1)})
 

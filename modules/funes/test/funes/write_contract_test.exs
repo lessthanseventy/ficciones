@@ -1,4 +1,4 @@
-defmodule Funes.WriteContractTest do
+defmodule Server.WriteContractTest do
   # §4 re-verified on exqlite. The spec's numbers were node:sqlite; prove the
   # contract holds on the Elixir adapter rather than assuming it. WAL and
   # foreign_keys are readable by PRAGMA; busy_timeout is NOT — exqlite installs a
@@ -7,7 +7,7 @@ defmodule Funes.WriteContractTest do
   use ExUnit.Case, async: false
 
   alias Exqlite.Sqlite3
-  alias Funes.Repo
+  alias Server.Repo
 
   test "WAL journal mode is in force" do
     assert %{rows: [["wal"]]} = Repo.query!("PRAGMA journal_mode")

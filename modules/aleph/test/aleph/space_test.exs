@@ -1,6 +1,6 @@
-defmodule Aleph.SpaceTest do
+defmodule Console.SpaceTest do
   @moduledoc """
-  Aleph.Space.all/0 + next/prev — the picker order after the Slice 0 collapse. Sessions is deleted;
+  Console.Space.all/0 + next/prev — the picker order after the Slice 0 collapse. Sessions is deleted;
   only Orbis (the god-view survey) and one Workspace space remain, and Tab cycles between the two.
 
   Phase C1.2: Workspace spaces are keyed by their funes id (not a name slug), so id-keying is exercised
@@ -9,21 +9,21 @@ defmodule Aleph.SpaceTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Activity
-  alias Aleph.Panel.Brief
-  alias Aleph.Panel.Crew
-  alias Aleph.Panel.Leaves
-  alias Aleph.Panel.Memory
-  alias Aleph.Panel.Stack
-  alias Aleph.Panel.Terminal
-  alias Aleph.Panel.Ticker
-  alias Aleph.Panel.WindowBar
-  alias Aleph.Space
+  alias Console.Panel.Activity
+  alias Console.Panel.Brief
+  alias Console.Panel.Crew
+  alias Console.Panel.Leaves
+  alias Console.Panel.Memory
+  alias Console.Panel.Stack
+  alias Console.Panel.Terminal
+  alias Console.Panel.Ticker
+  alias Console.Panel.WindowBar
+  alias Console.Space
 
   # `Space.workspace?/1` is a `defguard` (Phase C1.3), which requires the module, not just an alias.
   require Space
 
-  # The seeded Tlön workspace, aleph-shaped (Aleph.Workspaces.all/0 output — string-keyed roster from JSON).
+  # The seeded Tlön workspace, aleph-shaped (Console.Workspaces.all/0 output — string-keyed roster from JSON).
   @tlon %{
     id: 1,
     name: "Tlön",
@@ -34,8 +34,8 @@ defmodule Aleph.SpaceTest do
   }
 
   test "funes down → the picker is Orbis alone; no fake Workspace (reshape slice A)" do
-    # Space.all/0 reads the live Aleph.Workspaces cache (funes down under test → []). The hardcoded
-    # Tlön fallback is gone: funes self-seeds a default workspace at boot (Funes.Bootstrap), so an
+    # Space.all/0 reads the live Console.Workspaces cache (funes down under test → []). The hardcoded
+    # Tlön fallback is gone: funes self-seeds a default workspace at boot (Server.Bootstrap), so an
     # empty workspace list means funes is genuinely down — rendered honestly, not papered over.
     assert Enum.map(Space.all(), & &1.key) == [:orbis]
   end

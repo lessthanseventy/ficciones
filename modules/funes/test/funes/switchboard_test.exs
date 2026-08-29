@@ -1,28 +1,28 @@
-defmodule Funes.SwitchboardTest do
+defmodule Server.SwitchboardTest do
   # The switchboard's liveness layer (§10, §5b.2, aleph §6), addressed-delivery
   # model (aleph §2): a message wakes who it is addressed to — the thread's LEAD for
   # a plain post, an @mentioned coworker, or the author of a replied-to message —
   # never the whole room. The DB stays the truth (delivered_at is durable).
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Message
-  alias Funes.Presence.Engine.Manual
-  alias Funes.Repo
-  alias Funes.Staff
-  alias Funes.Switchboard
-  alias Funes.Switchboard.Server
+  alias Server.Channel
+  alias Server.Message
+  alias Server.Presence.Engine.Manual
+  alias Server.Repo
+  alias Server.Staff
+  alias Server.Switchboard
+  alias Server.Switchboard.Runner
 
   setup do
-    Application.put_env(:funes, :arbiter, Funes.Arbiter.Test)
-    Application.put_env(:funes, :test_pid, self())
+    Application.put_env(:server, :arbiter, Server.Arbiter.Test)
+    Application.put_env(:server, :test_pid, self())
 
     on_exit(fn ->
-      Application.delete_env(:funes, :arbiter)
-      Application.delete_env(:funes, :test_pid)
+      Application.delete_env(:server, :arbiter)
+      Application.delete_env(:server, :test_pid)
     end)
 
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -187,7 +187,7 @@ defmodule Funes.SwitchboardTest do
       Switchboard.deliver(m)
 
       assert_received {:woke, "wSandra", _}
-      bumped = Repo.get!(Funes.Session, ss.id).last_active_at
+      bumped = Repo.get!(Server.Session, ss.id).last_active_at
       assert DateTime.after?(bumped, warm)
     end
 
@@ -198,14 +198,14 @@ defmodule Funes.SwitchboardTest do
       old = DateTime.utc_now() |> DateTime.shift(hour: -2) |> DateTime.truncate(:second)
       {:ok, _} = m |> Ecto.Changeset.change(created_at: old) |> Repo.update()
 
-      warm_before = Repo.get!(Funes.Session, ss.id).last_active_at
+      warm_before = Repo.get!(Server.Session, ss.id).last_active_at
       flush()
 
       Switchboard.drain()
 
       # touch_author is forward-only: the stale message must not drag Sandra's warmth
       # back two hours and strand her as "cold."
-      assert Repo.get!(Funes.Session, ss.id).last_active_at == warm_before
+      assert Repo.get!(Server.Session, ss.id).last_active_at == warm_before
     end
 
     test "a proactive post keeps its author warm even though no one is woken" do
@@ -218,7 +218,7 @@ defmodule Funes.SwitchboardTest do
       Switchboard.deliver(m)
 
       refute_received {:woke, _, _}
-      bumped = Repo.get!(Funes.Session, ss.id).last_active_at
+      bumped = Repo.get!(Server.Session, ss.id).last_active_at
       assert DateTime.after?(bumped, warm)
     end
   end
@@ -227,11 +227,11 @@ defmodule Funes.SwitchboardTest do
     setup do
       # A pluggable engine-presence backend (§8: vendor lives in the backend, never the
       # design). The Test impl reads a set of clocked-out engine handles from app env.
-      Application.put_env(:funes, :engine_presence, Manual)
+      Application.put_env(:server, :engine_presence, Manual)
 
       on_exit(fn ->
-        Application.delete_env(:funes, :engine_presence)
-        Application.delete_env(:funes, :clocked_out_engines)
+        Application.delete_env(:server, :engine_presence)
+        Application.delete_env(:server, :clocked_out_engines)
       end)
 
       :ok
@@ -242,7 +242,7 @@ defmodule Funes.SwitchboardTest do
       # Sandra is freshly warm, but her engine ("deep") is out of credits / past its
       # rate-limit window — poking it would burn the wrong bucket for a full re-ingestion.
       set_last_active(ss, 60)
-      Application.put_env(:funes, :clocked_out_engines, ["deep"])
+      Application.put_env(:server, :clocked_out_engines, ["deep"])
 
       {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "you there?"})
       Switchboard.deliver(m)
@@ -256,7 +256,7 @@ defmodule Funes.SwitchboardTest do
       %{thread: thread, robert_session: rs} = staffed_thread()
       set_last_active(rs, 60)
       # "deep" is Sandra's engine; Robert's is "fresh" and available.
-      Application.put_env(:funes, :clocked_out_engines, ["deep"])
+      Application.put_env(:server, :clocked_out_engines, ["deep"])
 
       {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "@Robert ping"})
       Switchboard.deliver(m)
@@ -323,14 +323,14 @@ defmodule Funes.SwitchboardTest do
     end
 
     test "a clocked-out lead is NOT spawned — a fresh session it can't run is worse than waiting" do
-      Application.put_env(:funes, :engine_presence, Manual)
-      on_exit(fn -> Application.delete_env(:funes, :engine_presence) end)
+      Application.put_env(:server, :engine_presence, Manual)
+      on_exit(fn -> Application.delete_env(:server, :engine_presence) end)
 
       {:ok, thread} = Channel.open_thread(%{title: "cold thread"})
       {:ok, carl} = Staff.register_agent(%{name: "Carl", mandate: "review", engine: "claude"})
       {:ok, _} = Staff.assign(thread, carl)
-      Application.put_env(:funes, :clocked_out_engines, ["claude"])
-      on_exit(fn -> Application.delete_env(:funes, :clocked_out_engines) end)
+      Application.put_env(:server, :clocked_out_engines, ["claude"])
+      on_exit(fn -> Application.delete_env(:server, :clocked_out_engines) end)
 
       {:ok, m} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "review?"})
       Switchboard.deliver(m)
@@ -398,10 +398,10 @@ defmodule Funes.SwitchboardTest do
     end
   end
 
-  describe "Server — the reactive live path over PubSub" do
+  describe "Runner — the reactive live path over PubSub" do
     test "a posted message wakes its addressee without anyone calling deliver" do
       %{thread: thread} = staffed_thread()
-      start_supervised!(Server)
+      start_supervised!(Runner)
 
       {:ok, _} = Channel.post(%{thread_id: thread.id, author: "stakeholder", body: "live!"})
 
@@ -417,7 +417,7 @@ defmodule Funes.SwitchboardTest do
       flush()
       assert Repo.get!(Message, m.id).delivered_at == nil
 
-      start_supervised!(Server)
+      start_supervised!(Runner)
       assert_receive {:woke, "wSandra", _}, 1000
       assert %DateTime{} = Repo.get!(Message, m.id).delivered_at
     end

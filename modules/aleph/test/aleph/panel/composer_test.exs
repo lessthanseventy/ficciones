@@ -1,9 +1,9 @@
-defmodule Aleph.Panel.ComposerTest do
+defmodule Console.Panel.ComposerTest do
   # The growable compose box: full buffer wrapped (never truncated), the ▎ cursor on its actual
   # line/col, and a window that scrolls to keep the cursor visible past the height cap.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Composer
+  alias Console.Panel.Composer
 
   defp text(rows), do: Enum.map_join(rows, "\n", fn row -> Enum.map_join(row, fn {t, _s} -> t end) end)
 

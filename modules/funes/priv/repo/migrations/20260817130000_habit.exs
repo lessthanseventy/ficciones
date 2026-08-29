@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Habit do
+defmodule Server.Repo.Migrations.Habit do
   use Ecto.Migration
 
   # 021 habit — the third memory axis beside FACTS (memory) and skills (procedures):

@@ -1,17 +1,17 @@
-defmodule Funes.Workline.Scribe do
+defmodule Server.Workline.Scribe do
   @moduledoc """
-  Funes' own git hand: write + commit ONE file under `work/<slug>/` in the workline root.
+  Server' own git hand: write + commit ONE file under `work/<slug>/` in the workline root.
   The single door for artifacts funes materializes itself — the reviewer's review.md
-  (`Funes.Workline.Review`) and a machine-born workline's intent.md at approval. Identical
+  (`Server.Workline.Review`) and a machine-born workline's intent.md at approval. Identical
   content is `:ok` without a commit: already-committed is the point.
   """
 
   import Ecto.Query
 
-  alias Funes.Message
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workline.Artifacts
+  alias Server.Message
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workline.Artifacts
 
   @doc "Write `work/<slug>/<filename>` and commit it. `{:ok, rel_path}` or `{:error, reason}`."
   def commit(slug, filename, body, commit_message) do

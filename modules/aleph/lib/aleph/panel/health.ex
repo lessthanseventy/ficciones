@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.Health do
+defmodule Console.Panel.Health do
   @moduledoc """
   HEALTH — the machine's always-on status: services up, system metrics, and installed tools.
   Best-effort and honest: a probe that fails yields "?", never a crash. Re-rendered on every
@@ -7,15 +7,15 @@ defmodule Aleph.Panel.Health do
   Data is `%{version, funes_up, tlon_up, nix_gen, nix_behind, disk_pct, mem_pct, load_avg, tools}`.
   The `version` line (top) is the running build's identity — the answer to "is my change live?"
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Console.Panel, only: [line: 2, blank: 0]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
-  def render(data, rect), do: Aleph.Panel.clip(rows(data), rect)
+  @impl Console.Panel
+  def render(data, rect), do: Console.Panel.clip(rows(data), rect)
 
   defp rows(data) do
     version_rows(data[:version]) ++

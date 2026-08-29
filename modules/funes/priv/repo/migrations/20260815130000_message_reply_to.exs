@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.MessageReplyTo do
+defmodule Server.Repo.Migrations.MessageReplyTo do
   use Ecto.Migration
 
   # 011 message.reply_to (aleph §2, the addressed-delivery model). A message may be

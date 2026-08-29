@@ -1,15 +1,15 @@
-defmodule Funes.WorkspacesTest do
-  # The `Funes.Workspaces` context (workspaces/orbis Slice 1): the write pipe
+defmodule Server.WorkspacesTest do
+  # The `Server.Workspaces` context (workspaces/orbis Slice 1): the write pipe
   # (changeset |> insert |> Bus.announce) and the reads aleph drives its
   # picker/survey from. The DB is the bus (§10): assertions read back through it.
   use ExUnit.Case, async: false
 
-  alias Funes.Bus
-  alias Funes.Workspace
-  alias Funes.Workspaces
+  alias Server.Bus
+  alias Server.Workspace
+  alias Server.Workspaces
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -69,13 +69,13 @@ defmodule Funes.WorkspacesTest do
       Bus.subscribe_workspaces()
       {:ok, keep} = Workspaces.register(%{name: "keep"})
       {:ok, doomed} = Workspaces.register(%{name: "doomed"})
-      {:ok, thread} = Funes.Channel.open_thread(%{title: "tenant"})
-      Funes.Repo.update_all(Funes.Thread, set: [workspace_id: doomed.id])
+      {:ok, thread} = Server.Channel.open_thread(%{title: "tenant"})
+      Server.Repo.update_all(Server.Thread, set: [workspace_id: doomed.id])
 
       {:ok, _} = Workspaces.remove(doomed)
 
       assert Workspaces.get(doomed.id) == nil
-      assert Funes.Repo.get(Funes.Thread, thread.id).workspace_id == keep.id
+      assert Server.Repo.get(Server.Thread, thread.id).workspace_id == keep.id
       assert_receive {:workspace_removed, %Workspace{}}
     end
 

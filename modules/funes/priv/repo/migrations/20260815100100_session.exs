@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Session do
+defmodule Server.Repo.Migrations.Session do
   use Ecto.Migration
 
   # 005 session (aleph §3, §9.3). The EPHEMERAL instance of an agent: it runs in a

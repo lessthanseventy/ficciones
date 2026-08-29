@@ -1,4 +1,4 @@
-defmodule Aleph.Osc do
+defmodule Console.Osc do
   @moduledoc """
   OSC escape builders — pure strings; the caller owns the tty write. OSC 52 sets the system
   clipboard THROUGH the terminal, so it works over SSH (the terminal, not the host, owns the

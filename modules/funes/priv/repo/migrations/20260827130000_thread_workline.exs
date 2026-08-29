@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.ThreadWorkline do
+defmodule Server.Repo.Migrations.ThreadWorkline do
   use Ecto.Migration
 
   # Worklines slice 1: a thread can BE a workline — stage machine state + the git-folder slug

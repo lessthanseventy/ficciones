@@ -1,17 +1,17 @@
-defmodule Funes.TodoTest do
+defmodule Server.TodoTest do
   # The activity axis (pi doc §5 slice 3): todos are plan steps scoped to a thread,
   # open until `done_at`. The reads are the load-bearing part — TODOS capped+counted in
   # INSERTION order (NEXT is the first open one, derived), DONE the completed set — so
   # they get the tests. Shared DB, no sandbox; every assertion reads back through SQLite.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Repo
-  alias Funes.Todo
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Repo
+  alias Server.Todo
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     {:ok, thread} = Channel.open_thread(%{title: "wire the composer"})
     %{thread: thread}
   end

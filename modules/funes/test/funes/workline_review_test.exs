@@ -1,15 +1,15 @@
-defmodule Funes.WorklineReviewTest do
+defmodule Server.WorklineReviewTest do
   # Worklines slice 3: the reviewer's ONE door. The reviewer profile is structurally
   # write-fenced (@reviewer_permissions), so review.md lands through submit_review — funes
   # writes and commits the file itself. The fence stays airtight; the tool is the door.
   use ExUnit.Case, async: false
 
-  alias Funes.Thread
-  alias Funes.Workline.Artifacts
-  alias Funes.Workline.Review
+  alias Server.Thread
+  alias Server.Workline.Artifacts
+  alias Server.Workline.Review
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
 
     tmp = Path.join(System.tmp_dir!(), "workline-review-#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp)
@@ -17,11 +17,11 @@ defmodule Funes.WorklineReviewTest do
     {_, 0} = System.cmd("git", ["-C", tmp, "config", "user.email", "test@test"], stderr_to_stdout: true)
     {_, 0} = System.cmd("git", ["-C", tmp, "config", "user.name", "test"], stderr_to_stdout: true)
 
-    previous = Application.get_env(:funes, :workline_root)
-    Application.put_env(:funes, :workline_root, tmp)
+    previous = Application.get_env(:server, :workline_root)
+    Application.put_env(:server, :workline_root, tmp)
 
     on_exit(fn ->
-      Application.put_env(:funes, :workline_root, previous)
+      Application.put_env(:server, :workline_root, previous)
       File.rm_rf!(tmp)
     end)
 

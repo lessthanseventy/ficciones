@@ -1,4 +1,4 @@
-defmodule Aleph.Panel do
+defmodule Console.Panel do
   @moduledoc """
   A panel is a component; a view is a composition of panels; nothing is a prebaked
   full-screen template (design §3). A panel is a **thin view over a funes read model**
@@ -8,7 +8,7 @@ defmodule Aleph.Panel do
     - `render/2` — turn the panel's data into styled rows, clipped to its rect.
 
   A panel renders **styled rows**: `render/2` returns `[row]`, where a `row` is a list of
-  `{text, style}` runs (`style` a semantic atom resolved by `Aleph.Style`). Rows are plain
+  `{text, style}` runs (`style` a semantic atom resolved by `Console.Style`). Rows are plain
   data — a panel is a pure function `(funes read, rect) → rows`, so the whole render path is
   headlessly testable and the same panel can later paint in a LiveView (§7).
   """
@@ -78,7 +78,7 @@ defmodule Aleph.Panel do
   @doc """
   Render a panel for `rect`, applying a scroll window when its data carries a `:scroll` offset.
 
-  Scrollable panels (declared by `Aleph.View` injecting `:scroll` into their data) are rendered
+  Scrollable panels (declared by `Console.View` injecting `:scroll` into their data) are rendered
   UNclipped in height — `render/2` is called with a tall rect so `clip/2` keeps every row — then
   the window `[offset, offset + h)` is taken. Panels whose data has no `:scroll` render exactly as
   before, so non-scrollable panels (Terminal, StatusBar, Border) and `nil` data are unaffected.
@@ -101,7 +101,7 @@ defmodule Aleph.Panel do
 
   def render_scroll(panel, data, rect), do: panel.render(data, rect)
 
-  @doc "Whether a panel's data carries a scroll offset (injected by `Aleph.View` for scrollable panels)."
+  @doc "Whether a panel's data carries a scroll offset (injected by `Console.View` for scrollable panels)."
   @spec scrollable?(term()) :: boolean()
   def scrollable?(data), do: is_map(data) and Map.has_key?(data, :scroll)
 

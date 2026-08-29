@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Aleph.Run do
+defmodule Mix.Tasks.Console.Run do
   @shortdoc "Launch the aleph cockpit in this terminal (run in ghostty)"
   @moduledoc """
   Boot funes (Repo + Bus) and launch the live cockpit — the space picker, the reactive board,
@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Aleph.Run do
   clean). Set up the DB first with `mise run aleph:setup`, and `mise run aleph:seed` for sample data.
   """
   use Mix.Task
-  use Boundary, classify_to: Aleph
+  use Boundary, classify_to: Console
 
   @requirements ["app.config"]
 
@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Aleph.Run do
   def run(_args) do
     # Start aleph and its deps — funes' OTP app (PubSub always, Repo from aleph's config) comes up
     # as a dependency. A DB misconfig surfaces here rather than deep in the first read.
-    case Application.ensure_all_started(:aleph) do
+    case Application.ensure_all_started(:console) do
       {:ok, _apps} ->
         launch_or_explain()
 
@@ -32,11 +32,11 @@ defmodule Mix.Tasks.Aleph.Run do
   # repo-local scratch db a `mise run aleph:setup` short, and `home:switch` migrates only
   # the XDG service db, not this one. The cockpit's first read would then raise a raw
   # `%Exqlite.Error{}` ("no such table: todo") deep in render. So ask the arbiter whose
-  # output names the gap — `Funes.Doctor.pending/0` — and turn that crash into the fix.
+  # output names the gap — `Server.Doctor.pending/0` — and turn that crash into the fix.
   defp launch_or_explain do
-    case Funes.Doctor.pending() do
+    case Server.Doctor.pending() do
       [] ->
-        Aleph.Cockpit.run()
+        Console.Cockpit.run()
 
       pending ->
         names = Enum.map_join(pending, "\n  ", fn {version, name} -> "#{version}_#{name}" end)

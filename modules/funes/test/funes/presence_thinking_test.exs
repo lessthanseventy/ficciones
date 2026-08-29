@@ -1,10 +1,10 @@
-defmodule Funes.Presence.ThinkingTest do
+defmodule Server.Presence.ThinkingTest do
   # The explicit half of presence: a harness declares thinking at turn start and idle at
   # turn end. In-memory store + sweep + Bus liveness — no DB.
   use ExUnit.Case, async: false
 
-  alias Funes.Bus
-  alias Funes.Presence.Thinking
+  alias Server.Bus
+  alias Server.Presence.Thinking
 
   defp start_store(opts) do
     name = :"thinking_#{System.unique_integer([:positive])}"

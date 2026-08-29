@@ -1,4 +1,4 @@
-defmodule Funes.Maintain.Monitor do
+defmodule Server.Maintain.Monitor do
   @moduledoc """
   The Maintain back-edge (worklines slice 6): deterministic control-band sweeps with NO
   human in the invocation path — yet nothing it does is unsupervised, because every action
@@ -17,11 +17,11 @@ defmodule Funes.Maintain.Monitor do
 
   import Ecto.Query
 
-  alias Funes.Channel
-  alias Funes.Event
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workline
+  alias Server.Channel
+  alias Server.Event
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workline
 
   @defaults [
     sweep_interval_ms: to_timeout(minute: 30),
@@ -71,7 +71,7 @@ defmodule Funes.Maintain.Monitor do
   defp nagged_recently?(thread, renag_ms) do
     last =
       Repo.one(
-        from m in Funes.Message,
+        from m in Server.Message,
           where: m.thread_id == ^thread.id and m.author == "funes" and like(m.body, "% still parked at %"),
           order_by: [desc: m.id],
           limit: 1,

@@ -1,15 +1,15 @@
-defmodule Aleph.Panel.Border do
+defmodule Console.Panel.Border do
   @moduledoc """
   A rounded box that frames a section, with the section's identity ON the frame (design
   2026-08-23): `╭─ 2 STACK ───╮` — jump digit first, then the title, or a carousel tab strip
   (`5 CREW · ACTIVITY · LEAVES`, active tab lit), plus an optional right-aligned hint on the
-  bottom rule. Rendered *under* the panel it wraps — `Aleph.View` places the border first and
+  bottom rule. Rendered *under* the panel it wraps — `Console.View` places the border first and
   the content at an inset rect. `%{focused: true}` swaps to a heavy double rule in `:accent`
   (the lazygit active-pane cue, legible on shape alone).
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  alias Aleph.Panel
+  alias Console.Panel
 
   @thin {"╭", "╮", "╰", "╯", "─", "│"}
   @heavy {"╔", "╗", "╚", "╝", "═", "║"}

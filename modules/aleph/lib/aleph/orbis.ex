@@ -1,11 +1,11 @@
-defmodule Aleph.Orbis do
+defmodule Console.Orbis do
   @moduledoc """
   ORBIS — the god-view survey DATA behind tertius, Orbis' **resident surveyor** (Orbis Tertius
   design, slice 2). tertius no longer sits as Tlön's center coworker in the operator's eye; its
   home view is this survey — the god-view over workspaces. Every machine thread (root + leaves) is
   reduced to lead + status + conflict count, plus the open/stalled/done tallies. The single source
-  of the rollup's semantics, shared by BOTH surfaces — the Tlön sidebar panel (`Aleph.Panel.Orbis`,
-  via `Aleph.Cockpit`) and the `chat` tab's header strip (`Aleph.MachineChat.Loop`) — so a status
+  of the rollup's semantics, shared by BOTH surfaces — the Tlön sidebar panel (`Console.Panel.Orbis`,
+  via `Console.Cockpit`) and the `chat` tab's header strip (`Console.MachineChat.Loop`) — so a status
   rule never drifts between them.
 
   Pure data, no styling: `rollup/0` returns `%{summary: %{open, stalled, done, conflicts},
@@ -14,14 +14,14 @@ defmodule Aleph.Orbis do
   workspaces: [%{id, name, summary, leaves}]}` (status
   `:open | :stalled | :done`), or `nil` when funes is down / there are no machine threads. `summary`
   and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `workspaces` is the
-  survey's per-workspace rollup — grouped under the live funes workspaces (`Aleph.Workspaces`, Slice 1), each
+  survey's per-workspace rollup — grouped under the live funes workspaces (`Console.Workspaces`, Slice 1), each
   row carrying its workspace `id` (D0.3) — the face Orbis' Overview renders as one row per workspace, and the
-  survey's `Enter`/click resolve back to. Status derives from `Funes.Board.brief/1` (the
+  survey's `Enter`/click resolve back to. Status derives from `Server.Board.brief/1` (the
   same per-thread brief Triage reads) so it reflects real blockers/failed checks, never a
   self-report. The gather is guarded: a funes hiccup degrades to `nil`, never a crash.
   """
 
-  alias Funes.Channel
+  alias Server.Channel
 
   @spec rollup() :: %{summary: map(), rows: [map()], workspaces: [map()]} | nil
   def rollup do
@@ -42,10 +42,10 @@ defmodule Aleph.Orbis do
     :exit, _ -> nil
   end
 
-  # Keyed by thread id; through the Funes facade (the Ledger module is boundary-private).
+  # Keyed by thread id; through the Server facade (the Ledger module is boundary-private).
   # Guarded like every funes gather here.
   defp blocking_by_thread do
-    Map.new(Funes.workline_statuses(), &{&1.id, %{awaiting: &1.awaiting, blocking: &1.blocking}})
+    Map.new(Server.workline_statuses(), &{&1.id, %{awaiting: &1.awaiting, blocking: &1.blocking}})
   rescue
     _ -> %{}
   catch
@@ -53,7 +53,7 @@ defmodule Aleph.Orbis do
   end
 
   @doc """
-  Group the rollup rows under the live funes workspaces (`Aleph.Workspaces.all/0`, Slice 1 Task B3). With
+  Group the rollup rows under the live funes workspaces (`Console.Workspaces.all/0`, Slice 1 Task B3). With
   the single seeded Tlön workspace this is one row — identical to Slice 0. Reads the cached workspace list;
   `workspaces/2` is the pure grouping over explicit `%{id, name}` refs (tested without the live cache).
   """
@@ -94,7 +94,7 @@ defmodule Aleph.Orbis do
 
   # The funes workspace refs, guarded: a cache hiccup degrades to [] (→ empty survey).
   defp workspace_refs do
-    Enum.map(Aleph.Workspaces.all(), &%{id: &1.id, name: &1.name})
+    Enum.map(Console.Workspaces.all(), &%{id: &1.id, name: &1.name})
   rescue
     _ -> []
   catch
@@ -102,7 +102,7 @@ defmodule Aleph.Orbis do
   end
 
   defp row(thread, blocking_by_thread) do
-    scope = Funes.Board.brief(thread)
+    scope = Server.Board.brief(thread)
     conflicts = length(scope.blockers.shown) + scope.blockers.more + failed_checks(scope)
     ledger = Map.get(blocking_by_thread, thread.id, %{})
 

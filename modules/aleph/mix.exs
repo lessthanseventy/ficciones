@@ -1,4 +1,4 @@
-defmodule Aleph.MixProject do
+defmodule Console.MixProject do
   use Mix.Project
 
   # aleph — the cockpit TUI over funes (design: ../../docs/plans/2026-08-15-aleph-tui-design.md).
@@ -8,10 +8,10 @@ defmodule Aleph.MixProject do
   # aleph's TUI deps stay quarantined here so funes' dep list stays pristine.
   def project do
     [
-      app: :aleph,
+      app: :console,
       version: "0.1.0",
       elixir: "~> 1.19",
-      # Boundary enforcement (lib/aleph.ex): aleph may call only what Funes exports.
+      # Boundary enforcement (lib/aleph.ex): aleph may call only what Server exports.
       compilers: [:boundary] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -23,7 +23,7 @@ defmodule Aleph.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Aleph.Application, []}
+      mod: {Console.Application, []}
     ]
   end
 
@@ -95,7 +95,7 @@ defmodule Aleph.MixProject do
   # source before compile (idempotent — a `defp csi_u_event` marker). When the patch is (re)applied
   # the source mtime advances past the dep's beam, so the `compile` step that follows rebuilds
   # raxol_terminal with the patch. The host-side Kitty disambiguate mode that PRODUCES these
-  # sequences is enabled in Aleph.Cockpit itself (no dep patch) — this only teaches the parser
+  # sequences is enabled in Console.Cockpit itself (no dep patch) — this only teaches the parser
   # to decode them.
   @kitty_parser Path.join([
                   Mix.Project.deps_path(),
@@ -121,7 +121,7 @@ defmodule Aleph.MixProject do
         {key_event(csi_letter_to_key(final), shift: shift, alt: alt, ctrl: ctrl), rest}
 
       # Kitty keyboard protocol CSI-u: ESC [ <codepoint> [ ; <mods> [ ; <event> ] ] u.
-      # Enabled by Aleph.Cockpit writing \e[>1u (disambiguate) on the host tty. Modified keys
+      # Enabled by Console.Cockpit writing \e[>1u (disambiguate) on the host tty. Modified keys
       # with no legacy form — shift+enter (\e[13;2u), ctrl+enter (\e[13;5u), shift+tab
       # (\e[9;2u) — arrive here. Plain keys keep their legacy form (enter stays \r), so this
       # only fires for the modified/disambiguated ones. `mods` is 1 + bitmask (shift=1, alt=2,
@@ -214,7 +214,7 @@ defmodule Aleph.MixProject do
   # "Bracketed-paste markers" comment marker). It removes the legacy parse_one clause (which would
   # otherwise shadow the new clauses) and inserts 200/201 clauses at the head of
   # parse_csi_tilde_one/1's case — the SAME function the kitty CSI-u patch extends. The host-side
-  # bracketed-paste mode that PRODUCES these sequences is enabled in Aleph.Cockpit itself
+  # bracketed-paste mode that PRODUCES these sequences is enabled in Console.Cockpit itself
   # (\e[?2004h — no dep patch); this only teaches the parser to decode the markers.
   @paste_parser Path.join([
                   Mix.Project.deps_path(),
@@ -502,7 +502,7 @@ defmodule Aleph.MixProject do
       # the Bus (§6). funes never depends on aleph — the boundary is one-directional. Because
       # a dependency's own `config/*.exs` is NOT evaluated when aleph is the root app, aleph
       # supplies funes' Repo config itself (config/config.exs + config/runtime.exs).
-      {:funes, path: "../funes"},
+      {:server, path: "../funes"},
       # Compile-time module-boundary checks (lib/aleph.ex). runtime: false — pure tooling.
       {:boundary, "~> 0.10", runtime: false},
       # The disciplined subset of the Raxol family, NOT the full `raxol` umbrella (which

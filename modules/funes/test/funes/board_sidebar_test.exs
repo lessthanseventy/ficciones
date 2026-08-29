@@ -1,19 +1,19 @@
-defmodule Funes.BoardSidebarTest do
+defmodule Server.BoardSidebarTest do
   # Reshape slice C: the sidebar read-model — per workspace, ONE unified thread list
   # (chat threads and tracked threads are the same kind of row) plus the crew with
   # working flags. The contract the Slack-shaped UI sits on.
   use ExUnit.Case, async: false
 
-  alias Funes.Board
-  alias Funes.Bootstrap
-  alias Funes.Channel
-  alias Funes.Presence.Thinking
-  alias Funes.Staff
-  alias Funes.Workline
-  alias Funes.Workspaces
+  alias Server.Board
+  alias Server.Bootstrap
+  alias Server.Channel
+  alias Server.Presence.Thinking
+  alias Server.Staff
+  alias Server.Workline
+  alias Server.Workspaces
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     Thinking.sweep()
     :ok
   end
@@ -74,9 +74,9 @@ defmodule Funes.BoardSidebarTest do
   test "a thread whose workspace is GONE lands in the default group — never dropped" do
     {:ok, workspace} = Bootstrap.ensure()
     {:ok, thread} = Channel.open_thread(%{title: "orphan"})
-    Funes.Repo.query!("PRAGMA foreign_keys = OFF")
-    Funes.Repo.query!("UPDATE thread SET workspace_id = 999 WHERE id = ?", [thread.id])
-    Funes.Repo.query!("PRAGMA foreign_keys = ON")
+    Server.Repo.query!("PRAGMA foreign_keys = OFF")
+    Server.Repo.query!("UPDATE thread SET workspace_id = 999 WHERE id = ?", [thread.id])
+    Server.Repo.query!("PRAGMA foreign_keys = ON")
 
     [%{workspace: %{id: default_id}, threads: threads}] = Board.sidebar()
     assert default_id == workspace.id

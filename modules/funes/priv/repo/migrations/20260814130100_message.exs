@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Message do
+defmodule Server.Repo.Migrations.Message do
   use Ecto.Migration
 
   # 003 message (spec §5b, aleph §9.2). The channel, and §4's capture path — a

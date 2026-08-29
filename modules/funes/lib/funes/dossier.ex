@@ -1,9 +1,9 @@
-defmodule Funes.Dossier do
+defmodule Server.Dossier do
   @moduledoc """
   The dossier (aleph §9.4, spec §4/§5): `fact`, `event`, and `issue` scoped to a
   thread — the thread's accumulated state, and the source of LEARNINGS, SHIPPED and
   BLOCKERS. These are the judgement and the record a system cannot re-derive from a
-  transcript; the channel (`Funes.Channel`) and the staff (`Funes.Staff`) own the
+  transcript; the channel (`Server.Channel`) and the staff (`Server.Staff`) own the
   rest of the spine.
 
   The per-thread reads here are raw material — `facts_for_thread`, `events_for_thread`
@@ -13,16 +13,16 @@ defmodule Funes.Dossier do
   """
   import Ecto.Query
 
-  alias Funes.Bus
-  alias Funes.Event
-  alias Funes.Fact
-  alias Funes.Habit
-  alias Funes.Issue
-  alias Funes.Message
-  alias Funes.Question
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Todo
+  alias Server.Bus
+  alias Server.Event
+  alias Server.Fact
+  alias Server.Habit
+  alias Server.Issue
+  alias Server.Message
+  alias Server.Question
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Todo
 
   # orient shows at most five open issues per thread; the rest is a number, never a
   # complete-and-useless list (§5 rank-and-cut, §1).
@@ -67,7 +67,7 @@ defmodule Funes.Dossier do
   Returns `{:ok, fact}`, `{:error, :not_the_operator}`, or `{:error, changeset}`.
   """
   def bank_stated_fact(%Message{} = message, attrs) do
-    operator = Application.get_env(:funes, :operator, "andrew")
+    operator = Application.get_env(:server, :operator, "andrew")
 
     if String.downcase(message.author) == String.downcase(operator) do
       attrs

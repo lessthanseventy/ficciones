@@ -1,8 +1,8 @@
-defmodule Aleph.MachineChat.RailCrewTest do
-  @moduledoc "The THREADS rail renders pre-annotated data; selection stays visible. (CREW moved to Aleph.Panel.Crew.)"
+defmodule Console.MachineChat.RailCrewTest do
+  @moduledoc "The THREADS rail renders pre-annotated data; selection stays visible. (CREW moved to Console.Panel.Crew.)"
   use ExUnit.Case, async: true
 
-  alias Aleph.MachineChat.Rail
+  alias Console.MachineChat.Rail
 
   defp texts(rows), do: Enum.map(rows, fn row -> Enum.map_join(row, "", fn {t, _s} -> t end) end)
 

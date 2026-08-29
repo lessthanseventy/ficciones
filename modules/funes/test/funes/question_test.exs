@@ -1,17 +1,17 @@
-defmodule Funes.QuestionTest do
+defmodule Server.QuestionTest do
   # Knowing what you don't know is first-class (pi doc §5 slice 4): questions are task
   # knowledge-gaps scoped to a thread, open until resolved. The reads are load-bearing —
   # UNKNOWNS capped+counted, resolved excluded — so they get the tests. Shared DB, no
   # sandbox; every assertion reads back through SQLite.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Question
-  alias Funes.Repo
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Question
+  alias Server.Repo
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     {:ok, thread} = Channel.open_thread(%{title: "embed raxol?"})
     %{thread: thread}
   end

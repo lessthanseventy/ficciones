@@ -1,10 +1,10 @@
-defmodule Aleph.Panel.AuthorTest do
+defmodule Console.Panel.AuthorTest do
   # AUTHOR — the Orbis author face's editable workspace list (D2.2). Pins the panel → styled-rows path
   # headlessly: one row per workspace with its counts, the cursor row washed :selected, an empty-state
   # placeholder, and the footer hints line.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Author
+  alias Console.Panel.Author
 
   @rect %{x: 0, y: 0, w: 80, h: 100}
 

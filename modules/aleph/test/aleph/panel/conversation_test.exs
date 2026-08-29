@@ -1,9 +1,9 @@
-defmodule Aleph.Panel.ConversationTest do
+defmodule Console.Panel.ConversationTest do
   # The cockpit chat box: messages plus the trailing presence indicator — explicit thinking
   # (accent) outranks tmux-inferred working (dim). Headless, pure render.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Conversation
+  alias Console.Panel.Conversation
 
   @rect %{x: 0, y: 0, w: 60, h: 40}
 
@@ -82,7 +82,7 @@ defmodule Aleph.Panel.ConversationTest do
         @rect
       )
 
-    assert Aleph.Graphics.placeholder(24, 6) in rows
+    assert Console.Graphics.placeholder(24, 6) in rows
   end
 
   test "a message without an attachment renders no placeholder row" do

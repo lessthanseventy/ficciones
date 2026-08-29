@@ -1,12 +1,12 @@
-defmodule Aleph.CrewTest do
+defmodule Console.CrewTest do
   use ExUnit.Case, async: true
 
-  alias Aleph.Crew
+  alias Console.Crew
 
   # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
-  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
+  # that render or drive a Workspace push one through the Console.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorkspaces.put()
+    Console.TestWorkspaces.put()
   end
 
   describe "roles/0 and role/1" do
@@ -82,7 +82,7 @@ defmodule Aleph.CrewTest do
     setup do
       test_pid = self()
       # fake tmux runner: records argv; a capture-pane poll reports the registered footer (pi ready)
-      Application.put_env(:aleph, :crew_cmd, fn
+      Application.put_env(:console, :crew_cmd, fn
         "tmux", ["-L", _, "capture-pane" | _] = argv, _opts ->
           send(test_pid, {:tmux, argv})
           {"funes: registered — reviewer-machine on 1", 0}
@@ -93,18 +93,18 @@ defmodule Aleph.CrewTest do
       end)
 
       # fake identity minter: asserts author + thread, returns a canned exports block
-      Application.put_env(:aleph, :crew_join, fn thread_id, author, opts ->
+      Application.put_env(:console, :crew_join, fn thread_id, author, opts ->
         send(test_pid, {:join, thread_id, author, opts})
         {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}"\nexport FUNES_AUTHOR="#{author}")}}
       end)
 
       # no real poll wait in tests
-      Application.put_env(:aleph, :crew_poll_ms, 0)
+      Application.put_env(:console, :crew_poll_ms, 0)
 
       on_exit(fn ->
-        Application.delete_env(:aleph, :crew_cmd)
-        Application.delete_env(:aleph, :crew_join)
-        Application.delete_env(:aleph, :crew_poll_ms)
+        Application.delete_env(:console, :crew_cmd)
+        Application.delete_env(:console, :crew_join)
+        Application.delete_env(:console, :crew_poll_ms)
       end)
 
       :ok
@@ -133,7 +133,7 @@ defmodule Aleph.CrewTest do
     test "a nonzero tmux exit is an error, not a crash" do
       test_pid = self()
 
-      Application.put_env(:aleph, :crew_cmd, fn "tmux", argv, _opts ->
+      Application.put_env(:console, :crew_cmd, fn "tmux", argv, _opts ->
         send(test_pid, {:tmux, argv})
         {"dup window", 1}
       end)
@@ -143,8 +143,8 @@ defmodule Aleph.CrewTest do
     end
 
     test "injects the opening turn via two-phase send-keys when inject: true (default)" do
-      Application.put_env(:aleph, :crew_settle_ms, 0)
-      on_exit(fn -> Application.delete_env(:aleph, :crew_settle_ms) end)
+      Application.put_env(:console, :crew_settle_ms, 0)
+      on_exit(fn -> Application.delete_env(:console, :crew_settle_ms) end)
 
       assert {:ok, "r42"} = Crew.spawn("reviewer", 42, "review HEAD~1")
 
@@ -163,12 +163,12 @@ defmodule Aleph.CrewTest do
     end
 
     test "the opening inject waits through a not-yet-ready pane, then submits once registered" do
-      Application.put_env(:aleph, :crew_settle_ms, 0)
+      Application.put_env(:console, :crew_settle_ms, 0)
       test_pid = self()
       polls = :counters.new(1, [])
 
       # pane is 'booting' on the first poll, registered on the second — inject must not fire until then
-      Application.put_env(:aleph, :crew_cmd, fn
+      Application.put_env(:console, :crew_cmd, fn
         "tmux", ["-L", _, "capture-pane" | _] = argv, _opts ->
           send(test_pid, {:tmux, argv})
           :counters.add(polls, 1, 1)
@@ -179,7 +179,7 @@ defmodule Aleph.CrewTest do
           {"", 0}
       end)
 
-      on_exit(fn -> Application.delete_env(:aleph, :crew_settle_ms) end)
+      on_exit(fn -> Application.delete_env(:console, :crew_settle_ms) end)
 
       assert {:ok, "r42"} = Crew.spawn("reviewer", 42, "review HEAD~1")
 
@@ -195,22 +195,22 @@ defmodule Aleph.CrewTest do
     test "kills the role window via the injected runner" do
       test_pid = self()
 
-      Application.put_env(:aleph, :crew_cmd, fn "tmux", argv, _ ->
+      Application.put_env(:console, :crew_cmd, fn "tmux", argv, _ ->
         send(test_pid, {:tmux, argv})
         {"", 0}
       end)
 
-      on_exit(fn -> Application.delete_env(:aleph, :crew_cmd) end)
+      on_exit(fn -> Application.delete_env(:console, :crew_cmd) end)
       assert :ok = Crew.kill("reviewer", 42)
       assert_receive {:tmux, ["-L", _, "kill-window", "-t", "w0:r42"]}
     end
   end
 
-  describe "Funes.Crew behaviour (the door funes' spawn_crew/kill_crew tools land in)" do
+  describe "Server.Crew behaviour (the door funes' spawn_crew/kill_crew tools land in)" do
     setup do
       test_pid = self()
 
-      Application.put_env(:aleph, :crew_cmd, fn
+      Application.put_env(:console, :crew_cmd, fn
         "tmux", ["-L", _, "capture-pane" | _] = argv, _opts ->
           send(test_pid, {:tmux, argv})
           {"funes: registered — reviewer-machine on 1", 0}
@@ -220,19 +220,19 @@ defmodule Aleph.CrewTest do
           {"", 0}
       end)
 
-      Application.put_env(:aleph, :crew_join, fn thread_id, author, opts ->
+      Application.put_env(:console, :crew_join, fn thread_id, author, opts ->
         send(test_pid, {:join, thread_id, author, opts})
         {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}")}}
       end)
 
-      Application.put_env(:aleph, :crew_settle_ms, 0)
-      Application.put_env(:aleph, :crew_poll_ms, 0)
+      Application.put_env(:console, :crew_settle_ms, 0)
+      Application.put_env(:console, :crew_poll_ms, 0)
 
       on_exit(fn ->
-        Application.delete_env(:aleph, :crew_cmd)
-        Application.delete_env(:aleph, :crew_join)
-        Application.delete_env(:aleph, :crew_settle_ms)
-        Application.delete_env(:aleph, :crew_poll_ms)
+        Application.delete_env(:console, :crew_cmd)
+        Application.delete_env(:console, :crew_join)
+        Application.delete_env(:console, :crew_settle_ms)
+        Application.delete_env(:console, :crew_poll_ms)
       end)
 
       :ok

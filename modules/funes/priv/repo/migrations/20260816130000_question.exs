@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Question do
+defmodule Server.Repo.Migrations.Question do
   use Ecto.Migration
 
   # 017 question (pi doc §5 slice 4). A knowledge gap in the work — "does raxol support

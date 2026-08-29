@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.FactEmbedding do
+defmodule Server.Repo.Migrations.FactEmbedding do
   use Ecto.Migration
 
   # The forgetting engine's semantic relevance (design: docs/plans/2026-08-19-funes-forgetting-design.md):

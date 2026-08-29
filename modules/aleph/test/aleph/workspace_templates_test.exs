@@ -1,9 +1,9 @@
-defmodule Aleph.WorkspaceTemplatesTest do
+defmodule Console.WorkspaceTemplatesTest do
   # The nix-owned workspace-archetype registry (capabilities): starter type/paths/roster the author
-  # face's "new workspace" composes a funes row from. Distinct from Aleph.Profiles' coworker archetypes.
+  # face's "new workspace" composes a funes row from. Distinct from Console.Profiles' coworker archetypes.
   use ExUnit.Case, async: true
 
-  alias Aleph.WorkspaceTemplates
+  alias Console.WorkspaceTemplates
 
   test "the three workspace archetypes exist" do
     assert MapSet.new(WorkspaceTemplates.names()) == MapSet.new([:code, :life, :blank])

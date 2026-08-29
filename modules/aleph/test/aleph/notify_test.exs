@@ -1,11 +1,11 @@
-defmodule Aleph.NotifyTest do
+defmodule Console.NotifyTest do
   @moduledoc """
   The desktop-notification decision + OSC formatting, headless. The actual tty write is the
   Cockpit's one-line edge; the eye test is a real ghostty raising a native notification.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Notify
+  alias Console.Notify
 
   describe "for_event/2 — what deserves an interruption" do
     test "a raised question is a waiting-on-you" do
@@ -28,7 +28,7 @@ defmodule Aleph.NotifyTest do
     test "an unloaded agent association falls back instead of crashing" do
       not_loaded = %Ecto.Association.NotLoaded{
         __field__: :agent,
-        __owner__: Aleph.NotifyTest,
+        __owner__: Console.NotifyTest,
         __cardinality__: :one
       }
 

@@ -1,10 +1,10 @@
-defmodule Aleph.OrbisTest do
+defmodule Console.OrbisTest do
   # The rollup DATA semantics (Orbis Tertius slice 2): the pure status + tally rules shared by the
   # Tlön sidebar panel and the chat-tab strip. `rollup/0` itself reads funes (exercised live, not
   # here, like the cockpit reads); these pin the pure rules so the two surfaces can never drift.
   use ExUnit.Case, async: true
 
-  alias Aleph.Orbis
+  alias Console.Orbis
 
   describe "status/2" do
     test "a closed thread is done, regardless of conflicts" do
@@ -39,7 +39,7 @@ defmodule Aleph.OrbisTest do
   end
 
   describe "workspaces/1" do
-    # workspaces/1 reads the live Aleph.Workspaces cache (funes down under test → []). The literal-Tlön
+    # workspaces/1 reads the live Console.Workspaces cache (funes down under test → []). The literal-Tlön
     # fallback is gone (reshape slice A): no workspace refs means no survey rows — honest, since funes
     # self-seeds a default workspace at boot.
     test "funes down → no survey rows, no fake workspace" do
@@ -49,7 +49,7 @@ defmodule Aleph.OrbisTest do
   end
 
   describe "workspaces/2 (grouped by real workspace refs — D0.3: every row carries its funes id)" do
-    # workspaces/1 reads the live Aleph.Workspaces cache (funes down under test → [] → literal "Tlön"
+    # workspaces/1 reads the live Console.Workspaces cache (funes down under test → [] → literal "Tlön"
     # fallback, covered above). workspaces/2 is the pure grouping it delegates to, tested with
     # injected `%{id, name}` refs so a real funes workspace's id/name drives the survey row.
     test "one workspace → the rollup rows group under that workspace's real id + name" do

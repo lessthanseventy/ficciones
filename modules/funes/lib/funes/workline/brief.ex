@@ -1,4 +1,4 @@
-defmodule Funes.Workline.Brief do
+defmodule Server.Workline.Brief do
   @moduledoc """
   The stage brief — the message that IS the wake (worklines slice 2). When a workline flips,
   funes posts the entered stage's brief on the thread; delivery rides the lead-wake path —
@@ -9,7 +9,7 @@ defmodule Funes.Workline.Brief do
   override later.
   """
 
-  alias Funes.Thread
+  alias Server.Thread
 
   @doc "The brief for the stage the workline just ENTERED (merged → a completion note)."
   def stage_message(%Thread{stage: "merged"} = t) do

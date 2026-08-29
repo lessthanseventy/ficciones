@@ -1,14 +1,14 @@
-defmodule Funes.CheckTest do
+defmodule Server.CheckTest do
   # Measured verification (roadmap #5): record_check lands a command's REAL exit code as
   # a check_passed/check_failed event, so "it works" is measured, never self-reported. The
   # kind is keyed on the number; the reads (CHECKS) surface the current verification state.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Dossier
+  alias Server.Channel
+  alias Server.Dossier
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     {:ok, thread} = Channel.open_thread(%{title: "verify the drain"})
     %{thread: thread}
   end

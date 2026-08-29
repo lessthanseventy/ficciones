@@ -1,20 +1,20 @@
-defmodule Aleph.Panel.Roster do
+defmodule Console.Panel.Roster do
   @moduledoc """
   IN FLIGHT — the live roster: which agents are working which threads, and whether they are
-  warm (`Funes.Presence`). A thin view over `Funes.Staff.roster/0`; re-renders on the sessions
+  warm (`Server.Presence`). A thin view over `Server.Staff.roster/0`; re-renders on the sessions
   topic. Each row is `%{agent, thread_id, thread_title, pane_ref, warm?}` (the `pane_ref`
   handle is opaque — design §5/§7).
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2]
+  import Console.Panel, only: [line: 2]
 
-  alias Funes.Bus
+  alias Server.Bus
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: [Bus.sessions_topic()]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(%{sessions: roster}, rect) do
     body =
       case roster do
@@ -22,15 +22,15 @@ defmodule Aleph.Panel.Roster do
         rows -> Enum.map(rows, &row/1)
       end
 
-    Aleph.Panel.clip(body, rect)
+    Console.Panel.clip(body, rect)
   end
 
   # Click a session row → focus the thread it's working. Rows start at 0 (title now lives on the
   # frame); scrolled panels add the offset to land on content.
-  @impl Aleph.Panel
+  @impl Console.Panel
   def pick(%{sessions: roster} = data, _rect, local_y) do
     roster
-    |> Enum.at(Aleph.Panel.scroll_offset(data) + local_y)
+    |> Enum.at(Console.Panel.scroll_offset(data) + local_y)
     |> focus_thread()
   end
 

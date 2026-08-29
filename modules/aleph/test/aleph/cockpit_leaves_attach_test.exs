@@ -1,4 +1,4 @@
-defmodule Aleph.CockpitLeavesAttachTest do
+defmodule Console.CockpitLeavesAttachTest do
   @moduledoc """
   Leaves-Enter attach (Workspaces Slice 0, Task 2): pressing Enter on a leaf whose lead maps to a live
   Workspace tmux window ATTACHES that window in the center — PREVIEW (re-point) then COMMIT (focus in),
@@ -13,20 +13,20 @@ defmodule Aleph.CockpitLeavesAttachTest do
 
   These exercise `attach_leaf/2`, the pure decision the `:tlon_enter` → `jump_to_leaf` path runs
   before its (termbox-painting, un-unit-testable) render. The tmux runner is injected
-  (`:aleph, :tlon_cmd`) so argv is asserted without a live server, the same seam the preview test
+  (`:console, :tlon_cmd`) so argv is asserted without a live server, the same seam the preview test
   uses. `previewed_window` is tmux's STRING window index (`"1"`), not an int.
   """
   use ExUnit.Case, async: false
 
-  alias Aleph.Cockpit
-  alias Aleph.Panel
-  alias Aleph.Space
-  alias Aleph.Tlon.Focus
+  alias Console.Cockpit
+  alias Console.Panel
+  alias Console.Space
+  alias Console.Tlon.Focus
 
   # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
-  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
+  # that render or drive a Workspace push one through the Console.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorkspaces.put()
+    Console.TestWorkspaces.put()
   end
 
   setup do
@@ -34,7 +34,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
 
     # Fake tmux runner: records argv; `list-windows` reports three Workspace windows
     # (tertius@0, hronir@1, general@2), everything else (select-window) is a no-op success.
-    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+    Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
 
       if Enum.member?(args, "list-windows"),
@@ -42,7 +42,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
         else: {"", 0}
     end)
 
-    on_exit(fn -> Application.delete_env(:aleph, :tlon_cmd) end)
+    on_exit(fn -> Application.delete_env(:console, :tlon_cmd) end)
     :ok
   end
 
@@ -120,7 +120,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
 
       # window 0 is the lead's own window, window 1 is the leaf's own `t<id>` window — a leaf with
       # BOTH live must prefer its own (id 42 here), never fall back to the lead's.
-      Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+      Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
         send(test_pid, {:tmux, args})
 
         if Enum.member?(args, "list-windows"),
@@ -128,7 +128,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
           else: {"", 0}
       end)
 
-      on_exit(fn -> Application.delete_env(:aleph, :tlon_cmd) end)
+      on_exit(fn -> Application.delete_env(:console, :tlon_cmd) end)
       :ok
     end
 

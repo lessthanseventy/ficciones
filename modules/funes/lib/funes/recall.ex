@@ -1,24 +1,24 @@
-defmodule Funes.Recall do
+defmodule Server.Recall do
   @moduledoc """
   The forgetting engine's recall layer (design:
   `docs/plans/2026-08-19-funes-forgetting-design.md`): assemble the WORKING SET — the
   token-budgeted slice of memory that reaches an agent's context. Candidates are ranked by
-  `relevance × strength` (`Funes.Recall.Strength`); the operator's pinned constraints are a floor
+  `relevance × strength` (`Server.Recall.Strength`); the operator's pinned constraints are a floor
   that is always kept; the ranked remainder fills the remaining token budget and everything else
   falls out of context — never off disk (an explicit deeper search still finds it). `assemble/2`
   is the pure core; DB-backed gatherers feed it real candidates.
   """
   import Ecto.Query
 
-  alias Funes.Dossier
-  alias Funes.Event
-  alias Funes.Fact
-  alias Funes.Recall.Embedding
-  alias Funes.Recall.Strength
-  alias Funes.Repo
-  alias Funes.Thread
+  alias Server.Dossier
+  alias Server.Event
+  alias Server.Fact
+  alias Server.Recall.Embedding
+  alias Server.Recall.Strength
+  alias Server.Repo
+  alias Server.Thread
 
-  # Fact-correlated events that count as strength touches (weighted in Funes.Recall.Strength).
+  # Fact-correlated events that count as strength touches (weighted in Server.Recall.Strength).
   @touch_kinds ["check_passed", "check_failed", "cited"]
   @default_budget 4000
 
@@ -177,7 +177,7 @@ defmodule Funes.Recall do
 
   # The keyword half: which candidate ids FTS-match the query, or nil when there's no query string.
   defp keyword_matches(nil, _ids), do: nil
-  defp keyword_matches(query, ids), do: Funes.Search.matching_fact_ids(query, ids)
+  defp keyword_matches(query, ids), do: Server.Search.matching_fact_ids(query, ids)
 
   @doc "Store a fact's embedding vector + model (written after `bank_fact`, off the write path)."
   @spec store_embedding(Fact.t(), [float()], String.t()) :: {:ok, Fact.t()} | {:error, term()}
@@ -206,17 +206,17 @@ defmodule Funes.Recall do
   @doc """
   Embed a freshly-banked fact OFF the write path: a supervised, unlinked task hits ollama so a
   slow/down embedder never blocks the `bank_fact` reply, and its crash can't take the caller. Called
-  from the MCP write path (`Funes.MCP.Tool.BankFact`); returns the fact unchanged (a side effect on
+  from the MCP write path (`Server.MCP.Tool.BankFact`); returns the fact unchanged (a side effect on
   the write result, never load-bearing). A node with no embedder just no-ops (`embed_fact` is
   best-effort — recall falls back to keyword + strength).
   """
   @spec embed_on_write(Fact.t()) :: Fact.t()
   def embed_on_write(%Fact{} = fact) do
-    Task.Supervisor.start_child(Funes.TaskSupervisor, fn -> embed_fact(fact) end)
+    Task.Supervisor.start_child(Server.TaskSupervisor, fn -> embed_fact(fact) end)
     fact
   end
 
-  defp embedding_model, do: get_in(Application.get_env(:funes, :embedding, []), [:model]) || "nomic-embed-text"
+  defp embedding_model, do: get_in(Application.get_env(:server, :embedding, []), [:model]) || "nomic-embed-text"
 
   @doc """
   Reinforce a fact that was surfaced-and-used: record a `cited` touch (correlated `fact:<id>`) so a
@@ -254,7 +254,7 @@ defmodule Funes.Recall do
     }
   end
 
-  defp recall_budget, do: get_in(Application.get_env(:funes, :recall, []), [:budget]) || @default_budget
+  defp recall_budget, do: get_in(Application.get_env(:server, :recall, []), [:budget]) || @default_budget
 
   # ~4 chars per token — a rough estimate, enough to bound the working set by tokens (design: a
   # budget, not a row count). A precise tokenizer can replace this without changing the seam.

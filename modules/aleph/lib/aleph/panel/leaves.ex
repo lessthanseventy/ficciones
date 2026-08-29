@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.Leaves do
+defmodule Console.Panel.Leaves do
   @moduledoc """
   THREADS (reshape slice C; module name pending the surface-rename slice) — the machine-scoped
   **unified thread list**: chat threads and TRACKED threads are one list. A header count line
@@ -13,23 +13,23 @@ defmodule Aleph.Panel.Leaves do
   workspace_id, stage, awaiting, blocking}], selected, attached}` (the last four nil on a plain chat
   thread) — `selected` (cursor) and `attached` (the leaf whose own window IS the
   center, persistent) both injected by the View, either `nil`; either washes the row :selected — or
-  `nil` when funes is down / there are no machine threads. Pure over `Aleph.Orbis.rollup/0`.
+  `nil` when funes is down / there are no machine threads. Pure over `Console.Orbis.rollup/0`.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Console.Panel, only: [line: 2, blank: 0]
 
-  alias Funes.Bus
+  alias Server.Bus
 
   # The header chrome above the leaf rows: the rollup line, blank (title now lives on the frame).
   @header_rows 2
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: [Bus.threads_topic(), Bus.sessions_topic()]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(nil, rect) do
-    Aleph.Panel.clip([line("no machine threads", :dim)], rect)
+    Console.Panel.clip([line("no machine threads", :dim)], rect)
   end
 
   def render(%{summary: summary, rows: rows} = data, rect) do
@@ -46,12 +46,12 @@ defmodule Aleph.Panel.Leaves do
           |> Enum.with_index()
           |> Enum.map(fn {row, i} -> leaf_row(row, i == selected or row.id == attached, rect.w) end)
 
-    Aleph.Panel.clip(header ++ body, rect)
+    Console.Panel.clip(header ++ body, rect)
   end
 
   # Click a leaf row → focus that thread (so composing targets it). The header rows are inert.
   # Uses the SAME `ordered/2` as render so a click lands on the row the operator sees (C3.2).
-  @impl Aleph.Panel
+  @impl Console.Panel
   def pick(%{rows: _} = data, _rect, local_y) do
     case row_at(data, local_y - @header_rows) do
       %{id: id} -> {:focus_thread, id}
@@ -84,10 +84,10 @@ defmodule Aleph.Panel.Leaves do
   @doc """
   The rollup line as a styled row: the operator's three buckets, conflicts appended only when there
   are any — a clean board reads clean, and a cut without a count would be its own little lie. Public
-  so the `chat` tab's header strip (`Aleph.MachineChat.Loop`) paints the identical line above its
+  so the `chat` tab's header strip (`Console.MachineChat.Loop`) paints the identical line above its
   feed, not a hand-rolled copy that could drift.
   """
-  @spec summary_row(map()) :: Aleph.Panel.row()
+  @spec summary_row(map()) :: Console.Panel.row()
   def summary_row(%{open: open, stalled: stalled, done: done} = summary) do
     base = [
       {"#{open} open", :normal},
@@ -142,7 +142,7 @@ defmodule Aleph.Panel.Leaves do
   defp status_glyph(:done), do: {"✓ ", :dim}
   defp status_glyph(_open), do: {"▸ ", :accent}
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def hints(_data), do: [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}, {"d", "delete"}]
 
   @doc "The semantic yank for the cursor row: the leaf title, same float order as render/pick."

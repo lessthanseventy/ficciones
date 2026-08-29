@@ -1,10 +1,10 @@
-defmodule Funes.Doctor do
+defmodule Server.Doctor do
   @moduledoc """
   The 2am report. Ask the database itself whether it is sound — the arbiter's own
   answers, not our bookkeeping — and provide the JSONL escape hatch that makes it
   repairable with a text editor.
   """
-  alias Funes.Repo
+  alias Server.Repo
 
   @type report :: %{integrity: String.t(), tables: [String.t()], pending: non_neg_integer()}
 

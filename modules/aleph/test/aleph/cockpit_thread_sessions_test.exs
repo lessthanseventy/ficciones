@@ -1,19 +1,19 @@
-defmodule Aleph.CockpitThreadSessionsTest do
+defmodule Console.CockpitThreadSessionsTest do
   @moduledoc """
   Per-thread leaf sessions (per-thread-agents Slice A): `ensure_thread_sessions/2` spawns a
   dedicated window for EVERY worker-archetype lead — claude AND pi harness — dispatched by the
   lead's roster profile, through the same `:tlon_cmd`/`:tlon_join` seams as
-  `Aleph.CockpitRosterTest`. A meta (surveyor) lead never gets a leaf window: it is the vantage,
+  `Console.CockpitRosterTest`. A meta (surveyor) lead never gets a leaf window: it is the vantage,
   not a worker. Boots its own temp DB (staffed threads are a real Repo read), so not async.
   """
   use ExUnit.Case, async: false
 
-  alias Aleph.Cockpit
-  alias Aleph.Space
+  alias Console.Cockpit
+  alias Console.Space
   alias Ecto.Adapters.SQLite3
-  alias Funes.Channel
-  alias Funes.Repo
-  alias Funes.Staff
+  alias Server.Channel
+  alias Server.Repo
+  alias Server.Staff
 
   @workspaces [
     %{
@@ -29,7 +29,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
 
   setup_all do
     db = Path.join(System.tmp_dir!(), "aleph_thread_sessions_test_#{System.unique_integer([:positive])}.db")
-    Application.put_env(:funes, Repo, Keyword.merge(Application.get_env(:funes, Repo, []), database: db, pool_size: 1))
+    Application.put_env(:server, Repo, Keyword.merge(Application.get_env(:server, Repo, []), database: db, pool_size: 1))
 
     config = Repo.config()
     _ = SQLite3.storage_down(config)
@@ -58,12 +58,12 @@ defmodule Aleph.CockpitThreadSessionsTest do
     prior = System.get_env("PI_CODING_AGENT_DIR")
     System.put_env("PI_CODING_AGENT_DIR", Path.join(pi_root, "agent"))
 
-    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+    Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
       if Enum.member?(args, "list-windows"), do: {"1\t0\trufus\n", 0}, else: {"", 0}
     end)
 
-    Application.put_env(:aleph, :tlon_join, fn thread_id, agent, opts ->
+    Application.put_env(:console, :tlon_join, fn thread_id, agent, opts ->
       send(test_pid, {:join, thread_id, agent, opts})
       {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}"\nexport FUNES_AUTHOR="#{agent}")}}
     end)
@@ -73,8 +73,8 @@ defmodule Aleph.CockpitThreadSessionsTest do
     {:ok, _} = Channel.clear_machine_threads()
 
     on_exit(fn ->
-      Application.delete_env(:aleph, :tlon_cmd)
-      Application.delete_env(:aleph, :tlon_join)
+      Application.delete_env(:console, :tlon_cmd)
+      Application.delete_env(:console, :tlon_join)
       if prior, do: System.put_env("PI_CODING_AGENT_DIR", prior), else: System.delete_env("PI_CODING_AGENT_DIR")
       File.rm_rf!(pi_root)
     end)
@@ -147,7 +147,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
     thread = staffed_thread("borges-machine")
     test_pid = self()
 
-    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+    Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
 
       if Enum.member?(args, "list-windows"),
@@ -173,7 +173,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
     test_pid = self()
 
     # A DONE-tagged live leaf + a fresh cockpit (empty opening state): nothing is typed or sent.
-    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+    Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
 
       if Enum.member?(args, "list-windows"),
@@ -189,7 +189,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
     thread = staffed_thread("borges-machine")
     test_pid = self()
 
-    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+    Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
 
       if Enum.member?(args, "list-windows"),
@@ -204,13 +204,13 @@ defmodule Aleph.CockpitThreadSessionsTest do
   end
 
   test "the leaf cap parks spawns past the budget — no new-window, a one-time note" do
-    prior_cfg = Application.get_env(:aleph, :config_path)
+    prior_cfg = Application.get_env(:console, :config_path)
     cfg = Path.join(System.tmp_dir!(), "aleph_cap_#{System.unique_integer([:positive])}.json")
     File.write!(cfg, ~s({"max_leaves": 1}))
-    Application.put_env(:aleph, :config_path, cfg)
+    Application.put_env(:console, :config_path, cfg)
 
     on_exit(fn ->
-      Application.put_env(:aleph, :config_path, prior_cfg)
+      Application.put_env(:console, :config_path, prior_cfg)
       File.rm(cfg)
     end)
 
@@ -218,7 +218,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
     test_pid = self()
 
     # One live leaf already occupies the only seat.
-    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+    Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
 
       if Enum.member?(args, "list-windows"),
@@ -239,7 +239,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
 
     # One live tagged leaf (kept), one tagged for a vanished thread, one legacy t<id> orphan —
     # and the untagged center/tail windows, which are never sweep candidates.
-    Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+    Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
 
       if Enum.member?(args, "list-windows"),

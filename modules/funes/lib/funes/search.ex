@@ -1,4 +1,4 @@
-defmodule Funes.Search do
+defmodule Server.Search do
   @moduledoc """
   Total recall (design: funes-total-recall, slice A): FTS5 search over the message channel
   (`history/2` — episodic recall of past sessions) and the fact corpus (`facts/2` — the ledger
@@ -10,7 +10,7 @@ defmodule Funes.Search do
   literal, so a user's `-`, `*`, `AND`, or stray `"` is searched for, never interpreted as an FTS5
   operator (which would error or silently change the query).
   """
-  alias Funes.Repo
+  alias Server.Repo
 
   # The default cut — five is the brief's cap; search shows a few more since it's an explicit query.
   @cap 10
@@ -86,7 +86,7 @@ defmodule Funes.Search do
 
   @doc """
   Which of `fact_ids` match `query` in the fact FTS index — the keyword half of the recall layer's
-  relevance blend (`Funes.Recall`). A `MapSet` of matched ids; empty for a blank query or id list.
+  relevance blend (`Server.Recall`). A `MapSet` of matched ids; empty for a blank query or id list.
   """
   def matching_fact_ids(query, fact_ids) when is_binary(query) and is_list(fact_ids) do
     case {fts_match(query), fact_ids} do

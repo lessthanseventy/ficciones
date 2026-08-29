@@ -1,8 +1,8 @@
-defmodule Aleph.LeafWindowTest do
+defmodule Console.LeafWindowTest do
   @moduledoc "Human leaf-window names (Slice C): slugging, truncation, collision disambiguation."
   use ExUnit.Case, async: true
 
-  alias Aleph.LeafWindow
+  alias Console.LeafWindow
 
   test "archetype + slugged title" do
     assert LeafWindow.name(:reviewer, "let's review this PR") == "reviewer-let-s-review-this-pr"

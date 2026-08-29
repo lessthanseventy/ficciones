@@ -1,11 +1,11 @@
-defmodule Funes.Recall.Embedding do
+defmodule Server.Recall.Embedding do
   @moduledoc """
   Semantic relevance for the forgetting engine (design:
   `docs/plans/2026-08-19-funes-forgetting-design.md`): embed fact text with a local ollama model
   and compare by cosine. `cosine/2` is pure; `embed/1` calls ollama over Erlang's built-in
   `:httpc` (no new dep) and degrades to `{:error, _}` if the embedder is down — the recall layer
   then falls back to keyword relevance rather than failing. Endpoint/model are configurable
-  (`config :funes, :embedding`).
+  (`config :server, :embedding`).
   """
   @default_endpoint "http://127.0.0.1:11434/api/embed"
   @default_model "nomic-embed-text"
@@ -27,7 +27,7 @@ defmodule Funes.Recall.Embedding do
   @doc "Embed `text` via ollama. `{:ok, vector}` or `{:error, reason}` (never raises upward)."
   @spec embed(String.t(), keyword()) :: {:ok, [float()]} | {:error, term()}
   def embed(text, opts \\ []) do
-    cfg = Application.get_env(:funes, :embedding, [])
+    cfg = Application.get_env(:server, :embedding, [])
     endpoint = opts[:endpoint] || cfg[:endpoint] || @default_endpoint
     model = opts[:model] || cfg[:model] || @default_model
 

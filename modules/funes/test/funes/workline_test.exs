@@ -1,16 +1,16 @@
-defmodule Funes.WorklineTest do
+defmodule Server.WorklineTest do
   # Worklines slice 1: the stage state machine. intent → spec → plan → build → verify →
   # review → merged, advancing only past a committed owed artifact (checker is a behaviour —
   # stubs here, git in the default impl), gating on spec→plan, review→merged, and
   # machine-born intents. The DB is the bus: every assertion reads back through SQLite.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Event
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workline
-  alias Funes.Workline.Artifacts
+  alias Server.Channel
+  alias Server.Event
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workline
+  alias Server.Workline.Artifacts
 
   defmodule AllPresent do
     @moduledoc false
@@ -31,7 +31,7 @@ defmodule Funes.WorklineTest do
   end
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -131,7 +131,7 @@ defmodule Funes.WorklineTest do
   end
 
   test "stage flips and gates announce on the Bus" do
-    Funes.Bus.subscribe_threads()
+    Server.Bus.subscribe_threads()
 
     {:ok, advanced} = Workline.advance(open!(%{slug: "loud"}), artifacts: AllPresent)
     assert_receive {:workline_advanced, %Thread{id: id}}
@@ -156,7 +156,7 @@ defmodule Funes.WorklineTest do
 
   test "entering review restaffs the workspace's reviewer as lead — never the builder reviews" do
     {:ok, workspace} =
-      Funes.Workspaces.register(%{
+      Server.Workspaces.register(%{
         name: "ReviewWorkspace",
         type: "code",
         scope: "machine",
@@ -165,7 +165,7 @@ defmodule Funes.WorklineTest do
       })
 
     {:ok, _} =
-      Funes.Staff.register_agent(%{name: "menard-machine", mandate: "review", engine: "sonnet"})
+      Server.Staff.register_agent(%{name: "menard-machine", mandate: "review", engine: "sonnet"})
 
     thread = open!(%{slug: "restaffed", workspace_id: workspace.id})
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
@@ -216,7 +216,7 @@ defmodule Funes.WorklineTest do
       assert event.correlation == "workline:fix-the-chat-feed"
 
       # The build brief lands on the thread — the worker learns the machinery it's now inside.
-      bodies = Repo.all(from m in Funes.Message, where: m.thread_id == ^plain.id, select: m.body)
+      bodies = Repo.all(from m in Server.Message, where: m.thread_id == ^plain.id, select: m.body)
       assert Enum.any?(bodies, &(&1 =~ "BUILD"))
     end
 

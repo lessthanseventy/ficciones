@@ -1,35 +1,35 @@
-defmodule Aleph.Space do
+defmodule Console.Space do
   @moduledoc """
   A **space** is a named lens over funes — *what's in the middle* and the panels around it — the
   unit the top-left switcher picks (design Addendum §B). **Orbis** (the god-view survey — tertius'
-  per-workspace rollup, the default) leads, then one **Workspace** space per funes workspace (`Aleph.Workspaces`,
+  per-workspace rollup, the default) leads, then one **Workspace** space per funes workspace (`Console.Workspaces`,
   Slice 1) — the machine/stack as a live embedded terminal. Workspace spaces are keyed by the funes
   workspace id (Phase C1, not a name slug), so `[:orbis, 1]` with the single seeded workspace;
   funes-down degrades to Orbis alone — funes self-seeds a default workspace at boot
-  (Funes.Bootstrap), so no fallback Workspace is fabricated here (reshape slice A).
+  (Server.Bootstrap), so no fallback Workspace is fabricated here (reshape slice A).
   Sessions is gone (its per-thread native-PTY center folded into the tmux center).
   The
-  `Aleph.Panel.Sidebar` workspace nav switches the active one; the center renders that space's `surface`.
+  `Console.Panel.Sidebar` workspace nav switches the active one; the center renders that space's `surface`.
 
   A surface is a LIST of sections stacked down the center — usually one (Orbis), but Tlön frames its
   Terminal with two more: WindowBar above, Ticker below. A section is either a bare
-  panel module (its data shaped by `Aleph.View.data_for/2`, like the sidebars) or a
+  panel module (its data shaped by `Console.View.data_for/2`, like the sidebars) or a
   `{panel_module, read_key}` pair whose data is the named Cockpit read verbatim — how two
   Terminal panes on one surface get distinct data. A space stays plain data either way.
   """
 
-  alias Aleph.Panel.Activity
-  alias Aleph.Panel.Brief
-  alias Aleph.Panel.Crew
-  alias Aleph.Panel.Leaves
-  alias Aleph.Panel.Memory
-  alias Aleph.Panel.Overview
-  alias Aleph.Panel.Roster
-  alias Aleph.Panel.Stack
-  alias Aleph.Panel.Terminal
-  alias Aleph.Panel.Ticker
-  alias Aleph.Panel.Triage
-  alias Aleph.Panel.WindowBar
+  alias Console.Panel.Activity
+  alias Console.Panel.Brief
+  alias Console.Panel.Crew
+  alias Console.Panel.Leaves
+  alias Console.Panel.Memory
+  alias Console.Panel.Overview
+  alias Console.Panel.Roster
+  alias Console.Panel.Stack
+  alias Console.Panel.Terminal
+  alias Console.Panel.Ticker
+  alias Console.Panel.Triage
+  alias Console.Panel.WindowBar
 
   @enforce_keys [:key, :label, :surface]
   defstruct [:key, :label, :surface, :id, left: [], right: [], coworker: nil, roster: []]
@@ -44,7 +44,7 @@ defmodule Aleph.Space do
           left: [module()],
           right: [module()],
           # The name of the pi coworker profile this space spawns into its center, or nil for a space
-          # with no machine coworker (Aleph.Profiles). Tlön → "tertius".
+          # with no machine coworker (Console.Profiles). Tlön → "tertius".
           coworker: String.t() | nil,
           # The workspace's full roster (Phase C2/C3 drive the cast from this; carried here so callers
           # don't need a second read).
@@ -53,7 +53,7 @@ defmodule Aleph.Space do
 
   @doc """
   The spaces the switcher offers, in picker order — **Orbis first (the default)**, then one Workspace
-  space per funes workspace (`Aleph.Workspaces.all/0`, Slice 1 Task B2). `surface` is the center;
+  space per funes workspace (`Console.Workspaces.all/0`, Slice 1 Task B2). `surface` is the center;
   `left`/`right` the situational sidebars. Reads the cached workspace list; `all/1` is the pure
   derivation over an explicit list (tests inject workspaces without the live cache).
   """
@@ -78,7 +78,7 @@ defmodule Aleph.Space do
   end
 
   # One Workspace space per funes workspace. An empty list means funes is genuinely down — the app
-  # self-seeds a default workspace at boot (Funes.Bootstrap), so no fake Workspace is fabricated
+  # self-seeds a default workspace at boot (Server.Bootstrap), so no fake Workspace is fabricated
   # here (reshape slice A); the picker degrades to Orbis alone.
   defp workspace_spaces(workspaces), do: Enum.map(workspaces, &space_from_workspace/1)
 
@@ -105,7 +105,7 @@ defmodule Aleph.Space do
 
   # Read the cached workspaces, degrading to [] (→ Orbis-only picker) if the cache is down mid-render.
   defp fetch_workspaces do
-    Aleph.Workspaces.all()
+    Console.Workspaces.all()
   rescue
     _ -> []
   catch
@@ -121,7 +121,7 @@ defmodule Aleph.Space do
   `active_key == :tlon` guards the cockpit carried pre-Phase-C1 (Task C1.3) — any funes id,
   including the funes-down fallback sentinel `0`, is a Workspace. A `defguard` (not a plain function)
   so cockpit/keymap clause heads can gate directly on it (`when Space.workspace?(key)`) — callers must
-  `require Aleph.Space` (a macro, unlike an ordinary `def`).
+  `require Console.Space` (a macro, unlike an ordinary `def`).
   """
   # A defguard evaluates to `false` (never raises) for any non-integer, non-`:orbis` key — a stray
   # `:tlon` no longer fails loudly, it just reads as "not a Workspace".

@@ -1,9 +1,9 @@
-defmodule Aleph.Panel.MemoryTest do
+defmodule Console.Panel.MemoryTest do
   # The Memory pane: coverage header + PINNED/HABITS sections, the active section (Tab) and the j/k
   # cursor lit. A thin view; funes reads are the cockpit's. Pins the panel → styled-rows path.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Memory
+  alias Console.Panel.Memory
 
   @rect %{x: 0, y: 0, w: 60, h: 100}
 
@@ -68,7 +68,7 @@ defmodule Aleph.Panel.MemoryTest do
   end
 
   test "hints/1 names the s-keyed section cycle (Tab now switches spaces, not sections)" do
-    assert Aleph.Panel.hints(Memory, %{}) == [
+    assert Console.Panel.hints(Memory, %{}) == [
              {"s", "section"},
              {"j/k", "facts"},
              {"⏎", "open"},

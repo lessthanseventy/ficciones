@@ -1,22 +1,22 @@
-defmodule Aleph.Panel.Terminal do
+defmodule Console.Panel.Terminal do
   @moduledoc """
-  The center column: a REAL embedded terminal (design §4). Renders an `Aleph.Terminal`'s
+  The center column: a REAL embedded terminal (design §4). Renders an `Console.Terminal`'s
   `render_state` — Ghostty's live cell grid — as truecolor runs, each cell carrying its own RGB
   from the VT engine (not a semantic palette). The cursor cell is inverted so you can see where
   you type, and the `inverse` attribute (SGR 7) swaps fg/bg like a real terminal.
 
   Renders edge-to-edge — no header row. The Tlön workspace's window strip (once drawn here as row
-  0) is now `Aleph.Panel.WindowBar`, a standalone bordered panel `Aleph.View.compose/3` places
+  0) is now `Console.Panel.WindowBar`, a standalone bordered panel `Console.View.compose/3` places
   above this one.
 
   Data is a `render_state` map (`%{cells, cursor, foreground, background}`) or `:no_session`.
-  Pure: a render_state in → styled rows out, no TTY. The cockpit blits these through `Aleph.Board`,
+  Pure: a render_state in → styled rows out, no TTY. The cockpit blits these through `Console.Board`,
   which already paints 24-bit colour.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2]
   import Bitwise
+  import Console.Panel, only: [line: 2]
 
   # Fallback colours when the emulator reports nil (use the terminal-native pair).
   @default_fg 0xC5C8C6
@@ -32,12 +32,12 @@ defmodule Aleph.Panel.Terminal do
   # 0x00CCCC/0x009999 never fired.)
   @bg_sentinels [0x9BD0CC]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(:no_session, rect) do
-    Aleph.Panel.clip([line("no live session — Enter to spawn one here", :dim)], rect)
+    Console.Panel.clip([line("no live session — Enter to spawn one here", :dim)], rect)
   end
 
   def render(%{cells: cells} = render_state, rect) do
@@ -48,7 +48,7 @@ defmodule Aleph.Panel.Terminal do
     cells
     |> Enum.with_index()
     |> Enum.map(fn {row, y} -> cell_runs(row, y, cursor, default_fg, default_bg) end)
-    |> Aleph.Panel.clip(rect)
+    |> Console.Panel.clip(rect)
   end
 
   # One run per cell — its own RGB. Board.row_cells emits a cell per grapheme, so per-cell runs are

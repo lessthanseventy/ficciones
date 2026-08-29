@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Thread do
+defmodule Server.Repo.Migrations.Thread do
   use Ecto.Migration
 
   # 002 thread (aleph §2, §9.2). The atom of work: a subject promoted to a

@@ -1,20 +1,20 @@
-defmodule Aleph.ViewTest do
+defmodule Console.ViewTest do
   @moduledoc """
-  The composition layer as plain data (design §3): `Aleph.View.compose/3` turns the assembled
+  The composition layer as plain data (design §3): `Console.View.compose/3` turns the assembled
   reads + a size into placed `{panel, data, rect}` boxes, no TTY. These tests pin the Tlön focus
   highlight — the lazygit "active pane" cue — so a regression (nothing lights, or the wrong column
   lights) is caught headlessly.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel
-  alias Aleph.Tlon.Focus
-  alias Aleph.View
+  alias Console.Panel
+  alias Console.Tlon.Focus
+  alias Console.View
 
   # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
-  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
+  # that render or drive a Workspace push one through the Console.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorkspaces.put()
+    Console.TestWorkspaces.put()
   end
 
   # A minimal reads map: compose only needs the keys to exist (it lays out boxes; panel content is
@@ -310,7 +310,7 @@ defmodule Aleph.ViewTest do
     end
 
     test "right_pane_view: 1 shows Stack pinned + Crew (Stack never cycles away)" do
-      # The Workspace space's right column is [Stack, Memory, Crew, Activity, Leaves] (Aleph.Space).
+      # The Workspace space's right column is [Stack, Memory, Crew, Activity, Leaves] (Console.Space).
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 120, 40)
 
@@ -428,11 +428,11 @@ defmodule Aleph.ViewTest do
 
     test "border digits agree with Focus.jump over the same layout (Alt+N reaches pane N)" do
       placements = View.compose(reads(%{}), 120, 40)
-      space = Aleph.Space.fetch(0)
+      space = Console.Space.fetch(0)
 
       layout = %{
         left: [Panel.Sidebar | space.left],
-        right: Aleph.Space.visible_right(space, 0),
+        right: Console.Space.visible_right(space, 0),
         sections: %{},
         counts: %{}
       }

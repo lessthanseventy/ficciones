@@ -1,10 +1,10 @@
-defmodule Aleph.Panel.StatusBarTest do
+defmodule Console.Panel.StatusBarTest do
   # The contextual footer (design 2026-08-23): mode segment (TERM/NAV/LOCK's own verbs) → space
   # segment (workspace-only post/task/driver) → the focused pane's own hints. Keyed on workspace?, never
   # the space label — the stale "Tlön"-keyed table died with this.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.StatusBar
+  alias Console.Panel.StatusBar
 
   defp rect, do: %{x: 0, y: 0, w: 120, h: 2}
 

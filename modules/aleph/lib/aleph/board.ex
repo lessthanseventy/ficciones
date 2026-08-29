@@ -1,13 +1,13 @@
-defmodule Aleph.Board do
+defmodule Console.Board do
   @moduledoc """
   The render half of the cockpit: flatten placed panels into a list of styled cells, then paint
   them. `compose/3` is a pure, testable value (no TTY) — each panel's styled rows are walked into
   `%{x, y, ch, fg, bg}` cells at the panel's rect offset, semantic styles resolved to truecolor
-  by `Aleph.Style`. `paint/1` blits that list through the termbox2 NIF (output-only; input +
-  resize come from `Raxol.Terminal.Driver`, see `Aleph.Cockpit`).
+  by `Console.Style`. `paint/1` blits that list through the termbox2 NIF (output-only; input +
+  resize come from `Raxol.Terminal.Driver`, see `Console.Cockpit`).
   """
-  alias Aleph.Panel
-  alias Aleph.Style
+  alias Console.Panel
+  alias Console.Style
 
   @type placement :: {module(), term(), Panel.rect()}
   @type cell :: %{
@@ -37,12 +37,12 @@ defmodule Aleph.Board do
     Panel.render_scroll(panel, data, rect)
   rescue
     e ->
-      Aleph.CrashLog.append(
+      Console.CrashLog.append(
         "panel render error: #{inspect(panel)}",
         Exception.format(:error, e, __STACKTRACE__)
       )
 
-      [[{"⚠ #{panel_name(panel)} render error — see #{Aleph.CrashLog.path()}", :error}]]
+      [[{"⚠ #{panel_name(panel)} render error — see #{Console.CrashLog.path()}", :error}]]
   end
 
   defp panel_name(panel) when is_atom(panel), do: panel |> Atom.to_string() |> String.split(".") |> List.last()
@@ -59,11 +59,11 @@ defmodule Aleph.Board do
     fun.()
   rescue
     e ->
-      Aleph.CrashLog.append("read error: #{label}", Exception.format(:error, e, __STACKTRACE__))
+      Console.CrashLog.append("read error: #{label}", Exception.format(:error, e, __STACKTRACE__))
       fallback
   catch
     kind, reason ->
-      Aleph.CrashLog.append("read error: #{label}", Exception.format(kind, reason, __STACKTRACE__))
+      Console.CrashLog.append("read error: #{label}", Exception.format(kind, reason, __STACKTRACE__))
       fallback
   end
 

@@ -1,13 +1,13 @@
-defmodule Funes.MCP.Spawn do
+defmodule Server.MCP.Spawn do
   @moduledoc """
   Handing a harness its funes identity (pi doc §2d). A launcher — `funes:spawn`,
   `funes:claude`, the `pi:*` model tasks — opens a fresh thread or JOINS an existing
   one, staffs an agent, and lets the harness authenticate to the sovereign channel.
 
-  Run in the SERVING node (the one holding the `Funes.MCP.Tokens` registry and Bandit):
+  Run in the SERVING node (the one holding the `Server.MCP.Tokens` registry and Bandit):
   a token minted anywhere else dies with its node and 401s. So the launchers reach this
   through `bin/funes rpc` into the LIVE service node, OR through the loopback `POST /mint`
-  endpoint (`Funes.MCP.Gateway`) that any adapter on the same box hits per connect.
+  endpoint (`Server.MCP.Gateway`) that any adapter on the same box hits per connect.
 
   Three doors onto the same core (`ensure/3`, which mints nothing):
 
@@ -25,11 +25,11 @@ defmodule Funes.MCP.Spawn do
 
   The launchers call `ensure` once (identity), and the adapter mints per connect.
   """
-  alias Funes.Channel
-  alias Funes.MCP.Tokens
-  alias Funes.Repo
-  alias Funes.Staff
-  alias Funes.Thread
+  alias Server.Channel
+  alias Server.MCP.Tokens
+  alias Server.Repo
+  alias Server.Staff
+  alias Server.Thread
 
   @typedoc "Open a fresh thread, or join an existing one by id."
   @type thread_ref :: {:open, String.t()} | {:join, integer() | String.t()}
@@ -53,7 +53,7 @@ defmodule Funes.MCP.Spawn do
   thread's actual lead.
   """
   @spec ensure(thread_ref(), String.t(), keyword()) ::
-          {:ok, %{thread: Thread.t(), agent: Funes.Agent.t()}} | {:error, term()}
+          {:ok, %{thread: Thread.t(), agent: Server.Agent.t()}} | {:error, term()}
   def ensure(thread_ref, agent_name, opts \\ []) when is_binary(agent_name) do
     with {:ok, thread} <- resolve_thread(thread_ref, opts),
          {:ok, agent} <- ensure_agent(agent_name, opts),
@@ -68,13 +68,13 @@ defmodule Funes.MCP.Spawn do
   bearer path — the caller decides where the block goes (a pi pane's env, stdout).
   """
   @spec env(String.t(), String.t(), keyword()) ::
-          {:ok, %{thread: Thread.t(), agent: Funes.Agent.t(), token: String.t(), exports: String.t()}}
+          {:ok, %{thread: Thread.t(), agent: Server.Agent.t(), token: String.t(), exports: String.t()}}
           | {:error, term()}
   def env(title, agent_name, opts \\ []) when is_binary(title), do: mint_and_export({:open, title}, agent_name, opts)
 
   @doc "Like `env/3`, but JOIN an existing thread by id instead of opening a fresh one."
   @spec join(integer() | String.t(), String.t(), keyword()) ::
-          {:ok, %{thread: Thread.t(), agent: Funes.Agent.t(), token: String.t(), exports: String.t()}}
+          {:ok, %{thread: Thread.t(), agent: Server.Agent.t(), token: String.t(), exports: String.t()}}
           | {:error, term()}
   def join(thread_id, agent_name, opts \\ []), do: mint_and_export({:join, thread_id}, agent_name, opts)
 
@@ -141,7 +141,7 @@ defmodule Funes.MCP.Spawn do
     # stable, format-agnostic (FUNES_THREAD, FUNES_AUTHOR, FUNES_MCP_URL). The `:token`
     # in this function's return is kept for callers/tests that want a one-shot token,
     # but it is not frozen into any pane's env.
-    port = Application.get_env(:funes, :mcp_port, 4040)
+    port = Application.get_env(:server, :mcp_port, 4040)
 
     """
     export FUNES_MCP_URL="http://127.0.0.1:#{port}/mcp"

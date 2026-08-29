@@ -1,4 +1,4 @@
-defmodule Funes.MCP.Brief do
+defmodule Server.MCP.Brief do
   @moduledoc """
   JSON-safe renderings of the reads the channel serves — one renderer per row
   type, shared by the `get_brief`/`get_facts` tools AND the resources: one
@@ -9,14 +9,14 @@ defmodule Funes.MCP.Brief do
   lies.
   """
 
-  alias Funes.Event
-  alias Funes.Fact
-  alias Funes.Habit
-  alias Funes.Issue
-  alias Funes.Message
-  alias Funes.Question
-  alias Funes.Todo
-  alias Funes.Workspace
+  alias Server.Event
+  alias Server.Fact
+  alias Server.Habit
+  alias Server.Issue
+  alias Server.Message
+  alias Server.Question
+  alias Server.Todo
+  alias Server.Workspace
 
   @doc "A Board.brief/1 map, rendered."
   def scope(scope) do

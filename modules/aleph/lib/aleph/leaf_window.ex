@@ -1,4 +1,4 @@
-defmodule Aleph.LeafWindow do
+defmodule Console.LeafWindow do
   @moduledoc """
   Human window names for leaf sessions (per-thread-agents Slice C). A leaf's tmux window is named
   `<archetype>-<title-slug>` — readable in the window bar and `tmux list-windows` — instead of the

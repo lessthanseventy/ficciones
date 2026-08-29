@@ -1,9 +1,9 @@
-defmodule Funes.Eval do
+defmodule Server.Eval do
   @moduledoc """
   The steering-config eval harness (worklines slice 0): regression coverage for the config
   that steers agents — triage routing, briefs, personas — the way tests cover code.
 
-  Scenarios are data (`Funes.Eval.Scenario`), the judge is a behaviour seam, so the runner
+  Scenarios are data (`Server.Eval.Scenario`), the judge is a behaviour seam, so the runner
   is pure and the whole scorecard is testable without a model call. Two modes:
 
     * `:all` — deterministic asserts AND judged scenarios (needs a live judge).
@@ -15,14 +15,14 @@ defmodule Funes.Eval do
   claimed to judge.
   """
 
-  alias Funes.Eval.Scenario
+  alias Server.Eval.Scenario
 
   @threshold 3.5
 
   @doc "Run scenarios → report `%{results, passed, failed, skipped, judged_avg, ok?}`."
   def run(scenarios, opts \\ []) do
     mode = Keyword.get(opts, :mode, :all)
-    judge = Keyword.get(opts, :judge, Funes.Eval.Judge.Claude)
+    judge = Keyword.get(opts, :judge, Server.Eval.Judge.Claude)
 
     results = Enum.map(scenarios, &result(&1, mode, judge))
     judged_avg = avg(for %{score: score} <- results, score != nil, do: score)

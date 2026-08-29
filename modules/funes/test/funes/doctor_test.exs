@@ -1,8 +1,8 @@
-defmodule Funes.DoctorTest do
+defmodule Server.DoctorTest do
   use ExUnit.Case, async: false
 
-  alias Funes.Doctor
-  alias Funes.Repo
+  alias Server.Doctor
+  alias Server.Repo
 
   test "reports integrity ok on a healthy database" do
     assert Doctor.integrity_check() == "ok"

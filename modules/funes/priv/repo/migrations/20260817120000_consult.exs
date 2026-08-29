@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Consult do
+defmodule Server.Repo.Migrations.Consult do
   @moduledoc false
   use Ecto.Migration
 

@@ -1,11 +1,11 @@
-defmodule Aleph.Panel.TickerTest do
+defmodule Console.Panel.TickerTest do
   @moduledoc """
   The bottom band framing the Tlön center: the newest funes activity event, one line, reusing
   `Activity.summarize/1` so the pulse and the full feed never drift on how an event reads.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Ticker
+  alias Console.Panel.Ticker
 
   @rect %{x: 0, y: 0, w: 60, h: 3}
 

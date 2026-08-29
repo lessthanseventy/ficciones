@@ -1,7 +1,7 @@
-defmodule Funes.Switchboard do
+defmodule Server.Switchboard do
   @moduledoc """
   The switchboard — **liveness over the durable bus** (§10, §5b.2, aleph §6). A
-  message is already a row when it is posted (`Funes.Channel`); the switchboard's
+  message is already a row when it is posted (`Server.Channel`); the switchboard's
   only job is to make delivery *live*: decide who to wake and poke their pane
   through the arbiter. It must never be what makes a message *exist* — kill the
   BEAM node and every message is still a row, and `drain/0` re-delivers on restart,
@@ -32,22 +32,22 @@ defmodule Funes.Switchboard do
      session acts — on being woken and on authoring (§3b, the warmth window).
      The OTHER half of "clocked out" — an engine out of credits or past its
      rate-limit window — gates the wake too: `recipients/1` drops a session whose
-     engine `Funes.Presence.Engine.clocked_out?/1` reports spent (a pluggable §8
+     engine `Server.Presence.Engine.clocked_out?/1` reports spent (a pluggable §8
      backend, defaulting to always-available). Both halves gate the wake before an
      auto-poking tmux backend replaces the default `Inert` arbiter.
   """
   import Ecto.Query
 
-  alias Funes.Agent
-  alias Funes.Arbiter
-  alias Funes.MCP.Spawn
-  alias Funes.Mentions
-  alias Funes.Message
-  alias Funes.Presence
-  alias Funes.Repo
-  alias Funes.Session
-  alias Funes.Staff
-  alias Funes.Thread
+  alias Server.Agent
+  alias Server.Arbiter
+  alias Server.MCP.Spawn
+  alias Server.Mentions
+  alias Server.Message
+  alias Server.Presence
+  alias Server.Repo
+  alias Server.Session
+  alias Server.Staff
+  alias Server.Thread
 
   require Logger
 

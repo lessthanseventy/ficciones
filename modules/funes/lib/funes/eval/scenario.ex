@@ -1,8 +1,8 @@
-defmodule Funes.Eval.Scenario do
+defmodule Server.Eval.Scenario do
   @moduledoc """
   One eval scenario. `:assert` mode: `run` produces an output, `expect` judges it true/false —
   the deterministic, gate-safe kind. `:judge` mode: `judge_prompt` turns the output into a
-  prompt for the LLM judge (`Funes.Eval.Judge`), which scores 1–5 per dimension with a
+  prompt for the LLM judge (`Server.Eval.Judge`), which scores 1–5 per dimension with a
   rationale — the kind that needs a model and runs on demand.
   """
 

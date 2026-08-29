@@ -1,4 +1,4 @@
-defmodule Funes.MCP.ServerTest do
+defmodule Server.MCP.ServerTest do
   # The sovereign channel, proven END TO END over the wire (pi doc §2a/§4): a raw
   # JSON-RPC client — deliberately NOT the anubis client, which would only prove
   # anubis agrees with itself ("a test that reads our own files proves only that
@@ -8,17 +8,17 @@ defmodule Funes.MCP.ServerTest do
 
   import Ecto.Query
 
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Fact
-  alias Funes.Issue
-  alias Funes.MCP
-  alias Funes.Message
-  alias Funes.Presence
-  alias Funes.Repo
-  alias Funes.Session
-  alias Funes.Staff
-  alias Funes.Thread
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Fact
+  alias Server.Issue
+  alias Server.MCP
+  alias Server.Message
+  alias Server.Presence
+  alias Server.Repo
+  alias Server.Session
+  alias Server.Staff
+  alias Server.Thread
 
   @port 48_631
   @url ~c"http://127.0.0.1:48631/mcp"
@@ -29,10 +29,10 @@ defmodule Funes.MCP.ServerTest do
   end
 
   setup do
-    Funes.TestDB.clean!()
-    start_supervised!({MCP.Server, transport: :streamable_http})
+    Server.TestDB.clean!()
+    start_supervised!({MCP.Endpoint, transport: :streamable_http})
 
-    start_supervised!({Bandit, plug: {Funes.MCP.Gateway, []}, ip: {127, 0, 0, 1}, port: @port})
+    start_supervised!({Bandit, plug: {Server.MCP.Gateway, []}, ip: {127, 0, 0, 1}, port: @port})
 
     {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
     {:ok, agent} = Staff.register_agent(%{name: "Carl", mandate: "review", engine: "fresh"})
@@ -457,7 +457,7 @@ defmodule Funes.MCP.ServerTest do
     result = call(token, session, 4, "resolve_question", %{"id" => foreign.id})
 
     assert result["isError"]
-    assert Repo.get(Funes.Question, foreign.id).state == "open"
+    assert Repo.get(Server.Question, foreign.id).state == "open"
   end
 
   test "complete_todo refuses a todo on another thread — identity scoping", %{token: token} do
@@ -470,7 +470,7 @@ defmodule Funes.MCP.ServerTest do
 
     assert result["isError"]
     # and it stays open — a cross-thread complete is a no-op on the row
-    assert is_nil(Repo.get(Funes.Todo, foreign.id).done_at)
+    assert is_nil(Repo.get(Server.Todo, foreign.id).done_at)
   end
 
   test "every authenticated call is measured activity — warmth bumps without a heartbeat",
@@ -556,9 +556,9 @@ defmodule Funes.MCP.ServerTest do
 
   test "spawn_crew / kill_crew staff a role onto the connection's OWN thread via the crew backend",
        %{token: token, thread: thread} do
-    Application.put_env(:funes, :crew, Funes.Crew.Test)
-    Application.put_env(:funes, :test_pid, self())
-    on_exit(fn -> Application.delete_env(:funes, :crew) end)
+    Application.put_env(:server, :crew, Server.Crew.Test)
+    Application.put_env(:server, :test_pid, self())
+    on_exit(fn -> Application.delete_env(:server, :crew) end)
 
     session = handshake(token)
     call(token, session, 3, "register", %{})
@@ -618,7 +618,7 @@ defmodule Funes.MCP.ServerTest do
   end
 
   test "spawn_crew reports unavailable when no crew backend is configured", %{token: token} do
-    Application.delete_env(:funes, :crew)
+    Application.delete_env(:server, :crew)
 
     session = handshake(token)
     call(token, session, 3, "register", %{})

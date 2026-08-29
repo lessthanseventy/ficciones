@@ -1,4 +1,4 @@
-defmodule Funes.Recall.Strength do
+defmodule Server.Recall.Strength do
   @moduledoc """
   A fact's memory STRENGTH: the decayed sum of signed touches (design:
   `docs/plans/2026-08-19-funes-forgetting-design.md`). A touch is something funes records —

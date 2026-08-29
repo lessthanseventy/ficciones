@@ -3,12 +3,12 @@
 # config. Runs against the EPHEMERAL eval db `mix funes.eval` provisions — every scenario
 # seeds its own thread. Deterministic set gates funes' precommit; the judged scenario needs
 # a live judge (`mise run funes:eval`).
-alias Funes.Channel
-alias Funes.Dossier
-alias Funes.Eval.Scenario
+alias Server.Channel
+alias Server.Dossier
+alias Server.Eval.Scenario
 
 brief = fn thread ->
-  %Funes.Thread{id: thread.id} |> Funes.Board.brief() |> Funes.MCP.Brief.scope()
+  %Server.Thread{id: thread.id} |> Server.Board.brief() |> Server.MCP.Brief.scope()
 end
 
 assert = fn name, run, expect ->
@@ -44,7 +44,7 @@ end
       {:ok, _} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "learning number #{n}", provenance: "derived"})
     end
 
-    %{shown: shown, more: more} = Funes.Recall.thread_learnings(%Funes.Thread{id: thread.id})
+    %{shown: shown, more: more} = Server.Recall.thread_learnings(%Server.Thread{id: thread.id})
     {length(shown) + more, 8}
   end, fn {total, banked} -> total == banked end),
   %Scenario{

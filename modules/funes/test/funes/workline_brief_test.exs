@@ -1,25 +1,25 @@
-defmodule Funes.WorklineBriefTest do
+defmodule Server.WorklineBriefTest do
   # Worklines slice 2: the stage brief IS the wake — a funes-authored message posted on the
   # workline thread when a stage flips (or gates), riding the existing lead-wake path. The
-  # brief text is pure (Funes.Workline.Brief); the posting rides advance/approve.
+  # brief text is pure (Server.Workline.Brief); the posting rides advance/approve.
   use ExUnit.Case, async: false
 
-  alias Funes.Message
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workline
-  alias Funes.Workline.Brief
+  alias Server.Message
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workline
+  alias Server.Workline.Brief
 
   defmodule AllPresent do
     @moduledoc false
-    @behaviour Funes.Workline.Artifacts
+    @behaviour Server.Workline.Artifacts
 
     @impl true
     def check(_thread, _requirement), do: {:ok, "present"}
   end
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 

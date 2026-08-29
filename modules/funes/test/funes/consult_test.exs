@@ -1,4 +1,4 @@
-defmodule Funes.ConsultTest do
+defmodule Server.ConsultTest do
   # The agent-to-agent consult (docs/plans/2026-08-17-agent-peer-consult-design.md):
   # a correlated ask/answer pair between two agents on different threads. The design
   # review pinned three invariants this suite proves: the caller never names a thread
@@ -8,15 +8,15 @@ defmodule Funes.ConsultTest do
 
   import Ecto.Query
 
-  alias Funes.Channel
-  alias Funes.Consult
-  alias Funes.Consult.Mirror
-  alias Funes.Message
-  alias Funes.Repo
-  alias Funes.Staff
+  alias Server.Channel
+  alias Server.Consult
+  alias Server.Consult.Mirror
+  alias Server.Message
+  alias Server.Repo
+  alias Server.Staff
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -91,7 +91,7 @@ defmodule Funes.ConsultTest do
       # thread-id order would pick tlön while warmth must pick machine.
       assert machine.id < tlön.id
 
-      Repo.update_all(from(s in Funes.Session, where: s.id == ^machine_sess.id),
+      Repo.update_all(from(s in Server.Session, where: s.id == ^machine_sess.id),
         set: [last_active_at: DateTime.utc_now() |> DateTime.shift(minute: 1) |> DateTime.truncate(:second)]
       )
 

@@ -1,4 +1,4 @@
-defmodule Funes.Workline.Ledger do
+defmodule Server.Workline.Ledger do
   @moduledoc """
   The value ledger (worklines slice 6): a READ-MODEL over rows the stage machine already
   writes — stage_advanced events + workline threads. The playbook's indicators come out of
@@ -7,9 +7,9 @@ defmodule Funes.Workline.Ledger do
 
   import Ecto.Query
 
-  alias Funes.Event
-  alias Funes.Repo
-  alias Funes.Thread
+  alias Server.Event
+  alias Server.Repo
+  alias Server.Thread
 
   @doc "Every workline with its transitions, plus the tallies."
   def report do

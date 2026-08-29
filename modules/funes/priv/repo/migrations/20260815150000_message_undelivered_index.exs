@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.MessageUndeliveredIndex do
+defmodule Server.Repo.Migrations.MessageUndeliveredIndex do
   use Ecto.Migration
 
   # 013 the drain hot path scans `message WHERE delivered_at IS NULL` on every

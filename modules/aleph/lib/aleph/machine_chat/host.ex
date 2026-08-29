@@ -1,4 +1,4 @@
-defmodule Aleph.MachineChat.Host do
+defmodule Console.MachineChat.Host do
   @moduledoc """
   The machine-chat interaction state and its pure reducers — the brain the `aleph.machine_chat`
   termbox loop wraps. Kept free of IO so it's headlessly testable (aleph's law: unit-test the
@@ -9,7 +9,7 @@ defmodule Aleph.MachineChat.Host do
   the rail (activity resorts it) can never silently move you to a different conversation.
 
   State:
-    - `blocks`      — the `Funes.Channel.machine_threads/1` read model (most-recent-activity first).
+    - `blocks`      — the `Server.Channel.machine_threads/1` read model (most-recent-activity first).
     - `selected_id` — the OPEN thread's id (the center conversation + the composer's reply target).
     - `seen`        — thread_id => message count seen; unread badge = messages beyond it.
     - `input`       — the composer draft (owned here so Esc/mode churn can never eat it).

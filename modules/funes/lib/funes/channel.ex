@@ -1,4 +1,4 @@
-defmodule Funes.Channel do
+defmodule Server.Channel do
   @moduledoc """
   The coordination spine (spec §5b, aleph §2/§9.2): threads and the messages on
   them. The channel is also §4's capture path — a message a participant posts is
@@ -11,18 +11,18 @@ defmodule Funes.Channel do
   """
   import Ecto.Query
 
-  alias Funes.Agent
-  alias Funes.Event
-  alias Funes.Fact
-  alias Funes.Habit
-  alias Funes.Issue
-  alias Funes.Message
-  alias Funes.Question
-  alias Funes.Repo
-  alias Funes.Session
-  alias Funes.Staff
-  alias Funes.Thread
-  alias Funes.Todo
+  alias Server.Agent
+  alias Server.Event
+  alias Server.Fact
+  alias Server.Habit
+  alias Server.Issue
+  alias Server.Message
+  alias Server.Question
+  alias Server.Repo
+  alias Server.Session
+  alias Server.Staff
+  alias Server.Thread
+  alias Server.Todo
 
   # The closed thread-scope set (CHECK-guarded in the DB — see the thread_scope migration).
   # Every scope filter pins one of these, so a future third scope is a grep for the attribute,
@@ -34,10 +34,10 @@ defmodule Funes.Channel do
   `scope` defaults to `"project"`; the Tlön machine-coworker path opens with `"machine"`.)
   def open_thread(attrs) do
     attrs
-    |> Map.put_new_lazy(:workspace_id, &Funes.Bootstrap.default_workspace_id/0)
+    |> Map.put_new_lazy(:workspace_id, &Server.Bootstrap.default_workspace_id/0)
     |> Thread.open_changeset()
     |> Repo.insert()
-    |> Funes.Bus.announce(:thread_opened)
+    |> Server.Bus.announce(:thread_opened)
   end
 
   @doc """
@@ -50,7 +50,7 @@ defmodule Funes.Channel do
     with {:ok, message} <- attrs |> Message.post_changeset() |> Repo.insert() do
       # Announce the durable row (liveness only, §10) — a broadcast with no
       # subscriber is a harmless no-op.
-      Funes.Bus.broadcast({:message_posted, message})
+      Server.Bus.broadcast({:message_posted, message})
       {:ok, message}
     end
   end
@@ -60,7 +60,7 @@ defmodule Funes.Channel do
     thread
     |> Thread.state_changeset("closed")
     |> Repo.update()
-    |> Funes.Bus.announce(:thread_closed)
+    |> Server.Bus.announce(:thread_closed)
   end
 
   @doc """
@@ -74,7 +74,7 @@ defmodule Funes.Channel do
       {:error, :root_machine_thread}
     else
       {:ok, deleted} = Repo.transaction(fn -> purge_thread(thread) end)
-      Funes.Bus.announce({:ok, deleted}, :thread_deleted)
+      Server.Bus.announce({:ok, deleted}, :thread_deleted)
     end
   end
 
@@ -131,7 +131,7 @@ defmodule Funes.Channel do
 
   @doc """
   Every OPEN machine-scope thread, oldest-first (the root leads) — the leaf set the Orbis Tertius
-  meta agent reads across (`Funes.Board.machine_overview/0`). Open-only: the synthesis is over work
+  meta agent reads across (`Server.Board.machine_overview/0`). Open-only: the synthesis is over work
   in flight, not the closed history.
   """
   def open_machine_threads do
@@ -271,7 +271,7 @@ defmodule Funes.Channel do
   def operator?(author) when is_binary(author), do: String.downcase(author) == operator()
   def operator?(_author), do: false
 
-  defp operator, do: :funes |> Application.get_env(:operator, "andrew") |> String.downcase()
+  defp operator, do: :server |> Application.get_env(:operator, "andrew") |> String.downcase()
 
   @doc """
   Recent messages ACROSS all threads — the Comms rollup feed (a "slack for agents" timeline, not

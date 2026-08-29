@@ -1,4 +1,4 @@
-defmodule Funes.Consult do
+defmodule Server.Consult do
   @moduledoc """
   The agent-to-agent consult (docs/plans/2026-08-17-agent-peer-consult-design.md): a
   correlated ask/answer pair between two agents on different threads. `consult_peer/3`
@@ -6,18 +6,18 @@ defmodule Funes.Consult do
   sides for the life of the consult.
 
   The invariants the design review pinned: the caller never names a thread — only a peer
-  agent name, resolved by funes; funes mediates every write through `Funes.Channel.post`
+  agent name, resolved by funes; funes mediates every write through `Server.Channel.post`
   (the single writer); authors are always real identities; and the mirror is a
   bidirectional bridge keyed on `consult_id` with an echo guard (`mirrored`), so a
   mirrored copy is never re-mirrored.
   """
   import Ecto.Query
 
-  alias Funes.Agent
-  alias Funes.Channel
-  alias Funes.Message
-  alias Funes.Repo
-  alias Funes.Staff
+  alias Server.Agent
+  alias Server.Channel
+  alias Server.Message
+  alias Server.Repo
+  alias Server.Staff
 
   @doc """
   Ask a peer a question. `caller` is the MCP identity (`%{thread_id, agent_id, agent,

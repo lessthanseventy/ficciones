@@ -1,9 +1,9 @@
-defmodule Aleph.Panel.Activity do
+defmodule Console.Panel.Activity do
   @moduledoc """
   The machine-wide funes activity feed (Tlön right sidebar): every durable write — a fact
   banked, a check passed/failed, work landed, a message posted, an issue/question raised —
   as one colored, newest-first stream (design: replace the opaque "funes · calling funes (2
-  tools)" with real visibility). Fed by `Funes.Bus`'s global `activity` topic (cross-thread,
+  tools)" with real visibility). Fed by `Server.Bus`'s global `activity` topic (cross-thread,
   unlike `Overview`'s per-thread blocks); the Cockpit keeps the bounded buffer, this panel is a
   pure render over it.
 
@@ -11,16 +11,16 @@ defmodule Aleph.Panel.Activity do
   `summarize/1` — the `{tag, row} -> {icon, style, text}` mapping — is exported so the footer
   pulse (status bar) reuses it verbatim rather than re-deriving it (no panel/footer drift).
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2]
+  import Console.Panel, only: [line: 2]
 
   # The cockpit subscribes to the activity topic once (Bus.subscribe_activity), globally — no
   # per-assigns topic needed here (mirrors Overview, which does the same for messages).
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(%{events: events}, rect) do
     body =
       case events do
@@ -28,7 +28,7 @@ defmodule Aleph.Panel.Activity do
         evs -> Enum.map(evs, &event_row/1)
       end
 
-    Aleph.Panel.clip(body, rect)
+    Console.Panel.clip(body, rect)
   end
 
   defp event_row(event) do

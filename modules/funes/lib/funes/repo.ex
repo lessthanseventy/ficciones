@@ -1,5 +1,5 @@
-defmodule Funes.Repo do
+defmodule Server.Repo do
   use Ecto.Repo,
-    otp_app: :funes,
+    otp_app: :server,
     adapter: Ecto.Adapters.SQLite3
 end

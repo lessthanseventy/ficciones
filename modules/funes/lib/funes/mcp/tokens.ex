@@ -1,11 +1,11 @@
-defmodule Funes.MCP.Tokens do
+defmodule Server.MCP.Tokens do
   @moduledoc """
   The identity seam of the sovereign channel (pi doc §2a). A token binds an MCP connection to its
   (thread, agent) so every tool reads identity from the connection's claims, never from a call
   parameter — banking onto the wrong thread is unrepresentable rather than merely discouraged.
 
   **STATELESS and restart-surviving.** A token IS its claims: an HMAC over
-  `(thread_id, agent_id, agent)` signed with the per-world key (`Funes.MCP.Secret`). `resolve/1`
+  `(thread_id, agent_id, agent)` signed with the per-world key (`Server.MCP.Secret`). `resolve/1`
   verifies the signature and decodes — no in-memory registry, so a token stays valid across a node
   restart, which matters on the **aleph dogfood hub**: it restarts constantly during development,
   and a registry-backed token would 401 every spawned session on each restart.
@@ -18,10 +18,10 @@ defmodule Funes.MCP.Tokens do
   authenticates is local configuration), and the HMAC still means only a holder of the world's key
   can mint.
   """
-  alias Funes.Agent
-  alias Funes.MCP.Secret
-  alias Funes.Staff
-  alias Funes.Thread
+  alias Server.Agent
+  alias Server.MCP.Secret
+  alias Server.Staff
+  alias Server.Thread
 
   @type binding :: %{
           thread_id: integer(),

@@ -1,7 +1,7 @@
-defmodule Funes.JSONColumn do
+defmodule Server.JSONColumn do
   @moduledoc """
   An Ecto type for a JSON column: a map or list in Elixir, a JSON string in SQLite
-  TEXT, encoded with the stdlib `JSON` module (the same one `Funes.Doctor` exports
+  TEXT, encoded with the stdlib `JSON` module (the same one `Server.Doctor` exports
   with). Used for `event.detail` — "a JSON detail only for what a human reads" (§4) —
   and for `workspace`'s `paths`/`roster` (JSON arrays) / `knobs` (object). Never queried;
   in `sqlite3` at 2am it reads as plain JSON text.

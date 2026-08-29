@@ -1,9 +1,9 @@
 # Steering evals — STAGE DISCIPLINE family (worklines slice 2). The stage playbooks are
 # advisory governance (skills, not hooks): these gate their load-bearing lines so a
 # playbook edit can't silently drop the discipline.
-alias Funes.Eval.Scenario
-alias Funes.Thread
-alias Funes.Workline.Brief
+alias Server.Eval.Scenario
+alias Server.Thread
+alias Server.Workline.Brief
 
 thread = fn stage -> struct!(Thread, %{id: 1, title: "t", slug: "s", stage: stage}) end
 

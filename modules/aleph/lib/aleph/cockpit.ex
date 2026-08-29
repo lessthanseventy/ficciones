@@ -1,8 +1,8 @@
-defmodule Aleph.Cockpit do
+defmodule Console.Cockpit do
   @moduledoc """
   The live loop and the cockpit's one brain (design §8). It *is* the dispatcher: termbox2 paints
   (output-only), `Raxol.Terminal.Driver` feeds it `:key`/`:resize` events as GenServer casts, and
-  `Funes.Bus` events arrive as plain messages. Every input, resize, Bus event, and tick reloads
+  `Server.Bus` events arrive as plain messages. Every input, resize, Bus event, and tick reloads
   the funes reads and repaints. Holds the only shared state — the active space and the focused
   thread (§8) — and caches nothing about tmux past the paint (§5).
 
@@ -11,31 +11,31 @@ defmodule Aleph.Cockpit do
   """
   use GenServer
 
-  alias Aleph.Board
-  alias Aleph.Harness
-  alias Aleph.Keymap
-  alias Aleph.LeafWindow
-  alias Aleph.Mouse
-  alias Aleph.Osc
-  alias Aleph.Panel
-  alias Aleph.Panel.Border
-  alias Aleph.Panel.WindowBar
-  alias Aleph.Profile
-  alias Aleph.Profiles
-  alias Aleph.Sessions
-  alias Aleph.Space
-  alias Aleph.Terminal
-  alias Aleph.Tlon.Focus
-  alias Aleph.View
-  alias Aleph.WorkspaceTemplates
-  alias Funes.Bus
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.MCP.Spawn
-  alias Funes.Staff
-  alias Funes.Workspaces
+  alias Console.Board
+  alias Console.Harness
+  alias Console.Keymap
+  alias Console.LeafWindow
+  alias Console.Mouse
+  alias Console.Osc
+  alias Console.Panel
+  alias Console.Panel.Border
+  alias Console.Panel.WindowBar
+  alias Console.Profile
+  alias Console.Profiles
+  alias Console.Sessions
+  alias Console.Space
+  alias Console.Terminal
+  alias Console.Tlon.Focus
+  alias Console.View
+  alias Console.WorkspaceTemplates
   alias Ghostty.KeyEvent
   alias Raxol.Core.Events.Event
+  alias Server.Bus
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.MCP.Spawn
+  alias Server.Staff
+  alias Server.Workspaces
 
   # `Space.workspace?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
   # not just an alias.
@@ -55,7 +55,7 @@ defmodule Aleph.Cockpit do
   @tb_input_esc_mouse 5
 
   # The Workspace's cast is roster-driven (`ensure_workspace_roster/1`, C2.3): head = the center (embedded
-  # terminal, `new-session`), tail = tmux windows (`new-window`), harness-dispatched. Funes handle =
+  # terminal, `new-session`), tail = tmux windows (`new-window`), harness-dispatched. Server handle =
   # `"<name>-machine"`, tmux window = `"<name>"` (`roster_entry/1`). No more hardcoded
   # tertius/hronir/claude-machine identity — the seed roster (surveyor "tertius", builder "hronir")
   # reproduces the old Borges cast (**general** console · **hronir** builder · **tertius**
@@ -192,13 +192,13 @@ defmodule Aleph.Cockpit do
   defp act_on(:quit), do: :ok
 
   defp act_on(:dead_io) do
-    Aleph.CrashLog.append("resurrect skipped", "stdio died with the cockpit — staying down")
-    note("aleph crashed and its terminal is gone — staying down. Trace: #{Aleph.CrashLog.path()}")
+    Console.CrashLog.append("resurrect skipped", "stdio died with the cockpit — staying down")
+    note("aleph crashed and its terminal is gone — staying down. Trace: #{Console.CrashLog.path()}")
     :ok
   end
 
   defp act_on({:stop, n}) do
-    note("aleph crashed #{n}× in a row — staying down. Trace: #{Aleph.CrashLog.path()}")
+    note("aleph crashed #{n}× in a row — staying down. Trace: #{Console.CrashLog.path()}")
     :ok
   end
 
@@ -260,16 +260,16 @@ defmodule Aleph.Cockpit do
             # cursor (default, so a fresh Orbis opens ready to zoom a workspace) or the thread list.
             orbis_focus: :survey,
             # The Orbis survey's per-row cursor (j/k), clamped to the live workspace count at keypress
-            # time (Aleph.Keymap) — `Enter`/click resolve it to that row's workspace id.
+            # time (Console.Keymap) — `Enter`/click resolve it to that row's workspace id.
             survey_cursor: 0,
             # Orbis' second face (D2.1): `:survey` (Overview, the default) or `:author` (Panel.Author
             # — create/delete funes workspaces). `a` toggles; Esc in `:author` steps back.
             orbis_face: :survey,
-            # The author face's own per-row cursor (j/k), clamped to `Aleph.Workspaces.all/0`'s length
+            # The author face's own per-row cursor (j/k), clamped to `Console.Workspaces.all/0`'s length
             # at keypress time — mirrors `survey_cursor`.
             author_cursor: 0,
             # The author face's delete confirm arm (D2.5): the workspace id a `d` press armed, or nil.
-            # A second `d` on this SAME id confirms; any other key cancels (Aleph.Keymap).
+            # A second `d` on this SAME id confirms; any other key cancels (Console.Keymap).
             pending_delete: nil,
             # Tlön nav's delete confirm arm: the `{kind, payload, label}` a `d` press resolved
             # (MEMORY fact / LEAVES leaf), or nil. Second `d` confirms; any other key cancels.
@@ -283,7 +283,7 @@ defmodule Aleph.Cockpit do
             center_view: :terminal,
             # The field editor's own state (D2.4 Chunk 2a): `%{id, field, sub, mode}` while `e` has
             # opened it, else nil. VIEW cursors only — the workspace's data lives in funes and is
-            # re-read from `Aleph.Workspaces.all/0` every render (Aleph.Keymap).
+            # re-read from `Console.Workspaces.all/0` every render (Console.Keymap).
             author_edit: nil,
             subscribed_thread: nil,
             leader_pending?: false,
@@ -381,13 +381,13 @@ defmodule Aleph.Cockpit do
     resize_focused_terminal(state)
     # Every placed image's cell rect is now stale — clear the tty and the sync cache so the next
     # paint re-places (and re-transmits, since the cache is gone) at the new geometry.
-    if Aleph.Graphics.kitty?(), do: IO.write(Aleph.Graphics.delete_all())
+    if Console.Graphics.kitty?(), do: IO.write(Console.Graphics.delete_all())
     {:noreply, render(%{state | graphics: MapSet.new()})}
   end
 
   def handle_cast({:dispatch, %Event{type: :paste, data: %{phase: :start}}}, state) do
     # A paste began: start collecting. A fresh buffer even if one was somehow already open.
-    {:noreply, %{state | paste_buffer: Aleph.PasteBuffer.start()}}
+    {:noreply, %{state | paste_buffer: Console.PasteBuffer.start()}}
   end
 
   def handle_cast({:dispatch, %Event{type: :paste, data: %{phase: :end}}}, state) do
@@ -399,7 +399,7 @@ defmodule Aleph.Cockpit do
 
     if buffer != nil do
       with term when is_pid(term) <- center_terminal(state) do
-        Terminal.feed(term, Aleph.PasteBuffer.finish(buffer))
+        Terminal.feed(term, Console.PasteBuffer.finish(buffer))
       end
     end
 
@@ -416,7 +416,7 @@ defmodule Aleph.Cockpit do
   end
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, %{paste_buffer: buffer} = state) when not is_nil(buffer) do
-    {:noreply, %{state | paste_buffer: Aleph.PasteBuffer.accumulate(buffer, key)}}
+    {:noreply, %{state | paste_buffer: Console.PasteBuffer.accumulate(buffer, key)}}
   end
 
   def handle_cast({:dispatch, %Event{type: :key, data: key}}, state) do
@@ -427,14 +427,14 @@ defmodule Aleph.Cockpit do
     # `focus` rides in `state` (persistent); `tlon_layout` is derived per keypress, like the two
     # above, and dropped on the way back — the keymap reads it to navigate, the cockpit never stores it.
     # `author_workspaces` (D2.2): the author face's own workspace list, derived per keypress like
-    # `composer_thread_id` — `Aleph.Workspaces.all/0` is a cached GenServer call (no DB hit), so this
-    # keeps `Aleph.Keymap` a pure reducer with no funes call of its own.
+    # `composer_thread_id` — `Console.Workspaces.all/0` is a cached GenServer call (no DB hit), so this
+    # keeps `Console.Keymap` a pure reducer with no funes call of its own.
     keymap_state =
       %{state | flash: nil}
       |> Map.put(:center_live?, center_terminal(state) != nil)
       |> Map.put(:composer_thread_id, composer_thread_id(state))
       |> Map.put(:tlon_layout, tlon_layout(state))
-      |> Map.put(:author_workspaces, Aleph.Workspaces.all())
+      |> Map.put(:author_workspaces, Console.Workspaces.all())
 
     {next, effect} = Keymap.handle(key, keymap_state)
 
@@ -445,7 +445,7 @@ defmodule Aleph.Cockpit do
   end
 
   # A wheel routes to whatever panel is under the cursor: the center terminal forwards to its PTY
-  # or scrolls its scrollback (Aleph.Terminal.wheel/5), a scrollable list panel advances its offset
+  # or scrolls its scrollback (Console.Terminal.wheel/5), a scrollable list panel advances its offset
   # (clamped to its content height), anything else is ignored. Event coords are 1-based SGR;
   # `Mouse.to_cell/1` normalizes them to the 0-based cells the placement rects use.
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: sx, y: sy, button: b}}}, state)
@@ -496,7 +496,7 @@ defmodule Aleph.Cockpit do
     {:noreply, render(push_activity(state, :message_posted, row))}
   end
 
-  # The activity-buffer subset of this clause's tags: `Funes.Bus` publishes these to the global
+  # The activity-buffer subset of this clause's tags: `Server.Bus` publishes these to the global
   # activity topic (see funes/lib/funes/bus.ex), not just the focused thread's topic — so this
   # is where the Activity feed's `state.activity` gets filled. thread_opened/closed/assigned and
   # session_started/ended ride ONLY their own topics (never activity), so they never reach here
@@ -572,8 +572,8 @@ defmodule Aleph.Cockpit do
   # Explicit presence: idempotent updates, so the double delivery on the focused thread
   # (funes:presence + its thread topic) just re-writes the same entry.
   def handle_info({:presence_thinking, %{thread_id: tid, agent: agent, started_at: at}}, state) do
-    # Funes sends a DateTime; cockpit state holds unix seconds (Crew/presence subtract).
-    at = Aleph.Presence.started_s(at)
+    # Server sends a DateTime; cockpit state holds unix seconds (Crew/presence subtract).
+    at = Console.Presence.started_s(at)
     thinking = Map.update(state.thinking, tid, %{agent => at}, &Map.put(&1, agent, at))
     {:noreply, render(%{state | thinking: thinking})}
   end
@@ -649,8 +649,8 @@ defmodule Aleph.Cockpit do
   # ghostty (Linux and macOS) raises it as a real notification, and only when unfocused (the
   # terminal owns focus policy). Best-effort: a host that ignores OSC 777 ignores the bytes.
   defp desktop_notify(tag, row) do
-    with {title, body} <- Aleph.Notify.for_event(tag, row) do
-      _ = File.write("/dev/tty", Aleph.Notify.osc(title, body))
+    with {title, body} <- Console.Notify.for_event(tag, row) do
+      _ = File.write("/dev/tty", Console.Notify.osc(title, body))
     end
 
     :ok
@@ -682,7 +682,7 @@ defmodule Aleph.Cockpit do
   # A closed leaf's window is torn down (the driver contract's `teardown`, Slice F): the seat
   # frees instead of idling forever — the warm-pool groundwork. Safe against the standing center:
   # `leaf_tab` only matches `@funes_thread`-tagged / legacy `t<id>` windows, never the lead's own
-  # window. Can't respawn-loop: the spawn candidates (`Funes.staffed_machine_threads`) are OPEN
+  # window. Can't respawn-loop: the spawn candidates (`Server.staffed_machine_threads`) are OPEN
   # threads only. Best-effort — a vanished window is already what we wanted.
   defp teardown_closed_leaf(:thread_closed, %{scope: "machine", id: id}, state) when is_integer(id) do
     workspace_id = active_workspace_id(state)
@@ -699,7 +699,7 @@ defmodule Aleph.Cockpit do
 
   # @-mention delivery: a posted message naming a coworker (`@tertius-machine` / `@claude-machine`) is
   # injected as a turn into that coworker's tmux window, so a cold pane gets woken instead of silently
-  # accumulating an unread thread. Pure routing lives in Aleph.Mention; this is the edge — best-effort
+  # accumulating an unread thread. Pure routing lives in Console.Mention; this is the edge — best-effort
   # tmux send-keys, never a crash on a missing window.
   defp mention_notify(row, state) do
     lead = thread_lead(row)
@@ -710,7 +710,8 @@ defmodule Aleph.Cockpit do
         :ok
 
       {:route, staffed} ->
-        for {window, text} <- Aleph.Mention.route(row, [lead: lead, staffed_window: staffed], active_roster(workspace_id)),
+        for {window, text} <-
+              Console.Mention.route(row, [lead: lead, staffed_window: staffed], active_roster(workspace_id)),
             index = tlon_window_index(workspace_id, window),
             not is_nil(index) do
           inject_turn(workspace_id, index, text)
@@ -744,7 +745,7 @@ defmodule Aleph.Cockpit do
   defp delivery_target(_row, _state, _lead), do: {:route, nil}
 
   # The live window NAME of a staffed thread's leaf session, once its opening turn has been
-  # submitted — the `staffed_window` redirect target `Aleph.Mention.route/3` rewrites the lead
+  # submitted — the `staffed_window` redirect target `Console.Mention.route/3` rewrites the lead
   # onto. Resolved via `leaf_tab` (the `@funes_thread` routing map — Slice C); the submitted
   # check reads the window's own `@funes_opening` tag first, so a restarted cockpit (empty
   # `opening_injected`) keeps delivering to already-running leaves instead of `:skip`ping them
@@ -762,7 +763,7 @@ defmodule Aleph.Cockpit do
   # The funes handle of the coworker staffed on this message's thread (its lead), or nil.
   # Read in-process (aleph boots funes); never crash the hub if the lookup fails.
   defp thread_lead(%{thread_id: tid}) when not is_nil(tid) do
-    Funes.thread_lead(tid)
+    Server.thread_lead(tid)
   rescue
     _ -> nil
   catch
@@ -944,7 +945,7 @@ defmodule Aleph.Cockpit do
 
   defp reset_scrolls(_prev, next), do: next
 
-  # State transitions live in the pure `Aleph.Keymap`; the Cockpit only runs the side effect it
+  # State transitions live in the pure `Console.Keymap`; the Cockpit only runs the side effect it
   # asks for — repaint, quit, or forward a key to the focused terminal.
   defp apply_effect(:repaint, state), do: {:noreply, render(state)}
   defp apply_effect(:none, state), do: {:noreply, state}
@@ -972,10 +973,10 @@ defmodule Aleph.Cockpit do
   end
 
   # The `c` verb landed: post the composer's body to the focused thread AS THE OPERATOR (config
-  # `:funes, :operator`), so a posted message is the human's voice, not an agent's. The Bus
+  # `:server, :operator`), so a posted message is the human's voice, not an agent's. The Bus
   # announce repaints the chorus live, so the message lands visibly; a failure flashes in the footer.
   defp apply_effect({:post_message, thread_id, body}, state) do
-    operator = Application.get_env(:funes, :operator, "andrew")
+    operator = Application.get_env(:server, :operator, "andrew")
 
     case Channel.post(%{thread_id: thread_id, author: operator, body: body}) do
       {:ok, _message} -> {:noreply, render(%{state | flash: "posted"})}
@@ -1009,7 +1010,7 @@ defmodule Aleph.Cockpit do
     do: {:noreply, render(%{state | flash: enter_or_spawn(thread_id, state)})}
 
   # The `m` verb landed: advance the coworker's driver model one step round the ring and persist
-  # it (Aleph.Config). Honest about scope: the RUNNING coworker keeps its model — the override
+  # it (Console.Config). Honest about scope: the RUNNING coworker keeps its model — the override
   # applies wherever Profiles.fetch flows on the next spawn (aleph:reset, or kill the pi window).
   defp apply_effect({:cycle_coworker_model, profile_name}, state) do
     {:noreply, render(%{state | flash: cycle_model!(profile_name)})}
@@ -1061,7 +1062,7 @@ defmodule Aleph.Cockpit do
   defp apply_effect({:edit_workspace, id, attrs}, state), do: {:noreply, render(edit_workspace!(state, id, attrs))}
 
   # The roster sub-editor's Tab-armed knob landed on Enter/Space (D2.4 Chunk 2b, absorbs Settings):
-  # apply it via Aleph.Config.
+  # apply it via Console.Config.
   defp apply_effect({:coworker_knob, name, knob}, state), do: {:noreply, render(apply_coworker_knob!(state, name, knob))}
 
   # a/r on Memory's habits section: resolve the selected pending habit from the focus + cached read,
@@ -1075,8 +1076,8 @@ defmodule Aleph.Cockpit do
       habit ->
         {verb, result} =
           case action do
-            :approve -> {"approved", Funes.approve_habit(habit.id)}
-            :reject -> {"rejected", Funes.reject_habit(habit.id)}
+            :approve -> {"approved", Server.approve_habit(habit.id)}
+            :reject -> {"rejected", Server.reject_habit(habit.id)}
           end
 
         flash =
@@ -1270,7 +1271,7 @@ defmodule Aleph.Cockpit do
 
   @doc false
   # The roster sub-editor's Tab+Enter/Space knob (D2.4 Chunk 2b — absorbs the Settings modal):
-  # cycle the sub-selected coworker's model ring, or flip its yolo policy, writing Aleph.Config
+  # cycle the sub-selected coworker's model ring, or flip its yolo policy, writing Console.Config
   # (file-backed, applies on the coworker's NEXT SPAWN — same honest scope as the `m` verb/old
   # Settings). Looks the roster entry up off the LIVE workspace (Workspaces.get, like edit_workspace!) rather
   # than trust the effect's bare name, so the entry's archetype (the model ring's default-fallback
@@ -1298,14 +1299,14 @@ defmodule Aleph.Cockpit do
   defp apply_knob(entry, :model) do
     norm = Profiles.roster_entry(entry)
     next = Profiles.next_model(Profiles.instantiate(norm).model)
-    Aleph.Config.put_coworker_model(norm.name, next)
+    Console.Config.put_coworker_model(norm.name, next)
     "#{norm.name} driver → #{next.provider}/#{next.model} — applies on next spawn (aleph:reset)"
   end
 
   defp apply_knob(entry, :yolo) do
     name = entry["name"]
-    next = Aleph.Config.coworker_yolo(name) != true
-    Aleph.Config.put_coworker_yolo(name, next)
+    next = Console.Config.coworker_yolo(name) != true
+    Console.Config.put_coworker_yolo(name, next)
     policy = if next, do: "yolo (auto-approve)", else: "ask"
     "#{name} permissions → #{policy} — applies on next spawn (aleph:reset)"
   end
@@ -1376,7 +1377,7 @@ defmodule Aleph.Cockpit do
     end
 
     flash =
-      case Funes.delete_thread(id) do
+      case Server.delete_thread(id) do
         {:ok, thread} -> "deleted leaf ##{id} — #{thread.title}"
         {:error, reason} -> "delete refused: #{inspect(reason)}"
       end
@@ -1494,11 +1495,11 @@ defmodule Aleph.Cockpit do
   end
 
   # Spawn a harness as an embedded terminal on this thread: mint identity IN-PROCESS
-  # (Funes.MCP.Spawn.join — aleph is the serving node) and start an Aleph.Terminal that runs the
+  # (Server.MCP.Spawn.join — aleph is the serving node) and start an Console.Terminal that runs the
   # launcher with the FUNES_* env sourced (and TERM set, so the harness produces colour). One
   # native PTY per thread, rendered in the center. A raise/exit becomes a flash, never a crash.
   defp spawn_onto(thread_id, state) do
-    agent = Application.get_env(:aleph, :spawn_agent, "pi")
+    agent = Application.get_env(:console, :spawn_agent, "pi")
     {cols, rows} = center_dims(state)
 
     case Spawn.join(thread_id, agent) do
@@ -1578,11 +1579,11 @@ defmodule Aleph.Cockpit do
     do_render(state)
   rescue
     e ->
-      Aleph.CrashLog.append("render error", Exception.format(:error, e, __STACKTRACE__))
+      Console.CrashLog.append("render error", Exception.format(:error, e, __STACKTRACE__))
       state
   catch
     kind, reason ->
-      Aleph.CrashLog.append("render error", Exception.format(kind, reason, __STACKTRACE__))
+      Console.CrashLog.append("render error", Exception.format(kind, reason, __STACKTRACE__))
       state
   end
 
@@ -1626,8 +1627,8 @@ defmodule Aleph.Cockpit do
       threads: threads,
       # The Slack sidebar's read-model (reshape slice C): workspace groups with their unified
       # thread list + crew working flags.
-      sidebar: Board.safe_read(:sidebar, [], fn -> Funes.Board.sidebar() end),
-      scope: Board.safe_read(:scope, nil, fn -> focused && Funes.Board.brief(focused) end),
+      sidebar: Board.safe_read(:sidebar, [], fn -> Server.Board.sidebar() end),
+      scope: Board.safe_read(:scope, nil, fn -> focused && Server.Board.brief(focused) end),
       chatter: Board.safe_read(:chatter, [], fn -> (focused && Channel.recent_messages(focused, 30)) || [] end),
       workspaces:
         Board.safe_read(:workspaces, [], fn -> if(state.active_key == :orbis, do: orbis_workspaces(state), else: []) end),
@@ -1660,7 +1661,7 @@ defmodule Aleph.Cockpit do
         Board.safe_read(:brief, nil, fn ->
           with {:leaf, id} <- state.focused_session,
                %{} = thread <- Channel.thread(id) do
-            Funes.Board.brief(thread)
+            Server.Board.brief(thread)
           else
             _ -> nil
           end
@@ -1709,9 +1710,9 @@ defmodule Aleph.Cockpit do
   # The kitty-graphics pass (design 2026-08-23): after the cell paint, place/refresh every
   # panel-declared image. Non-kitty hosts skip it wholesale (panels showed placeholder runs).
   defp sync_graphics(state, placements) do
-    if Aleph.Graphics.kitty?() do
+    if Console.Graphics.kitty?() do
       wanted = Enum.flat_map(placements, fn {panel, data, rect} -> Panel.images(panel, data, rect) end)
-      {io, cache} = Aleph.Graphics.sync(wanted, state.graphics)
+      {io, cache} = Console.Graphics.sync(wanted, state.graphics)
       if IO.iodata_length(io) > 0, do: IO.write(io)
       %{state | graphics: cache}
     else
@@ -1726,9 +1727,9 @@ defmodule Aleph.Cockpit do
   # The reconcile-on-connect read: whatever the store already holds when the cockpit boots
   # (declares made before this subscribe). Degrades to empty if the store isn't up.
   defp thinking_snapshot do
-    Map.new(Funes.Presence.Thinking.thinking_all(), fn {tid, entries} ->
+    Map.new(Server.Presence.Thinking.thinking_all(), fn {tid, entries} ->
       # Same normalization as the live event path — cockpit state holds unix seconds.
-      {tid, Map.new(entries, &{&1.agent, Aleph.Presence.started_s(&1.started_at)})}
+      {tid, Map.new(entries, &{&1.agent, Console.Presence.started_s(&1.started_at)})}
     end)
   catch
     :exit, _ -> %{}
@@ -1748,8 +1749,8 @@ defmodule Aleph.Cockpit do
   end
 
   defp working_lead(%{tabs: tabs}, focused, thinking) do
-    with :working <- Aleph.Presence.thread_status(tabs, focused.id, System.os_time(:second)),
-         lead when is_binary(lead) <- Funes.thread_lead(focused.id),
+    with :working <- Console.Presence.thread_status(tabs, focused.id, System.os_time(:second)),
+         lead when is_binary(lead) <- Server.thread_lead(focused.id),
          false <- lead in thinking do
       [lead]
     else
@@ -1760,14 +1761,14 @@ defmodule Aleph.Cockpit do
   defp working_lead(_machine, _focused, _thinking), do: []
 
   # The CREW sidebar's read: the active Workspace's roster joined with the tmux snapshot, the leaf
-  # leads, and the thinking declarations (Aleph.Panel.Crew.coworkers/6). Lead lookups go one
+  # leads, and the thinking declarations (Console.Panel.Crew.coworkers/6). Lead lookups go one
   # funes query per live leaf window — at most the leaf cap.
   defp crew_read(state, %{tabs: tabs}) do
     led_by =
       tabs
       |> Enum.filter(&is_integer(&1.thread_id))
       |> Enum.reduce(%{}, fn %{thread_id: tid}, acc ->
-        case Funes.thread_lead(tid) do
+        case Server.thread_lead(tid) do
           lead when is_binary(lead) -> Map.update(acc, lead, [tid], &[tid | &1])
           _ -> acc
         end
@@ -1778,7 +1779,7 @@ defmodule Aleph.Cockpit do
 
     %{
       coworkers: Panel.Crew.coworkers(roster, tabs, led_by, titles, state.thinking, System.os_time(:second)),
-      leaves: {Enum.count(tabs, &leaf_window?/1), Aleph.Config.max_leaves()}
+      leaves: {Enum.count(tabs, &leaf_window?/1), Console.Config.max_leaves()}
     }
   end
 
@@ -1803,7 +1804,7 @@ defmodule Aleph.Cockpit do
   defp render_state_of(nil), do: :no_session
   defp render_state_of(term), do: Terminal.render_state(term)
 
-  # Sessions is supervised (Aleph.Supervisor) but the cockpit is NOT — a `Sessions.terminal/1`
+  # Sessions is supervised (Console.Supervisor) but the cockpit is NOT — a `Sessions.terminal/1`
   # against a torn-down registry raises `(EXIT) no process`, which would otherwise propagate up
   # through render and kill the cockpit, wedging all input (Enter would go nowhere). Degrade to
   # nil so a dead registry just reads as "no session"; the supervisor restarts it on its own.
@@ -1922,7 +1923,7 @@ defmodule Aleph.Cockpit do
 
   # MAIN's detail for the focused pane's current selection, or nil (this pane has no detail, or
   # nothing is selected) → the terminal stays. Dispatch per pane; Commits resolves the selected
-  # commit's diff via Aleph.Stack.show, Memory the selected pinned fact / pending habit.
+  # commit's diff via Console.Stack.show, Memory the selected pinned fact / pending habit.
   # An open /status readout wins — only reachable while focus.detail? (the reads gate), and any
   # pane Enter clears it first, so it can never shadow a pane's own detail.
   defp tlon_detail(%{status_detail: %{} = status}, _layout), do: status
@@ -2009,7 +2010,7 @@ defmodule Aleph.Cockpit do
   defp commit_detail(state, index) do
     case Enum.at((state.stack || @empty_stack).commits, index) do
       %{hash: hash, subject: subject} ->
-        %{title: "commit #{hash} · #{subject}", lines: Enum.map(Aleph.Stack.show(hash), &diff_line/1)}
+        %{title: "commit #{hash} · #{subject}", lines: Enum.map(Console.Stack.show(hash), &diff_line/1)}
 
       nil ->
         nil
@@ -2064,41 +2065,41 @@ defmodule Aleph.Cockpit do
 
   # The Memory pane read: coverage stats + the always-loaded pinned set + the pending-habit queue.
   defp memory_read do
-    %{coverage: Funes.recall_coverage(), pinned: Funes.pinned(), habits: Funes.pending_habits()}
+    %{coverage: Server.recall_coverage(), pinned: Server.pinned(), habits: Server.pending_habits()}
   end
 
   # The STACK read: branch, dirty status, ahead/behind, status summary, enriched commits.
   # One ahead_behind call, destructured — it forks a git per call.
   defp stack_read do
-    {ahead, behind} = Aleph.Stack.ahead_behind()
+    {ahead, behind} = Console.Stack.ahead_behind()
 
     %{
-      branch: Aleph.Stack.branch(),
-      dirty: Aleph.Stack.dirty?(),
+      branch: Console.Stack.branch(),
+      dirty: Console.Stack.dirty?(),
       ahead: ahead,
       behind: behind,
-      status_summary: Aleph.Stack.status_summary(),
-      commits: Aleph.Stack.commits(),
-      files: Aleph.Stack.recent_files(),
-      tools: Aleph.Stack.tools()
+      status_summary: Console.Stack.status_summary(),
+      commits: Console.Stack.commits(),
+      files: Console.Stack.recent_files(),
+      tools: Console.Stack.tools()
     }
   end
 
   # The HEALTH read. One nix_status call for gen+behind — nix-env --list-generations is the
   # single most expensive probe in the battery; calling it once matters.
   defp health_read do
-    {nix_gen, nix_behind} = Aleph.Stack.nix_status()
+    {nix_gen, nix_behind} = Console.Stack.nix_status()
 
     %{
-      funes_up: Aleph.Stack.funes_up?(),
-      tlon_up: Aleph.Stack.tlon_up?(),
+      funes_up: Console.Stack.funes_up?(),
+      tlon_up: Console.Stack.tlon_up?(),
       nix_gen: nix_gen,
       nix_behind: nix_behind,
-      disk_pct: Aleph.Stack.disk_pct(),
-      mem_pct: Aleph.Stack.mem_pct(),
-      load_avg: Aleph.Stack.load_avg(),
-      tools: Aleph.Stack.tools(),
-      version: Aleph.Stack.release()
+      disk_pct: Console.Stack.disk_pct(),
+      mem_pct: Console.Stack.mem_pct(),
+      load_avg: Console.Stack.load_avg(),
+      tools: Console.Stack.tools(),
+      version: Console.Stack.release()
     }
   end
 
@@ -2106,16 +2107,16 @@ defmodule Aleph.Cockpit do
   defp cycle_model!(profile_name) do
     current = Profiles.fetch(profile_name)
     next = Profiles.next_model(current && current.model)
-    Aleph.Config.put_coworker_model(profile_name, next)
+    Console.Config.put_coworker_model(profile_name, next)
     "coworker driver → #{next.provider}/#{next.model} — applies on next spawn (aleph:reset)"
   end
 
   # ORBIS rollup (Orbis Tertius slice 2) — the machine-scoped vantage, gathered on the spaces that
   # show it (a Workspace's LEAVES sidebar + Orbis' survey), cached in `state.leaves` on the @probe_ms
-  # throttle. The semantics live in `Aleph.Orbis` (shared with the `chat` tab's header strip) so a
+  # throttle. The semantics live in `Console.Orbis` (shared with the `chat` tab's header strip) so a
   # status rule never drifts between the surfaces.
-  defp orbis_read(:orbis), do: Aleph.Orbis.rollup()
-  defp orbis_read(key) when Space.workspace?(key), do: Aleph.Orbis.rollup()
+  defp orbis_read(:orbis), do: Console.Orbis.rollup()
+  defp orbis_read(key) when Space.workspace?(key), do: Console.Orbis.rollup()
   defp orbis_read(_key), do: nil
 
   # The Orbis survey (Overview center): the per-WORKSPACE rollup grouping (Slice 0: one hardcoded workspace).
@@ -2133,7 +2134,7 @@ defmodule Aleph.Cockpit do
   # Gathers from all open threads — a funes Board aggregate.
   # Each section is `%{shown: [...], more: count}` so the panel can render "+N more".
   defp triage_read(threads) do
-    scopes = for thread <- threads, do: {thread, Funes.Board.brief(thread)}
+    scopes = for thread <- threads, do: {thread, Server.Board.brief(thread)}
 
     all_blockers =
       Enum.flat_map(scopes, fn {thread, scope} ->
@@ -2241,7 +2242,7 @@ defmodule Aleph.Cockpit do
   end
 
   # A tail window's launcher comes from its profile's HARNESS DRIVER (Slice D) — real Claude
-  # (honestly identified, no pi-multi-account impersonation — see Aleph.Profiles' @seed_roster
+  # (honestly identified, no pi-multi-account impersonation — see Console.Profiles' @seed_roster
   # comment) or a windowed pi; the spawn plumbing is shared. Materialised first: both drivers
   # read the profile's config dir (pi: the whole dir; claude: system_prompt.md as the role).
   defp spawn_window(workspace_id, %Profile{name: name} = profile) do
@@ -2252,7 +2253,7 @@ defmodule Aleph.Cockpit do
 
   # The `chat` tab (the third Tlön window): the INTERACTIVE machine-chat — machine-scope threads as
   # foldable blocks with author-turn grouping (fold/zoom/scroll), so the tertius/hronir tabs can stay
-  # their raw harness selves. NOT a coworker — no funes identity, no wake-loop entry (Aleph.Mention
+  # their raw harness selves. NOT a coworker — no funes identity, no wake-loop entry (Console.Mention
   # doesn't know it); it just polls the db the cockpit writes. Gated like the claude window: pi up
   # (so a machine thread exists to read), window absent (`new-window` isn't idempotent), retried each
   # render — a failed open just leaves the tab missing.
@@ -2287,13 +2288,13 @@ defmodule Aleph.Cockpit do
     tabs = tlon_tabs(key)
     now = System.monotonic_time(:millisecond)
     roster = space_roster(key, spaces)
-    threads = Funes.staffed_machine_threads()
+    threads = Server.staffed_machine_threads()
     # Window names spawned THIS pass join the taken set, so two new leaves with the same title in
     # one render can't collide on a name (the tag targets by name once, right after new-window).
     taken = MapSet.new(tabs, & &1.name)
     # The leaf-cap budget (Config.max_leaves): seats left after the already-live leaves. A thread
     # past the cap stays open/staffed and just waits — a later pass staffs it once a seat frees.
-    budget = Aleph.Config.max_leaves() - Enum.count(tabs, &leaf_window?/1)
+    budget = Console.Config.max_leaves() - Enum.count(tabs, &leaf_window?/1)
 
     {state, _taken, _budget} =
       Enum.reduce(threads, {state, taken, budget}, fn thread, {st, tk, bg} ->
@@ -2367,7 +2368,7 @@ defmodule Aleph.Cockpit do
             thread_id: id,
             author: "aleph",
             body:
-              "⏸ parked — the leaf cap (#{Aleph.Config.max_leaves()}) is reached. This thread keeps its lead " <>
+              "⏸ parked — the leaf cap (#{Console.Config.max_leaves()}) is reached. This thread keeps its lead " <>
                 "and starts automatically when a seat frees (close an idle leaf, or raise \"max_leaves\")."
           })
         rescue
@@ -2431,7 +2432,7 @@ defmodule Aleph.Cockpit do
   # so routing and spawning can never disagree about who owns a thread's turns.
   defp leaf_staffed?(lead, workspace_id), do: lead in Profiles.leaf_handles(active_roster(workspace_id))
 
-  # This Workspace's roster (`Aleph.Mention.route/3`'s resolution fixture) — funes-down / no roster
+  # This Workspace's roster (`Console.Mention.route/3`'s resolution fixture) — funes-down / no roster
   # degrades to `[]` (nobody resolves, nobody wakes).
   defp active_roster(workspace_id) do
     case Space.fetch(workspace_id) do
@@ -2513,10 +2514,10 @@ defmodule Aleph.Cockpit do
   # stage 2 submits). Best-effort: a thread with no operator message yet is silently skipped —
   # never a render crash.
   defp inject_opening_text(workspace_id, id, %{index: index}) do
-    message = Funes.latest_operator_message(id)
+    message = Server.latest_operator_message(id)
 
     if message do
-      operator = Application.get_env(:funes, :operator, "andrew")
+      operator = Application.get_env(:server, :operator, "andrew")
       inject_text(workspace_id, index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
     end
 
@@ -2548,13 +2549,13 @@ defmodule Aleph.Cockpit do
   end
 
   # `tmux new-window`, not Sessions.spawn_harness: a roster tail entry rides as a window of the
-  # ALREADY-embedded tlon tmux session (the center is window 0), not a separate Aleph.Terminal/PTY
+  # ALREADY-embedded tlon tmux session (the center is window 0), not a separate Console.Terminal/PTY
   # of its own. Fire-and-forget: a failed spawn (funes down, no thread yet) just leaves the window
   # absent, and `ensure_windows` retries it on the next render — no backoff needed, `new-window` is
   # cheap and idempotent-by-absence-check above.
 
   # Open a harness window named `window` on `thread_id` as funes handle `handle`, running
-  # `command` (the profile's `Aleph.Harness.Driver.launch_command/1`) in workspace `workspace_id`. The
+  # `command` (the profile's `Console.Harness.Driver.launch_command/1`) in workspace `workspace_id`. The
   # roster tail windows AND the per-thread leaf windows all ride this ONE spawn: identity join +
   # tmux plumbing are harness-agnostic (Slice D); only the exec differs, and that came from the
   # driver. `FUNES_THREAD` binds the harness to the thread it's actually meant to work on.
@@ -2569,10 +2570,10 @@ defmodule Aleph.Cockpit do
   end
 
   # The identity minter for a tail-window spawn — defaults to the live funes join (mints in-node
-  # against the Repo/tokens), overridable via `:aleph, :tlon_join` so a test drives `ensure_windows`
-  # against the SAME injected `:tlon_cmd` tmux runner without a live DB (mirrors `Aleph.Crew`'s
+  # against the Repo/tokens), overridable via `:console, :tlon_join` so a test drives `ensure_windows`
+  # against the SAME injected `:tlon_cmd` tmux runner without a live DB (mirrors `Console.Crew`'s
   # `:crew_join`/`:crew_cmd` pair).
-  defp joiner, do: Application.get_env(:aleph, :tlon_join, &Spawn.join/3)
+  defp joiner, do: Application.get_env(:console, :tlon_join, &Spawn.join/3)
 
   @doc false
   # Is a machine-coworker spawn attempt due? `machine_retry_at` is nil until an attempt FAILS (the
@@ -2608,7 +2609,7 @@ defmodule Aleph.Cockpit do
   end
 
   # The bare `pi` invocation for a profile — moved to the pi harness driver (Slice D); kept as a
-  # delegator for `profile_launcher` (the center's new-session) and `Aleph.Crew`.
+  # delegator for `profile_launcher` (the center's new-session) and `Console.Crew`.
   @doc false
   def pi_command(%Profile{} = profile), do: Harness.Pi.launch_command(profile)
 
@@ -2670,14 +2671,14 @@ defmodule Aleph.Cockpit do
 
   # Every Workspace tmux call — queries, re-points, AND the send-keys injects — routes through here:
   # one seam over the coworker's private server, so a test can inject a fake runner
-  # (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
+  # (`:console, :tlon_cmd`) and assert argv without a live tmux.
   # No workspace id (funes genuinely down — the fallback Workspace is gone, reshape slice A): there is
   # no coworker server to target, and dropping the `-L` flag would aim kill-window/send-keys at
   # the user's PERSONAL tmux server. No-op with a nonzero "exit" so callers read it as a miss.
   defp tlon_run(nil, _args), do: {"no active workspace", 1}
 
   defp tlon_run(workspace_id, args) do
-    runner = Application.get_env(:aleph, :tlon_cmd, &System.cmd/3)
+    runner = Application.get_env(:console, :tlon_cmd, &System.cmd/3)
     runner.("tmux", tlon_tmux(workspace_id, args), stderr_to_stdout: true)
   end
 
@@ -2692,7 +2693,7 @@ defmodule Aleph.Cockpit do
   # stamped at spawn (Slice C — empty for non-leaf windows, parsed to nil); `@funes_opening` is the
   # two-phase opening-turn state ("typed"/"done") persisted in tmux so a cockpit restart never
   # re-types a live leaf's opening; `window_activity` is the last-content-change unix timestamp
-  # `Aleph.Presence` infers "working" from. Shorter lines (older fakes/format) still parse,
+  # `Console.Presence` infers "working" from. Shorter lines (older fakes/format) still parse,
   # missing fields nil.
   def parse_tlon_tabs(out) do
     out
@@ -2757,7 +2758,7 @@ defmodule Aleph.Cockpit do
   end
 
   # Keep the center session's PTY sized to the center region so it reflows with the window. Sized to
-  # the EXACT center Terminal rect (Aleph.View.center_rect — the one layout authority), so the PTY
+  # the EXACT center Terminal rect (Console.View.center_rect — the one layout authority), so the PTY
   # matches what's on screen; the terminal reflows on every window resize.
   defp resize_focused_terminal(state) do
     with term when is_pid(term) <- center_terminal(state) do
@@ -2766,7 +2767,7 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Size the PTY to EXACTLY the center Terminal's content rect (Aleph.View.center_rect), so pi never
+  # Size the PTY to EXACTLY the center Terminal's content rect (Console.View.center_rect), so pi never
   # draws past the frame (a wider PTY spills; a shorter one leaves a dead band). Tlön's WindowBar
   # and Ticker bands already shrink that rect (they're their own sections, not the terminal's), so
   # no separate reserve is needed here.
@@ -2800,7 +2801,7 @@ defmodule Aleph.Cockpit do
     # like the Kitty pop below (the io server may already be winding down on a crash), and a
     # failure here must never skip the tty restore (a wedged shell is worse than a stray image).
     try do
-      if Aleph.Graphics.kitty?(), do: File.write("/dev/tty", Aleph.Graphics.delete_all())
+      if Console.Graphics.kitty?(), do: File.write("/dev/tty", Console.Graphics.delete_all())
     catch
       _, _ -> :ok
     end
@@ -2853,8 +2854,8 @@ defmodule Aleph.Cockpit do
         :ok
 
       report ->
-        Aleph.CrashLog.append("aleph crash", report)
-        IO.puts(:stderr, "aleph crashed (logged to #{Aleph.CrashLog.path()}):\n#{report}")
+        Console.CrashLog.append("aleph crash", report)
+        IO.puts(:stderr, "aleph crashed (logged to #{Console.CrashLog.path()}):\n#{report}")
         file_crash_issue(report)
     end
   rescue

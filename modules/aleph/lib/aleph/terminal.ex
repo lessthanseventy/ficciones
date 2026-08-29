@@ -1,4 +1,4 @@
-defmodule Aleph.Terminal do
+defmodule Console.Terminal do
   @moduledoc """
   One live session as a REAL embedded terminal (design §4, replacing the laggy capture-pane view).
   A GenServer that owns a `Ghostty.PTY` (a true `forkpty` running the harness — tertius/hronir get a
@@ -22,12 +22,12 @@ defmodule Aleph.Terminal do
   (`snapshot/2` — the plain-text/HTML briefing surface, §3b/§7 — is deferred: the `nif_snapshot`
   binary in ghostty 0.5.0 raises `formatter_creation_failed` here. `cells`/`render_state` render.)
 
-  On new output it pings `:notify` with `{Aleph.Terminal, pid, :updated}` so the cockpit repaints
+  On new output it pings `:notify` with `{Console.Terminal, pid, :updated}` so the cockpit repaints
   exactly when the screen changed; `{:exited, status}` when the child ends. A dedicated, long-lived
   terminal per session (not a pool — a session's screen is its own and continuous).
   """
   # :temporary — a crashed terminal must STAY dead: the default :permanent restart re-execs the
-  # harness (a second pi, or another tmux client) with the same opts, but Aleph.Sessions only
+  # harness (a second pi, or another tmux client) with the same opts, but Console.Sessions only
   # monitors the ORIGINAL pid, so the restarted one is an orphan the registry can't see — and
   # the operator's next Enter spawns yet another. Dead session, no ghost row; respawn is the
   # operator's Enter (exactly what Sessions' moduledoc promises).
@@ -41,7 +41,7 @@ defmodule Aleph.Terminal do
   @default_rows 24
 
   # Kitty keyboard push, flag 1 (disambiguate) — the emulator-side half of the shifted-key
-  # round-trip; Aleph.Cockpit pushes the same bytes on the host tty.
+  # round-trip; Console.Cockpit pushes the same bytes on the host tty.
   @kitty_enable "\e[>1u"
   # Theme options passed straight to Ghostty.Terminal so the embedded screen matches aleph.
   @theme_opts [:foreground, :background, :cursor_color, :palette, :max_scrollback]

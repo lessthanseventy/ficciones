@@ -1,4 +1,4 @@
-defmodule Funes.Todo do
+defmodule Server.Todo do
   @moduledoc """
   A plan step, thread-scoped (pi doc §5 slice 3, the activity axis). `done_at` NULL is
   open, a timestamp is done — and the column is present FROM BIRTH, the missing
@@ -20,7 +20,7 @@ defmodule Funes.Todo do
     field :text, :string
     field :done_at, :utc_datetime
     field :created_at, :utc_datetime
-    belongs_to :thread, Funes.Thread
+    belongs_to :thread, Server.Thread
   end
 
   @doc "Add an open todo. `text` and `thread_id` required; it opens open (`done_at` NULL)."

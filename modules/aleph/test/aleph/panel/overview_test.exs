@@ -1,10 +1,10 @@
-defmodule Aleph.Panel.OverviewTest do
+defmodule Console.Panel.OverviewTest do
   # CHORUS — Orbis' center, re-pointed from a per-thread feed to the per-WORKSPACE survey. On-screen
   # paint is the eye test; this pins the panel → styled-rows path headlessly (no termbox),
   # asserting the header + workspace row + its rollup summary, and (D0.3) the cursor-row wash.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Overview
+  alias Console.Panel.Overview
 
   @rect %{x: 0, y: 0, w: 80, h: 100}
 

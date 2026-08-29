@@ -1,4 +1,4 @@
-defmodule Funes.Question do
+defmodule Server.Question do
   @moduledoc """
   A knowledge gap in the WORK — "does raxol support embedding?" (pi doc §5 slice 4).
   Knowing what you don't know is first-class: an open question is a marker the brief
@@ -24,7 +24,7 @@ defmodule Funes.Question do
     field :state, :string, default: "open"
     field :resolved_at, :utc_datetime
     field :created_at, :utc_datetime
-    belongs_to :thread, Funes.Thread
+    belongs_to :thread, Server.Thread
   end
 
   @doc "Raise a question. `text` and `thread_id` required; it opens open (`state` is not caller-settable)."

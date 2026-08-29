@@ -1,9 +1,9 @@
-defmodule Funes.Recall.StrengthTest do
+defmodule Server.Recall.StrengthTest do
   # The forgetting engine's heart (design: docs/plans/2026-08-19-funes-forgetting-design.md):
   # a fact's strength is the decayed sum of signed touches. Pure — no DB.
   use ExUnit.Case, async: true
 
-  alias Funes.Recall.Strength
+  alias Server.Recall.Strength
 
   @now ~U[2026-08-19 12:00:00Z]
 

@@ -1,4 +1,4 @@
-defmodule Aleph.CockpitTest do
+defmodule Console.CockpitTest do
   @moduledoc """
   The cockpit is a TTY-grabbing GenServer, so only its PURE seams are unit-tested. `ghostty_key/1`
   is the translation a forwarded key crosses to reach the focused session's embedded terminal —
@@ -7,15 +7,15 @@ defmodule Aleph.CockpitTest do
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Cockpit
-  alias Aleph.Panel.Leaves
-  alias Aleph.Tlon.Focus
+  alias Console.Cockpit
+  alias Console.Panel.Leaves
+  alias Console.Tlon.Focus
   alias Ghostty.KeyEvent
 
   # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
-  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
+  # that render or drive a Workspace push one through the Console.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorkspaces.put()
+    Console.TestWorkspaces.put()
   end
 
   test "a printable char carries its utf8 and its key atom" do
@@ -143,7 +143,7 @@ defmodule Aleph.CockpitTest do
   end
 
   describe "profile_launcher/3: the Workspace window-0 command runs pi from its profile's config dir" do
-    @profile %Aleph.Profile{name: "tlon"}
+    @profile %Console.Profile{name: "tlon"}
 
     test "attaches-or-creates the workspace's w<id> session" do
       assert Cockpit.profile_launcher(1, "tertius", @profile) =~ "new-session -A -s w1"
@@ -152,12 +152,12 @@ defmodule Aleph.CockpitTest do
     test "runs on the workspace's PRIVATE tmux server (id-derived), with the profile's persistence-free config" do
       cmd = Cockpit.profile_launcher(1, "tertius", @profile)
       assert cmd =~ "tmux -L aleph-workspace-1 "
-      assert cmd =~ "-f #{Aleph.Profiles.config_dir("tlon")}/tmux.conf"
+      assert cmd =~ "-f #{Console.Profiles.config_dir("tlon")}/tmux.conf"
     end
 
     test "points pi at the profile's config dir and carries the funes identity into the session env" do
       cmd = Cockpit.profile_launcher(1, "tertius", @profile)
-      assert cmd =~ "PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")}"
+      assert cmd =~ "PI_CODING_AGENT_DIR=#{Console.Profiles.config_dir("tlon")}"
       # The tlon coworker is a funes citizen (machine scope, @tlon_funes_mcp reads ${FUNES_MCP_URL}),
       # so the identity is `-e`'d into the tmux SESSION env — durable across a pi respawn, not just
       # pi's one-shot process env. (Supersedes the old "self-contained, no funes env" design.)
@@ -170,13 +170,13 @@ defmodule Aleph.CockpitTest do
       cmd = Cockpit.profile_launcher(1, "tertius", @profile)
 
       assert cmd =~
-               "MANOS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Aleph.Profiles.config_dir("tlon")} mise exec -- pi --continue"
+               "MANOS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Console.Profiles.config_dir("tlon")} mise exec -- pi --continue"
     end
 
     test "a profile with a persona adds --append-system-prompt; without one, none" do
       refute Cockpit.profile_launcher(1, "tertius", @profile) =~ "--append-system-prompt"
-      withp = Cockpit.profile_launcher(1, "tertius", %Aleph.Profile{name: "tlon", system_prompt: "be terse"})
-      assert withp =~ "--append-system-prompt #{Aleph.Profiles.config_dir("tlon")}/system_prompt.md"
+      withp = Cockpit.profile_launcher(1, "tertius", %Console.Profile{name: "tlon", system_prompt: "be terse"})
+      assert withp =~ "--append-system-prompt #{Console.Profiles.config_dir("tlon")}/system_prompt.md"
     end
 
     test "still launches pi as window 0's command" do
@@ -193,7 +193,7 @@ defmodule Aleph.CockpitTest do
       assert cmd =~ "new-session -A -s w1 -n tertius"
       refute cmd =~ "set-option"
 
-      conf = Aleph.Profiles.tmux_conf()
+      conf = Console.Profiles.tmux_conf()
       assert conf =~ "set -g status off"
       assert conf =~ "set -g 'status-format[0]' ''"
       assert conf =~ "set -g pane-border-status off"
@@ -206,12 +206,12 @@ defmodule Aleph.CockpitTest do
   # session and two workspaces can't collide. `attach_leaf/2` takes the layout as a plain arg (no
   # `Space.fetch` involved), so `active_key: 1` proves the id comes from STATE, not from whatever
   # workspace happens to be seeded in the test env (the funes-down fallback is id 0 — see
-  # `Aleph.CockpitLeavesAttachTest`).
+  # `Console.CockpitLeavesAttachTest`).
   describe "workspace id threads into the tmux target (C2.2 — de-singleton the tlon session/socket)" do
     setup do
       test_pid = self()
 
-      Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
+      Application.put_env(:console, :tlon_cmd, fn "tmux", args, _opts ->
         send(test_pid, {:tmux, args})
 
         if Enum.member?(args, "list-windows"),
@@ -219,7 +219,7 @@ defmodule Aleph.CockpitTest do
           else: {"", 0}
       end)
 
-      on_exit(fn -> Application.delete_env(:aleph, :tlon_cmd) end)
+      on_exit(fn -> Application.delete_env(:console, :tlon_cmd) end)
       :ok
     end
 

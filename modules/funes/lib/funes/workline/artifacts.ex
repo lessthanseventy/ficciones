@@ -1,4 +1,4 @@
-defmodule Funes.Workline.Artifacts do
+defmodule Server.Workline.Artifacts do
   @moduledoc """
   The owed-artifact checker seam: is the stage's exit evidence really there? Requirements:
   `{:file, name}` (committed under `work/<slug>/`), `:branch` (the workline branch exists),
@@ -6,24 +6,24 @@ defmodule Funes.Workline.Artifacts do
   A behaviour so the stage machine tests with stubs and the git impl stays one module.
   """
 
-  @callback check(Funes.Thread.t(), {:file, String.t()} | :branch | :checks) ::
+  @callback check(Server.Thread.t(), {:file, String.t()} | :branch | :checks) ::
               {:ok, String.t()} | {:error, String.t()}
 end
 
-defmodule Funes.Workline.Artifacts.Git do
+defmodule Server.Workline.Artifacts.Git do
   @moduledoc """
   The real checker: files must be COMMITTED (git ls-files, not mere existence — an untracked
   intent.md is not an artifact), the branch is `work/<slug>`, verify evidence is a
   `check_passed` event correlated `workline:<slug>:verify`. Repo root comes from
-  `config :funes, :workline_root` (the workspace's git tree), default cwd.
+  `config :server, :workline_root` (the workspace's git tree), default cwd.
   """
 
-  @behaviour Funes.Workline.Artifacts
+  @behaviour Server.Workline.Artifacts
 
   import Ecto.Query
 
-  alias Funes.Event
-  alias Funes.Repo
+  alias Server.Event
+  alias Server.Repo
 
   @impl true
   def check(thread, {:file, name}) do
@@ -70,5 +70,5 @@ defmodule Funes.Workline.Artifacts.Git do
   end
 
   @doc "The workline git root — shared with Review.submit so both sides act on one tree."
-  def root, do: Application.get_env(:funes, :workline_root) || File.cwd!()
+  def root, do: Application.get_env(:server, :workline_root) || File.cwd!()
 end

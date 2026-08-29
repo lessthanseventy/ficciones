@@ -1,4 +1,4 @@
-defmodule Aleph.Stack do
+defmodule Console.Stack do
   @moduledoc """
   The machine/stack read models for the **Tlön** space (§the meta lens): what's changed in the
   env (recent `ficciones` commits with relative time and author — the stack's own changelog),
@@ -352,7 +352,7 @@ defmodule Aleph.Stack do
   aleph-workspace-<id>`, id-derived, rename-proof).
   """
   def tlon_up? do
-    case Aleph.Space.first_workspace() do
+    case Console.Space.first_workspace() do
       # No workspace at all (funes down; the fallback Workspace is gone, reshape slice A) — nothing is up.
       nil ->
         false

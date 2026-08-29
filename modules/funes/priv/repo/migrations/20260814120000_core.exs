@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.Core do
+defmodule Server.Repo.Migrations.Core do
   use Ecto.Migration
 
   # 001 core (spec §9.1). The only domain table day one needs is `collection`:

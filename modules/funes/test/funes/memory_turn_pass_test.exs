@@ -1,14 +1,14 @@
-defmodule Funes.MemoryTurnPassTest do
+defmodule Server.MemoryTurnPassTest do
   # Worklines slice 5: the post-response memory pass — event-shaped (presence_idle), off the
   # latency path, replacing turn-count nudges. A cheap extractor turns a completed turn's
   # messages into 0..3 banked facts; guards keep it from firing on every idle.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.Fact
-  alias Funes.Memory.Extractor
-  alias Funes.Memory.TurnPass
-  alias Funes.Repo
+  alias Server.Channel
+  alias Server.Fact
+  alias Server.Memory.Extractor
+  alias Server.Memory.TurnPass
+  alias Server.Repo
 
   defmodule StubExtractor do
     @moduledoc false
@@ -29,7 +29,7 @@ defmodule Funes.MemoryTurnPassTest do
   end
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 

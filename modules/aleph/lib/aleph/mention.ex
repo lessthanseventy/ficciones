@@ -1,4 +1,4 @@
-defmodule Aleph.Mention do
+defmodule Console.Mention do
   @moduledoc """
   @-mention routing — the Tlön coworkers share one thread and address each other by name. A funes
   message that `@`-names a coworker wakes it by arriving as a turn in its tmux window (the Cockpit
@@ -6,7 +6,7 @@ defmodule Aleph.Mention do
   without a TTY or a live tmux.
 
   The handle → window mapping (`coworkers/1`) is the one piece of structural knowledge here — it is
-  DERIVED from the active workspace's roster (`Aleph.Space`), not a compile-time table: each roster entry
+  DERIVED from the active workspace's roster (`Console.Space`), not a compile-time table: each roster entry
   named `n` becomes handle `"n-machine"` → window `n`, matching the window name the Cockpit's
   roster-driven spawn code creates (C2.3). Every call here that resolves handles takes the roster as
   an explicit arg — callers source it from `Space.fetch/1`/`Space.first_workspace/0` (funes-down/no-workspace
@@ -20,7 +20,7 @@ defmodule Aleph.Mention do
       thread.
   """
 
-  alias Aleph.Crew
+  alias Console.Crew
 
   @doc """
   The active handle → window map for `roster` (entries `%{"name" => n}`/`%{name: n}`, string or atom

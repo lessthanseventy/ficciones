@@ -1,10 +1,10 @@
-defmodule Aleph.Panel.LeavesTest do
+defmodule Console.Panel.LeavesTest do
   # LEAVES rollup (was ORBIS panel): the machine-scoped vantage — a compact lens over the leaf
   # threads (lead + status + conflicts), navigable in Tlön nav. On-screen paint is the eye test in a
   # real terminal; this pins the panel → styled-rows path headlessly.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Leaves
+  alias Console.Panel.Leaves
 
   @rect %{x: 0, y: 0, w: 80, h: 100}
 
@@ -154,7 +154,7 @@ defmodule Aleph.Panel.LeavesTest do
   end
 
   test "hints/1 declares the pane's footer verbs" do
-    assert Aleph.Panel.hints(Leaves, %{}) == [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}, {"d", "delete"}]
+    assert Console.Panel.hints(Leaves, %{}) == [{"j/k", "leaves"}, {"⏎", "attach"}, {"y", "title"}, {"d", "delete"}]
   end
 
   test "yank/2 returns the cursor row's title, respecting the same float ordering as render/pick" do

@@ -1,4 +1,4 @@
-defmodule Funes.Presence.Thinking do
+defmodule Server.Presence.Thinking do
   @moduledoc """
   The explicit half of "who is working": a harness DECLARES thinking at turn start
   and idle at turn end (via the `presence_thinking`/`presence_idle` MCP tools), so
@@ -10,11 +10,11 @@ defmodule Funes.Presence.Thinking do
   older than `:thinking_max_seconds` (default 600s) and announces them idle —
   the stuck-harness guard: a crashed harness that never sent `idle` must not read
   as thinking forever. Every transition broadcasts on `funes:presence` and the
-  thread topic (`Funes.Bus`).
+  thread topic (`Server.Bus`).
   """
   use GenServer
 
-  alias Funes.Bus
+  alias Server.Bus
 
   @default_max_seconds 600
   @sweep_interval_ms 60_000
@@ -41,7 +41,7 @@ defmodule Funes.Presence.Thinking do
 
   @impl true
   def init(opts) do
-    max = Keyword.get(opts, :max_seconds, Application.get_env(:funes, :thinking_max_seconds, @default_max_seconds))
+    max = Keyword.get(opts, :max_seconds, Application.get_env(:server, :thinking_max_seconds, @default_max_seconds))
     interval = Keyword.get(opts, :sweep_interval_ms, @sweep_interval_ms)
     Process.send_after(self(), :sweep, interval)
     {:ok, %{entries: %{}, max_seconds: max, interval: interval}}

@@ -1,22 +1,22 @@
-defmodule Aleph.Arbiter do
+defmodule Console.Arbiter do
   @moduledoc """
   The arbiter backend for the aleph hub — how funes' switchboard actuates a wake now that sessions
-  are embedded ghostty terminals aleph owns, not tmux panes. Configured as `config :funes, :arbiter,
-  Aleph.Arbiter`: funes calls it through the behaviour seam (§8), never importing aleph — the
+  are embedded ghostty terminals aleph owns, not tmux panes. Configured as `config :server, :arbiter,
+  Console.Arbiter`: funes calls it through the behaviour seam (§8), never importing aleph — the
   dependency stays one-directional, funes → nothing.
 
   - `wake(session, prompt)` — write the prompt into the session's terminal (keyed by its thread) so
     the harness takes a turn. Poking an agent is not a production write (§8): it SANITIZES the
     prompt to one clean line and appends Enter, rather than failing closed.
   - `spawn(exports)` — open a fresh terminal for the thread named in the env block (the cold-thread
-    strand), the same `Aleph.Sessions.spawn_harness` the `s` verb uses.
+    strand), the same `Console.Sessions.spawn_harness` the `s` verb uses.
   """
-  @behaviour Funes.Arbiter
+  @behaviour Server.Arbiter
 
-  alias Aleph.Sessions
-  alias Aleph.Terminal
+  alias Console.Sessions
+  alias Console.Terminal
 
-  @impl Funes.Arbiter
+  @impl Server.Arbiter
   def wake(%{thread_id: thread_id}, prompt) do
     case safe_terminal(thread_id) do
       nil -> {:error, :no_terminal}
@@ -24,7 +24,7 @@ defmodule Aleph.Arbiter do
     end
   end
 
-  @impl Funes.Arbiter
+  @impl Server.Arbiter
   def spawn(exports) do
     case thread_id(exports) do
       nil -> {:error, :no_thread_in_exports}
@@ -35,7 +35,7 @@ defmodule Aleph.Arbiter do
   # Sessions is supervised, the switchboard is not: a `Sessions.terminal/1` against a wedged or
   # torn-down registry exits (`:noproc`, or a 5s `:timeout` while `{:ensure}` blocks spawning a
   # terminal), which would otherwise propagate up and kill the hub — the ISSUES-panel
-  # `GenServer.call(Aleph.Sessions, {:terminal, :machine}, 5000)`. Degrade to nil / {:error, ...}
+  # `GenServer.call(Console.Sessions, {:terminal, :machine}, 5000)`. Degrade to nil / {:error, ...}
   # so the switchboard leaves the message a pending durable row and retries once Sessions is live,
   # mirroring the cockpit's own `safe_terminal/1` guard.
   defp safe_terminal(thread_id) do

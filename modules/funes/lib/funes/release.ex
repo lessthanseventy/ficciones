@@ -1,13 +1,13 @@
-defmodule Funes.Release do
+defmodule Server.Release do
   @moduledoc """
   Release-time tasks — the operations a `mix release` needs but `mix` isn't there
   to perform. The always-up service (a self-contained release, no toolchain on
-  PATH) boots by first running `bin/funes eval 'Funes.Release.migrate()'`, so an
+  PATH) boots by first running `bin/funes eval 'Server.Release.migrate()'`, so an
   empty or behind schema is brought fully up before the channel serves. SQLite is
   the truth; nothing ships that cannot be repaired at 2am, and migration is the
   first repair — so it lives here, in the app, not in a shell step that could drift.
   """
-  @app :funes
+  @app :server
 
   @doc """
   Apply every pending migration for each configured repo, up to the latest.

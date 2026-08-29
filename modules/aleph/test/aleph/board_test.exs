@@ -1,7 +1,7 @@
 # A one-row panel that renders whatever raw string it's given, for probing the paint boundary.
 defmodule SanitizeProbe do
   @moduledoc false
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
   @impl true
   def topics(_), do: []
@@ -13,7 +13,7 @@ end
 # NotLoaded assoc). The board must never let it take the whole cockpit down.
 defmodule BoomProbe do
   @moduledoc false
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
   @impl true
   def topics(_), do: []
@@ -21,33 +21,33 @@ defmodule BoomProbe do
   def render(_data, _rect), do: raise("kaboom")
 end
 
-defmodule Aleph.BoardTest do
+defmodule Console.BoardTest do
   @moduledoc """
   The slice-1 render proof: the panel → styled-rows → composed-cells path is correct without a
   TTY. Actual on-screen paint (cells → termbox NIF) is the eye test, run in a real terminal.
   """
   use ExUnit.Case, async: true
 
-  alias Aleph.Board
-  alias Aleph.Panel
-  alias Aleph.Panel.Activity
-  alias Aleph.Panel.Border
-  alias Aleph.Panel.Brief
-  alias Aleph.Panel.Health
-  alias Aleph.Panel.Overview
-  alias Aleph.Panel.Roster
-  alias Aleph.Panel.Sidebar
-  alias Aleph.Panel.Stack
-  alias Aleph.Panel.StatusBar
-  alias Aleph.Panel.Terminal
-  alias Aleph.Panel.Ticker
-  alias Aleph.Panel.WindowBar
-  alias Aleph.View
+  alias Console.Board
+  alias Console.Panel
+  alias Console.Panel.Activity
+  alias Console.Panel.Border
+  alias Console.Panel.Brief
+  alias Console.Panel.Health
+  alias Console.Panel.Overview
+  alias Console.Panel.Roster
+  alias Console.Panel.Sidebar
+  alias Console.Panel.Stack
+  alias Console.Panel.StatusBar
+  alias Console.Panel.Terminal
+  alias Console.Panel.Ticker
+  alias Console.Panel.WindowBar
+  alias Console.View
 
   # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
-  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
+  # that render or drive a Workspace push one through the Console.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorkspaces.put()
+    Console.TestWorkspaces.put()
   end
 
   # Flatten a styled row to its text, for assertions.
@@ -59,8 +59,8 @@ defmodule Aleph.BoardTest do
   ]
 
   @threads [
-    %Funes.Thread{id: 1, title: "review PR 329", state: "open"},
-    %Funes.Thread{id: 2, title: "triage inbox", state: "open"}
+    %Server.Thread{id: 1, title: "review PR 329", state: "open"},
+    %Server.Thread{id: 2, title: "triage inbox", state: "open"}
   ]
 
   defp reads(overrides \\ %{}) do
@@ -94,7 +94,7 @@ defmodule Aleph.BoardTest do
     end
 
     test "thread rows live in the Leaves panel now (slice C/D) — no separate thread list" do
-      refute Code.ensure_loaded?(Aleph.Panel.ThreadList)
+      refute Code.ensure_loaded?(Console.Panel.ThreadList)
     end
 
     test "stack (Tlön): branch then two rows per commit (subject, then meta line), hash dimmed" do
@@ -594,22 +594,22 @@ defmodule Aleph.BoardTest do
     end
 
     test "safe_read degrades a raise to the fallback and logs it" do
-      File.rm(Aleph.CrashLog.path())
+      File.rm(Console.CrashLog.path())
 
       assert Board.safe_read(:crew, :fallback, fn -> raise "kaboom" end) == :fallback
 
-      log = File.read!(Aleph.CrashLog.path())
+      log = File.read!(Console.CrashLog.path())
       assert log =~ "read error: crew"
       assert log =~ "kaboom"
     end
 
     test "safe_read degrades an exit (a dead funes GenServer) to the fallback and logs it" do
-      File.rm(Aleph.CrashLog.path())
+      File.rm(Console.CrashLog.path())
 
       read = fn -> GenServer.call(:no_such_process_anywhere, :probe) end
       assert Board.safe_read(:presence, %{}, read) == %{}
 
-      assert File.read!(Aleph.CrashLog.path()) =~ "read error: presence"
+      assert File.read!(Console.CrashLog.path()) =~ "read error: presence"
     end
 
     test "safe_read degrades a throw to the fallback" do

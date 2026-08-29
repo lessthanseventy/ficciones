@@ -1,4 +1,4 @@
-defmodule Funes.Mentions do
+defmodule Server.Mentions do
   @moduledoc """
   Parse `@name` handles out of a message body (the addressed-delivery model). Returns
   the raw handles in order of appearance, de-duplicated; the switchboard resolves

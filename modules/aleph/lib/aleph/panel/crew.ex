@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.Crew do
+defmodule Console.Panel.Crew do
   @moduledoc """
   The CREW pane — the Workspace's coworker pool at a glance: who exists (the workspace roster), what
   each one is (archetype · model · harness), whether it's on the clock right now (declared
@@ -7,13 +7,13 @@ defmodule Aleph.Panel.Crew do
   `%{coworkers: [coworker()], leaves: {live, cap}}` — the same pane serves the cockpit sidebar
   and the general console's right rail.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [blank: 0]
+  import Console.Panel, only: [blank: 0]
 
-  alias Aleph.Presence
-  alias Aleph.Profiles
-  alias Funes.Bus
+  alias Console.Presence
+  alias Console.Profiles
+  alias Server.Bus
 
   @type coworker :: %{
           name: String.t(),
@@ -76,13 +76,13 @@ defmodule Aleph.Panel.Crew do
     _ -> nil
   end
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: [Bus.sessions_topic()]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(%{coworkers: coworkers, leaves: {live, cap}}, rect) do
     header = [[{"leaves #{live}/#{cap}", :dim}], blank()]
-    Aleph.Panel.clip(header ++ Enum.flat_map(coworkers, &entry(&1, rect.w)), rect)
+    Console.Panel.clip(header ++ Enum.flat_map(coworkers, &entry(&1, rect.w)), rect)
   end
 
   # nil data (funes down / not a Workspace) renders nothing rather than crashing the paint.
@@ -101,7 +101,7 @@ defmodule Aleph.Panel.Crew do
   end
 
   defp elapsed_suffix(nil), do: ""
-  defp elapsed_suffix(seconds), do: " #{Aleph.Text.duration(seconds)}"
+  defp elapsed_suffix(seconds), do: " #{Console.Text.duration(seconds)}"
 
   defp presence(:thinking), do: {"⋯", "thinking"}
   defp presence(:working), do: {"●", "working"}

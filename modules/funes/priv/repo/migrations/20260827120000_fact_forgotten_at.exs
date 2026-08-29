@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.FactForgottenAt do
+defmodule Server.Repo.Migrations.FactForgottenAt do
   use Ecto.Migration
 
   # The operator's manual tombstone — set means the fact is out of every recall

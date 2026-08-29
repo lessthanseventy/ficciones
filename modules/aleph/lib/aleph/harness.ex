@@ -1,4 +1,4 @@
-defmodule Aleph.Harness.Driver do
+defmodule Console.Harness.Driver do
   @moduledoc """
   The uniform per-harness contract (per-thread-agents Slice D). The lifecycle's tmux transport
   (spawn a window, inject a turn via send-keys, kill a window) is harness-AGNOSTIC and lives with
@@ -12,16 +12,16 @@ defmodule Aleph.Harness.Driver do
       conversation (`resume`) — the return-to-a-leaf's-OWN-agent escape hatch, never the rebind
       path (resuming onto a different leaf re-imports the context-bleed bug).
   """
-  @callback launch_command(Aleph.Profile.t()) :: String.t()
+  @callback launch_command(Console.Profile.t()) :: String.t()
   @callback reset_command() :: String.t()
-  @callback resume_command(Aleph.Profile.t()) :: String.t()
+  @callback resume_command(Console.Profile.t()) :: String.t()
 end
 
-defmodule Aleph.Harness do
+defmodule Console.Harness do
   @moduledoc """
   Environment-resolved harness binding (per-thread-agents Slice D). A coworker is
   archetype × harness-binding × model; the archetype no longer hardcodes *how* it runs — the
-  binding is resolved from the model + where aleph is running (`Aleph.Config.environment/0`):
+  binding is resolved from the model + where aleph is running (`Console.Config.environment/0`):
 
     * **home** (personal Anthropic subscription): an anthropic-provider model binds to
       `:claude_code` — the official harness. Driving a personal Claude subscription through a
@@ -29,11 +29,11 @@ defmodule Aleph.Harness do
     * anything else (work / API-billed, or a non-anthropic model anywhere): `:pi`.
 
   A template/roster `harness:` key stays an explicit pin over this resolution (the escape hatch).
-  Codex/gemini drivers slot in as new `Aleph.Harness.Driver` impls + registry entries when first
+  Codex/gemini drivers slot in as new `Console.Harness.Driver` impls + registry entries when first
   needed.
   """
 
-  @drivers %{claude_code: Aleph.Harness.ClaudeCode, pi: Aleph.Harness.Pi}
+  @drivers %{claude_code: Console.Harness.ClaudeCode, pi: Console.Harness.Pi}
 
   @doc "The harness a model binds to in `environment` — see the moduledoc for the rule."
   @spec resolve(map() | nil, String.t()) :: :claude_code | :pi
@@ -54,8 +54,8 @@ defmodule Aleph.Harness do
   `resume_command/1` is only the return-to-a-leaf's-OWN-agent escape hatch. Pool sizing/eviction
   stays a later policy over this primitive (fresh-per-leaf is a pool of 1 that never rebinds).
   """
-  @spec rebind_turns(Aleph.Profile.t(), integer(), String.t() | nil) :: [String.t()]
-  def rebind_turns(%Aleph.Profile{} = profile, thread_id, title) do
+  @spec rebind_turns(Console.Profile.t(), integer(), String.t() | nil) :: [String.t()]
+  def rebind_turns(%Console.Profile{} = profile, thread_id, title) do
     subject = if title in [nil, ""], do: "", else: " (#{title})"
 
     [
@@ -66,7 +66,7 @@ defmodule Aleph.Harness do
   end
 end
 
-defmodule Aleph.Harness.ClaudeCode do
+defmodule Console.Harness.ClaudeCode do
   @moduledoc """
   The Claude Code driver: launches through `modules/manos/claude-code/launch.sh` (funes MCP +
   brief/capture hooks + the citizen protocol prompt). A profile's persona rides as
@@ -74,10 +74,10 @@ defmodule Aleph.Harness.ClaudeCode do
   `--append-system-prompt` flag would *replace* the citizen protocol, not add to it); an
   anthropic model as `--model`. Reset is `/clear`; resume is `--continue`.
   """
-  @behaviour Aleph.Harness.Driver
+  @behaviour Console.Harness.Driver
 
-  alias Aleph.Profile
-  alias Aleph.Profiles
+  alias Console.Profile
+  alias Console.Profiles
 
   @impl true
   def launch_command(%Profile{} = p) do
@@ -119,23 +119,23 @@ defmodule Aleph.Harness.ClaudeCode do
   def resume_command(%Profile{} = p), do: launch_command(p) <> " --continue"
 end
 
-defmodule Aleph.Harness.Pi do
+defmodule Console.Harness.Pi do
   @moduledoc """
   The pi driver: the bare `pi` invocation for a profile — config dir as `PI_CODING_AGENT_DIR`,
   persona as `--append-system-prompt`, driver as `--model`. Reset is `/new` (fresh session, warm
   process); resume is `--continue`.
   """
-  @behaviour Aleph.Harness.Driver
+  @behaviour Console.Harness.Driver
 
-  alias Aleph.Profile
-  alias Aleph.Profiles
+  alias Console.Profile
+  alias Console.Profiles
 
   # The model MUST ride as a --model flag: pi resolves settings.json defaultModel BEFORE
   # pi-multi-account registers `anthropic`, so a claude-* default falls back to glm; the CLI flag
   # applies after extensions load, so it sticks (verified 2026-08-17).
   @impl true
   def launch_command(%Profile{} = profile) do
-    base = Application.get_env(:aleph, :spawn_launcher, "mise exec -- pi")
+    base = Application.get_env(:console, :spawn_launcher, "mise exec -- pi")
     dir = Profiles.config_dir(profile.name)
     prompt = if profile.system_prompt, do: " --append-system-prompt #{Path.join(dir, "system_prompt.md")}", else: ""
 

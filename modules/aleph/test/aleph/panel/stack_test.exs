@@ -1,9 +1,9 @@
-defmodule Aleph.Panel.StackTest do
+defmodule Console.Panel.StackTest do
   # The Commits pane (Stack panel): the j/k selection highlight. The git/branch plumbing is
-  # Aleph.Stack's; this pins that a `selected` index lights exactly one commit's subject row.
+  # Console.Stack's; this pins that a `selected` index lights exactly one commit's subject row.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Stack
+  alias Console.Panel.Stack
 
   @rect %{x: 0, y: 0, w: 80, h: 100}
 
@@ -45,11 +45,11 @@ defmodule Aleph.Panel.StackTest do
   end
 
   test "hints/1 declares the pane's footer verbs" do
-    assert Aleph.Panel.hints(Stack, %{}) == [{"j/k", "commits"}, {"⏎", "diff"}, {"y", "sha"}]
+    assert Console.Panel.hints(Stack, %{}) == [{"j/k", "commits"}, {"⏎", "diff"}, {"y", "sha"}]
   end
 
   test "a panel without hints/1 declares nothing" do
-    assert Aleph.Panel.hints(Aleph.Panel.Health, %{}) == []
+    assert Console.Panel.hints(Console.Panel.Health, %{}) == []
   end
 
   test "yank/2 returns the cursor commit's full sha" do

@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.Triage do
+defmodule Console.Panel.Triage do
   @moduledoc """
   TRIAGE — the cross-thread view of what needs attention RIGHT NOW: open blockers across
   all threads, failed checks, and unassigned threads. A thin view over the funes Board;
@@ -10,22 +10,22 @@ defmodule Aleph.Panel.Triage do
   Data is `%{blockers, failed_checks, unassigned}` where blockers/failed_checks are
   `%{shown: [...], more: count}` (capped at 5 with a more count), and unassigned is a plain list.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2]
+  import Console.Panel, only: [line: 2]
 
-  alias Funes.Bus
+  alias Server.Bus
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(_assigns), do: [Bus.threads_topic(), Bus.sessions_topic()]
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(nil, rect) do
-    Aleph.Panel.clip([line("switch to Orbis", :dim)], rect)
+    Console.Panel.clip([line("switch to Orbis", :dim)], rect)
   end
 
-  @impl Aleph.Panel
-  def render(data, rect), do: Aleph.Panel.clip(triage_rows(data, rect.w), rect)
+  @impl Console.Panel
+  def render(data, rect), do: Console.Panel.clip(triage_rows(data, rect.w), rect)
 
   defp triage_rows(%{blockers: %{shown: []}, failed_checks: %{shown: []}, unassigned: []}, _w) do
     [line("all clear", :dim)]

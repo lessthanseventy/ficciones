@@ -1,4 +1,4 @@
-defmodule Funes.MCP.SpawnTest do
+defmodule Server.MCP.SpawnTest do
   # The spawn-or-join primitive under the launchers (funes:spawn / funes:claude /
   # pi:*). `ensure` is the shared core — open a fresh thread or join an existing one,
   # staff the agent — with NO token. `env`/`join` add the mint + the export block (the
@@ -6,15 +6,15 @@ defmodule Funes.MCP.SpawnTest do
   # a fresh token for an EXISTING (thread, agent), on every connect.
   use ExUnit.Case, async: false
 
-  alias Funes.Channel
-  alias Funes.MCP.Spawn
-  alias Funes.MCP.Tokens
-  alias Funes.Repo
-  alias Funes.Staff
-  alias Funes.Thread
+  alias Server.Channel
+  alias Server.MCP.Spawn
+  alias Server.MCP.Tokens
+  alias Server.Repo
+  alias Server.Staff
+  alias Server.Thread
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 

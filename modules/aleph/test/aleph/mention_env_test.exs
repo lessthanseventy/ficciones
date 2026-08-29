@@ -1,4 +1,4 @@
-defmodule Aleph.MentionEnvTest do
+defmodule Console.MentionEnvTest do
   @moduledoc """
   The experiment knob on the @-mention router — the anonymised sender label ($TLON_MENTION_LABEL).
   async: false: this mutates process-global env, so it must not run concurrently with the pure
@@ -6,9 +6,9 @@ defmodule Aleph.MentionEnvTest do
   """
   use ExUnit.Case, async: false
 
-  alias Aleph.Mention
+  alias Console.Mention
 
-  # The seed roster (Aleph.Space's fallback Tlön workspace) — mirrors mention_test.exs's fixture.
+  # The seed roster (Console.Space's fallback Tlön workspace) — mirrors mention_test.exs's fixture.
   @roster [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
 
   setup do

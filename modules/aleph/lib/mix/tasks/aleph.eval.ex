@@ -1,23 +1,23 @@
-defmodule Mix.Tasks.Aleph.Eval do
+defmodule Mix.Tasks.Console.Eval do
   @shortdoc "Run aleph's steering evals (routing) — --deterministic for the offline gate set"
   @moduledoc """
   #{@shortdoc}.
 
-  Loads every scenario in `evals/` and runs it through `Funes.Eval`. The routing family is
+  Loads every scenario in `evals/` and runs it through `Server.Eval`. The routing family is
   pure (staffing/triage/mention over a fixture cast), so no app boot and no db — just the
   compiled modules. `--deterministic` skips judged scenarios (none yet in this corpus); the
   precommit gate runs that mode. Exits nonzero on any failure.
   """
   use Mix.Task
-  use Boundary, classify_to: Aleph
+  use Boundary, classify_to: Console
 
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("compile")
-    mode = Funes.Eval.mode(argv)
+    mode = Server.Eval.mode(argv)
 
-    report = "evals" |> Funes.Eval.load() |> Funes.Eval.run(mode: mode)
-    Mix.shell().info(Funes.Eval.scorecard(report))
+    report = "evals" |> Server.Eval.load() |> Server.Eval.run(mode: mode)
+    Mix.shell().info(Server.Eval.scorecard(report))
     if !report.ok?, do: Mix.raise("aleph.eval failed")
   end
 end

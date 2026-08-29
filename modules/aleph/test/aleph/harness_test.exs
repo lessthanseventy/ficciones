@@ -1,4 +1,4 @@
-defmodule Aleph.HarnessTest do
+defmodule Console.HarnessTest do
   @moduledoc """
   Environment-resolved harness binding + the per-harness driver contract (Slice D). The ToS rule:
   an anthropic-provider model at HOME binds to claude_code (the official harness); everything else
@@ -6,10 +6,10 @@ defmodule Aleph.HarnessTest do
   """
   use ExUnit.Case, async: false
 
-  alias Aleph.Config
-  alias Aleph.Harness
-  alias Aleph.Profile
-  alias Aleph.Profiles
+  alias Console.Config
+  alias Console.Harness
+  alias Console.Profile
+  alias Console.Profiles
 
   @sonnet %{provider: "anthropic", model: "claude-sonnet-5", thinking: "medium"}
   @glm %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}

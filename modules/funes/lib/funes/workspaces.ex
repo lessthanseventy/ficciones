@@ -1,15 +1,15 @@
-defmodule Funes.Workspaces do
+defmodule Server.Workspaces do
   @moduledoc """
   The workspaces context (workspaces/orbis Slice 1): the write pipe and reads over the
   `workspace` table. Compositions are DATA here; aleph reads `all/0` to drive its
-  picker/survey/spawn, and every write announces on `Funes.Bus`'s workspaces topic so
+  picker/survey/spawn, and every write announces on `Server.Bus`'s workspaces topic so
   those live surfaces refresh. A workspace is machine-global — no thread scope.
   """
   import Ecto.Query
 
-  alias Funes.Bus
-  alias Funes.Repo
-  alias Funes.Workspace
+  alias Server.Bus
+  alias Server.Repo
+  alias Server.Workspace
 
   @doc "Register a workspace. `{:ok, workspace}` or `{:error, changeset}` (e.g. a duplicate name)."
   def register(attrs) do
@@ -51,7 +51,7 @@ defmodule Funes.Workspaces do
   end
 
   defp rehouse_and_delete(workspace, heir) do
-    Repo.update_all(from(t in Funes.Thread, where: t.workspace_id == ^workspace.id),
+    Repo.update_all(from(t in Server.Thread, where: t.workspace_id == ^workspace.id),
       set: [workspace_id: heir.id]
     )
 

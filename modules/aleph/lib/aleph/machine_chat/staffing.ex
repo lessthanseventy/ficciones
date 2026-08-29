@@ -1,19 +1,19 @@
-defmodule Aleph.MachineChat.Staffing do
+defmodule Console.MachineChat.Staffing do
   @moduledoc """
   Pure pick logic for who gets staffed as a new chat thread's lead. Pulled out of `Loop` (which
   grabs the TTY and is deliberately not unit-tested) so the picking RULE — an explicit @-mention
   wins, else the operator's configured default — has its own seam to test.
   """
 
-  alias Aleph.MachineChat.Triage
-  alias Aleph.Mention
+  alias Console.MachineChat.Triage
+  alias Console.Mention
 
   @doc """
   The coworker to staff on a new thread, in routing order (per-thread-agents Slice E):
 
     1. the first @-mentioned coworker (resolved against `roster`) — you already decided, no
        classification hop;
-    2. else intent triage (`Aleph.MachineChat.Triage`): explicit review/plan/research intent
+    2. else intent triage (`Console.MachineChat.Triage`): explicit review/plan/research intent
        staffs that specialist archetype's roster worker;
     3. else `default` (the operator's persisted override, or the roster's builder-else-worker).
   """
@@ -46,7 +46,7 @@ defmodule Aleph.MachineChat.Staffing do
   tertius is the vantage, not a leaf lead; a worker-less roster is a misconfiguration the caller
   surfaces as a leaderless thread, not one tertius should absorb). `nil` when no worker resolves.
   Deliberately never invents a stand-in handle: a guessed `-machine` that was never registered as
-  a funes agent gives `Funes.assign_lead/2` nothing to bind, and the thread ends up leaderless
+  a funes agent gives `Server.assign_lead/2` nothing to bind, and the thread ends up leaderless
   with nobody listening (the machine-chat silence bug).
   """
   @spec default_coworker([map()]) :: String.t() | nil
@@ -62,7 +62,7 @@ defmodule Aleph.MachineChat.Staffing do
 
   # The first worker (non-meta) handle — `Profiles.leaf_handles/1` already normalizes archetypes
   # and drops meta/unknown entries.
-  defp worker_handle(roster), do: List.first(Aleph.Profiles.leaf_handles(roster))
+  defp worker_handle(roster), do: List.first(Console.Profiles.leaf_handles(roster))
 
   # The funes handle convention: profile name + "-machine". Tolerates string (JSON) or atom keys.
   defp handle(entry), do: "#{entry["name"] || entry[:name]}-machine"

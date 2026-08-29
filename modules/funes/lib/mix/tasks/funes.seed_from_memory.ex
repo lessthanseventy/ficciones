@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Funes.SeedFromMemory do
+defmodule Mix.Tasks.Server.SeedFromMemory do
   @shortdoc "Seed the forgetting engine from a directory of Claude memory .md files"
 
   @moduledoc """
@@ -39,16 +39,16 @@ defmodule Mix.Tasks.Funes.SeedFromMemory do
   NULL (recall falls back to keyword), counted, never fatal.
   """
   use Mix.Task
-  use Boundary, classify_to: Funes
+  use Boundary, classify_to: Server
 
   import Ecto.Query
 
   alias Ecto.Changeset
-  alias Funes.Event
-  alias Funes.Fact
-  alias Funes.Recall
-  alias Funes.Repo
-  alias Funes.Thread
+  alias Server.Event
+  alias Server.Fact
+  alias Server.Recall
+  alias Server.Repo
+  alias Server.Thread
 
   @switches [thread: :integer, reset: :boolean, drop_threads: :string]
 
@@ -142,12 +142,12 @@ defmodule Mix.Tasks.Funes.SeedFromMemory do
   # --- selective clear ---
 
   defp reset(drop, keep) do
-    Repo.delete_all(Funes.Habit)
+    Repo.delete_all(Server.Habit)
     kill = Enum.reject(drop, &(&1 == keep))
 
     for tid <- kill do
       # Every table with a thread FK must go before the thread (foreign_keys: :on).
-      for schema <- [Fact, Event, Funes.Message, Funes.Session, Funes.Todo, Funes.Issue, Funes.Question] do
+      for schema <- [Fact, Event, Server.Message, Server.Session, Server.Todo, Server.Issue, Server.Question] do
         Repo.delete_all(from r in schema, where: r.thread_id == ^tid)
       end
 

@@ -1,7 +1,7 @@
-defmodule Funes.MCP.Resource.Brief do
+defmodule Server.MCP.Resource.Brief do
   @moduledoc """
   The connection's thread brief as a readable resource — the SAME read as the
-  get_brief tool (`Board.brief/1` through `Funes.MCP.Brief`): one source,
+  get_brief tool (`Board.brief/1` through `Server.MCP.Brief`): one source,
   two protocol doors. The tool is for the model mid-turn; the resource is for a
   host briefing a session (pi's before_agent_start pulls this).
   """
@@ -11,9 +11,9 @@ defmodule Funes.MCP.Resource.Brief do
     mime_type: "application/json"
 
   alias Anubis.Server.Response
-  alias Funes.Board
-  alias Funes.MCP
-  alias Funes.Thread
+  alias Server.Board
+  alias Server.MCP
+  alias Server.Thread
 
   @impl true
   def read(_params, frame) do
@@ -23,7 +23,7 @@ defmodule Funes.MCP.Resource.Brief do
   end
 end
 
-defmodule Funes.MCP.Resource.Constraints do
+defmodule Server.MCP.Resource.Constraints do
   @moduledoc """
   The always-loaded constraint set (§4): the operator's stated, unsuperseded
   constraints — the rows every session reads at start, machine-wide. Served to
@@ -36,8 +36,8 @@ defmodule Funes.MCP.Resource.Constraints do
     mime_type: "application/json"
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.MCP
 
   @impl true
   def read(_params, frame) do
@@ -46,7 +46,7 @@ defmodule Funes.MCP.Resource.Constraints do
   end
 end
 
-defmodule Funes.MCP.Resource.Habits do
+defmodule Server.MCP.Resource.Habits do
   @moduledoc """
   The always-loaded approved habits (roadmap: pi-synthesis slice 2): the operator-approved
   "how to work with Andrew" preferences every session reads at start, machine-wide, beside
@@ -60,8 +60,8 @@ defmodule Funes.MCP.Resource.Habits do
     mime_type: "application/json"
 
   alias Anubis.Server.Response
-  alias Funes.Dossier
-  alias Funes.MCP
+  alias Server.Dossier
+  alias Server.MCP
 
   @impl true
   def read(_params, frame) do

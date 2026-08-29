@@ -1,4 +1,4 @@
-defmodule Funes.Workline do
+defmodule Server.Workline do
   @moduledoc """
   The workline stage machine (worklines slice 1, design:
   `docs/plans/2026-08-27-ai-native-sdlc-workline-design.md`). A workline is a thread paired
@@ -7,7 +7,7 @@ defmodule Funes.Workline do
       intent → spec → plan → build → verify → review → merged
 
   `advance/2` is the single mutation point and carries the invariant: NO advance without the
-  stage's owed artifact (checked through the `Funes.Workline.Artifacts` behaviour, recorded
+  stage's owed artifact (checked through the `Server.Workline.Artifacts` behaviour, recorded
   as a CHECK either way, correlation `workline:<slug>:artifact`). Gated transitions —
   spec→plan, review→merged, and a machine-born intent→spec — park in `awaiting: "andrew"`
   instead of flipping; `approve/1` is the operator's completion verb. Every completed flip
@@ -15,12 +15,12 @@ defmodule Funes.Workline do
   already exist.
   """
 
-  alias Funes.Dossier
-  alias Funes.Repo
-  alias Funes.Thread
-  alias Funes.Workline.Artifacts.Git
-  alias Funes.Workline.Brief
-  alias Funes.Workline.Scribe
+  alias Server.Dossier
+  alias Server.Repo
+  alias Server.Thread
+  alias Server.Workline.Artifacts.Git
+  alias Server.Workline.Brief
+  alias Server.Workline.Scribe
 
   @stages ~w(intent spec plan build verify review merged)
   @owed %{
@@ -52,10 +52,10 @@ defmodule Funes.Workline do
   `{:ok, thread}` or `{:error, changeset}` (a taken slug is a UNIQUE refusal).
   """
   def open(attrs) do
-    attrs = Map.put_new_lazy(attrs, :workspace_id, &Funes.Bootstrap.default_workspace_id/0)
+    attrs = Map.put_new_lazy(attrs, :workspace_id, &Server.Bootstrap.default_workspace_id/0)
 
     with {:ok, thread} <-
-           attrs |> Thread.workline_changeset() |> Repo.insert() |> Funes.Bus.announce(:thread_opened) do
+           attrs |> Thread.workline_changeset() |> Repo.insert() |> Server.Bus.announce(:thread_opened) do
       # The brief IS the wake from stage one — the intent playbook must not wait for an advance.
       post_brief(thread, Brief.stage_message(thread))
       {:ok, thread}
@@ -73,7 +73,7 @@ defmodule Funes.Workline do
   def promote(%Thread{stage: stage} = thread) when not is_nil(stage), do: {:ok, thread}
 
   def promote(%Thread{} = thread) do
-    if Funes.Channel.root_machine_thread?(thread) do
+    if Server.Channel.root_machine_thread?(thread) do
       {:error, :root_machine_thread}
     else
       do_promote(thread, promote_slug(thread))
@@ -97,7 +97,7 @@ defmodule Funes.Workline do
         {:ok, fresh}
 
       {:ok, {:promoted, tracked}} ->
-        Funes.Bus.broadcast({:workline_advanced, tracked})
+        Server.Bus.broadcast({:workline_advanced, tracked})
         post_brief(tracked, Brief.stage_message(tracked))
         {:ok, tracked}
 
@@ -193,7 +193,7 @@ defmodule Funes.Workline do
     with {:ok, thread} <- open(Map.put(attrs, :born, "machine")) do
       post_brief(thread, evidence)
       {:ok, parked} = thread |> Thread.workline_stage_changeset(%{awaiting: "andrew"}) |> Repo.update()
-      Funes.Bus.broadcast({:workline_gated, parked})
+      Server.Bus.broadcast({:workline_gated, parked})
       post_brief(parked, Brief.gate_message(parked))
       {:ok, parked}
     end
@@ -240,7 +240,7 @@ defmodule Funes.Workline do
 
   defp park(thread) do
     {:ok, parked} = thread |> Thread.workline_stage_changeset(%{awaiting: "andrew"}) |> Repo.update()
-    Funes.Bus.broadcast({:workline_gated, parked})
+    Server.Bus.broadcast({:workline_gated, parked})
     post_brief(parked, Brief.gate_message(parked))
     {:awaiting, parked}
   end
@@ -267,7 +267,7 @@ defmodule Funes.Workline do
     # Restaff BEFORE broadcasting: subscribers acting on the advance must never observe the
     # builder still leading a review stage.
     flipped = if flipped.stage == "review", do: restaff_reviewer(flipped), else: flipped
-    Funes.Bus.broadcast({:workline_advanced, flipped})
+    Server.Bus.broadcast({:workline_advanced, flipped})
     post_brief(flipped, Brief.stage_message(flipped))
     {:ok, flipped}
   end
@@ -279,9 +279,9 @@ defmodule Funes.Workline do
   defp restaff_reviewer(%Thread{workspace_id: nil} = thread), do: restaff_miss(thread, "no workspace bound")
 
   defp restaff_reviewer(thread) do
-    with %{roster: roster} when is_list(roster) <- Repo.get(Funes.Workspace, thread.workspace_id),
+    with %{roster: roster} when is_list(roster) <- Repo.get(Server.Workspace, thread.workspace_id),
          %{"name" => name} <- Enum.find(roster, &(&1["archetype"] == "reviewer" || &1[:archetype] == "reviewer")),
-         {:ok, restaffed} <- Funes.Channel.assign_lead(thread.id, "#{name}-machine") do
+         {:ok, restaffed} <- Server.Channel.assign_lead(thread.id, "#{name}-machine") do
       post_brief(restaffed, "→ #{name}-machine leads (review stage)")
       restaffed
     else
@@ -300,7 +300,7 @@ defmodule Funes.Workline do
   # The brief IS the wake: a funes-authored message rides the lead-wake path (slice 2).
   # Best-effort — a post failure never blocks the (already durable) transition.
   defp post_brief(thread, body) do
-    Funes.Channel.post(%{thread_id: thread.id, author: "funes", body: body})
+    Server.Channel.post(%{thread_id: thread.id, author: "funes", body: body})
     :ok
   rescue
     _ -> :ok

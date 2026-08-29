@@ -1,9 +1,9 @@
-defmodule Aleph.InputParserTest do
+defmodule Console.InputParserTest do
   @moduledoc """
   A contract test for the raxol input parser's Kitty CSI-u decode — the path that makes
   shift+enter reach aleph with its shift bit. The driver enables Kitty disambiguate mode
   (\\e[>1u) on the host tty, so a host like ghostty sends \\e[13;2u for shift+enter; this
-  asserts the parser turns that into `%{key: :enter, shift: true}`. Aleph's tmux-style
+  asserts the parser turns that into `%{key: :enter, shift: true}`. Console's tmux-style
   input model forwards that to the embedded terminal, which (with its own Kitty protocol
   armed) encodes a real shifted enter. If this decode regresses, shift+enter silently
   becomes a no-op again.

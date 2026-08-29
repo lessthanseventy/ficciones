@@ -1,23 +1,23 @@
-defmodule Aleph.Panel.Brief do
+defmodule Console.Panel.Brief do
   @moduledoc """
-  BRIEF — the focused thread's brief (design §8), a thin view over `Funes.Board.brief/1`:
+  BRIEF — the focused thread's brief (design §8), a thin view over `Server.Board.brief/1`:
   GOAL, LEAD, TODOS (NEXT marked →), LEARNINGS, UNKNOWNS, BLOCKERS, CHECKS (✓/✗ measured), DONE
   (each capped + a `more` count), RECENT. DONE is the merged view — completed todos + `work_landed`. Re-renders
   on that thread's topic. Data is the `brief/1` map, or `nil` when nothing is focused.
   """
-  @behaviour Aleph.Panel
+  @behaviour Console.Panel
 
-  import Aleph.Panel, only: [line: 2, blank: 0]
+  import Console.Panel, only: [line: 2, blank: 0]
 
-  alias Funes.Bus
+  alias Server.Bus
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def topics(%{focused_id: id}) when not is_nil(id), do: [Bus.thread_topic(id)]
   def topics(_assigns), do: []
 
-  @impl Aleph.Panel
+  @impl Console.Panel
   def render(nil, rect) do
-    Aleph.Panel.clip([line("select a thread ↑↓", :dim)], rect)
+    Console.Panel.clip([line("select a thread ↑↓", :dim)], rect)
   end
 
   def render(scope, rect) do
@@ -32,7 +32,7 @@ defmodule Aleph.Panel.Brief do
         section("DONE", capped_lines(scope.done, &done_line/1), rect.w) ++
         section("RECENT", Enum.map(scope.recent, &recent_line/1), rect.w)
 
-    Aleph.Panel.clip(rows, rect)
+    Console.Panel.clip(rows, rect)
   end
 
   defp lead_section(nil, w), do: section("LEAD", ["unassigned"], w)
@@ -79,7 +79,7 @@ defmodule Aleph.Panel.Brief do
   defp section(label, body, w) do
     body_rows =
       body
-      |> Enum.flat_map(&Aleph.Text.wrap(&1, max(w - 2, 1)))
+      |> Enum.flat_map(&Console.Text.wrap(&1, max(w - 2, 1)))
       |> Enum.map(fn text -> [{"  ", :dim}, {text, :normal}] end)
 
     [line(label, :label) | body_rows] ++ [blank()]

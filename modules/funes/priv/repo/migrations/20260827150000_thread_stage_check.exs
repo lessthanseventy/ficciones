@@ -1,4 +1,4 @@
-defmodule Funes.Repo.Migrations.ThreadStageCheck do
+defmodule Server.Repo.Migrations.ThreadStageCheck do
   use Ecto.Migration
 
   # Mirror the workline closed sets at the DB layer (§4: a closed set is guarded by a CHECK,

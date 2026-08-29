@@ -1,4 +1,4 @@
-defmodule Funes.BoardTest do
+defmodule Server.BoardTest do
   # The board's read models (aleph §4): the pure aggregates a TUI/LiveView renders.
   # IN FLIGHT is the roster (live sessions × warmth); the BRIEF is one thread's read
   # (GOAL / TODOS / NEXT / DONE / LEARNINGS / BLOCKERS / RECENT) — the SAME
@@ -6,14 +6,14 @@ defmodule Funes.BoardTest do
   # DONE is a MERGED view: completed todos by their `done_at` + `work_landed` events.
   use ExUnit.Case, async: false
 
-  alias Funes.Board
-  alias Funes.Channel
-  alias Funes.Dossier
-  alias Funes.Repo
-  alias Funes.Staff
+  alias Server.Board
+  alias Server.Channel
+  alias Server.Dossier
+  alias Server.Repo
+  alias Server.Staff
 
   setup do
-    Funes.TestDB.clean!()
+    Server.TestDB.clean!()
     :ok
   end
 
@@ -171,8 +171,8 @@ defmodule Funes.BoardTest do
       # A budget that fits ~one small fact (each is ~1 token) — the weaker one drops out of the
       # working set but is still on disk (get_facts returns it); `more` must own the cut. Budget
       # stays a config knob (the cost breaker's memory lever); the read path itself is unconditional.
-      Application.put_env(:funes, :recall, budget: 1)
-      on_exit(fn -> Application.delete_env(:funes, :recall) end)
+      Application.put_env(:server, :recall, budget: 1)
+      on_exit(fn -> Application.delete_env(:server, :recall) end)
 
       {:ok, thread} = Channel.open_thread(%{title: "t"})
       {:ok, _a} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "aaaa", provenance: "derived"})
@@ -195,7 +195,7 @@ defmodule Funes.BoardTest do
       {:ok, _} = Channel.close_thread(closed)
 
       {:ok, _agent} = Staff.register_agent(%{name: "claude-machine", mandate: "machine", engine: "claude"})
-      Funes.assign_lead(leaf.id, "claude-machine")
+      Server.assign_lead(leaf.id, "claude-machine")
       {:ok, _} = Dossier.add_todo(%{thread_id: leaf.id, text: "wire the reaper"})
       {:ok, _} = Dossier.raise_issue(%{thread_id: leaf.id, summary: "port 4041 held"})
       {:ok, _} = Channel.post(%{thread_id: leaf.id, author: "claude-machine", body: "on it"})

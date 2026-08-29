@@ -1,4 +1,4 @@
-defmodule Funes.Workspace do
+defmodule Server.Workspace do
   @moduledoc """
   A workspace (workspaces/orbis Slice 1): a first-class composition — a git-tracked scope
   (`paths`), a `roster` of archetype instances, and free-form `knobs` — that aleph
@@ -7,7 +7,7 @@ defmodule Funes.Workspace do
 
   `type` (code|life|blank) and `scope` (project|machine) are closed sets the DB
   CHECKs guard (§10) — the schema does not mirror them, a bad value raises at insert.
-  `paths`/`roster`/`knobs` are JSON columns (`Funes.JSONColumn`): a list, a list of
+  `paths`/`roster`/`knobs` are JSON columns (`Server.JSONColumn`): a list, a list of
   maps, and a map respectively.
   """
   use Ecto.Schema
@@ -18,9 +18,9 @@ defmodule Funes.Workspace do
     field :name, :string
     field :type, :string
     field :scope, :string
-    field :paths, Funes.JSONColumn
-    field :roster, Funes.JSONColumn
-    field :knobs, Funes.JSONColumn
+    field :paths, Server.JSONColumn
+    field :roster, Server.JSONColumn
+    field :knobs, Server.JSONColumn
     field :created_at, :utc_datetime
   end
 
