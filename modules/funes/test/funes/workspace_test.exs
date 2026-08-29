@@ -1,11 +1,11 @@
-defmodule Funes.WorldTest do
-  # `Funes.World` schema + changesets (worlds/orbis Slice 1). The DB is the guard
+defmodule Funes.WorkspaceTest do
+  # `Funes.Workspace` schema + changesets (workspaces/orbis Slice 1). The DB is the guard
   # (§10): the closed sets on `type`/`scope` raise at insert, never re-checked here.
   # JSON columns round-trip through SQLite, so assertions read back through the DB.
   use ExUnit.Case, async: false
 
   alias Funes.Repo
-  alias Funes.World
+  alias Funes.Workspace
 
   setup do
     Funes.TestDB.clean!()
@@ -13,8 +13,8 @@ defmodule Funes.WorldTest do
   end
 
   describe "register_changeset/1" do
-    test "a valid world inserts and its JSON columns round-trip through SQLite" do
-      {:ok, world} =
+    test "a valid workspace inserts and its JSON columns round-trip through SQLite" do
+      {:ok, workspace} =
         %{
           name: "Tlön",
           type: "code",
@@ -23,10 +23,10 @@ defmodule Funes.WorldTest do
           roster: [%{"archetype" => "surveyor", "name" => "tertius"}],
           knobs: %{"accent" => "cyan"}
         }
-        |> World.register_changeset()
+        |> Workspace.register_changeset()
         |> Repo.insert()
 
-      reloaded = Repo.get!(World, world.id)
+      reloaded = Repo.get!(Workspace, workspace.id)
       assert reloaded.name == "Tlön"
       assert reloaded.type == "code"
       assert reloaded.scope == "machine"
@@ -37,10 +37,10 @@ defmodule Funes.WorldTest do
     end
 
     test "defaults type/scope/paths/roster/knobs at the DB when omitted" do
-      {:ok, world} =
-        %{name: "Bare"} |> World.register_changeset() |> Repo.insert()
+      {:ok, workspace} =
+        %{name: "Bare"} |> Workspace.register_changeset() |> Repo.insert()
 
-      reloaded = Repo.get!(World, world.id)
+      reloaded = Repo.get!(Workspace, workspace.id)
       assert reloaded.type == "code"
       assert reloaded.scope == "machine"
       assert reloaded.paths == []
@@ -49,11 +49,11 @@ defmodule Funes.WorldTest do
     end
 
     test "name is required" do
-      refute World.register_changeset(%{type: "code"}).valid?
+      refute Workspace.register_changeset(%{type: "code"}).valid?
     end
 
     test "an invalid type raises at the DB (the CHECK is the guard, not the changeset)" do
-      cs = World.register_changeset(%{name: "Bogus", type: "planet"})
+      cs = Workspace.register_changeset(%{name: "Bogus", type: "planet"})
       assert cs.valid?
       assert_raise Ecto.ConstraintError, fn -> Repo.insert(cs) end
     end
@@ -61,14 +61,14 @@ defmodule Funes.WorldTest do
 
   describe "edit_changeset/2" do
     setup do
-      {:ok, world} =
-        %{name: "Tlön", paths: ["a"]} |> World.register_changeset() |> Repo.insert()
+      {:ok, workspace} =
+        %{name: "Tlön", paths: ["a"]} |> Workspace.register_changeset() |> Repo.insert()
 
-      %{world: world}
+      %{workspace: workspace}
     end
 
-    test "casts mutable fields but not name/created_at", %{world: world} do
-      cs = World.edit_changeset(world, %{name: "Renamed", paths: ["b"], knobs: %{"k" => 1}})
+    test "casts mutable fields but not name/created_at", %{workspace: workspace} do
+      cs = Workspace.edit_changeset(workspace, %{name: "Renamed", paths: ["b"], knobs: %{"k" => 1}})
 
       refute Ecto.Changeset.get_change(cs, :name)
       refute Ecto.Changeset.get_change(cs, :created_at)

@@ -34,7 +34,7 @@ defmodule Funes.Channel do
   `scope` defaults to `"project"`; the Tlön machine-coworker path opens with `"machine"`.)
   def open_thread(attrs) do
     attrs
-    |> Map.put_new_lazy(:world_id, &Funes.Bootstrap.default_world_id/0)
+    |> Map.put_new_lazy(:workspace_id, &Funes.Bootstrap.default_workspace_id/0)
     |> Thread.open_changeset()
     |> Repo.insert()
     |> Funes.Bus.announce(:thread_opened)

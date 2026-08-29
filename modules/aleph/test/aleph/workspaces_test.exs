@@ -1,27 +1,27 @@
-defmodule Aleph.WorldsDownTest do
+defmodule Aleph.WorkspacesDownTest do
   @moduledoc """
   The funes-down guard (Task B1), isolated from the DB suite below: aleph's test env
-  keeps funes' Repo DOWN (config/test.exs `start_repo: false`), so `Funes.Worlds.all/0`
-  raises here. `Aleph.Worlds` must swallow that at init and serve `[]` — proving a funes
+  keeps funes' Repo DOWN (config/test.exs `start_repo: false`), so `Funes.Workspaces.all/0`
+  raises here. `Aleph.Workspaces` must swallow that at init and serve `[]` — proving a funes
   hiccup can never crash aleph boot. No Repo is started, so nothing to tear down.
   """
   use ExUnit.Case, async: false
 
   test "funes down at init is swallowed → [] (aleph boot never crashes)" do
-    name = :"worlds_down_#{System.unique_integer([:positive])}"
-    {:ok, pid} = Aleph.Worlds.start_link(name: name)
+    name = :"workspaces_down_#{System.unique_integer([:positive])}"
+    {:ok, pid} = Aleph.Workspaces.start_link(name: name)
     on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
 
-    assert Aleph.Worlds.all(pid) == []
+    assert Aleph.Workspaces.all(pid) == []
   end
 end
 
-defmodule Aleph.WorldsTest do
+defmodule Aleph.WorkspacesTest do
   @moduledoc """
-  The `Aleph.Worlds` cache (worlds/orbis Slice 1, Task B1): an event-driven read of
-  funes' `world` table, so the per-render hot paths (`Space.all/0`, the survey) hit a
+  The `Aleph.Workspaces` cache (workspaces/orbis Slice 1, Task B1): an event-driven read of
+  funes' `workspace` table, so the per-render hot paths (`Space.all/0`, the survey) hit a
   cached list instead of the DB every frame. funes runs in-process in aleph, so we drive
-  the real `Funes.Worlds`/`Funes.Bus` — but aleph's test env keeps funes' Repo DOWN
+  the real `Funes.Workspaces`/`Funes.Bus` — but aleph's test env keeps funes' Repo DOWN
   (config/test.exs `start_repo: false`), so this suite boots the Repo itself, mirroring
   funes' own test_helper. It is the only aleph suite that touches the DB → `async: false`.
   """
@@ -29,11 +29,11 @@ defmodule Aleph.WorldsTest do
 
   alias Ecto.Adapters.SQLite3
   alias Funes.Repo
-  alias Funes.World
-  alias Funes.Worlds
+  alias Funes.Workspace
+  alias Funes.Workspaces
 
   setup_all do
-    db = Path.join(System.tmp_dir!(), "aleph_worlds_test_#{System.unique_integer([:positive])}.db")
+    db = Path.join(System.tmp_dir!(), "aleph_workspaces_test_#{System.unique_integer([:positive])}.db")
     Application.put_env(:funes, Repo, Keyword.merge(Application.get_env(:funes, Repo, []), database: db, pool_size: 1))
 
     config = Repo.config()
@@ -51,22 +51,22 @@ defmodule Aleph.WorldsTest do
   end
 
   setup do
-    # A clean world table per test — this is the only suite writing rows.
-    Repo.delete_all(World)
+    # A clean workspace table per test — this is the only suite writing rows.
+    Repo.delete_all(Workspace)
     :ok
   end
 
   # An isolated cache instance (the app already supervises one under the module name).
-  defp start_worlds do
-    name = :"worlds_#{System.unique_integer([:positive])}"
-    {:ok, pid} = Aleph.Worlds.start_link(name: name)
+  defp start_workspaces do
+    name = :"workspaces_#{System.unique_integer([:positive])}"
+    {:ok, pid} = Aleph.Workspaces.start_link(name: name)
     on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
     pid
   end
 
-  test "all/0 returns the worlds present at boot, aleph-shaped" do
+  test "all/0 returns the workspaces present at boot, aleph-shaped" do
     {:ok, registered} =
-      Worlds.register(%{
+      Workspaces.register(%{
         name: "Tlön",
         type: "code",
         scope: "machine",
@@ -74,11 +74,11 @@ defmodule Aleph.WorldsTest do
         roster: [%{"archetype" => "surveyor", "name" => "tertius"}]
       })
 
-    pid = start_worlds()
+    pid = start_workspaces()
 
-    assert [world] = Aleph.Worlds.all(pid)
+    assert [workspace] = Aleph.Workspaces.all(pid)
 
-    assert world == %{
+    assert workspace == %{
              id: registered.id,
              name: "Tlön",
              type: "code",
@@ -88,47 +88,47 @@ defmodule Aleph.WorldsTest do
            }
   end
 
-  test "cached worlds carry the funes id" do
-    {:ok, w} = Worlds.register(%{name: "Test", type: "code"})
+  test "cached workspaces carry the funes id" do
+    {:ok, w} = Workspaces.register(%{name: "Test", type: "code"})
 
-    pid = start_worlds()
+    pid = start_workspaces()
 
-    assert [%{id: id, name: "Test"}] = Aleph.Worlds.all(pid)
+    assert [%{id: id, name: "Test"}] = Aleph.Workspaces.all(pid)
     assert id == w.id
   end
 
-  test "a :world_registered Bus event refreshes the cache" do
-    pid = start_worlds()
-    assert Aleph.Worlds.all(pid) == []
+  test "a :workspace_registered Bus event refreshes the cache" do
+    pid = start_workspaces()
+    assert Aleph.Workspaces.all(pid) == []
 
-    # register/1 announces on the worlds topic; the cache is subscribed and reloads.
+    # register/1 announces on the workspaces topic; the cache is subscribed and reloads.
     # FIFO mailbox: the broadcast lands before the following all/0 call, so no sleep.
-    {:ok, _} = Worlds.register(%{name: "Orbis", type: "code"})
+    {:ok, _} = Workspaces.register(%{name: "Orbis", type: "code"})
 
-    assert [%{name: "Orbis"}] = Aleph.Worlds.all(pid)
+    assert [%{name: "Orbis"}] = Aleph.Workspaces.all(pid)
   end
 
   test "all/0 serves the cache, not a live DB read: a direct insert stays invisible until its event lands" do
-    pid = start_worlds()
-    assert Aleph.Worlds.all(pid) == []
+    pid = start_workspaces()
+    assert Aleph.Workspaces.all(pid) == []
 
-    # Insert straight through the Repo, BYPASSING Worlds.register/1 so NO :world_registered
+    # Insert straight through the Repo, BYPASSING Workspaces.register/1 so NO :workspace_registered
     # is announced. A naive per-call live read would see this row; a genuine cache does not.
-    {:ok, ghost} = Repo.insert(World.register_changeset(%{name: "Ghost", type: "code"}))
+    {:ok, ghost} = Repo.insert(Workspace.register_changeset(%{name: "Ghost", type: "code"}))
 
     # Still stale — the row is in the DB but the cache never re-read it on the call.
     # This assertion is what distinguishes a cache from a live read: a live read fails here.
-    assert Aleph.Worlds.all(pid) == []
+    assert Aleph.Workspaces.all(pid) == []
 
-    # Deliver the event the real write pipe (Worlds.register/1) would have broadcast. FIFO
+    # Deliver the event the real write pipe (Workspaces.register/1) would have broadcast. FIFO
     # mailbox: this handle_info runs before the following all/0 call, so no sleep is needed.
     # The cache refreshes ONLY now → the EVENT, not the call, drives the reload.
-    send(pid, {:world_registered, ghost})
-    assert [%{name: "Ghost"}] = Aleph.Worlds.all(pid)
+    send(pid, {:workspace_registered, ghost})
+    assert [%{name: "Ghost"}] = Aleph.Workspaces.all(pid)
   end
 
-  test "no worlds → []" do
-    pid = start_worlds()
-    assert Aleph.Worlds.all(pid) == []
+  test "no workspaces → []" do
+    pid = start_workspaces()
+    assert Aleph.Workspaces.all(pid) == []
   end
 end

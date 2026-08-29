@@ -1,6 +1,6 @@
 defmodule Aleph.CockpitRosterTest do
   @moduledoc """
-  C2.3: `ensure_world_roster/2` — the ONE roster-driven spawner replacing the old hardcoded
+  C2.3: `ensure_workspace_roster/2` — the ONE roster-driven spawner replacing the old hardcoded
   `ensure_machine_coworker`/`ensure_claude_coworker`/`ensure_third_coworker` trio. Exercises the
   REAL dispatch (harness-by-archetype, handle/window derivation) through two injected seams —
   `:tlon_cmd` (the tmux runner; same fake-runner pattern the C2.2 describe block in
@@ -9,7 +9,7 @@ defmodule Aleph.CockpitRosterTest do
 
   The tail dispatch's DEFAULT thread id (`machine_thread_id/0`) still reads the real funes Repo
   (aleph's `config/test.exs` keeps it down), so this suite boots its own temp DB + one open
-  machine thread, mirroring `Aleph.WorldsTest` — and for the same reason, is the one aleph suite
+  machine thread, mirroring `Aleph.WorkspacesTest` — and for the same reason, is the one aleph suite
   (besides that one) that isn't `async: true`.
   """
   use ExUnit.Case, async: false
@@ -21,10 +21,10 @@ defmodule Aleph.CockpitRosterTest do
   alias Funes.Channel
   alias Funes.Repo
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
+  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorlds.put()
+    Aleph.TestWorkspaces.put()
   end
 
   setup_all do
@@ -82,19 +82,19 @@ defmodule Aleph.CockpitRosterTest do
   end
 
   test "the seed cast's builder tail entry spawns a claude window: handle hronir-machine, window hronir" do
-    assert %{} = Cockpit.ensure_world_roster(%{active_key: 0})
+    assert %{} = Cockpit.ensure_workspace_roster(%{active_key: 0})
 
     assert_receive {:join, _tid, "hronir-machine", opts}
     assert opts[:mandate] == "machine"
 
-    assert_receive {:tmux, ["-L", "aleph-world-0", "new-window", "-d", "-t", "w0", "-n", "hronir", script]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-0", "new-window", "-d", "-t", "w0", "-n", "hronir", script]}
     assert script =~ "modules/manos/claude-code/launch.sh"
     refute script =~ "PI_CODING_AGENT_DIR"
   end
 
   test "the center (already up) is not re-spawned — no new-session call" do
-    Cockpit.ensure_world_roster(%{active_key: 0})
-    refute_received {:tmux, ["-L", "aleph-world-0", "new-session" | _]}
+    Cockpit.ensure_workspace_roster(%{active_key: 0})
+    refute_received {:tmux, ["-L", "aleph-workspace-0", "new-session" | _]}
   end
 
   test "a :pi tail entry spawns a windowed pi (bare pi_command), not the claude launcher" do
@@ -103,7 +103,7 @@ defmodule Aleph.CockpitRosterTest do
     System.put_env("ALEPH_ENV", "work")
     on_exit(fn -> System.delete_env("ALEPH_ENV") end)
 
-    worlds = [
+    workspaces = [
       %{
         id: 99,
         name: "Freedonia",
@@ -114,12 +114,12 @@ defmodule Aleph.CockpitRosterTest do
       }
     ]
 
-    Cockpit.ensure_world_roster(%{active_key: 99}, Space.all(worlds))
+    Cockpit.ensure_workspace_roster(%{active_key: 99}, Space.all(workspaces))
 
     assert_receive {:join, _tid, "borges-machine", opts}
     assert opts[:mandate] == "machine"
 
-    assert_receive {:tmux, ["-L", "aleph-world-99", "new-window", "-d", "-t", "w99", "-n", "borges", script]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "new-window", "-d", "-t", "w99", "-n", "borges", script]}
     assert script =~ "PI_CODING_AGENT_DIR"
     refute script =~ "modules/manos/claude-code/launch.sh"
   end

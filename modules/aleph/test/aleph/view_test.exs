@@ -11,10 +11,10 @@ defmodule Aleph.ViewTest do
   alias Aleph.Tlon.Focus
   alias Aleph.View
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
+  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorlds.put()
+    Aleph.TestWorkspaces.put()
   end
 
   # A minimal reads map: compose only needs the keys to exist (it lays out boxes; panel content is
@@ -310,7 +310,7 @@ defmodule Aleph.ViewTest do
     end
 
     test "right_pane_view: 1 shows Stack pinned + Crew (Stack never cycles away)" do
-      # The World space's right column is [Stack, Memory, Crew, Activity, Leaves] (Aleph.Space).
+      # The Workspace space's right column is [Stack, Memory, Crew, Activity, Leaves] (Aleph.Space).
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 120, 40)
 
@@ -449,7 +449,7 @@ defmodule Aleph.ViewTest do
     end
   end
 
-  # C3.1: the tab strip is LEADERS only — a world's roster windows (+ the uqbar console furniture);
+  # C3.1: the tab strip is LEADERS only — a workspace's roster windows (+ the uqbar console furniture);
   # `t<id>` leaf windows move to the Leaves panel, not the strip.
   describe "WindowBar leaders only" do
     defp tab(name), do: %{name: name, active?: false, index: "1"}
@@ -502,7 +502,7 @@ defmodule Aleph.ViewTest do
       end)
     end
 
-    test "world sidebar boxes carry digit-first titles derived from layout order" do
+    test "workspace sidebar boxes carry digit-first titles derived from layout order" do
       placements = View.compose(reads(%{}), 120, 40)
 
       assert %{digit: 1} = border_of(placements, "WORKSPACES")
@@ -536,17 +536,17 @@ defmodule Aleph.ViewTest do
           _ -> nil
         end)
 
-    test "world + nav: mode :nav, world? true, and the focused pane's hints (carousel appends [/])" do
+    test "workspace + nav: mode :nav, workspace? true, and the focused pane's hints (carousel appends [/])" do
       focus = %Focus{in_terminal?: false, column: :right, pane: 1}
       data = status_of(View.compose(reads(%{focus: focus}), 120, 40))
 
       assert data.mode == :nav
-      assert data.world? == true
+      assert data.workspace? == true
       # right pane 1 is the carousel slot (MEMORY by default — no verbs of its own) → just [/]
       assert {"[/]", "view"} in data.pane_hints
     end
 
-    test "world + terminal: mode :term, no pane hints" do
+    test "workspace + terminal: mode :term, no pane hints" do
       data = status_of(View.compose(reads(%{focus: Focus.new()}), 120, 40))
       assert data.mode == :term
       assert data.pane_hints == []
@@ -555,7 +555,7 @@ defmodule Aleph.ViewTest do
     test "orbis: mode nil (the shared table)" do
       data = status_of(View.compose(reads(%{active_key: :orbis, focus: nil}), 120, 40))
       assert data.mode == nil
-      assert data.world? == false
+      assert data.workspace? == false
     end
 
     test "a focused Stack pane's own verbs ride through" do

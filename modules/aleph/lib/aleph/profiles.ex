@@ -218,7 +218,7 @@ defmodule Aleph.Profiles do
       ],
       # Reads (prompt-by-default otherwise): the repo, plus /nix/store + ~/.nix-profile so pi reading
       # its OWN install/docs/extensions — and any flake-managed binary's files — never triggers a
-      # useless prompt (the store is immutable + world-readable). Config/cache dirs round it out.
+      # useless prompt (the store is immutable + workspace-readable). Config/cache dirs round it out.
       "allowRead" => [
         @repo,
         "/nix/store",
@@ -363,7 +363,7 @@ defmodule Aleph.Profiles do
   When the operator asks you to kick work off, STAFF it, never spawn it: call `staff_leaf`
   (title, lead, brief) and the board stands the worker up as a proper funes citizen — its own
   window, bound to its thread, visible on the board, leaf-cap accounted. Pick the lead from the
-  world roster (build work → the builder handle). NEVER launch a harness yourself — no `claude`
+  workspace roster (build work → the builder handle). NEVER launch a harness yourself — no `claude`
   or `pi` via interactive_shell or bash: a bare spawn is invisible to the board, posts progress
   to no thread, and dies with your session (or the shell's quiet-timeout).
   """
@@ -417,14 +417,14 @@ defmodule Aleph.Profiles do
   distrust and cite.
   """
 
-  # The assistant persona → `system_prompt.md`. A general life-assistant scoped to a non-code world.
+  # The assistant persona → `system_prompt.md`. A general life-assistant scoped to a non-code workspace.
   @assistant_role """
-  You are {{handle}}, a capable general life-ASSISTANT for a non-code world (journal, notes,
-  finances, and the like). Your substrate is the world's git-tracked files, scoped to its paths. Help
+  You are {{handle}}, a capable general life-ASSISTANT for a non-code workspace (journal, notes,
+  finances, and the like). Your substrate is the workspace's git-tracked files, scoped to its paths. Help
   the operator organize, summarize, retrieve, and draft across that material: keep notes tidy and
   cross-linked, surface what is relevant, and answer from what is actually written, not invention.
   Make small, reviewable edits and keep the history clean. Be warm but terse, and never touch paths
-  outside the world you serve.
+  outside the workspace you serve.
   """
 
   # The coworker-driver ring the SETTINGS panel cycles (leader `m`) — ollama-only, no anthropic-via-pi
@@ -451,8 +451,8 @@ defmodule Aleph.Profiles do
   #   * reviewer  — read-only code review; the write/edit deny-floor is STRUCTURAL (@reviewer_permissions).
   #   * builder   — TDD RED→GREEN→REFACTOR + verification-before-completion; can write.
   #   * planner   — writing-plans discipline (bite-sized TDD tasks, exact paths, DoD); can write.
-  #   * researcher — deep multi-source fan-out + adversarial verification; sandbox scoped per world (tunable).
-  #   * assistant — general life-assistant over a non-code world's git-tracked paths (sandbox tunable).
+  #   * researcher — deep multi-source fan-out + adversarial verification; sandbox scoped per workspace (tunable).
+  #   * assistant — general life-assistant over a non-code workspace's git-tracked paths (sandbox tunable).
   @archetypes %{
     surveyor: %{
       model: @glm,
@@ -486,7 +486,7 @@ defmodule Aleph.Profiles do
       system_prompt: @planner_role,
       add_extensions: [@footer_extension]
     },
-    # researcher/assistant: @tlon_sandbox is the STARTING point — Slice 1 scopes it to the world's
+    # researcher/assistant: @tlon_sandbox is the STARTING point — Slice 1 scopes it to the workspace's
     # own paths (journal/notes vs the ficciones repo). Tunable, not final.
     researcher: %{
       model: @sonnet,
@@ -507,13 +507,13 @@ defmodule Aleph.Profiles do
   }
 
   # The seed roster — the name-keyed coworker instances aleph materialises today, expressed as
-  # `{archetype, name, model?}` roster ENTRIES (Slice 1's `world.roster[]` stores this exact shape).
+  # `{archetype, name, model?}` roster ENTRIES (Slice 1's `workspace.roster[]` stores this exact shape).
   # `fetch/1`/`all/0`/`names/0` resolve these through `instantiate/1`, so the archetype registry is the
   # ONE content source — no more full `%Profile{}` structs duplicating the templates. Order is
   # significant (settings-modal rows, `names/0`): tertius first, then reviewer.
   #
   #   * tertius — the Tlön CENTER (Orbis Tertius meta agent `tertius-machine`; its tmux socket is
-  #     id-derived per World now — `aleph-world-<id>`, see `Aleph.Cockpit.world_socket/1` — not
+  #     id-derived per Workspace now — `aleph-workspace-<id>`, see `Aleph.Cockpit.workspace_socket/1` — not
   #     name-derived off this profile).
   #     NO model override — it inherits the surveyor archetype's @glm default, so its materialisation
   #     stays BYTE-IDENTICAL to the pre-archetype profile (it is the only live Slice-0 spawn;
@@ -600,7 +600,7 @@ defmodule Aleph.Profiles do
   end
 
   @doc """
-  Normalize a `world.roster[]` entry to `instantiate/1`'s input shape `%{archetype: atom, name:
+  Normalize a `workspace.roster[]` entry to `instantiate/1`'s input shape `%{archetype: atom, name:
   string}`. Read tolerantly: funes JSON (`%{"archetype" => "builder", "name" => "hronir"}`) or a
   test's atom-keyed map. An archetype STRING (the wire form) is resolved to the atom the registry
   is keyed by.

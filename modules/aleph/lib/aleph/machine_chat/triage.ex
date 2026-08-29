@@ -33,7 +33,7 @@ defmodule Aleph.MachineChat.Triage do
   end
 
   @doc """
-  The roster WORKER handle triage staffs for `text`, or nil (no intent matched, or the world's
+  The roster WORKER handle triage staffs for `text`, or nil (no intent matched, or the workspace's
   roster has no worker of that archetype — the caller's default decides). Meta entries never
   resolve (tertius does the triaging; it does not take the leaf).
   """

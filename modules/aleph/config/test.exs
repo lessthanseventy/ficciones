@@ -8,11 +8,11 @@ config :aleph, config_path: "/nonexistent/aleph-test-config.json"
 # fallbacks) — keep that noise out of the operator's real ~/.cache/aleph/crash.log.
 config :aleph, crash_log_path: Path.join(System.tmp_dir!(), "aleph-test-crash.log")
 
-# Don't run the app-global Aleph.Worlds cache under test. It subscribes to the funes worlds Bus at
-# boot, so worlds registered by the async DB tests (worlds_test.exs) would leak into its cache and
-# pollute Space.all/0 for the pure-render tests. Unstarted, fetch_worlds/0 degrades to [] → the
-# deterministic hardcoded [:orbis, :tlon] fallback. worlds_test.exs starts its own local pids.
-config :aleph, start_worlds: false
+# Don't run the app-global Aleph.Workspaces cache under test. It subscribes to the funes workspaces Bus at
+# boot, so workspaces registered by the async DB tests (workspaces_test.exs) would leak into its cache and
+# pollute Space.all/0 for the pure-render tests. Unstarted, fetch_workspaces/0 degrades to [] → the
+# deterministic hardcoded [:orbis, :tlon] fallback. workspaces_test.exs starts its own local pids.
+config :aleph, start_workspaces: false
 
 # No Repo → nothing for boot integrity to check; keep the one-shot out of the tree.
 config :funes, bootstrap: false

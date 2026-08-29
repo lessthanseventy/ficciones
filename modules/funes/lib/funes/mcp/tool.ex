@@ -949,14 +949,14 @@ defmodule Funes.MCP.Tool.RegisterWorld do
   Register a WORLD — a first-class composition (worlds/orbis Slice 1): a git-tracked
   scope (`paths`), a `roster` of archetype instances, and free-form `knobs` that aleph
   reads to drive its picker/survey/spawn. Unlike the thread-scoped tools this is
-  machine-GLOBAL — it takes no identity, it writes the shared `world` table via
-  `Funes.Worlds`. `name` is unique; a duplicate is a graceful error, not a crash.
+  machine-GLOBAL — it takes no identity, it writes the shared `workspace` table via
+  `Funes.Workspaces`. `name` is unique; a duplicate is a graceful error, not a crash.
   """
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
   alias Funes.MCP
-  alias Funes.Worlds
+  alias Funes.Workspaces
 
   schema do
     field :name, :string, required: true, description: "The world's unique name"
@@ -969,7 +969,7 @@ defmodule Funes.MCP.Tool.RegisterWorld do
 
   @impl true
   def execute(params, frame) do
-    case Worlds.register(params) do
+    case Workspaces.register(params) do
       {:ok, world} ->
         {:reply, Response.json(Response.tool(), %{"world_id" => world.id, "name" => world.name}), frame}
 
@@ -988,14 +988,14 @@ defmodule Funes.MCP.Tool.ListWorlds do
 
   alias Anubis.Server.Response
   alias Funes.MCP
-  alias Funes.Worlds
+  alias Funes.Workspaces
 
   schema do
   end
 
   @impl true
   def execute(_params, frame) do
-    worlds = Enum.map(Worlds.all(), &MCP.Brief.world/1)
+    worlds = Enum.map(Workspaces.all(), &MCP.Brief.workspace/1)
     {:reply, Response.json(Response.tool(), worlds), frame}
   end
 end
@@ -1010,7 +1010,7 @@ defmodule Funes.MCP.Tool.EditWorld do
 
   alias Anubis.Server.Response
   alias Funes.MCP
-  alias Funes.Worlds
+  alias Funes.Workspaces
 
   schema do
     field :name, :string, required: true, description: "The world to edit (its unique name)"
@@ -1023,14 +1023,14 @@ defmodule Funes.MCP.Tool.EditWorld do
 
   @impl true
   def execute(params, frame) do
-    case Worlds.by_name(params[:name]) do
+    case Workspaces.by_name(params[:name]) do
       nil ->
         {:reply, Response.error(Response.tool(), "no such world: #{params[:name]}"), frame}
 
       world ->
-        case Worlds.edit(world, params) do
+        case Workspaces.edit(world, params) do
           {:ok, edited} ->
-            {:reply, Response.json(Response.tool(), MCP.Brief.world(edited)), frame}
+            {:reply, Response.json(Response.tool(), MCP.Brief.workspace(edited)), frame}
 
           {:error, changeset} ->
             {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
@@ -1047,7 +1047,7 @@ defmodule Funes.MCP.Tool.RemoveWorld do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Funes.Worlds
+  alias Funes.Workspaces
 
   schema do
     field :name, :string, required: true, description: "The world to remove (its unique name)"
@@ -1055,16 +1055,16 @@ defmodule Funes.MCP.Tool.RemoveWorld do
 
   @impl true
   def execute(params, frame) do
-    case Worlds.by_name(params[:name]) do
+    case Workspaces.by_name(params[:name]) do
       nil ->
         {:reply, Response.error(Response.tool(), "no such world: #{params[:name]}"), frame}
 
       world ->
-        case Worlds.remove(world) do
+        case Workspaces.remove(world) do
           {:ok, removed} ->
             {:reply, Response.json(Response.tool(), %{"removed" => removed.name}), frame}
 
-          {:error, :last_world} ->
+          {:error, :last_workspace} ->
             {:reply,
              Response.error(Response.tool(), "refused: #{world.name} is the last world — threads must have a home"),
              frame}

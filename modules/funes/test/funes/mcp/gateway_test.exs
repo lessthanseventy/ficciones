@@ -33,7 +33,7 @@ defmodule Funes.MCP.GatewayTest do
     assert status == 200
     assert %{"token" => tok} = body
     assert is_binary(tok) and String.contains?(tok, ".")
-    # The token this node just minted verifies here — same world secret end to end.
+    # The token this node just minted verifies here — same workspace secret end to end.
     t_id = t.id
     a_id = a.id
     assert {:ok, %{thread_id: ^t_id, agent_id: ^a_id}} = MCP.Tokens.resolve(tok)

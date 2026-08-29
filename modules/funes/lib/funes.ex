@@ -22,8 +22,8 @@ defmodule Funes do
       Staff,
       Board,
       Dossier,
-      # Compositions: the worlds context aleph reads to drive its picker/survey/spawn.
-      Worlds,
+      # Compositions: the workspaces context aleph reads to drive its picker/survey/spawn.
+      Workspaces,
       Presence,
       # Explicit thinking/idle presence (aleph renders it; harnesses declare via MCP).
       Presence.Thinking,

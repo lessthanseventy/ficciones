@@ -17,7 +17,7 @@ defmodule Funes.Bus do
     * `funes:sessions`      — session start/end (feeds the IN FLIGHT roster)
     * `funes:presence`      — explicit thinking/idle declarations (`Funes.Presence.Thinking`)
     * `funes:habits`        — habit proposed/approved/rejected (the operator's review queue)
-    * `funes:worlds`        — world registered/edited/removed (aleph's picker/survey follow this)
+    * `funes:workspaces`        — workspace registered/edited/removed (aleph's picker/survey follow this)
     * `funes:activity`      — every durable write, cross-thread (the machine-wide activity feed)
 
   ## Events (the envelope every subscriber matches)
@@ -25,7 +25,7 @@ defmodule Funes.Bus do
     `{:issue_raised, issue}` · `{:issue_resolved, issue}` · `{:todo_added, todo}`
     `{:todo_completed, todo}` · `{:question_raised, q}` · `{:question_resolved, q}`
     `{:habit_proposed, h}` · `{:habit_approved, h}` · `{:habit_rejected, h}`
-    `{:world_registered, w}` · `{:world_edited, w}` · `{:world_removed, w}`
+    `{:workspace_registered, w}` · `{:workspace_edited, w}` · `{:workspace_removed, w}`
     `{:thread_opened, thread}`
     `{:thread_closed, thread}` · `{:thread_deleted, thread}` · `{:thread_assigned, thread}`
     `{:workline_advanced, thread}` · `{:workline_gated, thread}` · `{:session_started, s}`
@@ -40,7 +40,7 @@ defmodule Funes.Bus do
   def sessions_topic, do: "funes:sessions"
   def presence_topic, do: "funes:presence"
   def habits_topic, do: "funes:habits"
-  def worlds_topic, do: "funes:worlds"
+  def workspaces_topic, do: "funes:workspaces"
   def activity_topic, do: "funes:activity"
 
   def subscribe_messages, do: sub(messages_topic())
@@ -49,7 +49,7 @@ defmodule Funes.Bus do
   def subscribe_sessions, do: sub(sessions_topic())
   def subscribe_presence, do: sub(presence_topic())
   def subscribe_habits, do: sub(habits_topic())
-  def subscribe_worlds, do: sub(worlds_topic())
+  def subscribe_workspaces, do: sub(workspaces_topic())
   def subscribe_activity, do: sub(activity_topic())
 
   # A consumer that follows the *focused* thread drops the old topic on a switch.
@@ -87,10 +87,11 @@ defmodule Funes.Bus do
     publish([habits_topic() | thread_topics(habit.source_thread_id)], event)
   end
 
-  # Worlds are machine-global (no thread_id of their own): they ride their own topic
+  # Workspaces are machine-global (no thread_id of their own): they ride their own topic
   # plus the cross-thread activity feed.
-  def broadcast({tag, %Funes.World{}} = event) when tag in [:world_registered, :world_edited, :world_removed] do
-    publish([worlds_topic(), activity_topic()], event)
+  def broadcast({tag, %Funes.Workspace{}} = event)
+      when tag in [:workspace_registered, :workspace_edited, :workspace_removed] do
+    publish([workspaces_topic(), activity_topic()], event)
   end
 
   @thread_tags [:thread_opened, :thread_closed, :thread_deleted, :thread_assigned, :workline_advanced, :workline_gated]

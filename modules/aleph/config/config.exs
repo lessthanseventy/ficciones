@@ -27,14 +27,14 @@ config :funes, :engine_presence, Funes.Presence.Engine.Manual
 config :funes, ecto_repos: [Funes.Repo]
 
 # A DISTINCT port from the always-up service's 4040, so the hub and the headless service
-# coexist on one box (topology A: they are two funes worlds on two DBs). Both aleph's Bandit
+# coexist on one box (topology A: they are two funes workspaces on two DBs). Both aleph's Bandit
 # and its in-process `Funes.MCP.Spawn` env read `:mcp_port`, so a spawned harness is pointed
 # at exactly the endpoint aleph serves. Override with FUNES_MCP_PORT in aleph's runtime if 4041
 # is taken.
 config :funes, mcp_port: 4041
 config :funes, start_mcp: true
 
-# aleph is the dogfood HUB (tlön topology A): it runs the full funes world in one interactive node,
+# aleph is the dogfood HUB (tlön topology A): it runs the full funes workspace in one interactive node,
 # so the switchboard's wake loop and the MCP channel start here, and sessions are embedded ghostty
 # terminals aleph owns (not tmux). The presence gate the wake needs (warmth AND engine-credit)
 # exists; the live poke over those terminals arrives with Aleph.Arbiter.

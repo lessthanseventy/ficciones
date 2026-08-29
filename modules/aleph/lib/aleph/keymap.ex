@@ -21,8 +21,8 @@ defmodule Aleph.Keymap do
   onto: the focused thread, or the machine thread in Tlön), `leader_pending?` (the prefix is
   armed), `input` (the typing modal), `orbis_focus` (`:survey | :threads` — which cursor Orbis'
   `j/k` drives; `h`/`l` toggle it), `survey_cursor` (the Orbis survey's per-row cursor, clamped to
-  the live world count), and `leaves` (the cached `Aleph.Orbis.rollup/0`, read-only here for its
-  `worlds` list — the same cache the cockpit's `orbis_worlds/1` reads). A `key_event` is the
+  the live workspace count), and `leaves` (the cached `Aleph.Orbis.rollup/0`, read-only here for its
+  `workspaces` list — the same cache the cockpit's `orbis_workspaces/1` reads). A `key_event` is the
   `Raxol.Core.Events.Event` `data` map, e.g. `%{key: :up}` or `%{key: :char, char: "j"}`.
 
   Effects:
@@ -36,26 +36,26 @@ defmodule Aleph.Keymap do
     * `{:cycle_coworker_model, profile}` — advance the active space's coworker driver model one
       step round `Aleph.Profiles.model_ring/0` and persist it (the `m` verb — the SETTINGS knob;
       only in a space with a coworker).
-    * `{:cycle_pane_view, dir}` — cycle the World's right-pane view (Health↔Activity↔Leaves, one
-      panel shown full-height at a time) by `dir` (+1/-1, the `[`/`]` verb, World nav only).
+    * `{:cycle_pane_view, dir}` — cycle the Workspace's right-pane view (Health↔Activity↔Leaves, one
+      panel shown full-height at a time) by `dir` (+1/-1, the `[`/`]` verb, Workspace nav only).
     * `{:switch_space, key}` — Enter on the Orbis survey (`orbis_focus == :survey`) zooms into the
-      cursor row's world id — the same effect a survey-row click emits (D0.2).
+      cursor row's workspace id — the same effect a survey-row click emits (D0.2).
     * `{:toggle_orbis_face}` — `a` (Orbis, bare) flips `orbis_face` survey↔author (D2.1); Esc in
       the author face emits the same effect to step back to the survey.
-    * `{:register_world, template_key, name}` — Enter on the `:new_world` input (the author
-      face's `n` verb) — register a world from a template + the typed name (D2.3).
+    * `{:register_workspace, template_key, name}` — Enter on the `:new_workspace` input (the author
+      face's `n` verb) — register a workspace from a template + the typed name (D2.3).
     * `{:arm_delete, id, name}` — `d` on the author face's cursor row arms a delete confirm (D2.5).
-    * `{:remove_world, id}` — the second `d` while armed on the SAME id confirms the delete.
-    * `{:edit_world, id, attrs}` — the field editor's `h`/`l` rings (type/scope) and the paths/
-      roster sub-list's `a`/`x`/`d` (D2.4 Chunk 2a) — apply one attrs map to a world immediately.
+    * `{:remove_workspace, id}` — the second `d` while armed on the SAME id confirms the delete.
+    * `{:edit_workspace, id, attrs}` — the field editor's `h`/`l` rings (type/scope) and the paths/
+      roster sub-list's `a`/`x`/`d` (D2.4 Chunk 2a) — apply one attrs map to a workspace immediately.
     * `{:coworker_knob, name, knob}` — the roster sub-list's `Tab`-selected knob (`:model` |
       `:yolo`), applied by `Enter`/`Space` to the sub-selected coworker (D2.4 Chunk 2b — absorbs
       the old `,` settings modal into the roster editor; the modal itself is deleted).
     * `:none` — nothing to do.
 
   `state.input` is `nil` normally, or `%{kind: :new_thread, buffer, cursor}` (the `n` verb),
-  `%{kind: :compose, thread_id, buffer, cursor}` (the `c` verb), or `%{kind: :new_world, buffer,
-  cursor, template}` (the author face's `n` verb — `template` is a `WorldTemplates.names/0` atom,
+  `%{kind: :compose, thread_id, buffer, cursor}` (the `c` verb), or `%{kind: :new_workspace, buffer,
+  cursor, template}` (the author face's `n` verb — `template` is a `WorkspaceTemplates.names/0` atom,
   `h`/`l` cycle it) while the operator is typing — a modal that captures EVERY key (so `q` types a
   "q", it does not quit) until Enter submits or Esc cancels. `cursor` is a grapheme offset into
   `buffer` (not always the end — Left/Right/Up/Down/Home/End move it, Ctrl+P/Ctrl+N alias Up/Down
@@ -67,21 +67,21 @@ defmodule Aleph.Keymap do
   Orbis' AUTHOR face (D2, Chunk 1): `orbis_face :: :survey | :author` (default `:survey`) picks
   which center panel `Aleph.View` renders — `a` toggles it on, Esc steps back off. `author_cursor`
   is the author list's own per-row cursor (mirrors `survey_cursor`), clamped against
-  `author_worlds` — the live `Aleph.Worlds.all/0` list, threaded in per keypress (like
+  `author_workspaces` — the live `Aleph.Workspaces.all/0` list, threaded in per keypress (like
   `composer_thread_id`) so this module stays a pure reducer with no funes call of its own.
   `pending_delete` (id | nil) is the two-key delete confirm's arm.
 
   The field editor (D2.4 Chunk 2a): `author_edit :: nil | %{id, field, sub, mode}` — `e` on the
-  list's cursor world opens it at `field: 0` (type), `mode: :field`. `mode` (`:field | :sub`) is
+  list's cursor workspace opens it at `field: 0` (type), `mode: :field`. `mode` (`:field | :sub`) is
   an addition beyond the plan's 3-key shape — the field list and a field's sub-list (paths/roster
   entries) both drive `j`/`k` over a DIFFERENT cursor (`field` vs `sub`) and need a bit to tell
   which is live; everything else matches the plan verbatim. `field` cycles the 4 rows (0 type · 1
   scope · 2 paths · 3 roster) with `j`/`k`, clamped no-wrap. On fields 0/1, `h`/`l` cycle a ring
-  (`@type_ring`/`@scope_ring`) and emit `{:edit_world, id, attrs}` immediately — no draft/commit
+  (`@type_ring`/`@scope_ring`) and emit `{:edit_workspace, id, attrs}` immediately — no draft/commit
   step. On fields 2/3, `Enter` drops into the sub-list (`mode: :sub`, `sub` resets to 0); there
   `j`/`k` move `sub` (clamped to the live paths/roster length), `a` opens an add buffer
   (`state.input` kind `:new_path` or `:new_roster` — the latter also carries an `archetype` ring
-  cycled by `h`/`l`, mirroring `:new_world`'s `template`), `x`/`d` removes the `sub`-selected entry
+  cycled by `h`/`l`, mirroring `:new_workspace`'s `template`), `x`/`d` removes the `sub`-selected entry
   immediately, and `Esc` steps back to `mode: :field`. `Esc` on `mode: :field` clears `author_edit`
   entirely (back to the list). While `author_edit` is set, the list's own `n`/`d`/`a` verbs are
   blocked (`:none`) — editing and list-management stay separate modes, same as `input`/`modal`.
@@ -91,21 +91,21 @@ defmodule Aleph.Keymap do
   `mode: :sub, field: 3` (roster), same "meaningless-but-harmless elsewhere" idiom as
   `orbis_focus`/`right_pane_view`. There `Tab` flips it; `Enter`/`Space` emit
   `{:coworker_knob, name, knob}` for the sub-selected entry (`name` resolved off the LIVE roster,
-  `world_field/2`, same as the `a`/`x`/`d` clauses) — the Settings modal's model-ring-cycle /
+  `workspace_field/2`, same as the `a`/`x`/`d` clauses) — the Settings modal's model-ring-cycle /
   yolo-flip, now reached from here. This absorbs Settings; Chunk 2b deletes the `,` modal.
   """
   alias Aleph.Panel
   alias Aleph.Profiles
   alias Aleph.Space
   alias Aleph.Tlon.Focus
-  alias Aleph.WorldTemplates
+  alias Aleph.WorkspaceTemplates
 
-  # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
+  # `Space.workspace?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
   # not just an alias.
   require Space
 
   # The field editor's rings (D2.4 Chunk 2a) — `h`/`l` cycle these on fields 0/1. Match
-  # `Funes.World`'s DB CHECK closed sets exactly (funes/lib/funes/world.ex).
+  # `Funes.Workspace`'s DB CHECK closed sets exactly (funes/lib/funes/workspace.ex).
   @type_ring ["code", "life", "blank"]
   @scope_ring ["project", "machine"]
 
@@ -120,10 +120,10 @@ defmodule Aleph.Keymap do
           | {:cycle_pane_view, integer()}
           | {:switch_space, atom() | non_neg_integer()}
           | {:toggle_orbis_face}
-          | {:register_world, atom(), String.t()}
+          | {:register_workspace, atom(), String.t()}
           | {:arm_delete, term(), String.t()}
-          | {:remove_world, term()}
-          | {:edit_world, term(), map()}
+          | {:remove_workspace, term()}
+          | {:edit_workspace, term(), map()}
           | {:coworker_knob, String.t(), :model | :yolo}
           | :tlon_enter
           | :tlon_preview
@@ -167,22 +167,22 @@ defmodule Aleph.Keymap do
   def handle(%{key: :enter}, %{input: %{kind: :new_thread, buffer: buffer}} = state),
     do: {%{state | input: nil}, {:create_thread, buffer}}
 
-  # A non-blank name registers a world from the armed template. Blank already fell into the
+  # A non-blank name registers a workspace from the armed template. Blank already fell into the
   # empty-buffer clause above, same cancel-not-create precedent as :new_thread.
-  def handle(%{key: :enter}, %{input: %{kind: :new_world, template: template, buffer: buffer}} = state),
-    do: {%{state | input: nil}, {:register_world, template, buffer}}
+  def handle(%{key: :enter}, %{input: %{kind: :new_workspace, template: template, buffer: buffer}} = state),
+    do: {%{state | input: nil}, {:register_workspace, template, buffer}}
 
-  # A non-blank path appends to the edited world's LIVE paths list (author_worlds, threaded per
+  # A non-blank path appends to the edited workspace's LIVE paths list (author_workspaces, threaded per
   # keypress) and applies immediately. Blank already fell into the empty-buffer clause above.
-  def handle(%{key: :enter}, %{input: %{kind: :new_path, world_id: id, buffer: buffer}} = state),
-    do: {%{state | input: nil}, {:edit_world, id, %{paths: world_field(state, id, :paths) ++ [buffer]}}}
+  def handle(%{key: :enter}, %{input: %{kind: :new_path, workspace_id: id, buffer: buffer}} = state),
+    do: {%{state | input: nil}, {:edit_workspace, id, %{paths: workspace_field(state, id, :paths) ++ [buffer]}}}
 
   # A non-blank name appends a wire-shaped roster entry (`%{"archetype" => .., "name" => ..}`,
-  # matching `WorldTemplates.new_world_attrs/2`'s shape) to the edited world's LIVE roster and
+  # matching `WorkspaceTemplates.new_workspace_attrs/2`'s shape) to the edited workspace's LIVE roster and
   # applies immediately. Blank already fell into the empty-buffer clause above.
-  def handle(%{key: :enter}, %{input: %{kind: :new_roster, world_id: id, archetype: arch, buffer: buffer}} = state) do
+  def handle(%{key: :enter}, %{input: %{kind: :new_roster, workspace_id: id, archetype: arch, buffer: buffer}} = state) do
     entry = %{"archetype" => Atom.to_string(arch), "name" => buffer}
-    {%{state | input: nil}, {:edit_world, id, %{roster: world_field(state, id, :roster) ++ [entry]}}}
+    {%{state | input: nil}, {:edit_workspace, id, %{roster: workspace_field(state, id, :roster) ++ [entry]}}}
   end
 
   # Slash commands are the composer's other door (reshape slice D): /status is the full HEALTH
@@ -243,16 +243,16 @@ defmodule Aleph.Keymap do
   def handle(%{key: :char, char: "w", ctrl: true}, %{input: %{}} = state),
     do: {%{state | input: kill_word_backward(state.input)}, :repaint}
 
-  # `:new_world`'s h/l cycle the armed template (a ring, `WorldTemplates.names/0`) instead of
+  # `:new_workspace`'s h/l cycle the armed template (a ring, `WorkspaceTemplates.names/0`) instead of
   # inserting the letter — must precede the generic printable-insert clause below.
-  def handle(%{key: :char, char: "h"}, %{input: %{kind: :new_world} = input} = state),
+  def handle(%{key: :char, char: "h"}, %{input: %{kind: :new_workspace} = input} = state),
     do: {%{state | input: cycle_template(input, -1)}, :repaint}
 
-  def handle(%{key: :char, char: "l"}, %{input: %{kind: :new_world} = input} = state),
+  def handle(%{key: :char, char: "l"}, %{input: %{kind: :new_workspace} = input} = state),
     do: {%{state | input: cycle_template(input, 1)}, :repaint}
 
   # `:new_roster`'s h/l cycle the armed archetype (a ring, `Profiles.archetypes/0`'s keys) —
-  # same precedence reasoning as `:new_world`'s template ring above.
+  # same precedence reasoning as `:new_workspace`'s template ring above.
   def handle(%{key: :char, char: "h"}, %{input: %{kind: :new_roster} = input} = state),
     do: {%{state | input: cycle_archetype(input, -1)}, :repaint}
 
@@ -280,16 +280,16 @@ defmodule Aleph.Keymap do
     do: {Map.put(state, :lock?, true), :repaint}
 
   # --- Global Alt chords (design 2026-08-23): work from ANY mode — TERM included — and switch
-  # mode implicitly. World-only for movement (there's no pane grid elsewhere); n/c everywhere.
+  # mode implicitly. Workspace-only for movement (there's no pane grid elsewhere); n/c everywhere.
   # Must precede the Tlön routing clause (which would forward them to tmux from TERM). Each clears
   # an armed leader (`clear_leader/1`) — these sit above the leader-consumption clause, so without
   # it Ctrl+Space then an Alt chord would leave the prefix stuck.
   def handle(%{key: :char, char: d, alt: true} = k, %{active_key: key, focus: %Focus{}} = state)
-      when Space.world?(key) and d in ~w(0 1 2 3 4 5 6 7 8 9) and not is_map_key(k, :ctrl),
+      when Space.workspace?(key) and d in ~w(0 1 2 3 4 5 6 7 8 9) and not is_map_key(k, :ctrl),
       do: {state |> clear_leader() |> focus_jump(String.to_integer(d)), :repaint}
 
   def handle(%{key: :char, char: c, alt: true} = k, %{active_key: key, focus: %Focus{}} = state)
-      when Space.world?(key) and c in ~w(h j k l) and not is_map_key(k, :ctrl),
+      when Space.workspace?(key) and c in ~w(h j k l) and not is_map_key(k, :ctrl),
       do: {state |> clear_leader() |> alt_move(c), :repaint}
 
   def handle(%{key: :char, char: "]", alt: true}, state), do: {clear_leader(state), {:cycle_pane_view, 1}}
@@ -309,7 +309,7 @@ defmodule Aleph.Keymap do
   # `Aleph.Tlon.Focus` SM over `tlon_layout` (h/l pane · H/L column · s section · Esc→terminal).
   # `focus` (persistent) and `tlon_layout` (derived per keypress, like center_live?) are supplied by
   # the cockpit only for this space; the guard keeps every other space on the leader path below. ---
-  def handle(key, %{active_key: k, focus: %Focus{}} = state) when Space.world?(k), do: handle_tlon(key, state)
+  def handle(key, %{active_key: k, focus: %Focus{}} = state) when Space.workspace?(k), do: handle_tlon(key, state)
 
   # --- leader pending: Ctrl+Space was pressed; the next key is an aleph command. ---
   # Ctrl+Space again → send a LITERAL Ctrl+Space through (the prefix-twice convention), so an
@@ -349,7 +349,7 @@ defmodule Aleph.Keymap do
   # confirms; literally any other key cancels. Both must precede EVERY other clause (even `q`) so
   # an armed delete can never be confirmed by a stale keypress. ---
   defp command(%{key: :char, char: "d"}, %{active_key: :orbis, pending_delete: id} = state) when not is_nil(id) do
-    {Map.put(state, :pending_delete, nil), {:remove_world, id}}
+    {Map.put(state, :pending_delete, nil), {:remove_workspace, id}}
   end
 
   defp command(_key, %{active_key: :orbis, pending_delete: id} = state) when not is_nil(id) do
@@ -359,10 +359,10 @@ defmodule Aleph.Keymap do
   # --- the field editor (D2.4 Chunk 2a): `author_edit != nil` gates its own key table, ahead of
   # the list's `n`/`d`/`a`/Esc/h/l/j/k so editing and list-management never leak into each other. ---
 
-  # `e` on the list's cursor world opens the editor at field 0. A no-op off the author face, on an
-  # empty list, or while ALREADY editing (never re-arms onto a different cursor world mid-edit).
+  # `e` on the list's cursor workspace opens the editor at field 0. A no-op off the author face, on an
+  # empty list, or while ALREADY editing (never re-arms onto a different cursor workspace mid-edit).
   defp command(%{key: :char, char: "e"}, %{active_key: :orbis} = state) do
-    case {orbis_face(state), author_edit(state), Enum.at(author_worlds(state), author_cursor(state))} do
+    case {orbis_face(state), author_edit(state), Enum.at(author_workspaces(state), author_cursor(state))} do
       {:author, nil, %{id: id}} ->
         {Map.put(state, :author_edit, %{id: id, field: 0, sub: 0, mode: :field, knob: :model}), :repaint}
 
@@ -384,8 +384,8 @@ defmodule Aleph.Keymap do
   defp command(%{key: :up}, %{active_key: :orbis, author_edit: %{mode: :field} = edit} = state),
     do: {put_author_edit(state, %{edit | field: max(edit.field - 1, 0)}), :repaint}
 
-  # Field-list mode: h/l cycle the type (field 0) / scope (field 1) ring against the LIVE world
-  # (author_worlds, threaded per keypress) and emit the edit immediately — no draft/commit step.
+  # Field-list mode: h/l cycle the type (field 0) / scope (field 1) ring against the LIVE workspace
+  # (author_workspaces, threaded per keypress) and emit the edit immediately — no draft/commit step.
   # Fields 2/3 (paths/roster) have no ring — a no-op, matching the plan's "otherwise no-op".
   defp command(%{key: :char, char: "h"}, %{active_key: :orbis, author_edit: %{mode: :field} = edit} = state),
     do: {state, field_ring_edit(state, edit, -1)}
@@ -405,7 +405,7 @@ defmodule Aleph.Keymap do
   defp command(%{key: :enter}, %{active_key: :orbis, author_edit: %{mode: :field}} = state), do: {state, :none}
 
   # Sub-list mode (D2.4 Chunk 2b/2c): j/k move `sub`, clamped to the field's LIVE list length
-  # (paths/roster off author_worlds, threaded per keypress — never stale).
+  # (paths/roster off author_workspaces, threaded per keypress — never stale).
   defp command(%{key: :char, char: "j"}, %{active_key: :orbis, author_edit: %{mode: :sub} = edit} = state),
     do: {put_author_edit(state, %{edit | sub: move_sub(state, edit, 1)}), :repaint}
 
@@ -419,28 +419,29 @@ defmodule Aleph.Keymap do
     do: {put_author_edit(state, %{edit | sub: move_sub(state, edit, -1)}), :repaint}
 
   # Sub-list mode, field 2 (paths): `a` opens a `:new_path` add buffer (state.input, kind-agnostic
-  # reuse of the printable-insert/Enter/Esc machinery, mirrors `:new_world`).
+  # reuse of the printable-insert/Enter/Esc machinery, mirrors `:new_workspace`).
   defp command(%{key: :char, char: "a"}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 2, id: id}} = state),
-    do: {%{state | input: %{kind: :new_path, buffer: "", cursor: 0, world_id: id}}, :repaint}
+    do: {%{state | input: %{kind: :new_path, buffer: "", cursor: 0, workspace_id: id}}, :repaint}
 
   # Sub-list mode, field 2 (paths): x/d removes the sub-selected path immediately — no confirm
-  # (unlike the list's whole-world delete, an add re-creates it; the two-key arm is reserved for
-  # destroying a WORLD).
+  # (unlike the list's whole-workspace delete, an add re-creates it; the two-key arm is reserved for
+  # destroying a WORKSPACE).
   defp command(
          %{key: :char, char: c},
          %{active_key: :orbis, author_edit: %{mode: :sub, field: 2, id: id, sub: sub}} = state
        )
-       when c in ["x", "d"], do: {state, {:edit_world, id, %{paths: List.delete_at(world_field(state, id, :paths), sub)}}}
+       when c in ["x", "d"],
+       do: {state, {:edit_workspace, id, %{paths: List.delete_at(workspace_field(state, id, :paths), sub)}}}
 
   # Sub-list mode, field 3 (roster): `a` opens a `:new_roster` add flow — the same `state.input`
   # kit as `:new_path`, plus an `archetype` ring (Profiles.archetypes/0's keys, cycled by h/l
-  # below) armed at the FIRST archetype, mirroring `:new_world`'s `template`.
+  # below) armed at the FIRST archetype, mirroring `:new_workspace`'s `template`.
   defp command(%{key: :char, char: "a"}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 3, id: id}} = state) do
     input = %{
       kind: :new_roster,
       buffer: "",
       cursor: 0,
-      world_id: id,
+      workspace_id: id,
       archetype: List.first(Map.keys(Profiles.archetypes()))
     }
 
@@ -454,7 +455,7 @@ defmodule Aleph.Keymap do
          %{active_key: :orbis, author_edit: %{mode: :sub, field: 3, id: id, sub: sub}} = state
        )
        when c in ["x", "d"],
-       do: {state, {:edit_world, id, %{roster: List.delete_at(world_field(state, id, :roster), sub)}}}
+       do: {state, {:edit_workspace, id, %{roster: List.delete_at(workspace_field(state, id, :roster), sub)}}}
 
   # Sub-list mode, field 3 (roster) only: `Tab` flips the knob (:model <-> :yolo) Enter/Space
   # applies (D2.4 Chunk 2b, absorbs Settings' field-flip). Guarded to field 3 (paths has no knob)
@@ -463,7 +464,7 @@ defmodule Aleph.Keymap do
     do: {put_author_edit(state, Map.put(edit, :knob, flip_knob(edit_knob(edit)))), :repaint}
 
   # Sub-list mode, field 3 (roster) only: Enter/Space applies the active knob to the sub-selected
-  # coworker (the Settings modal's apply, now here) — `name` off the LIVE roster (world_field/2,
+  # coworker (the Settings modal's apply, now here) — `name` off the LIVE roster (workspace_field/2,
   # same source `a`/`x`/`d` read). A vanished entry (sub past the shrunk list) is a no-op.
   defp command(%{key: :enter}, %{active_key: :orbis, author_edit: %{mode: :sub, field: 3}} = state),
     do: roster_knob_apply(state)
@@ -486,13 +487,13 @@ defmodule Aleph.Keymap do
 
   defp command(%{key: :char, char: "q"}, state), do: {state, :quit}
 
-  # `n` in Orbis' author face opens the create-world flow (a template ring + a name buffer, D2.3)
+  # `n` in Orbis' author face opens the create-workspace flow (a template ring + a name buffer, D2.3)
   # instead of the thread composer; every other space (and Orbis' survey face) keeps `n` == new
   # thread. `orbis_face/1` isn't guard-safe (a plain function, not a `defguard`), so the branch is
   # in the body, not the clause head.
   defp command(%{key: :char, char: "n"}, %{active_key: :orbis} = state) do
     if orbis_face(state) == :author do
-      input = %{kind: :new_world, buffer: "", cursor: 0, template: List.first(WorldTemplates.names())}
+      input = %{kind: :new_workspace, buffer: "", cursor: 0, template: List.first(WorkspaceTemplates.names())}
       {%{state | input: input}, :repaint}
     else
       {%{state | input: %{kind: :new_thread, buffer: "", cursor: 0}}, :repaint}
@@ -515,11 +516,11 @@ defmodule Aleph.Keymap do
     if orbis_face(state) == :author, do: {state, {:toggle_orbis_face}}, else: {state, :none}
   end
 
-  # `d` on the author face's cursor world arms the delete confirm (D2.5) — the FIRST press; the
+  # `d` on the author face's cursor workspace arms the delete confirm (D2.5) — the FIRST press; the
   # armed-state clauses above own the second press and every cancel. A no-op off the author face
   # (nothing to delete from the survey) or on an empty list.
   defp command(%{key: :char, char: "d"}, %{active_key: :orbis} = state) do
-    case {orbis_face(state), Enum.at(author_worlds(state), author_cursor(state))} do
+    case {orbis_face(state), Enum.at(author_workspaces(state), author_cursor(state))} do
       {:author, %{id: id, name: name}} -> {state, {:arm_delete, id, name}}
       _ -> {state, :none}
     end
@@ -545,19 +546,19 @@ defmodule Aleph.Keymap do
     end
   end
 
-  # Enter in the Orbis survey (focus == :survey) zooms into the CURSOR row's own world id — the
-  # god-view → world zoom, resolved from `survey_cursor` against the live worlds list (D0.3 gives
+  # Enter in the Orbis survey (focus == :survey) zooms into the CURSOR row's own workspace id — the
+  # god-view → workspace zoom, resolved from `survey_cursor` against the live workspaces list (D0.3 gives
   # every row an `id`). With focus on :threads, Enter has no verb here (falls to the plain no-op
   # below, same as "elsewhere") — the thread list has nothing for Enter to do (Slice 1). The
   # author face has no Enter verb yet either (opening the field editor is Chunk 2) — a no-op, not
-  # an accidental zoom into the cursor world's space.
+  # an accidental zoom into the cursor workspace's space.
   defp command(%{key: :enter}, %{active_key: :orbis} = state) do
     cond do
       orbis_face(state) == :author ->
         {state, :none}
 
       orbis_focus(state) == :survey ->
-        case Enum.at(survey_worlds(state), survey_cursor(state)) do
+        case Enum.at(survey_workspaces(state), survey_cursor(state)) do
           %{id: id} -> {state, {:switch_space, id}}
           _ -> {state, :none}
         end
@@ -576,9 +577,9 @@ defmodule Aleph.Keymap do
   defp command(%{key: :tab}, state), do: switch(state, :next)
 
   # `h`/`l` toggle Orbis' focus between the survey (per-row cursor) and the thread list (the
-  # existing `focused_id` nav) — Orbis-only; in a World, h/l belong to Focus pane-nav
+  # existing `focused_id` nav) — Orbis-only; in a Workspace, h/l belong to Focus pane-nav
   # (`handle_tlon`), never reaching this table. Bare keys only (same modifier discipline as
-  # `a`/`c`/`m`) — a world-guarded Alt chord that fell past the Global Alt block must not leak
+  # `a`/`c`/`m`) — a workspace-guarded Alt chord that fell past the Global Alt block must not leak
   # into Orbis nav.
   defp command(%{key: :char, char: "h"} = k, %{active_key: :orbis} = state)
        when not is_map_key(k, :ctrl) and not is_map_key(k, :shift) and not is_map_key(k, :alt),
@@ -589,7 +590,7 @@ defmodule Aleph.Keymap do
        do: {toggle_orbis_focus(state), :repaint}
 
   # j/k/↑/↓ route by `orbis_focus`: :survey moves the survey's per-row cursor (clamped, no wrap);
-  # :threads keeps the pre-existing thread-focus move. Orbis-only (World j/k is `handle_tlon`'s).
+  # :threads keeps the pre-existing thread-focus move. Orbis-only (Workspace j/k is `handle_tlon`'s).
   defp command(%{key: :up}, %{active_key: :orbis} = state), do: move_orbis(state, -1)
 
   defp command(%{key: :char, char: "k"} = k, %{active_key: :orbis} = state)
@@ -646,7 +647,7 @@ defmodule Aleph.Keymap do
   defp handle_tlon(%{key: :char, char: "H"}, state), do: {focus_intent(state, :col_left), :repaint}
   # j/k move the item cursor within the focused pane; Enter opens its selection's detail in MAIN.
   # (Leaves' Enter is a space-jump, not a detail — Phase 4 special-cases it ahead of this clause.)
-  # Over a WINDOW-BEARING pane (Leaves — each leaf maps to a live World tmux window) the move emits
+  # Over a WINDOW-BEARING pane (Leaves — each leaf maps to a live Workspace tmux window) the move emits
   # `:tlon_preview` so the cockpit re-points the center to the hovered window (a hover, not a commit
   # — focus stays in nav); anywhere else it's a plain `:repaint`.
   defp handle_tlon(%{key: :char, char: "j"}, state), do: nav_move(state, :item_next)
@@ -680,11 +681,11 @@ defmodule Aleph.Keymap do
   # so the section must stay reachable.
   defp handle_tlon(%{key: :char, char: "s"}, state), do: {focus_intent(state, :section_next), :repaint}
   defp handle_tlon(%{key: :char, char: "q"}, state), do: {state, :quit}
-  # `[`/`]` cycle the World's right-pane view (Health↔Activity↔Leaves, one full-height panel at a
+  # `[`/`]` cycle the Workspace's right-pane view (Health↔Activity↔Leaves, one full-height panel at a
   # time) — the cockpit resolves the active space's right-column length and wraps the index.
   defp handle_tlon(%{key: :char, char: "]"}, state), do: {state, {:cycle_pane_view, 1}}
   defp handle_tlon(%{key: :char, char: "["}, state), do: {state, {:cycle_pane_view, -1}}
-  # The center [chat]|[terminal] toggle (reshape slice D): flip which face the World center shows.
+  # The center [chat]|[terminal] toggle (reshape slice D): flip which face the Workspace center shows.
   defp handle_tlon(%{key: :char, char: "v"}, state), do: {state, :toggle_center_view}
   defp handle_tlon(%{key: :char, char: "c"} = k, state), do: command(k, state)
   defp handle_tlon(%{key: :char, char: "m"} = k, state), do: command(k, state)
@@ -715,7 +716,7 @@ defmodule Aleph.Keymap do
     if window_bearing?(next), do: {next, :tlon_preview}, else: {next, :repaint}
   end
 
-  # A pane whose selection maps to a live World tmux window — Leaves today (each leaf → its lead's
+  # A pane whose selection maps to a live Workspace tmux window — Leaves today (each leaf → its lead's
   # window). Only these drive the center preview.
   defp window_bearing?(state), do: Focus.focused_pane(state.focus, state.tlon_layout) == Panel.Leaves
 
@@ -749,13 +750,13 @@ defmodule Aleph.Keymap do
     end
   end
 
-  # Clamp `survey_cursor` into `0..length(worlds) - 1` — no wrap, same edge-clamp discipline as
-  # `move/2`. Zero worlds clamps to 0 (harmless; Enter no-ops on an empty survey).
+  # Clamp `survey_cursor` into `0..length(workspaces) - 1` — no wrap, same edge-clamp discipline as
+  # `move/2`. Zero workspaces clamps to 0 (harmless; Enter no-ops on an empty survey).
   # `Map.put/3`, not `%{state | ...}` — that raises KeyError when `:survey_cursor` is absent (an
   # older test's literal state map, built before this field existed), same tolerance as the
   # composer's `insert_at/2`.
   defp move_survey(state, dir) do
-    max_idx = max(length(survey_worlds(state)) - 1, 0)
+    max_idx = max(length(survey_workspaces(state)) - 1, 0)
     cursor = (survey_cursor(state) + dir) |> max(0) |> min(max_idx)
     {Map.put(state, :survey_cursor, cursor), :repaint}
   end
@@ -765,18 +766,18 @@ defmodule Aleph.Keymap do
     Map.put(state, :orbis_focus, next)
   end
 
-  # Clamp `author_cursor` into `0..length(author_worlds) - 1` — same edge-clamp discipline as
+  # Clamp `author_cursor` into `0..length(author_workspaces) - 1` — same edge-clamp discipline as
   # `move_survey/2`.
   defp move_author_cursor(state, dir) do
-    max_idx = max(length(author_worlds(state)) - 1, 0)
+    max_idx = max(length(author_workspaces(state)) - 1, 0)
     cursor = (author_cursor(state) + dir) |> max(0) |> min(max_idx)
     {Map.put(state, :author_cursor, cursor), :repaint}
   end
 
-  # h/l cycle `input.template` through `WorldTemplates.names/0`, wrapping (a ring, not a clamp) —
+  # h/l cycle `input.template` through `WorkspaceTemplates.names/0`, wrapping (a ring, not a clamp) —
   # the create flow always has a template armed, so there's no "past the end" to guard.
   defp cycle_template(%{template: template} = input, dir) do
-    names = WorldTemplates.names()
+    names = WorkspaceTemplates.names()
     i = Enum.find_index(names, &(&1 == template)) || 0
     Map.put(input, :template, Enum.at(names, rem(i + dir + length(names), length(names))))
   end
@@ -798,18 +799,18 @@ defmodule Aleph.Keymap do
   defp author_edit(state), do: Map.get(state, :author_edit)
   defp put_author_edit(state, edit), do: Map.put(state, :author_edit, edit)
 
-  # h/l on field 0 (type) / field 1 (scope): find the CURRENT world (author_worlds, threaded per
+  # h/l on field 0 (type) / field 1 (scope): find the CURRENT workspace (author_workspaces, threaded per
   # keypress — never stale), step its ring value by `dir` (wrapping — a ring, not a clamp, same
-  # idiom as `cycle_template/2`), and emit the edit. A world that's vanished (deleted mid-edit,
+  # idiom as `cycle_template/2`), and emit the edit. A workspace that's vanished (deleted mid-edit,
   # the Bus race is real but rare) or a field with no ring (2/3) is a no-op.
   defp field_ring_edit(state, %{id: id, field: field}, dir) when field in [0, 1] do
-    case Enum.find(author_worlds(state), &(&1.id == id)) do
-      %{} = world ->
+    case Enum.find(author_workspaces(state), &(&1.id == id)) do
+      %{} = workspace ->
         {key, ring} = if field == 0, do: {:type, @type_ring}, else: {:scope, @scope_ring}
-        current = Map.get(world, key)
+        current = Map.get(workspace, key)
         i = Enum.find_index(ring, &(&1 == current)) || 0
         next = Enum.at(ring, rem(i + dir + length(ring), length(ring)))
-        {:edit_world, id, %{key => next}}
+        {:edit_workspace, id, %{key => next}}
 
       _ ->
         :none
@@ -821,7 +822,7 @@ defmodule Aleph.Keymap do
   # Sub-list mode's j/k: clamp `sub` into `0..length(field's live list) - 1`, no wrap — same
   # edge-clamp discipline as `move_author_cursor/2`/`move_survey/2`.
   defp move_sub(state, %{id: id, field: field, sub: sub}, dir) do
-    max_idx = state |> world_field(id, sub_key(field)) |> length() |> Kernel.-(1) |> max(0)
+    max_idx = state |> workspace_field(id, sub_key(field)) |> length() |> Kernel.-(1) |> max(0)
     (sub + dir) |> max(0) |> min(max_idx)
   end
 
@@ -834,41 +835,41 @@ defmodule Aleph.Keymap do
   defp flip_knob(:model), do: :yolo
   defp flip_knob(:yolo), do: :model
 
-  # Resolve the sub-selected roster entry's `name` off the LIVE world and emit the apply effect —
+  # Resolve the sub-selected roster entry's `name` off the LIVE workspace and emit the apply effect —
   # a vanished entry (deleted mid-edit, or `sub` past the shrunk list) is a no-op, not a crash.
   defp roster_knob_apply(%{author_edit: %{id: id, sub: sub} = edit} = state) do
-    case state |> world_field(id, :roster) |> Enum.at(sub) do
+    case state |> workspace_field(id, :roster) |> Enum.at(sub) do
       %{"name" => name} -> {state, {:coworker_knob, name, edit_knob(edit)}}
       _ -> {state, :none}
     end
   end
 
-  # The CURRENT value of one list-shaped field (`:paths`/`:roster`) off the LIVE world
-  # (author_worlds, threaded per keypress — never stale). A vanished world (deleted mid-edit)
+  # The CURRENT value of one list-shaped field (`:paths`/`:roster`) off the LIVE workspace
+  # (author_workspaces, threaded per keypress — never stale). A vanished workspace (deleted mid-edit)
   # degrades to `[]` rather than crashing the reducer.
-  defp world_field(state, id, key) do
-    case Enum.find(author_worlds(state), &(&1.id == id)) do
+  defp workspace_field(state, id, key) do
+    case Enum.find(author_workspaces(state), &(&1.id == id)) do
       nil -> []
-      world -> Map.get(world, key) || []
+      workspace -> Map.get(workspace, key) || []
     end
   end
 
-  # The live worlds list Orbis' survey cursor/Enter resolve against — the same cached
-  # `Aleph.Orbis.rollup/0` the cockpit's `orbis_worlds/1` reads (`state.leaves.worlds`). Kept local
+  # The live workspaces list Orbis' survey cursor/Enter resolve against — the same cached
+  # `Aleph.Orbis.rollup/0` the cockpit's `orbis_workspaces/1` reads (`state.leaves.workspaces`). Kept local
   # (not a call into `Aleph.Cockpit`) so the keymap stays a pure reducer over its passed-in state.
-  defp survey_worlds(state) do
+  defp survey_workspaces(state) do
     case Map.get(state, :leaves) do
-      %{worlds: worlds} -> worlds
+      %{workspaces: workspaces} -> workspaces
       _ -> []
     end
   end
 
-  # The author face's own world list — `Aleph.Worlds.all/0`, threaded in per keypress by the
+  # The author face's own workspace list — `Aleph.Workspaces.all/0`, threaded in per keypress by the
   # cockpit (like `composer_thread_id`) so this stays a pure reducer with no funes call of its
-  # own. Distinct from `survey_worlds/1` (the Orbis rollup, which is `nil` whenever there are no
-  # MACHINE THREADS yet — a freshly-created, thread-less world would vanish from that list even
+  # own. Distinct from `survey_workspaces/1` (the Orbis rollup, which is `nil` whenever there are no
+  # MACHINE THREADS yet — a freshly-created, thread-less workspace would vanish from that list even
   # though it's a real row here).
-  defp author_worlds(state), do: Map.get(state, :author_worlds, [])
+  defp author_workspaces(state), do: Map.get(state, :author_workspaces, [])
 
   defp cursor_of(%{cursor: c}), do: c
   defp cursor_of(%{buffer: buffer}), do: String.length(buffer)

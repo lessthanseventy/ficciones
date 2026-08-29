@@ -44,10 +44,10 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.WindowBar
   alias Aleph.View
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
+  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorlds.put()
+    Aleph.TestWorkspaces.put()
   end
 
   # Flatten a styled row to its text, for assertions.
@@ -261,8 +261,8 @@ defmodule Aleph.BoardTest do
       assert Enum.map_join(rows, "\n", &text/1) =~ "Enter to spawn"
     end
 
-    test "chorus surveys worlds — the ORBIS · worlds header + a row per world with its rollup" do
-      worlds = [
+    test "chorus surveys workspaces — the ORBIS · workspaces header + a row per workspace with its rollup" do
+      workspaces = [
         %{
           id: 1,
           name: "Tlön",
@@ -271,19 +271,19 @@ defmodule Aleph.BoardTest do
         }
       ]
 
-      rows = Chorus.render(%{worlds: worlds}, %{x: 0, y: 0, w: 60, h: 40})
+      rows = Chorus.render(%{workspaces: workspaces}, %{x: 0, y: 0, w: 60, h: 40})
       joined = Enum.map_join(rows, "\n", &text/1)
 
-      assert joined =~ "ORBIS · worlds"
+      assert joined =~ "ORBIS · workspaces"
       assert joined =~ "Tlön"
-      # the world's summary line carries the open/stalled/done/trouble rollup
+      # the workspace's summary line carries the open/stalled/done/trouble rollup
       assert joined =~ "2 open"
       assert joined =~ "1 stalled"
       assert joined =~ "3 done"
       assert joined =~ "4 conflicts"
-      # the world header row washes :header (the ▸ + name)
-      world_head = Enum.find(rows, &(text(&1) =~ "Tlön" and text(&1) =~ "▸"))
-      assert Enum.any?(world_head, fn {_t, s} -> s == :header end)
+      # the workspace header row washes :header (the ▸ + name)
+      workspace_head = Enum.find(rows, &(text(&1) =~ "Tlön" and text(&1) =~ "▸"))
+      assert Enum.any?(workspace_head, fn {_t, s} -> s == :header end)
     end
   end
 
@@ -296,20 +296,20 @@ defmodule Aleph.BoardTest do
       assert Roster.pick(data, rect, 99) == nil
     end
 
-    test "chorus: clicking a world row zooms to ITS OWN world id; the survey header + blank do not" do
-      worlds = [
+    test "chorus: clicking a workspace row zooms to ITS OWN workspace id; the survey header + blank do not" do
+      workspaces = [
         %{id: 3, name: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
       ]
 
-      data = %{worlds: worlds, scroll: 0}
+      data = %{workspaces: workspaces, scroll: 0}
       rect = %{x: 0, y: 0, w: 60, h: 40}
       # survey header (0) + blank (1) select nothing
       assert Chorus.pick(data, rect, 0) == nil
       assert Chorus.pick(data, rect, 1) == nil
-      # the world's rows (head + summary + blank) span content rows 2–4 → zoom to its own id
+      # the workspace's rows (head + summary + blank) span content rows 2–4 → zoom to its own id
       assert {:switch_space, 3} = Chorus.pick(data, rect, 2)
       assert {:switch_space, 3} = Chorus.pick(data, rect, 4)
-      # a click past the last world selects nothing
+      # a click past the last workspace selects nothing
       assert Chorus.pick(data, rect, 5) == nil
     end
   end
@@ -344,7 +344,7 @@ defmodule Aleph.BoardTest do
           thread_count: 3,
           live_count: 1,
           mode: nil,
-          world?: false,
+          workspace?: false,
           lock?: false,
           pane_hints: []
         },

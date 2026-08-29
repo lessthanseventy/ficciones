@@ -15,7 +15,7 @@ defmodule Funes.Workline.Artifacts.Git do
   The real checker: files must be COMMITTED (git ls-files, not mere existence — an untracked
   intent.md is not an artifact), the branch is `work/<slug>`, verify evidence is a
   `check_passed` event correlated `workline:<slug>:verify`. Repo root comes from
-  `config :funes, :workline_root` (the world's git tree), default cwd.
+  `config :funes, :workline_root` (the workspace's git tree), default cwd.
   """
 
   @behaviour Funes.Workline.Artifacts

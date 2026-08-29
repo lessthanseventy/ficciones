@@ -1,109 +1,109 @@
 defmodule Funes.BootstrapTest do
   # Reshape slice A: boot-time integrity — the default workspace creates itself,
   # and no thread points at a workspace that isn't there (the live db carried a
-  # thread → world_id=5 with only world 1 existing; remove_world orphaned it).
+  # thread → workspace_id=5 with only workspace 1 existing; remove_workspace orphaned it).
   use ExUnit.Case, async: false
 
   alias Funes.Bootstrap
   alias Funes.Channel
   alias Funes.Repo
   alias Funes.Thread
-  alias Funes.Worlds
+  alias Funes.Workspaces
 
   setup do
     Funes.TestDB.clean!()
     :ok
   end
 
-  test "an empty world table seeds the default workspace" do
-    assert {:ok, world} = Bootstrap.ensure()
-    assert world.name == "ficciones"
-    assert world.scope == "machine"
-    assert Enum.map(world.roster, & &1["name"]) == ["tertius", "hronir"]
-    assert [%{id: id}] = Worlds.all()
-    assert id == world.id
+  test "an empty workspace table seeds the default workspace" do
+    assert {:ok, workspace} = Bootstrap.ensure()
+    assert workspace.name == "ficciones"
+    assert workspace.scope == "machine"
+    assert Enum.map(workspace.roster, & &1["name"]) == ["tertius", "hronir"]
+    assert [%{id: id}] = Workspaces.all()
+    assert id == workspace.id
   end
 
-  test "an existing world is left untouched — no second seed, name preserved" do
-    {:ok, tlon} = Worlds.register(%{name: "Tlön", type: "code", scope: "machine", paths: [], roster: []})
+  test "an existing workspace is left untouched — no second seed, name preserved" do
+    {:ok, tlon} = Workspaces.register(%{name: "Tlön", type: "code", scope: "machine", paths: [], roster: []})
 
-    assert {:ok, world} = Bootstrap.ensure()
-    assert world.id == tlon.id
-    assert world.name == "Tlön"
-    assert length(Worlds.all()) == 1
+    assert {:ok, workspace} = Bootstrap.ensure()
+    assert workspace.id == tlon.id
+    assert workspace.name == "Tlön"
+    assert length(Workspaces.all()) == 1
   end
 
   test "threads with no workspace are repaired to the default" do
     {:ok, thread} = Channel.open_thread(%{title: "adrift"})
-    assert thread.world_id == nil
+    assert thread.workspace_id == nil
 
-    {:ok, world} = Bootstrap.ensure()
-    assert Repo.get(Thread, thread.id).world_id == world.id
+    {:ok, workspace} = Bootstrap.ensure()
+    assert Repo.get(Thread, thread.id).workspace_id == workspace.id
   end
 
   test "threads pointing at a dead workspace are repaired to the default" do
-    {:ok, world} = Bootstrap.ensure()
+    {:ok, workspace} = Bootstrap.ensure()
     {:ok, thread} = Channel.open_thread(%{title: "orphan"})
     # The live-db drift this repairs was born under a suspended FK pragma (table
     # rebuilds, pre-integrity removes); reproduce it the same way. pool_size is 1
     # in test, so the pragma toggles the one real connection.
     Repo.query!("PRAGMA foreign_keys = OFF")
-    Repo.query!("UPDATE thread SET world_id = 999 WHERE id = ?", [thread.id])
+    Repo.query!("UPDATE thread SET workspace_id = 999 WHERE id = ?", [thread.id])
     Repo.query!("PRAGMA foreign_keys = ON")
 
-    assert {:ok, %{id: world_id}} = Bootstrap.ensure()
-    assert world_id == world.id
-    assert Repo.get(Thread, thread.id).world_id == world.id
+    assert {:ok, %{id: workspace_id}} = Bootstrap.ensure()
+    assert workspace_id == workspace.id
+    assert Repo.get(Thread, thread.id).workspace_id == workspace.id
   end
 
   test "threads in a live non-default workspace are untouched" do
     {:ok, _default} = Bootstrap.ensure()
-    {:ok, other} = Worlds.register(%{name: "other", type: "code", scope: "project", paths: [], roster: []})
+    {:ok, other} = Workspaces.register(%{name: "other", type: "code", scope: "project", paths: [], roster: []})
     {:ok, thread} = Channel.open_thread(%{title: "housed"})
-    Repo.update_all(Thread, set: [world_id: other.id])
+    Repo.update_all(Thread, set: [workspace_id: other.id])
 
     assert {:ok, _} = Bootstrap.ensure()
-    assert Repo.get(Thread, thread.id).world_id == other.id
+    assert Repo.get(Thread, thread.id).workspace_id == other.id
   end
 
   test "ensure_safe on a healthy schema behaves like ensure" do
-    assert {:ok, %Funes.World{}} = Bootstrap.ensure_safe()
+    assert {:ok, %Funes.Workspace{}} = Bootstrap.ensure_safe()
   end
 
   describe "threads open into a workspace" do
     test "open_thread lands in the default workspace" do
-      {:ok, world} = Bootstrap.ensure()
+      {:ok, workspace} = Bootstrap.ensure()
 
       {:ok, thread} = Channel.open_thread(%{title: "housed from birth"})
-      assert thread.world_id == world.id
+      assert thread.workspace_id == workspace.id
     end
 
-    test "an explicit world_id is respected" do
+    test "an explicit workspace_id is respected" do
       {:ok, _default} = Bootstrap.ensure()
-      {:ok, other} = Worlds.register(%{name: "other", type: "code", scope: "project", paths: [], roster: []})
+      {:ok, other} = Workspaces.register(%{name: "other", type: "code", scope: "project", paths: [], roster: []})
 
-      {:ok, thread} = Channel.open_thread(%{title: "placed", world_id: other.id})
-      assert thread.world_id == other.id
+      {:ok, thread} = Channel.open_thread(%{title: "placed", workspace_id: other.id})
+      assert thread.workspace_id == other.id
     end
 
     test "a workline opens into the default workspace too" do
-      {:ok, world} = Bootstrap.ensure()
+      {:ok, workspace} = Bootstrap.ensure()
 
       {:ok, thread} = Funes.Workline.open(%{title: "tracked", slug: "housed-line"})
-      assert thread.world_id == world.id
+      assert thread.workspace_id == workspace.id
     end
 
-    test "with no world at all, open_thread still works (world_id nil)" do
+    test "with no workspace at all, open_thread still works (workspace_id nil)" do
       {:ok, thread} = Channel.open_thread(%{title: "pre-bootstrap"})
-      assert thread.world_id == nil
+      assert thread.workspace_id == nil
     end
 
-    test "an explicit DANGLING world_id is refused by the FK itself (§10 single source)" do
+    test "an explicit DANGLING workspace_id is refused by the FK itself (§10 single source)" do
       {:ok, _} = Bootstrap.ensure()
 
       # SQLite's own foreign key raises — never a mirrored app-side check that could drift.
       assert_raise Ecto.ConstraintError, fn ->
-        Channel.open_thread(%{title: "nowhere", world_id: 999})
+        Channel.open_thread(%{title: "nowhere", workspace_id: 999})
       end
     end
   end

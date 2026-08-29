@@ -13,10 +13,10 @@ defmodule Aleph.View do
   alias Aleph.Panel
   alias Aleph.Space
   alias Aleph.Tlon.Focus
-  alias Aleph.Worlds
+  alias Aleph.Workspaces
   alias Funes.Presence
 
-  # Space.world?/1 is a defguard — usable outside a guard too, but only once required.
+  # Space.workspace?/1 is a defguard — usable outside a guard too, but only once required.
   require Space
 
   @min_col 16
@@ -302,13 +302,14 @@ defmodule Aleph.View do
   def data_for(Panel.Brief, r), do: r.scope
 
   def data_for(Panel.Chorus, r),
-    do: %{worlds: r[:worlds] || [], survey_cursor: r[:survey_cursor], orbis_focus: r[:orbis_focus]}
+    do: %{workspaces: r[:workspaces] || [], survey_cursor: r[:survey_cursor], orbis_focus: r[:orbis_focus]}
 
-  # The author face's own world list — `Aleph.Worlds.all/0` directly (not the survey's rollup
-  # cache), since a thread-less world (a fresh "blank" template) is real here even when
+  # The author face's own workspace list — `Aleph.Workspaces.all/0` directly (not the survey's rollup
+  # cache), since a thread-less workspace (a fresh "blank" template) is real here even when
   # `Aleph.Orbis.rollup/0` has nothing to show (D2.2). `edit` (D2.4 Chunk 2a) is nil unless `e`
   # opened the field editor — `Panel.Author` switches its render on its presence.
-  def data_for(Panel.Author, r), do: %{worlds: author_worlds(), cursor: r[:author_cursor] || 0, edit: r[:author_edit]}
+  def data_for(Panel.Author, r),
+    do: %{workspaces: author_workspaces(), cursor: r[:author_cursor] || 0, edit: r[:author_edit]}
 
   # `presence` (thinking/working lists for the focused thread) is optional so pure View tests
   # can compose reads without it — the panel treats missing lists as empty.
@@ -336,11 +337,11 @@ defmodule Aleph.View do
 
   defp scroll_data(_panel, data, _reads), do: data
 
-  # `Aleph.Worlds` isn't started under `mix test` (config/test.exs `start_worlds: false` — it
-  # would subscribe to the funes worlds Bus and pollute the pure-render tests), so a call here
-  # degrades to `[]` instead of crashing the paint — same guard as `Aleph.Space.fetch_worlds/0`.
-  defp author_worlds do
-    Worlds.all()
+  # `Aleph.Workspaces` isn't started under `mix test` (config/test.exs `start_workspaces: false` — it
+  # would subscribe to the funes workspaces Bus and pollute the pure-render tests), so a call here
+  # degrades to `[]` instead of crashing the paint — same guard as `Aleph.Space.fetch_workspaces/0`.
+  defp author_workspaces do
+    Workspaces.all()
   rescue
     _ -> []
   catch
@@ -363,9 +364,9 @@ defmodule Aleph.View do
       leader_pending?: reads[:leader_pending?],
       # Tlön's focus (nil elsewhere) — the footer shows NAV/TERM and the focus-model hints.
       focus: reads[:focus],
-      # The contextual footer's keys (design 2026-08-23) — world-ness, never the label.
+      # The contextual footer's keys (design 2026-08-23) — workspace-ness, never the label.
       mode: footer_mode(reads),
-      world?: Space.world?(space.key),
+      workspace?: Space.workspace?(space.key),
       lock?: reads[:lock?] == true,
       pane_hints: pane_hints(reads, space, focused)
     }

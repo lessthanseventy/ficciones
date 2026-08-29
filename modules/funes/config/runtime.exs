@@ -14,7 +14,7 @@ if config_env() != :test do
   config :funes, Funes.Repo, database: database
 end
 
-# Where workline artifact checks run git (`Funes.Workline.Artifacts.Git`) — the world's
+# Where workline artifact checks run git (`Funes.Workline.Artifacts.Git`) — the workspace's
 # checkout. Unset → cwd, right for dev shells, WRONG for a release whose cwd is elsewhere
 # (the checker then reports the environment fault, not a fake "not committed").
 if root = System.get_env("FUNES_WORKLINE_ROOT") do

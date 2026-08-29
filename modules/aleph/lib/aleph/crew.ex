@@ -61,18 +61,18 @@ defmodule Aleph.Crew do
     end
   end
 
-  # The tmux session/socket for the ACTIVE world's workspace — id-derived (rename-proof), not
-  # lead-name-derived. Slice 1's one-world bridge (`Space.first_world/0`); C2.3+ picks the truly
-  # active world once there's more than one. `first_world/0` can be nil now that the hardcoded
-  # fallback World is gone (reshape slice A) — spawn/kill guard BEFORE reaching these, so the
+  # The tmux session/socket for the ACTIVE workspace's workspace — id-derived (rename-proof), not
+  # lead-name-derived. Slice 1's one-workspace bridge (`Space.first_workspace/0`); C2.3+ picks the truly
+  # active workspace once there's more than one. `first_workspace/0` can be nil now that the hardcoded
+  # fallback Workspace is gone (reshape slice A) — spawn/kill guard BEFORE reaching these, so the
   # raise here is a bug sentinel, not a reachable path.
-  defp world_id, do: Space.first_world().id
-  defp world_session, do: "w#{world_id()}"
-  defp world_socket, do: "aleph-world-#{world_id()}"
+  defp workspace_id, do: Space.first_workspace().id
+  defp workspace_session, do: "w#{workspace_id()}"
+  defp workspace_socket, do: "aleph-workspace-#{workspace_id()}"
 
-  @doc "The tmux server socket the Tlön coworkers share, id-derived (rename-proof), e.g. `aleph-world-1`."
+  @doc "The tmux server socket the Tlön coworkers share, id-derived (rename-proof), e.g. `aleph-workspace-1`."
   @spec tlon_socket() :: String.t()
-  def tlon_socket, do: world_socket()
+  def tlon_socket, do: workspace_socket()
 
   @doc "The `tmux` argv to spawn a role's per-thread window (detached) running `script`."
   @spec spawn_argv(String.t(), integer() | String.t(), String.t()) :: [String.t()]
@@ -83,7 +83,7 @@ defmodule Aleph.Crew do
       "new-window",
       "-d",
       "-t",
-      world_session(),
+      workspace_session(),
       "-n",
       crew_window(role_key, thread_id),
       script
@@ -93,7 +93,7 @@ defmodule Aleph.Crew do
   @doc "The `tmux` argv to tear down a role's per-thread window."
   @spec kill_argv(String.t(), integer() | String.t()) :: [String.t()]
   def kill_argv(role_key, thread_id) do
-    ["-L", tlon_socket(), "kill-window", "-t", "#{world_session()}:#{crew_window(role_key, thread_id)}"]
+    ["-L", tlon_socket(), "kill-window", "-t", "#{workspace_session()}:#{crew_window(role_key, thread_id)}"]
   end
 
   @doc """
@@ -139,7 +139,7 @@ defmodule Aleph.Crew do
   @spec spawn(String.t(), integer() | String.t(), String.t(), keyword()) ::
           {:ok, String.t()} | {:error, term()}
   def spawn(role_key, thread_id, task, opts \\ []) do
-    with {:world, %{}} <- {:world, Space.first_world()},
+    with {:workspace, %{}} <- {:workspace, Space.first_workspace()},
          %{handle: handle, profile: profile_name} <- role(role_key) || :unknown_role,
          %Aleph.Profile{} = profile <- Profiles.fetch(profile_name) || {:missing_profile, profile_name},
          _dir = Profiles.materialise!(profile),
@@ -151,9 +151,9 @@ defmodule Aleph.Crew do
       if Keyword.get(opts, :inject, true), do: inject_opening(window, opening_turn(thread_id, task))
       {:ok, window}
     else
-      # No workspace at all (funes down — the fallback World is gone, reshape slice A):
+      # No workspace at all (funes down — the fallback Workspace is gone, reshape slice A):
       # there is no tmux server to target, refuse rather than nil-crash.
-      {:world, nil} -> {:error, :no_workspace}
+      {:workspace, nil} -> {:error, :no_workspace}
       :unknown_role -> {:error, {:unknown_role, role_key}}
       {:missing_profile, _} = err -> {:error, err}
       {:error, _} = err -> err
@@ -175,7 +175,7 @@ defmodule Aleph.Crew do
   workspace at all) is not an error."
   @spec kill(String.t(), integer() | String.t()) :: :ok
   def kill(role_key, thread_id) do
-    if Space.first_world() do
+    if Space.first_workspace() do
       _ = cmd_runner().("tmux", kill_argv(role_key, thread_id), stderr_to_stdout: true)
     end
 
@@ -204,7 +204,7 @@ defmodule Aleph.Crew do
   # Best-effort throughout — a poll timeout still injects (the deadline outlasts a normal boot).
   defp inject_opening(window, text) do
     sock = tlon_socket()
-    target = "#{world_session()}:#{window}"
+    target = "#{workspace_session()}:#{window}"
     _ = await_ready(sock, target)
     _ = cmd_runner().("tmux", ["-L", sock, "send-keys", "-l", "-t", target, text], stderr_to_stdout: true)
     Process.sleep(opening_settle_ms())

@@ -2,20 +2,20 @@ defmodule Aleph.Orbis do
   @moduledoc """
   ORBIS — the god-view survey DATA behind tertius, Orbis' **resident surveyor** (Orbis Tertius
   design, slice 2). tertius no longer sits as Tlön's center coworker in the operator's eye; its
-  home view is this survey — the god-view over worlds. Every machine thread (root + leaves) is
+  home view is this survey — the god-view over workspaces. Every machine thread (root + leaves) is
   reduced to lead + status + conflict count, plus the open/stalled/done tallies. The single source
   of the rollup's semantics, shared by BOTH surfaces — the Tlön sidebar panel (`Aleph.Panel.Orbis`,
   via `Aleph.Cockpit`) and the `chat` tab's header strip (`Aleph.MachineChat.Loop`) — so a status
   rule never drifts between them.
 
   Pure data, no styling: `rollup/0` returns `%{summary: %{open, stalled, done, conflicts},
-  rows: [%{id, title, lead, status, conflicts, world_id, stage, awaiting, blocking}]
+  rows: [%{id, title, lead, status, conflicts, workspace_id, stage, awaiting, blocking}]
   (the last three nil on an untracked thread — chat and tracked are ONE list since slice C),
-  worlds: [%{id, name, summary, leaves}]}` (status
+  workspaces: [%{id, name, summary, leaves}]}` (status
   `:open | :stalled | :done`), or `nil` when funes is down / there are no machine threads. `summary`
-  and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `worlds` is the
-  survey's per-world rollup — grouped under the live funes worlds (`Aleph.Worlds`, Slice 1), each
-  row carrying its world `id` (D0.3) — the face Orbis' Chorus renders as one row per world, and the
+  and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `workspaces` is the
+  survey's per-workspace rollup — grouped under the live funes workspaces (`Aleph.Workspaces`, Slice 1), each
+  row carrying its workspace `id` (D0.3) — the face Orbis' Chorus renders as one row per workspace, and the
   survey's `Enter`/click resolve back to. Status derives from `Funes.Board.brief/1` (the
   same per-thread brief Triage reads) so it reflects real blockers/failed checks, never a
   self-report. The gather is guarded: a funes hiccup degrades to `nil`, never a crash.
@@ -23,7 +23,7 @@ defmodule Aleph.Orbis do
 
   alias Funes.Channel
 
-  @spec rollup() :: %{summary: map(), rows: [map()], worlds: [map()]} | nil
+  @spec rollup() :: %{summary: map(), rows: [map()], workspaces: [map()]} | nil
   def rollup do
     # ONE list (reshape slice C): chat threads and tracked threads are the same kind of row —
     # a tracked one carries stage/awaiting/blocking and the panel chips it. The old reject
@@ -35,7 +35,7 @@ defmodule Aleph.Orbis do
       |> Enum.map(&row(&1.thread, blocking))
       |> Enum.sort_by(&status_rank(&1.status))
 
-    if rows == [], do: nil, else: %{summary: summarize(rows), rows: rows, worlds: worlds(rows)}
+    if rows == [], do: nil, else: %{summary: summarize(rows), rows: rows, workspaces: workspaces(rows)}
   rescue
     _ -> nil
   catch
@@ -53,48 +53,48 @@ defmodule Aleph.Orbis do
   end
 
   @doc """
-  Group the rollup rows under the live funes worlds (`Aleph.Worlds.all/0`, Slice 1 Task B3). With
-  the single seeded Tlön world this is one row — identical to Slice 0. Reads the cached world list;
-  `worlds/2` is the pure grouping over explicit `%{id, name}` refs (tested without the live cache).
+  Group the rollup rows under the live funes workspaces (`Aleph.Workspaces.all/0`, Slice 1 Task B3). With
+  the single seeded Tlön workspace this is one row — identical to Slice 0. Reads the cached workspace list;
+  `workspaces/2` is the pure grouping over explicit `%{id, name}` refs (tested without the live cache).
   """
-  @spec worlds([map()]) :: [%{id: term(), name: String.t(), summary: map(), leaves: [map()]}]
-  def worlds(rows), do: worlds(rows, world_refs())
+  @spec workspaces([map()]) :: [%{id: term(), name: String.t(), summary: map(), leaves: [map()]}]
+  def workspaces(rows), do: workspaces(rows, workspace_refs())
 
   @doc """
-  Group `rows` under explicit `%{id, name}` world refs — every row carries its funes **id** (D0.3)
-  and, since reshape slice C, its `world_id`: membership is REAL (slice A made `thread.world_id`
-  enforced), so each world's survey row carries exactly its own threads. A row matching no ref
-  lands in the first world — belt over the boot repair, never a dropped thread. No world refs
+  Group `rows` under explicit `%{id, name}` workspace refs — every row carries its funes **id** (D0.3)
+  and, since reshape slice C, its `workspace_id`: membership is REAL (slice A made `thread.workspace_id`
+  enforced), so each workspace's survey row carries exactly its own threads. A row matching no ref
+  lands in the first workspace — belt over the boot repair, never a dropped thread. No workspace refs
   (funes genuinely down — the app self-seeds at boot) yields no rows; the survey renders empty
-  rather than fabricating a world (reshape slice A).
+  rather than fabricating a workspace (reshape slice A).
   """
-  @spec worlds([map()], [%{id: term(), name: String.t()}]) :: [
+  @spec workspaces([map()], [%{id: term(), name: String.t()}]) :: [
           %{id: term(), name: String.t(), summary: map(), leaves: [map()]}
         ]
-  def worlds(_rows, []), do: []
+  def workspaces(_rows, []), do: []
 
-  def worlds(rows, refs) do
+  def workspaces(rows, refs) do
     known = MapSet.new(refs, & &1.id)
-    # Orphans land in the OLDEST world (the seeded default) — the cache hands refs
+    # Orphans land in the OLDEST workspace (the seeded default) — the cache hands refs
     # newest-first, so the list head would be the wrong home the moment a second
-    # world exists.
+    # workspace exists.
     default_id = Enum.min_by(refs, & &1.id).id
 
-    by_world =
+    by_workspace =
       Enum.group_by(rows, fn row ->
-        world_id = Map.get(row, :world_id)
-        if world_id in known, do: world_id, else: default_id
+        workspace_id = Map.get(row, :workspace_id)
+        if workspace_id in known, do: workspace_id, else: default_id
       end)
 
     Enum.map(refs, fn ref ->
-      leaves = Map.get(by_world, ref.id, [])
+      leaves = Map.get(by_workspace, ref.id, [])
       %{id: ref.id, name: ref.name, summary: summarize(leaves), leaves: leaves}
     end)
   end
 
-  # The funes world refs, guarded: a cache hiccup degrades to [] (→ empty survey).
-  defp world_refs do
-    Enum.map(Aleph.Worlds.all(), &%{id: &1.id, name: &1.name})
+  # The funes workspace refs, guarded: a cache hiccup degrades to [] (→ empty survey).
+  defp workspace_refs do
+    Enum.map(Aleph.Workspaces.all(), &%{id: &1.id, name: &1.name})
   rescue
     _ -> []
   catch
@@ -112,7 +112,7 @@ defmodule Aleph.Orbis do
       lead: scope.lead,
       status: status(thread.state, conflicts),
       conflicts: conflicts,
-      world_id: thread.world_id,
+      workspace_id: thread.workspace_id,
       stage: thread.stage,
       awaiting: thread.awaiting,
       blocking: Map.get(ledger, :blocking)

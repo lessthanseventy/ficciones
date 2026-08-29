@@ -3,10 +3,10 @@ defmodule Aleph.CrewTest do
 
   alias Aleph.Crew
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
+  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorlds.put()
+    Aleph.TestWorkspaces.put()
   end
 
   describe "roles/0 and role/1" do
@@ -49,12 +49,12 @@ defmodule Aleph.CrewTest do
   end
 
   describe "spawn_argv/3 and boot_script/2 (pure tmux builders)" do
-    test "spawn_argv targets the w<id> session on the aleph-world-<id> socket, window r<id>, detached" do
+    test "spawn_argv targets the w<id> session on the aleph-workspace-<id> socket, window r<id>, detached" do
       argv = Crew.spawn_argv("reviewer", 42, "boot-script-here")
 
       assert argv == [
                "-L",
-               "aleph-world-0",
+               "aleph-workspace-0",
                "new-window",
                "-d",
                "-t",
@@ -74,7 +74,7 @@ defmodule Aleph.CrewTest do
 
     test "kill_argv removes the role's window on the same server" do
       assert Crew.kill_argv("reviewer", 42) ==
-               ["-L", "aleph-world-0", "kill-window", "-t", "w0:r42"]
+               ["-L", "aleph-workspace-0", "kill-window", "-t", "w0:r42"]
     end
   end
 
@@ -121,7 +121,7 @@ defmodule Aleph.CrewTest do
       assert script =~ "\nexec "
       # a bare harness launch via the profile's driver (Slice D: the anthropic-model reviewer at
       # home rides the official claude launcher), NOT profile_launcher's tmux new-session wrapper —
-      # execing new-session here would nest a second tmux server on the shared aleph-world-<id> socket
+      # execing new-session here would nest a second tmux server on the shared aleph-workspace-<id> socket
       assert script =~ "modules/manos/claude-code/launch.sh"
       refute script =~ "new-session"
     end

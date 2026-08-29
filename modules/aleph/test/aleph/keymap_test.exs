@@ -17,10 +17,10 @@ defmodule Aleph.KeymapTest do
   alias Aleph.Panel.Leaves
   alias Aleph.Tlon.Focus
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
+  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorlds.put()
+    Aleph.TestWorkspaces.put()
   end
 
   # The slice of cockpit state the keymap reads. Threads are anything with an `.id`.
@@ -46,10 +46,10 @@ defmodule Aleph.KeymapTest do
           # "Orbis author face" describe block below sets `orbis_face: :author` explicitly.
           orbis_face: :survey,
           author_cursor: 0,
-          author_worlds: [],
+          author_workspaces: [],
           pending_delete: nil,
           # The field editor's own state (D2.4 Chunk 2a) — nil off the edit screen; the "editing a
-          # world" describe block below sets it.
+          # workspace" describe block below sets it.
           author_edit: nil
         },
         overrides
@@ -122,7 +122,7 @@ defmodule Aleph.KeymapTest do
                Keymap.handle(key(:tab, shift: true), state(%{active_key: :orbis}))
     end
 
-    test "[ and ] are unbound outside a World — nothing to cycle in Orbis (C3.4 reshuffle)" do
+    test "[ and ] are unbound outside a Workspace — nothing to cycle in Orbis (C3.4 reshuffle)" do
       s = state()
       assert {^s, :none} = Keymap.handle(char("]"), s)
       s2 = state(%{active_key: 0})
@@ -159,20 +159,20 @@ defmodule Aleph.KeymapTest do
   end
 
   describe "the Orbis survey cursor (D0.1/D0.2/D0.3: orbis_focus == :survey, the cockpit default)" do
-    @two_worlds [
+    @two_workspaces [
       %{id: 11, name: "Tlön", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []},
       %{id: 22, name: "Freedonia", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
     ]
 
     defp survey_state(overrides \\ %{}),
-      do: state(Map.merge(%{orbis_focus: :survey, leaves: %{worlds: @two_worlds}}, overrides))
+      do: state(Map.merge(%{orbis_focus: :survey, leaves: %{workspaces: @two_workspaces}}, overrides))
 
-    test "j/k (and ↑/↓) move survey_cursor, clamped 0..length(worlds)-1 — no wrap" do
+    test "j/k (and ↑/↓) move survey_cursor, clamped 0..length(workspaces)-1 — no wrap" do
       s = survey_state(%{survey_cursor: 0})
       assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(char("j"), s)
       assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(key(:down), s)
 
-      # stops at the last world — 2 worlds, index 1 is the ceiling.
+      # stops at the last workspace — 2 workspaces, index 1 is the ceiling.
       s1 = survey_state(%{survey_cursor: 1})
       assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(char("j"), s1)
       assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(key(:down), s1)
@@ -197,12 +197,12 @@ defmodule Aleph.KeymapTest do
       assert {%{focused_id: 1, survey_cursor: 0}, :repaint} = Keymap.handle(char("k"), s)
     end
 
-    test "Enter zooms into the CURSOR row's own world id, not the first world's" do
+    test "Enter zooms into the CURSOR row's own workspace id, not the first workspace's" do
       assert {_state, {:switch_space, 22}} = Keymap.handle(key(:enter), survey_state(%{survey_cursor: 1}))
       assert {_state, {:switch_space, 11}} = Keymap.handle(key(:enter), survey_state(%{survey_cursor: 0}))
     end
 
-    test "Enter on an empty survey (funes down / no worlds) is a no-op, never a crash" do
+    test "Enter on an empty survey (funes down / no workspaces) is a no-op, never a crash" do
       s = state(%{active_key: :orbis, orbis_focus: :survey, leaves: nil})
       assert {^s, :none} = Keymap.handle(key(:enter), s)
     end
@@ -238,12 +238,13 @@ defmodule Aleph.KeymapTest do
   end
 
   describe "Panel.Author's row cursor (D2.2: author_cursor, orbis_face == :author)" do
-    @two_author_worlds [%{id: 11, name: "Tlön"}, %{id: 22, name: "Freedonia"}]
+    @two_author_workspaces [%{id: 11, name: "Tlön"}, %{id: 22, name: "Freedonia"}]
 
     defp author_state(overrides),
-      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: @two_author_worlds}, overrides))
+      do:
+        state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_workspaces: @two_author_workspaces}, overrides))
 
-    test "j/k (and ↑/↓) move author_cursor, clamped 0..length(author_worlds)-1 — no wrap" do
+    test "j/k (and ↑/↓) move author_cursor, clamped 0..length(author_workspaces)-1 — no wrap" do
       s = author_state(%{author_cursor: 0})
       assert {%{author_cursor: 1}, :repaint} = Keymap.handle(char("j"), s)
       assert {%{author_cursor: 1}, :repaint} = Keymap.handle(key(:down), s)
@@ -264,17 +265,24 @@ defmodule Aleph.KeymapTest do
     end
 
     test "back on the survey face, j/k move survey_cursor/focused_id as before — untouched by author_cursor" do
-      s = state(%{active_key: :orbis, orbis_face: :survey, orbis_focus: :survey, leaves: %{worlds: @two_author_worlds}})
+      s =
+        state(%{
+          active_key: :orbis,
+          orbis_face: :survey,
+          orbis_focus: :survey,
+          leaves: %{workspaces: @two_author_workspaces}
+        })
+
       assert {%{survey_cursor: 1}, :repaint} = Keymap.handle(char("j"), s)
     end
   end
 
-  describe "creating a world — the author face's `n` verb + :new_world input (D2.3)" do
-    @templates Aleph.WorldTemplates.names()
+  describe "creating a workspace — the author face's `n` verb + :new_workspace input (D2.3)" do
+    @templates Aleph.WorkspaceTemplates.names()
 
-    test "n in the author face opens :new_world input armed with the FIRST template" do
+    test "n in the author face opens :new_workspace input armed with the FIRST template" do
       s = state(%{active_key: :orbis, orbis_face: :author})
-      assert {%{input: %{kind: :new_world, buffer: "", template: t}}, :repaint} = Keymap.handle(char("n"), s)
+      assert {%{input: %{kind: :new_workspace, buffer: "", template: t}}, :repaint} = Keymap.handle(char("n"), s)
       assert t == List.first(@templates)
     end
 
@@ -283,10 +291,10 @@ defmodule Aleph.KeymapTest do
       assert {%{input: %{kind: :new_thread, buffer: ""}}, :repaint} = Keymap.handle(char("n"), s)
     end
 
-    test "h/l cycle input.template through WorldTemplates.names/0, wrapping both ways" do
+    test "h/l cycle input.template through WorkspaceTemplates.names/0, wrapping both ways" do
       first = List.first(@templates)
       last = List.last(@templates)
-      s = state(%{input: %{kind: :new_world, buffer: "", cursor: 0, template: first}})
+      s = state(%{input: %{kind: :new_workspace, buffer: "", cursor: 0, template: first}})
 
       # l steps forward through every template, wrapping back to the first.
       {s1, :repaint} = Keymap.handle(char("l"), s)
@@ -305,31 +313,32 @@ defmodule Aleph.KeymapTest do
     end
 
     test "printable keys still accumulate into buffer (kind-agnostic reuse of the input machinery)" do
-      s = state(%{input: %{kind: :new_world, buffer: "Fic", cursor: 3, template: List.first(@templates)}})
+      s = state(%{input: %{kind: :new_workspace, buffer: "Fic", cursor: 3, template: List.first(@templates)}})
       assert {%{input: %{buffer: "Ficc"}}, :repaint} = Keymap.handle(char("c"), s)
     end
 
-    test "Enter on a non-empty buffer emits {:register_world, template, name} and leaves input mode" do
-      s = state(%{input: %{kind: :new_world, buffer: "Ficciones2", cursor: 10, template: :code}})
-      assert {%{input: nil}, {:register_world, :code, "Ficciones2"}} = Keymap.handle(key(:enter), s)
+    test "Enter on a non-empty buffer emits {:register_workspace, template, name} and leaves input mode" do
+      s = state(%{input: %{kind: :new_workspace, buffer: "Ficciones2", cursor: 10, template: :code}})
+      assert {%{input: nil}, {:register_workspace, :code, "Ficciones2"}} = Keymap.handle(key(:enter), s)
     end
 
     test "Enter on a blank buffer no-ops — no register, same precedent as :new_thread/:compose" do
-      s = state(%{input: %{kind: :new_world, buffer: "", cursor: 0, template: :code}})
+      s = state(%{input: %{kind: :new_workspace, buffer: "", cursor: 0, template: :code}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
     end
 
     test "Esc cancels the create flow, registering nothing" do
-      s = state(%{input: %{kind: :new_world, buffer: "half typed", cursor: 10, template: :code}})
+      s = state(%{input: %{kind: :new_workspace, buffer: "half typed", cursor: 10, template: :code}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
     end
   end
 
-  describe "deleting a world — the author face's `d` verb, two-key confirm (D2.5)" do
+  describe "deleting a workspace — the author face's `d` verb, two-key confirm (D2.5)" do
     defp author_state2(overrides),
-      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: @two_author_worlds}, overrides))
+      do:
+        state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_workspaces: @two_author_workspaces}, overrides))
 
-    test "d on the cursor world arms the confirm: {:arm_delete, id, name}" do
+    test "d on the cursor workspace arms the confirm: {:arm_delete, id, name}" do
       s = author_state2(%{author_cursor: 1})
       assert {^s, {:arm_delete, 22, "Freedonia"}} = Keymap.handle(char("d"), s)
     end
@@ -339,9 +348,9 @@ defmodule Aleph.KeymapTest do
       assert {^s, :none} = Keymap.handle(char("d"), s)
     end
 
-    test "a second d while armed on the SAME id confirms: {:remove_world, id}, and clears the arm" do
+    test "a second d while armed on the SAME id confirms: {:remove_workspace, id}, and clears the arm" do
       s = author_state2(%{author_cursor: 1, pending_delete: 22})
-      assert {%{pending_delete: nil}, {:remove_world, 22}} = Keymap.handle(char("d"), s)
+      assert {%{pending_delete: nil}, {:remove_workspace, 22}} = Keymap.handle(char("d"), s)
     end
 
     test "any other key while armed cancels — clears pending_delete, no remove effect" do
@@ -351,11 +360,12 @@ defmodule Aleph.KeymapTest do
     end
   end
 
-  describe "editing a world — `e` opens the field editor, h/l cycle type/scope rings (D2.4 Chunk 2a)" do
+  describe "editing a workspace — `e` opens the field editor, h/l cycle type/scope rings (D2.4 Chunk 2a)" do
     defp editor_state(overrides),
-      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: @two_author_worlds}, overrides))
+      do:
+        state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_workspaces: @two_author_workspaces}, overrides))
 
-    test "e on the author cursor world opens author_edit at field 0, sub 0" do
+    test "e on the author cursor workspace opens author_edit at field 0, sub 0" do
       s = editor_state(%{author_cursor: 1})
       assert {%{author_edit: %{id: 22, field: 0, sub: 0, mode: :field}}, :repaint} = Keymap.handle(char("e"), s)
     end
@@ -365,12 +375,12 @@ defmodule Aleph.KeymapTest do
       assert {^s, :none} = Keymap.handle(char("e"), s)
     end
 
-    test "e on an empty world list is a no-op" do
-      s = editor_state(%{author_worlds: [], author_cursor: 0})
+    test "e on an empty workspace list is a no-op" do
+      s = editor_state(%{author_workspaces: [], author_cursor: 0})
       assert {^s, :none} = Keymap.handle(char("e"), s)
     end
 
-    test "e while already editing is a no-op — doesn't re-arm onto a different cursor world" do
+    test "e while already editing is a no-op — doesn't re-arm onto a different cursor workspace" do
       s = editor_state(%{author_cursor: 0, author_edit: %{id: 22, field: 1, sub: 0, mode: :field}})
       assert {^s, :none} = Keymap.handle(char("e"), s)
     end
@@ -388,29 +398,29 @@ defmodule Aleph.KeymapTest do
       assert {%{author_edit: %{field: 0}}, :repaint} = Keymap.handle(key(:up), bottom)
     end
 
-    test "h/l on field 0 (type) emits {:edit_world, id, %{type: next}}, cycling the ring, wrapping" do
-      worlds = [%{id: 22, name: "Freedonia", type: "code", scope: "machine", paths: [], roster: []}]
-      s = editor_state(%{author_worlds: worlds, author_edit: %{id: 22, field: 0, sub: 0, mode: :field}})
+    test "h/l on field 0 (type) emits {:edit_workspace, id, %{type: next}}, cycling the ring, wrapping" do
+      workspaces = [%{id: 22, name: "Freedonia", type: "code", scope: "machine", paths: [], roster: []}]
+      s = editor_state(%{author_workspaces: workspaces, author_edit: %{id: 22, field: 0, sub: 0, mode: :field}})
 
-      assert {_s, {:edit_world, 22, %{type: "life"}}} = Keymap.handle(char("l"), s)
-      assert {_s, {:edit_world, 22, %{type: "blank"}}} = Keymap.handle(char("h"), s)
+      assert {_s, {:edit_workspace, 22, %{type: "life"}}} = Keymap.handle(char("l"), s)
+      assert {_s, {:edit_workspace, 22, %{type: "blank"}}} = Keymap.handle(char("h"), s)
 
-      blank = %{s | author_worlds: [%{Enum.at(worlds, 0) | type: "blank"}]}
-      assert {_s, {:edit_world, 22, %{type: "code"}}} = Keymap.handle(char("l"), blank)
+      blank = %{s | author_workspaces: [%{Enum.at(workspaces, 0) | type: "blank"}]}
+      assert {_s, {:edit_workspace, 22, %{type: "code"}}} = Keymap.handle(char("l"), blank)
     end
 
-    test "h/l on field 1 (scope) emits {:edit_world, id, %{scope: next}}" do
+    test "h/l on field 1 (scope) emits {:edit_workspace, id, %{scope: next}}" do
       # A 2-element ring: from "project" (index 0) BOTH directions land on "machine" (index 1) —
       # only a 3+ element ring (type) shows h/l diverge, asserted above.
-      worlds = [%{id: 22, name: "Freedonia", type: "code", scope: "project", paths: [], roster: []}]
-      s = editor_state(%{author_worlds: worlds, author_edit: %{id: 22, field: 1, sub: 0, mode: :field}})
+      workspaces = [%{id: 22, name: "Freedonia", type: "code", scope: "project", paths: [], roster: []}]
+      s = editor_state(%{author_workspaces: workspaces, author_edit: %{id: 22, field: 1, sub: 0, mode: :field}})
 
-      assert {_s, {:edit_world, 22, %{scope: "machine"}}} = Keymap.handle(char("l"), s)
-      assert {_s, {:edit_world, 22, %{scope: "machine"}}} = Keymap.handle(char("h"), s)
+      assert {_s, {:edit_workspace, 22, %{scope: "machine"}}} = Keymap.handle(char("l"), s)
+      assert {_s, {:edit_workspace, 22, %{scope: "machine"}}} = Keymap.handle(char("h"), s)
 
-      machine = %{s | author_worlds: [%{Enum.at(worlds, 0) | scope: "machine"}]}
-      assert {_s, {:edit_world, 22, %{scope: "project"}}} = Keymap.handle(char("l"), machine)
-      assert {_s, {:edit_world, 22, %{scope: "project"}}} = Keymap.handle(char("h"), machine)
+      machine = %{s | author_workspaces: [%{Enum.at(workspaces, 0) | scope: "machine"}]}
+      assert {_s, {:edit_workspace, 22, %{scope: "project"}}} = Keymap.handle(char("l"), machine)
+      assert {_s, {:edit_workspace, 22, %{scope: "project"}}} = Keymap.handle(char("h"), machine)
     end
 
     test "h/l on field 2/3 (paths/roster) are a no-op — those rings don't apply to lists" do
@@ -442,11 +452,14 @@ defmodule Aleph.KeymapTest do
     end
   end
 
-  describe "editing a world's paths — the field 2 sub-list, add/remove (D2.4 Chunk 2b)" do
-    @world_with_paths %{id: 22, name: "Freedonia", type: "code", scope: "machine", paths: ["a", "b"], roster: []}
+  describe "editing a workspace's paths — the field 2 sub-list, add/remove (D2.4 Chunk 2b)" do
+    @workspace_with_paths %{id: 22, name: "Freedonia", type: "code", scope: "machine", paths: ["a", "b"], roster: []}
 
     defp paths_state(overrides),
-      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: [@world_with_paths]}, overrides))
+      do:
+        state(
+          Map.merge(%{active_key: :orbis, orbis_face: :author, author_workspaces: [@workspace_with_paths]}, overrides)
+        )
 
     test "Enter on field 2 drops into the sub-list: mode: :sub, sub: 0" do
       s = paths_state(%{author_edit: %{id: 22, field: 2, sub: 0, mode: :field}})
@@ -469,41 +482,43 @@ defmodule Aleph.KeymapTest do
       assert {%{author_edit: %{sub: 0}}, :repaint} = Keymap.handle(char("k"), bottom)
     end
 
-    test "a opens a :new_path input buffer for the edited world" do
+    test "a opens a :new_path input buffer for the edited workspace" do
       s = paths_state(%{author_edit: %{id: 22, field: 2, sub: 0, mode: :sub}})
-      assert {%{input: %{kind: :new_path, buffer: "", cursor: 0, world_id: 22}}, :repaint} = Keymap.handle(char("a"), s)
+
+      assert {%{input: %{kind: :new_path, buffer: "", cursor: 0, workspace_id: 22}}, :repaint} =
+               Keymap.handle(char("a"), s)
     end
 
     test "printable keys accumulate into the :new_path buffer (kind-agnostic reuse)" do
-      s = state(%{input: %{kind: :new_path, buffer: "mo", cursor: 2, world_id: 22}})
+      s = state(%{input: %{kind: :new_path, buffer: "mo", cursor: 2, workspace_id: 22}})
       assert {%{input: %{buffer: "mod"}}, :repaint} = Keymap.handle(char("d"), s)
     end
 
-    test "Enter on a non-empty :new_path buffer emits {:edit_world, id, %{paths: existing ++ [buf]}}" do
+    test "Enter on a non-empty :new_path buffer emits {:edit_workspace, id, %{paths: existing ++ [buf]}}" do
       s =
         state(%{
           active_key: :orbis,
-          author_worlds: [@world_with_paths],
-          input: %{kind: :new_path, buffer: "c", cursor: 1, world_id: 22}
+          author_workspaces: [@workspace_with_paths],
+          input: %{kind: :new_path, buffer: "c", cursor: 1, workspace_id: 22}
         })
 
-      assert {%{input: nil}, {:edit_world, 22, %{paths: ["a", "b", "c"]}}} = Keymap.handle(key(:enter), s)
+      assert {%{input: nil}, {:edit_workspace, 22, %{paths: ["a", "b", "c"]}}} = Keymap.handle(key(:enter), s)
     end
 
     test "Enter on a blank :new_path buffer no-ops — same cancel-not-create precedent" do
-      s = state(%{input: %{kind: :new_path, buffer: "", cursor: 0, world_id: 22}})
+      s = state(%{input: %{kind: :new_path, buffer: "", cursor: 0, workspace_id: 22}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
     end
 
     test "Esc cancels the :new_path buffer" do
-      s = state(%{input: %{kind: :new_path, buffer: "half", cursor: 4, world_id: 22}})
+      s = state(%{input: %{kind: :new_path, buffer: "half", cursor: 4, workspace_id: 22}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
     end
 
-    test "x or d removes the sub-selected path: {:edit_world, id, %{paths: List.delete_at(paths, sub)}}" do
+    test "x or d removes the sub-selected path: {:edit_workspace, id, %{paths: List.delete_at(paths, sub)}}" do
       s = paths_state(%{author_edit: %{id: 22, field: 2, sub: 1, mode: :sub}})
-      assert {^s, {:edit_world, 22, %{paths: ["a"]}}} = Keymap.handle(char("x"), s)
-      assert {^s, {:edit_world, 22, %{paths: ["a"]}}} = Keymap.handle(char("d"), s)
+      assert {^s, {:edit_workspace, 22, %{paths: ["a"]}}} = Keymap.handle(char("x"), s)
+      assert {^s, {:edit_workspace, 22, %{paths: ["a"]}}} = Keymap.handle(char("d"), s)
     end
 
     test "Esc in sub-list mode steps back to field-list mode, field unchanged" do
@@ -512,9 +527,9 @@ defmodule Aleph.KeymapTest do
     end
   end
 
-  describe "editing a world's roster — the field 3 sub-list, add/remove (D2.4 Chunk 2c)" do
+  describe "editing a workspace's roster — the field 3 sub-list, add/remove (D2.4 Chunk 2c)" do
     @archetypes Map.keys(Aleph.Profiles.archetypes())
-    @world_with_roster %{
+    @workspace_with_roster %{
       id: 22,
       name: "Freedonia",
       type: "code",
@@ -524,7 +539,10 @@ defmodule Aleph.KeymapTest do
     }
 
     defp roster_state(overrides),
-      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: [@world_with_roster]}, overrides))
+      do:
+        state(
+          Map.merge(%{active_key: :orbis, orbis_face: :author, author_workspaces: [@workspace_with_roster]}, overrides)
+        )
 
     test "Enter on field 3 drops into the sub-list: mode: :sub, sub: 0" do
       s = roster_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :field}})
@@ -542,7 +560,7 @@ defmodule Aleph.KeymapTest do
     test "a opens a :new_roster input armed with the FIRST archetype" do
       s = roster_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :sub}})
 
-      assert {%{input: %{kind: :new_roster, buffer: "", cursor: 0, world_id: 22, archetype: arch}}, :repaint} =
+      assert {%{input: %{kind: :new_roster, buffer: "", cursor: 0, workspace_id: 22, archetype: arch}}, :repaint} =
                Keymap.handle(char("a"), s)
 
       assert arch == List.first(@archetypes)
@@ -551,7 +569,7 @@ defmodule Aleph.KeymapTest do
     test "h/l cycle input.archetype through Profiles.archetypes/0's keys, wrapping both ways" do
       first = List.first(@archetypes)
       last = List.last(@archetypes)
-      s = state(%{input: %{kind: :new_roster, buffer: "", cursor: 0, world_id: 22, archetype: first}})
+      s = state(%{input: %{kind: :new_roster, buffer: "", cursor: 0, workspace_id: 22, archetype: first}})
 
       {s1, :repaint} = Keymap.handle(char("l"), s)
       assert s1.input.archetype != first
@@ -567,19 +585,19 @@ defmodule Aleph.KeymapTest do
     end
 
     test "printable keys accumulate into the :new_roster buffer (kind-agnostic reuse)" do
-      s = state(%{input: %{kind: :new_roster, buffer: "am", cursor: 2, world_id: 22, archetype: :assistant}})
+      s = state(%{input: %{kind: :new_roster, buffer: "am", cursor: 2, workspace_id: 22, archetype: :assistant}})
       assert {%{input: %{buffer: "amy"}}, :repaint} = Keymap.handle(char("y"), s)
     end
 
-    test "Enter on a non-empty :new_roster buffer emits {:edit_world, id, %{roster: existing ++ [entry]}}" do
+    test "Enter on a non-empty :new_roster buffer emits {:edit_workspace, id, %{roster: existing ++ [entry]}}" do
       s =
         state(%{
           active_key: :orbis,
-          author_worlds: [@world_with_roster],
-          input: %{kind: :new_roster, buffer: "amy", cursor: 3, world_id: 22, archetype: :assistant}
+          author_workspaces: [@workspace_with_roster],
+          input: %{kind: :new_roster, buffer: "amy", cursor: 3, workspace_id: 22, archetype: :assistant}
         })
 
-      assert {%{input: nil}, {:edit_world, 22, %{roster: roster}}} = Keymap.handle(key(:enter), s)
+      assert {%{input: nil}, {:edit_workspace, 22, %{roster: roster}}} = Keymap.handle(key(:enter), s)
 
       assert roster == [
                %{"archetype" => "surveyor", "name" => "tertius"},
@@ -589,21 +607,21 @@ defmodule Aleph.KeymapTest do
     end
 
     test "Enter on a blank :new_roster buffer no-ops — same cancel-not-create precedent" do
-      s = state(%{input: %{kind: :new_roster, buffer: "", cursor: 0, world_id: 22, archetype: :assistant}})
+      s = state(%{input: %{kind: :new_roster, buffer: "", cursor: 0, workspace_id: 22, archetype: :assistant}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:enter), s)
     end
 
     test "Esc cancels the :new_roster buffer" do
-      s = state(%{input: %{kind: :new_roster, buffer: "half", cursor: 4, world_id: 22, archetype: :assistant}})
+      s = state(%{input: %{kind: :new_roster, buffer: "half", cursor: 4, workspace_id: 22, archetype: :assistant}})
       assert {%{input: nil}, :repaint} = Keymap.handle(key(:escape), s)
     end
 
-    test "x or d removes the sub-selected roster entry: {:edit_world, id, %{roster: List.delete_at(...)}}" do
+    test "x or d removes the sub-selected roster entry: {:edit_workspace, id, %{roster: List.delete_at(...)}}" do
       s = roster_state(%{author_edit: %{id: 22, field: 3, sub: 1, mode: :sub}})
       expected = [%{"archetype" => "surveyor", "name" => "tertius"}]
 
-      assert {^s, {:edit_world, 22, %{roster: ^expected}}} = Keymap.handle(char("x"), s)
-      assert {^s, {:edit_world, 22, %{roster: ^expected}}} = Keymap.handle(char("d"), s)
+      assert {^s, {:edit_workspace, 22, %{roster: ^expected}}} = Keymap.handle(char("x"), s)
+      assert {^s, {:edit_workspace, 22, %{roster: ^expected}}} = Keymap.handle(char("d"), s)
     end
 
     test "Esc in sub-list mode steps back to field-list mode, field unchanged" do
@@ -613,7 +631,7 @@ defmodule Aleph.KeymapTest do
   end
 
   describe "the roster sub-list's model/yolo knob (D2.4 Chunk 2b, absorbs Settings)" do
-    @world_with_roster %{
+    @workspace_with_roster %{
       id: 22,
       name: "Freedonia",
       type: "code",
@@ -623,7 +641,10 @@ defmodule Aleph.KeymapTest do
     }
 
     defp roster_knob_state(overrides),
-      do: state(Map.merge(%{active_key: :orbis, orbis_face: :author, author_worlds: [@world_with_roster]}, overrides))
+      do:
+        state(
+          Map.merge(%{active_key: :orbis, orbis_face: :author, author_workspaces: [@workspace_with_roster]}, overrides)
+        )
 
     test "Tab flips the armed knob :model <-> :yolo" do
       s = roster_knob_state(%{author_edit: %{id: 22, field: 3, sub: 0, mode: :sub, knob: :model}})
@@ -664,7 +685,7 @@ defmodule Aleph.KeymapTest do
     test "Enter on an empty roster is a no-op, never crashes" do
       s =
         roster_knob_state(%{
-          author_worlds: [%{@world_with_roster | roster: []}],
+          author_workspaces: [%{@workspace_with_roster | roster: []}],
           author_edit: %{id: 22, field: 3, sub: 0, mode: :sub, knob: :model}
         })
 
@@ -1130,8 +1151,8 @@ defmodule Aleph.KeymapTest do
       assert n2.focus.cursors[:a] == 0
     end
 
-    # Preview-swap (Worlds Slice 0, tweak #1): j/k/arrows over a WINDOW-BEARING pane (Leaves — each
-    # leaf maps to a live World tmux window) emit `:tlon_preview` so the cockpit re-points the center
+    # Preview-swap (Workspaces Slice 0, tweak #1): j/k/arrows over a WINDOW-BEARING pane (Leaves — each
+    # leaf maps to a live Workspace tmux window) emit `:tlon_preview` so the cockpit re-points the center
     # to the hovered window WITHOUT taking focus. Over a non-window pane it stays a plain `:repaint`.
     defp leaves_layout, do: %{left: [:a, :b], right: [Leaves], sections: %{}, counts: %{Leaves => 3}}
 
@@ -1203,7 +1224,7 @@ defmodule Aleph.KeymapTest do
     end
 
     # The center [chat]|[terminal] toggle (reshape slice D): `v` in nav flips which face the
-    # World center shows — the live PTY or the attached thread's conversation.
+    # Workspace center shows — the live PTY or the attached thread's conversation.
     test "in nav mode, v toggles the center view" do
       s = tlon(nav_focus())
       assert {^s, :toggle_center_view} = Keymap.handle(char("v"), s)

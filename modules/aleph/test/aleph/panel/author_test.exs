@@ -1,6 +1,6 @@
 defmodule Aleph.Panel.AuthorTest do
-  # AUTHOR — the Orbis author face's editable world list (D2.2). Pins the panel → styled-rows path
-  # headlessly: one row per world with its counts, the cursor row washed :selected, an empty-state
+  # AUTHOR — the Orbis author face's editable workspace list (D2.2). Pins the panel → styled-rows path
+  # headlessly: one row per workspace with its counts, the cursor row washed :selected, an empty-state
   # placeholder, and the footer hints line.
   use ExUnit.Case, async: true
 
@@ -12,9 +12,9 @@ defmodule Aleph.Panel.AuthorTest do
     Enum.map(rows, fn row -> Enum.map_join(row, fn {t, _style} -> t end) end)
   end
 
-  test "renders the ORBIS · author header, one row per world, and the footer hints" do
+  test "renders the ORBIS · author header, one row per workspace, and the footer hints" do
     data = %{
-      worlds: [
+      workspaces: [
         %{
           id: 1,
           name: "Tlön",
@@ -39,15 +39,15 @@ defmodule Aleph.Panel.AuthorTest do
     assert text =~ "a survey"
   end
 
-  test "no worlds renders the header and a create-hint placeholder, no crash" do
-    text = %{worlds: [], cursor: 0} |> Author.render(@rect) |> lines() |> Enum.join("\n")
+  test "no workspaces renders the header and a create-hint placeholder, no crash" do
+    text = %{workspaces: [], cursor: 0} |> Author.render(@rect) |> lines() |> Enum.join("\n")
     assert text =~ "ORBIS · author"
-    assert text =~ "no worlds yet"
+    assert text =~ "no workspaces yet"
   end
 
   test "the cursor row washes :selected; every other row doesn't" do
     data = %{
-      worlds: [
+      workspaces: [
         %{id: 1, name: "Tlön", type: "code", paths: [], roster: []},
         %{id: 2, name: "Freedonia", type: "blank", paths: [], roster: []}
       ],
@@ -64,7 +64,7 @@ defmodule Aleph.Panel.AuthorTest do
   end
 
   test "a missing type/paths/roster degrades gracefully instead of crashing" do
-    data = %{worlds: [%{id: 1, name: "Bare"}], cursor: 0}
+    data = %{workspaces: [%{id: 1, name: "Bare"}], cursor: 0}
     text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
     assert text =~ "Bare"
     assert text =~ "0 paths"
@@ -72,12 +72,12 @@ defmodule Aleph.Panel.AuthorTest do
   end
 
   test "pick/3 is a no-op for now — no editor yet (Chunk 2)" do
-    data = %{worlds: [%{id: 1, name: "Tlön"}], cursor: 0}
+    data = %{workspaces: [%{id: 1, name: "Tlön"}], cursor: 0}
     assert Author.pick(data, @rect, 2) == nil
   end
 
   describe "the field editor sub-view (D2.4 Chunk 2a: data[:edit] present)" do
-    @world %{
+    @workspace %{
       id: 22,
       name: "Freedonia",
       type: "code",
@@ -87,10 +87,10 @@ defmodule Aleph.Panel.AuthorTest do
     }
 
     defp edit_data(edit, overrides \\ %{}) do
-      Map.merge(%{worlds: [@world], cursor: 0, edit: edit}, overrides)
+      Map.merge(%{workspaces: [@workspace], cursor: 0, edit: edit}, overrides)
     end
 
-    test "renders the world's name (immutable, no field for it) and the type/scope/paths/roster rows" do
+    test "renders the workspace's name (immutable, no field for it) and the type/scope/paths/roster rows" do
       data = edit_data(%{id: 22, field: 0, sub: 0, mode: :field})
       text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
 
@@ -123,7 +123,7 @@ defmodule Aleph.Panel.AuthorTest do
       assert text =~ "Esc"
     end
 
-    test "an editor pointed at a world not in the list degrades to the plain list (defensive)" do
+    test "an editor pointed at a workspace not in the list degrades to the plain list (defensive)" do
       data = edit_data(%{id: 999_999, field: 0, sub: 0, mode: :field})
       text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
       assert text =~ "ORBIS · author"
@@ -132,7 +132,7 @@ defmodule Aleph.Panel.AuthorTest do
   end
 
   describe "the paths sub-list (D2.4 Chunk 2b: mode: :sub, field: 2)" do
-    @world_with_paths %{
+    @workspace_with_paths %{
       id: 22,
       name: "Freedonia",
       type: "code",
@@ -142,7 +142,7 @@ defmodule Aleph.Panel.AuthorTest do
     }
 
     defp sub_data(edit) do
-      %{worlds: [@world_with_paths], cursor: 0, edit: edit}
+      %{workspaces: [@workspace_with_paths], cursor: 0, edit: edit}
     end
 
     test "renders one row per path, the sub cursor washed :selected" do
@@ -158,7 +158,7 @@ defmodule Aleph.Panel.AuthorTest do
 
     test "an empty paths list renders a placeholder, no crash" do
       data = sub_data(%{id: 22, field: 2, sub: 0, mode: :sub})
-      data = put_in(data.worlds, [%{@world_with_paths | paths: []}])
+      data = put_in(data.workspaces, [%{@workspace_with_paths | paths: []}])
       text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
       assert text =~ "no paths yet"
     end
@@ -175,7 +175,7 @@ defmodule Aleph.Panel.AuthorTest do
   end
 
   describe "the roster sub-list (D2.4 Chunk 2c: mode: :sub, field: 3)" do
-    @world_with_roster %{
+    @workspace_with_roster %{
       id: 22,
       name: "Freedonia",
       type: "code",
@@ -185,7 +185,7 @@ defmodule Aleph.Panel.AuthorTest do
     }
 
     defp roster_sub_data(edit, overrides \\ %{}) do
-      Map.merge(%{worlds: [@world_with_roster], cursor: 0, edit: edit}, overrides)
+      Map.merge(%{workspaces: [@workspace_with_roster], cursor: 0, edit: edit}, overrides)
     end
 
     test "renders one row per roster entry (archetype · name), the sub cursor washed :selected" do
@@ -202,7 +202,7 @@ defmodule Aleph.Panel.AuthorTest do
 
     test "an empty roster renders a placeholder, no crash" do
       data = roster_sub_data(%{id: 22, field: 3, sub: 0, mode: :sub})
-      data = put_in(data.worlds, [%{@world_with_roster | roster: []}])
+      data = put_in(data.workspaces, [%{@workspace_with_roster | roster: []}])
       text = data |> Author.render(@rect) |> lines() |> Enum.join("\n")
       assert text =~ "no roster yet"
     end

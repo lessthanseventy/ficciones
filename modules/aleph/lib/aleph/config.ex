@@ -107,7 +107,7 @@ defmodule Aleph.Config do
   @doc """
   The operator's persisted default-coworker override for new chat threads, or `nil` when unset.
   Just the override — the roster-derived default lives with the staffing decision
-  (`Aleph.MachineChat.Staffing.default_coworker/1`), fed the LIVE world roster by the caller, so no
+  (`Aleph.MachineChat.Staffing.default_coworker/1`), fed the LIVE workspace roster by the caller, so no
   stale hardcoded stand-in handle can leak in as a thread lead.
   """
   @spec default_coworker_override(String.t()) :: String.t() | nil

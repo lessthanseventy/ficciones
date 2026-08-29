@@ -1,7 +1,7 @@
 defmodule Aleph.CockpitPreviewTest do
   @moduledoc """
-  The selection-driven center re-point (Worlds Slice 0, tweak #1): in Tlön nav mode a hover over a
-  window-bearing pane (Leaves — each leaf maps to a live World tmux window by its lead) PREVIEWS
+  The selection-driven center re-point (Workspaces Slice 0, tweak #1): in Tlön nav mode a hover over a
+  window-bearing pane (Leaves — each leaf maps to a live Workspace tmux window by its lead) PREVIEWS
   that window in the center (`select-window` re-point, `previewed_window` stored) WITHOUT taking
   keyboard focus or sending keys; only a COMMIT (`commit_preview/1`) drops into the terminal.
 
@@ -15,16 +15,16 @@ defmodule Aleph.CockpitPreviewTest do
   alias Aleph.Panel
   alias Aleph.Tlon.Focus
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
+  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorlds.put()
+    Aleph.TestWorkspaces.put()
   end
 
   setup do
     test_pid = self()
 
-    # Fake tmux runner: records argv; `list-windows` reports three World windows
+    # Fake tmux runner: records argv; `list-windows` reports three Workspace windows
     # (tertius@0, hronir@1, uqbar@2), everything else (select-window) is a no-op success.
     Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
@@ -56,7 +56,7 @@ defmodule Aleph.CockpitPreviewTest do
   end
 
   describe "preview_focused/1 — hover re-points, never focuses" do
-    test "a leaf mapped to a live World window re-points the center but stays in nav mode" do
+    test "a leaf mapped to a live Workspace window re-points the center but stays in nav mode" do
       next = Cockpit.preview_focused(leaves_state([%{id: "t1", title: "x", lead: "hronir"}], 0))
 
       assert next.previewed_window == "1"

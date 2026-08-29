@@ -13,17 +13,17 @@ defmodule Aleph.Application do
       [
         {DynamicSupervisor, name: Aleph.TerminalSup, strategy: :one_for_one},
         Aleph.Sessions
-      ] ++ maybe_worlds()
+      ] ++ maybe_workspaces()
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Aleph.Supervisor)
   end
 
-  # Event-driven cache of funes' worlds so the per-render picker/survey never hit the DB. Gated
-  # off under test (config/test.exs: `start_worlds: false`): the app-global would subscribe to the
-  # funes worlds Bus and cache worlds registered by async DB tests, polluting Space.all/0 for the
-  # pure-render tests. With it unstarted, fetch_worlds/0 degrades to [] → the deterministic Tlön
+  # Event-driven cache of funes' workspaces so the per-render picker/survey never hit the DB. Gated
+  # off under test (config/test.exs: `start_workspaces: false`): the app-global would subscribe to the
+  # funes workspaces Bus and cache workspaces registered by async DB tests, polluting Space.all/0 for the
+  # pure-render tests. With it unstarted, fetch_workspaces/0 degrades to [] → the deterministic Tlön
   # fallback the render tests rely on.
-  defp maybe_worlds do
-    if Application.get_env(:aleph, :start_worlds, true), do: [Aleph.Worlds], else: []
+  defp maybe_workspaces do
+    if Application.get_env(:aleph, :start_workspaces, true), do: [Aleph.Workspaces], else: []
   end
 end

@@ -1,15 +1,16 @@
 defmodule Funes.MCP.WorldToolsTest do
-  # The world tools (worlds/orbis Slice 1) are machine-GLOBAL: unlike every
-  # thread-scoped tool they read no identity from the frame, so they are driven
-  # here by calling `execute/2` directly with a bare frame — the honest unit of a
-  # tool that operates on the global `world` table via `Funes.Worlds`. Every
+  # The workspace tools (still named register_world/… until the MCP-surface slice)
+  # are machine-GLOBAL: unlike every thread-scoped tool they read no identity from
+  # the frame, so they are driven here by calling `execute/2` directly with a bare
+  # frame — the honest unit of a tool that operates on the global `workspace` table
+  # via `Funes.Workspaces`. Every
   # assertion reads back through the context (never Repo), the same one-source law
   # the tools obey.
   use ExUnit.Case, async: false
 
   alias Anubis.Server.Frame
   alias Funes.MCP.Tool
-  alias Funes.Worlds
+  alias Funes.Workspaces
 
   @frame %Frame{}
 
@@ -38,7 +39,7 @@ defmodule Funes.MCP.WorldToolsTest do
       assert payload["name"] == "Tlön"
       assert is_integer(payload["world_id"])
 
-      world = Worlds.by_name("Tlön")
+      world = Workspaces.by_name("Tlön")
       assert world.id == payload["world_id"]
       assert world.type == "code"
       assert world.scope == "machine"
@@ -54,7 +55,7 @@ defmodule Funes.MCP.WorldToolsTest do
     end
 
     test "a duplicate name is a graceful changeset error" do
-      {:ok, _} = Worlds.register(%{name: "Tlön"})
+      {:ok, _} = Workspaces.register(%{name: "Tlön"})
       {:reply, resp, _} = Tool.RegisterWorld.execute(%{name: "Tlön"}, @frame)
       assert resp.isError
       assert is_binary(error_text(resp))
@@ -63,8 +64,8 @@ defmodule Funes.MCP.WorldToolsTest do
 
   describe "list_worlds" do
     test "returns the shaped worlds, newest first" do
-      {:ok, _} = Worlds.register(%{name: "Tlön", paths: ["modules/*"]})
-      {:ok, _} = Worlds.register(%{name: "Uqbar", type: "blank"})
+      {:ok, _} = Workspaces.register(%{name: "Tlön", paths: ["modules/*"]})
+      {:ok, _} = Workspaces.register(%{name: "Uqbar", type: "blank"})
 
       {:reply, resp, _} = Tool.ListWorlds.execute(%{}, @frame)
       refute resp.isError
@@ -87,7 +88,7 @@ defmodule Funes.MCP.WorldToolsTest do
 
   describe "edit_world" do
     test "mutates a world's fields, identified by name" do
-      {:ok, _} = Worlds.register(%{name: "Tlön", type: "code"})
+      {:ok, _} = Workspaces.register(%{name: "Tlön", type: "code"})
 
       {:reply, resp, _} =
         Tool.EditWorld.execute(
@@ -100,7 +101,7 @@ defmodule Funes.MCP.WorldToolsTest do
       assert shaped["type"] == "life"
       assert shaped["paths"] == ["docs/*"]
 
-      world = Worlds.by_name("Tlön")
+      world = Workspaces.by_name("Tlön")
       assert world.type == "life"
       assert world.paths == ["docs/*"]
       assert world.knobs == %{"pulse" => false}
@@ -115,22 +116,22 @@ defmodule Funes.MCP.WorldToolsTest do
 
   describe "remove_world" do
     test "deletes a world by name" do
-      {:ok, _} = Worlds.register(%{name: "keep"})
-      {:ok, _} = Worlds.register(%{name: "Tlön"})
+      {:ok, _} = Workspaces.register(%{name: "keep"})
+      {:ok, _} = Workspaces.register(%{name: "Tlön"})
 
       {:reply, resp, _} = Tool.RemoveWorld.execute(%{name: "Tlön"}, @frame)
       refute resp.isError
       assert json(resp)["removed"] == "Tlön"
-      assert Worlds.by_name("Tlön") == nil
+      assert Workspaces.by_name("Tlön") == nil
     end
 
     test "the last world is refused, as a tool error" do
-      {:ok, _} = Worlds.register(%{name: "only"})
+      {:ok, _} = Workspaces.register(%{name: "only"})
 
       {:reply, resp, _} = Tool.RemoveWorld.execute(%{name: "only"}, @frame)
       assert resp.isError
       assert error_text(resp) =~ "last world"
-      assert Worlds.by_name("only")
+      assert Workspaces.by_name("only")
     end
 
     test "a missing world is an error" do

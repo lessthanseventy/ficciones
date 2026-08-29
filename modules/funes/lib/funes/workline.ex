@@ -52,7 +52,7 @@ defmodule Funes.Workline do
   `{:ok, thread}` or `{:error, changeset}` (a taken slug is a UNIQUE refusal).
   """
   def open(attrs) do
-    attrs = Map.put_new_lazy(attrs, :world_id, &Funes.Bootstrap.default_world_id/0)
+    attrs = Map.put_new_lazy(attrs, :workspace_id, &Funes.Bootstrap.default_workspace_id/0)
 
     with {:ok, thread} <-
            attrs |> Thread.workline_changeset() |> Repo.insert() |> Funes.Bus.announce(:thread_opened) do
@@ -272,21 +272,21 @@ defmodule Funes.Workline do
     {:ok, flipped}
   end
 
-  # Entering review: the world's reviewer takes the lead — the builder never approves its own
+  # Entering review: the workspace's reviewer takes the lead — the builder never approves its own
   # work by proxy. Best-effort (the stage already flipped and broadcast; a restaff fault must
   # not fail the advance) — but a MISS is posted, never silent: the operator sees that the
   # builder still holds a review it shouldn't.
-  defp restaff_reviewer(%Thread{world_id: nil} = thread), do: restaff_miss(thread, "no world bound")
+  defp restaff_reviewer(%Thread{workspace_id: nil} = thread), do: restaff_miss(thread, "no workspace bound")
 
   defp restaff_reviewer(thread) do
-    with %{roster: roster} when is_list(roster) <- Repo.get(Funes.World, thread.world_id),
+    with %{roster: roster} when is_list(roster) <- Repo.get(Funes.Workspace, thread.workspace_id),
          %{"name" => name} <- Enum.find(roster, &(&1["archetype"] == "reviewer" || &1[:archetype] == "reviewer")),
          {:ok, restaffed} <- Funes.Channel.assign_lead(thread.id, "#{name}-machine") do
       post_brief(restaffed, "→ #{name}-machine leads (review stage)")
       restaffed
     else
       {:error, reason} -> restaff_miss(thread, inspect(reason))
-      _ -> restaff_miss(thread, "no reviewer in the world's roster")
+      _ -> restaff_miss(thread, "no reviewer in the workspace's roster")
     end
   rescue
     e -> restaff_miss(thread, Exception.message(e))

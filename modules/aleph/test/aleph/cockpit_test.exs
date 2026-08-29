@@ -12,10 +12,10 @@ defmodule Aleph.CockpitTest do
   alias Aleph.Tlon.Focus
   alias Ghostty.KeyEvent
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
+  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorlds.put()
+    Aleph.TestWorkspaces.put()
   end
 
   test "a printable char carries its utf8 and its key atom" do
@@ -142,16 +142,16 @@ defmodule Aleph.CockpitTest do
     end
   end
 
-  describe "profile_launcher/3: the World window-0 command runs pi from its profile's config dir" do
+  describe "profile_launcher/3: the Workspace window-0 command runs pi from its profile's config dir" do
     @profile %Aleph.Profile{name: "tlon"}
 
-    test "attaches-or-creates the world's w<id> session" do
+    test "attaches-or-creates the workspace's w<id> session" do
       assert Cockpit.profile_launcher(1, "tertius", @profile) =~ "new-session -A -s w1"
     end
 
-    test "runs on the world's PRIVATE tmux server (id-derived), with the profile's persistence-free config" do
+    test "runs on the workspace's PRIVATE tmux server (id-derived), with the profile's persistence-free config" do
       cmd = Cockpit.profile_launcher(1, "tertius", @profile)
-      assert cmd =~ "tmux -L aleph-world-1 "
+      assert cmd =~ "tmux -L aleph-workspace-1 "
       assert cmd =~ "-f #{Aleph.Profiles.config_dir("tlon")}/tmux.conf"
     end
 
@@ -201,13 +201,13 @@ defmodule Aleph.CockpitTest do
     end
   end
 
-  # C2.2: session/socket are id-derived (`w<id>` / `aleph-world-<id>`), not the old singleton "tlon"
+  # C2.2: session/socket are id-derived (`w<id>` / `aleph-workspace-<id>`), not the old singleton "tlon"
   # session on the lead-name-derived "aleph-tertius" socket — a rename can't orphan the running
-  # session and two worlds can't collide. `attach_leaf/2` takes the layout as a plain arg (no
+  # session and two workspaces can't collide. `attach_leaf/2` takes the layout as a plain arg (no
   # `Space.fetch` involved), so `active_key: 1` proves the id comes from STATE, not from whatever
-  # world happens to be seeded in the test env (the funes-down fallback is id 0 — see
+  # workspace happens to be seeded in the test env (the funes-down fallback is id 0 — see
   # `Aleph.CockpitLeavesAttachTest`).
-  describe "world id threads into the tmux target (C2.2 — de-singleton the tlon session/socket)" do
+  describe "workspace id threads into the tmux target (C2.2 — de-singleton the tlon session/socket)" do
     setup do
       test_pid = self()
 
@@ -223,7 +223,7 @@ defmodule Aleph.CockpitTest do
       :ok
     end
 
-    test "a query for World id 1 targets socket aleph-world-1 and session w1" do
+    test "a query for Workspace id 1 targets socket aleph-workspace-1 and session w1" do
       state = %{
         active_key: 1,
         focus: %Focus{in_terminal?: false, column: :right, pane: 0, cursors: %{Leaves => 0}},
@@ -238,8 +238,8 @@ defmodule Aleph.CockpitTest do
 
       Cockpit.attach_leaf(state, layout)
 
-      assert_received {:tmux, ["-L", "aleph-world-1", "list-windows", "-t", "w1" | _]}
-      assert_received {:tmux, ["-L", "aleph-world-1", "select-window", "-t", "w1:1"]}
+      assert_received {:tmux, ["-L", "aleph-workspace-1", "list-windows", "-t", "w1" | _]}
+      assert_received {:tmux, ["-L", "aleph-workspace-1", "select-window", "-t", "w1:1"]}
     end
   end
 
@@ -272,13 +272,13 @@ defmodule Aleph.CockpitTest do
     end
   end
 
-  # Slice D: `[`/`]` cycle the World's CAROUSEL (Memory/Crew/Activity/Leaves) — the pinned head
+  # Slice D: `[`/`]` cycle the Workspace's CAROUSEL (Memory/Crew/Activity/Leaves) — the pinned head
   # (STACK / the brief) is never cycled away, so the wrap length is the carousel's (4), not the
   # full right column's (5).
   # `cycle_pane_view/2` is the pure decision `apply_effect({:cycle_pane_view, dir}, state)` runs —
   # exposed (like `attach_leaf/2`/`preview_focused/1`) so it's testable without a live GenServer.
-  # Test env's world fallback (funes-down / no live cache) is the hardcoded Tlön space (key 0).
-  describe "cycle_pane_view/2: the World's right-pane view index" do
+  # Test env's workspace fallback (funes-down / no live cache) is the hardcoded Tlön space (key 0).
+  describe "cycle_pane_view/2: the Workspace's right-pane view index" do
     test "cycle_pane_view wraps the CAROUSEL (the pinned head excluded): 0→..→3→0" do
       state = %{active_key: 0, right_pane_view: 0}
       assert Cockpit.cycle_pane_view(state, 1).right_pane_view == 1
@@ -286,7 +286,7 @@ defmodule Aleph.CockpitTest do
       assert Cockpit.cycle_pane_view(state, -1).right_pane_view == 3
     end
 
-    test "outside a World (Orbis) it's a no-op — nothing to cycle" do
+    test "outside a Workspace (Orbis) it's a no-op — nothing to cycle" do
       state = %{active_key: :orbis, right_pane_view: 0}
       assert Cockpit.cycle_pane_view(state, 1) == state
     end
@@ -304,21 +304,21 @@ defmodule Aleph.CockpitTest do
     end
   end
 
-  describe "orbis_worlds/1: the survey reads the CACHED rollup, never re-gathers funes" do
-    test "returns the cached rollup's worlds — no live funes gather" do
-      # ensure_probes fills state.leaves with the full rollup (worlds key included) on the @probe_ms
+  describe "orbis_workspaces/1: the survey reads the CACHED rollup, never re-gathers funes" do
+    test "returns the cached rollup's workspaces — no live funes gather" do
+      # ensure_probes fills state.leaves with the full rollup (workspaces key included) on the @probe_ms
       # throttle; the survey must read THAT, so a known cache flows straight through untouched.
       cached = %{
         summary: %{open: 1, stalled: 0, done: 0, conflicts: 0},
         rows: [%{id: 1}],
-        worlds: [%{world: "Tlön", summary: %{open: 1, stalled: 0, done: 0, conflicts: 0}, leaves: [%{id: 1}]}]
+        workspaces: [%{workspace: "Tlön", summary: %{open: 1, stalled: 0, done: 0, conflicts: 0}, leaves: [%{id: 1}]}]
       }
 
-      assert Cockpit.orbis_worlds(%{leaves: cached}) == cached.worlds
+      assert Cockpit.orbis_workspaces(%{leaves: cached}) == cached.workspaces
     end
 
     test "a cold / funes-down cache (nil leaves) is an empty survey, not a crash" do
-      assert Cockpit.orbis_worlds(%{leaves: nil}) == []
+      assert Cockpit.orbis_workspaces(%{leaves: nil}) == []
     end
   end
 

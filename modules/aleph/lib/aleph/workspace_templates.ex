@@ -1,13 +1,13 @@
-defmodule Aleph.WorldTemplates do
+defmodule Aleph.WorkspaceTemplates do
   @moduledoc """
-  The **world-archetype registry** — nix-owned *capabilities* (compiled, like `Aleph.Profiles`'
+  The **workspace-archetype registry** — nix-owned *capabilities* (compiled, like `Aleph.Profiles`'
   coworker archetypes, not runtime-editable). A template is the STARTER shape the author face's
-  "new world" composes a funes `world` row from: a `type`, default `paths`, a starter `roster` of
+  "new workspace" composes a funes `workspace` row from: a `type`, default `paths`, a starter `roster` of
   coworker-archetype entries, and `knobs`. The operator names it and edits from there; the created
   row is a *composition* (funes-owned, runtime-editable) — the config seam the reshape settled.
 
   Distinct from `Aleph.Profiles.@archetypes`: those template a single COWORKER; these template a
-  whole WORLD (which references coworker archetypes by atom in its `roster`).
+  whole WORKSPACE (which references coworker archetypes by atom in its `roster`).
   """
 
   # roster entries reference the coworker archetype registry (`Aleph.Profiles`) by atom; `name` is a
@@ -37,20 +37,20 @@ defmodule Aleph.WorldTemplates do
   @spec templates() :: %{atom() => map()}
   def templates, do: @templates
 
-  @doc "The template for one world archetype (raises on an unknown key)."
+  @doc "The template for one workspace archetype (raises on an unknown key)."
   @spec template(atom()) :: map()
   def template(key), do: Map.fetch!(@templates, key)
 
-  @doc "The world-archetype keys."
+  @doc "The workspace-archetype keys."
   @spec names() :: [atom()]
   def names, do: Map.keys(@templates)
 
   @doc """
-  A `Funes.Worlds.register/1` attrs map from a template + an operator-given `name`. The roster is
+  A `Funes.Workspaces.register/1` attrs map from a template + an operator-given `name`. The roster is
   emitted in the funes WIRE shape (string-keyed maps, matching the seed roster) so it round-trips
   through the changeset unchanged.
   """
-  @spec new_world_attrs(atom(), String.t()) :: %{
+  @spec new_workspace_attrs(atom(), String.t()) :: %{
           name: String.t(),
           type: String.t(),
           scope: String.t(),
@@ -58,7 +58,7 @@ defmodule Aleph.WorldTemplates do
           roster: [%{String.t() => String.t()}],
           knobs: map()
         }
-  def new_world_attrs(template_key, name) do
+  def new_workspace_attrs(template_key, name) do
     t = template(template_key)
 
     %{

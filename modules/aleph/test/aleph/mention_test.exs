@@ -8,7 +8,7 @@ defmodule Aleph.MentionTest do
 
   alias Aleph.Mention
 
-  # The seed roster (Aleph.Space's fallback Tlön world) — the fixture every roster-derived test
+  # The seed roster (Aleph.Space's fallback Tlön workspace) — the fixture every roster-derived test
   # below threads through mentions/route instead of a compile-time @base_coworkers. The builder's
   # handle is "hronir-machine" (post-C2.3 rename), NOT the legacy "claude-machine".
   @roster [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]

@@ -17,7 +17,7 @@ defmodule Funes.Application do
     # is safe where the switchboard is deliberately opt-in) — but the test harness turns it
     # off so the pure maybe_mirror tests don't double-fire.
     # Boot integrity (reshape slice A): seed the default workspace if none, repair
-    # dangling thread→workspace refs. Replaces the flake's ExecStartPre seed_world.
+    # dangling thread→workspace refs. Replaces the flake's ExecStartPre seed_workspace.
     # Funes.Bootstrap's start_link runs the work synchronously and returns :ignore,
     # so children after it (consult mirror, MCP/Bandit) start only once seed+repair
     # are done — nothing serves against an unseeded db.

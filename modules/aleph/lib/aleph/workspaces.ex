@@ -1,14 +1,14 @@
-defmodule Aleph.Worlds do
+defmodule Aleph.Workspaces do
   @moduledoc """
-  An event-driven cache of funes' worlds (worlds/orbis Slice 1, Task B1).
+  An event-driven cache of funes' workspaces (workspaces/orbis Slice 1, Task B1).
 
   `Space.all/0` and the Orbis survey are per-render hot paths — reading
-  `Funes.Worlds.all/0` there would be a funes DB hit every frame, the same
+  `Funes.Workspaces.all/0` there would be a funes DB hit every frame, the same
   per-frame-gather regression the survey already caught. So this GenServer loads the
-  world list once, subscribes to the funes worlds Bus topic, and reloads only when a
-  world is registered/edited/removed. `all/0` then serves the cached list — no DB per
+  workspace list once, subscribes to the funes workspaces Bus topic, and reloads only when a
+  workspace is registered/edited/removed. `all/0` then serves the cached list — no DB per
   render. funes runs in-process in aleph (the cockpit already reads `Funes.Board`/
-  `Funes.Channel` directly), so `Funes.Worlds`/`Funes.Bus` work like any local call.
+  `Funes.Channel` directly), so `Funes.Workspaces`/`Funes.Bus` work like any local call.
 
   `all/0` is a `GenServer.call`, not a `:persistent_term` read: the caller is the single
   cockpit render process, so there is no call contention, and the win we needed was
@@ -25,8 +25,8 @@ defmodule Aleph.Worlds do
 
   require Logger
 
-  @world_events [:world_registered, :world_edited, :world_removed]
-  # The aleph-shaped subset lifted off each `Funes.World` — dropping `knobs`/`created_at`.
+  @workspace_events [:workspace_registered, :workspace_edited, :workspace_removed]
+  # The aleph-shaped subset lifted off each `Funes.Workspace` — dropping `knobs`/`created_at`.
   # Taken by key (not a struct match) so aleph needn't reference funes' unexported struct.
   @fields [:id, :name, :type, :paths, :roster, :scope]
 
@@ -35,17 +35,17 @@ defmodule Aleph.Worlds do
   end
 
   @doc """
-  The cached worlds as aleph-shaped `%{id, name, type, paths, roster, scope}` maps.
+  The cached workspaces as aleph-shaped `%{id, name, type, paths, roster, scope}` maps.
 
   Cache down (boot race, or the test env where this GenServer never runs) degrades to
-  the caller-process fixture `Process.get(:aleph_worlds, [])` — the seam tests push a
-  world list through now that the hardcoded fallback World is gone (reshape slice A).
+  the caller-process fixture `Process.get(:aleph_workspaces, [])` — the seam tests push a
+  workspace list through now that the hardcoded fallback Workspace is gone (reshape slice A).
   Process-scoped so async suites can't race each other's fixtures.
   """
   def all(server \\ __MODULE__) do
     GenServer.call(server, :all)
   catch
-    :exit, _ -> Process.get(:aleph_worlds, [])
+    :exit, _ -> Process.get(:aleph_workspaces, [])
   end
 
   @impl true
@@ -57,32 +57,33 @@ defmodule Aleph.Worlds do
   # Guarded like `load/1`: if funes' PubSub is down at boot, degrade to an unsubscribed
   # empty cache instead of crash-looping the supervisor. Happy path is a plain subscribe.
   defp subscribe do
-    Bus.subscribe_worlds()
+    Bus.subscribe_workspaces()
   rescue
-    e -> Logger.warning("Aleph.Worlds: worlds subscribe failed (#{inspect(e)}); cache won't refresh")
+    e -> Logger.warning("Aleph.Workspaces: workspaces subscribe failed (#{inspect(e)}); cache won't refresh")
   catch
-    :exit, reason -> Logger.warning("Aleph.Worlds: worlds subscribe exited (#{inspect(reason)}); cache won't refresh")
+    :exit, reason ->
+      Logger.warning("Aleph.Workspaces: workspaces subscribe exited (#{inspect(reason)}); cache won't refresh")
   end
 
   @impl true
-  def handle_call(:all, _from, worlds), do: {:reply, worlds, worlds}
+  def handle_call(:all, _from, workspaces), do: {:reply, workspaces, workspaces}
 
   @impl true
-  def handle_info({tag, _world}, worlds) when tag in @world_events do
-    {:noreply, load(worlds)}
+  def handle_info({tag, _workspace}, workspaces) when tag in @workspace_events do
+    {:noreply, load(workspaces)}
   end
 
-  def handle_info(_msg, worlds), do: {:noreply, worlds}
+  def handle_info(_msg, workspaces), do: {:noreply, workspaces}
 
-  # Load + shape the world list; on any funes error keep `fallback` (init: `[]`; a
+  # Load + shape the workspace list; on any funes error keep `fallback` (init: `[]`; a
   # reload: the prior cache) so a DB blip never takes the cockpit down.
   defp load(fallback) do
-    Enum.map(Funes.Worlds.all(), &shape/1)
+    Enum.map(Funes.Workspaces.all(), &shape/1)
   rescue
     _ -> fallback
   catch
     :exit, _ -> fallback
   end
 
-  defp shape(world), do: Map.take(world, @fields)
+  defp shape(workspace), do: Map.take(workspace, @fields)
 end

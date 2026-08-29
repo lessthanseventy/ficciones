@@ -1,10 +1,10 @@
 defmodule Aleph.SpaceTest do
   @moduledoc """
   Aleph.Space.all/0 + next/prev — the picker order after the Slice 0 collapse. Sessions is deleted;
-  only Orbis (the god-view survey) and one World space remain, and Tab cycles between the two.
+  only Orbis (the god-view survey) and one Workspace space remain, and Tab cycles between the two.
 
-  Phase C1.2: World spaces are keyed by their funes id (not a name slug), so id-keying is exercised
-  throughout — the fixture `@tlon` carries `id: 1` and the fallback (funes down / no worlds) keys as
+  Phase C1.2: Workspace spaces are keyed by their funes id (not a name slug), so id-keying is exercised
+  throughout — the fixture `@tlon` carries `id: 1` and the fallback (funes down / no workspaces) keys as
   the sentinel `0`.
   """
   use ExUnit.Case, async: true
@@ -20,10 +20,10 @@ defmodule Aleph.SpaceTest do
   alias Aleph.Panel.WindowBar
   alias Aleph.Space
 
-  # `Space.world?/1` is a `defguard` (Phase C1.3), which requires the module, not just an alias.
+  # `Space.workspace?/1` is a `defguard` (Phase C1.3), which requires the module, not just an alias.
   require Space
 
-  # The seeded Tlön world, aleph-shaped (Aleph.Worlds.all/0 output — string-keyed roster from JSON).
+  # The seeded Tlön workspace, aleph-shaped (Aleph.Workspaces.all/0 output — string-keyed roster from JSON).
   @tlon %{
     id: 1,
     name: "Tlön",
@@ -33,20 +33,20 @@ defmodule Aleph.SpaceTest do
     roster: [%{"archetype" => "surveyor", "name" => "tertius"}]
   }
 
-  test "funes down → the picker is Orbis alone; no fake World (reshape slice A)" do
-    # Space.all/0 reads the live Aleph.Worlds cache (funes down under test → []). The hardcoded
+  test "funes down → the picker is Orbis alone; no fake Workspace (reshape slice A)" do
+    # Space.all/0 reads the live Aleph.Workspaces cache (funes down under test → []). The hardcoded
     # Tlön fallback is gone: funes self-seeds a default workspace at boot (Funes.Bootstrap), so an
-    # empty world list means funes is genuinely down — rendered honestly, not papered over.
+    # empty workspace list means funes is genuinely down — rendered honestly, not papered over.
     assert Enum.map(Space.all(), & &1.key) == [:orbis]
   end
 
-  test "Tab with no worlds wraps Orbis to itself" do
+  test "Tab with no workspaces wraps Orbis to itself" do
     assert Space.next(:orbis).key == :orbis
     assert Space.prev(:orbis).key == :orbis
   end
 
-  describe "all/1 (derived from funes worlds)" do
-    test "one seeded Tlön world → picker is exactly [:orbis, 1]" do
+  describe "all/1 (derived from funes workspaces)" do
+    test "one seeded Tlön workspace → picker is exactly [:orbis, 1]" do
       assert Enum.map(Space.all([@tlon]), & &1.key) == [:orbis, 1]
     end
 
@@ -66,11 +66,11 @@ defmodule Aleph.SpaceTest do
       assert tlon.roster == @tlon.roster
     end
 
-    test "empty worlds → Orbis alone, no fabricated World" do
+    test "empty workspaces → Orbis alone, no fabricated Workspace" do
       assert Enum.map(Space.all([]), & &1.key) == [:orbis]
     end
 
-    test "two worlds → [:orbis, 1, 2], keyed by funes id" do
+    test "two workspaces → [:orbis, 1, 2], keyed by funes id" do
       freedonia = %{@tlon | id: 2, name: "Freedonia", roster: [%{"archetype" => "surveyor", "name" => "rufus"}]}
 
       spaces = Space.all([@tlon, freedonia])
@@ -82,7 +82,7 @@ defmodule Aleph.SpaceTest do
       assert second.coworker == "rufus"
     end
 
-    test "a world space is keyed by its funes id" do
+    test "a workspace space is keyed by its funes id" do
       spaces =
         Space.all([
           %{id: 7, name: "Tlön", roster: [%{"name" => "tertius"}], type: "code", paths: [], scope: "machine"}
@@ -98,10 +98,10 @@ defmodule Aleph.SpaceTest do
     end
   end
 
-  describe "first_world/0 with no worlds" do
+  describe "first_workspace/0 with no workspaces" do
     test "is nil — funes-genuinely-empty, no sentinel" do
       # Reads the live cache (down under test → []); callers own the nil.
-      assert Space.first_world() == nil
+      assert Space.first_workspace() == nil
     end
   end
 
@@ -123,17 +123,17 @@ defmodule Aleph.SpaceTest do
     end
   end
 
-  describe "world?/1" do
-    test "is the mode predicate distinguishing Orbis from World keys" do
-      refute Space.world?(:orbis)
-      assert Space.world?(1)
-      assert Space.world?(0)
+  describe "workspace?/1" do
+    test "is the mode predicate distinguishing Orbis from Workspace keys" do
+      refute Space.workspace?(:orbis)
+      assert Space.workspace?(1)
+      assert Space.workspace?(0)
     end
   end
 
   describe "visible_right/2 (clarity slice 2)" do
-    test "world right column = contextual pinned head + the view-indexed carousel panel" do
-      space = Enum.find(Space.all([@tlon]), &Space.world?(&1.key))
+    test "workspace right column = contextual pinned head + the view-indexed carousel panel" do
+      space = Enum.find(Space.all([@tlon]), &Space.workspace?(&1.key))
       assert Space.carousel(space) == [Memory, Crew, Activity, Leaves]
       # workspace context (the default): branch/commits pinned
       assert Space.visible_right(space, 0) == [Stack, Memory]

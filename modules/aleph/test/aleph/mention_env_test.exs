@@ -8,7 +8,7 @@ defmodule Aleph.MentionEnvTest do
 
   alias Aleph.Mention
 
-  # The seed roster (Aleph.Space's fallback Tlön world) — mirrors mention_test.exs's fixture.
+  # The seed roster (Aleph.Space's fallback Tlön workspace) — mirrors mention_test.exs's fixture.
   @roster [%{"archetype" => "surveyor", "name" => "tertius"}, %{"archetype" => "builder", "name" => "hronir"}]
 
   setup do

@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Aleph.Seed do
   @shortdoc "Seed the funes DB with sample threads/agents/sessions/messages for the cockpit"
   @moduledoc """
-  Populate `FUNES_DB` with a small, believable world so the cockpit has something to render and
+  Populate `FUNES_DB` with a small, believable workspace so the cockpit has something to render and
   react to. Idempotent: re-running won't duplicate agents, threads, or a thread's opening messages.
   Writes only through funes' public API (never raw rows) — the same path agents and the human use.
   """

@@ -15,7 +15,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
   alias Funes.Repo
   alias Funes.Staff
 
-  @worlds [
+  @workspaces [
     %{
       id: 99,
       name: "Freedonia",
@@ -106,7 +106,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
 
     thread = staffed_thread("borges-machine")
 
-    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
     assert_receive {:join, tid, "borges-machine", opts}
     assert tid == thread.id
@@ -114,7 +114,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
 
     # Slice C: a HUMAN window name (`<archetype>-<title-slug>`), not `t<id>` …
     window = "planner-task-for-borges-machine"
-    assert_receive {:tmux, ["-L", "aleph-world-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
     assert script =~ "PI_CODING_AGENT_DIR"
     refute script =~ "modules/manos/claude-code/launch.sh"
 
@@ -122,25 +122,25 @@ defmodule Aleph.CockpitThreadSessionsTest do
     thread_tag = "#{thread.id}"
     target = "w99:=" <> window
 
-    assert_receive {:tmux, ["-L", "aleph-world-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
   end
 
   test "a claude-harness worker lead still gets its claude leaf window (regression)" do
     thread = staffed_thread("hronir-machine")
 
-    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
     assert_receive {:join, _tid, "hronir-machine", _opts}
 
     window = "builder-task-for-hronir-machine"
-    assert_receive {:tmux, ["-L", "aleph-world-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
     assert script =~ "modules/manos/claude-code/launch.sh"
     refute script =~ "PI_CODING_AGENT_DIR"
 
     thread_tag = "#{thread.id}"
     target = "w99:=" <> window
 
-    assert_receive {:tmux, ["-L", "aleph-world-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
   end
 
   test "a live `@funes_thread`-tagged window suppresses a respawn — the routing map, not the name, is the identity" do
@@ -155,7 +155,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
         else: {"", 0}
     end)
 
-    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
     refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
   end
@@ -163,7 +163,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
   test "a meta (surveyor) lead never gets a leaf window — the vantage is not a worker" do
     staffed_thread("rufus-machine")
 
-    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
     refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
   end
@@ -181,7 +181,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
         else: {"", 0}
     end)
 
-    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
     refute_receive {:tmux, ["-L", _, "send-keys" | _]}, 50
   end
 
@@ -197,10 +197,10 @@ defmodule Aleph.CockpitThreadSessionsTest do
         else: {"", 0}
     end)
 
-    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
-    assert_receive {:tmux, ["-L", "aleph-world-99", "send-keys", "-t", "w99:1", "Enter"]}
-    assert_receive {:tmux, ["-L", "aleph-world-99", "set-option", "-w", "-t", "w99:1", "@funes_opening", "done"]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "send-keys", "-t", "w99:1", "Enter"]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "set-option", "-w", "-t", "w99:1", "@funes_opening", "done"]}
   end
 
   test "the leaf cap parks spawns past the budget — no new-window, a one-time note" do
@@ -226,7 +226,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
         else: {"", 0}
     end)
 
-    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
     refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
     assert [%{body: body}] = Channel.thread_messages(Channel.thread(thread.id))
@@ -247,10 +247,10 @@ defmodule Aleph.CockpitThreadSessionsTest do
         else: {"", 0}
     end)
 
-    Cockpit.ensure_thread_sessions(state(), Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
-    assert_receive {:tmux, ["-L", "aleph-world-99", "kill-window", "-t", "w99:2"]}
-    assert_receive {:tmux, ["-L", "aleph-world-99", "kill-window", "-t", "w99:3"]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "kill-window", "-t", "w99:2"]}
+    assert_receive {:tmux, ["-L", "aleph-workspace-99", "kill-window", "-t", "w99:3"]}
     refute_receive {:tmux, ["-L", _, "kill-window", "-t", "w99:0"]}, 20
     refute_receive {:tmux, ["-L", _, "kill-window", "-t", "w99:1"]}, 20
   end
@@ -258,7 +258,7 @@ defmodule Aleph.CockpitThreadSessionsTest do
   test "the standing thread is excluded — the center already runs it" do
     thread = staffed_thread("borges-machine")
 
-    Cockpit.ensure_thread_sessions(%{state() | standing_thread_id: thread.id}, Space.all(@worlds))
+    Cockpit.ensure_thread_sessions(%{state() | standing_thread_id: thread.id}, Space.all(@workspaces))
 
     refute_receive {:tmux, ["-L", _, "new-window" | _]}, 50
   end

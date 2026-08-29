@@ -1,6 +1,6 @@
 defmodule Aleph.Panel.StatusBarTest do
   # The contextual footer (design 2026-08-23): mode segment (TERM/NAV/LOCK's own verbs) → space
-  # segment (world-only post/task/driver) → the focused pane's own hints. Keyed on world?, never
+  # segment (workspace-only post/task/driver) → the focused pane's own hints. Keyed on workspace?, never
   # the space label — the stale "Tlön"-keyed table died with this.
   use ExUnit.Case, async: true
 
@@ -20,7 +20,7 @@ defmodule Aleph.Panel.StatusBarTest do
         leader_pending?: false,
         focus: nil,
         mode: nil,
-        world?: false,
+        workspace?: false,
         lock?: false,
         pane_hints: []
       },
@@ -59,7 +59,7 @@ defmodule Aleph.Panel.StatusBarTest do
   end
 
   test "TERM mode: the mode segment names the Alt door and the nav toggle" do
-    [_info, hints] = StatusBar.render(base(%{mode: :term, world?: true}), rect())
+    [_info, hints] = StatusBar.render(base(%{mode: :term, workspace?: true}), rect())
     line = Enum.map_join(hints, fn {t, _} -> t end)
     assert line =~ "Alt+#"
     assert line =~ "^␣"
@@ -67,7 +67,7 @@ defmodule Aleph.Panel.StatusBarTest do
   end
 
   test "NAV mode: mode + space verbs + the focused pane's own verbs" do
-    data = base(%{mode: :nav, world?: true, pane_hints: [{"j/k", "commits"}, {"⏎", "diff"}]})
+    data = base(%{mode: :nav, workspace?: true, pane_hints: [{"j/k", "commits"}, {"⏎", "diff"}]})
     [_info, hints] = StatusBar.render(data, rect())
     line = Enum.map_join(hints, fn {t, _} -> t end)
     assert line =~ "Alt+0"
@@ -79,20 +79,20 @@ defmodule Aleph.Panel.StatusBarTest do
   end
 
   test "LOCK mode: the unlock chord alone, and a warning chip" do
-    [info, hints] = StatusBar.render(base(%{mode: :lock, world?: true}), rect())
+    [info, hints] = StatusBar.render(base(%{mode: :lock, workspace?: true}), rect())
     assert {" LOCK ", :stat_warn} in info
     line = Enum.map_join(hints, fn {t, _} -> t end)
     assert line =~ "Alt+g unlock"
     refute line =~ "post"
   end
 
-  test "a non-world space (mode nil) keeps the shared leader table" do
+  test "a non-workspace space (mode nil) keeps the shared leader table" do
     [_info, hints] = StatusBar.render(base(%{space: "Orbis"}), rect())
     assert Enum.map_join(hints, fn {t, _} -> t end) =~ "^␣n new"
   end
 
-  test "hints keyed on world-ness, never the label: a renamed world still gets world hints" do
-    data = base(%{space: "Uqbar", mode: :nav, world?: true})
+  test "hints keyed on workspace-ness, never the label: a renamed workspace still gets workspace hints" do
+    data = base(%{space: "Uqbar", mode: :nav, workspace?: true})
     [_info, hints] = StatusBar.render(data, rect())
     assert Enum.map_join(hints, fn {t, _} -> t end) =~ "c post"
   end

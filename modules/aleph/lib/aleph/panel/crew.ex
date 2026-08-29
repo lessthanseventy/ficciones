@@ -1,6 +1,6 @@
 defmodule Aleph.Panel.Crew do
   @moduledoc """
-  The CREW pane — the World's coworker pool at a glance: who exists (the world roster), what
+  The CREW pane — the Workspace's coworker pool at a glance: who exists (the workspace roster), what
   each one is (archetype · model · harness), whether it's on the clock right now (declared
   thinking > tmux-inferred working > idle > off), and where (its standing seat or the leaf it
   leads). `coworkers/6` is the pure assembly; `render/2` draws the pre-assembled
@@ -27,7 +27,7 @@ defmodule Aleph.Panel.Crew do
 
   @doc """
   Pure crew assembly — one row per recognized roster entry (unknown archetypes drop), the join
-  of a World roster with a tmux window snapshot, the leaf leads, and the explicit thinking
+  of a Workspace roster with a tmux window snapshot, the leaf leads, and the explicit thinking
   declarations. `led_by` maps a funes handle (`<name>-machine`) to the thread ids it leads;
   `titles` thread id → title; `thinking` the `thread_id => %{agent => started_at}` declarations
   map (`%{}` where unavailable). Status precedence: declared thinking > tmux-inferred working >
@@ -85,7 +85,7 @@ defmodule Aleph.Panel.Crew do
     Aleph.Panel.clip(header ++ Enum.flat_map(coworkers, &entry(&1, rect.w)), rect)
   end
 
-  # nil data (funes down / not a World) renders nothing rather than crashing the paint.
+  # nil data (funes down / not a Workspace) renders nothing rather than crashing the paint.
   def render(_data, _rect), do: []
 
   defp entry(cw, w) do

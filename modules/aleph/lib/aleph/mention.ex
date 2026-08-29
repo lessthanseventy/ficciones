@@ -6,10 +6,10 @@ defmodule Aleph.Mention do
   without a TTY or a live tmux.
 
   The handle → window mapping (`coworkers/1`) is the one piece of structural knowledge here — it is
-  DERIVED from the active world's roster (`Aleph.Space`), not a compile-time table: each roster entry
+  DERIVED from the active workspace's roster (`Aleph.Space`), not a compile-time table: each roster entry
   named `n` becomes handle `"n-machine"` → window `n`, matching the window name the Cockpit's
   roster-driven spawn code creates (C2.3). Every call here that resolves handles takes the roster as
-  an explicit arg — callers source it from `Space.fetch/1`/`Space.first_world/0` (funes-down/no-world
+  an explicit arg — callers source it from `Space.fetch/1`/`Space.first_workspace/0` (funes-down/no-workspace
   → `[]`, no handles resolve, nobody is woken).
 
   ## Experiment knobs (env, off by default — see docs/tlon-experiments)
@@ -59,7 +59,7 @@ defmodule Aleph.Mention do
   mentioned coworker (except the author's own window — the loop guard). With NO coworker mention,
   falls back to `opts[:lead]` — the thread's staffed lead coworker — so a bare operator reply
   still reaches someone. Each turn is `{window_name, one_line_text}`. `roster` resolves handles
-  (see `coworkers/1`) — funes-down/no-world callers pass `[]`, so nobody is woken.
+  (see `coworkers/1`) — funes-down/no-workspace callers pass `[]`, so nobody is woken.
 
   `opts[:staffed_window]` (e.g. `"t9"`) redirects the lead onto its OWN per-thread window: on a
   staffed thread the lead coworker runs in a `t<id>` window, not the standing handle→window

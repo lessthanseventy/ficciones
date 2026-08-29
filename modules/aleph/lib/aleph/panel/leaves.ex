@@ -7,10 +7,10 @@ defmodule Aleph.Panel.Leaves do
   check when verify is red. The glance-value summary the operator reads without switching tabs.
 
   Navigable in Tlön nav mode: `j/k` selects a leaf (the cursor row washes :selected), `Enter`
-  attaches that leaf in the World center — re-points the tmux window (Slice 0 collapse; was a jump
+  attaches that leaf in the Workspace center — re-points the tmux window (Slice 0 collapse; was a jump
   into the now-deleted Sessions space); its own `t<id>` window if live, else its lead's (C3.3). Data
   is `%{summary: %{open, stalled, done, conflicts}, rows: [%{id, title, lead, status, conflicts,
-  world_id, stage, awaiting, blocking}], selected, attached}` (the last four nil on a plain chat
+  workspace_id, stage, awaiting, blocking}], selected, attached}` (the last four nil on a plain chat
   thread) — `selected` (cursor) and `attached` (the leaf whose own window IS the
   center, persistent) both injected by the View, either `nil`; either washes the row :selected — or
   `nil` when funes is down / there are no machine threads. Pure over `Aleph.Orbis.rollup/0`.

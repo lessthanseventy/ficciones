@@ -10,7 +10,7 @@ defmodule Funes.BoardSidebarTest do
   alias Funes.Presence.Thinking
   alias Funes.Staff
   alias Funes.Workline
-  alias Funes.Worlds
+  alias Funes.Workspaces
 
   setup do
     Funes.TestDB.clean!()
@@ -19,12 +19,12 @@ defmodule Funes.BoardSidebarTest do
   end
 
   test "groups open threads under their workspace; chat and tracked rows unify" do
-    {:ok, world} = Bootstrap.ensure()
+    {:ok, workspace} = Bootstrap.ensure()
     {:ok, chat} = Channel.open_thread(%{title: "a chat thread"})
     {:ok, tracked} = Workline.open(%{title: "a tracked one", slug: "tracked-one"})
 
-    assert [%{workspace: %{id: world_id, name: "ficciones"}, threads: threads}] = Board.sidebar()
-    assert world_id == world.id
+    assert [%{workspace: %{id: workspace_id, name: "ficciones"}, threads: threads}] = Board.sidebar()
+    assert workspace_id == workspace.id
 
     by_id = Map.new(threads, &{&1.id, &1})
     assert %{stage: nil, title: "a chat thread"} = by_id[chat.id]
@@ -32,7 +32,7 @@ defmodule Funes.BoardSidebarTest do
   end
 
   test "the root machine thread sorts first and is flagged" do
-    {:ok, _world} = Bootstrap.ensure()
+    {:ok, _workspace} = Bootstrap.ensure()
     {:ok, _chat} = Channel.open_thread(%{title: "newer chat"})
     {:ok, root} = Channel.open_thread(%{title: "machine root", scope: "machine"})
     assert Channel.machine_thread().id == root.id
@@ -44,8 +44,8 @@ defmodule Funes.BoardSidebarTest do
 
   test "closed threads are omitted; a second workspace gets its own group" do
     {:ok, _default} = Bootstrap.ensure()
-    {:ok, other} = Worlds.register(%{name: "otherland", type: "code", scope: "project", paths: [], roster: []})
-    {:ok, housed} = Channel.open_thread(%{title: "in otherland", world_id: other.id})
+    {:ok, other} = Workspaces.register(%{name: "otherland", type: "code", scope: "project", paths: [], roster: []})
+    {:ok, housed} = Channel.open_thread(%{title: "in otherland", workspace_id: other.id})
     {:ok, closed} = Channel.open_thread(%{title: "done already"})
     {:ok, _} = Channel.close_thread(closed)
 
@@ -62,7 +62,7 @@ defmodule Funes.BoardSidebarTest do
   end
 
   test "threads order by newest activity after the root" do
-    {:ok, _world} = Bootstrap.ensure()
+    {:ok, _workspace} = Bootstrap.ensure()
     {:ok, older} = Channel.open_thread(%{title: "older but recently active"})
     {:ok, newer} = Channel.open_thread(%{title: "newer but quiet"})
     {:ok, _} = Channel.post(%{thread_id: older.id, author: "andrew", body: "still on this one"})
@@ -72,19 +72,19 @@ defmodule Funes.BoardSidebarTest do
   end
 
   test "a thread whose workspace is GONE lands in the default group — never dropped" do
-    {:ok, world} = Bootstrap.ensure()
+    {:ok, workspace} = Bootstrap.ensure()
     {:ok, thread} = Channel.open_thread(%{title: "orphan"})
     Funes.Repo.query!("PRAGMA foreign_keys = OFF")
-    Funes.Repo.query!("UPDATE thread SET world_id = 999 WHERE id = ?", [thread.id])
+    Funes.Repo.query!("UPDATE thread SET workspace_id = 999 WHERE id = ?", [thread.id])
     Funes.Repo.query!("PRAGMA foreign_keys = ON")
 
     [%{workspace: %{id: default_id}, threads: threads}] = Board.sidebar()
-    assert default_id == world.id
+    assert default_id == workspace.id
     assert Enum.any?(threads, &(&1.id == thread.id))
   end
 
   test "working and lead ride on the row; crew carries working flags" do
-    {:ok, _world} = Bootstrap.ensure()
+    {:ok, _workspace} = Bootstrap.ensure()
     {:ok, thread} = Channel.open_thread(%{title: "busy thread"})
     {:ok, agent} = Staff.register_agent(%{name: "hronir-machine", mandate: "build", engine: "claude"})
     {:ok, _} = Staff.assign(thread, agent)

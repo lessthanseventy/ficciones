@@ -1,7 +1,7 @@
 defmodule Aleph.CockpitLeavesAttachTest do
   @moduledoc """
-  Leaves-Enter attach (Worlds Slice 0, Task 2): pressing Enter on a leaf whose lead maps to a live
-  World tmux window ATTACHES that window in the center — PREVIEW (re-point) then COMMIT (focus in),
+  Leaves-Enter attach (Workspaces Slice 0, Task 2): pressing Enter on a leaf whose lead maps to a live
+  Workspace tmux window ATTACHES that window in the center — PREVIEW (re-point) then COMMIT (focus in),
   reusing Task 1's `preview_focused/1` + `commit_preview/1`. A leaf with no live window can't attach
   yet (arbitrary-leaf PTYs are Slice 1) — it flashes the deferral and re-points nothing, never the
   old `active_key: :sessions` jump.
@@ -23,16 +23,16 @@ defmodule Aleph.CockpitLeavesAttachTest do
   alias Aleph.Space
   alias Aleph.Tlon.Focus
 
-  # World fixture: the hardcoded fallback World is gone (reshape slice A); suites
-  # that render or drive a World push one through the Aleph.Worlds cache-down seam.
+  # Workspace fixture: the hardcoded fallback Workspace is gone (reshape slice A); suites
+  # that render or drive a Workspace push one through the Aleph.Workspaces cache-down seam.
   setup do
-    Aleph.TestWorlds.put()
+    Aleph.TestWorkspaces.put()
   end
 
   setup do
     test_pid = self()
 
-    # Fake tmux runner: records argv; `list-windows` reports three World windows
+    # Fake tmux runner: records argv; `list-windows` reports three Workspace windows
     # (tertius@0, hronir@1, uqbar@2), everything else (select-window) is a no-op success.
     Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
@@ -74,7 +74,7 @@ defmodule Aleph.CockpitLeavesAttachTest do
   end
 
   describe "attach_leaf/2 — the Leaves-Enter decision" do
-    test "a leaf mapped to a live World window attaches it: preview (string index) + commit (focus)" do
+    test "a leaf mapped to a live Workspace window attaches it: preview (string index) + commit (focus)" do
       rows = [%{id: "t1", title: "x", lead: "hronir"}]
       next = Cockpit.attach_leaf(leaves_state(rows), leaves_layout(rows))
 

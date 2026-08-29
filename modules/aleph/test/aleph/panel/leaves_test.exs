@@ -94,7 +94,7 @@ defmodule Aleph.Panel.LeavesTest do
     assert style_of.("first") == :normal
   end
 
-  # C3.3: `attached` (the leaf whose own window IS the World center) washes :selected too — distinct
+  # C3.3: `attached` (the leaf whose own window IS the Workspace center) washes :selected too — distinct
   # from and independent of the j/k `selected` cursor.
   test "the attached leaf's title washes :selected even when the cursor (selected) is elsewhere" do
     data = %{

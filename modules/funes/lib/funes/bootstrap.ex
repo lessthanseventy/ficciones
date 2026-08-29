@@ -2,19 +2,19 @@ defmodule Funes.Bootstrap do
   @moduledoc """
   Boot-time integrity (reshape slice A). Two invariants, restored on every start:
   a default workspace exists, and every thread points at a workspace that is real.
-  Replaces the flake's ExecStartPre seed AND aleph's hardcoded fallback world —
+  Replaces the flake's ExecStartPre seed AND aleph's hardcoded fallback workspace —
   any node that boots the funes app self-heals, including the dev scratch db.
 
   Repair targets drift the FK pragma can't catch after the fact: table-rebuild
-  migrations and pre-integrity `remove_world` both left threads pointing at dead
-  world ids (observed live: a thread → world 5 with only world 1 existing).
+  migrations and pre-integrity `remove_workspace` both left threads pointing at dead
+  workspace ids (observed live: a thread → workspace 5 with only workspace 1 existing).
   """
   import Ecto.Query
 
   alias Funes.Repo
   alias Funes.Thread
-  alias Funes.World
-  alias Funes.Worlds
+  alias Funes.Workspace
+  alias Funes.Workspaces
 
   require Logger
 
@@ -30,15 +30,15 @@ defmodule Funes.Bootstrap do
   }
 
   @doc """
-  Seed-if-empty + repair. Returns `{:ok, default_world}` — the oldest world, which
-  is the default home for adrift threads. Idempotent; an operator's worlds and
+  Seed-if-empty + repair. Returns `{:ok, default_workspace}` — the oldest workspace, which
+  is the default home for adrift threads. Idempotent; an operator's workspaces and
   any thread already housed in a live workspace are never touched.
   """
-  @spec ensure() :: {:ok, World.t()} | {:error, Ecto.Changeset.t()}
+  @spec ensure() :: {:ok, Workspace.t()} | {:error, Ecto.Changeset.t()}
   def ensure do
-    with {:ok, world} <- default_world() do
-      repair(world)
-      {:ok, world}
+    with {:ok, workspace} <- default_workspace() do
+      repair(workspace)
+      {:ok, workspace}
     end
   end
 
@@ -49,10 +49,10 @@ defmodule Funes.Bootstrap do
   bootstrap would otherwise present exactly like honest funes-down (Orbis-only
   picker) with no diagnostic anywhere.
   """
-  @spec ensure_safe() :: {:ok, World.t()} | {:error, Ecto.Changeset.t()} | :skipped
+  @spec ensure_safe() :: {:ok, Workspace.t()} | {:error, Ecto.Changeset.t()} | :skipped
   def ensure_safe do
     case ensure() do
-      {:ok, _world} = ok ->
+      {:ok, _workspace} = ok ->
         ok
 
       {:error, reason} = error ->
@@ -85,29 +85,29 @@ defmodule Funes.Bootstrap do
     %{id: __MODULE__, start: {__MODULE__, :start_link, []}, restart: :temporary}
   end
 
-  defp default_world do
-    case Repo.one(from w in World, order_by: [asc: w.id], limit: 1) do
-      nil -> Worlds.register(@default)
-      %World{} = world -> {:ok, world}
+  defp default_workspace do
+    case Repo.one(from w in Workspace, order_by: [asc: w.id], limit: 1) do
+      nil -> Workspaces.register(@default)
+      %Workspace{} = workspace -> {:ok, workspace}
     end
   end
 
   @doc """
-  The default workspace's id — the oldest world, or nil when none exists yet
+  The default workspace's id — the oldest workspace, or nil when none exists yet
   (a pre-bootstrap open proceeds unhoused; the boot repair houses it). The
   open-thread paths call this so every new thread has a home from birth.
   """
-  @spec default_world_id() :: integer() | nil
-  def default_world_id do
-    Repo.one(from w in World, order_by: [asc: w.id], limit: 1, select: w.id)
+  @spec default_workspace_id() :: integer() | nil
+  def default_workspace_id do
+    Repo.one(from w in Workspace, order_by: [asc: w.id], limit: 1, select: w.id)
   end
 
-  # One UPDATE: every thread whose world_id is NULL or names no live world moves
+  # One UPDATE: every thread whose workspace_id is NULL or names no live workspace moves
   # to the default. Runs with FKs on — the target id is real by construction.
-  defp repair(%World{id: id}) do
-    live = from(w in World, select: w.id)
+  defp repair(%Workspace{id: id}) do
+    live = from(w in Workspace, select: w.id)
 
-    adrift = from(t in Thread, where: is_nil(t.world_id) or t.world_id not in subquery(live))
-    Repo.update_all(adrift, set: [world_id: id])
+    adrift = from(t in Thread, where: is_nil(t.workspace_id) or t.workspace_id not in subquery(live))
+    Repo.update_all(adrift, set: [workspace_id: id])
   end
 end

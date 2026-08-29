@@ -8,7 +8,7 @@ defmodule Funes.Board do
 
   Ranked and cut (§6): each pane is capped WITH a count. For an agent briefed from
   this map (the MCP channel's `get_dossier`), a cut without a count reads as "this
-  is everything" — the empty-world lie in miniature — so LEARNINGS, SHIPPED and
+  is everything" — the empty-workspace lie in miniature — so LEARNINGS, SHIPPED and
   BLOCKERS are each `%{shown, more}`.
   """
   import Ecto.Query
@@ -21,7 +21,7 @@ defmodule Funes.Board do
   alias Funes.Recall
   alias Funes.Repo
   alias Funes.Thread
-  alias Funes.World
+  alias Funes.Workspace
 
   @cap 5
 
@@ -37,9 +37,9 @@ defmodule Funes.Board do
     root_id = with %Thread{id: id} <- Channel.machine_thread(), do: id
     last_by_thread = last_message_at()
     leads = leads_by_thread()
-    worlds = Repo.all(from w in World, order_by: [asc: w.id])
-    known = MapSet.new(worlds, & &1.id)
-    default_id = with %World{id: id} <- List.first(worlds), do: id
+    workspaces = Repo.all(from w in Workspace, order_by: [asc: w.id])
+    known = MapSet.new(workspaces, & &1.id)
+    default_id = with %Workspace{id: id} <- List.first(workspaces), do: id
 
     threads =
       from(t in Thread, where: t.state == "open")
@@ -49,20 +49,20 @@ defmodule Funes.Board do
     working_agents =
       thinking |> Map.values() |> List.flatten() |> MapSet.new(& &1.agent)
 
-    for world <- worlds do
+    for workspace <- workspaces do
       rows =
         threads
-        # A thread whose world is gone lands in the DEFAULT (oldest) workspace — same
+        # A thread whose workspace is gone lands in the DEFAULT (oldest) workspace — same
         # never-drop-a-thread stance as Orbis' grouping; the boot repair rehomes it durably.
         |> Enum.filter(fn t ->
-          t.world_id == world.id or (world.id == default_id and t.world_id not in known)
+          t.workspace_id == workspace.id or (workspace.id == default_id and t.workspace_id not in known)
         end)
         |> Enum.sort_by(&{!&1.root, invert(&1.last_at)})
 
       %{
-        workspace: %{id: world.id, name: world.name},
+        workspace: %{id: workspace.id, name: workspace.name},
         threads: rows,
-        crew: crew_rows(world.roster, working_agents)
+        crew: crew_rows(workspace.roster, working_agents)
       }
     end
   end
@@ -70,7 +70,7 @@ defmodule Funes.Board do
   defp sidebar_row(thread, root_id, thinking, last_by_thread, leads) do
     %{
       id: thread.id,
-      world_id: thread.world_id,
+      workspace_id: thread.workspace_id,
       title: thread.title,
       root: thread.id == root_id,
       stage: thread.stage,

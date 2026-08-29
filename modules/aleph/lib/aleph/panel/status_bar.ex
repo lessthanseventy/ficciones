@@ -83,14 +83,14 @@ defmodule Aleph.Panel.StatusBar do
     Panel.clip([prompt, hints], rect)
   end
 
-  # The author face's create-world prompt (D2.3): the info line becomes the prompt over the typed
+  # The author face's create-workspace prompt (D2.3): the info line becomes the prompt over the typed
   # name, prefixed by the armed template — h/l cycles it, named in the hints.
   @impl Panel
-  def render(%{input: %{kind: :new_world, template: template} = input}, rect) do
+  def render(%{input: %{kind: :new_workspace, template: template} = input}, rect) do
     {before, after_} = cursor_split(input)
 
     prompt = [
-      {" NEW WORLD ", :tab},
+      {" NEW WORKSPACE ", :tab},
       {"  ", :normal},
       {"◂ #{template} ▸ ", :accent},
       {before, :normal},
@@ -271,8 +271,8 @@ defmodule Aleph.Panel.StatusBar do
 
   # The contextual footer (design 2026-08-23): mode → space → pane, mode-first because clip/2
   # trims from the right — pane verbs drop first on a narrow frame, the mode chip survives.
-  # Keyed on world-ness (mode/world? from View.status_data), NEVER the space label — a renamed
-  # or additional World still gets these, unlike the old "Tlön"-keyed table.
+  # Keyed on workspace-ness (mode/workspace? from View.status_data), NEVER the space label — a renamed
+  # or additional Workspace still gets these, unlike the old "Tlön"-keyed table.
   defp assemble_hints(%{mode: nil}), do: @hints
   defp assemble_hints(data), do: mode_seg(data.mode) ++ space_seg(data) ++ (data[:pane_hints] || [])
 
@@ -280,7 +280,7 @@ defmodule Aleph.Panel.StatusBar do
   defp mode_seg(:nav), do: [{"Alt+0", "term"}, {"q", "quit"}]
   defp mode_seg(:lock), do: [{"Alt+g", "unlock"}]
 
-  defp space_seg(%{mode: :nav, world?: true}), do: [{"c", "post"}, {"n", "task"}, {"v", "chat"}, {"m", "driver"}]
+  defp space_seg(%{mode: :nav, workspace?: true}), do: [{"c", "post"}, {"n", "task"}, {"v", "chat"}, {"m", "driver"}]
   defp space_seg(_data), do: []
 
   defp hints_row(hints) do

@@ -49,7 +49,7 @@ defmodule Aleph.ConfigTest do
   end
 
   # Unset / corrupt is nil, not a guessed handle: the roster-derived default now lives with the
-  # staffing decision (`Staffing.default_coworker/1`), fed the LIVE world roster.
+  # staffing decision (`Staffing.default_coworker/1`), fed the LIVE workspace roster.
   test "default_coworker_override is nil when unset", %{path: path} do
     assert Config.default_coworker_override(path) == nil
   end

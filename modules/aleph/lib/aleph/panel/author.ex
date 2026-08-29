@@ -1,17 +1,17 @@
 defmodule Aleph.Panel.Author do
   @moduledoc """
-  ORBIS' AUTHOR face: the editable funes-world list — create (`n`) and delete (`d`) from the LIST
-  view (D2, Chunk 1); `e` on the cursor world opens the in-place FIELD EDITOR (D2.4 Chunk 2a),
-  `data[:edit]` present. List: one row per `Aleph.Worlds.all/0` world (name · type · path/roster
+  ORBIS' AUTHOR face: the editable funes-workspace list — create (`n`) and delete (`d`) from the LIST
+  view (D2, Chunk 1); `e` on the cursor workspace opens the in-place FIELD EDITOR (D2.4 Chunk 2a),
+  `data[:edit]` present. List: one row per `Aleph.Workspaces.all/0` workspace (name · type · path/roster
   counts), the `author_cursor` row washed `:selected` — same wash idiom as
-  `Aleph.Panel.Chorus`/`Leaves`. Data is `%{worlds: [%{id, name, type, paths, roster, scope}],
+  `Aleph.Panel.Chorus`/`Leaves`. Data is `%{workspaces: [%{id, name, type, paths, roster, scope}],
   cursor, edit}` (`cursor`/`edit` View-injected). Replaces Chorus as Orbis' center only while
   `orbis_face == :author` (`Aleph.View.compose/3`).
 
   The editor is a vertical 4-row field list (0 type · 1 scope · 2 paths · 3 roster), the `field`
   cursor washed `:selected`; fields 0/1 show the ring value inline (h/l cycles it, applied
   immediately — no draft/commit). `name` has no field — it's immutable
-  (`Funes.World.edit_changeset` drops it), called out in the header instead. `Enter` on field 2/3
+  (`Funes.Workspace.edit_changeset` drops it), called out in the header instead. `Enter` on field 2/3
   (`edit.mode == :sub`) swaps in that field's sub-list — one row per path/roster entry (roster:
   `archetype · name`), the `sub` cursor washed `:selected` — instead of the field list.
 
@@ -36,25 +36,25 @@ defmodule Aleph.Panel.Author do
   @roster_hints "j/k row · a add · x/d remove · Tab knob · Enter apply · Esc back"
 
   @impl Aleph.Panel
-  def topics(_assigns), do: [Bus.worlds_topic()]
+  def topics(_assigns), do: [Bus.workspaces_topic()]
 
   @impl Aleph.Panel
-  def render(%{worlds: worlds} = data, rect) do
-    case {Map.get(data, :edit), Enum.find(worlds, &(&1.id == data[:edit][:id]))} do
-      {%{mode: :sub, field: 2} = edit, %{} = world} -> render_paths_sub(world, edit, rect)
-      {%{mode: :sub, field: 3} = edit, %{} = world} -> render_roster_sub(world, edit, rect)
-      {%{} = edit, %{} = world} -> render_editor(world, edit, rect)
-      _ -> render_list(worlds, Map.get(data, :cursor, 0), rect)
+  def render(%{workspaces: workspaces} = data, rect) do
+    case {Map.get(data, :edit), Enum.find(workspaces, &(&1.id == data[:edit][:id]))} do
+      {%{mode: :sub, field: 2} = edit, %{} = workspace} -> render_paths_sub(workspace, edit, rect)
+      {%{mode: :sub, field: 3} = edit, %{} = workspace} -> render_roster_sub(workspace, edit, rect)
+      {%{} = edit, %{} = workspace} -> render_editor(workspace, edit, rect)
+      _ -> render_list(workspaces, Map.get(data, :cursor, 0), rect)
     end
   end
 
-  defp render_list(worlds, cursor, rect) do
+  defp render_list(workspaces, cursor, rect) do
     header = [line("ORBIS · author", :header), blank()]
 
     body =
-      case worlds do
-        [] -> [line("no worlds yet — n to create one", :dim)]
-        ws -> ws |> Enum.with_index() |> Enum.map(fn {w, i} -> world_row(w, i == cursor) end)
+      case workspaces do
+        [] -> [line("no workspaces yet — n to create one", :dim)]
+        ws -> ws |> Enum.with_index() |> Enum.map(fn {w, i} -> workspace_row(w, i == cursor) end)
       end
 
     footer = [blank(), line(@hints, :dim)]
@@ -64,18 +64,18 @@ defmodule Aleph.Panel.Author do
 
   # The field list (fields 0/1's rings inline; 2/3 show counts — their own row swaps in a
   # sub-list, `render_paths_sub`/`render_roster_sub`, when `edit.mode == :sub`).
-  defp render_editor(world, edit, rect) do
+  defp render_editor(workspace, edit, rect) do
     header = [
       line("ORBIS · author · edit", :header),
-      [{Map.get(world, :name) || "?", :header}, {"  (name is immutable)", :dim}],
+      [{Map.get(workspace, :name) || "?", :header}, {"  (name is immutable)", :dim}],
       blank()
     ]
 
     body = [
-      field_row("type", Map.get(world, :type) || "?", edit.field == 0),
-      field_row("scope", Map.get(world, :scope) || "?", edit.field == 1),
-      field_row("paths", "#{length(Map.get(world, :paths) || [])} paths", edit.field == 2),
-      field_row("roster", "#{length(Map.get(world, :roster) || [])} roster", edit.field == 3)
+      field_row("type", Map.get(workspace, :type) || "?", edit.field == 0),
+      field_row("scope", Map.get(workspace, :scope) || "?", edit.field == 1),
+      field_row("paths", "#{length(Map.get(workspace, :paths) || [])} paths", edit.field == 2),
+      field_row("roster", "#{length(Map.get(workspace, :roster) || [])} roster", edit.field == 3)
     ]
 
     footer = [blank(), line(@edit_hints, :dim)]
@@ -91,9 +91,9 @@ defmodule Aleph.Panel.Author do
 
   # Field 2's sub-list (D2.4 Chunk 2b): one row per path, the `sub` cursor washed :selected — same
   # gutter/wash idiom as the list/field views.
-  defp render_paths_sub(world, edit, rect) do
+  defp render_paths_sub(workspace, edit, rect) do
     header = [line("ORBIS · author · edit · paths", :header), blank()]
-    paths = Map.get(world, :paths) || []
+    paths = Map.get(workspace, :paths) || []
 
     body =
       case paths do
@@ -114,9 +114,9 @@ defmodule Aleph.Panel.Author do
   # Field 3's sub-list (D2.4 Chunk 2b/2c): one row per roster entry (`archetype · name`, the funes
   # WIRE shape — string-keyed) plus its effective model/yolo (Chunk 2b), the `sub` cursor washed
   # :selected.
-  defp render_roster_sub(world, edit, rect) do
+  defp render_roster_sub(workspace, edit, rect) do
     header = [line("ORBIS · author · edit · roster", :header), blank()]
-    roster = Map.get(world, :roster) || []
+    roster = Map.get(workspace, :roster) || []
     knob = Map.get(edit, :knob, :model)
 
     body =
@@ -169,7 +169,7 @@ defmodule Aleph.Panel.Author do
   @impl Aleph.Panel
   def pick(_data, _rect, _local_y), do: nil
 
-  defp world_row(w, selected?) do
+  defp workspace_row(w, selected?) do
     style = if selected?, do: :selected, else: :normal
     gutter = if selected?, do: {"▸ ", :accent}, else: {"  ", :normal}
     paths = Map.get(w, :paths) || []

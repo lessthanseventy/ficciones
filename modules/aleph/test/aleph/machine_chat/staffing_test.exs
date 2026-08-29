@@ -54,7 +54,7 @@ defmodule Aleph.MachineChat.StaffingTest do
   end
 
   describe "default_coworker/1 — the roster-derived default (no @-mention path)" do
-    # The regression seam: the machine-chat beam has no `Aleph.Worlds` cache, so it must derive the
+    # The regression seam: the machine-chat beam has no `Aleph.Workspaces` cache, so it must derive the
     # default from the LIVE funes roster — never a stale stand-in whose `-machine` handle was never
     # registered as a funes agent (the leaderless-thread silence bug).
     test "picks the roster's builder as its -machine handle" do

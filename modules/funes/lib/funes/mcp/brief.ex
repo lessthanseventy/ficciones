@@ -16,7 +16,7 @@ defmodule Funes.MCP.Brief do
   alias Funes.Message
   alias Funes.Question
   alias Funes.Todo
-  alias Funes.World
+  alias Funes.Workspace
 
   @doc "A Board.brief/1 map, rendered."
   def scope(scope) do
@@ -172,7 +172,7 @@ defmodule Funes.MCP.Brief do
   columns hold — a list of globs, a list of `{archetype,name,model?,knobs}` maps,
   and a free-form map.
   """
-  def world(%World{} = w) do
+  def workspace(%Workspace{} = w) do
     %{
       "id" => w.id,
       "name" => w.name,

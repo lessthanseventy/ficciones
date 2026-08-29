@@ -27,17 +27,17 @@ defmodule Aleph.Cockpit do
   alias Aleph.Terminal
   alias Aleph.Tlon.Focus
   alias Aleph.View
-  alias Aleph.WorldTemplates
+  alias Aleph.WorkspaceTemplates
   alias Funes.Bus
   alias Funes.Channel
   alias Funes.Dossier
   alias Funes.MCP.Spawn
   alias Funes.Staff
-  alias Funes.Worlds
+  alias Funes.Workspaces
   alias Ghostty.KeyEvent
   alias Raxol.Core.Events.Event
 
-  # `Space.world?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
+  # `Space.workspace?/1` is a `defguard` (usable in clause-head `when`s), which requires the module,
   # not just an alias.
   require Space
 
@@ -54,17 +54,17 @@ defmodule Aleph.Cockpit do
   # emit mouse events, which the Driver translates into Event{type: :mouse, data: %{x, y, button}}.
   @tb_input_esc_mouse 5
 
-  # The World's cast is roster-driven (`ensure_world_roster/1`, C2.3): head = the center (embedded
+  # The Workspace's cast is roster-driven (`ensure_workspace_roster/1`, C2.3): head = the center (embedded
   # terminal, `new-session`), tail = tmux windows (`new-window`), harness-dispatched. Funes handle =
   # `"<name>-machine"`, tmux window = `"<name>"` (`roster_entry/1`). No more hardcoded
   # tertius/hronir/claude-machine identity — the seed roster (surveyor "tertius", builder "hronir")
   # reproduces the old Borges cast (**uqbar** console · **hronir** builder · **tertius**
   # orchestrator) as DATA, not constants.
 
-  # tmux is a first-class stack citizen here: each World's center is a real `tmux attach`, so the
+  # tmux is a first-class stack citizen here: each Workspace's center is a real `tmux attach`, so the
   # workspace gets mouse, windows, and copy-mode, and it SURVIVES aleph restarts. Session/socket are
-  # id-derived (world_session/1, world_socket/1, near tlon_tmux/2) — not name-derived — so a world
-  # rename can't orphan the running session and two worlds never collide.
+  # id-derived (workspace_session/1, workspace_socket/1, near tlon_tmux/2) — not name-derived — so a workspace
+  # rename can't orphan the running session and two workspaces never collide.
 
   # Tlön probe cadence: the Stack/Health reads fork subprocesses (git ×~6, nix-env, df, tmux)
   # and open a TCP probe — far too heavy to run per render (a streaming terminal coalesces to
@@ -257,18 +257,18 @@ defmodule Aleph.Cockpit do
             focused_id: nil,
             threads: [],
             # Orbis' focus toggle (`h`/`l`) — which cursor its j/k drives: the survey's per-row
-            # cursor (default, so a fresh Orbis opens ready to zoom a world) or the thread list.
+            # cursor (default, so a fresh Orbis opens ready to zoom a workspace) or the thread list.
             orbis_focus: :survey,
-            # The Orbis survey's per-row cursor (j/k), clamped to the live world count at keypress
-            # time (Aleph.Keymap) — `Enter`/click resolve it to that row's world id.
+            # The Orbis survey's per-row cursor (j/k), clamped to the live workspace count at keypress
+            # time (Aleph.Keymap) — `Enter`/click resolve it to that row's workspace id.
             survey_cursor: 0,
             # Orbis' second face (D2.1): `:survey` (Chorus, the default) or `:author` (Panel.Author
-            # — create/delete funes worlds). `a` toggles; Esc in `:author` steps back.
+            # — create/delete funes workspaces). `a` toggles; Esc in `:author` steps back.
             orbis_face: :survey,
-            # The author face's own per-row cursor (j/k), clamped to `Aleph.Worlds.all/0`'s length
+            # The author face's own per-row cursor (j/k), clamped to `Aleph.Workspaces.all/0`'s length
             # at keypress time — mirrors `survey_cursor`.
             author_cursor: 0,
-            # The author face's delete confirm arm (D2.5): the world id a `d` press armed, or nil.
+            # The author face's delete confirm arm (D2.5): the workspace id a `d` press armed, or nil.
             # A second `d` on this SAME id confirms; any other key cancels (Aleph.Keymap).
             pending_delete: nil,
             # Tlön nav's delete confirm arm: the `{kind, payload, label}` a `d` press resolved
@@ -278,12 +278,12 @@ defmodule Aleph.Cockpit do
             # composer command has it open, else nil. Cleared by any pane Enter (:tlon_enter);
             # Esc closes it through the ordinary detail mode.
             status_detail: nil,
-            # The World center's face (reshape slice D): the live PTY (:terminal, the default)
+            # The Workspace center's face (reshape slice D): the live PTY (:terminal, the default)
             # or the attached thread's conversation (:chat). The `v` verb flips it.
             center_view: :terminal,
             # The field editor's own state (D2.4 Chunk 2a): `%{id, field, sub, mode}` while `e` has
-            # opened it, else nil. VIEW cursors only — the world's data lives in funes and is
-            # re-read from `Aleph.Worlds.all/0` every render (Aleph.Keymap).
+            # opened it, else nil. VIEW cursors only — the workspace's data lives in funes and is
+            # re-read from `Aleph.Workspaces.all/0` every render (Aleph.Keymap).
             author_edit: nil,
             subscribed_thread: nil,
             leader_pending?: false,
@@ -294,15 +294,15 @@ defmodule Aleph.Cockpit do
             # center tmux terminal). Persistent across keypresses — the keymap reads+advances it,
             # only in the Tlön space. Defaults in-terminal, so Tlön opens with keys going to tmux.
             focus: Focus.new(),
-            # The World tmux window the center is previewing (Worlds Slice 0, tweak #1): a hover over
+            # The Workspace tmux window the center is previewing (Workspaces Slice 0, tweak #1): a hover over
             # a window-bearing pane (Leaves) re-points the center here WITHOUT taking focus; a commit
             # (`commit_preview/1`) drops keys into it. nil = center on its default (active) window.
             previewed_window: nil,
-            # Which World window is attached in the center (C3.3): `{:leaf, id}` when a leaf's own
+            # Which Workspace window is attached in the center (C3.3): `{:leaf, id}` when a leaf's own
             # `t<id>` window is attached, else `{:leader, name | nil}`. Leaves washes the leaf row
             # whose id matches. Set by attach_leaf/2 and the WindowBar tab click.
             focused_session: {:leader, nil},
-            # C3.4: `[`/`]` cycle this index into the active World's right column, so only one of
+            # C3.4: `[`/`]` cycle this index into the active Workspace's right column, so only one of
             # Health/Activity/Leaves shows (full-height) at a time. Index 0 = the first right panel
             # (Health) — the default; the operator tunes it live.
             right_pane_view: 0,
@@ -426,20 +426,20 @@ defmodule Aleph.Cockpit do
     # dropped on the way back; the cockpit keeps only `leader_pending?`.
     # `focus` rides in `state` (persistent); `tlon_layout` is derived per keypress, like the two
     # above, and dropped on the way back — the keymap reads it to navigate, the cockpit never stores it.
-    # `author_worlds` (D2.2): the author face's own world list, derived per keypress like
-    # `composer_thread_id` — `Aleph.Worlds.all/0` is a cached GenServer call (no DB hit), so this
+    # `author_workspaces` (D2.2): the author face's own workspace list, derived per keypress like
+    # `composer_thread_id` — `Aleph.Workspaces.all/0` is a cached GenServer call (no DB hit), so this
     # keeps `Aleph.Keymap` a pure reducer with no funes call of its own.
     keymap_state =
       %{state | flash: nil}
       |> Map.put(:center_live?, center_terminal(state) != nil)
       |> Map.put(:composer_thread_id, composer_thread_id(state))
       |> Map.put(:tlon_layout, tlon_layout(state))
-      |> Map.put(:author_worlds, Aleph.Worlds.all())
+      |> Map.put(:author_workspaces, Aleph.Workspaces.all())
 
     {next, effect} = Keymap.handle(key, keymap_state)
 
     next =
-      reset_scrolls(state, Map.drop(next, [:center_live?, :composer_thread_id, :tlon_layout, :author_worlds]))
+      reset_scrolls(state, Map.drop(next, [:center_live?, :composer_thread_id, :tlon_layout, :author_workspaces]))
 
     apply_effect(effect, next)
   end
@@ -662,14 +662,18 @@ defmodule Aleph.Cockpit do
   # thread-scoped, so it doesn't reach the cockpit globally the way :thread_closed does.)
   defp nudge_tertius_on_finish(:thread_closed, %{scope: "machine", id: id}, %{standing_thread_id: root} = state)
        when is_integer(root) and is_integer(id) and id != root do
-    world_id = active_world_id(state)
+    workspace_id = active_workspace_id(state)
 
-    case tlon_window_index(world_id, lead_window_name(world_id)) do
+    case tlon_window_index(workspace_id, lead_window_name(workspace_id)) do
       nil ->
         :ok
 
       index ->
-        inject_turn(world_id, index, "[funes] leaf ##{id} finished — run machine_overview and refresh the root rollup.")
+        inject_turn(
+          workspace_id,
+          index,
+          "[funes] leaf ##{id} finished — run machine_overview and refresh the root rollup."
+        )
     end
   end
 
@@ -681,10 +685,10 @@ defmodule Aleph.Cockpit do
   # window. Can't respawn-loop: the spawn candidates (`Funes.staffed_machine_threads`) are OPEN
   # threads only. Best-effort — a vanished window is already what we wanted.
   defp teardown_closed_leaf(:thread_closed, %{scope: "machine", id: id}, state) when is_integer(id) do
-    world_id = active_world_id(state)
+    workspace_id = active_workspace_id(state)
 
-    case leaf_tab(tlon_tabs(world_id), id) do
-      %{index: index} -> tlon_run(world_id, ["kill-window", "-t", "#{world_session(world_id)}:#{index}"])
+    case leaf_tab(tlon_tabs(workspace_id), id) do
+      %{index: index} -> tlon_run(workspace_id, ["kill-window", "-t", "#{workspace_session(workspace_id)}:#{index}"])
       _ -> :ok
     end
 
@@ -699,17 +703,17 @@ defmodule Aleph.Cockpit do
   # tmux send-keys, never a crash on a missing window.
   defp mention_notify(row, state) do
     lead = thread_lead(row)
-    world_id = active_world_id(state)
+    workspace_id = active_workspace_id(state)
 
     case delivery_target(row, state, lead) do
       :skip ->
         :ok
 
       {:route, staffed} ->
-        for {window, text} <- Aleph.Mention.route(row, [lead: lead, staffed_window: staffed], active_roster(world_id)),
-            index = tlon_window_index(world_id, window),
+        for {window, text} <- Aleph.Mention.route(row, [lead: lead, staffed_window: staffed], active_roster(workspace_id)),
+            index = tlon_window_index(workspace_id, window),
             not is_nil(index) do
-          inject_turn(world_id, index, text)
+          inject_turn(workspace_id, index, text)
         end
 
         :ok
@@ -731,7 +735,7 @@ defmodule Aleph.Cockpit do
 
     cond do
       tid == standing -> {:route, nil}
-      is_nil(lead) or not leaf_staffed?(lead, active_world_id(state)) -> {:route, nil}
+      is_nil(lead) or not leaf_staffed?(lead, active_workspace_id(state)) -> {:route, nil}
       window = staffed_leaf_window(tid, state) -> {:route, window}
       true -> :skip
     end
@@ -746,7 +750,7 @@ defmodule Aleph.Cockpit do
   # `opening_injected`) keeps delivering to already-running leaves instead of `:skip`ping them
   # forever. nil while mid-spawn / pre-opening (→ `:skip`; the spawn pass owns the opening turn).
   defp staffed_leaf_window(tid, state) do
-    case leaf_tab(tlon_tabs(active_world_id(state)), tid) do
+    case leaf_tab(tlon_tabs(active_workspace_id(state)), tid) do
       %{name: name} = tab ->
         if tab[:opening] == "done" or MapSet.member?(state.opening_injected, tid), do: name
 
@@ -767,31 +771,31 @@ defmodule Aleph.Cockpit do
 
   defp thread_lead(_), do: nil
 
-  # The tmux target world id for a call site that only has `state` (not a `Space.world?`-guarded
-  # `active_key`) in scope — a background Bus handler, or a click that landed on a World-only panel.
-  # `state.active_key` when it names a World, else the funes-down/no-active-world fallback
-  # (`Space.first_world/0`) — nil when no world exists at all; `tlon_run/2` no-ops on nil.
-  defp active_world_id(%{active_key: key}) when Space.world?(key), do: key
+  # The tmux target workspace id for a call site that only has `state` (not a `Space.workspace?`-guarded
+  # `active_key`) in scope — a background Bus handler, or a click that landed on a Workspace-only panel.
+  # `state.active_key` when it names a Workspace, else the funes-down/no-active-workspace fallback
+  # (`Space.first_workspace/0`) — nil when no workspace exists at all; `tlon_run/2` no-ops on nil.
+  defp active_workspace_id(%{active_key: key}) when Space.workspace?(key), do: key
 
-  defp active_world_id(_state) do
-    case Space.first_world() do
+  defp active_workspace_id(_state) do
+    case Space.first_workspace() do
       nil -> nil
       space -> space.id
     end
   end
 
-  # The active roster's LEAD window name (the center's tab label) for `world_id`, or nil (no roster
+  # The active roster's LEAD window name (the center's tab label) for `workspace_id`, or nil (no roster
   # / funes down).
-  defp lead_window_name(world_id) do
-    case Space.fetch(world_id) do
+  defp lead_window_name(workspace_id) do
+    case Space.fetch(workspace_id) do
       %Space{roster: [lead | _]} -> Profiles.roster_entry(lead).name
       _ -> nil
     end
   end
 
-  # The tmux window index for a named coworker window in world `world_id`, from the live session
+  # The tmux window index for a named coworker window in workspace `workspace_id`, from the live session
   # (nil if not up).
-  defp tlon_window_index(world_id, name), do: window_index(tlon_tabs(world_id), name)
+  defp tlon_window_index(workspace_id, name), do: window_index(tlon_tabs(workspace_id), name)
 
   # Same lookup against an already-fetched tabs list — for a caller (`ensure_thread_sessions`)
   # that snapshot tlon_tabs() once for a whole render pass instead of forking `tmux` per thread.
@@ -799,28 +803,28 @@ defmodule Aleph.Cockpit do
     Enum.find_value(tabs, fn %{name: n, index: index} -> if n == name, do: index end)
   end
 
-  # Inject `text` as a submitted turn into window `index` of world `world_id`: literal text, then
+  # Inject `text` as a submitted turn into window `index` of workspace `workspace_id`: literal text, then
   # the Enter key — so a multiline body flattened to one line reaches the coworker's input as a
   # single message. Safe for a LONG-BOOTED window (the standing coworkers); a freshly-spawned
   # harness needs the split form below (`inject_text`/`submit_turn`) so the Enter doesn't get
   # swallowed in the same input burst.
-  defp inject_turn(world_id, index, text) do
-    inject_text(world_id, index, text)
-    submit_turn(world_id, index)
+  defp inject_turn(workspace_id, index, text) do
+    inject_text(workspace_id, index, text)
+    submit_turn(workspace_id, index)
   end
 
-  # Type literal `text` into window `index` of world `world_id` WITHOUT submitting — the first half
+  # Type literal `text` into window `index` of workspace `workspace_id` WITHOUT submitting — the first half
   # of a fresh-window inject, so the Enter can be sent on a later render once the TUI has settled.
-  defp inject_text(world_id, index, text) do
-    _ = tlon_run(world_id, ["send-keys", "-l", "-t", "#{world_session(world_id)}:#{index}", text])
+  defp inject_text(workspace_id, index, text) do
+    _ = tlon_run(workspace_id, ["send-keys", "-l", "-t", "#{workspace_session(workspace_id)}:#{index}", text])
     :ok
   end
 
-  # Send Enter to window `index` of world `world_id` — submits whatever's in its input. Split from
+  # Send Enter to window `index` of workspace `workspace_id` — submits whatever's in its input. Split from
   # `inject_text` so a just-booted Claude Code TUI gets the text and the Enter as separate bursts (a
   # bundled Enter lands as a literal newline / gets swallowed, leaving the turn typed-but-unsent).
-  defp submit_turn(world_id, index) do
-    _ = tlon_run(world_id, ["send-keys", "-t", "#{world_session(world_id)}:#{index}", "Enter"])
+  defp submit_turn(workspace_id, index) do
+    _ = tlon_run(workspace_id, ["send-keys", "-t", "#{workspace_session(workspace_id)}:#{index}", "Enter"])
     :ok
   end
 
@@ -888,21 +892,21 @@ defmodule Aleph.Cockpit do
   # so a hit resets focused_session to that leader (clears a stale {:leaf, id} — C3.3).
   defp dispatch_click({WindowBar, data, rect}, x, _y, state) do
     tab = WindowBar.tab_at_x(data[:tabs] || [], x - rect.x)
-    select_tlon_window(active_world_id(state), tab)
+    select_tlon_window(active_workspace_id(state), tab)
     state = if tab, do: %{state | focused_session: {:leader, tab[:name]}}, else: state
     {:noreply, render(state)}
   end
 
   defp dispatch_click({panel, data, rect}, _x, y, state), do: apply_pick(Panel.pick(panel, data, rect, y - rect.y), state)
 
-  # Select a Tlön tmux window in world `world_id` by the clicked/hovered tab's index; nil (past the
+  # Select a Tlön tmux window in workspace `workspace_id` by the clicked/hovered tab's index; nil (past the
   # tabs) is a no-op.
-  defp select_tlon_window(world_id, %{index: idx}) do
-    tlon_run(world_id, ["select-window", "-t", "#{world_session(world_id)}:#{idx}"])
+  defp select_tlon_window(workspace_id, %{index: idx}) do
+    tlon_run(workspace_id, ["select-window", "-t", "#{workspace_session(workspace_id)}:#{idx}"])
     :ok
   end
 
-  defp select_tlon_window(_world_id, _tab), do: :ok
+  defp select_tlon_window(_workspace_id, _tab), do: :ok
 
   # A drag/release over the terminal body → the PTY; anywhere else is ignored. The terminal is
   # edge-to-edge now, so there is no tab-row offset to shift by.
@@ -984,9 +988,9 @@ defmodule Aleph.Cockpit do
   end
 
   # The composer's /status command (reshape slice D): the full HEALTH readout — the panel demoted
-  # to a footer line — as a MAIN detail in a World space; Esc closes it like any detail. Orbis has
+  # to a footer line — as a MAIN detail in a Workspace space; Esc closes it like any detail. Orbis has
   # no detail surface (and no health probe), so it degrades to an honest flash.
-  defp apply_effect({:show_status, _thread_id}, %{active_key: key} = state) when Space.world?(key) do
+  defp apply_effect({:show_status, _thread_id}, %{active_key: key} = state) when Space.workspace?(key) do
     state = %{put_in(state.focus.detail?, true) | status_detail: status_detail_content(state.health)}
     {:noreply, render(state)}
   end
@@ -994,7 +998,7 @@ defmodule Aleph.Cockpit do
   defp apply_effect({:show_status, _thread_id}, state),
     do: {:noreply, render(%{state | flash: "no health read here — /status works in a workspace"})}
 
-  # The `v` verb landed (reshape slice D): flip the World center between the live PTY and the
+  # The `v` verb landed (reshape slice D): flip the Workspace center between the live PTY and the
   # attached thread's conversation.
   defp apply_effect(:toggle_center_view, state), do: {:noreply, render(toggle_center_view(state))}
 
@@ -1014,7 +1018,7 @@ defmodule Aleph.Cockpit do
   end
 
   # Enter in Tlön nav: on the Sidebar, switch to the space under the cursor; on Leaves, attach the
-  # leaf's live World window in the center (preview + commit); on any other pane, open its
+  # leaf's live Workspace window in the center (preview + commit); on any other pane, open its
   # selection's detail in MAIN (set focus.detail?, which the View renders).
   defp apply_effect(:tlon_enter, state) do
     # A pane Enter always resolves ITS detail — never a leftover /status readout.
@@ -1028,11 +1032,11 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # A hover in Tlön nav (`:tlon_preview`): re-point the World center to the window under the cursor
+  # A hover in Tlön nav (`:tlon_preview`): re-point the Workspace center to the window under the cursor
   # (a live preview) WITHOUT taking focus or sending keys — commit does that. See preview_focused/1.
   defp apply_effect(:tlon_preview, state), do: {:noreply, render(preview_focused(state))}
 
-  # `[`/`]` landed (C3.4): step the World's right-pane view and repaint.
+  # `[`/`]` landed (C3.4): step the Workspace's right-pane view and repaint.
   defp apply_effect({:cycle_pane_view, dir}, state), do: {:noreply, render(cycle_pane_view(state, dir))}
 
   # Enter on the Orbis survey (D0.2) — the same space-switch a click on the row runs.
@@ -1041,20 +1045,20 @@ defmodule Aleph.Cockpit do
   # `a` (or Esc from the author face) landed: flip Orbis' face and repaint (D2.1).
   defp apply_effect({:toggle_orbis_face}, state), do: {:noreply, render(toggle_orbis_face(state))}
 
-  # The author face's `n` verb landed: register a world from the armed template + typed name.
-  defp apply_effect({:register_world, template, name}, state),
-    do: {:noreply, render(register_world!(state, template, name))}
+  # The author face's `n` verb landed: register a workspace from the armed template + typed name.
+  defp apply_effect({:register_workspace, template, name}, state),
+    do: {:noreply, render(register_workspace!(state, template, name))}
 
-  # `d` on the author face's cursor world landed: arm the two-key delete confirm.
+  # `d` on the author face's cursor workspace landed: arm the two-key delete confirm.
   defp apply_effect({:arm_delete, id, name}, state),
     do: {:noreply, render(%{state | pending_delete: id, flash: "press d again to delete #{name}"})}
 
-  # The second `d` (still armed on this id) landed: remove the world.
-  defp apply_effect({:remove_world, id}, state), do: {:noreply, render(remove_world!(state, id))}
+  # The second `d` (still armed on this id) landed: remove the workspace.
+  defp apply_effect({:remove_workspace, id}, state), do: {:noreply, render(remove_workspace!(state, id))}
 
   # The field editor's h/l rings and paths/roster sub-list add/remove (D2.4 Chunk 2a) landed: apply
   # the attrs map immediately — no draft/commit step, matching Settings' per-change apply.
-  defp apply_effect({:edit_world, id, attrs}, state), do: {:noreply, render(edit_world!(state, id, attrs))}
+  defp apply_effect({:edit_workspace, id, attrs}, state), do: {:noreply, render(edit_workspace!(state, id, attrs))}
 
   # The roster sub-editor's Tab-armed knob landed on Enter/Space (D2.4 Chunk 2b, absorbs Settings):
   # apply it via Aleph.Config.
@@ -1136,7 +1140,7 @@ defmodule Aleph.Cockpit do
   # length (Health is pinned, never cycled — clarity slice 2). No carousel (0/1-panel right column)
   # → no-op, guards div-by-zero. Public + exposed (like `attach_leaf/2`/`preview_focused/1`) so it's
   # testable without a live GenServer.
-  def cycle_pane_view(%{active_key: key} = state, dir) when Space.world?(key) do
+  def cycle_pane_view(%{active_key: key} = state, dir) when Space.workspace?(key) do
     case Space.fetch(key) do
       %Space{} = space ->
         case Space.carousel(space) do
@@ -1162,21 +1166,21 @@ defmodule Aleph.Cockpit do
   def toggle_orbis_face(state), do: %{state | orbis_face: :author}
 
   @doc false
-  # Register a world from `template` + the operator-typed `name` (D2.3's `n` verb). `{:ok, _}`
+  # Register a workspace from `template` + the operator-typed `name` (D2.3's `n` verb). `{:ok, _}`
   # clears the input and flashes; `{:error, changeset}` (a blank OR duplicate name — both are the
   # funes changeset's job, not re-validated here) flashes the reason and REOPENS the input with
   # what was typed, so a rejected name can be edited and resubmitted rather than retyped from
   # scratch. Wrapped like `create_thread`/`post_message` — a funes hiccup flashes, never crashes
   # the cockpit.
-  def register_world!(state, template, name) do
-    case Worlds.register(WorldTemplates.new_world_attrs(template, name)) do
-      {:ok, world} ->
-        %{state | input: nil, flash: "created #{world.name}"}
+  def register_workspace!(state, template, name) do
+    case Workspaces.register(WorkspaceTemplates.new_workspace_attrs(template, name)) do
+      {:ok, workspace} ->
+        %{state | input: nil, flash: "created #{workspace.name}"}
 
       {:error, changeset} ->
         %{
           state
-          | input: %{kind: :new_world, buffer: name, cursor: String.length(name), template: template},
+          | input: %{kind: :new_workspace, buffer: name, cursor: String.length(name), template: template},
             flash: "couldn't create “#{name}” — #{changeset_error(changeset)}"
         }
     end
@@ -1187,27 +1191,27 @@ defmodule Aleph.Cockpit do
   end
 
   @doc false
-  # Remove world `id` (D2.5's second `d`). Guards against stranding the cockpit on a deleted
-  # active world (falls back to `:orbis`) and clamps `author_cursor` to the shrunk list. A missing
-  # world (already gone) or a funes hiccup flashes, never crashes.
-  def remove_world!(state, id) do
-    case Worlds.get(id) do
+  # Remove workspace `id` (D2.5's second `d`). Guards against stranding the cockpit on a deleted
+  # active workspace (falls back to `:orbis`) and clamps `author_cursor` to the shrunk list. A missing
+  # workspace (already gone) or a funes hiccup flashes, never crashes.
+  def remove_workspace!(state, id) do
+    case Workspaces.get(id) do
       nil ->
-        %{state | flash: "world ##{id} already gone"}
+        %{state | flash: "workspace ##{id} already gone"}
 
-      world ->
-        case Worlds.remove(world) do
+      workspace ->
+        case Workspaces.remove(workspace) do
           {:ok, _} ->
             state
             |> Map.put(:active_key, if(state.active_key == id, do: :orbis, else: state.active_key))
             |> Map.put(:author_cursor, clamp_author_cursor(state.author_cursor))
-            |> Map.put(:flash, "deleted #{world.name}")
+            |> Map.put(:flash, "deleted #{workspace.name}")
 
-          {:error, :last_world} ->
-            %{state | flash: "couldn't delete #{world.name} — the last workspace; threads must have a home"}
+          {:error, :last_workspace} ->
+            %{state | flash: "couldn't delete #{workspace.name} — the last workspace; threads must have a home"}
 
           {:error, changeset} ->
-            %{state | flash: "couldn't delete #{world.name} — #{changeset_error(changeset)}"}
+            %{state | flash: "couldn't delete #{workspace.name} — #{changeset_error(changeset)}"}
         end
     end
   rescue
@@ -1219,25 +1223,25 @@ defmodule Aleph.Cockpit do
   # Re-clamp the author cursor against the POST-delete count (one fewer row) — same edge-clamp
   # discipline as the keymap's move_author_cursor, applied here since a delete can shrink the list
   # out from under a cursor sitting on (or past) the new last row.
-  defp clamp_author_cursor(cursor), do: max(min(cursor, max(length(Worlds.all()) - 1, 0)), 0)
+  defp clamp_author_cursor(cursor), do: max(min(cursor, max(length(Workspaces.all()) - 1, 0)), 0)
 
   @doc false
   # Apply one field edit (D2.4 Chunk 2a: the editor's type/scope rings, and the paths/roster
   # sub-list's add/remove) immediately — no draft/commit step, mirroring how Settings applies each
-  # change on the spot. `name` is immutable (`World.edit_changeset` drops it — see funes/world.ex);
-  # nothing here special-cases it. Same missing/error/rescue shape as `register_world!`/
-  # `remove_world!`. On success, re-clamps `author_edit.sub` against the POST-edit paths/roster
+  # change on the spot. `name` is immutable (`Workspace.edit_changeset` drops it — see funes/workspace.ex);
+  # nothing here special-cases it. Same missing/error/rescue shape as `register_workspace!`/
+  # `remove_workspace!`. On success, re-clamps `author_edit.sub` against the POST-edit paths/roster
   # length (a removal can strand `sub` past the shrunk list, same reasoning as
   # `clamp_author_cursor/1` above).
-  def edit_world!(state, id, attrs) do
-    case Worlds.get(id) do
+  def edit_workspace!(state, id, attrs) do
+    case Workspaces.get(id) do
       nil ->
-        %{state | flash: "world ##{id} already gone"}
+        %{state | flash: "workspace ##{id} already gone"}
 
-      world ->
-        case Worlds.edit(world, attrs) do
+      workspace ->
+        case Workspaces.edit(workspace, attrs) do
           {:ok, updated} -> reclamp_author_edit_sub(%{state | flash: "updated #{updated.name}"})
-          {:error, changeset} -> %{state | flash: "couldn't update #{world.name} — #{changeset_error(changeset)}"}
+          {:error, changeset} -> %{state | flash: "couldn't update #{workspace.name} — #{changeset_error(changeset)}"}
         end
     end
   rescue
@@ -1249,12 +1253,12 @@ defmodule Aleph.Cockpit do
   # Only reachable when `author_edit` is actually mid-edit on a paths/roster sub-list (field 2/3) —
   # elsewhere (the type/scope rings, or no editor open) this is a no-op via the fallback clause.
   defp reclamp_author_edit_sub(%{author_edit: %{id: id, field: field} = edit} = state) when field in [2, 3] do
-    case Worlds.get(id) do
+    case Workspaces.get(id) do
       nil ->
         state
 
-      world ->
-        len = world |> Map.get(sub_list_field(field)) |> length()
+      workspace ->
+        len = workspace |> Map.get(sub_list_field(field)) |> length()
         %{state | author_edit: %{edit | sub: edit.sub |> min(max(len - 1, 0)) |> max(0)}}
     end
   end
@@ -1268,7 +1272,7 @@ defmodule Aleph.Cockpit do
   # The roster sub-editor's Tab+Enter/Space knob (D2.4 Chunk 2b — absorbs the Settings modal):
   # cycle the sub-selected coworker's model ring, or flip its yolo policy, writing Aleph.Config
   # (file-backed, applies on the coworker's NEXT SPAWN — same honest scope as the `m` verb/old
-  # Settings). Looks the roster entry up off the LIVE world (Worlds.get, like edit_world!) rather
+  # Settings). Looks the roster entry up off the LIVE workspace (Workspaces.get, like edit_workspace!) rather
   # than trust the effect's bare name, so the entry's archetype (the model ring's default-fallback
   # source) is available.
   def apply_coworker_knob!(state, name, knob) do
@@ -1283,9 +1287,9 @@ defmodule Aleph.Cockpit do
   end
 
   defp roster_entry_for(%{author_edit: %{id: id}}, name) do
-    case Worlds.get(id) do
+    case Workspaces.get(id) do
       nil -> nil
-      world -> Enum.find(world.roster || [], &(&1["name"] == name))
+      workspace -> Enum.find(workspace.roster || [], &(&1["name"] == name))
     end
   end
 
@@ -1314,12 +1318,12 @@ defmodule Aleph.Cockpit do
     |> Enum.map_join("; ", fn {field, errors} -> "#{field} #{Enum.join(errors, ", ")}" end)
   end
 
-  # The pending habit the focus points at, or nil unless: a World space, nav mode, Memory pane,
+  # The pending habit the focus points at, or nil unless: a Workspace space, nav mode, Memory pane,
   # habits section (1), with a habit under the clamped cursor.
   defp selected_habit(
          %{active_key: key, memory: %{habits: habits}, focus: %{in_terminal?: false, section: 1} = focus} = state
        )
-       when Space.world?(key) do
+       when Space.workspace?(key) do
     layout = tlon_layout(state)
     if Focus.focused_pane(focus, layout) == Panel.Memory, do: Enum.at(habits, Focus.cursor(focus, layout))
   end
@@ -1340,7 +1344,7 @@ defmodule Aleph.Cockpit do
   defp selected_pinned_fact(
          %{active_key: key, memory: %{pinned: pinned}, focus: %{in_terminal?: false, section: 0} = focus} = state
        )
-       when Space.world?(key) do
+       when Space.workspace?(key) do
     layout = tlon_layout(state)
     if Focus.focused_pane(focus, layout) == Panel.Memory, do: Enum.at(pinned, Focus.cursor(focus, layout))
   end
@@ -1364,11 +1368,11 @@ defmodule Aleph.Cockpit do
   # Kill the leaf's live `t<id>` window (if any), then hard-delete its thread through the funes
   # facade — it refuses the root machine thread, which flashes instead of half-deleting.
   defp delete_leaf!(state, id) do
-    world_id = active_world_id(state)
+    workspace_id = active_workspace_id(state)
 
-    case leaf_index(tlon_tabs(world_id), id) do
+    case leaf_index(tlon_tabs(workspace_id), id) do
       nil -> :ok
-      idx -> tlon_run(world_id, ["kill-window", "-t", "#{world_session(world_id)}:#{idx}"])
+      idx -> tlon_run(workspace_id, ["kill-window", "-t", "#{workspace_session(workspace_id)}:#{idx}"])
     end
 
     flash =
@@ -1399,13 +1403,13 @@ defmodule Aleph.Cockpit do
   defp attached_leaf({:leaf, id}), do: id
   defp attached_leaf(_focused_session), do: nil
 
-  # The selected leaf → attach its live World window in the center (Worlds Slice 0): the Enter path
+  # The selected leaf → attach its live Workspace window in the center (Workspaces Slice 0): the Enter path
   # of the preview-swap. render is un-unit-testable (it paints via termbox); attach_leaf/2 is the
   # pure decision, so it carries the logic + tests.
   defp jump_to_leaf(state, layout), do: {:noreply, render(attach_leaf(state, layout))}
 
   @doc false
-  # PREVIEW (re-point) then COMMIT (focus in) the World tmux window under the Leaves cursor. C3.3:
+  # PREVIEW (re-point) then COMMIT (focus in) the Workspace tmux window under the Leaves cursor. C3.3:
   # a leaf is now a real attachable session — prefer ITS OWN `t<id>` window over its lead's, so
   # `focused_session` becomes `{:leaf, id}`. Falls back to the lead's window (today's Slice-0
   # behavior, `focused_session: {:leader, lead}`) when the leaf has no live window of its own. Both
@@ -1417,16 +1421,16 @@ defmodule Aleph.Cockpit do
   # — it takes its own snapshot, which is safe for its single read but would reintroduce the double
   # read.
   def attach_leaf(state, layout) do
-    world_id = active_world_id(state)
+    workspace_id = active_workspace_id(state)
 
     # row_at over leaves_data: the ON-SCREEN row order (focused lead floated), never the raw rollup.
     case Panel.Leaves.row_at(leaves_data(state), Focus.cursor(state.focus, layout)) do
       %{id: id, lead: lead} ->
-        tabs = tlon_tabs(world_id)
+        tabs = tlon_tabs(workspace_id)
 
         case {leaf_index(tabs, id), window_index(tabs, lead)} do
           {idx, _} when not is_nil(idx) ->
-            select_tlon_window(world_id, %{index: idx})
+            select_tlon_window(workspace_id, %{index: idx})
 
             state
             |> Map.put(:previewed_window, idx)
@@ -1434,7 +1438,7 @@ defmodule Aleph.Cockpit do
             |> Map.merge(%{focused_session: {:leaf, id}, flash: nil})
 
           {nil, idx} when not is_nil(idx) ->
-            select_tlon_window(world_id, %{index: idx})
+            select_tlon_window(workspace_id, %{index: idx})
 
             state
             |> Map.put(:previewed_window, idx)
@@ -1451,12 +1455,12 @@ defmodule Aleph.Cockpit do
   end
 
   @doc false
-  # Preview-swap (Worlds Slice 0, tweak #1): re-point the World center to the tmux window under the
+  # Preview-swap (Workspaces Slice 0, tweak #1): re-point the Workspace center to the tmux window under the
   # nav cursor, storing it in `previewed_window`, WITHOUT taking keyboard focus (in_terminal? stays
   # put) or sending keys — a live preview that follows the selection. Only a window-bearing pane
   # (Leaves, mapped by the leaf's lead to a live window) re-points; a leaf with no live window, or
   # any other pane/space, leaves the center exactly where it was. commit_preview/1 is what focuses.
-  def preview_focused(%{active_key: key} = state) when Space.world?(key) do
+  def preview_focused(%{active_key: key} = state) when Space.workspace?(key) do
     layout = tlon_layout(state)
 
     with Panel.Leaves <- Focus.focused_pane(state.focus, layout),
@@ -1473,7 +1477,7 @@ defmodule Aleph.Cockpit do
   def preview_focused(state), do: state
 
   @doc false
-  # Commit the previewed World window: take keyboard focus into the center (in_terminal? true) so
+  # Commit the previewed Workspace window: take keyboard focus into the center (in_terminal? true) so
   # keystrokes now flow to tmux. The shared "attach in place" step — Task 2's Leaves-Enter reuses it.
   def commit_preview(state), do: put_in(state.focus.in_terminal?, true)
 
@@ -1583,11 +1587,11 @@ defmodule Aleph.Cockpit do
   end
 
   defp do_render(state) do
-    # Fill the probe cache (Tlön only) and find-or-spawn the World's roster — both stateful,
+    # Fill the probe cache (Tlön only) and find-or-spawn the Workspace's roster — both stateful,
     # both rate-limited, both OUT of the per-frame hot path. Each step degrades to the state it
     # was handed, so a tmux/funes hiccup skips that step this frame instead of losing the frame.
     state = Board.safe_read(:probes, state, fn -> ensure_probes(state) end)
-    state = Board.safe_read(:world_roster, state, fn -> ensure_world_roster(state) end)
+    state = Board.safe_read(:workspace_roster, state, fn -> ensure_workspace_roster(state) end)
     state = Board.safe_read(:log_window, state, fn -> ensure_log_window(state) end)
     state = Board.safe_read(:thread_sessions, state, fn -> ensure_thread_sessions(state) end)
 
@@ -1611,7 +1615,8 @@ defmodule Aleph.Cockpit do
 
     # Computed once — the layout read and the detail read below share it (the detail is resolved
     # against the same frame's layout).
-    tlon_layout = Board.safe_read(:tlon_layout, nil, fn -> if(Space.world?(state.active_key), do: tlon_layout(state)) end)
+    tlon_layout =
+      Board.safe_read(:tlon_layout, nil, fn -> if(Space.workspace?(state.active_key), do: tlon_layout(state)) end)
 
     reads = %{
       active_key: state.active_key,
@@ -1624,7 +1629,8 @@ defmodule Aleph.Cockpit do
       sidebar: Board.safe_read(:sidebar, [], fn -> Funes.Board.sidebar() end),
       scope: Board.safe_read(:scope, nil, fn -> focused && Funes.Board.brief(focused) end),
       chatter: Board.safe_read(:chatter, [], fn -> (focused && Channel.recent_messages(focused, 30)) || [] end),
-      worlds: Board.safe_read(:worlds, [], fn -> if(state.active_key == :orbis, do: orbis_worlds(state), else: []) end),
+      workspaces:
+        Board.safe_read(:workspaces, [], fn -> if(state.active_key == :orbis, do: orbis_workspaces(state), else: []) end),
       # The survey's focus + per-row cursor, so Chorus can wash the cursor row :selected — only
       # meaningful in Orbis (`right_pane_view`'s same "harmless elsewhere" idiom).
       orbis_focus: state.orbis_focus,
@@ -1644,8 +1650,8 @@ defmodule Aleph.Cockpit do
       stack: state.stack || @empty_stack,
       health: state.health,
       activity: state.activity,
-      memory: if(Space.world?(state.active_key), do: state.memory),
-      orbis: Board.safe_read(:orbis, nil, fn -> if(Space.world?(state.active_key), do: leaves_data(state)) end),
+      memory: if(Space.workspace?(state.active_key), do: state.memory),
+      orbis: Board.safe_read(:orbis, nil, fn -> if(Space.workspace?(state.active_key), do: leaves_data(state)) end),
       focused_session: state.focused_session,
       # The right rail's pinned BRIEF (slice D): the ATTACHED leaf's brief — only read while a
       # leaf holds the center (thread context), so no per-frame DB read in workspace context. nil
@@ -1663,12 +1669,12 @@ defmodule Aleph.Cockpit do
       # while the chat face is up — no per-frame DB tail while the PTY holds the center.
       center_view: state.center_view,
       center_chat:
-        if(Space.world?(state.active_key) and state.center_view == :chat,
+        if(Space.workspace?(state.active_key) and state.center_view == :chat,
           do: Board.safe_read(:center_chat, nil, fn -> chat_read(state) end)
         ),
-      # Which of the World's right-column panels (Health/Activity/Leaves) to show, full-height —
+      # Which of the Workspace's right-column panels (Health/Activity/Leaves) to show, full-height —
       # the `[`/`]` cycle (C3.4). View clamps with `rem`, so this is meaningless-but-harmless
-      # outside a World.
+      # outside a Workspace.
       right_pane_view: state.right_pane_view,
       triage: Board.safe_read(:triage, nil, fn -> if(state.active_key == :orbis, do: triage_read(threads)) end),
       scrolls: state.scrolls,
@@ -1677,15 +1683,15 @@ defmodule Aleph.Cockpit do
       leader_pending?: state.leader_pending?,
       # LOCK mode (design 2026-08-23) — the footer's loudest chip.
       lock?: state.lock?,
-      # The World space's focus, so the View can light the focused sidebar pane and the status bar
+      # The Workspace space's focus, so the View can light the focused sidebar pane and the status bar
       # can show NAV/TERM. nil elsewhere — no other space navigates panes this way.
-      focus: if(Space.world?(state.active_key), do: state.focus),
+      focus: if(Space.workspace?(state.active_key), do: state.focus),
       # The layout the View reads for the focused pane + item cursor (counts), and the resolved
-      # MAIN detail (nil unless the focus opened one). Both nil outside a World space.
+      # MAIN detail (nil unless the focus opened one). Both nil outside a Workspace space.
       tlon_layout: tlon_layout,
       detail:
         Board.safe_read(:detail, nil, fn ->
-          if(Space.world?(state.active_key) and state.focus.detail?, do: tlon_detail(state, tlon_layout))
+          if(Space.workspace?(state.active_key) and state.focus.detail?, do: tlon_detail(state, tlon_layout))
         end)
     }
 
@@ -1753,7 +1759,7 @@ defmodule Aleph.Cockpit do
 
   defp working_lead(_machine, _focused, _thinking), do: []
 
-  # The CREW sidebar's read: the active World's roster joined with the tmux snapshot, the leaf
+  # The CREW sidebar's read: the active Workspace's roster joined with the tmux snapshot, the leaf
   # leads, and the thinking declarations (Aleph.Panel.Crew.coworkers/6). Lead lookups go one
   # funes query per live leaf window — at most the leaf cap.
   defp crew_read(state, %{tabs: tabs}) do
@@ -1768,7 +1774,7 @@ defmodule Aleph.Cockpit do
       end)
 
     titles = Map.new(state.threads, &{&1.id, &1.title})
-    roster = active_roster(active_world_id(state))
+    roster = active_roster(active_workspace_id(state))
 
     %{
       coworkers: Panel.Crew.coworkers(roster, tabs, led_by, titles, state.thinking, System.os_time(:second)),
@@ -1783,9 +1789,9 @@ defmodule Aleph.Cockpit do
   defp terminal_read(_state, _focused), do: :no_session
 
   # The Tlön center's read: the embedded tmux client. Lookup only — the find-or-spawn lives in
-  # ensure_center (render's stateful preamble, via ensure_world_roster), so a failing spawn can back
+  # ensure_center (render's stateful preamble, via ensure_workspace_roster), so a failing spawn can back
   # off instead of re-materialising the profile and re-issuing tmux new-session every frame.
-  defp machine_read(%{active_key: key}) when Space.world?(key) do
+  defp machine_read(%{active_key: key}) when Space.workspace?(key) do
     case render_state_of(safe_terminal(:machine)) do
       %{} = render_state -> Map.put(render_state, :tabs, tlon_tabs(key))
       other -> other
@@ -1813,17 +1819,17 @@ defmodule Aleph.Cockpit do
     :exit, _ -> {:error, :sessions_down}
   end
 
-  # The terminal that owns the keys, by space: a World → the embedded tmux client (still the single
-  # `:machine` registry entry in Slice 1 — C2 keys the terminal per world id). nil elsewhere (Orbis
+  # The terminal that owns the keys, by space: a Workspace → the embedded tmux client (still the single
+  # `:machine` registry entry in Slice 1 — C2 keys the terminal per workspace id). nil elsewhere (Orbis
   # has no center Terminal — its surface is the Chorus).
-  defp center_terminal(%{active_key: key}) when Space.world?(key), do: safe_terminal(:machine)
+  defp center_terminal(%{active_key: key}) when Space.workspace?(key), do: safe_terminal(:machine)
   defp center_terminal(_state), do: nil
 
   # The thread `c` composes onto, derived per keypress (like center_live?): the focused project
-  # thread in Orbis; in a World space the ATTACHED leaf's thread when one holds the center, else
+  # thread in Orbis; in a Workspace space the ATTACHED leaf's thread when one holds the center, else
   # the MACHINE thread — you post to whoever you're looking at (reshape slice D: the thread is
   # the address, fixing the "who am I talking to" decoupling). nil (no thread) makes `c` a no-op.
-  defp composer_thread_id(%{active_key: key} = state) when Space.world?(key) do
+  defp composer_thread_id(%{active_key: key} = state) when Space.workspace?(key) do
     case state.focused_session do
       {:leaf, id} -> id
       _leader -> machine_thread_id()
@@ -1865,10 +1871,10 @@ defmodule Aleph.Cockpit do
   # Tlön anyway).
   # The Sidebar leads the left column in the FOCUS layout exactly as it does on screen (View
   # prepends it to `space.left`), so `h`/`H` can land on the workspace nav and `Enter` switches.
-  defp tlon_layout(%{active_key: key} = state) when Space.world?(key) do
+  defp tlon_layout(%{active_key: key} = state) when Space.workspace?(key) do
     case Space.fetch(key) do
       # A stale/removed active_key mid-render (Space.fetch/1 returns nil on a miss) — degrade to
-      # the same empty layout a non-World space gets, rather than crash the render.
+      # the same empty layout a non-Workspace space gets, rather than crash the render.
       nil ->
         %{left: [], right: [], sections: %{}, counts: %{}}
 
@@ -1899,7 +1905,7 @@ defmodule Aleph.Cockpit do
   defp pane_counts(state) do
     %{
       # Home + one row per workspace — the Sidebar's pickable rows (its groups mirror
-      # Space.all/0's [Orbis | worlds] order, so the count and the cursor→key math agree).
+      # Space.all/0's [Orbis | workspaces] order, so the count and the cursor→key math agree).
       Panel.Sidebar => length(Space.all()),
       Panel.Stack => length((state.stack || @empty_stack).commits),
       Panel.Memory => memory_section_count(state),
@@ -2034,9 +2040,9 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  # Fill the probe cache when a World space is active and the cache is cold. Elsewhere the probes
+  # Fill the probe cache when a Workspace space is active and the cache is cold. Elsewhere the probes
   # stay nil — git/nix/df/tmux forks and funes reads are wasted on spaces that never show them.
-  defp ensure_probes(%{active_key: key, stack: nil} = state) when Space.world?(key) do
+  defp ensure_probes(%{active_key: key, stack: nil} = state) when Space.workspace?(key) do
     %{
       state
       | stack: stack_read(),
@@ -2048,7 +2054,7 @@ defmodule Aleph.Cockpit do
   end
 
   # Orbis' survey only needs the rollup, not the git/nix/df battery — fill just the cached leaves
-  # rollup on the SAME @probe_ms throttle so `orbis_worlds/1` reads the cache, never gathers funes
+  # rollup on the SAME @probe_ms throttle so `orbis_workspaces/1` reads the cache, never gathers funes
   # per-frame.
   defp ensure_probes(%{active_key: :orbis, leaves: nil} = state) do
     %{state | leaves: orbis_read(:orbis), probed_at: System.monotonic_time(:millisecond)}
@@ -2105,20 +2111,20 @@ defmodule Aleph.Cockpit do
   end
 
   # ORBIS rollup (Orbis Tertius slice 2) — the machine-scoped vantage, gathered on the spaces that
-  # show it (a World's LEAVES sidebar + Orbis' survey), cached in `state.leaves` on the @probe_ms
+  # show it (a Workspace's LEAVES sidebar + Orbis' survey), cached in `state.leaves` on the @probe_ms
   # throttle. The semantics live in `Aleph.Orbis` (shared with the `chat` tab's header strip) so a
   # status rule never drifts between the surfaces.
   defp orbis_read(:orbis), do: Aleph.Orbis.rollup()
-  defp orbis_read(key) when Space.world?(key), do: Aleph.Orbis.rollup()
+  defp orbis_read(key) when Space.workspace?(key), do: Aleph.Orbis.rollup()
   defp orbis_read(_key), do: nil
 
-  # The Orbis survey (Chorus center): the per-WORLD rollup grouping (Slice 0: one hardcoded world).
-  # Reads the SAME cached `state.leaves` rollup the @probe_ms throttle fills — its `worlds` key — so
+  # The Orbis survey (Chorus center): the per-WORKSPACE rollup grouping (Slice 0: one hardcoded workspace).
+  # Reads the SAME cached `state.leaves` rollup the @probe_ms throttle fills — its `workspaces` key — so
   # the survey and the Tlön LEAVES sidebar share one gather. Empty list when funes is down / the
-  # cache is cold / there are no worlds. Public: a pure read seam (unit-tested against a known cache).
-  def orbis_worlds(state) do
+  # cache is cold / there are no workspaces. Public: a pure read seam (unit-tested against a known cache).
+  def orbis_workspaces(state) do
     case state.leaves do
-      %{worlds: worlds} -> worlds
+      %{workspaces: workspaces} -> workspaces
       _ -> []
     end
   end
@@ -2159,30 +2165,30 @@ defmodule Aleph.Cockpit do
   defp cmd_from_detail(%{"cmd" => cmd}), do: cmd
   defp cmd_from_detail(_), do: "check"
 
-  # The World's cast, spawned lazily on entry from its roster (C2.3 — replaces the old hardcoded
+  # The Workspace's cast, spawned lazily on entry from its roster (C2.3 — replaces the old hardcoded
   # ensure_machine_coworker/ensure_claude_coworker/ensure_third_coworker trio): head = the CENTER
   # (embedded terminal, `new-session`), tail = tmux windows (`new-window`), each launcher chosen by
   # its archetype's harness. An empty roster / funes-down space is a no-op. `spaces` defaults to the
   # live cache (`Space.all/0`, `render`'s call) but is overridable — mirrors `Space.fetch/1` vs
-  # `/2` — so a test drives a roster without a live world in the funes DB.
+  # `/2` — so a test drives a roster without a live workspace in the funes DB.
   @doc false
-  def ensure_world_roster(state, spaces \\ Space.all())
+  def ensure_workspace_roster(state, spaces \\ Space.all())
 
-  def ensure_world_roster(%{active_key: key} = state, spaces) when Space.world?(key) do
+  def ensure_workspace_roster(%{active_key: key} = state, spaces) when Space.workspace?(key) do
     case Space.fetch(key, spaces) do
       %Space{roster: [lead | rest]} -> state |> ensure_center(key, lead) |> ensure_windows(key, rest)
       _ -> state
     end
   end
 
-  def ensure_world_roster(state, _spaces), do: state
+  def ensure_workspace_roster(state, _spaces), do: state
 
   # The roster LEAD: a pi session working ON the box on a persistent "machine" thread (so its work
   # is triageable) — pi by design, claude stays the deliberate escalation (AGENTS.md routing).
   # Find-or-spawned here (render's stateful preamble), with a backoff: a failed spawn must not retry
   # the whole materialise+tmux pipeline on EVERY render — that would be a spawn storm whenever the
   # coworker can't start.
-  defp ensure_center(state, world_id, lead) do
+  defp ensure_center(state, workspace_id, lead) do
     now = System.monotonic_time(:millisecond)
 
     cond do
@@ -2193,11 +2199,11 @@ defmodule Aleph.Cockpit do
         state
 
       true ->
-        case spawn_center(world_id, lead) do
+        case spawn_center(workspace_id, lead) do
           pid when is_pid(pid) ->
             # Harnesses inside the center can emit kitty graphics themselves — tmux must pass the
             # APC through instead of eating it (design 2026-08-23 §Images rider).
-            _ = tlon_run(world_id, ["set-option", "-g", "allow-passthrough", "on"])
+            _ = tlon_run(workspace_id, ["set-option", "-g", "allow-passthrough", "on"])
             capture_standing_thread_id(state)
 
           _ ->
@@ -2219,15 +2225,15 @@ defmodule Aleph.Cockpit do
   # two agents. Gated on the center up (its spawn opens/finds the root thread these join) and on
   # the window not already being there (tmux `new-window` isn't idempotent like `new-session -A` —
   # a naive re-run every render would spawn a fresh coworker every tick).
-  defp ensure_windows(state, world_id, entries) do
+  defp ensure_windows(state, workspace_id, entries) do
     if is_pid(safe_terminal(:machine)) do
-      existing = world_id |> tlon_tabs() |> MapSet.new(& &1.name)
+      existing = workspace_id |> tlon_tabs() |> MapSet.new(& &1.name)
 
       entries
       |> Enum.map(&Profiles.roster_entry/1)
       |> Enum.reject(&MapSet.member?(existing, &1.name))
       |> Enum.each(fn %{archetype: arch, name: name} ->
-        spawn_window(world_id, Profiles.instantiate(%{archetype: arch, name: name}))
+        spawn_window(workspace_id, Profiles.instantiate(%{archetype: arch, name: name}))
       end)
     end
 
@@ -2238,10 +2244,10 @@ defmodule Aleph.Cockpit do
   # (honestly identified, no pi-multi-account impersonation — see Aleph.Profiles' @seed_roster
   # comment) or a windowed pi; the spawn plumbing is shared. Materialised first: both drivers
   # read the profile's config dir (pi: the whole dir; claude: system_prompt.md as the role).
-  defp spawn_window(world_id, %Profile{name: name} = profile) do
+  defp spawn_window(workspace_id, %Profile{name: name} = profile) do
     _ = materialise_profile(profile)
     command = Harness.driver(profile.harness).launch_command(profile)
-    spawn_harness_window(world_id, "#{name}-machine", name, machine_thread_id(), command)
+    spawn_harness_window(workspace_id, "#{name}-machine", name, machine_thread_id(), command)
   end
 
   # The `chat` tab (the third Tlön window): the INTERACTIVE machine-chat — machine-scope threads as
@@ -2250,7 +2256,7 @@ defmodule Aleph.Cockpit do
   # doesn't know it); it just polls the db the cockpit writes. Gated like the claude window: pi up
   # (so a machine thread exists to read), window absent (`new-window` isn't idempotent), retried each
   # render — a failed open just leaves the tab missing.
-  defp ensure_log_window(%{active_key: key} = state) when Space.world?(key) do
+  defp ensure_log_window(%{active_key: key} = state) when Space.workspace?(key) do
     cond do
       not is_pid(safe_terminal(:machine)) -> state
       Enum.any?(tlon_tabs(key), &(&1.name == "uqbar")) -> state
@@ -2273,11 +2279,11 @@ defmodule Aleph.Cockpit do
   # roster-unknown lead gets none.
   #
   # Public seam (@doc false) so the suite drives the real dispatch through `:tlon_cmd`/`:tlon_join`
-  # with injected `spaces`, mirroring `ensure_world_roster/2`.
+  # with injected `spaces`, mirroring `ensure_workspace_roster/2`.
   @doc false
   def ensure_thread_sessions(state, spaces \\ Space.all())
 
-  def ensure_thread_sessions(%{active_key: key} = state, spaces) when Space.world?(key) do
+  def ensure_thread_sessions(%{active_key: key} = state, spaces) when Space.workspace?(key) do
     tabs = tlon_tabs(key)
     now = System.monotonic_time(:millisecond)
     roster = space_roster(key, spaces)
@@ -2311,9 +2317,9 @@ defmodule Aleph.Cockpit do
   # legacy `t<id>` name); the center/tail/console windows are never candidates. Runs off the same
   # tabs snapshot as the spawn pass, so a leaf spawned this pass (absent from the snapshot) can't
   # be swept.
-  defp sweep_orphan_leaves(world_id, tabs, live_ids) do
+  defp sweep_orphan_leaves(workspace_id, tabs, live_ids) do
     for tab <- tabs, orphan_leaf?(tab, live_ids) do
-      tlon_run(world_id, ["kill-window", "-t", "#{world_session(world_id)}:#{tab.index}"])
+      tlon_run(workspace_id, ["kill-window", "-t", "#{workspace_session(workspace_id)}:#{tab.index}"])
     end
 
     :ok
@@ -2328,7 +2334,7 @@ defmodule Aleph.Cockpit do
     end
   end
 
-  defp ensure_thread_session(world_id, roster, %{id: id, lead: lead, title: title}, tabs, now, state, taken, budget) do
+  defp ensure_thread_session(workspace_id, roster, %{id: id, lead: lead, title: title}, tabs, now, state, taken, budget) do
     cond do
       # The standing coworker's own thread — it already has a session (the center window),
       # just not a leaf one. Never spawn a duplicate for it.
@@ -2336,7 +2342,7 @@ defmodule Aleph.Cockpit do
         {state, taken, budget}
 
       leaf_tab(tabs, id) ->
-        {maybe_inject_opening_turn(world_id, id, tabs, now, state), taken, budget}
+        {maybe_inject_opening_turn(workspace_id, id, tabs, now, state), taken, budget}
 
       not thread_spawn_due?(state.thread_spawn_retry[id], now) ->
         {state, taken, budget}
@@ -2345,7 +2351,7 @@ defmodule Aleph.Cockpit do
         {note_parked(state, id), taken, budget}
 
       true ->
-        spawn_leaf(world_id, roster, lead, title, id, now, state, taken, budget)
+        spawn_leaf(workspace_id, roster, lead, title, id, now, state, taken, budget)
     end
   end
 
@@ -2379,7 +2385,7 @@ defmodule Aleph.Cockpit do
   # thread it works. nil profile (meta/unknown lead) spawns nothing. The window gets a HUMAN name
   # (`<archetype>-<title-slug>`, Slice C); the routing key is the `@funes_thread` option
   # `tag_leaf/4` stamps right after the spawn.
-  defp spawn_leaf(world_id, roster, lead, title, id, now, state, taken, budget) do
+  defp spawn_leaf(workspace_id, roster, lead, title, id, now, state, taken, budget) do
     case Profiles.leaf_profile(lead, roster) do
       nil ->
         {state, taken, budget}
@@ -2388,8 +2394,8 @@ defmodule Aleph.Cockpit do
         _ = materialise_profile(profile)
         window = LeafWindow.name(profile.archetype, title, taken)
         command = Harness.driver(profile.harness).launch_command(profile)
-        result = spawn_harness_window(world_id, lead, window, id, command)
-        state = record_thread_spawn(tag_leaf(result, world_id, window, id), state, id, now)
+        result = spawn_harness_window(workspace_id, lead, window, id, command)
+        state = record_thread_spawn(tag_leaf(result, workspace_id, window, id), state, id, now)
         # A parked thread that finally got its seat may park again later; let it re-note then.
         state = %{state | parked_noted: MapSet.delete(state.parked_noted, id)}
 
@@ -2401,13 +2407,13 @@ defmodule Aleph.Cockpit do
   # window name is cosmetic — delivery/attach resolve thread → window via this option (`leaf_tab`).
   # Name-targeted exact-match (`=`); safe because the name was minted collision-free against this
   # pass's taken set. Only a successful spawn tags; a failed one just backs off.
-  defp tag_leaf({_out, 0} = ok, world_id, window, id) do
-    session = world_session(world_id)
-    _ = tlon_run(world_id, ["set-option", "-w", "-t", "#{session}:=#{window}", "@funes_thread", "#{id}"])
+  defp tag_leaf({_out, 0} = ok, workspace_id, window, id) do
+    session = workspace_session(workspace_id)
+    _ = tlon_run(workspace_id, ["set-option", "-w", "-t", "#{session}:=#{window}", "@funes_thread", "#{id}"])
     ok
   end
 
-  defp tag_leaf(other, _world_id, _window, _id), do: other
+  defp tag_leaf(other, _workspace_id, _window, _id), do: other
 
   defp record_thread_spawn({_out, 0}, state, id, _now),
     do: %{state | thread_spawn_retry: Map.delete(state.thread_spawn_retry, id)}
@@ -2423,20 +2429,20 @@ defmodule Aleph.Cockpit do
   # Does the cockpit staff a per-thread leaf window for this lead? Any WORKER roster handle
   # (claude or pi harness) qualifies — the predicate `delivery_target` and the spawn pass share,
   # so routing and spawning can never disagree about who owns a thread's turns.
-  defp leaf_staffed?(lead, world_id), do: lead in Profiles.leaf_handles(active_roster(world_id))
+  defp leaf_staffed?(lead, workspace_id), do: lead in Profiles.leaf_handles(active_roster(workspace_id))
 
-  # This World's roster (`Aleph.Mention.route/3`'s resolution fixture) — funes-down / no roster
+  # This Workspace's roster (`Aleph.Mention.route/3`'s resolution fixture) — funes-down / no roster
   # degrades to `[]` (nobody resolves, nobody wakes).
-  defp active_roster(world_id) do
-    case Space.fetch(world_id) do
+  defp active_roster(workspace_id) do
+    case Space.fetch(workspace_id) do
       %Space{roster: roster} -> roster
       _ -> []
     end
   end
 
   # Same read against an injected spaces list (the `ensure_thread_sessions/2` test seam).
-  defp space_roster(world_id, spaces) do
-    case Space.fetch(world_id, spaces) do
+  defp space_roster(workspace_id, spaces) do
+    case Space.fetch(workspace_id, spaces) do
       %Space{roster: roster} -> roster
       _ -> []
     end
@@ -2448,7 +2454,7 @@ defmodule Aleph.Cockpit do
   # "typed"/"done" on the window) so a cockpit restart mid-phase can't re-type the opening into a
   # live session or (done-tagged) re-send it — process state only carries the settle timestamp; a
   # "typed" tag with no timestamp (restart) means the text settled long ago, submit now.
-  defp maybe_inject_opening_turn(world_id, id, tabs, now, state) do
+  defp maybe_inject_opening_turn(workspace_id, id, tabs, now, state) do
     tab = leaf_tab(tabs, id)
 
     cond do
@@ -2459,21 +2465,21 @@ defmodule Aleph.Cockpit do
         mark_opening_done(state, id)
 
       tab.opening == "typed" or Map.has_key?(state.opening_text_at, id) ->
-        submit_opening(world_id, id, tab, now, state)
+        submit_opening(workspace_id, id, tab, now, state)
 
       true ->
-        inject_opening_text(world_id, id, tab)
-        tag_opening(world_id, tab.index, "typed")
+        inject_opening_text(workspace_id, id, tab)
+        tag_opening(workspace_id, tab.index, "typed")
         %{state | opening_text_at: Map.put(state.opening_text_at, id, now)}
     end
   end
 
-  defp submit_opening(world_id, id, tab, now, state) do
+  defp submit_opening(workspace_id, id, tab, now, state) do
     typed_at = state.opening_text_at[id]
 
     if is_nil(typed_at) or now - typed_at >= @opening_submit_delay_ms do
-      submit_turn(world_id, tab.index)
-      tag_opening(world_id, tab.index, "done")
+      submit_turn(workspace_id, tab.index)
+      tag_opening(workspace_id, tab.index, "done")
       mark_opening_done(state, id)
     else
       state
@@ -2489,20 +2495,29 @@ defmodule Aleph.Cockpit do
   end
 
   # Stamp the opening phase on the window itself — index-targeted, best-effort.
-  defp tag_opening(world_id, index, phase) do
-    _ = tlon_run(world_id, ["set-option", "-w", "-t", "#{world_session(world_id)}:#{index}", "@funes_opening", phase])
+  defp tag_opening(workspace_id, index, phase) do
+    _ =
+      tlon_run(workspace_id, [
+        "set-option",
+        "-w",
+        "-t",
+        "#{workspace_session(workspace_id)}:#{index}",
+        "@funes_opening",
+        phase
+      ])
+
     :ok
   end
 
   # Type the thread's latest operator message into its just-appeared leaf window (no Enter yet —
   # stage 2 submits). Best-effort: a thread with no operator message yet is silently skipped —
   # never a render crash.
-  defp inject_opening_text(world_id, id, %{index: index}) do
+  defp inject_opening_text(workspace_id, id, %{index: index}) do
     message = Funes.latest_operator_message(id)
 
     if message do
       operator = Application.get_env(:funes, :operator, "andrew")
-      inject_text(world_id, index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
+      inject_text(workspace_id, index, "[funes thread ##{id}] #{operator}: #{one_line(message.body)}")
     end
 
     :ok
@@ -2514,19 +2529,22 @@ defmodule Aleph.Cockpit do
   # project (where mise/mix resolve). It inherits the tlon session's `FUNES_DB`, so it reads the SAME
   # db the cockpit writes — the whole point of the poll-the-db design (a separate process can't share
   # the in-node Bus). Fire-and-forget: a failed spawn leaves the tab absent and the next render retries.
-  defp spawn_log_window(world_id) do
+  defp spawn_log_window(workspace_id) do
     dir = Path.join(Profiles.repo(), "modules/aleph")
     script = "export TERM=xterm-256color\ncd #{dir}\nexec mise exec -- mix aleph.machine_chat"
-    session = world_session(world_id)
+    session = workspace_session(workspace_id)
 
-    System.cmd("tmux", tlon_tmux(world_id, ["new-window", "-t", session, "-n", "uqbar", script]), stderr_to_stdout: true)
-    # uqbar is the primary Tlön surface (the doorway), so seat it as tab 1: move it below base-index,
-    # then renumber so it becomes the first window and tertius/hronir shift after it.
-    System.cmd("tmux", tlon_tmux(world_id, ["move-window", "-s", "#{session}:uqbar", "-t", "#{session}:0"]),
+    System.cmd("tmux", tlon_tmux(workspace_id, ["new-window", "-t", session, "-n", "uqbar", script]),
       stderr_to_stdout: true
     )
 
-    System.cmd("tmux", tlon_tmux(world_id, ["move-window", "-r", "-t", "#{session}:0"]), stderr_to_stdout: true)
+    # uqbar is the primary Tlön surface (the doorway), so seat it as tab 1: move it below base-index,
+    # then renumber so it becomes the first window and tertius/hronir shift after it.
+    System.cmd("tmux", tlon_tmux(workspace_id, ["move-window", "-s", "#{session}:uqbar", "-t", "#{session}:0"]),
+      stderr_to_stdout: true
+    )
+
+    System.cmd("tmux", tlon_tmux(workspace_id, ["move-window", "-r", "-t", "#{session}:0"]), stderr_to_stdout: true)
   end
 
   # `tmux new-window`, not Sessions.spawn_harness: a roster tail entry rides as a window of the
@@ -2536,17 +2554,17 @@ defmodule Aleph.Cockpit do
   # cheap and idempotent-by-absence-check above.
 
   # Open a harness window named `window` on `thread_id` as funes handle `handle`, running
-  # `command` (the profile's `Aleph.Harness.Driver.launch_command/1`) in world `world_id`. The
+  # `command` (the profile's `Aleph.Harness.Driver.launch_command/1`) in workspace `workspace_id`. The
   # roster tail windows AND the per-thread leaf windows all ride this ONE spawn: identity join +
   # tmux plumbing are harness-agnostic (Slice D); only the exec differs, and that came from the
   # driver. `FUNES_THREAD` binds the harness to the thread it's actually meant to work on.
-  defp spawn_harness_window(world_id, handle, window, thread_id, command) do
+  defp spawn_harness_window(workspace_id, handle, window, thread_id, command) do
     with id when is_integer(id) <- thread_id,
          {:ok, %{exports: exports}} <- joiner().(id, handle, mandate: "machine") do
       script = "export TERM=xterm-256color\n" <> exports <> "\nexec " <> command
       # `-d`: spawn the window in the background — a coworker starting must NOT yank the operator
       # off whatever window they're on.
-      tlon_run(world_id, ["new-window", "-d", "-t", world_session(world_id), "-n", window, script])
+      tlon_run(workspace_id, ["new-window", "-d", "-t", workspace_session(workspace_id), "-n", window, script])
     end
   end
 
@@ -2564,10 +2582,10 @@ defmodule Aleph.Cockpit do
   def machine_spawn_due?(nil = _retry_at, _now), do: true
   def machine_spawn_due?(retry_at, now), do: now >= retry_at
 
-  # Materialise the World's LEAD roster entry into a profile, find-or-create the machine identity,
+  # Materialise the Workspace's LEAD roster entry into a profile, find-or-create the machine identity,
   # then spawn the center: an embedded tmux client attached to the standing session (pi as window 0
   # if absent) — an aleph restart re-attaches to the running pi instead of spawning another.
-  defp spawn_center(world_id, lead) do
+  defp spawn_center(workspace_id, lead) do
     %{archetype: arch, name: name} = Profiles.roster_entry(lead)
 
     with %Profile{} = profile <- Profiles.instantiate(%{archetype: arch, name: name}),
@@ -2575,7 +2593,7 @@ defmodule Aleph.Cockpit do
          {:ok, exports} <- machine_exports("#{name}-machine"),
          # kitty: false — tmux wants its Ctrl+B prefix as legacy \x02, not CSI-u (see Terminal.init).
          {:ok, pid} <-
-           safe_spawn_harness(:machine, exports, launcher: profile_launcher(world_id, name, profile), kitty: false) do
+           safe_spawn_harness(:machine, exports, launcher: profile_launcher(workspace_id, name, profile), kitty: false) do
       pid
     else
       _error -> nil
@@ -2594,19 +2612,19 @@ defmodule Aleph.Cockpit do
   @doc false
   def pi_command(%Profile{} = profile), do: Harness.Pi.launch_command(profile)
 
-  # The center coworker's launcher: pi on its OWN tmux server (`-L aleph-world-<id>`, id-derived —
-  # not name-derived, so a world rename can't orphan it — + the profile's persistence-free
+  # The center coworker's launcher: pi on its OWN tmux server (`-L aleph-workspace-<id>`, id-derived —
+  # not name-derived, so a workspace rename can't orphan it — + the profile's persistence-free
   # tmux.conf), window 0 named `lead_name` (the roster lead's name — the tab-strip label).
   # MANOS_RELOAD_CMD lets manos/reload respawn in place with --continue, keeping the thread across
   # the restart.
-  def profile_launcher(world_id, lead_name, %Profile{} = profile) do
+  def profile_launcher(workspace_id, lead_name, %Profile{} = profile) do
     pi = pi_command(profile)
     dir = Profiles.config_dir(profile.name)
     reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
     env_flags = Enum.map_join([reload_cmd], " ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
 
-    "tmux -L #{world_socket(world_id)} -f #{Path.join(dir, "tmux.conf")}" <>
-      " new-session -A -s #{world_session(world_id)} -n #{lead_name} #{funes_identity_flags()} #{env_flags} '#{pi}'"
+    "tmux -L #{workspace_socket(workspace_id)} -f #{Path.join(dir, "tmux.conf")}" <>
+      " new-session -A -s #{workspace_session(workspace_id)} -n #{lead_name} #{funes_identity_flags()} #{env_flags} '#{pi}'"
   end
 
   @doc false
@@ -2626,46 +2644,46 @@ defmodule Aleph.Cockpit do
   # POSIX single-quote: escape embedded quotes as '\'' so the value survives the shell verbatim.
   defp sh_single_quote(s), do: "'" <> String.replace(s, "'", "'\\''") <> "'"
 
-  # A World's tmux session/socket, id-derived (rename-proof) — replaces the old singleton "tlon"
-  # session on the lead-name-derived "aleph-<coworker>" socket. Two worlds can never collide on
-  # either name, and a world rename can't orphan a running session.
-  defp world_session(id), do: "w#{id}"
-  defp world_socket(id), do: "aleph-world-#{id}"
+  # A Workspace's tmux session/socket, id-derived (rename-proof) — replaces the old singleton "tlon"
+  # session on the lead-name-derived "aleph-<coworker>" socket. Two workspaces can never collide on
+  # either name, and a workspace rename can't orphan a running session.
+  defp workspace_session(id), do: "w#{id}"
+  defp workspace_socket(id), do: "aleph-workspace-#{id}"
 
-  # A World's windows as tabs — aleph draws them itself (tmux's own status bar is off), so it asks
+  # A Workspace's windows as tabs — aleph draws them itself (tmux's own status bar is off), so it asks
   # tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort: the
   # session not being up yet is an empty strip, not a crash.
-  defp tlon_tabs(world_id) do
+  defp tlon_tabs(workspace_id) do
     args = [
       "list-windows",
       "-t",
-      world_session(world_id),
+      workspace_session(workspace_id),
       "-F",
       "\#{window_active}\t\#{window_index}\t\#{window_name}\t\#{@funes_thread}\t\#{@funes_opening}\t\#{window_activity}"
     ]
 
-    case tlon_run(world_id, args) do
+    case tlon_run(workspace_id, args) do
       {out, 0} -> parse_tlon_tabs(out)
       _ -> []
     end
   end
 
-  # Every World tmux call — queries, re-points, AND the send-keys injects — routes through here:
+  # Every Workspace tmux call — queries, re-points, AND the send-keys injects — routes through here:
   # one seam over the coworker's private server, so a test can inject a fake runner
   # (`:aleph, :tlon_cmd`) and assert argv without a live tmux.
-  # No world id (funes genuinely down — the fallback World is gone, reshape slice A): there is
+  # No workspace id (funes genuinely down — the fallback Workspace is gone, reshape slice A): there is
   # no coworker server to target, and dropping the `-L` flag would aim kill-window/send-keys at
   # the user's PERSONAL tmux server. No-op with a nonzero "exit" so callers read it as a miss.
-  defp tlon_run(nil, _args), do: {"no active world", 1}
+  defp tlon_run(nil, _args), do: {"no active workspace", 1}
 
-  defp tlon_run(world_id, args) do
+  defp tlon_run(workspace_id, args) do
     runner = Application.get_env(:aleph, :tlon_cmd, &System.cmd/3)
-    runner.("tmux", tlon_tmux(world_id, args), stderr_to_stdout: true)
+    runner.("tmux", tlon_tmux(workspace_id, args), stderr_to_stdout: true)
   end
 
-  # Every tmux call about a World's coworker targets ITS private server (`-L aleph-world-<id>`),
+  # Every tmux call about a Workspace's coworker targets ITS private server (`-L aleph-workspace-<id>`),
   # never the user's default one.
-  defp tlon_tmux(world_id, args), do: ["-L", world_socket(world_id)] ++ args
+  defp tlon_tmux(workspace_id, args), do: ["-L", workspace_socket(workspace_id)] ++ args
 
   @doc false
   # `window_active` is "1" for the current window, "0" otherwise; each line is

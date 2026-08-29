@@ -5,7 +5,7 @@ defmodule Funes.Workline.Brief do
   live in the node that runs the switchboard, and via the switchboard DRAIN (undelivered
   rows, oldest first) when the flip happened in another node (a CLI advance into the
   service). Pure text here: playbook + read-list + owed exit artifact + the advance verb.
-  Stage playbooks are the ADVISORY half of governance (skills, not hooks) — world knobs can
+  Stage playbooks are the ADVISORY half of governance (skills, not hooks) — workspace knobs can
   override later.
   """
 
@@ -33,7 +33,7 @@ defmodule Funes.Workline.Brief do
 
   defp playbook(%{stage: "spec"}),
     do:
-      "Interview the operator IN THIS THREAD until requirements and design fit one document; draft it — do not re-ask what the world's knobs and floor constraints already state."
+      "Interview the operator IN THIS THREAD until requirements and design fit one document; draft it — do not re-ask what the workspace's knobs and floor constraints already state."
 
   defp playbook(%{stage: "plan"}),
     do:

@@ -1,7 +1,7 @@
 defmodule Aleph.MachineChat.Loop do
   @moduledoc """
   The termbox host loop for the Tlön machine-chat tab (`uqbar`) — Slack-shaped since the 2026-08
-  reshape: a one-row header (world · thread/working counts · the ORBIS rollup), a left THREADS
+  reshape: a one-row header (workspace · thread/working counts · the ORBIS rollup), a left THREADS
   rail, ONE open conversation in the center with its composer underneath, and a right CREW rail
   showing the coworker pool with live working/typing indicators (tmux window activity). Pure
   logical state lives in `Aleph.MachineChat.Host`; geometry in `Layout`; the rails render in
@@ -224,7 +224,7 @@ defmodule Aleph.MachineChat.Loop do
   defp operator, do: Application.get_env(:funes, :operator, "andrew")
 
   # Staff the picked coworker as the new thread's lead: the composer text's first @-mention, else
-  # intent triage, else the operator's persisted override / the LIVE world roster's worker
+  # intent triage, else the operator's persisted override / the LIVE workspace roster's worker
   # default. Returns `{:ok, handle}` on a real staffing, `{:error, reason}` when nobody resolves
   # or `assign_lead` can't bind the handle — the caller surfaces it instead of opening a
   # leaderless, silent thread. The thread + opening message are already durable regardless.
@@ -290,7 +290,7 @@ defmodule Aleph.MachineChat.Loop do
 
   # `:no_coworker` = the worker-only default resolved nobody (Slice B: the meta surveyor never
   # leads) — tell the operator the fix, not just the symptom.
-  defp no_lead_hint(:no_coworker), do: " Add a worker (builder/planner/reviewer/…) to the world's roster."
+  defp no_lead_hint(:no_coworker), do: " Add a worker (builder/planner/reviewer/…) to the workspace's roster."
   defp no_lead_hint(_reason), do: ""
 
   # Does the cockpit spawn a per-thread leaf session for this lead (so it owns the opening turn
@@ -299,21 +299,21 @@ defmodule Aleph.MachineChat.Loop do
   # roster-unknown lead is still woken from here.
   defp cockpit_staffs?(lead), do: lead in Profiles.leaf_handles(active_roster())
 
-  # The active World's roster, read STRAIGHT from funes (not via `Space`/`Aleph.Worlds`): this is
-  # the machine-chat reader beam — it never starts aleph's supervision tree, so the `Aleph.Worlds`
-  # cache GenServer isn't here. Funes-down / no world → `[]` (nobody wakes).
+  # The active Workspace's roster, read STRAIGHT from funes (not via `Space`/`Aleph.Workspaces`): this is
+  # the machine-chat reader beam — it never starts aleph's supervision tree, so the `Aleph.Workspaces`
+  # cache GenServer isn't here. Funes-down / no workspace → `[]` (nobody wakes).
   defp active_roster do
-    case live_world() do
+    case live_workspace() do
       %{roster: [_ | _] = roster} -> roster
       _ -> []
     end
   end
 
-  # The first live funes world (Slice 1: the single machine World). A plain `Repo.all` under the
-  # hood — works in any beam funes booted in, unlike the cockpit-only `Aleph.Worlds` cache.
-  defp live_world do
-    case Funes.Worlds.all() do
-      [world | _] -> world
+  # The first live funes workspace (Slice 1: the single machine Workspace). A plain `Repo.all` under the
+  # hood — works in any beam funes booted in, unlike the cockpit-only `Aleph.Workspaces` cache.
+  defp live_workspace do
+    case Funes.Workspaces.all() do
+      [workspace | _] -> workspace
       _ -> nil
     end
   rescue
@@ -341,7 +341,7 @@ defmodule Aleph.MachineChat.Loop do
 
   # Wake each @-mentioned coworker by injecting the message as a turn into its tmux window — the
   # same send-keys the cockpit does, but from here (our post is on our own bus, which the cockpit
-  # can't see). $TMUX points at the world's server, and `-t <window>` (no session prefix)
+  # can't see). $TMUX points at the workspace's server, and `-t <window>` (no session prefix)
   # resolves against the current session.
   defp wake_mentions(author, body, thread_id) do
     lead = safe_thread_lead(thread_id)

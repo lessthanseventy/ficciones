@@ -43,7 +43,7 @@ defmodule Funes.MCP.TokensTest do
     thread: thread,
     agent: agent
   } do
-    # A node restart re-reads the same world key (Funes.MCP.Secret), so a token minted before it
+    # A node restart re-reads the same workspace key (Funes.MCP.Secret), so a token minted before it
     # verifies after: determinism IS the restart-survival property the registry lacked.
     assert Tokens.mint(thread, agent) == Tokens.mint(thread, agent)
   end

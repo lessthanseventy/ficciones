@@ -38,38 +38,38 @@ defmodule Aleph.OrbisTest do
     end
   end
 
-  describe "worlds/1" do
-    # worlds/1 reads the live Aleph.Worlds cache (funes down under test → []). The literal-Tlön
-    # fallback is gone (reshape slice A): no world refs means no survey rows — honest, since funes
+  describe "workspaces/1" do
+    # workspaces/1 reads the live Aleph.Workspaces cache (funes down under test → []). The literal-Tlön
+    # fallback is gone (reshape slice A): no workspace refs means no survey rows — honest, since funes
     # self-seeds a default workspace at boot.
-    test "funes down → no survey rows, no fake world" do
+    test "funes down → no survey rows, no fake workspace" do
       rows = [%{status: :open, conflicts: 0}]
-      assert Orbis.worlds(rows) == []
+      assert Orbis.workspaces(rows) == []
     end
   end
 
-  describe "worlds/2 (grouped by real world refs — D0.3: every row carries its funes id)" do
-    # worlds/1 reads the live Aleph.Worlds cache (funes down under test → [] → literal "Tlön"
-    # fallback, covered above). worlds/2 is the pure grouping it delegates to, tested with
-    # injected `%{id, name}` refs so a real funes world's id/name drives the survey row.
-    test "one world → the rollup rows group under that world's real id + name" do
+  describe "workspaces/2 (grouped by real workspace refs — D0.3: every row carries its funes id)" do
+    # workspaces/1 reads the live Aleph.Workspaces cache (funes down under test → [] → literal "Tlön"
+    # fallback, covered above). workspaces/2 is the pure grouping it delegates to, tested with
+    # injected `%{id, name}` refs so a real funes workspace's id/name drives the survey row.
+    test "one workspace → the rollup rows group under that workspace's real id + name" do
       rows = [%{status: :open, conflicts: 0}, %{status: :stalled, conflicts: 1}]
 
       assert [%{id: 7, name: "Freedonia", summary: summary, leaves: ^rows}] =
-               Orbis.worlds(rows, [%{id: 7, name: "Freedonia"}])
+               Orbis.workspaces(rows, [%{id: 7, name: "Freedonia"}])
 
       assert summary == %{open: 1, stalled: 1, done: 0, conflicts: 1}
     end
 
-    test "rows group under THEIR OWN world (real membership, reshape slice C)" do
+    test "rows group under THEIR OWN workspace (real membership, reshape slice C)" do
       rows = [
-        %{status: :open, conflicts: 0, world_id: 1},
-        %{status: :stalled, conflicts: 2, world_id: 2},
-        %{status: :open, conflicts: 0, world_id: 2}
+        %{status: :open, conflicts: 0, workspace_id: 1},
+        %{status: :stalled, conflicts: 2, workspace_id: 2},
+        %{status: :open, conflicts: 0, workspace_id: 2}
       ]
 
       assert [freedonia, ruritania] =
-               Orbis.worlds(rows, [%{id: 1, name: "Freedonia"}, %{id: 2, name: "Ruritania"}])
+               Orbis.workspaces(rows, [%{id: 1, name: "Freedonia"}, %{id: 2, name: "Ruritania"}])
 
       assert %{id: 1, name: "Freedonia", summary: %{open: 1, stalled: 0}} = freedonia
       assert length(freedonia.leaves) == 1
@@ -77,18 +77,18 @@ defmodule Aleph.OrbisTest do
       assert length(ruritania.leaves) == 2
     end
 
-    test "a row matching no ref lands in the FIRST world — belt over slice A's repair" do
-      rows = [%{status: :open, conflicts: 0, world_id: 999}, %{status: :open, conflicts: 0}]
+    test "a row matching no ref lands in the FIRST workspace — belt over slice A's repair" do
+      rows = [%{status: :open, conflicts: 0, workspace_id: 999}, %{status: :open, conflicts: 0}]
 
       assert [%{id: 1, leaves: leaves}, %{id: 2, leaves: []}] =
-               Orbis.worlds(rows, [%{id: 1, name: "A"}, %{id: 2, name: "B"}])
+               Orbis.workspaces(rows, [%{id: 1, name: "A"}, %{id: 2, name: "B"}])
 
       assert length(leaves) == 2
     end
 
-    test "no world refs → no rows (the fake-Tlön fallback is gone)" do
+    test "no workspace refs → no rows (the fake-Tlön fallback is gone)" do
       rows = [%{status: :open, conflicts: 0}]
-      assert Orbis.worlds(rows, []) == []
+      assert Orbis.workspaces(rows, []) == []
     end
   end
 end

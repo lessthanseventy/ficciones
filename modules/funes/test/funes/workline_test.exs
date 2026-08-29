@@ -154,10 +154,10 @@ defmodule Funes.WorklineTest do
     assert {:error, {:invalid_stage, "deploy"}} = Workline.advance(%{thread | stage: "deploy"}, artifacts: AllPresent)
   end
 
-  test "entering review restaffs the world's reviewer as lead — never the builder reviews" do
-    {:ok, world} =
-      Funes.Worlds.register(%{
-        name: "ReviewWorld",
+  test "entering review restaffs the workspace's reviewer as lead — never the builder reviews" do
+    {:ok, workspace} =
+      Funes.Workspaces.register(%{
+        name: "ReviewWorkspace",
         type: "code",
         scope: "machine",
         paths: [],
@@ -167,7 +167,7 @@ defmodule Funes.WorklineTest do
     {:ok, _} =
       Funes.Staff.register_agent(%{name: "menard-machine", mandate: "review", engine: "sonnet"})
 
-    thread = open!(%{slug: "restaffed", world_id: world.id})
+    thread = open!(%{slug: "restaffed", workspace_id: workspace.id})
     {:ok, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:awaiting, thread} = Workline.advance(thread, artifacts: AllPresent)
     {:ok, thread} = Workline.approve(thread, artifacts: AllPresent)

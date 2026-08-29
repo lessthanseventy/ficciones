@@ -1,6 +1,6 @@
-defmodule Funes.World do
+defmodule Funes.Workspace do
   @moduledoc """
-  A world (worlds/orbis Slice 1): a first-class composition — a git-tracked scope
+  A workspace (workspaces/orbis Slice 1): a first-class composition — a git-tracked scope
   (`paths`), a `roster` of archetype instances, and free-form `knobs` — that aleph
   reads to drive its picker/survey/spawn. Compositions are DATA (this table),
   capabilities are nix (the archetype templates); disjoint, so the two never conflict.
@@ -14,7 +14,7 @@ defmodule Funes.World do
 
   import Ecto.Changeset
 
-  schema "world" do
+  schema "workspace" do
     field :name, :string
     field :type, :string
     field :scope, :string
@@ -27,7 +27,7 @@ defmodule Funes.World do
   @mutable [:type, :scope, :paths, :roster, :knobs]
 
   @doc """
-  Register a world. `name` is required and unique (DB); `type`/`scope` are the DB's
+  Register a workspace. `name` is required and unique (DB); `type`/`scope` are the DB's
   own closed-set guards (§10), so a bad value raises at insert rather than being
   re-checked here. Stamps `created_at`, matching the fact schema's second-truncated
   UTC.
@@ -43,10 +43,10 @@ defmodule Funes.World do
   end
 
   @doc """
-  Edit a world's mutable fields (`type`/`scope`/`paths`/`roster`/`knobs`). `name` and
-  `created_at` are immutable — a world's identity and birth are not re-cast here.
+  Edit a workspace's mutable fields (`type`/`scope`/`paths`/`roster`/`knobs`). `name` and
+  `created_at` are immutable — a workspace's identity and birth are not re-cast here.
   """
-  def edit_changeset(%__MODULE__{} = world, attrs) do
-    cast(world, attrs, @mutable)
+  def edit_changeset(%__MODULE__{} = workspace, attrs) do
+    cast(workspace, attrs, @mutable)
   end
 end

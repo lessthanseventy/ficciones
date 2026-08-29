@@ -18,7 +18,7 @@ defmodule Aleph.Panel.SidebarTest do
     Map.merge(
       %{
         id: 1,
-        world_id: 1,
+        workspace_id: 1,
         title: "a thread",
         root: false,
         stage: nil,

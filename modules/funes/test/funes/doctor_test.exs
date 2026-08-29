@@ -22,7 +22,7 @@ defmodule Funes.DoctorTest do
                "session",
                "thread",
                "todo",
-               "world"
+               "workspace"
              ]
   end
 

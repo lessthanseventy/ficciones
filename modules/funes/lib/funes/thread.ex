@@ -22,7 +22,7 @@ defmodule Funes.Thread do
     field :slug, :string
     field :born, :string
     field :awaiting, :string
-    belongs_to :world, Funes.World
+    belongs_to :workspace, Funes.Workspace
   end
 
   @doc ~s{A new thread, opened now. Title is required; state is not caller-settable. `scope`
@@ -30,7 +30,7 @@ defmodule Funes.Thread do
   project surfaces (chorus / open_threads) can filter it out — see the thread_scope migration.}
   def open_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:title, :scope, :world_id])
+    |> cast(attrs, [:title, :scope, :workspace_id])
     |> validate_required([:title])
     |> put_change(:state, "open")
     |> put_change(:created_at, DateTime.truncate(DateTime.utc_now(), :second))
@@ -51,7 +51,7 @@ defmodule Funes.Thread do
   back-edge opens with "machine" and gates. A taken slug is a UNIQUE refusal, as a changeset.}
   def workline_changeset(attrs) do
     %__MODULE__{}
-    |> cast(Map.merge(%{born: "operator", scope: "machine"}, attrs), [:title, :scope, :slug, :born, :world_id])
+    |> cast(Map.merge(%{born: "operator", scope: "machine"}, attrs), [:title, :scope, :slug, :born, :workspace_id])
     |> validate_required([:title, :slug])
     |> validate_inclusion(:born, ["operator", "machine"])
     # The slug names filesystem paths (work/<slug>/, branch, lock files) — a separator or
