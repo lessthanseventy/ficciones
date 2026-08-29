@@ -30,18 +30,17 @@ defmodule Aleph.BoardTest do
 
   alias Aleph.Board
   alias Aleph.Panel
+  alias Aleph.Panel.Activity
   alias Aleph.Panel.Border
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Dossier
   alias Aleph.Panel.Health
-  alias Aleph.Panel.Logbook
   alias Aleph.Panel.Pulse
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Sidebar
   alias Aleph.Panel.Stack
   alias Aleph.Panel.StatusBar
   alias Aleph.Panel.Terminal
-  alias Aleph.Panel.ThreadList
   alias Aleph.Panel.WindowBar
   alias Aleph.View
 
@@ -78,9 +77,6 @@ defmodule Aleph.BoardTest do
         terminal: :no_session,
         health: nil,
         orbis: nil,
-        logbook: nil,
-        habits: nil,
-        settings: nil,
         triage: %{blockers: %{shown: [], more: 0}, failed_checks: %{shown: [], more: 0}, unassigned: []}
       },
       overrides
@@ -97,37 +93,8 @@ defmodule Aleph.BoardTest do
       assert text(robert) =~ "○"
     end
 
-    test "thread list highlights the selected thread across the column" do
-      rect = %{x: 0, y: 0, w: 30, h: 10}
-      data = %{threads: @threads, selected_id: 1}
-      rows = ThreadList.render(data, rect)
-      selected = Enum.find(rows, &(text(&1) =~ "▸"))
-      other = Enum.find(rows, &(text(&1) =~ "·" and text(&1) =~ "triage"))
-
-      assert text(selected) =~ "review PR 329"
-      # Selected row is padded with the highlight style out to the column width.
-      assert Enum.any?(selected, fn {_t, style} -> style == :selected end)
-      refute Enum.any?(other, fn {_t, style} -> style == :selected end)
-    end
-
-    test "thread list annotates a thread that has a live agent (merged IN FLIGHT)" do
-      rect = %{x: 0, y: 0, w: 40, h: 10}
-
-      roster = [
-        %{agent: "Carl", thread_id: 1, thread_title: "review PR 329", pane_ref: nil, warm?: true}
-      ]
-
-      data = %{threads: @threads, roster: roster, selected_id: 2}
-      rows = ThreadList.render(data, rect)
-
-      live = Enum.find(rows, &(text(&1) =~ "review PR 329"))
-      idle = Enum.find(rows, &(text(&1) =~ "triage"))
-
-      # the live thread shows its warm dot and agent (pink); the idle one shows neither
-      assert text(live) =~ "●"
-      assert text(live) =~ "Carl"
-      assert Enum.any?(live, fn {t, s} -> s == :accent and t =~ "Carl" end)
-      refute text(idle) =~ "Carl"
+    test "thread rows live in the Leaves panel now (slice C/D) — no separate thread list" do
+      refute Code.ensure_loaded?(Aleph.Panel.ThreadList)
     end
 
     test "stack (Tlön): branch then two rows per commit (subject, then meta line), hash dimmed" do
@@ -214,33 +181,6 @@ defmodule Aleph.BoardTest do
       assert joined =~ "TOOLS"
       assert joined =~ "pi"
       assert joined =~ "0.9.1"
-    end
-
-    test "logbook (Tlön): shows issues and recent messages from the machine thread" do
-      rect = %{x: 0, y: 0, w: 60, h: 20}
-      thread = %Funes.Thread{id: 99, title: "Tlön", state: "open"}
-
-      data = %{
-        thread: thread,
-        issues: [%Funes.Issue{summary: "disk probe returns ?", found_by: "pi"}],
-        messages: [%{author: "andrew", body: "moved the health probes", reply_to: nil}]
-      }
-
-      rows = Logbook.render(data, rect)
-      joined = Enum.map_join(rows, "\n", &text/1)
-      assert joined =~ "LOGBOOK"
-      assert joined =~ "disk probe returns ?"
-      assert joined =~ "pi"
-      assert joined =~ "moved the health probes"
-      assert joined =~ "andrew"
-    end
-
-    test "logbook (Tlön): nil data renders placeholder" do
-      rect = %{x: 0, y: 0, w: 40, h: 10}
-      rows = Logbook.render(nil, rect)
-      joined = Enum.map_join(rows, "\n", &text/1)
-      assert joined =~ "LOGBOOK"
-      assert joined =~ "no machine thread"
     end
 
     test "dossier renders sections from an in_scope map, honest about empties and cuts" do
@@ -348,26 +288,6 @@ defmodule Aleph.BoardTest do
   end
 
   describe "panel pick — click a row to select (pure decision, design §8)" do
-    test "thread list: a thread row focuses that thread; the header/blank do not" do
-      data = %{threads: @threads, selected_id: 1, scroll: 0}
-      rect = %{x: 0, y: 0, w: 30, h: 10}
-      assert {:focus_thread, 1} = ThreadList.pick(data, rect, 2)
-      assert {:focus_thread, 2} = ThreadList.pick(data, rect, 3)
-      assert ThreadList.pick(data, rect, 0) == nil
-      assert ThreadList.pick(data, rect, 1) == nil
-    end
-
-    test "thread list: a scrolled view maps the visible row back to the right content thread" do
-      data = %{threads: @threads, selected_id: 1, scroll: 1}
-      # scroll 1 ⇒ content row offset+local_y; local_y 2 → content 3 → thread index 1
-      assert {:focus_thread, 2} = ThreadList.pick(data, %{x: 0, y: 0, w: 30, h: 10}, 2)
-    end
-
-    test "thread list: a click past the last thread selects nothing" do
-      data = %{threads: @threads, selected_id: 1, scroll: 0}
-      assert ThreadList.pick(data, %{x: 0, y: 0, w: 30, h: 10}, 9) == nil
-    end
-
     test "roster: a session row focuses the thread it's working (no header chrome — rows start at 0)" do
       data = %{sessions: @roster, scroll: 0}
       rect = %{x: 0, y: 0, w: 40, h: 10}
@@ -395,20 +315,23 @@ defmodule Aleph.BoardTest do
   end
 
   describe "render_scroll — windowing and the stale-offset clamp" do
+    # A 10-row scrollable vehicle: the activity feed, one row per event, no header chrome.
+    defp scroll_events, do: Enum.map(1..10, &{:fact_banked, %{id: &1, kind: "note", text: "t#{&1}"}})
+
     test "offset 0 renders exactly like a plain render (the every-tick fast path)" do
-      data = %{threads: @threads, selected_id: 1, scroll: 0}
+      data = %{events: scroll_events(), scroll: 0}
       rect = %{x: 0, y: 0, w: 30, h: 3}
-      assert Panel.render_scroll(ThreadList, data, rect) == ThreadList.render(data, rect)
+      assert Panel.render_scroll(Activity, data, rect) == Activity.render(data, rect)
     end
 
     test "an offset past the end clamps to the last window instead of a blank panel" do
-      # Content shrank while scrolled (a thread closed mid-scroll): the stored offset now
+      # Content shrank while scrolled (an event buffer trimmed mid-scroll): the stored offset now
       # overshoots. render_scroll clamps so the panel shows the tail, not emptiness.
-      data = %{threads: @threads, selected_id: 1, scroll: 50}
+      data = %{events: scroll_events(), scroll: 50}
       rect = %{x: 0, y: 0, w: 30, h: 3}
-      rows = Panel.render_scroll(ThreadList, data, rect)
+      rows = Panel.render_scroll(Activity, data, rect)
       assert length(rows) == 3
-      assert rows == %{data | scroll: 0} |> ThreadList.render(%{rect | h: 100}) |> Enum.take(-3)
+      assert rows == %{data | scroll: 0} |> Activity.render(%{rect | h: 100}) |> Enum.take(-3)
     end
   end
 
@@ -541,8 +464,7 @@ defmodule Aleph.BoardTest do
             mem_pct: nil,
             load_avg: nil,
             tools: []
-          },
-          logbook: nil
+          }
         })
 
       placements = View.compose(tlon, 120, 40)
@@ -569,8 +491,7 @@ defmodule Aleph.BoardTest do
             active_key: key,
             machine: :no_session,
             stack: %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []},
-            health: nil,
-            logbook: nil
+            health: nil
           })
 
         {_m, _d, term_rect} = Enum.find(View.compose(r, w, h), fn {m, _d, _r} -> m == Terminal end)
@@ -592,8 +513,7 @@ defmodule Aleph.BoardTest do
             active_key: key,
             machine: :no_session,
             stack: %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []},
-            health: nil,
-            logbook: nil
+            health: nil
           })
 
         Enum.each(View.compose(r, w, h), fn {mod, _d, rect} ->
@@ -611,12 +531,11 @@ defmodule Aleph.BoardTest do
     test "orbis space centers the chorus feed, with the roster (not a thread list) at its side" do
       placements = View.compose(reads(%{active_key: :orbis}), 120, 40)
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
-      # the chorus (all threads, one feed) is the center; the roster is the left sidebar (presence),
-      # and the redundant ThreadList is gone — the feed is the navigator now.
+      # the chorus (all threads, one feed) is the center; the roster is the left sidebar (presence) —
+      # the feed is the navigator now (the old thread-list panel is deleted, slice D).
       assert Chorus in mods
       assert Roster in mods
       refute Terminal in mods
-      refute ThreadList in mods
     end
   end
 

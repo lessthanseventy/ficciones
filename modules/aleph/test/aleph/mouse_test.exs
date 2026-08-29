@@ -8,16 +8,16 @@ defmodule Aleph.MouseTest do
 
   alias Aleph.Mouse
   alias Aleph.Panel.Border
+  alias Aleph.Panel.Sidebar
   alias Aleph.Panel.StatusBar
   alias Aleph.Panel.Terminal
-  alias Aleph.Panel.ThreadList
 
   # Synthetic placements with known rects — hit_panel only cares about the rect + the module
   # (to skip chrome). This mirrors the shape View.compose produces without depending on it.
   defp placements do
     [
       {Border, nil, %{x: 0, y: 0, w: 30, h: 38}},
-      {ThreadList, %{threads: []}, %{x: 2, y: 1, w: 26, h: 36}},
+      {Sidebar, %{groups: []}, %{x: 2, y: 1, w: 26, h: 36}},
       {Border, nil, %{x: 31, y: 0, w: 58, h: 38}},
       {Terminal, :no_session, %{x: 33, y: 1, w: 54, h: 36}},
       {StatusBar, nil, %{x: 0, y: 38, w: 120, h: 2}}
@@ -26,7 +26,7 @@ defmodule Aleph.MouseTest do
 
   describe "hit_panel/3" do
     test "a cell inside a content placement's rect hits that panel" do
-      assert {ThreadList, _, _} = Mouse.hit_panel(placements(), 5, 5)
+      assert {Sidebar, _, _} = Mouse.hit_panel(placements(), 5, 5)
       assert {Terminal, _, _} = Mouse.hit_panel(placements(), 60, 10)
     end
 

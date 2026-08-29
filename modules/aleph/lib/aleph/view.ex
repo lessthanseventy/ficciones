@@ -28,19 +28,15 @@ defmodule Aleph.View do
   # The center Terminal and StatusBar/Border never overflow.
   @scrollable [
     Panel.Sidebar,
-    Panel.ThreadList,
     Panel.Chorus,
     Panel.Conversation,
     Panel.Crew,
     Panel.Dossier,
     Panel.Roster,
     Panel.Stack,
-    Panel.Health,
-    Panel.Logbook,
     Panel.Leaves,
     Panel.Activity,
     Panel.Triage,
-    Panel.Settings,
     Panel.Memory,
     Panel.Detail,
     Panel.Author
@@ -209,7 +205,6 @@ defmodule Aleph.View do
   defp section_title(Panel.Sidebar), do: "WORKSPACES"
   defp section_title(Panel.Stack), do: "STACK"
   defp section_title(Panel.Memory), do: "MEMORY"
-  defp section_title(Panel.Health), do: "HEALTH"
   defp section_title(Panel.Crew), do: "CREW"
   defp section_title(Panel.Activity), do: "ACTIVITY"
   # THREADS since reshape slice C: chat + tracked threads are ONE list; stage rides as a chip.
@@ -304,8 +299,6 @@ defmodule Aleph.View do
   def data_for(Panel.Sidebar, r), do: %{groups: r[:sidebar] || [], active_key: r.active_key}
   def data_for(Panel.Roster, r), do: %{sessions: r.roster}
 
-  def data_for(Panel.ThreadList, r), do: %{threads: r.threads, roster: r.roster, selected_id: r.focused_id}
-
   def data_for(Panel.Dossier, r), do: r.scope
 
   def data_for(Panel.Chorus, r),
@@ -321,9 +314,7 @@ defmodule Aleph.View do
   # can compose reads without it — the panel treats missing lists as empty.
   def data_for(Panel.Conversation, r), do: Map.merge(%{title: r.focused_title, messages: r.chatter}, r[:presence] || %{})
   def data_for(Panel.Stack, r), do: r.stack
-  def data_for(Panel.Health, r), do: r.health
   def data_for(Panel.Crew, r), do: r[:crew]
-  def data_for(Panel.Logbook, r), do: r.logbook
   # `r.orbis` arrives ALREADY enriched with `:focused_lead`/`:attached` (the cockpit's
   # `leaves_data/1`, the single enrichment its yank/attach/preview paths share), so the row order
   # here can never disagree with what those paths index.
@@ -332,8 +323,6 @@ defmodule Aleph.View do
   def data_for(Panel.Pulse, r), do: %{events: r[:activity] || []}
   def data_for(Panel.WindowBar, r), do: %{tabs: window_tabs(r), engine: engine_state(), thread: r.focused_id}
   def data_for(Panel.Triage, r), do: r.triage
-  def data_for(Panel.Habits, r), do: r.habits
-  def data_for(Panel.Settings, r), do: r.settings
   def data_for(Panel.Memory, r), do: r[:memory]
   def data_for(Panel.Detail, r), do: r[:detail]
   def data_for(_other, _r), do: nil

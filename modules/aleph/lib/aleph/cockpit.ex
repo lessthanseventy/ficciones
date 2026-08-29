@@ -1670,10 +1670,7 @@ defmodule Aleph.Cockpit do
       # the `[`/`]` cycle (C3.4). View clamps with `rem`, so this is meaningless-but-harmless
       # outside a World.
       right_pane_view: state.right_pane_view,
-      logbook: Board.safe_read(:logbook, nil, fn -> logbook_read(state.active_key) end),
       triage: Board.safe_read(:triage, nil, fn -> if(state.active_key == :orbis, do: triage_read(threads)) end),
-      habits: Board.safe_read(:habits, nil, fn -> habits_read(state.active_key) end),
-      settings: Board.safe_read(:settings, nil, fn -> settings_read(state.active_key) end),
       scrolls: state.scrolls,
       input: state.input,
       flash: state.flash,
@@ -2099,30 +2096,6 @@ defmodule Aleph.Cockpit do
     }
   end
 
-  # HABITS reads are only gathered on a World space — the machine-wide review queue (pending) and
-  # the always-loaded set (approved). Machine-wide, so not keyed on a focused thread.
-  defp habits_read(key) when Space.world?(key),
-    do: %{pending: Dossier.pending_habits(), approved: Dossier.approved_habits()}
-
-  defp habits_read(_key), do: nil
-
-  # SETTINGS reads: the active space's coworker driver (override merged by Profiles.fetch) + the
-  # ring the `m` verb cycles. Any space with a coworker gets the panel's data; spaces without one
-  # get nil (the panel renders nothing).
-  defp settings_read(key) do
-    with profile_name when is_binary(profile_name) <- Space.fetch(key).coworker,
-         %Profile{} = p <- Profiles.fetch(profile_name) do
-      %{
-        profile: profile_name,
-        model: p.model,
-        ring: Profiles.model_ring(),
-        override?: Aleph.Config.coworker_model(profile_name) != nil
-      }
-    else
-      _ -> nil
-    end
-  end
-
   # Advance a coworker's driver one step round the ring and persist it; returns the flash string.
   defp cycle_model!(profile_name) do
     current = Profiles.fetch(profile_name)
@@ -2130,24 +2103,6 @@ defmodule Aleph.Cockpit do
     Aleph.Config.put_coworker_model(profile_name, next)
     "coworker driver → #{next.provider}/#{next.model} — applies on next spawn (aleph:reset)"
   end
-
-  # LOGBOOK reads are only gathered on a World space — the machine thread's issues + recent
-  # messages, the shared notebook for notes and observations about the env.
-  defp logbook_read(key) when Space.world?(key) do
-    case Channel.machine_thread() do
-      nil ->
-        nil
-
-      thread ->
-        %{
-          thread: thread,
-          issues: Dossier.open_issues_for_thread(thread).shown,
-          messages: Channel.recent_messages(thread, 10)
-        }
-    end
-  end
-
-  defp logbook_read(_key), do: nil
 
   # ORBIS rollup (Orbis Tertius slice 2) — the machine-scoped vantage, gathered on the spaces that
   # show it (a World's LEAVES sidebar + Orbis' survey), cached in `state.leaves` on the @probe_ms
