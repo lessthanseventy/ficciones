@@ -1,7 +1,7 @@
 defmodule Funes.MCP.Resource.Dossier do
   @moduledoc """
   The connection's thread brief as a readable resource — the SAME read as the
-  get_dossier tool (`Board.in_scope/1` through `Funes.MCP.Brief`): one source,
+  get_dossier tool (`Board.brief/1` through `Funes.MCP.Brief`): one source,
   two protocol doors. The tool is for the model mid-turn; the resource is for a
   host briefing a session (pi's before_agent_start pulls this).
   """
@@ -18,7 +18,7 @@ defmodule Funes.MCP.Resource.Dossier do
   @impl true
   def read(_params, frame) do
     identity = MCP.Identity.from_frame(frame)
-    brief = %Thread{id: identity.thread_id} |> Board.in_scope() |> MCP.Brief.scope()
+    brief = %Thread{id: identity.thread_id} |> Board.brief() |> MCP.Brief.scope()
     {:reply, Response.json(Response.resource(), brief), frame}
   end
 end

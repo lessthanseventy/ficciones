@@ -18,7 +18,7 @@ defmodule Funes.MCP.Brief do
   alias Funes.Todo
   alias Funes.World
 
-  @doc "A Board.in_scope/1 map, rendered."
+  @doc "A Board.brief/1 map, rendered."
   def scope(scope) do
     %{
       "thread_id" => scope.thread.id,

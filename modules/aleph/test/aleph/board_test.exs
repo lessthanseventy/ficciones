@@ -32,8 +32,8 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel
   alias Aleph.Panel.Activity
   alias Aleph.Panel.Border
+  alias Aleph.Panel.Brief
   alias Aleph.Panel.Chorus
-  alias Aleph.Panel.Dossier
   alias Aleph.Panel.Health
   alias Aleph.Panel.Pulse
   alias Aleph.Panel.Roster
@@ -183,7 +183,7 @@ defmodule Aleph.BoardTest do
       assert joined =~ "0.9.1"
     end
 
-    test "dossier renders sections from an in_scope map, honest about empties and cuts" do
+    test "the brief panel renders sections from a brief map, honest about empties and cuts" do
       # todos/learnings/blockers/done are each %{shown, more} (funes Board): a cap is
       # always rendered WITH its count — a cut without a count lies. DONE is the merged
       # view (completed todos + work_landed events); NEXT is the first open todo.
@@ -212,7 +212,7 @@ defmodule Aleph.BoardTest do
         recent: []
       }
 
-      rows = Dossier.render(scope, %{x: 0, y: 0, w: 40, h: 40})
+      rows = Brief.render(scope, %{x: 0, y: 0, w: 40, h: 40})
       joined = Enum.map_join(rows, "\n", &text/1)
       assert joined =~ "GOAL"
       assert joined =~ "ship the board"
@@ -428,7 +428,7 @@ defmodule Aleph.BoardTest do
 
       assert Sidebar in mods
       assert Chorus in mods
-      assert Dossier in mods
+      assert Brief in mods
       assert StatusBar in mods
       # every section gets its own bordered box (switcher, roster/triage, chorus, dossier)
       content_panels = Enum.reject(mods, &(&1 in [Border, StatusBar]))

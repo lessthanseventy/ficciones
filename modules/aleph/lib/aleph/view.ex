@@ -31,7 +31,7 @@ defmodule Aleph.View do
     Panel.Chorus,
     Panel.Conversation,
     Panel.Crew,
-    Panel.Dossier,
+    Panel.Brief,
     Panel.Roster,
     Panel.Stack,
     Panel.Leaves,
@@ -211,7 +211,7 @@ defmodule Aleph.View do
   defp section_title(Panel.Leaves), do: "THREADS"
   defp section_title(Panel.Roster), do: "IN FLIGHT"
   defp section_title(Panel.Triage), do: "TRIAGE"
-  defp section_title(Panel.Dossier), do: "IN SCOPE"
+  defp section_title(Panel.Brief), do: "BRIEF"
   defp section_title(_section), do: nil
 
   # True when the Tlön focus has a detail open AND the cockpit resolved content for it — an Enter on
@@ -299,7 +299,7 @@ defmodule Aleph.View do
   def data_for(Panel.Sidebar, r), do: %{groups: r[:sidebar] || [], active_key: r.active_key}
   def data_for(Panel.Roster, r), do: %{sessions: r.roster}
 
-  def data_for(Panel.Dossier, r), do: r.scope
+  def data_for(Panel.Brief, r), do: r.scope
 
   def data_for(Panel.Chorus, r),
     do: %{worlds: r[:worlds] || [], survey_cursor: r[:survey_cursor], orbis_focus: r[:orbis_focus]}
@@ -328,7 +328,7 @@ defmodule Aleph.View do
   def data_for(_other, _r), do: nil
 
   # Inject the panel's current scroll offset into scrollable panels' data (nil data left alone —
-  # e.g. Dossier with no focused thread renders its placeholder, no scroll needed).
+  # e.g. Brief with no focused thread renders its placeholder, no scroll needed).
   defp scroll_data(_panel, nil, _reads), do: nil
 
   defp scroll_data(panel, data, reads) when panel in @scrollable,

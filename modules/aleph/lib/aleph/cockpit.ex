@@ -457,7 +457,7 @@ defmodule Aleph.Cockpit do
   # A left PRESS routes to the panel under the cursor and asks it what that row selects — focus a
   # thread, switch a space — then repaints. Press only: the SGR release carries the same button,
   # and acting on both would double-fire (and re-hit re-laid-out placements after a space switch).
-  # Non-selectable panels (Dossier/Stack/Health, the center terminal) return nil → no-op.
+  # Non-selectable panels (Brief/Stack/Health, the center terminal) return nil → no-op.
   # A hit on the carousel border's tab strip is checked FIRST — borders are chrome to
   # `Mouse.hit_panel/3` (never a click target), so the tab strip needs its own routing.
   def handle_cast({:dispatch, %Event{type: :mouse, data: %{x: sx, y: sy, button: :left, action: :press}}}, state) do
@@ -931,12 +931,12 @@ defmodule Aleph.Cockpit do
   end
 
   # Reset scroll offsets when the context they're relative to changes. A space switch swaps every
-  # panel, so all offsets go; a focus change only swaps the thread-specific panels (Dossier,
+  # panel, so all offsets go; a focus change only swaps the thread-specific panels (Brief,
   # Conversation), so just those. Function-head dispatch on what changed — house rule.
   defp reset_scrolls(%{active_key: a}, %{active_key: a2} = next) when a != a2, do: %{next | scrolls: %{}}
 
   defp reset_scrolls(%{focused_id: f}, %{focused_id: f2} = next) when f != f2,
-    do: %{next | scrolls: Map.drop(next.scrolls, [Panel.Dossier, Panel.Conversation])}
+    do: %{next | scrolls: Map.drop(next.scrolls, [Panel.Brief, Panel.Conversation])}
 
   defp reset_scrolls(_prev, next), do: next
 
@@ -1622,7 +1622,7 @@ defmodule Aleph.Cockpit do
       # The Slack sidebar's read-model (reshape slice C): workspace groups with their unified
       # thread list + crew working flags.
       sidebar: Board.safe_read(:sidebar, [], fn -> Funes.Board.sidebar() end),
-      scope: Board.safe_read(:scope, nil, fn -> focused && Funes.Board.in_scope(focused) end),
+      scope: Board.safe_read(:scope, nil, fn -> focused && Funes.Board.brief(focused) end),
       chatter: Board.safe_read(:chatter, [], fn -> (focused && Channel.recent_messages(focused, 30)) || [] end),
       worlds: Board.safe_read(:worlds, [], fn -> if(state.active_key == :orbis, do: orbis_worlds(state), else: []) end),
       # The survey's focus + per-row cursor, so Chorus can wash the cursor row :selected — only
@@ -1647,14 +1647,14 @@ defmodule Aleph.Cockpit do
       memory: if(Space.world?(state.active_key), do: state.memory),
       orbis: Board.safe_read(:orbis, nil, fn -> if(Space.world?(state.active_key), do: leaves_data(state)) end),
       focused_session: state.focused_session,
-      # The right rail's pinned BRIEF (slice D): the ATTACHED leaf's in_scope — only read while a
+      # The right rail's pinned BRIEF (slice D): the ATTACHED leaf's brief — only read while a
       # leaf holds the center (thread context), so no per-frame DB read in workspace context. nil
-      # (leaf gone, funes down) leaves the Dossier placeholder up — the layout never jumps.
+      # (leaf gone, funes down) leaves the Brief placeholder up — the layout never jumps.
       brief:
         Board.safe_read(:brief, nil, fn ->
           with {:leaf, id} <- state.focused_session,
                %{} = thread <- Channel.thread(id) do
-            Funes.Board.in_scope(thread)
+            Funes.Board.brief(thread)
           else
             _ -> nil
           end
@@ -2127,7 +2127,7 @@ defmodule Aleph.Cockpit do
   # Gathers from all open threads — a funes Board aggregate.
   # Each section is `%{shown: [...], more: count}` so the panel can render "+N more".
   defp triage_read(threads) do
-    scopes = for thread <- threads, do: {thread, Funes.Board.in_scope(thread)}
+    scopes = for thread <- threads, do: {thread, Funes.Board.brief(thread)}
 
     all_blockers =
       Enum.flat_map(scopes, fn {thread, scope} ->

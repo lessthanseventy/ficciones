@@ -2,7 +2,7 @@ defmodule Funes.Board do
   @moduledoc """
   The board's read models (aleph §4): pure aggregates a TUI (later a LiveView)
   renders, composed from the contexts. §7 — the board holds no truth of its own, it
-  reads the public context functions. `in_scope/1` is the focused thread's brief,
+  reads the public context functions. `brief/1` is the focused thread's brief,
   and is deliberately the SAME one-call read that catches a re-entering session up
   from the dossier rather than the transcript (§3b): one artifact, two consumers.
 
@@ -126,7 +126,7 @@ defmodule Funes.Board do
   id handle): GOAL (title), the assigned lead, SHIPPED, LEARNINGS and
   BLOCKERS each `%{shown, more}`, and RECENT (the message tail).
   """
-  def in_scope(%Thread{} = thread) do
+  def brief(%Thread{} = thread) do
     thread = Repo.get!(Thread, thread.id)
     todos = Dossier.open_todos_for_thread(thread)
 
@@ -155,14 +155,14 @@ defmodule Funes.Board do
   The machine META-view: every OPEN machine-scope thread (root + leaves) as a COMPACT brief — the
   cross-leaf read the Orbis Tertius meta agent synthesizes from (design:
   `docs/plans/2026-08-19-orbis-tertius-meta-thread-design.md`). Each leaf is trimmed to the synthesis
-  essentials — lead, NEXT step, open BLOCKERS, and the message tail — drawn from the SAME `in_scope/1`
+  essentials — lead, NEXT step, open BLOCKERS, and the message tail — drawn from the SAME `brief/1`
   aggregate a single thread's dossier reads (one read model, not a second truth). Root-first (oldest
   id). Machine-scope only, by construction: `Channel.open_machine_threads/0` never returns project
   work, so this can't become a cross-scope peephole.
   """
   def machine_overview do
     Enum.map(Channel.open_machine_threads(), fn thread ->
-      s = in_scope(thread)
+      s = brief(thread)
 
       %{
         thread_id: thread.id,

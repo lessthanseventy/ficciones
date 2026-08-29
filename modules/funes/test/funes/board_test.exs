@@ -1,7 +1,7 @@
 defmodule Funes.BoardTest do
   # The board's read models (aleph §4): the pure aggregates a TUI/LiveView renders.
-  # IN FLIGHT is the roster (live sessions × warmth); IN SCOPE is one thread's brief
-  # (NORTH STAR / TODOS / NEXT / DONE / LEARNINGS / BLOCKERS / CHATTER) — the SAME
+  # IN FLIGHT is the roster (live sessions × warmth); the BRIEF is one thread's read
+  # (GOAL / TODOS / NEXT / DONE / LEARNINGS / BLOCKERS / RECENT) — the SAME
   # one-call read that briefs a re-entering session (§3b), one read, two consumers.
   # DONE is a MERGED view: completed todos by their `done_at` + `work_landed` events.
   use ExUnit.Case, async: false
@@ -58,8 +58,8 @@ defmodule Funes.BoardTest do
     end
   end
 
-  describe "Board.in_scope/1 — IN SCOPE" do
-    test "assembles NORTH STAR, lead, TODOS/NEXT/DONE, LEARNINGS, BLOCKERS, CHATTER" do
+  describe "Board.brief/1 — BRIEF" do
+    test "assembles GOAL, lead, TODOS/NEXT/DONE, LEARNINGS, BLOCKERS, RECENT" do
       {:ok, thread} = Channel.open_thread(%{title: "review PR 329"})
       {:ok, sandra} = Staff.register_agent(%{name: "Sandra", mandate: "m", engine: "e"})
       {:ok, _} = Staff.assign(thread, sandra)
@@ -89,7 +89,7 @@ defmodule Funes.BoardTest do
       {:ok, _done} = Dossier.complete_todo(planned)
       {:ok, _} = Dossier.add_todo(%{thread_id: thread.id, text: "open step"})
 
-      scope = Board.in_scope(thread)
+      scope = Board.brief(thread)
       assert scope.goal == "review PR 329"
       assert scope.lead == "Sandra"
       # DONE is a MERGED view: the completed todo AND the work_landed event, tagged by source
@@ -132,7 +132,7 @@ defmodule Funes.BoardTest do
           })
       end
 
-      scope = Board.in_scope(thread)
+      scope = Board.brief(thread)
       assert length(scope.learnings.shown) == 7
       assert scope.learnings.more == 0
       # DONE here is 6 work_landed events (no todos) — capped at five with the count.
@@ -142,7 +142,7 @@ defmodule Funes.BoardTest do
 
     test "an unassigned thread has a nil lead, and empty sections count zero" do
       {:ok, thread} = Channel.open_thread(%{title: "unstaffed"})
-      scope = Board.in_scope(thread)
+      scope = Board.brief(thread)
       assert scope.lead == nil
       assert scope.learnings == %{shown: [], more: 0}
       assert scope.unknowns == %{shown: [], more: 0}
@@ -153,7 +153,7 @@ defmodule Funes.BoardTest do
     end
   end
 
-  describe "Board.in_scope/1 LEARNINGS — the forgetting engine's working set" do
+  describe "Board.brief/1 LEARNINGS — the forgetting engine's working set" do
     test "LEARNINGS ranks by strength, not recency" do
       {:ok, thread} = Channel.open_thread(%{title: "t"})
 
@@ -163,7 +163,7 @@ defmodule Funes.BoardTest do
       {:ok, _plain} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "plain", provenance: "derived"})
       {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "check_passed", correlation: "fact:#{proven.id}"})
 
-      texts = Enum.map(Board.in_scope(thread).learnings.shown, & &1.text)
+      texts = Enum.map(Board.brief(thread).learnings.shown, & &1.text)
       assert Enum.find_index(texts, &(&1 == "proven")) < Enum.find_index(texts, &(&1 == "plain"))
     end
 
@@ -179,7 +179,7 @@ defmodule Funes.BoardTest do
       {:ok, b} = Dossier.bank_fact(%{thread_id: thread.id, kind: "learned", text: "bbbb", provenance: "derived"})
       {:ok, _} = Dossier.record_event(%{thread_id: thread.id, kind: "check_passed", correlation: "fact:#{b.id}"})
 
-      learnings = Board.in_scope(thread).learnings
+      learnings = Board.brief(thread).learnings
       assert length(learnings.shown) == 1
       assert hd(learnings.shown).text == "bbbb"
       assert learnings.more == 1

@@ -125,12 +125,12 @@ defmodule Aleph.ViewTest do
 
       assert {_p, _d, stack_rect} = Enum.find(placements, &match?({Panel.Stack, _, _}, &1))
       assert stack_rect.x > 0
-      refute Enum.any?(placements, &match?({Panel.Dossier, _, _}, &1))
+      refute Enum.any?(placements, &match?({Panel.Brief, _, _}, &1))
     end
 
     test "thread context (a leaf holds the center): the BRIEF pins the right column instead" do
-      # A full in_scope-shaped brief — the pinned head is MEASURED (intrinsic height = a real
-      # render), so the fixture carries every section Panel.Dossier renders.
+      # A full brief-shaped fixture — the pinned head is MEASURED (intrinsic height = a real
+      # render), so the fixture carries every section Panel.Brief renders.
       brief = %{
         thread: nil,
         goal: "fix the tick",
@@ -148,15 +148,15 @@ defmodule Aleph.ViewTest do
       placements =
         View.compose(reads(%{focused_session: {:leaf, 5}, brief: brief}), 120, 40)
 
-      assert {Panel.Dossier, data, rect} = Enum.find(placements, &match?({Panel.Dossier, _, _}, &1))
+      assert {Panel.Brief, data, rect} = Enum.find(placements, &match?({Panel.Brief, _, _}, &1))
       assert rect.x > 0
       assert data.goal == "fix the tick"
       refute Enum.any?(placements, &match?({Panel.Stack, _, _}, &1))
     end
 
-    test "thread context with a failed brief read still pins the Dossier placeholder (layout agreement)" do
+    test "thread context with a failed brief read still pins the Brief placeholder (layout agreement)" do
       placements = View.compose(reads(%{focused_session: {:leaf, 5}, brief: nil}), 120, 40)
-      assert Enum.any?(placements, &match?({Panel.Dossier, _, _}, &1))
+      assert Enum.any?(placements, &match?({Panel.Brief, _, _}, &1))
     end
   end
 
@@ -329,10 +329,10 @@ defmodule Aleph.ViewTest do
       refute right_placed?(placements, Panel.Crew)
     end
 
-    test "a 1-panel right column (Orbis' [Dossier]) degrades cleanly — rem clamps to index 0" do
+    test "a 1-panel right column (Orbis' [Brief]) degrades cleanly — rem clamps to index 0" do
       r = reads(%{active_key: :orbis, focus: nil, right_pane_view: 7})
       placements = View.compose(r, 120, 40)
-      assert right_placed?(placements, Panel.Dossier)
+      assert right_placed?(placements, Panel.Brief)
     end
 
     test "narrow layout applies the same pinned + carousel selection to the right portion" do
@@ -524,7 +524,7 @@ defmodule Aleph.ViewTest do
     test "orbis boxes are titled too (shared pieces inherit)" do
       placements = View.compose(reads(%{active_key: :orbis, focus: nil}), 120, 40)
       assert border_of(placements, "IN FLIGHT")
-      assert border_of(placements, "IN SCOPE")
+      assert border_of(placements, "BRIEF")
     end
   end
 

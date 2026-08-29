@@ -10,8 +10,8 @@ defmodule Aleph.SpaceTest do
   use ExUnit.Case, async: true
 
   alias Aleph.Panel.Activity
+  alias Aleph.Panel.Brief
   alias Aleph.Panel.Crew
-  alias Aleph.Panel.Dossier
   alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
   alias Aleph.Panel.Pulse
@@ -142,13 +142,13 @@ defmodule Aleph.SpaceTest do
       # negative-safe wrap: the public contract must not nil out on a negative view
       assert Space.visible_right(space, -1) == [Stack, Leaves]
       # thread context (a leaf holds the center): the pinned head becomes the BRIEF
-      assert Space.visible_right(space, 0, :thread) == [{Dossier, :brief}, Memory]
-      assert Space.visible_right(space, 1, :thread) == [{Dossier, :brief}, Crew]
+      assert Space.visible_right(space, 0, :thread) == [{Brief, :brief}, Memory]
+      assert Space.visible_right(space, 1, :thread) == [{Brief, :brief}, Crew]
     end
 
     test "a single-panel right column (Orbis) is just the pinned panel" do
       [orbis | _] = Space.all([])
-      assert Space.visible_right(orbis, 5) == [Dossier]
+      assert Space.visible_right(orbis, 5) == [Brief]
       assert Space.carousel(orbis) == []
     end
   end

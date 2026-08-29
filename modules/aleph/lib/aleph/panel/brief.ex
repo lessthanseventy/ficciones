@@ -1,9 +1,9 @@
-defmodule Aleph.Panel.Dossier do
+defmodule Aleph.Panel.Brief do
   @moduledoc """
-  IN SCOPE — the focused thread's brief (design §8), a thin view over `Funes.Board.in_scope/1`:
+  BRIEF — the focused thread's brief (design §8), a thin view over `Funes.Board.brief/1`:
   GOAL, LEAD, TODOS (NEXT marked →), LEARNINGS, UNKNOWNS, BLOCKERS, CHECKS (✓/✗ measured), DONE
   (each capped + a `more` count), RECENT. DONE is the merged view — completed todos + `work_landed`. Re-renders
-  on that thread's topic. Data is the `in_scope/1` map, or `nil` when nothing is focused.
+  on that thread's topic. Data is the `brief/1` map, or `nil` when nothing is focused.
   """
   @behaviour Aleph.Panel
 

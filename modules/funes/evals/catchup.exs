@@ -8,7 +8,7 @@ alias Funes.Dossier
 alias Funes.Eval.Scenario
 
 brief = fn thread ->
-  %Funes.Thread{id: thread.id} |> Funes.Board.in_scope() |> Funes.MCP.Brief.scope()
+  %Funes.Thread{id: thread.id} |> Funes.Board.brief() |> Funes.MCP.Brief.scope()
 end
 
 assert = fn name, run, expect ->

@@ -276,7 +276,7 @@ defmodule Funes.MCP.Tool.GetDossier do
   @impl true
   def execute(_params, frame) do
     identity = MCP.Identity.from_frame(frame)
-    brief = %Thread{id: identity.thread_id} |> Board.in_scope() |> MCP.Brief.scope()
+    brief = %Thread{id: identity.thread_id} |> Board.brief() |> MCP.Brief.scope()
     {:reply, Response.json(Response.tool(), brief), frame}
   end
 end

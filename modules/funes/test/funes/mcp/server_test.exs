@@ -507,7 +507,7 @@ defmodule Funes.MCP.ServerTest do
 
   test "the dossier and the always-loaded constraints are readable as MCP resources",
        %{thread: thread, token: token} do
-    # The free half of anubis: the same single reads (Board.in_scope,
+    # The free half of anubis: the same single reads (Board.brief,
     # Dossier.always_loaded_constraints) exposed on the resources primitive — a
     # second protocol DOOR, never a second source. The extension reads the
     # resource to brief; the model calls the tool to refresh.

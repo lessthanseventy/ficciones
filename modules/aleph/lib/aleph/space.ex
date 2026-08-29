@@ -19,9 +19,9 @@ defmodule Aleph.Space do
   """
 
   alias Aleph.Panel.Activity
+  alias Aleph.Panel.Brief
   alias Aleph.Panel.Chorus
   alias Aleph.Panel.Crew
-  alias Aleph.Panel.Dossier
   alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
   alias Aleph.Panel.Pulse
@@ -73,7 +73,7 @@ defmodule Aleph.Space do
       # list the middle already shows. TRIAGE below IN FLIGHT shows cross-thread trouble.
       surface: [Chorus],
       left: [Roster, Triage],
-      right: [Dossier]
+      right: [Brief]
     }
   end
 
@@ -165,7 +165,7 @@ defmodule Aleph.Space do
   The right column actually on screen (design 2026-08-23, contextual since slice D): the pinned
   head plus the `view`-indexed carousel panel. The head follows the center's `context` —
   `:workspace` (a leader in the center) pins the FIRST right panel (STACK); `:thread` (an
-  attached leaf) swaps it for the BRIEF (`{Dossier, :brief}`, reading the cockpit's brief read).
+  attached leaf) swaps it for the BRIEF (`{Brief, :brief}`, reading the cockpit's brief read).
   Also the exact shape the Focus SM navigates, so View/keymap/cockpit can never disagree.
   """
   @spec visible_right(t(), integer(), :workspace | :thread) :: [module() | {module(), atom()}]
@@ -177,7 +177,7 @@ defmodule Aleph.Space do
   def visible_right(%__MODULE__{right: [pinned | carousel]}, view, context),
     do: [pinned_head(pinned, context), Enum.at(carousel, Integer.mod(view, length(carousel)))]
 
-  defp pinned_head(_pinned, :thread), do: {Dossier, :brief}
+  defp pinned_head(_pinned, :thread), do: {Brief, :brief}
   defp pinned_head(pinned, _workspace), do: pinned
 
   @doc """

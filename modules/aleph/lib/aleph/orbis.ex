@@ -16,7 +16,7 @@ defmodule Aleph.Orbis do
   and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `worlds` is the
   survey's per-world rollup — grouped under the live funes worlds (`Aleph.Worlds`, Slice 1), each
   row carrying its world `id` (D0.3) — the face Orbis' Chorus renders as one row per world, and the
-  survey's `Enter`/click resolve back to. Status derives from `Funes.Board.in_scope/1` (the
+  survey's `Enter`/click resolve back to. Status derives from `Funes.Board.brief/1` (the
   same per-thread brief Triage reads) so it reflects real blockers/failed checks, never a
   self-report. The gather is guarded: a funes hiccup degrades to `nil`, never a crash.
   """
@@ -102,7 +102,7 @@ defmodule Aleph.Orbis do
   end
 
   defp row(thread, blocking_by_thread) do
-    scope = Funes.Board.in_scope(thread)
+    scope = Funes.Board.brief(thread)
     conflicts = length(scope.blockers.shown) + scope.blockers.more + failed_checks(scope)
     ledger = Map.get(blocking_by_thread, thread.id, %{})
 
