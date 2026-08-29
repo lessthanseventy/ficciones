@@ -4,7 +4,7 @@ defmodule Aleph.Panel.Activity do
   banked, a check passed/failed, work landed, a message posted, an issue/question raised —
   as one colored, newest-first stream (design: replace the opaque "funes · calling funes (2
   tools)" with real visibility). Fed by `Funes.Bus`'s global `activity` topic (cross-thread,
-  unlike `Chorus`'s per-thread blocks); the Cockpit keeps the bounded buffer, this panel is a
+  unlike `Overview`'s per-thread blocks); the Cockpit keeps the bounded buffer, this panel is a
   pure render over it.
 
   Data is `%{events: [{tag, row}, ...]}`, newest-first (the Cockpit's buffer order).
@@ -16,7 +16,7 @@ defmodule Aleph.Panel.Activity do
   import Aleph.Panel, only: [line: 2]
 
   # The cockpit subscribes to the activity topic once (Bus.subscribe_activity), globally — no
-  # per-assigns topic needed here (mirrors Chorus, which does the same for messages).
+  # per-assigns topic needed here (mirrors Overview, which does the same for messages).
   @impl Aleph.Panel
   def topics(_assigns), do: []
 

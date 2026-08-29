@@ -4,8 +4,8 @@ defmodule Aleph.Panel.Author do
   view (D2, Chunk 1); `e` on the cursor workspace opens the in-place FIELD EDITOR (D2.4 Chunk 2a),
   `data[:edit]` present. List: one row per `Aleph.Workspaces.all/0` workspace (name · type · path/roster
   counts), the `author_cursor` row washed `:selected` — same wash idiom as
-  `Aleph.Panel.Chorus`/`Leaves`. Data is `%{workspaces: [%{id, name, type, paths, roster, scope}],
-  cursor, edit}` (`cursor`/`edit` View-injected). Replaces Chorus as Orbis' center only while
+  `Aleph.Panel.Overview`/`Leaves`. Data is `%{workspaces: [%{id, name, type, paths, roster, scope}],
+  cursor, edit}` (`cursor`/`edit` View-injected). Replaces Overview as Orbis' center only while
   `orbis_face == :author` (`Aleph.View.compose/3`).
 
   The editor is a vertical 4-row field list (0 type · 1 scope · 2 paths · 3 roster), the `field`

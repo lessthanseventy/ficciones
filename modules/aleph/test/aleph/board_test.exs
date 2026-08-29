@@ -33,14 +33,14 @@ defmodule Aleph.BoardTest do
   alias Aleph.Panel.Activity
   alias Aleph.Panel.Border
   alias Aleph.Panel.Brief
-  alias Aleph.Panel.Chorus
   alias Aleph.Panel.Health
-  alias Aleph.Panel.Pulse
+  alias Aleph.Panel.Overview
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Sidebar
   alias Aleph.Panel.Stack
   alias Aleph.Panel.StatusBar
   alias Aleph.Panel.Terminal
+  alias Aleph.Panel.Ticker
   alias Aleph.Panel.WindowBar
   alias Aleph.View
 
@@ -271,7 +271,7 @@ defmodule Aleph.BoardTest do
         }
       ]
 
-      rows = Chorus.render(%{workspaces: workspaces}, %{x: 0, y: 0, w: 60, h: 40})
+      rows = Overview.render(%{workspaces: workspaces}, %{x: 0, y: 0, w: 60, h: 40})
       joined = Enum.map_join(rows, "\n", &text/1)
 
       assert joined =~ "ORBIS · workspaces"
@@ -304,13 +304,13 @@ defmodule Aleph.BoardTest do
       data = %{workspaces: workspaces, scroll: 0}
       rect = %{x: 0, y: 0, w: 60, h: 40}
       # survey header (0) + blank (1) select nothing
-      assert Chorus.pick(data, rect, 0) == nil
-      assert Chorus.pick(data, rect, 1) == nil
+      assert Overview.pick(data, rect, 0) == nil
+      assert Overview.pick(data, rect, 1) == nil
       # the workspace's rows (head + summary + blank) span content rows 2–4 → zoom to its own id
-      assert {:switch_space, 3} = Chorus.pick(data, rect, 2)
-      assert {:switch_space, 3} = Chorus.pick(data, rect, 4)
+      assert {:switch_space, 3} = Overview.pick(data, rect, 2)
+      assert {:switch_space, 3} = Overview.pick(data, rect, 4)
       # a click past the last workspace selects nothing
-      assert Chorus.pick(data, rect, 5) == nil
+      assert Overview.pick(data, rect, 5) == nil
     end
   end
 
@@ -427,7 +427,7 @@ defmodule Aleph.BoardTest do
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
 
       assert Sidebar in mods
-      assert Chorus in mods
+      assert Overview in mods
       assert Brief in mods
       assert StatusBar in mods
       # every section gets its own bordered box (switcher, roster/triage, chorus, dossier)
@@ -469,11 +469,11 @@ defmodule Aleph.BoardTest do
 
       placements = View.compose(tlon, 120, 40)
 
-      # the terminal is framed: WindowBar above, Pulse below, each its own bordered box — no
+      # the terminal is framed: WindowBar above, Ticker below, each its own bordered box — no
       # longer the full-height center column a single-section surface would give it.
       assert [{Terminal, :no_session, term_rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == Terminal end)
       assert [{WindowBar, _wb_data, wb_rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == WindowBar end)
-      assert [{Pulse, _pulse_data, pulse_rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == Pulse end)
+      assert [{Ticker, _pulse_data, pulse_rect}] = Enum.filter(placements, fn {m, _d, _r} -> m == Ticker end)
 
       assert wb_rect.y < term_rect.y
       assert pulse_rect.y > term_rect.y
@@ -484,7 +484,7 @@ defmodule Aleph.BoardTest do
       # center_rect is what the embedded PTY is sized to; it MUST equal the rect compose places the
       # Terminal into, or pi draws wider/taller than the visible area (content spills past the frame,
       # or a dead band opens below). One authority for both, asserted across sizes. Tlön is the only
-      # terminal-bearing space since the Slice 0 collapse; its column also carries WindowBar/Pulse.
+      # terminal-bearing space since the Slice 0 collapse; its column also carries WindowBar/Ticker.
       for {key, w, h} <- [{0, 120, 40}, {0, 84, 30}] do
         r =
           reads(%{
@@ -502,9 +502,9 @@ defmodule Aleph.BoardTest do
     end
 
     test "a short Tlön terminal never places a section (or the PTY) past the frame" do
-      # WindowBar(3) + Terminal(flex) + Pulse(3) stacked in the center column overflowed at short
+      # WindowBar(3) + Terminal(flex) + Ticker(3) stacked in the center column overflowed at short
       # heights: split_heights floored the flex Terminal at 1 but never clamped the SUM against the
-      # column, so the Pulse box landed below the column (on/past the StatusBar). Clamp now shrinks
+      # column, so the Ticker box landed below the column (on/past the StatusBar). Clamp now shrinks
       # the fixed bands in stack order — a lower band collapses to 0 rather than going off-frame.
       # 12 is a comfortably short cockpit; 8 is the regime that used to overflow.
       for {key, w, h} <- [{0, 120, 12}, {0, 120, 8}] do
@@ -533,7 +533,7 @@ defmodule Aleph.BoardTest do
       mods = Enum.map(placements, fn {m, _d, _r} -> m end)
       # the chorus (all threads, one feed) is the center; the roster is the left sidebar (presence) —
       # the feed is the navigator now (the old thread-list panel is deleted, slice D).
-      assert Chorus in mods
+      assert Overview in mods
       assert Roster in mods
       refute Terminal in mods
     end

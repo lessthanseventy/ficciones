@@ -14,9 +14,9 @@ defmodule Aleph.SpaceTest do
   alias Aleph.Panel.Crew
   alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
-  alias Aleph.Panel.Pulse
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
+  alias Aleph.Panel.Ticker
   alias Aleph.Panel.WindowBar
   alias Aleph.Space
 
@@ -55,7 +55,7 @@ defmodule Aleph.SpaceTest do
 
       assert tlon.id == 1
       assert tlon.label == "Tlön"
-      assert tlon.surface == [WindowBar, {Terminal, :machine}, Pulse]
+      assert tlon.surface == [WindowBar, {Terminal, :machine}, Ticker]
       # Slice D: the left column is the Sidebar alone; STACK/MEMORY moved to the right rail,
       # whose pinned head is contextual (workspace → Stack, attached thread → the brief).
       assert tlon.left == []

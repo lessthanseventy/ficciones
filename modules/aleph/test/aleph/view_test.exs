@@ -86,9 +86,9 @@ defmodule Aleph.ViewTest do
       assert {Panel.Conversation, data, _rect} = Enum.find(placements, &match?({Panel.Conversation, _, _}, &1))
       assert data.title == "Tlön"
       refute placed?(placements, Panel.Terminal)
-      # the WindowBar tab strip and the Pulse ticker frame the chat exactly as they frame the PTY
+      # the WindowBar tab strip and the Ticker frame the chat exactly as they frame the PTY
       assert placed?(placements, Panel.WindowBar)
-      assert placed?(placements, Panel.Pulse)
+      assert placed?(placements, Panel.Ticker)
     end
 
     test "center_view :terminal (the default) keeps the live PTY" do
@@ -219,16 +219,16 @@ defmodule Aleph.ViewTest do
   end
 
   describe "Orbis' author face (D2.1)" do
-    defp chorus_placed?(placements), do: Enum.any?(placements, &match?({Panel.Chorus, _, _}, &1))
+    defp chorus_placed?(placements), do: Enum.any?(placements, &match?({Panel.Overview, _, _}, &1))
     defp author_placed?(placements), do: Enum.any?(placements, &match?({Panel.Author, _, _}, &1))
 
-    test "orbis_face == :author replaces Chorus with Panel.Author" do
+    test "orbis_face == :author replaces Overview with Panel.Author" do
       placements = View.compose(reads(%{active_key: :orbis, orbis_face: :author}), 120, 40)
       assert author_placed?(placements)
       refute chorus_placed?(placements)
     end
 
-    test "orbis_face == :survey (the default) keeps Chorus, no Panel.Author" do
+    test "orbis_face == :survey (the default) keeps Overview, no Panel.Author" do
       placements = View.compose(reads(%{active_key: :orbis, orbis_face: :survey}), 120, 40)
       refute author_placed?(placements)
       assert chorus_placed?(placements)

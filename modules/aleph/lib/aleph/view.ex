@@ -28,7 +28,7 @@ defmodule Aleph.View do
   # The center Terminal and StatusBar/Border never overflow.
   @scrollable [
     Panel.Sidebar,
-    Panel.Chorus,
+    Panel.Overview,
     Panel.Conversation,
     Panel.Crew,
     Panel.Brief,
@@ -54,7 +54,7 @@ defmodule Aleph.View do
     # get distinct data. Wide viewports get three columns; narrow ones collapse to one.
     # MAIN is the terminal by default; a Tlön focus that opened a detail (Enter) replaces it with
     # the Detail panel until Esc closes it (the tmux terminal keeps running underneath, unpainted).
-    # Orbis' author face (D2.1) replaces the survey (Chorus) with Panel.Author the same way.
+    # Orbis' author face (D2.1) replaces the survey (Overview) with Panel.Author the same way.
     center_panels =
       cond do
         detail_open?(reads) -> [Panel.Detail]
@@ -120,7 +120,7 @@ defmodule Aleph.View do
   end
 
   # The center's chat face (reshape slice D): `v` flipped center_view to :chat — swap the Terminal
-  # section for the attached thread's conversation, keeping the WindowBar/Pulse frame around it.
+  # section for the attached thread's conversation, keeping the WindowBar/Ticker frame around it.
   # Only when the chat read resolved: a failed/empty read (no thread, funes down) degrades to the
   # PTY, never a blank center.
   defp chat_center(surface, %{center_view: :chat} = reads) do
@@ -199,7 +199,7 @@ defmodule Aleph.View do
     end
   end
 
-  # The on-frame title per section. A section with no entry (Terminal, WindowBar, Pulse, the
+  # The on-frame title per section. A section with no entry (Terminal, WindowBar, Ticker, the
   # center surfaces) gets a bare frame.
   defp section_title({panel, _read_key}), do: section_title(panel)
   defp section_title(Panel.Sidebar), do: "WORKSPACES"
@@ -250,8 +250,8 @@ defmodule Aleph.View do
   @doc """
   The content rect the center Terminal renders into for a `space_key`/`w`×`h` cockpit — the single
   source of truth the embedded PTY sizes to, so pi never draws wider or taller than the visible
-  area. Orbis carries no center Terminal (its surface is `[Chorus]`, the survey) → this falls back
-  to the full center column. Tlön's WindowBar/Pulse bands (`Aleph.Space`) share the column with its
+  area. Orbis carries no center Terminal (its surface is `[Overview]`, the survey) → this falls back
+  to the full center column. Tlön's WindowBar/Ticker bands (`Aleph.Space`) share the column with its
   Terminal, so its box is smaller — found via the SAME `boxed/2` stacking `compose/3` uses, not a
   second formula that could drift. (The PTY is only sized in the wide layout — a real cockpit is
   never below the narrow threshold.)
@@ -301,7 +301,7 @@ defmodule Aleph.View do
 
   def data_for(Panel.Brief, r), do: r.scope
 
-  def data_for(Panel.Chorus, r),
+  def data_for(Panel.Overview, r),
     do: %{workspaces: r[:workspaces] || [], survey_cursor: r[:survey_cursor], orbis_focus: r[:orbis_focus]}
 
   # The author face's own workspace list — `Aleph.Workspaces.all/0` directly (not the survey's rollup
@@ -321,7 +321,7 @@ defmodule Aleph.View do
   # here can never disagree with what those paths index.
   def data_for(Panel.Leaves, r), do: r.orbis
   def data_for(Panel.Activity, r), do: %{events: r[:activity] || []}
-  def data_for(Panel.Pulse, r), do: %{events: r[:activity] || []}
+  def data_for(Panel.Ticker, r), do: %{events: r[:activity] || []}
   def data_for(Panel.WindowBar, r), do: %{tabs: window_tabs(r), engine: engine_state(), thread: r.focused_id}
   def data_for(Panel.Triage, r), do: r.triage
   def data_for(Panel.Memory, r), do: r[:memory]
@@ -468,9 +468,9 @@ defmodule Aleph.View do
     resolved
   end
 
-  # The WindowBar/Pulse bands framing the Tlön terminal: one content row + their own 2-row frame.
+  # The WindowBar/Ticker bands framing the Tlön terminal: one content row + their own 2-row frame.
   defp fixed_height(Panel.WindowBar), do: 3
-  defp fixed_height(Panel.Pulse), do: 3
+  defp fixed_height(Panel.Ticker), do: 3
   defp fixed_height({panel, _read_key}), do: fixed_height(panel)
   defp fixed_height(_panel), do: nil
 

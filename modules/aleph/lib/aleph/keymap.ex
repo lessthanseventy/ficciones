@@ -739,7 +739,7 @@ defmodule Aleph.Keymap do
   end
 
   # Dispatch Orbis' j/k/↑/↓: the author face's own cursor takes priority over `orbis_focus`
-  # (survey/threads is meaningless while the author face is showing — Panel.Author, not Chorus);
+  # (survey/threads is meaningless while the author face is showing — Panel.Author, not Overview);
   # else the survey's per-row cursor, or the pre-existing thread move (`move/2`, unchanged — keeps
   # the composer's `c` target working).
   defp move_orbis(state, dir) do

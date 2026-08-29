@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.Pulse do
+defmodule Aleph.Panel.Ticker do
   @moduledoc """
   The bottom band framing the Tlön center: a one-line, always-visible pulse of the LATEST funes
   activity event, directly under the terminal (`Aleph.Panel.Activity` is the full newest-first

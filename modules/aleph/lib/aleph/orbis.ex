@@ -15,7 +15,7 @@ defmodule Aleph.Orbis do
   `:open | :stalled | :done`), or `nil` when funes is down / there are no machine threads. `summary`
   and `rows` are the per-thread lens the LEAVES sidebar + chat-tab strip read; `workspaces` is the
   survey's per-workspace rollup — grouped under the live funes workspaces (`Aleph.Workspaces`, Slice 1), each
-  row carrying its workspace `id` (D0.3) — the face Orbis' Chorus renders as one row per workspace, and the
+  row carrying its workspace `id` (D0.3) — the face Orbis' Overview renders as one row per workspace, and the
   survey's `Enter`/click resolve back to. Status derives from `Funes.Board.brief/1` (the
   same per-thread brief Triage reads) so it reflects real blockers/failed checks, never a
   self-report. The gather is guarded: a funes hiccup degrades to `nil`, never a crash.

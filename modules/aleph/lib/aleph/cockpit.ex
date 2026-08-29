@@ -262,7 +262,7 @@ defmodule Aleph.Cockpit do
             # The Orbis survey's per-row cursor (j/k), clamped to the live workspace count at keypress
             # time (Aleph.Keymap) — `Enter`/click resolve it to that row's workspace id.
             survey_cursor: 0,
-            # Orbis' second face (D2.1): `:survey` (Chorus, the default) or `:author` (Panel.Author
+            # Orbis' second face (D2.1): `:survey` (Overview, the default) or `:author` (Panel.Author
             # — create/delete funes workspaces). `a` toggles; Esc in `:author` steps back.
             orbis_face: :survey,
             # The author face's own per-row cursor (j/k), clamped to `Aleph.Workspaces.all/0`'s length
@@ -1631,7 +1631,7 @@ defmodule Aleph.Cockpit do
       chatter: Board.safe_read(:chatter, [], fn -> (focused && Channel.recent_messages(focused, 30)) || [] end),
       workspaces:
         Board.safe_read(:workspaces, [], fn -> if(state.active_key == :orbis, do: orbis_workspaces(state), else: []) end),
-      # The survey's focus + per-row cursor, so Chorus can wash the cursor row :selected — only
+      # The survey's focus + per-row cursor, so Overview can wash the cursor row :selected — only
       # meaningful in Orbis (`right_pane_view`'s same "harmless elsewhere" idiom).
       orbis_focus: state.orbis_focus,
       survey_cursor: state.survey_cursor,
@@ -1821,7 +1821,7 @@ defmodule Aleph.Cockpit do
 
   # The terminal that owns the keys, by space: a Workspace → the embedded tmux client (still the single
   # `:machine` registry entry in Slice 1 — C2 keys the terminal per workspace id). nil elsewhere (Orbis
-  # has no center Terminal — its surface is the Chorus).
+  # has no center Terminal — its surface is the Overview).
   defp center_terminal(%{active_key: key}) when Space.workspace?(key), do: safe_terminal(:machine)
   defp center_terminal(_state), do: nil
 
@@ -2118,7 +2118,7 @@ defmodule Aleph.Cockpit do
   defp orbis_read(key) when Space.workspace?(key), do: Aleph.Orbis.rollup()
   defp orbis_read(_key), do: nil
 
-  # The Orbis survey (Chorus center): the per-WORKSPACE rollup grouping (Slice 0: one hardcoded workspace).
+  # The Orbis survey (Overview center): the per-WORKSPACE rollup grouping (Slice 0: one hardcoded workspace).
   # Reads the SAME cached `state.leaves` rollup the @probe_ms throttle fills — its `workspaces` key — so
   # the survey and the Tlön LEAVES sidebar share one gather. Empty list when funes is down / the
   # cache is cold / there are no workspaces. Public: a pure read seam (unit-tested against a known cache).
@@ -2768,7 +2768,7 @@ defmodule Aleph.Cockpit do
 
   # Size the PTY to EXACTLY the center Terminal's content rect (Aleph.View.center_rect), so pi never
   # draws past the frame (a wider PTY spills; a shorter one leaves a dead band). Tlön's WindowBar
-  # and Pulse bands already shrink that rect (they're their own sections, not the terminal's), so
+  # and Ticker bands already shrink that rect (they're their own sections, not the terminal's), so
   # no separate reserve is needed here.
   defp center_dims(%{active_key: active_key, w: w, h: h}) do
     rect = View.center_rect(active_key, w, h)

@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Aleph.MachineChat do
   @shortdoc "The Tlön machine-chat tab — machine threads as foldable, interactive blocks (a tmux tab)"
   @moduledoc """
-  The interactive Tlön machine-chat — "Chorus for the Tlön space": the machine-scope threads
+  The interactive Tlön machine-chat — "Overview for the Tlön space": the machine-scope threads
   (`Funes.Channel.machine_threads/1`) rendered as **foldable blocks** with author-turn grouping
   inside each, plus `z`-zoom to full-pane. aleph opens this as the `chat` window (a tmux tab in the
   Tlön strip, next to `pi`/`claude`); run it by hand from `modules/aleph` for the same view anywhere.

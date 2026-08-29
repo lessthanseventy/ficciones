@@ -1,10 +1,10 @@
-defmodule Aleph.Panel.ChorusTest do
+defmodule Aleph.Panel.OverviewTest do
   # CHORUS — Orbis' center, re-pointed from a per-thread feed to the per-WORKSPACE survey. On-screen
   # paint is the eye test; this pins the panel → styled-rows path headlessly (no termbox),
   # asserting the header + workspace row + its rollup summary, and (D0.3) the cursor-row wash.
   use ExUnit.Case, async: true
 
-  alias Aleph.Panel.Chorus
+  alias Aleph.Panel.Overview
 
   @rect %{x: 0, y: 0, w: 80, h: 100}
 
@@ -24,7 +24,7 @@ defmodule Aleph.Panel.ChorusTest do
       ]
     }
 
-    text = data |> Chorus.render(@rect) |> lines() |> Enum.join("\n")
+    text = data |> Overview.render(@rect) |> lines() |> Enum.join("\n")
 
     assert text =~ "ORBIS · workspaces"
     assert text =~ "Tlön"
@@ -37,7 +37,7 @@ defmodule Aleph.Panel.ChorusTest do
   end
 
   test "no workspaces (funes down / empty) renders the header and a placeholder, no crash" do
-    text = %{workspaces: []} |> Chorus.render(@rect) |> lines() |> Enum.join("\n")
+    text = %{workspaces: []} |> Overview.render(@rect) |> lines() |> Enum.join("\n")
     assert text =~ "ORBIS · workspaces"
     assert text =~ "no workspaces"
   end
@@ -48,8 +48,8 @@ defmodule Aleph.Panel.ChorusTest do
     }
 
     # Header (0) + blank (1), then the workspace's rows start at y = 2.
-    assert Chorus.pick(data, @rect, 2) == {:switch_space, 9}
-    assert Chorus.pick(data, @rect, 0) == nil
+    assert Overview.pick(data, @rect, 2) == {:switch_space, 9}
+    assert Overview.pick(data, @rect, 0) == nil
   end
 
   test "with 2 workspaces, clicking the SECOND row's block zooms into its own id, not the first's" do
@@ -61,9 +61,9 @@ defmodule Aleph.Panel.ChorusTest do
     }
 
     # Each workspace block is 3 rows (head/summary/blank); workspace 1 spans content rows 2-4, workspace 2 5-7.
-    assert Chorus.pick(data, @rect, 2) == {:switch_space, 1}
-    assert Chorus.pick(data, @rect, 5) == {:switch_space, 2}
-    assert Chorus.pick(data, @rect, 8) == nil
+    assert Overview.pick(data, @rect, 2) == {:switch_space, 1}
+    assert Overview.pick(data, @rect, 5) == {:switch_space, 2}
+    assert Overview.pick(data, @rect, 8) == nil
   end
 
   test "the survey_cursor row washes :selected only while orbis_focus is :survey" do
@@ -72,14 +72,14 @@ defmodule Aleph.Panel.ChorusTest do
       %{id: 2, name: "Freedonia", summary: %{open: 0, stalled: 0, done: 0, conflicts: 0}, leaves: []}
     ]
 
-    rows = Chorus.render(%{workspaces: workspaces, survey_cursor: 1, orbis_focus: :survey}, @rect)
+    rows = Overview.render(%{workspaces: workspaces, survey_cursor: 1, orbis_focus: :survey}, @rect)
     freedonia_head = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t == "Freedonia" end))
     assert Enum.any?(freedonia_head, fn {_t, s} -> s == :selected end)
     tlon_head = Enum.find(rows, &Enum.any?(&1, fn {t, _} -> t == "Tlön" end))
     refute Enum.any?(tlon_head, fn {_t, s} -> s == :selected end)
 
     # Same cursor, but the thread list has focus — no row washes :selected.
-    rows2 = Chorus.render(%{workspaces: workspaces, survey_cursor: 1, orbis_focus: :threads}, @rect)
+    rows2 = Overview.render(%{workspaces: workspaces, survey_cursor: 1, orbis_focus: :threads}, @rect)
     freedonia_head2 = Enum.find(rows2, &Enum.any?(&1, fn {t, _} -> t == "Freedonia" end))
     refute Enum.any?(freedonia_head2, fn {_t, s} -> s == :selected end)
   end

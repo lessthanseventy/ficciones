@@ -1,4 +1,4 @@
-defmodule Aleph.Panel.Chorus do
+defmodule Aleph.Panel.Overview do
   @moduledoc """
   ORBIS — the **survey**: Orbis' center, one row per WORKSPACE. Each workspace row shows its name and the
   leads/open/stalled/done/trouble rollup for all its leaves — the god-view glance the operator

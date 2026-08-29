@@ -12,7 +12,7 @@ defmodule Aleph.Space do
   `Aleph.Panel.Sidebar` workspace nav switches the active one; the center renders that space's `surface`.
 
   A surface is a LIST of sections stacked down the center — usually one (Orbis), but Tlön frames its
-  Terminal with two more: WindowBar above, Pulse below. A section is either a bare
+  Terminal with two more: WindowBar above, Ticker below. A section is either a bare
   panel module (its data shaped by `Aleph.View.data_for/2`, like the sidebars) or a
   `{panel_module, read_key}` pair whose data is the named Cockpit read verbatim — how two
   Terminal panes on one surface get distinct data. A space stays plain data either way.
@@ -20,14 +20,14 @@ defmodule Aleph.Space do
 
   alias Aleph.Panel.Activity
   alias Aleph.Panel.Brief
-  alias Aleph.Panel.Chorus
   alias Aleph.Panel.Crew
   alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
-  alias Aleph.Panel.Pulse
+  alias Aleph.Panel.Overview
   alias Aleph.Panel.Roster
   alias Aleph.Panel.Stack
   alias Aleph.Panel.Terminal
+  alias Aleph.Panel.Ticker
   alias Aleph.Panel.Triage
   alias Aleph.Panel.WindowBar
 
@@ -68,10 +68,10 @@ defmodule Aleph.Space do
     %__MODULE__{
       key: :orbis,
       label: "Home",
-      # The chorus IS the center now, so thread navigation lives in the feed (the focused
+      # The Overview IS the center now, so thread navigation lives in the feed (the focused
       # thread's block is highlighted) and the left carries presence (IN FLIGHT) instead of a
       # list the middle already shows. TRIAGE below IN FLIGHT shows cross-thread trouble.
-      surface: [Chorus],
+      surface: [Overview],
       left: [Roster, Triage],
       right: [Brief]
     }
@@ -91,7 +91,7 @@ defmodule Aleph.Space do
       key: workspace.id,
       id: workspace.id,
       label: workspace.name,
-      surface: [WindowBar, {Terminal, :machine}, Pulse],
+      surface: [WindowBar, {Terminal, :machine}, Ticker],
       # Slice D: the left column is the Sidebar alone (Slack's rail) — STACK/MEMORY moved to the
       # right-rail carousel. The pinned head is contextual (visible_right/3): workspace → STACK,
       # attached thread → the BRIEF. Leaves IS the unified thread list (slice C); HEALTH lives in
