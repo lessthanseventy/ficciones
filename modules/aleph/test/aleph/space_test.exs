@@ -11,6 +11,7 @@ defmodule Aleph.SpaceTest do
 
   alias Aleph.Panel.Activity
   alias Aleph.Panel.Crew
+  alias Aleph.Panel.Dossier
   alias Aleph.Panel.Leaves
   alias Aleph.Panel.Memory
   alias Aleph.Panel.Pulse
@@ -55,9 +56,10 @@ defmodule Aleph.SpaceTest do
       assert tlon.id == 1
       assert tlon.label == "Tlön"
       assert tlon.surface == [WindowBar, {Terminal, :machine}, Pulse]
-      assert tlon.left == [Stack, Memory]
-      # HEALTH demoted to the footer + /status (reshape slice D) — CREW is the pinned head now.
-      assert tlon.right == [Crew, Activity, Leaves]
+      # Slice D: the left column is the Sidebar alone; STACK/MEMORY moved to the right rail,
+      # whose pinned head is contextual (workspace → Stack, attached thread → the brief).
+      assert tlon.left == []
+      assert tlon.right == [Stack, Memory, Crew, Activity, Leaves]
       # The roster lead's name (string-keyed JSON) becomes the center coworker.
       assert tlon.coworker == "tertius"
       # The full roster rides along too (C2/C3 read it), not just the derived coworker name.
@@ -130,19 +132,23 @@ defmodule Aleph.SpaceTest do
   end
 
   describe "visible_right/2 (clarity slice 2)" do
-    test "world right column = pinned Crew + the view-indexed carousel panel, ACTIVITY at 0" do
+    test "world right column = contextual pinned head + the view-indexed carousel panel" do
       space = Enum.find(Space.all([@tlon]), &Space.world?(&1.key))
-      assert Space.carousel(space) == [Activity, Leaves]
-      assert Space.visible_right(space, 0) == [Crew, Activity]
-      assert Space.visible_right(space, 1) == [Crew, Leaves]
-      assert Space.visible_right(space, 2) == [Crew, Activity]
+      assert Space.carousel(space) == [Memory, Crew, Activity, Leaves]
+      # workspace context (the default): branch/commits pinned
+      assert Space.visible_right(space, 0) == [Stack, Memory]
+      assert Space.visible_right(space, 1) == [Stack, Crew]
+      assert Space.visible_right(space, 4) == [Stack, Memory]
       # negative-safe wrap: the public contract must not nil out on a negative view
-      assert Space.visible_right(space, -1) == [Crew, Leaves]
+      assert Space.visible_right(space, -1) == [Stack, Leaves]
+      # thread context (a leaf holds the center): the pinned head becomes the BRIEF
+      assert Space.visible_right(space, 0, :thread) == [{Dossier, :brief}, Memory]
+      assert Space.visible_right(space, 1, :thread) == [{Dossier, :brief}, Crew]
     end
 
     test "a single-panel right column (Orbis) is just the pinned panel" do
       [orbis | _] = Space.all([])
-      assert Space.visible_right(orbis, 5) == [Aleph.Panel.Dossier]
+      assert Space.visible_right(orbis, 5) == [Dossier]
       assert Space.carousel(orbis) == []
     end
   end

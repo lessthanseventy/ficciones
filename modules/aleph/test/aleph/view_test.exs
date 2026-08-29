@@ -52,14 +52,10 @@ defmodule Aleph.ViewTest do
   end
 
   # A Tlön layout with commits count, so Focus.cursor/2 clamps and the Commits pane is navigable.
-  # The Sidebar leads the left column, matching production `tlon_layout` (View prepends it on screen too).
+  # Mirrors production `tlon_layout` since slice D: the Sidebar alone on the left; the right rail
+  # is the pinned STACK + the carousel panel (MEMORY at view 0).
   defp layout(counts \\ %{Panel.Stack => 3}),
-    do: %{
-      left: [Panel.Sidebar, Panel.Stack, Panel.Settings],
-      right: [Panel.Health, Panel.Leaves],
-      sections: %{},
-      counts: counts
-    }
+    do: %{left: [Panel.Sidebar], right: [Panel.Stack, Panel.Memory], sections: %{}, counts: counts}
 
   # The rects of every border flagged as focused.
   defp focused_borders(placements), do: for({Panel.Border, %{focused: true}, rect} <- placements, do: rect)
@@ -123,6 +119,47 @@ defmodule Aleph.ViewTest do
 
       assert placed?(placements, Panel.Detail)
       refute placed?(placements, Panel.Conversation)
+    end
+  end
+
+  describe "the contextual right rail (reshape slice D)" do
+    test "workspace context (leader in the center): STACK pins the right column" do
+      placements = View.compose(reads(%{focused_session: {:leader, "tertius"}}), 120, 40)
+
+      assert {_p, _d, stack_rect} = Enum.find(placements, &match?({Panel.Stack, _, _}, &1))
+      assert stack_rect.x > 0
+      refute Enum.any?(placements, &match?({Panel.Dossier, _, _}, &1))
+    end
+
+    test "thread context (a leaf holds the center): the BRIEF pins the right column instead" do
+      # A full in_scope-shaped brief — the pinned head is MEASURED (intrinsic height = a real
+      # render), so the fixture carries every section Panel.Dossier renders.
+      brief = %{
+        thread: nil,
+        north_star: "fix the tick",
+        lead: "hronir",
+        todos: %{shown: [], more: 0},
+        next: nil,
+        done: %{shown: [], more: 0},
+        learnings: %{shown: [], more: 0},
+        unknowns: %{shown: [], more: 0},
+        blockers: %{shown: [], more: 0},
+        checks: %{shown: [], more: 0},
+        chatter: []
+      }
+
+      placements =
+        View.compose(reads(%{focused_session: {:leaf, 5}, brief: brief}), 120, 40)
+
+      assert {Panel.Dossier, data, rect} = Enum.find(placements, &match?({Panel.Dossier, _, _}, &1))
+      assert rect.x > 0
+      assert data.north_star == "fix the tick"
+      refute Enum.any?(placements, &match?({Panel.Stack, _, _}, &1))
+    end
+
+    test "thread context with a failed brief read still pins the Dossier placeholder (layout agreement)" do
+      placements = View.compose(reads(%{focused_session: {:leaf, 5}, brief: nil}), 120, 40)
+      assert Enum.any?(placements, &match?({Panel.Dossier, _, _}, &1))
     end
   end
 
@@ -222,11 +259,11 @@ defmodule Aleph.ViewTest do
     end
 
     test "the focused pane gets its cursor + section as a slice; other panes don't" do
-      # pane 1 = Stack (SPACES leads the left column at index 0).
+      # right pane 0 = the pinned STACK (slice D: Stack lives in the right rail now).
       focus = %Focus{
         in_terminal?: false,
-        column: :left,
-        pane: 1,
+        column: :right,
+        pane: 0,
         cursors: %{Panel.Stack => 2},
         section: 0,
         detail?: false
@@ -252,45 +289,47 @@ defmodule Aleph.ViewTest do
         )
 
       assert {:ok, %{selected: 2, section: 0}} = panel_data(placements, Panel.Stack)
-      # the other left-column pane (Memory, not focused) gets no slice merged in
+      # the carousel pane below (Memory at view 0, not focused) gets no slice merged in
       assert {:ok, mem} = panel_data(placements, Panel.Memory)
       refute Map.has_key?(mem, :selected)
     end
   end
 
-  # The right column is CREW pinned + ONE carousel panel (`[`/`]` cycle right_pane_view among
-  # Activity/Leaves) — Crew always shows; HEALTH demoted to the footer + /status (reshape slice D).
+  # The right column is STACK pinned (workspace context) + ONE carousel panel (`[`/`]` cycle
+  # right_pane_view among Memory/Crew/Activity/Leaves) — the pinned head never cycles away;
+  # HEALTH demoted to the footer + /status (reshape slice D).
   describe "right-pane view (clarity slice 2)" do
     defp right_placed?(placements, mod), do: Enum.any?(placements, &match?({^mod, _, _}, &1))
 
-    test "right_pane_view: 0 (default) shows Crew pinned + Activity (the carousel default)" do
+    test "right_pane_view: 0 (default) shows Stack pinned + Memory (the carousel default)" do
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 0})
       placements = View.compose(r, 120, 40)
 
-      assert right_placed?(placements, Panel.Crew)
-      assert right_placed?(placements, Panel.Activity)
+      assert right_placed?(placements, Panel.Stack)
+      assert right_placed?(placements, Panel.Memory)
       refute right_placed?(placements, Panel.Health)
+      refute right_placed?(placements, Panel.Crew)
       refute right_placed?(placements, Panel.Leaves)
     end
 
-    test "right_pane_view: 1 shows Crew pinned + Leaves (Crew never cycles away)" do
-      # The World space's right column is [Crew, Activity, Leaves] (Aleph.Space).
+    test "right_pane_view: 1 shows Stack pinned + Crew (Stack never cycles away)" do
+      # The World space's right column is [Stack, Memory, Crew, Activity, Leaves] (Aleph.Space).
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 120, 40)
 
+      assert right_placed?(placements, Panel.Stack)
       assert right_placed?(placements, Panel.Crew)
-      assert right_placed?(placements, Panel.Leaves)
-      refute right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Memory)
       refute right_placed?(placements, Panel.Health)
     end
 
-    test "a missing right_pane_view (key absent from reads) defaults to 0 (Crew + Activity)" do
+    test "a missing right_pane_view (key absent from reads) defaults to 0 (Stack + Memory)" do
       r = Map.delete(reads(%{active_key: 0, tlon_layout: layout()}), :right_pane_view)
       placements = View.compose(r, 120, 40)
 
-      assert right_placed?(placements, Panel.Crew)
-      assert right_placed?(placements, Panel.Activity)
-      refute right_placed?(placements, Panel.Leaves)
+      assert right_placed?(placements, Panel.Stack)
+      assert right_placed?(placements, Panel.Memory)
+      refute right_placed?(placements, Panel.Crew)
     end
 
     test "a 1-panel right column (Orbis' [Dossier]) degrades cleanly — rem clamps to index 0" do
@@ -303,36 +342,40 @@ defmodule Aleph.ViewTest do
       r = reads(%{active_key: 0, tlon_layout: layout(), right_pane_view: 1})
       placements = View.compose(r, 60, 40)
 
+      assert right_placed?(placements, Panel.Stack)
       assert right_placed?(placements, Panel.Crew)
-      assert right_placed?(placements, Panel.Leaves)
-      refute right_placed?(placements, Panel.Activity)
+      refute right_placed?(placements, Panel.Memory)
       refute right_placed?(placements, Panel.Health)
     end
   end
 
-  describe "right column: pinned Crew + carousel (clarity slice 2)" do
-    test "ACTIVITY is the default carousel view, below a pinned CREW" do
+  describe "right column: pinned Stack + carousel (clarity slice 2)" do
+    test "MEMORY is the default carousel view, below a pinned STACK" do
       placements = View.compose(reads(%{}), 120, 40)
 
-      assert {_p, _d, crew_rect} = Enum.find(placements, &match?({Panel.Crew, _, _}, &1))
-      assert {_p, _d, activity_rect} = Enum.find(placements, &match?({Panel.Activity, _, _}, &1))
+      assert {_p, _d, stack_rect} = Enum.find(placements, &match?({Panel.Stack, _, _}, &1))
+      assert {_p, _d, memory_rect} = Enum.find(placements, &match?({Panel.Memory, _, _}, &1))
       refute Enum.any?(placements, &match?({Panel.Leaves, _, _}, &1))
-      assert activity_rect.y > crew_rect.y
-      # pinned: Crew's box hugs its content instead of splitting the column evenly
-      assert crew_rect.h < activity_rect.h
+      assert memory_rect.y > stack_rect.y
+      # pinned: Stack's box hugs its content instead of splitting the column evenly
+      assert stack_rect.h < memory_rect.h
     end
 
     test "right_pane_view picks the carousel panel" do
-      placements = View.compose(reads(%{right_pane_view: 1}), 120, 40)
+      placements = View.compose(reads(%{right_pane_view: 3}), 120, 40)
       assert Enum.any?(placements, &match?({Panel.Leaves, _, _}, &1))
-      refute Enum.any?(placements, &match?({Panel.Activity, _, _}, &1))
+      refute Enum.any?(placements, &match?({Panel.Memory, _, _}, &1))
     end
 
-    test "the carousel border is a tab strip with the active tab, digit 5" do
+    test "the carousel border is a tab strip with the active tab, digit 3" do
       placements = View.compose(reads(%{}), 120, 40)
 
       assert Enum.any?(placements, fn
-               {Panel.Border, %{digit: 5, tabs: [{"ACTIVITY", true}, {"THREADS", false}]}, _r} ->
+               {Panel.Border,
+                %{
+                  digit: 3,
+                  tabs: [{"MEMORY", true}, {"CREW", false}, {"ACTIVITY", false}, {"THREADS", false}]
+                }, _r} ->
                  true
 
                _ ->
@@ -397,10 +440,12 @@ defmodule Aleph.ViewTest do
         counts: %{}
       }
 
-      expected = %{1 => Panel.Sidebar, 2 => Panel.Stack, 3 => Panel.Memory, 4 => Panel.Crew, 5 => Panel.Activity}
-      titles = %{1 => "WORKSPACES", 2 => "STACK", 3 => "MEMORY", 4 => "CREW", 5 => "ACTIVITY"}
+      # Slice D: Sidebar alone on the left (1); the right rail is pinned STACK (2) + the carousel
+      # box (3) — whose "title" is its active tab (MEMORY at view 0).
+      expected = %{1 => Panel.Sidebar, 2 => Panel.Stack, 3 => Panel.Memory}
+      titles = %{1 => "WORKSPACES", 2 => "STACK", 3 => "MEMORY"}
 
-      for d <- 1..5 do
+      for d <- 1..3 do
         assert %Focus{} |> Focus.jump(layout, d) |> Focus.focused_pane(layout) == expected[d]
         assert digit_title(placements, d) == titles[d]
       end
@@ -465,8 +510,9 @@ defmodule Aleph.ViewTest do
 
       assert %{digit: 1} = border_of(placements, "WORKSPACES")
       assert %{digit: 2} = border_of(placements, "STACK")
-      assert %{digit: 3} = border_of(placements, "MEMORY")
-      assert %{digit: 4} = border_of(placements, "CREW")
+      # MEMORY is the carousel box now — a tab strip, not a plain title (covered by the
+      # digit-agreement test).
+      refute border_of(placements, "MEMORY")
     end
 
     test "the center terminal box carries digit 0 and no title" do
@@ -499,7 +545,7 @@ defmodule Aleph.ViewTest do
 
       assert data.mode == :nav
       assert data.world? == true
-      # right pane 1 is the carousel slot (CREW by default — no verbs of its own) → just [/]
+      # right pane 1 is the carousel slot (MEMORY by default — no verbs of its own) → just [/]
       assert {"[/]", "view"} in data.pane_hints
     end
 
@@ -516,7 +562,8 @@ defmodule Aleph.ViewTest do
     end
 
     test "a focused Stack pane's own verbs ride through" do
-      focus = %Focus{in_terminal?: false, column: :left, pane: 1}
+      # Slice D: Stack is the right rail's pinned head (right pane 0), not a left pane.
+      focus = %Focus{in_terminal?: false, column: :right, pane: 0}
       data = status_of(View.compose(reads(%{focus: focus}), 120, 40))
       assert {"⏎", "diff"} in data.pane_hints
     end

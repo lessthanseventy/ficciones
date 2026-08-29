@@ -39,15 +39,15 @@ defmodule Aleph.CockpitPreviewTest do
   end
 
   # A Tlön nav state focused on the Leaves pane, the item cursor on `row_idx`, keys NOT forwarding
-  # (in_terminal? false). Clarity slice 2: the right column is HEALTH pinned + ONE carousel panel,
-  # so `right_pane_view: 1` picks THREADS (carousel index 1 of [Activity, Leaves]) —
-  # it then
-  # sits at column pane index 1 (Health is 0), not the old 4-panel column's index 3.
+  # (in_terminal? false). Slice D: the right column is the contextual pin + ONE carousel panel, so
+  # `right_pane_view: 3` picks THREADS (carousel index 3 of [Memory, Crew, Activity, Leaves]) —
+  # it then sits at column pane index 1 (the pinned head is 0).
   defp leaves_state(rows, row_idx) do
     %{
       active_key: 0,
       focus: %Focus{in_terminal?: false, column: :right, pane: 1, cursors: %{Panel.Leaves => row_idx}},
-      right_pane_view: 1,
+      right_pane_view: 3,
+      focused_session: {:leader, nil},
       leaves: %{summary: %{}, rows: rows},
       stack: nil,
       memory: nil,

@@ -67,9 +67,11 @@ defmodule Aleph.View do
       end
 
     left_sections = [Panel.Sidebar | space.left]
-    # Slice 2: HEALTH pinned + the view-indexed carousel panel (CREW default) — the single
-    # source (Space.visible_right/2) View/keymap/cockpit all read, so they can't disagree.
-    right_sections = Space.visible_right(space, reads[:right_pane_view] || 0)
+    # The contextual right rail (slice D): pinned head (workspace → STACK, attached thread → the
+    # BRIEF) + the view-indexed carousel panel — the single source (Space.visible_right/3)
+    # View/keymap/cockpit all read, so they can't disagree.
+    right_sections =
+      Space.visible_right(space, reads[:right_pane_view] || 0, Space.rail_context(reads[:focused_session]))
 
     boxes =
       case layout_for(w) do

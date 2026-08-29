@@ -92,10 +92,12 @@ defmodule Aleph.Space do
       id: world.id,
       label: world.name,
       surface: [WindowBar, {Terminal, :machine}, Pulse],
-      left: [Stack, Memory],
-      # Leaves IS the unified thread list now (reshape slice C — tracked rows chip their
-      # stage inline). HEALTH demoted to the footer + /status (slice D) — CREW pins the column.
-      right: [Crew, Activity, Leaves],
+      # Slice D: the left column is the Sidebar alone (Slack's rail) — STACK/MEMORY moved to the
+      # right-rail carousel. The pinned head is contextual (visible_right/3): workspace → STACK,
+      # attached thread → the BRIEF. Leaves IS the unified thread list (slice C); HEALTH lives in
+      # the footer + /status.
+      left: [],
+      right: [Stack, Memory, Crew, Activity, Leaves],
       coworker: lead_coworker(world.roster),
       roster: world.roster
     }
@@ -160,17 +162,33 @@ defmodule Aleph.Space do
   end
 
   @doc """
-  The right column actually on screen (design 2026-08-23): the FIRST right panel pinned
-  (HEALTH), plus the `view`-indexed one of the rest — the carousel, CREW default at index 0.
+  The right column actually on screen (design 2026-08-23, contextual since slice D): the pinned
+  head plus the `view`-indexed carousel panel. The head follows the center's `context` —
+  `:workspace` (a leader in the center) pins the FIRST right panel (STACK); `:thread` (an
+  attached leaf) swaps it for the BRIEF (`{Dossier, :brief}`, reading the cockpit's brief read).
   Also the exact shape the Focus SM navigates, so View/keymap/cockpit can never disagree.
   """
-  @spec visible_right(t(), integer()) :: [module() | {module(), atom()}]
-  def visible_right(%__MODULE__{right: []}, _view), do: []
-  def visible_right(%__MODULE__{right: [pinned]}, _view), do: [pinned]
+  @spec visible_right(t(), integer(), :workspace | :thread) :: [module() | {module(), atom()}]
+  def visible_right(space, view, context \\ :workspace)
+  def visible_right(%__MODULE__{right: []}, _view, _context), do: []
+  def visible_right(%__MODULE__{right: [pinned]}, _view, context), do: [pinned_head(pinned, context)]
 
   # Integer.mod, not rem: the public contract wraps negative views too.
-  def visible_right(%__MODULE__{right: [pinned | carousel]}, view),
-    do: [pinned, Enum.at(carousel, Integer.mod(view, length(carousel)))]
+  def visible_right(%__MODULE__{right: [pinned | carousel]}, view, context),
+    do: [pinned_head(pinned, context), Enum.at(carousel, Integer.mod(view, length(carousel)))]
+
+  defp pinned_head(_pinned, :thread), do: {Dossier, :brief}
+  defp pinned_head(pinned, _workspace), do: pinned
+
+  @doc """
+  The right rail's context from the center's occupant: an attached leaf (`{:leaf, id}`) is thread
+  context — the BRIEF pins; anything else (a leader, nil) is workspace context. The ONE derivation
+  the cockpit (`tlon_layout`) and the View both call, so the focus SM and the paint can't disagree
+  on which head is up.
+  """
+  @spec rail_context({:leaf, term()} | {:leader, term()} | nil) :: :workspace | :thread
+  def rail_context({:leaf, _id}), do: :thread
+  def rail_context(_focused_session), do: :workspace
 
   @doc "The carousel members (everything after the pinned head) — the tab strip's panels."
   @spec carousel(t()) :: [module() | {module(), atom()}]

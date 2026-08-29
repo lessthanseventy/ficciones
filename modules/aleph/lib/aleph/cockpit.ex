@@ -1647,6 +1647,18 @@ defmodule Aleph.Cockpit do
       memory: if(Space.world?(state.active_key), do: state.memory),
       orbis: Board.safe_read(:orbis, nil, fn -> if(Space.world?(state.active_key), do: leaves_data(state)) end),
       focused_session: state.focused_session,
+      # The right rail's pinned BRIEF (slice D): the ATTACHED leaf's in_scope — only read while a
+      # leaf holds the center (thread context), so no per-frame DB read in workspace context. nil
+      # (leaf gone, funes down) leaves the Dossier placeholder up — the layout never jumps.
+      brief:
+        Board.safe_read(:brief, nil, fn ->
+          with {:leaf, id} <- state.focused_session,
+               %{} = thread <- Channel.thread(id) do
+            Funes.Board.in_scope(thread)
+          else
+            _ -> nil
+          end
+        end),
       # The center's face + the chat face's read (reshape slice D). The chat read only runs
       # while the chat face is up — no per-frame DB tail while the PTY holds the center.
       center_view: state.center_view,
@@ -1866,9 +1878,10 @@ defmodule Aleph.Cockpit do
       space ->
         %{
           left: [Panel.Sidebar | space.left],
-          # Health pinned + carousel (clarity slice 2) — what's actually on screen, so the focus
-          # SM's pane index can't point at a box View didn't draw.
-          right: Space.visible_right(space, state.right_pane_view),
+          # Contextual pin + carousel (slice D) — what's actually on screen, so the focus SM's
+          # pane index can't point at a box View didn't draw. Same rail_context derivation as
+          # View.compose (the one seam), so the two can't disagree on which head is up.
+          right: Space.visible_right(space, state.right_pane_view, Space.rail_context(state.focused_session)),
           sections: %{Panel.Memory => memory_sections(state)},
           counts: pane_counts(state)
         }
