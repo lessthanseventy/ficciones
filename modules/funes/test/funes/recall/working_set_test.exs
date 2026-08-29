@@ -27,8 +27,8 @@ defmodule Funes.Recall.WorkingSetTest do
       cov = Recall.coverage()
       assert cov.facts == 2
       assert cov.embedded == 1
-      assert cov.floor_count == 1
-      assert cov.floor_tokens > 0
+      assert cov.pinned_count == 1
+      assert cov.pinned_tokens > 0
       assert cov.budget > 0
       assert is_binary(cov.model)
     end

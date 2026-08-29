@@ -34,7 +34,7 @@ defmodule FunesTest do
     end
   end
 
-  describe "pending_habits/0 & floor/0 — the Memory pane reads" do
+  describe "pending_habits/0 & pinned/0 — the Memory pane reads" do
     test "pending_habits returns only pending habits, newest first" do
       {:ok, _} = Dossier.propose_habit(%{text: "first", proposed_by: "a"})
       {:ok, second} = Dossier.propose_habit(%{text: "second", proposed_by: "a"})
@@ -44,8 +44,8 @@ defmodule FunesTest do
       assert Enum.map(Funes.pending_habits(), & &1.text) == ["first"]
     end
 
-    test "floor/0 mirrors always_loaded_constraints/0" do
-      assert Funes.floor() == Dossier.always_loaded_constraints()
+    test "pinned/0 mirrors always_loaded_constraints/0" do
+      assert Funes.pinned() == Dossier.always_loaded_constraints()
     end
   end
 end

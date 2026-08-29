@@ -276,7 +276,7 @@ defmodule Aleph.ViewTest do
         tools: []
       }
 
-      memory = %{coverage: nil, floor: [], habits: []}
+      memory = %{coverage: nil, pinned: [], habits: []}
 
       placements =
         View.compose(

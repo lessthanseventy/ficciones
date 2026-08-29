@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Funes.SeedFromMemory do
 
   Type → (kind, provenance):
 
-    * `feedback`, `user` → `constraint` / `stated` — the ALWAYS-LOADED floor (every thread sees them)
+    * `feedback`, `user` → `constraint` / `stated` — the ALWAYS-LOADED pinned set (every thread sees them)
     * `project`          → `decision`   / `derived` — thread-scoped, forgettable
     * `reference`, other → `learned`    / `derived` — thread-scoped, forgettable
 

@@ -82,12 +82,12 @@ defmodule Funes.Recall do
     pinned_ids = MapSet.new(constraints, & &1.id)
     thread_facts = Dossier.facts_for_thread(thread)
 
-    # `:include_floor` (default true) prepends the GLOBAL operator-constraint floor — the session-
-    # start "floor + thread facts" working set. A thread's LEARNINGS pane passes false: it ranks the
+    # `:include_pinned` (default true) prepends the GLOBAL operator-constraint set — the session-
+    # start "pinned + thread facts" working set. A thread's LEARNINGS pane passes false: it ranks the
     # thread's OWN facts only (a thread's own stated constraints are still pinned via `pinned_ids`),
     # so one thread's dossier never shows another thread's constraints.
     facts =
-      if Keyword.get(opts, :include_floor, true),
+      if Keyword.get(opts, :include_pinned, true),
         do: Enum.uniq_by(constraints ++ thread_facts, & &1.id),
         else: thread_facts
 
@@ -123,7 +123,7 @@ defmodule Funes.Recall do
   @doc """
   A thread's LEARNINGS as the recall read path serves them: the thread's own facts from the working
   set (ranked by relevance × strength, cut to the token budget), shaped `%{shown, more}` like every
-  capped brief pane. Thread-scoped — the global constraint floor is NOT folded in (that is the
+  capped brief pane. Thread-scoped — the global pinned set is NOT folded in (that is the
   always-loaded resource's job), but a thread's own stated constraints stay pinned and present.
   `more` counts what fell out of the budget (never off disk — `get_facts` still returns the total),
   never a silent cut.
@@ -132,7 +132,7 @@ defmodule Funes.Recall do
   def thread_learnings(%Thread{} = thread, opts \\ []) do
     shown =
       thread
-      |> working_set_for_thread(Keyword.put(opts, :include_floor, false))
+      |> working_set_for_thread(Keyword.put(opts, :include_pinned, false))
       |> Enum.map(& &1.fact)
 
     total = length(Dossier.facts_for_thread(thread))
@@ -236,19 +236,19 @@ defmodule Funes.Recall do
   @spec coverage() :: %{
           facts: non_neg_integer(),
           embedded: non_neg_integer(),
-          floor_count: non_neg_integer(),
-          floor_tokens: non_neg_integer(),
+          pinned_count: non_neg_integer(),
+          pinned_tokens: non_neg_integer(),
           budget: pos_integer(),
           model: String.t()
         }
   def coverage do
-    floor = Dossier.always_loaded_constraints()
+    pinned = Dossier.always_loaded_constraints()
 
     %{
       facts: Repo.aggregate(Fact, :count),
       embedded: Repo.aggregate(from(f in Fact, where: not is_nil(f.embedding)), :count),
-      floor_count: length(floor),
-      floor_tokens: floor |> Enum.map(&est_tokens(&1.text)) |> Enum.sum(),
+      pinned_count: length(pinned),
+      pinned_tokens: pinned |> Enum.map(&est_tokens(&1.text)) |> Enum.sum(),
       budget: recall_budget(),
       model: embedding_model()
     }

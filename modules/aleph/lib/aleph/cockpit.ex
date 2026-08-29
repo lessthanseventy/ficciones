@@ -314,7 +314,7 @@ defmodule Aleph.Cockpit do
             render_scheduled?: false,
             stack: nil,
             health: nil,
-            # The Memory pane's read (coverage + floor + pending habits), cached with stack/health;
+            # The Memory pane's read (coverage + pinned + pending habits), cached with stack/health;
             # invalidated on a habit approve/reject so the pane reflects the write immediately.
             memory: nil,
             # The Leaves rollup (machine_overview), cached with the other probes so its item count is
@@ -1088,7 +1088,7 @@ defmodule Aleph.Cockpit do
   end
 
   # `d` in Tlön nav landed: arm the two-key confirm on the focused pane's selection — a MEMORY
-  # floor fact (forget) or a LEAVES leaf (window + thread). Anywhere else: flash the miss.
+  # pinned fact (forget) or a LEAVES leaf (window + thread). Anywhere else: flash the miss.
   defp apply_effect(:tlon_delete_arm, state) do
     case tlon_delete_target(state) do
       nil ->
@@ -1326,26 +1326,26 @@ defmodule Aleph.Cockpit do
 
   defp selected_habit(_state), do: nil
 
-  # What `d` would delete under the current focus: a MEMORY floor fact (forget) or a LEAVES
+  # What `d` would delete under the current focus: a MEMORY pinned fact (forget) or a LEAVES
   # leaf (its window + thread). The label rides along for the arm flash.
   defp tlon_delete_target(state) do
     cond do
-      fact = selected_floor_fact(state) -> {:fact, fact, "forget fact ##{fact.id}"}
+      fact = selected_pinned_fact(state) -> {:fact, fact, "forget fact ##{fact.id}"}
       leaf = selected_leaf(state) -> {:leaf, leaf.id, "delete leaf ##{leaf.id} (window + thread)"}
       true -> nil
     end
   end
 
-  # The floor fact the focus points at — selected_habit's twin for the floor section (0).
-  defp selected_floor_fact(
-         %{active_key: key, memory: %{floor: floor}, focus: %{in_terminal?: false, section: 0} = focus} = state
+  # The pinned fact the focus points at — selected_habit's twin for the pinned section (0).
+  defp selected_pinned_fact(
+         %{active_key: key, memory: %{pinned: pinned}, focus: %{in_terminal?: false, section: 0} = focus} = state
        )
        when Space.world?(key) do
     layout = tlon_layout(state)
-    if Focus.focused_pane(focus, layout) == Panel.Memory, do: Enum.at(floor, Focus.cursor(focus, layout))
+    if Focus.focused_pane(focus, layout) == Panel.Memory, do: Enum.at(pinned, Focus.cursor(focus, layout))
   end
 
-  defp selected_floor_fact(_state), do: nil
+  defp selected_pinned_fact(_state), do: nil
 
   # The leaf row under the Leaves cursor in nav — the same on-screen ordering attach/yank use.
   defp selected_leaf(%{focus: %{in_terminal?: false} = focus} = state) do
@@ -1859,7 +1859,7 @@ defmodule Aleph.Cockpit do
   end
 
   # The shape the Tlön focus SM navigates: the space's two sidebar columns, per-pane section counts
-  # (empty until a multi-section pane lands — Memory's coverage/floor/habits split), and per-pane
+  # (empty until a multi-section pane lands — Memory's coverage/pinned/habits split), and per-pane
   # ITEM counts (what j/k clamps against), derived from the live reads in `state`. Keyed by pane
   # module, matching space.left/right. nil-ish layout for other spaces (the keymap only reads it in
   # Tlön anyway).
@@ -1894,7 +1894,7 @@ defmodule Aleph.Cockpit do
   defp space_at_cursor(state, layout), do: Enum.at(Space.all(), Focus.cursor(state.focus, layout)).key
 
   # The navigable item count per pane, for j/k clamping. Commits = the commit-log length; Memory is
-  # sectioned — j/k walks the ACTIVE section's list (floor=0, habits=1), so its count follows
+  # sectioned — j/k walks the ACTIVE section's list (pinned=0, habits=1), so its count follows
   # focus.section. Panes without a list are absent (0 → j/k is a no-op there).
   defp pane_counts(state) do
     %{
@@ -1912,11 +1912,11 @@ defmodule Aleph.Cockpit do
 
   defp memory_section_count(%{memory: nil}), do: 0
   defp memory_section_count(%{focus: %{section: 1}, memory: m}), do: length(m.habits)
-  defp memory_section_count(%{memory: m}), do: length(m.floor)
+  defp memory_section_count(%{memory: m}), do: length(m.pinned)
 
   # MAIN's detail for the focused pane's current selection, or nil (this pane has no detail, or
   # nothing is selected) → the terminal stays. Dispatch per pane; Commits resolves the selected
-  # commit's diff via Aleph.Stack.show, Memory the selected floor fact / pending habit.
+  # commit's diff via Aleph.Stack.show, Memory the selected pinned fact / pending habit.
   # An open /status readout wins — only reachable while focus.detail? (the reads gate), and any
   # pane Enter clears it first, so it can never shadow a pane's own detail.
   defp tlon_detail(%{status_detail: %{} = status}, _layout), do: status
@@ -1970,12 +1970,12 @@ defmodule Aleph.Cockpit do
   defp memory_for_yank(%{memory: nil}), do: nil
   defp memory_for_yank(%{memory: memory, focus: focus}), do: Map.put(memory, :section, focus.section)
 
-  # Section 0 (floor) → the selected fact's full text + metadata; section 1 (habits) → the selected
+  # Section 0 (pinned) → the selected fact's full text + metadata; section 1 (habits) → the selected
   # habit's text + rationale. nil (empty section / no memory) leaves the terminal up.
   defp memory_detail(%{memory: nil}, _index), do: nil
 
   defp memory_detail(%{focus: %{section: 1}, memory: m}, index), do: habit_detail(Enum.at(m.habits, index))
-  defp memory_detail(%{memory: m}, index), do: fact_detail(Enum.at(m.floor, index))
+  defp memory_detail(%{memory: m}, index), do: fact_detail(Enum.at(m.pinned, index))
 
   defp fact_detail(nil), do: nil
 
@@ -2056,9 +2056,9 @@ defmodule Aleph.Cockpit do
 
   defp ensure_probes(state), do: state
 
-  # The Memory pane read: coverage stats + the always-loaded floor + the pending-habit queue.
+  # The Memory pane read: coverage stats + the always-loaded pinned set + the pending-habit queue.
   defp memory_read do
-    %{coverage: Funes.recall_coverage(), floor: Funes.floor(), habits: Funes.pending_habits()}
+    %{coverage: Funes.recall_coverage(), pinned: Funes.pinned(), habits: Funes.pending_habits()}
   end
 
   # The STACK read: branch, dirty status, ahead/behind, status summary, enriched commits.

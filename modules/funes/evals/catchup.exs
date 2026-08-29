@@ -32,11 +32,11 @@ end
     {:ok, _} = Dossier.forget_fact(fact)
     inspect(brief.(thread), limit: :infinity)
   end, &(not String.contains?(&1, "obsolete eval lore"))),
-  assert.("a stated constraint pins to the always-loaded floor", fn ->
-    {:ok, thread} = Channel.open_thread(%{title: "eval: floor pin"})
+  assert.("a stated constraint pins to the always-loaded set", fn ->
+    {:ok, thread} = Channel.open_thread(%{title: "eval: pinned"})
     {:ok, fact} = Dossier.bank_fact(%{thread_id: thread.id, kind: "constraint", text: "never push without the machine gate", provenance: "stated"})
     {fact.id, Enum.map(Dossier.always_loaded_constraints(), & &1.id)}
-  end, fn {id, floor_ids} -> id in floor_ids end),
+  end, fn {id, pinned_ids} -> id in pinned_ids end),
   assert.("learnings stay honest about the cut: shown + more = banked", fn ->
     {:ok, thread} = Channel.open_thread(%{title: "eval: honest cut"})
 

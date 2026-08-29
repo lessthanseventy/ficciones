@@ -59,11 +59,11 @@ defmodule Funes do
   @doc "The most recent operator-authored message on a thread, or nil — the opening-turn source."
   defdelegate latest_operator_message(thread_id), to: Funes.Channel
 
-  @doc "Recall corpus at a glance (facts/embedded/floor vs budget) — aleph's Memory pane read."
+  @doc "Recall corpus at a glance (facts/embedded/pinned vs budget) — aleph's Memory pane read."
   defdelegate recall_coverage(), to: Funes.Recall, as: :coverage
 
-  @doc "The always-loaded constraint facts (the recall floor) — aleph's Memory pane pins these."
-  defdelegate floor(), to: Funes.Dossier, as: :always_loaded_constraints
+  @doc "The always-loaded constraint facts (the pinned set) — aleph's Memory pane shows these."
+  defdelegate pinned(), to: Funes.Dossier, as: :always_loaded_constraints
 
   @doc "Habits awaiting the operator's review — the Memory pane's approval queue, newest first."
   defdelegate pending_habits(), to: Funes.Dossier

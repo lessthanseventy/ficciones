@@ -49,7 +49,7 @@ defmodule Funes.Dossier do
   @doc """
   Manually forget a fact — the operator's tombstone, distinct from the recall engine's
   budget-driven forgetting. The row and its provenance stay; every recall surface
-  (dossier, floor, search) drops it. `{:ok, fact}` or `{:error, changeset}`.
+  (dossier, pinned, search) drops it. `{:ok, fact}` or `{:error, changeset}`.
   """
   def forget_fact(%Fact{} = fact) do
     fact |> Fact.forget_changeset() |> Repo.update() |> Bus.announce(:fact_forgotten)

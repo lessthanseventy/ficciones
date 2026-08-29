@@ -3,14 +3,14 @@ defmodule Aleph.Panel.Memory do
   MEMORY — what funes knows, closing the loop with the forgetting engine (design §Memory). A header
   of coverage stats over two navigable sections the focus cycles with `Tab`:
 
-    * **FLOOR** — the always-loaded constraint facts (`Funes.floor/0`), pinned. `Enter` opens a
+    * **PINNED** — the always-loaded constraint facts (`Funes.pinned/0`). `Enter` opens a
       fact's full text in MAIN.
     * **HABITS** — pending habits (`Funes.pending_habits/0`) as candidate constraints: `a` approves
-      one into the floor, `r` rejects it. This is the write-path into memory.
+      one into the pinned set, `r` rejects it. This is the write-path into memory.
 
-  Data is `%{coverage, floor: [fact], habits: [habit], section, selected}` — `section` (0=floor,
+  Data is `%{coverage, pinned: [fact], habits: [habit], section, selected}` — `section` (0=pinned,
   1=habits) and `selected` (the j/k cursor) are injected by the View only when this pane is focused,
-  so an unfocused Memory shows the floor with no cursor. A thin view: no funes calls here.
+  so an unfocused Memory shows the pinned with no cursor. A thin view: no funes calls here.
   """
   @behaviour Aleph.Panel
 
@@ -18,7 +18,7 @@ defmodule Aleph.Panel.Memory do
 
   alias Funes.Bus
 
-  @floor_section 0
+  @pinned_section 0
   @habits_section 1
 
   @impl Aleph.Panel
@@ -27,31 +27,31 @@ defmodule Aleph.Panel.Memory do
   @impl Aleph.Panel
   def render(nil, rect), do: Aleph.Panel.clip([line("no recall yet", :dim)], rect)
 
-  def render(%{floor: floor, habits: habits} = data, rect) do
-    section = Map.get(data, :section, @floor_section)
+  def render(%{pinned: pinned, habits: habits} = data, rect) do
+    section = Map.get(data, :section, @pinned_section)
     selected = Map.get(data, :selected)
 
     rows =
       coverage_rows(Map.get(data, :coverage)) ++
         [rule(rect.w)] ++
-        floor_rows(floor, section == @floor_section, selected, rect.w) ++
+        pinned_rows(pinned, section == @pinned_section, selected, rect.w) ++
         habit_block(habits, section == @habits_section, selected, rect.w)
 
     Aleph.Panel.clip(rows, rect)
   end
 
-  # coverage: "embedded 30/30 · floor 8 ~1.1k/4k tok · N forgotten" — the corpus at a glance. A
+  # coverage: "embedded 30/30 · pinned 8 ~1.1k/4k tok · N forgotten" — the corpus at a glance. A
   # forgotten count (facts not embedded, i.e. beyond recall) is derived from facts vs embedded.
   defp coverage_rows(nil), do: [blank()]
 
-  defp coverage_rows(%{facts: facts, embedded: embedded, floor_count: fc, floor_tokens: ft, budget: budget}) do
+  defp coverage_rows(%{facts: facts, embedded: embedded, pinned_count: fc, pinned_tokens: ft, budget: budget}) do
     forgotten = max(facts - embedded, 0)
 
     [
       [
         {"  embedded ", :dim},
         {"#{embedded}/#{facts}", :normal},
-        {" · floor ", :dim},
+        {" · pinned ", :dim},
         {"#{fc}", :normal},
         {" ~#{tok(ft)}/#{tok(budget)}", :dim},
         {" · ", :dim},
@@ -63,11 +63,11 @@ defmodule Aleph.Panel.Memory do
   defp tok(n) when n >= 1000, do: "#{Float.round(n / 1000, 1)}k"
   defp tok(n), do: "#{n}"
 
-  defp floor_rows(floor, active?, selected, w) do
-    label = [{"FLOOR", section_style(active?)}, {" (#{length(floor)})", :dim}]
+  defp pinned_rows(pinned, active?, selected, w) do
+    label = [{"PINNED", section_style(active?)}, {" (#{length(pinned)})", :dim}]
 
     body =
-      case floor do
+      case pinned do
         [] -> [line("  —", :dim)]
         facts -> facts |> Enum.with_index() |> Enum.map(fn {f, i} -> fact_row(f, active? and i == selected, w) end)
       end
@@ -75,7 +75,7 @@ defmodule Aleph.Panel.Memory do
     [label | body]
   end
 
-  # Empty HABITS collapses to nothing (design 2026-08-23): FLOOR takes the space, and the
+  # Empty HABITS collapses to nothing (design 2026-08-23): PINNED takes the space, and the
   # cockpit's section count drops to 1 so Tab can't land on a section that isn't drawn.
   defp habit_block([], _active?, _selected, _w), do: []
   defp habit_block(habits, active?, selected, w), do: [blank() | habit_rows(habits, active?, selected, w)]
@@ -110,7 +110,7 @@ defmodule Aleph.Panel.Memory do
 
   defp truncate(text, _max), do: text
 
-  # `s` cycles FLOOR/HABITS since the C3.4 reshuffle handed Tab to space-switching.
+  # `s` cycles PINNED/HABITS since the C3.4 reshuffle handed Tab to space-switching.
   @impl Aleph.Panel
   def hints(_data), do: [{"s", "section"}, {"j/k", "facts"}, {"⏎", "open"}, {"y", "text"}, {"d", "forget"}]
 
@@ -122,8 +122,8 @@ defmodule Aleph.Panel.Memory do
     end
   end
 
-  def yank(%{floor: floor}, cursor) do
-    case Enum.at(floor, cursor) do
+  def yank(%{pinned: pinned}, cursor) do
+    case Enum.at(pinned, cursor) do
       %{text: text} -> {"fact", text}
       _ -> nil
     end
