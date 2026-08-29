@@ -10,8 +10,8 @@ defmodule Console.ArbiterTest do
     assert Arbiter.sanitize("first\nsecond\ttab   run") == "first second tab run"
   end
 
-  test "thread_id parses FUNES_THREAD from an exports block, else nil" do
-    assert Arbiter.thread_id(~s(export FUNES_MCP_URL="x"\nexport FUNES_THREAD="42")) == 42
+  test "thread_id parses TLON_THREAD from an exports block, else nil" do
+    assert Arbiter.thread_id(~s(export TLON_MCP_URL="x"\nexport TLON_THREAD="42")) == 42
     assert Arbiter.thread_id("no thread here") == nil
   end
 
@@ -31,7 +31,7 @@ defmodule Console.ArbiterTest do
   end
 
   test "spawn degrades to {:error, :sessions_down} when Sessions is down, never a crash" do
-    exports = ~s(export FUNES_THREAD="8803")
+    exports = ~s(export TLON_THREAD="8803")
     Supervisor.terminate_child(Console.Supervisor, Sessions)
     on_exit(fn -> Supervisor.restart_child(Console.Supervisor, Sessions) end)
 

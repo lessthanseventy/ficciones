@@ -60,7 +60,7 @@ defmodule Console.Harness do
 
     [
       driver(profile.harness).reset_command(),
-      "[funes] you are rebound to thread ##{thread_id}#{subject}. Fresh context, on purpose: " <>
+      "[tlon] you are rebound to thread ##{thread_id}#{subject}. Fresh context, on purpose: " <>
         "run get_brief and continue from its FACTS/TODOS/NEXT — assume nothing from before."
     ]
   end
@@ -70,7 +70,7 @@ defmodule Console.Harness.ClaudeCode do
   @moduledoc """
   The Claude Code driver: launches through `modules/manos/claude-code/launch.sh` (funes MCP +
   brief/capture hooks + the citizen protocol prompt). A profile's persona rides as
-  `FUNES_ROLE_PROMPT_FILE` (the launcher appends it to its citizen prompt — a second
+  `TLON_ROLE_PROMPT_FILE` (the launcher appends it to its citizen prompt — a second
   `--append-system-prompt` flag would *replace* the citizen protocol, not add to it); an
   anthropic model as `--model`. Reset is `/clear`; resume is `--continue`.
   """
@@ -97,7 +97,7 @@ defmodule Console.Harness.ClaudeCode do
   defp role_env(%Profile{system_prompt: nil}), do: ""
 
   defp role_env(%Profile{name: name}),
-    do: "FUNES_ROLE_PROMPT_FILE=#{Path.join(Profiles.config_dir(name), "system_prompt.md")} "
+    do: "TLON_ROLE_PROMPT_FILE=#{Path.join(Profiles.config_dir(name), "system_prompt.md")} "
 
   # The write FENCE under the claude harness: a profile whose pi-permission policy denies the
   # file writers (the reviewer) must be structurally fenced here too — pi-permission-system
@@ -106,7 +106,7 @@ defmodule Console.Harness.ClaudeCode do
   # its --settings as permissions.deny.
   defp deny_env(%Profile{permissions: %{"permission" => perm}}) when is_map(perm) do
     if perm["write"] == "deny" or perm["edit"] == "deny",
-      do: "FUNES_PERMISSIONS_DENY=Write,Edit,NotebookEdit ",
+      do: "TLON_PERMISSIONS_DENY=Write,Edit,NotebookEdit ",
       else: ""
   end
 

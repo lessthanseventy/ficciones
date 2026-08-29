@@ -129,7 +129,7 @@ defmodule Console.Profiles do
   # See [[pi-sandbox-manos-allowlist]]. NOT model API calls (pi's own process, not bash).
   #
   # bash runs under `bwrap --unshare-net`, so `127.0.0.1` inside a bash call is the coworker's OWN
-  # empty netns, NOT the host's. Tlön's funes is at `FUNES_MCP_URL` = http://127.0.0.1:4041/mcp, so
+  # empty netns, NOT the host's. Tlön's funes is at `TLON_MCP_URL` = http://127.0.0.1:4041/mcp, so
   # `curl`ing it, `ss -tlnp`, and `mise run funes:doctor|logs` ALWAYS fail here regardless of whether
   # funes is up — `allowLocalBinding` only permits binding within that netns, and the socat proxy that
   # carries external traffic refuses loopback targets with a 403. There is no bash route, by design.
@@ -321,7 +321,7 @@ defmodule Console.Profiles do
   # are cut this way). Base tool set; `@tertius_funes_mcp` adds the cross-leaf read on top.
   @tlon_funes_mcp %{
     "funes" => %{
-      "url" => "${FUNES_MCP_URL}",
+      "url" => "${TLON_MCP_URL}",
       "headers" => %{"Authorization" => "!#{@repo}/scripts/funes-cli.sh bearer"},
       "directTools" => [
         "post_message",
@@ -513,7 +513,7 @@ defmodule Console.Profiles do
   # significant (settings-modal rows, `names/0`): tertius first, then reviewer.
   #
   #   * tertius — the Tlön CENTER (Orbis Tertius meta agent `tertius-machine`; its tmux socket is
-  #     id-derived per Workspace now — `aleph-workspace-<id>`, see `Console.Cockpit.workspace_socket/1` — not
+  #     id-derived per Workspace now — `console-workspace-<id>`, see `Console.Cockpit.workspace_socket/1` — not
   #     name-derived off this profile).
   #     NO model override — it inherits the surveyor archetype's @glm default, so its materialisation
   #     stays BYTE-IDENTICAL to the pre-archetype profile (it is the only live Slice-0 spawn;
@@ -736,7 +736,7 @@ defmodule Console.Profiles do
   outside resurrect/continuum, so a torn-down coworker is never restored stale.
   """
   @spec socket(String.t()) :: String.t()
-  def socket(name), do: "aleph-" <> name
+  def socket(name), do: "console-" <> name
 
   @doc "The persistence-free tmux config a coworker's server boots from (see `@coworker_tmux_conf`)."
   @spec tmux_conf() :: String.t()

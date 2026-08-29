@@ -56,7 +56,7 @@ defmodule Server.Workline.Scribe do
   @process_glyphs ["▶", "⏸", "→", "⚠", "✅"]
 
   defp evidence(%Thread{id: id, title: title}) do
-    from(m in Message, where: m.thread_id == ^id and m.author == "funes", order_by: [asc: m.id], select: m.body)
+    from(m in Message, where: m.thread_id == ^id and m.author == "tlon", order_by: [asc: m.id], select: m.body)
     |> Repo.all()
     |> Enum.find(title, fn body -> not String.starts_with?(body, @process_glyphs) end)
   end

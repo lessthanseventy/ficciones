@@ -9,7 +9,7 @@ defmodule Console.MachineChat.Loop do
   center scroll, and the tmux/db edges. Not unit-tested — it grabs the TTY (aleph's law: test the
   pure seams, run the loop live).
 
-  It's a READER for the feed (polls `Server.Channel.machine_threads/1` off the shared `FUNES_DB`,
+  It's a READER for the feed (polls `Server.Channel.machine_threads/1` off the shared `TLON_DB`,
   since the node-local `Server.Bus` isn't reachable cross-process) but a WRITER for the composer:
   it posts as the operator straight through `Channel`, and wakes coworkers itself by tmux
   send-keys (the pure `Console.Mention` routing) — the cockpit only wakes agents for messages on

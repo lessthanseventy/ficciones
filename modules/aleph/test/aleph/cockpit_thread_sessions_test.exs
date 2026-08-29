@@ -65,7 +65,7 @@ defmodule Console.CockpitThreadSessionsTest do
 
     Application.put_env(:console, :tlon_join, fn thread_id, agent, opts ->
       send(test_pid, {:join, thread_id, agent, opts})
-      {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}"\nexport FUNES_AUTHOR="#{agent}")}}
+      {:ok, %{exports: ~s(export TLON_THREAD="#{thread_id}"\nexport TLON_AUTHOR="#{agent}")}}
     end)
 
     # Each test stages its own thread — clear the previous test's so a stale staffed thread can't
@@ -101,8 +101,8 @@ defmodule Console.CockpitThreadSessionsTest do
   test "a pi-harness worker lead gets its own leaf window (the Slice A isolation fix)" do
     # Slice D: the WORK environment binds the (anthropic-model) planner to pi; at home it would
     # ride claude_code like every anthropic archetype.
-    System.put_env("ALEPH_ENV", "work")
-    on_exit(fn -> System.delete_env("ALEPH_ENV") end)
+    System.put_env("TLON_ENV", "work")
+    on_exit(fn -> System.delete_env("TLON_ENV") end)
 
     thread = staffed_thread("borges-machine")
 
@@ -114,7 +114,7 @@ defmodule Console.CockpitThreadSessionsTest do
 
     # Slice C: a HUMAN window name (`<archetype>-<title-slug>`), not `t<id>` …
     window = "planner-task-for-borges-machine"
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
+    assert_receive {:tmux, ["-L", "console-workspace-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
     assert script =~ "PI_CODING_AGENT_DIR"
     refute script =~ "modules/manos/claude-code/launch.sh"
 
@@ -122,7 +122,8 @@ defmodule Console.CockpitThreadSessionsTest do
     thread_tag = "#{thread.id}"
     target = "w99:=" <> window
 
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
+    assert_receive {:tmux,
+                    ["-L", "console-workspace-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
   end
 
   test "a claude-harness worker lead still gets its claude leaf window (regression)" do
@@ -133,14 +134,15 @@ defmodule Console.CockpitThreadSessionsTest do
     assert_receive {:join, _tid, "hronir-machine", _opts}
 
     window = "builder-task-for-hronir-machine"
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
+    assert_receive {:tmux, ["-L", "console-workspace-99", "new-window", "-d", "-t", "w99", "-n", ^window, script]}
     assert script =~ "modules/manos/claude-code/launch.sh"
     refute script =~ "PI_CODING_AGENT_DIR"
 
     thread_tag = "#{thread.id}"
     target = "w99:=" <> window
 
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
+    assert_receive {:tmux,
+                    ["-L", "console-workspace-99", "set-option", "-w", "-t", ^target, "@funes_thread", ^thread_tag]}
   end
 
   test "a live `@funes_thread`-tagged window suppresses a respawn — the routing map, not the name, is the identity" do
@@ -199,8 +201,8 @@ defmodule Console.CockpitThreadSessionsTest do
 
     Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "send-keys", "-t", "w99:1", "Enter"]}
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "set-option", "-w", "-t", "w99:1", "@funes_opening", "done"]}
+    assert_receive {:tmux, ["-L", "console-workspace-99", "send-keys", "-t", "w99:1", "Enter"]}
+    assert_receive {:tmux, ["-L", "console-workspace-99", "set-option", "-w", "-t", "w99:1", "@funes_opening", "done"]}
   end
 
   test "the leaf cap parks spawns past the budget — no new-window, a one-time note" do
@@ -249,8 +251,8 @@ defmodule Console.CockpitThreadSessionsTest do
 
     Cockpit.ensure_thread_sessions(state(), Space.all(@workspaces))
 
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "kill-window", "-t", "w99:2"]}
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "kill-window", "-t", "w99:3"]}
+    assert_receive {:tmux, ["-L", "console-workspace-99", "kill-window", "-t", "w99:2"]}
+    assert_receive {:tmux, ["-L", "console-workspace-99", "kill-window", "-t", "w99:3"]}
     refute_receive {:tmux, ["-L", _, "kill-window", "-t", "w99:0"]}, 20
     refute_receive {:tmux, ["-L", _, "kill-window", "-t", "w99:1"]}, 20
   end

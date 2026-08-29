@@ -300,7 +300,7 @@ defmodule Server.Workline do
   # The brief IS the wake: a funes-authored message rides the lead-wake path (slice 2).
   # Best-effort — a post failure never blocks the (already durable) transition.
   defp post_brief(thread, body) do
-    Server.Channel.post(%{thread_id: thread.id, author: "funes", body: body})
+    Server.Channel.post(%{thread_id: thread.id, author: "tlon", body: body})
     :ok
   rescue
     _ -> :ok

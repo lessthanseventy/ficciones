@@ -9,7 +9,7 @@ defmodule Server.Maintain.Monitor do
     * a non-merged workline with no stage advance for `stalled_ms` → `Workline.flag/2`
       (once per slug; `maint-*` flags never flag themselves)
 
-  Single-node by declaration: the always-up service runs ONE instance (`FUNES_MAINTAIN=1`),
+  Single-node by declaration: the always-up service runs ONE instance (`TLON_MAINTAIN=1`),
   so no cross-instance claim dance — revisit with `UPDATE … RETURNING` if that ever changes.
   """
 
@@ -72,7 +72,7 @@ defmodule Server.Maintain.Monitor do
     last =
       Repo.one(
         from m in Server.Message,
-          where: m.thread_id == ^thread.id and m.author == "funes" and like(m.body, "% still parked at %"),
+          where: m.thread_id == ^thread.id and m.author == "tlon" and like(m.body, "% still parked at %"),
           order_by: [desc: m.id],
           limit: 1,
           select: m.created_at
@@ -127,7 +127,7 @@ defmodule Server.Maintain.Monitor do
   end
 
   defp post(thread, body) do
-    Channel.post(%{thread_id: thread.id, author: "funes", body: body})
+    Channel.post(%{thread_id: thread.id, author: "tlon", body: body})
     :ok
   rescue
     _ -> :ok

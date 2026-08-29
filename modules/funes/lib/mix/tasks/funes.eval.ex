@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Server.Eval do
     mode = Server.Eval.mode(argv)
 
     for suffix <- ["", "-wal", "-shm"], do: File.rm(@eval_db <> suffix)
-    System.put_env("FUNES_DB", Path.expand(@eval_db))
+    System.put_env("TLON_DB", Path.expand(@eval_db))
     Mix.Task.run("ecto.create", ["--quiet"])
     Mix.Task.run("ecto.migrate", ["--quiet"])
     Mix.Task.run("app.start")

@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Console.MachineChat do
   ## Why it POLLS the db
 
   A SEPARATE OS process from the cockpit, so `Server.Bus` (node-local `Phoenix.PubSub`) is out of
-  reach; it reads the one thing the two share — the SQLite file at `FUNES_DB`, carried into the Tlön
+  reach; it reads the one thing the two share — the SQLite file at `TLON_DB`, carried into the Tlön
   tmux session env — polling for new messages. Reader role: no MCP, no switchboard, so it never
   binds :4041 (the cockpit already does) and Ecto's per-query logs are silenced.
   """

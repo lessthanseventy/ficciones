@@ -65,7 +65,7 @@ defmodule Server.Workline.Artifacts.Git do
   defp sane_root_or(not_committed) do
     case git(["rev-parse", "--git-dir"]) do
       {_out, 0} -> not_committed.()
-      {_out, _} -> {:error, "workline root #{root()} is not a git worktree — set FUNES_WORKLINE_ROOT"}
+      {_out, _} -> {:error, "workline root #{root()} is not a git worktree — set TLON_WORKLINE_ROOT"}
     end
   end
 

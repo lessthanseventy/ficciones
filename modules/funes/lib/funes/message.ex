@@ -58,7 +58,7 @@ defmodule Server.Message do
         changeset
 
       {:secret, label} ->
-        add_error(changeset, field, "looks like a secret (#{label}); funes does not store credentials")
+        add_error(changeset, field, "looks like a secret (#{label}); tlon does not store credentials")
     end
   end
 end

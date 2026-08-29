@@ -25,7 +25,7 @@ defmodule Console.Sessions do
 
   @doc """
   Spawn a harness as a session terminal on `thread_id` from its `exports` block — the one seam the
-  cockpit's `s` and the arbiter both use. Builds a login-shell command that sources the FUNES_* env
+  cockpit's `s` and the arbiter both use. Builds a login-shell command that sources the TLON_* env
   (and `TERM`, so the harness produces colour) then execs the configured launcher.
   """
   def spawn_harness(thread_id, exports, opts \\ []) do

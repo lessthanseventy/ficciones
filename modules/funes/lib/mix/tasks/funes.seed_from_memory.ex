@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Server.SeedFromMemory do
 
   `--reset` deletes every habit and (with `--drop-threads`) the listed threads + their
   messages/events/facts, keeping the target thread — the "selective clear". The memory dir may also
-  come from `$FUNES_SEED_MEMORY_DIR`. Idempotent per run only in that it always REPLACES the target
+  come from `$TLON_SEED_MEMORY_DIR`. Idempotent per run only in that it always REPLACES the target
   thread's imported facts first, so a re-run reflects the current files rather than duplicating.
 
   Dev-only: hits the live DB and live ollama, writes raw `created_at` (why it lives in funes, not
@@ -65,8 +65,8 @@ defmodule Mix.Tasks.Server.SeedFromMemory do
     {opts, rest, _} = OptionParser.parse(argv, switches: @switches)
 
     dir =
-      List.first(rest) || System.get_env("FUNES_SEED_MEMORY_DIR") ||
-        Mix.raise("give a memory dir (or set FUNES_SEED_MEMORY_DIR)")
+      List.first(rest) || System.get_env("TLON_SEED_MEMORY_DIR") ||
+        Mix.raise("give a memory dir (or set TLON_SEED_MEMORY_DIR)")
 
     thread_id = opts[:thread] || 1
     thread = Repo.get(Thread, thread_id) || Mix.raise("thread ##{thread_id} not found — open it first")

@@ -17,7 +17,7 @@ defmodule Server.ArbiterTest do
     test "wake/spawn return {:error, :no_arbiter}, never raise" do
       Application.delete_env(:server, :arbiter)
       assert Arbiter.wake(%{thread_id: 1, pane_ref: "x"}, "hi") == {:error, :no_arbiter}
-      assert Arbiter.spawn("export FUNES_THREAD=\"1\"") == {:error, :no_arbiter}
+      assert Arbiter.spawn("export TLON_THREAD=\"1\"") == {:error, :no_arbiter}
     end
   end
 
@@ -34,8 +34,8 @@ defmodule Server.ArbiterTest do
     end
 
     test "spawn sends the exports block" do
-      assert {:ok, _} = Arbiter.spawn(~s(export FUNES_THREAD="7"))
-      assert_received {:spawned, ~s(export FUNES_THREAD="7")}
+      assert {:ok, _} = Arbiter.spawn(~s(export TLON_THREAD="7"))
+      assert_received {:spawned, ~s(export TLON_THREAD="7")}
     end
   end
 end

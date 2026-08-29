@@ -34,14 +34,14 @@ defmodule Server.Bus do
   """
   @pubsub Server.PubSub
 
-  def messages_topic, do: "funes:messages"
-  def thread_topic(id), do: "funes:thread:#{id}"
-  def threads_topic, do: "funes:threads"
-  def sessions_topic, do: "funes:sessions"
-  def presence_topic, do: "funes:presence"
-  def habits_topic, do: "funes:habits"
-  def workspaces_topic, do: "funes:workspaces"
-  def activity_topic, do: "funes:activity"
+  def messages_topic, do: "tlon:messages"
+  def thread_topic(id), do: "tlon:thread:#{id}"
+  def threads_topic, do: "tlon:threads"
+  def sessions_topic, do: "tlon:sessions"
+  def presence_topic, do: "tlon:presence"
+  def habits_topic, do: "tlon:habits"
+  def workspaces_topic, do: "tlon:workspaces"
+  def activity_topic, do: "tlon:activity"
 
   def subscribe_messages, do: sub(messages_topic())
   def subscribe_thread(id), do: sub(thread_topic(id))

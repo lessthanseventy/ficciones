@@ -55,7 +55,7 @@ defmodule Server.MCP.ServerTest do
        %{thread: thread, agent: agent, token: token} do
     # -- initialize: the MCP handshake; the session id comes back in a header.
     {200, headers, %{"result" => init}} = post(token, nil, initialize_request())
-    assert init["serverInfo"]["name"] == "funes"
+    assert init["serverInfo"]["name"] == "tlon"
     session = header(headers, "mcp-session-id")
     assert is_binary(session)
 
@@ -537,17 +537,17 @@ defmodule Server.MCP.ServerTest do
       post(token, session, request(3, "resources/list"))
 
     uris = resources |> Enum.map(& &1["uri"]) |> Enum.sort()
-    assert uris == ["funes://brief", "funes://constraints", "funes://habits"]
+    assert uris == ["tlon://brief", "tlon://constraints", "tlon://habits"]
 
     {200, _, %{"result" => %{"contents" => [dossier]}}} =
-      post(token, session, request(4, "resources/read", %{"uri" => "funes://brief"}))
+      post(token, session, request(4, "resources/read", %{"uri" => "tlon://brief"}))
 
     brief = JSON.decode!(dossier["text"])
     assert brief["goal"] == "review PR 329"
     assert Enum.any?(brief["learnings"]["shown"], &(&1["text"] == "a thread learning"))
 
     {200, _, %{"result" => %{"contents" => [constraints]}}} =
-      post(token, session, request(5, "resources/read", %{"uri" => "funes://constraints"}))
+      post(token, session, request(5, "resources/read", %{"uri" => "tlon://constraints"}))
 
     loaded = JSON.decode!(constraints["text"])
     assert Enum.any?(loaded, &(&1["text"] == "in production, Andrew presses Enter"))

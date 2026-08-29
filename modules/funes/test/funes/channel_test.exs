@@ -50,7 +50,7 @@ defmodule Server.ChannelTest do
           body: "use AKIAIOSFODNN7EXAMPLE for the deploy"
         })
 
-      assert {"looks like a secret (AWS access key); funes does not store credentials", _} =
+      assert {"looks like a secret (AWS access key); tlon does not store credentials", _} =
                changeset.errors[:body]
 
       # and nothing persisted — the guard fires before the row exists, not one layer later

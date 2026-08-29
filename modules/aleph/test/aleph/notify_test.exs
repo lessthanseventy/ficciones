@@ -9,7 +9,7 @@ defmodule Console.NotifyTest do
 
   describe "for_event/2 — what deserves an interruption" do
     test "a raised question is a waiting-on-you" do
-      assert {"aleph — question for you", "ship it?"} = Notify.for_event(:question_raised, %{text: "ship it?"})
+      assert {"tlon — question for you", "ship it?"} = Notify.for_event(:question_raised, %{text: "ship it?"})
     end
 
     test "a raised issue carries who found it" do

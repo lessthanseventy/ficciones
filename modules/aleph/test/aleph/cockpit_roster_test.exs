@@ -63,7 +63,7 @@ defmodule Console.CockpitRosterTest do
 
     Application.put_env(:console, :tlon_join, fn thread_id, agent, opts ->
       send(test_pid, {:join, thread_id, agent, opts})
-      {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}"\nexport FUNES_AUTHOR="#{agent}")}}
+      {:ok, %{exports: ~s(export TLON_THREAD="#{thread_id}"\nexport TLON_AUTHOR="#{agent}")}}
     end)
 
     # The center reads as "already up" — a harmless real /bin/cat terminal keyed :machine — so
@@ -87,21 +87,21 @@ defmodule Console.CockpitRosterTest do
     assert_receive {:join, _tid, "hronir-machine", opts}
     assert opts[:mandate] == "machine"
 
-    assert_receive {:tmux, ["-L", "aleph-workspace-0", "new-window", "-d", "-t", "w0", "-n", "hronir", script]}
+    assert_receive {:tmux, ["-L", "console-workspace-0", "new-window", "-d", "-t", "w0", "-n", "hronir", script]}
     assert script =~ "modules/manos/claude-code/launch.sh"
     refute script =~ "PI_CODING_AGENT_DIR"
   end
 
   test "the center (already up) is not re-spawned — no new-session call" do
     Cockpit.ensure_workspace_roster(%{active_key: 0})
-    refute_received {:tmux, ["-L", "aleph-workspace-0", "new-session" | _]}
+    refute_received {:tmux, ["-L", "console-workspace-0", "new-session" | _]}
   end
 
   test "a :pi tail entry spawns a windowed pi (bare pi_command), not the claude launcher" do
     # Slice D: the harness binds from model × environment (anthropic@home → claude_code), so pin
     # the WORK environment — there every archetype (the planner here) rides pi.
-    System.put_env("ALEPH_ENV", "work")
-    on_exit(fn -> System.delete_env("ALEPH_ENV") end)
+    System.put_env("TLON_ENV", "work")
+    on_exit(fn -> System.delete_env("TLON_ENV") end)
 
     workspaces = [
       %{
@@ -119,7 +119,7 @@ defmodule Console.CockpitRosterTest do
     assert_receive {:join, _tid, "borges-machine", opts}
     assert opts[:mandate] == "machine"
 
-    assert_receive {:tmux, ["-L", "aleph-workspace-99", "new-window", "-d", "-t", "w99", "-n", "borges", script]}
+    assert_receive {:tmux, ["-L", "console-workspace-99", "new-window", "-d", "-t", "w99", "-n", "borges", script]}
     assert script =~ "PI_CODING_AGENT_DIR"
     refute script =~ "modules/manos/claude-code/launch.sh"
   end

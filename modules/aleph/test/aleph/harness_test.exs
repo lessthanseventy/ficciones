@@ -15,13 +15,13 @@ defmodule Console.HarnessTest do
   @glm %{provider: "ollama-cloud", model: "glm-5.2", thinking: "medium"}
 
   setup do
-    prior = System.get_env("ALEPH_ENV")
+    prior = System.get_env("TLON_ENV")
 
     on_exit(fn ->
-      if prior, do: System.put_env("ALEPH_ENV", prior), else: System.delete_env("ALEPH_ENV")
+      if prior, do: System.put_env("TLON_ENV", prior), else: System.delete_env("TLON_ENV")
     end)
 
-    System.delete_env("ALEPH_ENV")
+    System.delete_env("TLON_ENV")
     :ok
   end
 
@@ -46,8 +46,8 @@ defmodule Console.HarnessTest do
       assert Config.environment() == "home"
     end
 
-    test "ALEPH_ENV wins" do
-      System.put_env("ALEPH_ENV", "work")
+    test "TLON_ENV wins" do
+      System.put_env("TLON_ENV", "work")
       assert Config.environment() == "work"
     end
 
@@ -69,7 +69,7 @@ defmodule Console.HarnessTest do
     end
 
     test "at work the same archetypes bind to pi — the personal sub is out of the loop" do
-      System.put_env("ALEPH_ENV", "work")
+      System.put_env("TLON_ENV", "work")
       assert Profiles.instantiate(%{archetype: :builder, name: "hronir"}).harness == :pi
       assert Profiles.instantiate(%{archetype: :reviewer, name: "vera"}).harness == :pi
     end
@@ -85,7 +85,7 @@ defmodule Console.HarnessTest do
       cmd = Harness.driver(:claude_code).launch_command(p)
 
       assert cmd =~ "modules/manos/claude-code/launch.sh"
-      assert cmd =~ "FUNES_ROLE_PROMPT_FILE="
+      assert cmd =~ "TLON_ROLE_PROMPT_FILE="
       assert cmd =~ "profiles/vera/system_prompt.md"
       assert cmd =~ "--model claude-sonnet-5"
       refute cmd =~ "PI_CODING_AGENT_DIR"
@@ -96,14 +96,14 @@ defmodule Console.HarnessTest do
       builder = Profiles.instantiate(%{archetype: :builder, name: "hronir"})
 
       assert reviewer.harness == :claude_code
-      assert Harness.driver(:claude_code).launch_command(reviewer) =~ "FUNES_PERMISSIONS_DENY=Write,Edit,NotebookEdit"
-      refute Harness.driver(:claude_code).launch_command(builder) =~ "FUNES_PERMISSIONS_DENY"
+      assert Harness.driver(:claude_code).launch_command(reviewer) =~ "TLON_PERMISSIONS_DENY=Write,Edit,NotebookEdit"
+      refute Harness.driver(:claude_code).launch_command(builder) =~ "TLON_PERMISSIONS_DENY"
     end
 
     test "claude_code: no persona → the bare launcher, no env prefix" do
       p = %Profile{name: "plain", model: @sonnet}
       cmd = Harness.driver(:claude_code).launch_command(p)
-      refute cmd =~ "FUNES_ROLE_PROMPT_FILE"
+      refute cmd =~ "TLON_ROLE_PROMPT_FILE"
       assert String.contains?(cmd, "launch.sh --model claude-sonnet-5")
     end
 

@@ -66,7 +66,7 @@ defmodule Server.WorklineBriefTest do
 
     assert advanced.stage == "spec"
     bodies = Message |> Repo.all() |> Enum.filter(&(&1.thread_id == thread.id)) |> Enum.map(&{&1.author, &1.body})
-    assert Enum.any?(bodies, fn {author, body} -> author == "funes" and body =~ "SPEC" end)
+    assert Enum.any?(bodies, fn {author, body} -> author == "tlon" and body =~ "SPEC" end)
   end
 
   test "a gate posts the parked notice; approval posts the next brief" do

@@ -17,7 +17,7 @@ defmodule Server.Arbiter do
   @callback wake(session :: map(), prompt :: String.t()) :: :ok | {:error, term()}
 
   @doc """
-  Spawn a FRESH terminal for a thread whose identity block is `exports` (the `export FUNES_*` from
+  Spawn a FRESH terminal for a thread whose identity block is `exports` (the `export TLON_*` from
   `Server.MCP.Spawn`) — the cold-thread strand (§4c.3). Both aleph's `s` verb and the switchboard's
   autonomous wake spawn through the same seam. `{:ok, handle}` or `{:error, term}`.
   """

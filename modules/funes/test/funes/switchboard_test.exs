@@ -318,8 +318,8 @@ defmodule Server.SwitchboardTest do
 
       # the arbiter was asked to open a pane carrying Carl's identity on this thread
       assert_received {:spawned, exports}
-      assert exports =~ ~s(FUNES_AUTHOR="Carl")
-      assert exports =~ ~s(FUNES_THREAD="#{thread.id}")
+      assert exports =~ ~s(TLON_AUTHOR="Carl")
+      assert exports =~ ~s(TLON_THREAD="#{thread.id}")
     end
 
     test "a clocked-out lead is NOT spawned — a fresh session it can't run is worse than waiting" do

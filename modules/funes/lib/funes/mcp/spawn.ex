@@ -11,8 +11,8 @@ defmodule Server.MCP.Spawn do
 
   Three doors onto the same core (`ensure/3`, which mints nothing):
 
-    * `env/3` / `join/3` — ensure + mint + build the `export FUNES_*` block (identity only:
-      `FUNES_MCP_URL`, `FUNES_THREAD`, `FUNES_AUTHOR`). NO `FUNES_TOKEN` is frozen into the
+    * `env/3` / `join/3` — ensure + mint + build the `export TLON_*` block (identity only:
+      `TLON_MCP_URL`, `TLON_THREAD`, `TLON_AUTHOR`). NO `TLON_TOKEN` is frozen into the
       block — a frozen token strands a pane the moment the token model changes or the world
       secret regenerates. The adapter mints a fresh token per connect against the URL's
       origin (`POST /mint`), so identity is stable and format-agnostic. The `:token` in the
@@ -64,7 +64,7 @@ defmodule Server.MCP.Spawn do
 
   @doc """
   Open a fresh thread titled `title`, ensure `agent_name`, mint a token, and build the
-  `export FUNES_*` block. Returns `{:ok, %{thread, agent, token, exports}}`. The static
+  `export TLON_*` block. Returns `{:ok, %{thread, agent, token, exports}}`. The static
   bearer path — the caller decides where the block goes (a pi pane's env, stdout).
   """
   @spec env(String.t(), String.t(), keyword()) ::
@@ -135,18 +135,18 @@ defmodule Server.MCP.Spawn do
   end
 
   defp exports(thread, agent, _token) do
-    # No FUNES_TOKEN in the block: a frozen token strands the pane the moment the token
+    # No TLON_TOKEN in the block: a frozen token strands the pane the moment the token
     # model changes or the world secret regenerates. The adapter mints a fresh token
     # per connect against this URL's origin (POST /mint), so identity travels as the
-    # stable, format-agnostic (FUNES_THREAD, FUNES_AUTHOR, FUNES_MCP_URL). The `:token`
+    # stable, format-agnostic (TLON_THREAD, TLON_AUTHOR, TLON_MCP_URL). The `:token`
     # in this function's return is kept for callers/tests that want a one-shot token,
     # but it is not frozen into any pane's env.
     port = Application.get_env(:server, :mcp_port, 4040)
 
     """
-    export FUNES_MCP_URL="http://127.0.0.1:#{port}/mcp"
-    export FUNES_THREAD="#{thread.id}"
-    export FUNES_AUTHOR="#{agent.name}"\
+    export TLON_MCP_URL="http://127.0.0.1:#{port}/mcp"
+    export TLON_THREAD="#{thread.id}"
+    export TLON_AUTHOR="#{agent.name}"\
     """
   end
 end

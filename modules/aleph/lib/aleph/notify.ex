@@ -20,15 +20,15 @@ defmodule Console.Notify do
   raised issue) and completions (a session ending) are the interruptions worth having.
   """
   @spec for_event(atom(), map()) :: {String.t(), String.t()} | nil
-  def for_event(:question_raised, row), do: {"aleph — question for you", text_of(row, [:text])}
-  def for_event(:issue_raised, row), do: {"aleph — issue raised", "#{row_author(row)}#{text_of(row, [:summary])}"}
+  def for_event(:question_raised, row), do: {"tlon — question for you", text_of(row, [:text])}
+  def for_event(:issue_raised, row), do: {"tlon — issue raised", "#{row_author(row)}#{text_of(row, [:summary])}"}
 
   def for_event(:session_ended, row),
-    do: {"aleph — session ended", "#{row_agent(row)} finished (thread #{row_thread(row)})"}
+    do: {"tlon — session ended", "#{row_agent(row)} finished (thread #{row_thread(row)})"}
 
   def for_event(:workline_gated, row),
     do:
-      {"aleph — gate awaits you",
+      {"tlon — gate awaits you",
        "“#{Map.get(row, :title)}” parked at #{Map.get(row, :stage)} — approve #{Map.get(row, :id)}"}
 
   def for_event(_tag, _row), do: nil

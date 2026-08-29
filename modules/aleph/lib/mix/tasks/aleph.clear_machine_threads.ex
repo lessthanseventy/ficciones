@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Console.ClearMachineThreads do
   the next `aleph:run`) — not stale leaves that `ensure_thread_sessions` would spawn windows for.
 
   Boots funes as a READER (no MCP, no switchboard — this is a one-shot script, not a live
-  service), against `FUNES_DB`, then deletes every `scope == "machine"` thread and its messages via
+  service), against `TLON_DB`, then deletes every `scope == "machine"` thread and its messages via
   `Server.Channel.clear_machine_threads/0`. Project-scope threads are never touched. Prints how
   many threads/messages it cleared.
   """

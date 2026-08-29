@@ -49,12 +49,12 @@ defmodule Console.CrewTest do
   end
 
   describe "spawn_argv/3 and boot_script/2 (pure tmux builders)" do
-    test "spawn_argv targets the w<id> session on the aleph-workspace-<id> socket, window r<id>, detached" do
+    test "spawn_argv targets the w<id> session on the console-workspace-<id> socket, window r<id>, detached" do
       argv = Crew.spawn_argv("reviewer", 42, "boot-script-here")
 
       assert argv == [
                "-L",
-               "aleph-workspace-0",
+               "console-workspace-0",
                "new-window",
                "-d",
                "-t",
@@ -66,15 +66,15 @@ defmodule Console.CrewTest do
     end
 
     test "boot_script sources the funes exports then execs the reviewer profile launcher" do
-      script = Crew.boot_script("export FUNES_THREAD=\"42\"", "tmux -L aleph-reviewer … 'pi …'")
+      script = Crew.boot_script("export TLON_THREAD=\"42\"", "tmux -L aleph-reviewer … 'pi …'")
       assert script =~ "export TERM=xterm-256color"
-      assert script =~ "export FUNES_THREAD=\"42\""
+      assert script =~ "export TLON_THREAD=\"42\""
       assert String.contains?(script, "\nexec tmux -L aleph-reviewer")
     end
 
     test "kill_argv removes the role's window on the same server" do
       assert Crew.kill_argv("reviewer", 42) ==
-               ["-L", "aleph-workspace-0", "kill-window", "-t", "w0:r42"]
+               ["-L", "console-workspace-0", "kill-window", "-t", "w0:r42"]
     end
   end
 
@@ -95,7 +95,7 @@ defmodule Console.CrewTest do
       # fake identity minter: asserts author + thread, returns a canned exports block
       Application.put_env(:console, :crew_join, fn thread_id, author, opts ->
         send(test_pid, {:join, thread_id, author, opts})
-        {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}"\nexport FUNES_AUTHOR="#{author}")}}
+        {:ok, %{exports: ~s(export TLON_THREAD="#{thread_id}"\nexport TLON_AUTHOR="#{author}")}}
       end)
 
       # no real poll wait in tests
@@ -117,11 +117,11 @@ defmodule Console.CrewTest do
       # the reviewer must NOT hijack the task thread's staffed lead (Staff.assign is single-slot)
       assert opts[:assign] == false
       assert_receive {:tmux, ["-L", _sock, "new-window", "-d", "-t", "w0", "-n", "r42", script]}
-      assert script =~ ~s(export FUNES_AUTHOR="reviewer-machine")
+      assert script =~ ~s(export TLON_AUTHOR="reviewer-machine")
       assert script =~ "\nexec "
       # a bare harness launch via the profile's driver (Slice D: the anthropic-model reviewer at
       # home rides the official claude launcher), NOT profile_launcher's tmux new-session wrapper —
-      # execing new-session here would nest a second tmux server on the shared aleph-workspace-<id> socket
+      # execing new-session here would nest a second tmux server on the shared console-workspace-<id> socket
       assert script =~ "modules/manos/claude-code/launch.sh"
       refute script =~ "new-session"
     end
@@ -222,7 +222,7 @@ defmodule Console.CrewTest do
 
       Application.put_env(:console, :crew_join, fn thread_id, author, opts ->
         send(test_pid, {:join, thread_id, author, opts})
-        {:ok, %{exports: ~s(export FUNES_THREAD="#{thread_id}")}}
+        {:ok, %{exports: ~s(export TLON_THREAD="#{thread_id}")}}
       end)
 
       Application.put_env(:console, :crew_settle_ms, 0)

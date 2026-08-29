@@ -1,6 +1,6 @@
 defmodule Console.CrashLog do
   @moduledoc """
-  Append-only failure log at `$XDG_CACHE_HOME/aleph/crash.log` (else `~/.cache`). aleph holds the
+  Append-only failure log at `$XDG_CACHE_HOME/tlon/crash.log` (else `~/.cache`). console holds the
   TTY in the alt-screen, which swallows a crash's stderr — this leaves the trace on disk so a
   failure (a cockpit crash, a panel render raise) is readable after the fact instead of vanishing.
   """
@@ -14,7 +14,7 @@ defmodule Console.CrashLog do
 
   defp default_path do
     cache = System.get_env("XDG_CACHE_HOME") || Path.join(System.user_home!() || "/tmp", ".cache")
-    Path.join([cache, "aleph", "crash.log"])
+    Path.join([cache, "tlon", "crash.log"])
   end
 
   @doc "Append a timestamped `header`/`body` entry. Best-effort — a log-write failure never propagates."

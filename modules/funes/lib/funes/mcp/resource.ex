@@ -7,7 +7,7 @@ defmodule Server.MCP.Resource.Brief do
   """
   use Anubis.Server.Component,
     type: :resource,
-    uri: "funes://brief",
+    uri: "tlon://brief",
     mime_type: "application/json"
 
   alias Anubis.Server.Response
@@ -32,7 +32,7 @@ defmodule Server.MCP.Resource.Constraints do
   """
   use Anubis.Server.Component,
     type: :resource,
-    uri: "funes://constraints",
+    uri: "tlon://constraints",
     mime_type: "application/json"
 
   alias Anubis.Server.Response
@@ -56,7 +56,7 @@ defmodule Server.MCP.Resource.Habits do
   """
   use Anubis.Server.Component,
     type: :resource,
-    uri: "funes://habits",
+    uri: "tlon://habits",
     mime_type: "application/json"
 
   alias Anubis.Server.Response

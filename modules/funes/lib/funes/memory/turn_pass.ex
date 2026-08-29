@@ -4,7 +4,7 @@ defmodule Server.Memory.TurnPass do
   (`presence_idle`), a cheap extractor turns the turn's NEW messages into 0..3 banked
   facts — event-shaped and off the latency path, replacing turn-count nudges. Guards:
   at least `min_messages` new messages since the last pass on that thread, and at most
-  one pass per `min_interval_ms` per thread. Opt-in: `FUNES_MEMORY_PASS=1` starts it
+  one pass per `min_interval_ms` per thread. Opt-in: `TLON_MEMORY_PASS=1` starts it
   under the application; tests drive an unsubscribed instance directly.
   """
 

@@ -20,7 +20,7 @@ defmodule Console.CrashLogTest do
     Application.delete_env(:console, :crash_log_path)
     on_exit(fn -> Application.put_env(:console, :crash_log_path, configured) end)
 
-    assert CrashLog.path() =~ Path.join("aleph", "crash.log")
+    assert CrashLog.path() =~ Path.join("tlon", "crash.log")
   end
 
   test "append/2 writes header + body to the configured path" do

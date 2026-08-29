@@ -74,10 +74,10 @@ defmodule Server.MCP.SpawnTest do
       # The block carries identity, NOT a frozen token — the adapter mints per connect
       # against the URL's origin (POST /mint), so a pane is never stranded by a model
       # change or a secret regeneration.
-      assert ex =~ ~s(FUNES_MCP_URL="http://127.0.0.1:4040/mcp")
-      assert ex =~ ~s(FUNES_THREAD="#{t.id}")
-      assert ex =~ ~s(FUNES_AUTHOR="codex")
-      refute ex =~ "FUNES_TOKEN"
+      assert ex =~ ~s(TLON_MCP_URL="http://127.0.0.1:4040/mcp")
+      assert ex =~ ~s(TLON_THREAD="#{t.id}")
+      assert ex =~ ~s(TLON_AUTHOR="codex")
+      refute ex =~ "TLON_TOKEN"
       assert {:ok, _binding} = Tokens.resolve(tok)
     end
 
@@ -85,7 +85,7 @@ defmodule Server.MCP.SpawnTest do
       {:ok, existing} = Channel.open_thread(%{title: "join me"})
       assert {:ok, %{thread: t, token: tok, exports: ex}} = Spawn.join(existing.id, "codex")
       assert t.id == existing.id
-      assert ex =~ ~s(FUNES_THREAD="#{existing.id}")
+      assert ex =~ ~s(TLON_THREAD="#{existing.id}")
       assert {:ok, _binding} = Tokens.resolve(tok)
     end
 
@@ -101,8 +101,8 @@ defmodule Server.MCP.SpawnTest do
 
       assert t.id == existing.id
       assert a.name == "reviewer-machine"
-      assert ex =~ ~s(FUNES_THREAD="#{existing.id}")
-      assert ex =~ ~s(FUNES_AUTHOR="reviewer-machine")
+      assert ex =~ ~s(TLON_THREAD="#{existing.id}")
+      assert ex =~ ~s(TLON_AUTHOR="reviewer-machine")
       # the token mints fine even though the reviewer never became the staffed lead
       assert {:ok, _binding} = Tokens.resolve(tok)
       assert Repo.get(Thread, existing.id).agent_id == lead.id

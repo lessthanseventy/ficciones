@@ -58,9 +58,9 @@ defmodule Console.Arbiter do
     |> String.trim()
   end
 
-  @doc "The thread id in an `export FUNES_THREAD=\"N\"` block, or nil."
+  @doc "The thread id in an `export TLON_THREAD=\"N\"` block, or nil."
   def thread_id(exports) do
-    case Regex.run(~r/FUNES_THREAD="(\d+)"/, exports) do
+    case Regex.run(~r/TLON_THREAD="(\d+)"/, exports) do
       [_whole, id] -> String.to_integer(id)
       _ -> nil
     end

@@ -110,7 +110,7 @@ defmodule Console.ProfilesTest do
       # Not severed: a funes server whose token binds to the machine thread (via the env
       # funes-cli.sh mints from), so Tlön gets its OWN dossier/logbook without a project bleed.
       assert %{"funes" => funes} = p.mcp
-      assert funes["url"] == "${FUNES_MCP_URL}"
+      assert funes["url"] == "${TLON_MCP_URL}"
       assert funes["headers"]["Authorization"] =~ "funes-cli.sh bearer"
       # The manos/pi funes adapter (brief + auto-capture) is KEPT now that it points at the machine thread.
       assert p.drop_extensions == []
@@ -286,7 +286,7 @@ defmodule Console.ProfilesTest do
       # the manos/pi funes adapter is KEPT now (brief + auto-capture pointed at the machine thread)
       assert Enum.any?(settings["extensions"], &String.contains?(&1, "/manos/pi/"))
       mcp = Jason.decode!(File.read!(Path.join(dir, "mcp.json")))
-      assert mcp["mcpServers"]["funes"]["url"] == "${FUNES_MCP_URL}"
+      assert mcp["mcpServers"]["funes"]["url"] == "${TLON_MCP_URL}"
       assert "consult_peer" in mcp["mcpServers"]["funes"]["excludeTools"]
       assert Jason.decode!(File.read!(Path.join(dir, "sandbox.json")))["enabled"] == true
       # permission-system fail-closes to "ask" without a config in PI_CODING_AGENT_DIR, so the
@@ -321,8 +321,8 @@ defmodule Console.ProfilesTest do
     end
 
     test "the socket name is per-profile, so no coworker shares the user's default server" do
-      assert Profiles.socket("tlon") == "aleph-tlon"
-      assert Profiles.socket("desk") == "aleph-desk"
+      assert Profiles.socket("tlon") == "console-tlon"
+      assert Profiles.socket("desk") == "console-desk"
     end
 
     test "idempotent — a second materialise re-links without error", %{base: base, root: root} do
@@ -434,7 +434,7 @@ defmodule Console.ProfilesTest do
       assert p.sandbox == Profiles.archetype(:builder).sandbox
       assert p.mcp == Profiles.archetype(:builder).mcp
       # socket keys off the instance name
-      assert Profiles.socket(p.name) == "aleph-atlas"
+      assert Profiles.socket(p.name) == "console-atlas"
     end
 
     test "builder instantiates as a claude_code harness; surveyor as pi" do

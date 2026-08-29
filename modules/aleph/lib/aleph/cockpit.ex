@@ -94,10 +94,10 @@ defmodule Console.Cockpit do
   @resurrect_max_fails 3
   @resurrect_healthy_ms 5_000
 
-  # The funes identity the Tlön pi needs to wire its MCP client (`${FUNES_MCP_URL}` in the profile's
-  # mcp.json + the bearer minted for FUNES_THREAD/FUNES_AUTHOR). Carried into the tmux SESSION env so
+  # The funes identity the Tlön pi needs to wire its MCP client (`${TLON_MCP_URL}` in the profile's
+  # mcp.json + the bearer minted for TLON_THREAD/TLON_AUTHOR). Carried into the tmux SESSION env so
   # it survives a respawn — see funes_identity_flags/0.
-  @funes_identity_env ~w(FUNES_MCP_URL FUNES_THREAD FUNES_AUTHOR FUNES_DB)
+  @funes_identity_env ~w(TLON_MCP_URL TLON_THREAD TLON_AUTHOR TLON_DB)
 
   # The empty Stack shape non-Tlön spaces (and a not-yet-probed Tlön) render.
   @empty_stack %{branch: nil, dirty: false, ahead: nil, behind: nil, status_summary: nil, commits: [], tools: []}
@@ -672,7 +672,7 @@ defmodule Console.Cockpit do
         inject_turn(
           workspace_id,
           index,
-          "[funes] leaf ##{id} finished — run machine_overview and refresh the root rollup."
+          "[tlon] leaf ##{id} finished — run machine_overview and refresh the root rollup."
         )
     end
   end
@@ -1496,7 +1496,7 @@ defmodule Console.Cockpit do
 
   # Spawn a harness as an embedded terminal on this thread: mint identity IN-PROCESS
   # (Server.MCP.Spawn.join — aleph is the serving node) and start an Console.Terminal that runs the
-  # launcher with the FUNES_* env sourced (and TERM set, so the harness produces colour). One
+  # launcher with the TLON_* env sourced (and TERM set, so the harness produces colour). One
   # native PTY per thread, rendered in the center. A raise/exit becomes a flash, never a crash.
   defp spawn_onto(thread_id, state) do
     agent = Application.get_env(:console, :spawn_agent, "pi")
@@ -2382,7 +2382,7 @@ defmodule Console.Cockpit do
   end
 
   # Spawn a leaf via the lead's roster profile: the harness DRIVER supplies the exec (Slice D),
-  # the shared plumbing joins the leaf's OWN thread id so `FUNES_THREAD` binds the harness to the
+  # the shared plumbing joins the leaf's OWN thread id so `TLON_THREAD` binds the harness to the
   # thread it works. nil profile (meta/unknown lead) spawns nothing. The window gets a HUMAN name
   # (`<archetype>-<title-slug>`, Slice C); the routing key is the `@funes_thread` option
   # `tag_leaf/4` stamps right after the spawn.
@@ -2527,7 +2527,7 @@ defmodule Console.Cockpit do
   defp one_line(body), do: String.replace(body || "", "\n", " ")
 
   # Open the `general` window (the operator's console) running `mix aleph.machine_chat` from the aleph
-  # project (where mise/mix resolve). It inherits the tlon session's `FUNES_DB`, so it reads the SAME
+  # project (where mise/mix resolve). It inherits the tlon session's `TLON_DB`, so it reads the SAME
   # db the cockpit writes — the whole point of the poll-the-db design (a separate process can't share
   # the in-node Bus). Fire-and-forget: a failed spawn leaves the tab absent and the next render retries.
   defp spawn_log_window(workspace_id) do
@@ -2558,7 +2558,7 @@ defmodule Console.Cockpit do
   # `command` (the profile's `Console.Harness.Driver.launch_command/1`) in workspace `workspace_id`. The
   # roster tail windows AND the per-thread leaf windows all ride this ONE spawn: identity join +
   # tmux plumbing are harness-agnostic (Slice D); only the exec differs, and that came from the
-  # driver. `FUNES_THREAD` binds the harness to the thread it's actually meant to work on.
+  # driver. `TLON_THREAD` binds the harness to the thread it's actually meant to work on.
   defp spawn_harness_window(workspace_id, handle, window, thread_id, command) do
     with id when is_integer(id) <- thread_id,
          {:ok, %{exports: exports}} <- joiner().(id, handle, mandate: "machine") do
@@ -2613,15 +2613,15 @@ defmodule Console.Cockpit do
   @doc false
   def pi_command(%Profile{} = profile), do: Harness.Pi.launch_command(profile)
 
-  # The center coworker's launcher: pi on its OWN tmux server (`-L aleph-workspace-<id>`, id-derived —
+  # The center coworker's launcher: pi on its OWN tmux server (`-L console-workspace-<id>`, id-derived —
   # not name-derived, so a workspace rename can't orphan it — + the profile's persistence-free
   # tmux.conf), window 0 named `lead_name` (the roster lead's name — the tab-strip label).
-  # MANOS_RELOAD_CMD lets manos/reload respawn in place with --continue, keeping the thread across
+  # ADAPTERS_RELOAD_CMD lets manos/reload respawn in place with --continue, keeping the thread across
   # the restart.
   def profile_launcher(workspace_id, lead_name, %Profile{} = profile) do
     pi = pi_command(profile)
     dir = Profiles.config_dir(profile.name)
-    reload_cmd = {"MANOS_RELOAD_CMD", pi <> " --continue"}
+    reload_cmd = {"ADAPTERS_RELOAD_CMD", pi <> " --continue"}
     env_flags = Enum.map_join([reload_cmd], " ", fn {k, v} -> "-e #{sh_single_quote(k <> "=" <> v)}" end)
 
     "tmux -L #{workspace_socket(workspace_id)} -f #{Path.join(dir, "tmux.conf")}" <>
@@ -2629,11 +2629,11 @@ defmodule Console.Cockpit do
   end
 
   @doc false
-  # `-e FUNES_X="$FUNES_X"` for each identity var. The Tlön pi's MCP wiring reads `${FUNES_MCP_URL}`
-  # (profile mcp.json) and mints a bearer for FUNES_THREAD/FUNES_AUTHOR — but spawn_harness only
+  # `-e TLON_X="$TLON_X"` for each identity var. The Tlön pi's MCP wiring reads `${TLON_MCP_URL}`
+  # (profile mcp.json) and mints a bearer for TLON_THREAD/TLON_AUTHOR — but spawn_harness only
   # `export`s those in pi's ONE-SHOT launch shell, so they live in pi's PROCESS env alone. A
   # continuum/`--continue` restore, a `respawn-pane`, or a reload in a clean shell then boots with
-  # `${FUNES_MCP_URL}` empty → the funes server never registers ("Tool not found", never the 404 the
+  # `${TLON_MCP_URL}` empty → the funes server never registers ("Tool not found", never the 404 the
   # adapter self-heals). Putting them in the tmux SESSION env via `-e` makes the identity durable
   # across respawns; `-e` also refreshes on `new-session -A`, so an aleph restart re-freshes a stale
   # identity instead of stranding it. bash sourced the exports first, so it expands the values here
@@ -2646,10 +2646,10 @@ defmodule Console.Cockpit do
   defp sh_single_quote(s), do: "'" <> String.replace(s, "'", "'\\''") <> "'"
 
   # A Workspace's tmux session/socket, id-derived (rename-proof) — replaces the old singleton "tlon"
-  # session on the lead-name-derived "aleph-<coworker>" socket. Two workspaces can never collide on
+  # session on the lead-name-derived "console-<coworker>" socket. Two workspaces can never collide on
   # either name, and a workspace rename can't orphan a running session.
   defp workspace_session(id), do: "w#{id}"
-  defp workspace_socket(id), do: "aleph-workspace-#{id}"
+  defp workspace_socket(id), do: "console-workspace-#{id}"
 
   # A Workspace's windows as tabs — aleph draws them itself (tmux's own status bar is off), so it asks
   # tmux for the live truth rather than tracking cockpit state (can't drift). Best-effort: the
@@ -2682,7 +2682,7 @@ defmodule Console.Cockpit do
     runner.("tmux", tlon_tmux(workspace_id, args), stderr_to_stdout: true)
   end
 
-  # Every tmux call about a Workspace's coworker targets ITS private server (`-L aleph-workspace-<id>`),
+  # Every tmux call about a Workspace's coworker targets ITS private server (`-L console-workspace-<id>`),
   # never the user's default one.
   defp tlon_tmux(workspace_id, args), do: ["-L", workspace_socket(workspace_id)] ++ args
 
@@ -2745,7 +2745,7 @@ defmodule Console.Cockpit do
     end
   end
 
-  # Resolve a machine pane's FUNES_* exports by find-or-create: reuse the latest open machine
+  # Resolve a machine pane's TLON_* exports by find-or-create: reuse the latest open machine
   # thread (joining it as `agent`) if one exists, else open a fresh `scope: "machine"` thread.
   defp machine_exports(agent) do
     case Channel.machine_thread() do

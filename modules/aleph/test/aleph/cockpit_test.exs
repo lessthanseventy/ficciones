@@ -151,26 +151,26 @@ defmodule Console.CockpitTest do
 
     test "runs on the workspace's PRIVATE tmux server (id-derived), with the profile's persistence-free config" do
       cmd = Cockpit.profile_launcher(1, "tertius", @profile)
-      assert cmd =~ "tmux -L aleph-workspace-1 "
+      assert cmd =~ "tmux -L console-workspace-1 "
       assert cmd =~ "-f #{Console.Profiles.config_dir("tlon")}/tmux.conf"
     end
 
     test "points pi at the profile's config dir and carries the funes identity into the session env" do
       cmd = Cockpit.profile_launcher(1, "tertius", @profile)
       assert cmd =~ "PI_CODING_AGENT_DIR=#{Console.Profiles.config_dir("tlon")}"
-      # The tlon coworker is a funes citizen (machine scope, @tlon_funes_mcp reads ${FUNES_MCP_URL}),
+      # The tlon coworker is a funes citizen (machine scope, @tlon_funes_mcp reads ${TLON_MCP_URL}),
       # so the identity is `-e`'d into the tmux SESSION env — durable across a pi respawn, not just
       # pi's one-shot process env. (Supersedes the old "self-contained, no funes env" design.)
-      assert cmd =~ ~s(-e FUNES_MCP_URL="$FUNES_MCP_URL")
-      assert cmd =~ ~s(-e FUNES_AUTHOR="$FUNES_AUTHOR")
-      assert cmd =~ "MANOS_RELOAD_CMD="
+      assert cmd =~ ~s(-e TLON_MCP_URL="$TLON_MCP_URL")
+      assert cmd =~ ~s(-e TLON_AUTHOR="$TLON_AUTHOR")
+      assert cmd =~ "ADAPTERS_RELOAD_CMD="
     end
 
-    test "MANOS_RELOAD_CMD carries the config dir so a manos/reload respawn stays on-profile" do
+    test "ADAPTERS_RELOAD_CMD carries the config dir so a manos/reload respawn stays on-profile" do
       cmd = Cockpit.profile_launcher(1, "tertius", @profile)
 
       assert cmd =~
-               "MANOS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Console.Profiles.config_dir("tlon")} mise exec -- pi --continue"
+               "ADAPTERS_RELOAD_CMD=env PI_CODING_AGENT_DIR=#{Console.Profiles.config_dir("tlon")} mise exec -- pi --continue"
     end
 
     test "a profile with a persona adds --append-system-prompt; without one, none" do
@@ -201,7 +201,7 @@ defmodule Console.CockpitTest do
     end
   end
 
-  # C2.2: session/socket are id-derived (`w<id>` / `aleph-workspace-<id>`), not the old singleton "tlon"
+  # C2.2: session/socket are id-derived (`w<id>` / `console-workspace-<id>`), not the old singleton "tlon"
   # session on the lead-name-derived "aleph-tertius" socket — a rename can't orphan the running
   # session and two workspaces can't collide. `attach_leaf/2` takes the layout as a plain arg (no
   # `Space.fetch` involved), so `active_key: 1` proves the id comes from STATE, not from whatever
@@ -223,7 +223,7 @@ defmodule Console.CockpitTest do
       :ok
     end
 
-    test "a query for Workspace id 1 targets socket aleph-workspace-1 and session w1" do
+    test "a query for Workspace id 1 targets socket console-workspace-1 and session w1" do
       state = %{
         active_key: 1,
         focus: %Focus{in_terminal?: false, column: :right, pane: 0, cursors: %{Leaves => 0}},
@@ -238,8 +238,8 @@ defmodule Console.CockpitTest do
 
       Cockpit.attach_leaf(state, layout)
 
-      assert_received {:tmux, ["-L", "aleph-workspace-1", "list-windows", "-t", "w1" | _]}
-      assert_received {:tmux, ["-L", "aleph-workspace-1", "select-window", "-t", "w1:1"]}
+      assert_received {:tmux, ["-L", "console-workspace-1", "list-windows", "-t", "w1" | _]}
+      assert_received {:tmux, ["-L", "console-workspace-1", "select-window", "-t", "w1:1"]}
     end
   end
 
@@ -384,14 +384,14 @@ defmodule Console.CockpitTest do
   end
 
   # The Tlön pi identity must reach the tmux SESSION env, not just pi's one-shot process env, or a
-  # continuum/--continue respawn comes up with ${FUNES_MCP_URL} empty and the funes MCP never wires
+  # continuum/--continue respawn comes up with ${TLON_MCP_URL} empty and the funes MCP never wires
   # ("Tool not found"). These -e flags put it in the session env, durable across respawns.
-  describe "funes_identity_flags/0 — durable FUNES_* wiring for the tlon session" do
+  describe "funes_identity_flags/0 — durable TLON_* wiring for the tlon session" do
     test "emits -e VAR=\"$VAR\" for each funes identity var so bash expands current values" do
       flags = Cockpit.funes_identity_flags()
-      assert flags =~ ~s(-e FUNES_MCP_URL="$FUNES_MCP_URL")
-      assert flags =~ ~s(-e FUNES_THREAD="$FUNES_THREAD")
-      assert flags =~ ~s(-e FUNES_AUTHOR="$FUNES_AUTHOR")
+      assert flags =~ ~s(-e TLON_MCP_URL="$TLON_MCP_URL")
+      assert flags =~ ~s(-e TLON_THREAD="$TLON_THREAD")
+      assert flags =~ ~s(-e TLON_AUTHOR="$TLON_AUTHOR")
     end
   end
 

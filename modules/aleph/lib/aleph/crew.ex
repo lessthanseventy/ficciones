@@ -68,9 +68,9 @@ defmodule Console.Crew do
   # raise here is a bug sentinel, not a reachable path.
   defp workspace_id, do: Space.first_workspace().id
   defp workspace_session, do: "w#{workspace_id()}"
-  defp workspace_socket, do: "aleph-workspace-#{workspace_id()}"
+  defp workspace_socket, do: "console-workspace-#{workspace_id()}"
 
-  @doc "The tmux server socket the Tlön coworkers share, id-derived (rename-proof), e.g. `aleph-workspace-1`."
+  @doc "The tmux server socket the Tlön coworkers share, id-derived (rename-proof), e.g. `console-workspace-1`."
   @spec tlon_socket() :: String.t()
   def tlon_socket, do: workspace_socket()
 
@@ -97,7 +97,7 @@ defmodule Console.Crew do
   end
 
   @doc """
-  The window's boot script: set TERM, source the funes `exports` block (so `${FUNES_MCP_URL}` etc.
+  The window's boot script: set TERM, source the funes `exports` block (so `${TLON_MCP_URL}` etc.
   reach pi's env), then `exec` the bare pi launcher. Mirrors `Cockpit.spawn_agent_window/3` — a
   role's window rides the ALREADY-created `r<tid>` window on the shared tlon server, so it must
   exec the bare `Cockpit.pi_command/1`, never `profile_launcher/1` (a `tmux new-session` wrapper

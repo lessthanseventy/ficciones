@@ -12,12 +12,12 @@ defmodule Server.MCP.Endpoint do
   being MCP, it serves ANY agent — pi today, another tomorrow.
   """
   use Anubis.Server,
-    name: "funes",
+    name: "tlon",
     version: "0.1.0",
     capabilities: [:tools, :resources],
     authorization: [
       authorization_servers: ["http://127.0.0.1"],
-      resource: "http://127.0.0.1/funes",
+      resource: "http://127.0.0.1/tlon",
       validator: {Server.MCP.TokenValidator, []}
     ]
 

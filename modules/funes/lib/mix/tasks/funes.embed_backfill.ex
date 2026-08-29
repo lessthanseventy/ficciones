@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Server.EmbedBackfill do
 
   Walks every fact whose `embedding` is still NULL and embeds it via the configured ollama model
   (`Server.Recall.embed_fact/1`), so the recall read path has semantic vectors to rank by. Run this
-  ONCE after enabling embed-on-write, before flipping `FUNES_RECALL=1`. Idempotent — an already
+  ONCE after enabling embed-on-write, before flipping `TLON_RECALL=1`. Idempotent — an already
   embedded fact is skipped, so a re-run only picks up what a down embedder missed. Hits the live DB
   and live ollama; a fact the embedder can't reach is left NULL (recall falls back to keyword) and
   counted, never fatal.
