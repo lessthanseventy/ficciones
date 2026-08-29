@@ -206,7 +206,7 @@ defmodule Funes.MCP.ServerTest do
     refute result["isError"]
     brief = decode_tool_json(result)
 
-    assert brief["north_star"] == "review PR 329"
+    assert brief["goal"] == "review PR 329"
     assert brief["learnings"]["more"] == 0
     texts = Enum.map(brief["learnings"]["shown"], & &1["text"])
     assert "tabs, not splits" in texts
@@ -220,7 +220,7 @@ defmodule Funes.MCP.ServerTest do
     assert Enum.any?(brief["blockers"]["shown"], &(&1["summary"] =~ "termbox"))
     # DONE is the merged view — the record_done outcome rides in as a source:"event" entry.
     assert Enum.any?(brief["done"]["shown"], &(&1["source"] == "event" and &1["summary"] == "review shipped"))
-    assert Enum.any?(brief["chatter"], &(&1["body"] == "starting the review"))
+    assert Enum.any?(brief["recent"], &(&1["body"] == "starting the review"))
   end
 
   test "an unchecked derived fact reads back as an opinion — the §4a query", %{token: token} do
@@ -538,7 +538,7 @@ defmodule Funes.MCP.ServerTest do
       post(token, session, request(4, "resources/read", %{"uri" => "funes://dossier"}))
 
     brief = JSON.decode!(dossier["text"])
-    assert brief["north_star"] == "review PR 329"
+    assert brief["goal"] == "review PR 329"
     assert Enum.any?(brief["learnings"]["shown"], &(&1["text"] == "a thread learning"))
 
     {200, _, %{"result" => %{"contents" => [constraints]}}} =

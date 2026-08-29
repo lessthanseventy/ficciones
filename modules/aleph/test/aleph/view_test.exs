@@ -133,7 +133,7 @@ defmodule Aleph.ViewTest do
       # render), so the fixture carries every section Panel.Dossier renders.
       brief = %{
         thread: nil,
-        north_star: "fix the tick",
+        goal: "fix the tick",
         lead: "hronir",
         todos: %{shown: [], more: 0},
         next: nil,
@@ -142,7 +142,7 @@ defmodule Aleph.ViewTest do
         unknowns: %{shown: [], more: 0},
         blockers: %{shown: [], more: 0},
         checks: %{shown: [], more: 0},
-        chatter: []
+        recent: []
       }
 
       placements =
@@ -150,7 +150,7 @@ defmodule Aleph.ViewTest do
 
       assert {Panel.Dossier, data, rect} = Enum.find(placements, &match?({Panel.Dossier, _, _}, &1))
       assert rect.x > 0
-      assert data.north_star == "fix the tick"
+      assert data.goal == "fix the tick"
       refute Enum.any?(placements, &match?({Panel.Stack, _, _}, &1))
     end
 

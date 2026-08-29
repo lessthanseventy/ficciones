@@ -22,7 +22,7 @@ defmodule Funes.MCP.Brief do
   def scope(scope) do
     %{
       "thread_id" => scope.thread.id,
-      "north_star" => scope.north_star,
+      "goal" => scope.goal,
       "todos" => capped(scope.todos, &todo/1),
       "next" => next(scope.next),
       "lead" => scope.lead,
@@ -31,7 +31,7 @@ defmodule Funes.MCP.Brief do
       "unknowns" => capped(scope.unknowns, &question/1),
       "blockers" => capped(scope.blockers, &issue/1),
       "checks" => capped(scope.checks, &check/1),
-      "chatter" => Enum.map(scope.chatter, &message/1)
+      "recent" => Enum.map(scope.recent, &message/1)
     }
   end
 

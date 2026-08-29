@@ -1,8 +1,8 @@
 defmodule Aleph.Panel.Dossier do
   @moduledoc """
   IN SCOPE — the focused thread's brief (design §8), a thin view over `Funes.Board.in_scope/1`:
-  NORTH STAR, LEAD, TODOS (NEXT marked →), LEARNINGS, UNKNOWNS, BLOCKERS, CHECKS (✓/✗ measured), DONE
-  (each capped + a `more` count), CHATTER. DONE is the merged view — completed todos + `work_landed`. Re-renders
+  GOAL, LEAD, TODOS (NEXT marked →), LEARNINGS, UNKNOWNS, BLOCKERS, CHECKS (✓/✗ measured), DONE
+  (each capped + a `more` count), RECENT. DONE is the merged view — completed todos + `work_landed`. Re-renders
   on that thread's topic. Data is the `in_scope/1` map, or `nil` when nothing is focused.
   """
   @behaviour Aleph.Panel
@@ -22,7 +22,7 @@ defmodule Aleph.Panel.Dossier do
 
   def render(scope, rect) do
     rows =
-      section("NORTH STAR", [scope.north_star], rect.w) ++
+      section("GOAL", [scope.goal], rect.w) ++
         lead_section(scope.lead, rect.w) ++
         section("TODOS", capped_lines(scope.todos, &todo_line(&1, scope.next)), rect.w) ++
         section("LEARNINGS", capped_lines(scope.learnings, & &1.text), rect.w) ++
@@ -30,7 +30,7 @@ defmodule Aleph.Panel.Dossier do
         section("BLOCKERS", capped_lines(scope.blockers, & &1.summary), rect.w) ++
         section("CHECKS", capped_lines(scope.checks, &check_line/1), rect.w) ++
         section("DONE", capped_lines(scope.done, &done_line/1), rect.w) ++
-        section("CHATTER", Enum.map(scope.chatter, &chatter_line/1), rect.w)
+        section("RECENT", Enum.map(scope.recent, &recent_line/1), rect.w)
 
     Aleph.Panel.clip(rows, rect)
   end
@@ -69,7 +69,7 @@ defmodule Aleph.Panel.Dossier do
   defp event_summary(%{detail: detail}) when is_map(detail), do: Map.get(detail, "summary") || "work landed"
   defp event_summary(_event), do: "work landed"
 
-  defp chatter_line(%{author: author, body: body}), do: "#{author}: #{body}"
+  defp recent_line(%{author: author, body: body}), do: "#{author}: #{body}"
 
   # A labelled section: the label, its body word-wrapped and bulleted, then a blank spacer.
   # An empty body renders a dim "—" so the shape of the brief stays legible (and honest: the

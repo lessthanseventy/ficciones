@@ -261,7 +261,7 @@ end
 defmodule Funes.MCP.Tool.GetDossier do
   @moduledoc """
   This thread's brief: goal, lead, learnings (with certainty), blockers, shipped,
-  chatter — each capped WITH a count. Use get_facts to read past a cap.
+  recent — each capped WITH a count. Use get_facts to read past a cap.
   """
   use Anubis.Server.Component, type: :tool
 

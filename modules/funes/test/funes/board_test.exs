@@ -90,7 +90,7 @@ defmodule Funes.BoardTest do
       {:ok, _} = Dossier.add_todo(%{thread_id: thread.id, text: "open step"})
 
       scope = Board.in_scope(thread)
-      assert scope.north_star == "review PR 329"
+      assert scope.goal == "review PR 329"
       assert scope.lead == "Sandra"
       # DONE is a MERGED view: the completed todo AND the work_landed event, tagged by source
       assert Enum.any?(scope.done.shown, &(&1.source == :event and &1.row.kind == "work_landed"))
@@ -102,7 +102,7 @@ defmodule Funes.BoardTest do
       assert Enum.any?(scope.unknowns.shown, &(&1.text == "does raxol embed?"))
       assert Enum.any?(scope.checks.shown, &(&1.kind == "check_passed"))
       assert Enum.any?(scope.blockers.shown, &(&1.summary == "a blocker"))
-      assert Enum.any?(scope.chatter, &(&1.body == "starting"))
+      assert Enum.any?(scope.recent, &(&1.body == "starting"))
     end
 
     test "DONE is capped WITH a count; LEARNINGS is budget-bounded, not row-capped" do

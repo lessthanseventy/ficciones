@@ -123,8 +123,8 @@ defmodule Funes.Board do
 
   @doc """
   The IN SCOPE brief for a thread — read fresh from the DB (the argument is just an
-  id handle): NORTH STAR (title), the assigned lead, SHIPPED, LEARNINGS and
-  BLOCKERS each `%{shown, more}`, and CHATTER (the message tail).
+  id handle): GOAL (title), the assigned lead, SHIPPED, LEARNINGS and
+  BLOCKERS each `%{shown, more}`, and RECENT (the message tail).
   """
   def in_scope(%Thread{} = thread) do
     thread = Repo.get!(Thread, thread.id)
@@ -132,7 +132,7 @@ defmodule Funes.Board do
 
     %{
       thread: thread,
-      north_star: thread.title,
+      goal: thread.title,
       lead: lead_name(thread),
       todos: todos,
       # NEXT is derived, never stored (§5/§6): the head of the open todos, or nil.
@@ -147,7 +147,7 @@ defmodule Funes.Board do
       blockers: Dossier.open_issues_for_thread(thread),
       # CHECKS — the recent MEASURED verifications (last check red or green), not a self-report.
       checks: Dossier.recent_checks_for_thread(thread),
-      chatter: Channel.recent_messages(thread, @cap)
+      recent: Channel.recent_messages(thread, @cap)
     }
   end
 
@@ -174,7 +174,7 @@ defmodule Funes.Board do
         awaiting: thread.awaiting,
         next: s.next && s.next.text,
         blockers: Enum.map(s.blockers.shown, & &1.summary),
-        recent: Enum.map(s.chatter, &%{author: &1.author, body: &1.body})
+        recent: Enum.map(s.recent, &%{author: &1.author, body: &1.body})
       }
     end)
   end

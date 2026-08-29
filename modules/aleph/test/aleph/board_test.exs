@@ -188,7 +188,7 @@ defmodule Aleph.BoardTest do
       # always rendered WITH its count — a cut without a count lies. DONE is the merged
       # view (completed todos + work_landed events); NEXT is the first open todo.
       scope = %{
-        north_star: "ship the board",
+        goal: "ship the board",
         lead: "Sandra",
         todos: %{shown: [%{id: 1, text: "wire the composer"}, %{id: 2, text: "then the footer"}], more: 3},
         next: %{id: 1, text: "wire the composer"},
@@ -209,12 +209,12 @@ defmodule Aleph.BoardTest do
           ],
           more: 0
         },
-        chatter: []
+        recent: []
       }
 
       rows = Dossier.render(scope, %{x: 0, y: 0, w: 40, h: 40})
       joined = Enum.map_join(rows, "\n", &text/1)
-      assert joined =~ "NORTH STAR"
+      assert joined =~ "GOAL"
       assert joined =~ "ship the board"
       # TODOS with NEXT marked by an arrow; the rest plain
       assert joined =~ "TODOS"
