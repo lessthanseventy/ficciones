@@ -13,7 +13,7 @@ defmodule Aleph.Panel.WindowBarTest do
   @tabs [
     %{name: "tertius", active?: true, index: "0", agent: "tertius-machine", warm?: true},
     %{name: "hronir", active?: false, index: "1", agent: "claude-machine", warm?: false},
-    %{name: "uqbar", active?: false, index: "2", agent: nil, warm?: false}
+    %{name: "general", active?: false, index: "2", agent: nil, warm?: false}
   ]
 
   test "renders each window as a tab: presence dot + window·agent, active highlighted" do
@@ -22,7 +22,7 @@ defmodule Aleph.Panel.WindowBarTest do
 
     assert text =~ "tertius·tertius-machine"
     assert text =~ "hronir·claude-machine"
-    assert text =~ "uqbar"
+    assert text =~ "general"
     assert text =~ "●"
     assert text =~ "○"
 

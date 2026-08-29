@@ -449,20 +449,20 @@ defmodule Aleph.ViewTest do
     end
   end
 
-  # C3.1: the tab strip is LEADERS only — a workspace's roster windows (+ the uqbar console furniture);
+  # C3.1: the tab strip is LEADERS only — a workspace's roster windows (+ the general console furniture);
   # `t<id>` leaf windows move to the Leaves panel, not the strip.
   describe "WindowBar leaders only" do
     defp tab(name), do: %{name: name, active?: false, index: "1"}
 
-    test "leaf windows (t<id>) are excluded from the tab strip; leaders (roster + uqbar) stay" do
-      r = reads(%{active_key: 0, machine: %{tabs: [tab("tertius"), tab("hronir"), tab("uqbar"), tab("t42")]}})
+    test "leaf windows (t<id>) are excluded from the tab strip; leaders (roster + general) stay" do
+      r = reads(%{active_key: 0, machine: %{tabs: [tab("tertius"), tab("hronir"), tab("general"), tab("t42")]}})
 
       %{tabs: tabs} = View.data_for(Panel.WindowBar, r)
       names = Enum.map(tabs, & &1.name)
 
       assert "tertius" in names
       assert "hronir" in names
-      assert "uqbar" in names
+      assert "general" in names
       refute "t42" in names
     end
   end

@@ -25,12 +25,12 @@ defmodule Aleph.CockpitPreviewTest do
     test_pid = self()
 
     # Fake tmux runner: records argv; `list-windows` reports three Workspace windows
-    # (tertius@0, hronir@1, uqbar@2), everything else (select-window) is a no-op success.
+    # (tertius@0, hronir@1, general@2), everything else (select-window) is a no-op success.
     Application.put_env(:aleph, :tlon_cmd, fn "tmux", args, _opts ->
       send(test_pid, {:tmux, args})
 
       if Enum.member?(args, "list-windows"),
-        do: {"1\t0\ttertius\n0\t1\thronir\n0\t2\tuqbar\n", 0},
+        do: {"1\t0\ttertius\n0\t1\thronir\n0\t2\tgeneral\n", 0},
         else: {"", 0}
     end)
 

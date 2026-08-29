@@ -1,6 +1,6 @@
 defmodule Aleph.MachineChat.Loop do
   @moduledoc """
-  The termbox host loop for the Tlön machine-chat tab (`uqbar`) — Slack-shaped since the 2026-08
+  The termbox host loop for the Tlön machine-chat tab (`general`) — Slack-shaped since the 2026-08
   reshape: a one-row header (workspace · thread/working counts · the ORBIS rollup), a left THREADS
   rail, ONE open conversation in the center with its composer underneath, and a right CREW rail
   showing the coworker pool with live working/typing indicators (tmux window activity). Pure
@@ -378,14 +378,14 @@ defmodule Aleph.MachineChat.Loop do
   end
 
   # The live windows + their leaf tags + last-activity stamps — the presence/typing signal.
-  # `uqbar` (this tab) is excluded: its activity is our own painting.
+  # `general` (this tab) is excluded: its activity is our own painting.
   defp poll_windows do
     case System.cmd(
            "tmux",
            ["list-windows", "-F", "\#{window_name}\t\#{@funes_thread}\t\#{window_activity}"],
            stderr_to_stdout: true
          ) do
-      {out, 0} -> out |> Presence.parse_windows() |> Enum.reject(&(&1.name == "uqbar"))
+      {out, 0} -> out |> Presence.parse_windows() |> Enum.reject(&(&1.name == "general"))
       _ -> []
     end
   rescue

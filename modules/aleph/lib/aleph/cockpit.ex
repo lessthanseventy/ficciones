@@ -58,7 +58,7 @@ defmodule Aleph.Cockpit do
   # terminal, `new-session`), tail = tmux windows (`new-window`), harness-dispatched. Funes handle =
   # `"<name>-machine"`, tmux window = `"<name>"` (`roster_entry/1`). No more hardcoded
   # tertius/hronir/claude-machine identity — the seed roster (surveyor "tertius", builder "hronir")
-  # reproduces the old Borges cast (**uqbar** console · **hronir** builder · **tertius**
+  # reproduces the old Borges cast (**general** console · **hronir** builder · **tertius**
   # orchestrator) as DATA, not constants.
 
   # tmux is a first-class stack citizen here: each Workspace's center is a real `tmux attach`, so the
@@ -2259,7 +2259,7 @@ defmodule Aleph.Cockpit do
   defp ensure_log_window(%{active_key: key} = state) when Space.workspace?(key) do
     cond do
       not is_pid(safe_terminal(:machine)) -> state
-      Enum.any?(tlon_tabs(key), &(&1.name == "uqbar")) -> state
+      Enum.any?(tlon_tabs(key), &(&1.name == "general")) -> state
       true -> spawn_log_window(key) && state
     end
   end
@@ -2525,7 +2525,7 @@ defmodule Aleph.Cockpit do
 
   defp one_line(body), do: String.replace(body || "", "\n", " ")
 
-  # Open the `uqbar` window (the operator's console) running `mix aleph.machine_chat` from the aleph
+  # Open the `general` window (the operator's console) running `mix aleph.machine_chat` from the aleph
   # project (where mise/mix resolve). It inherits the tlon session's `FUNES_DB`, so it reads the SAME
   # db the cockpit writes — the whole point of the poll-the-db design (a separate process can't share
   # the in-node Bus). Fire-and-forget: a failed spawn leaves the tab absent and the next render retries.
@@ -2534,13 +2534,13 @@ defmodule Aleph.Cockpit do
     script = "export TERM=xterm-256color\ncd #{dir}\nexec mise exec -- mix aleph.machine_chat"
     session = workspace_session(workspace_id)
 
-    System.cmd("tmux", tlon_tmux(workspace_id, ["new-window", "-t", session, "-n", "uqbar", script]),
+    System.cmd("tmux", tlon_tmux(workspace_id, ["new-window", "-t", session, "-n", "general", script]),
       stderr_to_stdout: true
     )
 
-    # uqbar is the primary Tlön surface (the doorway), so seat it as tab 1: move it below base-index,
+    # general is the primary Tlön surface (the doorway), so seat it as tab 1: move it below base-index,
     # then renumber so it becomes the first window and tertius/hronir shift after it.
-    System.cmd("tmux", tlon_tmux(workspace_id, ["move-window", "-s", "#{session}:uqbar", "-t", "#{session}:0"]),
+    System.cmd("tmux", tlon_tmux(workspace_id, ["move-window", "-s", "#{session}:general", "-t", "#{session}:0"]),
       stderr_to_stdout: true
     )
 
@@ -2752,7 +2752,7 @@ defmodule Aleph.Cockpit do
         with {:ok, %{exports: e}} <- Spawn.join(id, agent), do: {:ok, e}
 
       nil ->
-        with {:ok, %{exports: e}} <- Spawn.env("Tlön", agent, mandate: "machine", scope: "machine"), do: {:ok, e}
+        with {:ok, %{exports: e}} <- Spawn.env("general", agent, mandate: "machine", scope: "machine"), do: {:ok, e}
     end
   end
 

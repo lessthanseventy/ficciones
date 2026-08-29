@@ -5,7 +5,7 @@ defmodule Aleph.Panel.Crew do
   thinking > tmux-inferred working > idle > off), and where (its standing seat or the leaf it
   leads). `coworkers/6` is the pure assembly; `render/2` draws the pre-assembled
   `%{coworkers: [coworker()], leaves: {live, cap}}` — the same pane serves the cockpit sidebar
-  and the uqbar console's right rail.
+  and the general console's right rail.
   """
   @behaviour Aleph.Panel
 
@@ -32,7 +32,7 @@ defmodule Aleph.Panel.Crew do
   `titles` thread id → title; `thinking` the `thread_id => %{agent => started_at}` declarations
   map (`%{}` where unavailable). Status precedence: declared thinking > tmux-inferred working >
   live > none. Pure (`now_s` is an argument) so it tests headless; each surface — the cockpit
-  sidebar, the uqbar console rail — assembles its own inputs.
+  sidebar, the general console rail — assembles its own inputs.
   """
   @spec coworkers([map()], [Presence.window()], map(), map(), map(), integer()) :: [coworker()]
   def coworkers(roster, windows, led_by, titles, thinking, now_s) do

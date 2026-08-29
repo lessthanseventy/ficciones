@@ -90,7 +90,7 @@ defmodule Aleph.Mention do
 
   # A handle → window: the roster-derived map, else a crew role's per-thread window (`r<tid>`), else
   # nil. Crew roles only resolve WITH a thread id — their window is per-thread, so a nil tid
-  # (standing thread, uqbar console) leaves a crew handle unresolved and it is simply not woken.
+  # (standing thread, general console) leaves a crew handle unresolved and it is simply not woken.
   defp resolve(handle, tid, roster) do
     cond do
       w = coworkers(roster)[handle] -> w
