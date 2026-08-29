@@ -1,5 +1,5 @@
 {
-  description = "ficciones — one person's whole computer as modules, each a Borges story. funes is the first.";
+  description = "ficciones — one person's whole computer as modules, each a Borges story. server is the first.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -22,7 +22,7 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
 
-      # pi (github.com/earendil-works/pi) — the agent harness manos plugs into; a program
+      # pi (github.com/earendil-works/pi) — the agent harness adapters plugs into; a program
       # the human runs (not a build toolchain), so Nix owns it in the home profile. No
       # nixpkgs package/flake, so we wrap the prebuilt bun-compiled linux-x64 tarball whole
       # (ELF + sibling node_modules native addons + theme + wasm) and symlink bin/pi.
@@ -101,13 +101,13 @@
     in
     {
       # Exposed as a build target so it can be verified (`nix build .#pi`) without touching
-      # the system — the same way funes' package will be. home-manager consumes the same
+      # the system — the same way server' package will be. home-manager consumes the same
       # derivation below.
       packages.${system} = {
         inherit pi expert;
       };
 
-      # funes is Elixir/OTP; day-to-day dev runs through mise. This shell is the
+      # server is Elixir/OTP; day-to-day dev runs through mise. This shell is the
       # reproducible equivalent — Elixir + sqlite3 for the 2am repair path. A `mix
       # release` package is a later step.
       devShells.${system}.default = pkgs.mkShell {
@@ -115,8 +115,8 @@
       };
 
       # The gradual-adoption path: home-manager on the existing Arch install, applied
-      # without touching the OS. Carries pi + the manos wiring that makes a pi session a
-      # funes citizen.
+      # without touching the OS. Carries pi + the adapters wiring that makes a pi session a
+      # server citizen.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         modules = [
@@ -129,41 +129,41 @@
               # Hardcoded, not `self`: pi loads the REAL extension/skills so a dev edit is
               # picked up, not a stale store snapshot. Single-user machine, fixed home dir.
               repo = "/home/andrew/projects/ficciones";
-              manosExtension = "${repo}/modules/manos/pi/src/extension.ts";
+              adaptersExtension = "${repo}/modules/adapters/pi/src/extension.ts";
               # consult — /consult and /fresh: delegate a question to a different model
               # (e.g. a text-only model delegating a screenshot to minimax-m3) and return
               # the answer.
-              consultExtension = "${repo}/modules/manos/consult/src/extension.ts";
+              consultExtension = "${repo}/modules/adapters/consult/src/extension.ts";
               # fmt — format-on-save (mix format) so `mix format --check-formatted` in the
               # gate never fails on agent-written files. No typecheck here (too heavy per-save).
-              fmtExtension = "${repo}/modules/manos/fmt/src/extension.ts";
+              fmtExtension = "${repo}/modules/adapters/fmt/src/extension.ts";
               # lsp — LSP-backed agent tools over Expert/tsserver/nil/bash-ls/json-ls;
               # servers installed via home.packages below so the next box gets them. See
-              # modules/manos/lsp/AGENTS.md.
-              lspExtension = "${repo}/modules/manos/lsp/src/extension.ts";
+              # modules/adapters/lsp/AGENTS.md.
+              lspExtension = "${repo}/modules/adapters/lsp/src/extension.ts";
               # reload — restart the pi harness in place and resume the session, so an agent
-              # that edited its own tooling picks up the new code. See modules/manos/reload.
-              reloadExtension = "${repo}/modules/manos/reload/src/extension.ts";
+              # that edited its own tooling picks up the new code. See modules/adapters/reload.
+              reloadExtension = "${repo}/modules/adapters/reload/src/extension.ts";
               # footer — a dense 2-line statusline (model, context bar, I/O, branch, statuses).
-              # A generic footer, NOT a funes concern, so it's its OWN package (not manos/pi,
-              # which the Tlön coworker profile drops) and loads for every pi. See modules/manos/footer.
-              footerExtension = "${repo}/modules/manos/footer/src/footer.ts";
-              manosSkillsGlob = "${repo}/modules/manos/skills/*";
+              # A generic footer, NOT a server concern, so it's its OWN package (not adapters/pi,
+              # which the Tlön coworker profile drops) and loads for every pi. See modules/adapters/footer.
+              footerExtension = "${repo}/modules/adapters/footer/src/footer.ts";
+              adaptersSkillsGlob = "${repo}/modules/adapters/skills/*";
 
-              # funes' self-contained release (`mise run funes:release`). The service below
-              # runs it headless; `funes:console`/`:restart` drive the same bin/funes, so
+              # server' self-contained release (`mise run server:release`). The service below
+              # runs it headless; `server:console`/`:restart` drive the same bin/server, so
               # node + cookie agree via the release's own env.sh.
-              funesRel = "${repo}/modules/funes/_build/prod/rel/funes";
+              serverRel = "${repo}/modules/server/_build/prod/rel/server";
 
-              # funes' MCP server for pi-mcp-adapter. Auth header is a `!command`
-              # (pi-mcp-adapter §headers): funes-cli.sh bearer mints a FRESH token per
-              # connect against FUNES_MCP_URL's /mint, so it survives a restart/model
-              # change/secret regen — no frozen FUNES_TOKEN. pi-scoped path avoids
+              # server' MCP server for pi-mcp-adapter. Auth header is a `!command`
+              # (pi-mcp-adapter §headers): server-cli.sh bearer mints a FRESH token per
+              # connect against TLON_MCP_URL's /mint, so it survives a restart/model
+              # change/secret regen — no frozen TLON_TOKEN. pi-scoped path avoids
               # colliding with a global ~/.config/mcp/mcp.json.
-              funesMcpJson = builtins.toJSON {
-                mcpServers.funes = {
-                  url = "\${FUNES_MCP_URL}";
-                  headers.Authorization = "!${repo}/scripts/funes-cli.sh bearer";
+              serverMcpJson = builtins.toJSON {
+                mcpServers.tlon = {
+                  url = "\${TLON_MCP_URL}";
+                  headers.Authorization = "!${repo}/scripts/tlon-cli.sh bearer";
                   directTools = [ "post_message" "bank_fact" "raise_issue" "record_done" "get_dossier" "consult_peer" ];
                   excludeTools = [ "register" ];
                 };
@@ -211,7 +211,7 @@
               # that's exactly "lean on the $100 Claude plan, fall over to ollama only when
               # Claude finally caps." Qwen/Cursor excluded (no such accounts); local ollama
               # stays in rotation as the fallback. showUsage off so it doesn't fight
-              # manos/footer's statusline — flip true if you want the per-account Claude-cap
+              # adapters/footer's statusline — flip true if you want the per-account Claude-cap
               # readout and it doesn't clash. Claude OAuth is `/login`, the human's one-time step.
               # providerOrder is anthropic-first, ollama LAST — Claude is the driver, the flat ollama.com
               # plan is the fallback when Claude caps. preferredModels.ollama pins the fallback to
@@ -240,7 +240,7 @@
               #   maxRecheckIntervalMs — keep the 600000 (10 min) default: this is already the
               #     ceiling the docs recommend ("raise to probe less, never to trust a
               #     provider's estimate") — nothing here calls for probing less often.
-              # showUsage ON (was off "so it does not fight manos/footer"): the whole routing
+              # showUsage ON (was off "so it does not fight adapters/footer"): the whole routing
               # doctrine is lean-on-Claude-until-it-caps, which needs the per-account cap
               # readout visible. If it visually fights the footer, flip back — one line.
               piFailoverJson = builtins.toJSON {
@@ -257,13 +257,13 @@
                 maxRecheckIntervalMs = 600000;
               };
 
-              # funes total-recall's knobs (design: funes-total-recall). Owned like the other pi
+              # server total-recall's knobs (design: server-total-recall). Owned like the other pi
               # config; the adapter defaults if absent.
               #   correctionDetection — a user message that reads as a correction ("don't do that",
-              #     "use X instead") is proposed as a PENDING funes habit to review in the Tlön panel
+              #     "use X instead") is proposed as a PENDING server habit to review in the Tlön panel
               #     (never auto-applied).
               #   boundaryCapture — every `captureEveryTurns` turns, and at compaction/shutdown,
-              #     manos/pi extracts durable facts from ONLY the delta since the last capture (a
+              #     adapters/pi extracts durable facts from ONLY the delta since the last capture (a
               #     cheap out-of-band model call — bounded input, never the full context) and banks
               #     them DERIVED. Set false to disable all automatic fact capture.
               #   captureModel — the out-of-band extractor. deepseek-v4-flash (ollama.com cloud)
@@ -307,7 +307,7 @@
               # pi-sandbox: was ENABLED with built-in defaults (enabled=true is baked into the
               # extension even with no sandbox.json). Explicit policy instead, modeled on the
               # Tlön coworker sandbox (Aleph.Profiles): unix sockets + local binding so
-              # manos-lspd/tmux/agent-browser work, writes scoped to the projects tree + caches,
+              # adapters-lspd/tmux/agent-browser work, writes scoped to the projects tree + caches,
               # the repo host allowlist, secret files deny-listed (denyWrite is a hard block).
               piSandboxSeed = pkgs.writeText "pi-sandbox-seed.json" (builtins.toJSON {
                 enabled = true;
@@ -316,7 +316,7 @@
                   allowAllUnixSockets = true;
                   # Derived from real Claude + pi session history — the dev-infra hosts this machine's
                   # agents actually reach. An allowlist (not "*") stays the network fence; extend it
-                  # from the transcripts when a new infra host appears. Twin of aleph @tlon_sandbox.
+                  # from the transcripts when a new infra host appears. Twin of console @tlon_sandbox.
                   allowedDomains = [
                     # source control + package registries
                     "github.com"
@@ -415,7 +415,7 @@
                   };
                   # Routine bash runs; the interactive agent ASKS on sudo (a human is here to answer).
                   # The catastrophic-and-never-legitimate commands are DENY (terminal) — a deterministic
-                  # floor under the manos bash-judge link that reviews the nuanced middle. Deliberately
+                  # floor under the adapters bash-judge link that reviews the nuanced middle. Deliberately
                   # narrow; the judge, not this list, is the real coverage for novel commands.
                   bash = {
                     "*" = "allow";
@@ -440,7 +440,7 @@
 
               # pi-interactive-shell: defer=true keeps its large tool schema out of every
               # system prompt until enable_interactive_shell is called — context is the scarce
-              # resource on the Claude bucket. aleph owns coworker spawning; this tool stays
+              # resource on the Claude bucket. console owns coworker spawning; this tool stays
               # for vim/psql/ssh overlays.
               piInteractiveShellSeed = pkgs.writeText "pi-interactive-shell-seed.json" (builtins.toJSON {
                 defer = true;
@@ -464,13 +464,13 @@
 
               # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
               # repo): mouse, extended-keys, resurrect+continuum (ANDREW's session persistence
-              # — coworkers run on their own `-L aleph-<profile>` servers with a persistence-
+              # — coworkers run on their own `-L console-<profile>` servers with a persistence-
               # free config, see Aleph.Profiles), yank, tmux-thumbs. Dropped the status-script
               # chrome (gitmux/cpu/battery) that churned alongside embedded pi. Old file backed
               # up on `home:switch` via the -b flag.
               programs.tmux = {
                 enable = true;
-                shortcut = "b"; # Ctrl+B prefix (aleph's leader is Ctrl+Space, so no clash)
+                shortcut = "b"; # Ctrl+B prefix (console's leader is Ctrl+Space, so no clash)
                 escapeTime = 10;
                 baseIndex = 1;
                 historyLimit = 50000;
@@ -514,7 +514,7 @@
                   bind r source-file ~/.config/tmux/tmux.conf \; display "Config reloaded!"
 
                   # Persistence is for ANDREW's tmux only. Coworkers (Tlön's pi, future ones) run on
-                  # their own per-profile tmux servers (tmux -L aleph-<profile>, persistence-free
+                  # their own per-profile tmux servers (tmux -L console-<profile>, persistence-free
                   # config from Aleph.Profiles) and come up FRESH every rebuild — agent harnesses are
                   # deliberately NOT in @resurrect-processes: auto-relaunching an agent at restore
                   # hands it stale identity/env (the old torn-down-coworker trap) and silently burns
@@ -547,11 +547,11 @@
               };
 
               # pi (byte-preserved bun binary, above). watchexec backs scripts/watch.sh's
-              # change-triggered test runner. LSP servers for manos/lsp
+              # change-triggered test runner. LSP servers for adapters/lsp
               # (hover/definition/references/diagnostics as pi tools) — ALL flake-managed now so
               # the next box gets them, including Expert (the Elixir LSP, expert-lsp.org — NOT
               # elixir-ls; the `expert` derivation above fetches its release binary since it's not
-              # in nixpkgs). The adapter registry in modules/manos/lsp/src/adapters.ts spawns these
+              # in nixpkgs). The adapter registry in modules/adapters/lsp/src/adapters.ts spawns these
               # by name — adding a language is an adapter object + usually a package here.
               home.packages = [
                 pi
@@ -565,10 +565,11 @@
                 # handled by the agenix module (age.secrets below).
                 agenix.packages.${system}.default
 
-                # not `aleph`: collides with TeX Live's aleph binary. Thin wrapper over the mise task.
-                (pkgs.writeShellScriptBin "uqbar" ''
-                  cd ${repo} || { echo "uqbar: repo not found at ${repo}" >&2; exit 1; }
-                  exec mise run aleph:run
+                # `tlon` — the product launcher (design slice F: the launcher takes the product name).
+                # A thin wrapper over the mise task; not `console`, which collides with TeX Live's binary.
+                (pkgs.writeShellScriptBin "tlon" ''
+                  cd ${repo} || { echo "tlon: repo not found at ${repo}" >&2; exit 1; }
+                  exec mise run console:run
                 '')
               ];
 
@@ -578,8 +579,8 @@
                 ollama-api-key.file = ./secrets/ollama-api-key.age;
               };
 
-              # funes' channel config — we own this file; pi only reads it.
-              home.file.".pi/agent/mcp.json".text = funesMcpJson;
+              # server' channel config — we own this file; pi only reads it.
+              home.file.".pi/agent/mcp.json".text = serverMcpJson;
 
               # pi's providers (ollama local + ollama.com cloud) — owned like mcp.json.
               home.file.".pi/agent/models.json".text = piModelsJson;
@@ -588,22 +589,22 @@
               # above for why the default anthropic-first order is left in place).
               home.file.".pi/agent/provider-failover.json".text = piFailoverJson;
 
-              # funes total-recall's noise knob (correction→habit proposals) — owned; adapter reads it.
-              home.file.".pi/agent/funes-recall.json".text = piRecallJson;
+              # server total-recall's noise knob (correction→habit proposals) — owned; adapter reads it.
+              home.file.".pi/agent/server-recall.json".text = piRecallJson;
 
               # pi keybindings — owned like models.json (pi reads, never writes it). Reclaims
               # Ctrl+P/N from model-cycling for history + selector nav; see piKeybindingsJson.
               home.file.".pi/agent/keybindings.json".text = piKeybindingsJson;
 
-              # manos into pi's settings.json — MERGED, not owned: pi writes this file (auth,
+              # adapters into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in
               # idempotently, seeding {} if absent.
               #
-              # `.extensions` is PRUNE-then-add, not pure union: every path under modules/manos/
+              # `.extensions` is PRUNE-then-add, not pure union: every path under modules/adapters/
               # is ours, so a plain `+ [...] | unique` union let a renamed/deleted module path
-              # (e.g. the old modules/manos/pi/src/footer.ts, moved to modules/manos/footer/ in
+              # (e.g. the old modules/adapters/pi/src/footer.ts, moved to modules/adapters/footer/ in
               # 2bd34cc) accumulate forever — pi kept trying to load a file that no longer
-              # existed on every subsequent home:switch. Dropping every modules/manos/ entry
+              # existed on every subsequent home:switch. Dropping every modules/adapters/ entry
               # before re-adding the current six makes a rename/removal self-heal instead of
               # leaving dead paths behind.
               #
@@ -620,15 +621,15 @@
                 run mkdir -p "$PI_DIR"
                 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
                 run ${pkgs.jq}/bin/jq \
-                  --arg ext "${manosExtension}" \
+                  --arg ext "${adaptersExtension}" \
                   --arg ext2 "${consultExtension}" \
                   --arg ext3 "${fmtExtension}" \
                   --arg ext4 "${lspExtension}" \
                   --arg ext5 "${reloadExtension}" \
                   --arg ext6 "${footerExtension}" \
-                  --arg manosDir "${repo}/modules/manos/" \
-                  --arg skills "${manosSkillsGlob}" \
-                  '.extensions = (((.extensions // []) | map(select(startswith($manosDir) | not)))
+                  --arg adaptersDir "${repo}/modules/adapters/" \
+                  --arg skills "${adaptersSkillsGlob}" \
+                  '.extensions = (((.extensions // []) | map(select(startswith($adaptersDir) | not)))
                        + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
                    | .skills = ((.skills // []) + [$skills] | unique)
                    # .packages is likewise PRUNE-then-add: a pure union (the old form) can add
@@ -656,7 +657,7 @@
                        #                       long builds without non-interactive-tty trip-ups;
                        #                       Monitor/Hands-free modes can retire the brittle
                        #                       parts of scripts/watch.sh. Self-installs its skill;
-                       #                       test it inside the aleph embedded pane, and note its
+                       #                       test it inside the console embedded pane, and note its
                        #                       spawn/PTY tools may need sandbox/permission allowlisting.
                        #   pi-retry          → zero-dep stall-watchdog + transient-error retry,
                        #                       stronger than settings.retry.enabled alone; matters
@@ -725,16 +726,18 @@
               '';
 
               # The always-up sovereign channel as a headless systemd --user service. A
-              # self-contained release (`mise run funes:release`) means ExecStart is one
+              # self-contained release (`mise run server:release`) means ExecStart is one
               # absolute path with no toolchain on PATH. ExecStartPre migrates first —
-              # funes never serves on a schema it can't repair. LOOPBACK-only, on the REAL
-              # XDG db (FUNES_DB unset → ~/.local/share/funes/wb.db). Node name + cookie
-              # come from the release's own env.sh, so `funes:console`/`:restart` reach
-              # THIS node. Build the release before the first `home:switch` that starts it.
-              systemd.user.services.funes = {
+              # server never serves on a schema it can't repair. LOOPBACK-only. TLON_DB is PINNED
+              # to the pre-rename data location (~/.local/share/funes/wb.db) so the live corpus
+              # doesn't orphan — the app default is now ~/.local/share/tlon; to migrate, `mv` the
+              # dir and drop the pin. Node name + cookie come from the release's own env.sh, so
+              # `server:console`/`:restart` reach THIS node. Build the release before the first
+              # `home:switch` that starts it.
+              systemd.user.services.tlon = {
                 Unit = {
-                  Description = "funes — the always-up sovereign MCP channel (loopback)";
-                  Documentation = [ "file://${repo}/modules/funes/AGENTS.md" ];
+                  Description = "tlon — the always-up sovereign MCP channel (loopback)";
+                  Documentation = [ "file://${repo}/modules/server/AGENTS.md" ];
                   After = [ "network.target" ];
                 };
                 Service = {
@@ -742,18 +745,19 @@
                   # Worklines: artifact checks run git in the repo checkout; the memory pass +
                   # maintain monitor are on for the always-up node (both post/park, never act).
                   Environment = [
-                    "FUNES_START_MCP=1"
-                    "FUNES_MCP_PORT=4040"
-                    "FUNES_WORKLINE_ROOT=${repo}"
-                    "FUNES_MEMORY_PASS=1"
-                    "FUNES_MAINTAIN=1"
+                    "TLON_DB=/home/andrew/.local/share/funes/wb.db"
+                    "TLON_START_MCP=1"
+                    "TLON_MCP_PORT=4040"
+                    "TLON_WORKLINE_ROOT=${repo}"
+                    "TLON_MEMORY_PASS=1"
+                    "TLON_MAINTAIN=1"
                   ];
                   # Seed + repair moved into app boot (Funes.Bootstrap) — only the
                   # schema migration stays a pre-step.
                   ExecStartPre = [
-                    "${funesRel}/bin/funes eval Funes.Release.migrate()"
+                    "${serverRel}/bin/server eval Server.Release.migrate()"
                   ];
-                  ExecStart = "${funesRel}/bin/funes start";
+                  ExecStart = "${serverRel}/bin/server start";
                   Restart = "on-failure";
                   RestartSec = 2;
                 };
