@@ -502,7 +502,7 @@ defmodule Console.MixProject do
       # the Bus (§6). funes never depends on aleph — the boundary is one-directional. Because
       # a dependency's own `config/*.exs` is NOT evaluated when aleph is the root app, aleph
       # supplies funes' Repo config itself (config/config.exs + config/runtime.exs).
-      {:server, path: "../funes"},
+      {:server, path: "../server"},
       # Compile-time module-boundary checks (lib/aleph.ex). runtime: false — pure tooling.
       {:boundary, "~> 0.10", runtime: false},
       # The disciplined subset of the Raxol family, NOT the full `raxol` umbrella (which

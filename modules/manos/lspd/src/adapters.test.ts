@@ -56,8 +56,8 @@ describe("adapterForFile — route a file to its language server", () => {
 
 describe("findRootWith — walk up to a project marker", () => {
   test("mix.exs: finds the funes root from a deep lib file", () => {
-    expect(findRootWith("/home/andrew/projects/ficciones/modules/funes/lib/funes/mcp/gateway.ex", "mix.exs")).toBe(
-      "/home/andrew/projects/ficciones/modules/funes",
+    expect(findRootWith("/home/andrew/projects/ficciones/modules/server/lib/funes/mcp/gateway.ex", "mix.exs")).toBe(
+      "/home/andrew/projects/ficciones/modules/server",
     );
   });
   test("tsconfig.json: finds the manos/consult root", () => {

@@ -15,16 +15,16 @@ describe("formatTarget — which edits to format", () => {
   });
 
   test("an .ex edit inside a mix project → {root, rel}", () => {
-    const t = formatTarget(edit("/home/andrew/projects/ficciones/modules/funes/lib/funes/mcp/gateway.ex"));
+    const t = formatTarget(edit("/home/andrew/projects/ficciones/modules/server/lib/funes/mcp/gateway.ex"));
     expect(t).not.toBeNull();
-    expect(t!.root).toBe("/home/andrew/projects/ficciones/modules/funes");
+    expect(t!.root).toBe("/home/andrew/projects/ficciones/modules/server");
     expect(t!.rel).toBe("lib/funes/mcp/gateway.ex");
   });
 
   test("an .exs edit inside a mix project → formatted too", () => {
-    const t = formatTarget(edit("/home/andrew/projects/ficciones/modules/aleph/config/runtime.exs"));
+    const t = formatTarget(edit("/home/andrew/projects/ficciones/modules/console/config/runtime.exs"));
     expect(t).not.toBeNull();
-    expect(t!.root).toBe("/home/andrew/projects/ficciones/modules/aleph");
+    expect(t!.root).toBe("/home/andrew/projects/ficciones/modules/console");
   });
 
   test("a .ts edit is left alone (no formatter in the ts gate)", () => {
@@ -47,8 +47,8 @@ describe("formatTarget — which edits to format", () => {
 
 describe("findMixRoot — walk up to mix.exs", () => {
   test("finds the funes project root from a deep file", () => {
-    expect(findMixRoot("/home/andrew/projects/ficciones/modules/funes/lib/funes/mcp/gateway.ex")).toBe(
-      "/home/andrew/projects/ficciones/modules/funes",
+    expect(findMixRoot("/home/andrew/projects/ficciones/modules/server/lib/funes/mcp/gateway.ex")).toBe(
+      "/home/andrew/projects/ficciones/modules/server",
     );
   });
 
