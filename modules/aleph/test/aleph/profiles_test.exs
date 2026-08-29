@@ -121,8 +121,8 @@ defmodule Aleph.ProfilesTest do
       funes = Profiles.fetch("tertius").mcp["funes"]
       # consult_peer (ask other local coworkers) + open/close_thread (cross-thread) break isolation.
       for cut <- ["consult_peer", "open_thread", "close_thread"], do: assert(cut in funes["excludeTools"])
-      # its own machine-work loop stays: post/bank/record/dossier/habit.
-      for kept <- ["post_message", "bank_fact", "record_done", "get_dossier", "propose_habit"],
+      # its own machine-work loop stays: post/bank/record/brief/habit.
+      for kept <- ["post_message", "bank_fact", "record_done", "get_brief", "propose_habit"],
           do: assert(kept in funes["directTools"])
     end
 

@@ -1,13 +1,13 @@
-defmodule Funes.MCP.Resource.Dossier do
+defmodule Funes.MCP.Resource.Brief do
   @moduledoc """
   The connection's thread brief as a readable resource — the SAME read as the
-  get_dossier tool (`Board.brief/1` through `Funes.MCP.Brief`): one source,
+  get_brief tool (`Board.brief/1` through `Funes.MCP.Brief`): one source,
   two protocol doors. The tool is for the model mid-turn; the resource is for a
   host briefing a session (pi's before_agent_start pulls this).
   """
   use Anubis.Server.Component,
     type: :resource,
-    uri: "funes://dossier",
+    uri: "funes://brief",
     mime_type: "application/json"
 
   alias Anubis.Server.Response

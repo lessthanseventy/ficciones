@@ -125,13 +125,13 @@ defmodule Aleph.HarnessTest do
   end
 
   describe "rebind_turns/3 — clear-not-resume (Slice F)" do
-    test "reset first, then the dossier catch-up naming the new leaf" do
+    test "reset first, then the brief catch-up naming the new leaf" do
       p = %Profile{name: "borges", harness: :pi}
 
       assert ["/new", catchup] = Harness.rebind_turns(p, 42, "fix the window naming")
       assert catchup =~ "thread #42"
       assert catchup =~ "fix the window naming"
-      assert catchup =~ "get_dossier"
+      assert catchup =~ "get_brief"
     end
 
     test "a claude-bound worker resets via /clear; a blank title is omitted" do

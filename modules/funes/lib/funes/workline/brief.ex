@@ -52,17 +52,17 @@ defmodule Funes.Workline.Brief do
 
   defp playbook(%{stage: "intent"}), do: "Capture the originator's words near-verbatim plus a one-line restatement."
 
-  # What to read on entry — artifacts first (git is the record), dossier for the live state.
-  defp read_list(%{stage: "intent"} = t), do: "the operator's opening message on this thread#{dossier_tail(t)}"
-  defp read_list(%{stage: "spec"} = t), do: "#{dir(t)}/intent.md#{dossier_tail(t)}"
-  defp read_list(%{stage: "plan"} = t), do: "#{dir(t)}/intent.md · #{dir(t)}/spec.md#{dossier_tail(t)}"
-  defp read_list(%{stage: "build"} = t), do: "#{dir(t)}/spec.md · #{dir(t)}/plan.md#{dossier_tail(t)}"
-  defp read_list(%{stage: "verify"} = t), do: "#{dir(t)}/plan.md · the branch work/#{t.slug}#{dossier_tail(t)}"
+  # What to read on entry — artifacts first (git is the record), the brief for live state.
+  defp read_list(%{stage: "intent"} = t), do: "the operator's opening message on this thread#{brief_tail(t)}"
+  defp read_list(%{stage: "spec"} = t), do: "#{dir(t)}/intent.md#{brief_tail(t)}"
+  defp read_list(%{stage: "plan"} = t), do: "#{dir(t)}/intent.md · #{dir(t)}/spec.md#{brief_tail(t)}"
+  defp read_list(%{stage: "build"} = t), do: "#{dir(t)}/spec.md · #{dir(t)}/plan.md#{brief_tail(t)}"
+  defp read_list(%{stage: "verify"} = t), do: "#{dir(t)}/plan.md · the branch work/#{t.slug}#{brief_tail(t)}"
 
   defp read_list(%{stage: "review"} = t),
-    do: "#{dir(t)}/spec.md · #{dir(t)}/plan.md · the diff on branch work/#{t.slug}#{dossier_tail(t)}"
+    do: "#{dir(t)}/spec.md · #{dir(t)}/plan.md · the diff on branch work/#{t.slug}#{brief_tail(t)}"
 
-  defp dossier_tail(_t), do: " · get_dossier for live state"
+  defp brief_tail(_t), do: " · get_brief for live state"
 
   defp owed(%{stage: "intent"} = t), do: "#{dir(t)}/intent.md"
   defp owed(%{stage: "spec"} = t), do: "#{dir(t)}/spec.md"

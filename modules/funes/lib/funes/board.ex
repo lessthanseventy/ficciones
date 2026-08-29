@@ -7,7 +7,7 @@ defmodule Funes.Board do
   from the dossier rather than the transcript (§3b): one artifact, two consumers.
 
   Ranked and cut (§6): each pane is capped WITH a count. For an agent briefed from
-  this map (the MCP channel's `get_dossier`), a cut without a count reads as "this
+  this map (the MCP channel's `get_brief`), a cut without a count reads as "this
   is everything" — the empty-workspace lie in miniature — so LEARNINGS, SHIPPED and
   BLOCKERS are each `%{shown, more}`.
   """

@@ -329,7 +329,7 @@ defmodule Aleph.Profiles do
         "raise_issue",
         "record_done",
         "record_check",
-        "get_dossier",
+        "get_brief",
         "propose_habit"
       ],
       "excludeTools" => ["register", "consult_peer", "open_thread", "close_thread"]

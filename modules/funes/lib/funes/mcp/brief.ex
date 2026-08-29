@@ -1,7 +1,7 @@
 defmodule Funes.MCP.Brief do
   @moduledoc """
   JSON-safe renderings of the reads the channel serves — one renderer per row
-  type, shared by the `get_dossier`/`get_facts` tools AND the resources: one
+  type, shared by the `get_brief`/`get_facts` tools AND the resources: one
   source, two protocol doors. Every fact carries its read-time `certainty`
   (§4a: the certainty axis is a QUERY over provenance × check_cmd — `stated` >
   `checked` > `opinion`), so a brief can never launder an unchecked hunch into

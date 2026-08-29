@@ -258,7 +258,7 @@ defmodule Funes.MCP.Tool.RecordDone do
   end
 end
 
-defmodule Funes.MCP.Tool.GetDossier do
+defmodule Funes.MCP.Tool.GetBrief do
   @moduledoc """
   This thread's brief: goal, lead, learnings (with certainty), blockers, shipped,
   recent — each capped WITH a count. Use get_facts to read past a cap.
@@ -629,7 +629,7 @@ defmodule Funes.MCP.Tool.StaffLeaf do
         {:reply,
          Response.error(
            Response.tool(),
-           "no registered agent named #{inspect(params[:lead])} — staff a handle from the world roster"
+           "no registered agent named #{inspect(params[:lead])} — staff a handle from the workspace roster"
          ), frame}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -944,9 +944,9 @@ defmodule Funes.MCP.Tool.KillCrew do
   end
 end
 
-defmodule Funes.MCP.Tool.RegisterWorld do
+defmodule Funes.MCP.Tool.RegisterWorkspace do
   @moduledoc """
-  Register a WORLD — a first-class composition (worlds/orbis Slice 1): a git-tracked
+  Register a WORKSPACE — a first-class composition (workspaces/orbis Slice 1): a git-tracked
   scope (`paths`), a `roster` of archetype instances, and free-form `knobs` that aleph
   reads to drive its picker/survey/spawn. Unlike the thread-scoped tools this is
   machine-GLOBAL — it takes no identity, it writes the shared `workspace` table via
@@ -959,19 +959,19 @@ defmodule Funes.MCP.Tool.RegisterWorld do
   alias Funes.Workspaces
 
   schema do
-    field :name, :string, required: true, description: "The world's unique name"
+    field :name, :string, required: true, description: "The workspace's unique name"
     field :type, :enum, values: ["code", "life", "blank"], default: "code"
     field :scope, :enum, values: ["project", "machine"], default: "machine"
     field :paths, {:list, :string}, default: [], description: "Git-tracked scope globs"
     field :roster, {:list, :map}, default: [], description: "Archetype instances: {archetype,name,model?,knobs}"
-    field :knobs, :map, default: %{}, description: "Free-form per-world settings"
+    field :knobs, :map, default: %{}, description: "Free-form per-workspace settings"
   end
 
   @impl true
   def execute(params, frame) do
     case Workspaces.register(params) do
-      {:ok, world} ->
-        {:reply, Response.json(Response.tool(), %{"world_id" => world.id, "name" => world.name}), frame}
+      {:ok, workspace} ->
+        {:reply, Response.json(Response.tool(), %{"workspace_id" => workspace.id, "name" => workspace.name}), frame}
 
       {:error, changeset} ->
         {:reply, Response.error(Response.tool(), MCP.Tool.changeset_error(changeset)), frame}
@@ -979,10 +979,10 @@ defmodule Funes.MCP.Tool.RegisterWorld do
   end
 end
 
-defmodule Funes.MCP.Tool.ListWorlds do
+defmodule Funes.MCP.Tool.ListWorkspaces do
   @moduledoc """
-  Every WORLD, newest-first — the machine-global read aleph's Orbis survey/picker maps
-  over. Takes no identity: worlds are not thread-scoped.
+  Every WORKSPACE, newest-first — the machine-global read aleph's Orbis survey/picker maps
+  over. Takes no identity: workspaces are not thread-scoped.
   """
   use Anubis.Server.Component, type: :tool
 
@@ -995,16 +995,16 @@ defmodule Funes.MCP.Tool.ListWorlds do
 
   @impl true
   def execute(_params, frame) do
-    worlds = Enum.map(Workspaces.all(), &MCP.Brief.workspace/1)
-    {:reply, Response.json(Response.tool(), worlds), frame}
+    workspaces = Enum.map(Workspaces.all(), &MCP.Brief.workspace/1)
+    {:reply, Response.json(Response.tool(), workspaces), frame}
   end
 end
 
-defmodule Funes.MCP.Tool.EditWorld do
+defmodule Funes.MCP.Tool.EditWorkspace do
   @moduledoc """
-  Edit a WORLD's mutable fields (`type`/`scope`/`paths`/`roster`/`knobs`), identified by
-  its unique `name` — a world's identity is immutable, so name is the handle, not a
-  field this rewrites. Machine-global; a missing world is refused rather than created.
+  Edit a WORKSPACE's mutable fields (`type`/`scope`/`paths`/`roster`/`knobs`), identified by
+  its unique `name` — a workspace's identity is immutable, so name is the handle, not a
+  field this rewrites. Machine-global; a missing workspace is refused rather than created.
   """
   use Anubis.Server.Component, type: :tool
 
@@ -1013,22 +1013,22 @@ defmodule Funes.MCP.Tool.EditWorld do
   alias Funes.Workspaces
 
   schema do
-    field :name, :string, required: true, description: "The world to edit (its unique name)"
+    field :name, :string, required: true, description: "The workspace to edit (its unique name)"
     field :type, :enum, values: ["code", "life", "blank"]
     field :scope, :enum, values: ["project", "machine"]
     field :paths, {:list, :string}, description: "Git-tracked scope globs"
     field :roster, {:list, :map}, description: "Archetype instances: {archetype,name,model?,knobs}"
-    field :knobs, :map, description: "Free-form per-world settings"
+    field :knobs, :map, description: "Free-form per-workspace settings"
   end
 
   @impl true
   def execute(params, frame) do
     case Workspaces.by_name(params[:name]) do
       nil ->
-        {:reply, Response.error(Response.tool(), "no such world: #{params[:name]}"), frame}
+        {:reply, Response.error(Response.tool(), "no such workspace: #{params[:name]}"), frame}
 
-      world ->
-        case Workspaces.edit(world, params) do
+      workspace ->
+        case Workspaces.edit(workspace, params) do
           {:ok, edited} ->
             {:reply, Response.json(Response.tool(), MCP.Brief.workspace(edited)), frame}
 
@@ -1039,10 +1039,10 @@ defmodule Funes.MCP.Tool.EditWorld do
   end
 end
 
-defmodule Funes.MCP.Tool.RemoveWorld do
+defmodule Funes.MCP.Tool.RemoveWorkspace do
   @moduledoc """
-  Remove a WORLD by its unique `name` — machine-global, thread-independent. A missing
-  world is refused rather than reported as removed.
+  Remove a WORKSPACE by its unique `name` — machine-global, thread-independent. A missing
+  workspace is refused rather than reported as removed.
   """
   use Anubis.Server.Component, type: :tool
 
@@ -1050,24 +1050,26 @@ defmodule Funes.MCP.Tool.RemoveWorld do
   alias Funes.Workspaces
 
   schema do
-    field :name, :string, required: true, description: "The world to remove (its unique name)"
+    field :name, :string, required: true, description: "The workspace to remove (its unique name)"
   end
 
   @impl true
   def execute(params, frame) do
     case Workspaces.by_name(params[:name]) do
       nil ->
-        {:reply, Response.error(Response.tool(), "no such world: #{params[:name]}"), frame}
+        {:reply, Response.error(Response.tool(), "no such workspace: #{params[:name]}"), frame}
 
-      world ->
-        case Workspaces.remove(world) do
+      workspace ->
+        case Workspaces.remove(workspace) do
           {:ok, removed} ->
             {:reply, Response.json(Response.tool(), %{"removed" => removed.name}), frame}
 
           {:error, :last_workspace} ->
             {:reply,
-             Response.error(Response.tool(), "refused: #{world.name} is the last world — threads must have a home"),
-             frame}
+             Response.error(
+               Response.tool(),
+               "refused: #{workspace.name} is the last workspace — threads must have a home"
+             ), frame}
         end
     end
   end

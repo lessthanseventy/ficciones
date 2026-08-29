@@ -21,6 +21,12 @@ defmodule Funes.MCP.Server do
       validator: {Funes.MCP.TokenValidator, []}
     ]
 
+  alias Funes.MCP.Tool.EditWorkspace
+  alias Funes.MCP.Tool.GetBrief
+  alias Funes.MCP.Tool.ListWorkspaces
+  alias Funes.MCP.Tool.RegisterWorkspace
+  alias Funes.MCP.Tool.RemoveWorkspace
+
   component(Funes.MCP.Tool.Register, name: "register")
   component(Funes.MCP.Tool.PostMessage, name: "post_message")
   component(Funes.MCP.Tool.BankFact, name: "bank_fact")
@@ -45,17 +51,25 @@ defmodule Funes.MCP.Server do
   component(Funes.MCP.Tool.PresenceThinking, name: "presence_thinking")
   component(Funes.MCP.Tool.PresenceIdle, name: "presence_idle")
   component(Funes.MCP.Tool.ProposeHabit, name: "propose_habit")
-  component(Funes.MCP.Tool.GetDossier, name: "get_dossier")
+  component(GetBrief, name: "get_brief")
+  # Transition alias (clarity rename slice E): the same module answers the old name too, so an
+  # agent whose prompt still says get_dossier keeps working until the window closes.
+  component(GetBrief, name: "get_dossier")
   component(Funes.MCP.Tool.GetFacts, name: "get_facts")
   component(Funes.MCP.Tool.GetMessages, name: "get_messages")
   component(Funes.MCP.Tool.SearchHistory, name: "search_history")
   component(Funes.MCP.Tool.SearchFacts, name: "search_facts")
   component(Funes.MCP.Tool.MachineOverview, name: "machine_overview")
-  component(Funes.MCP.Tool.RegisterWorld, name: "register_world")
-  component(Funes.MCP.Tool.ListWorlds, name: "list_worlds")
-  component(Funes.MCP.Tool.EditWorld, name: "edit_world")
-  component(Funes.MCP.Tool.RemoveWorld, name: "remove_world")
-  component(Funes.MCP.Resource.Dossier, name: "dossier")
+  component(RegisterWorkspace, name: "register_workspace")
+  component(ListWorkspaces, name: "list_workspaces")
+  component(EditWorkspace, name: "edit_workspace")
+  component(RemoveWorkspace, name: "remove_workspace")
+  # Transition aliases (clarity rename slice E): the workspace tools answer their old world names too.
+  component(RegisterWorkspace, name: "register_world")
+  component(ListWorkspaces, name: "list_worlds")
+  component(EditWorkspace, name: "edit_world")
+  component(RemoveWorkspace, name: "remove_world")
+  component(Funes.MCP.Resource.Brief, name: "brief")
   component(Funes.MCP.Resource.Constraints, name: "constraints")
   component(Funes.MCP.Resource.Habits, name: "habits")
 end

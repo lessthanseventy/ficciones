@@ -92,12 +92,17 @@ defmodule Funes.MCP.ServerTest do
                "presence_thinking",
                "presence_idle",
                "propose_habit",
+               "get_brief",
                "get_dossier",
                "get_facts",
                "get_messages",
                "search_history",
                "search_facts",
                "machine_overview",
+               "register_workspace",
+               "list_workspaces",
+               "edit_workspace",
+               "remove_workspace",
                "register_world",
                "list_worlds",
                "edit_world",
@@ -505,7 +510,7 @@ defmodule Funes.MCP.ServerTest do
     assert length(facts) == 7
   end
 
-  test "the dossier and the always-loaded constraints are readable as MCP resources",
+  test "the brief and the always-loaded constraints are readable as MCP resources",
        %{thread: thread, token: token} do
     # The free half of anubis: the same single reads (Board.brief,
     # Dossier.always_loaded_constraints) exposed on the resources primitive — a
@@ -532,10 +537,10 @@ defmodule Funes.MCP.ServerTest do
       post(token, session, request(3, "resources/list"))
 
     uris = resources |> Enum.map(& &1["uri"]) |> Enum.sort()
-    assert uris == ["funes://constraints", "funes://dossier", "funes://habits"]
+    assert uris == ["funes://brief", "funes://constraints", "funes://habits"]
 
     {200, _, %{"result" => %{"contents" => [dossier]}}} =
-      post(token, session, request(4, "resources/read", %{"uri" => "funes://dossier"}))
+      post(token, session, request(4, "resources/read", %{"uri" => "funes://brief"}))
 
     brief = JSON.decode!(dossier["text"])
     assert brief["goal"] == "review PR 329"

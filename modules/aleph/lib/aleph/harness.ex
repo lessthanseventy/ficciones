@@ -48,7 +48,7 @@ defmodule Aleph.Harness do
   @doc """
   The ordered turns that REBIND a warm worker onto a new leaf (Slice F): `reset_command` first —
   clear the conversation, keep the process warm — then a catch-up turn pointing the agent at the
-  leaf's dossier (it re-hydrates itself via `get_dossier`; piping a rendered dossier through
+  leaf's brief (it re-hydrates itself via `get_brief`; piping a rendered brief through
   send-keys is fragile and stale the moment it lands). Never `resume`: resuming a pooled worker
   onto a DIFFERENT leaf re-imports exactly the context-bleed bug per-thread leads exist to kill —
   `resume_command/1` is only the return-to-a-leaf's-OWN-agent escape hatch. Pool sizing/eviction
@@ -61,7 +61,7 @@ defmodule Aleph.Harness do
     [
       driver(profile.harness).reset_command(),
       "[funes] you are rebound to thread ##{thread_id}#{subject}. Fresh context, on purpose: " <>
-        "run get_dossier and continue from its FACTS/TODOS/NEXT — assume nothing from before."
+        "run get_brief and continue from its FACTS/TODOS/NEXT — assume nothing from before."
     ]
   end
 end
