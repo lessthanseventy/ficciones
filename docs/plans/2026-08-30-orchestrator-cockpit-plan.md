@@ -18,8 +18,13 @@
 
 ### Vocabulary — what each word means, and what dies
 
+**Container hierarchy: Workspace ▸ Project ▸ Thread.** Standard/literal on purpose — "clear beats cute" (the Borges-name-purge lesson). A **Workspace** is a *context* (work, home, a client) holding several **Projects**; a **Project** is a named effort spanning **one or more repos**; **Threads** are the work inside a project.
+
 | Word | Meaning | Replaces / retires |
 |---|---|---|
+| **Workspace** | A context grouping — a **collection of projects** + a roster + knobs. The Hyprland-style spine down the far left; switch context here. | "world" (already renamed) |
+| **Project** | A named effort inside a workspace, spanning **one or more repos**. The SDLC + fuzzy-switch unit (`Ctrl+O`); STACK / the lazygit pane point at its repos (a repo picker when it has several). | new tier (data-model add) |
+| **Repo** | A git repo attached to a project (a project has ≥1). Not a hierarchy tier — a project *member*; where worktrees + the lazygit pane live. | (the old workspace "git-tracked folder(s)") |
 | **Coworker** | A registered agent identity on the bench (hronir-machine, tertius-machine). Can be staffed to lead. | — |
 | **Orchestrator** | The single board-level meta agent (tertius). Routes intake, escalates, runs Maintain. Lives in the command line. | "root meta agent", "god orchestrator", one sense of "leader" |
 | **Lead** | The one coworker coordinating one thread. A **manager**: delegates the doing, does not build. | the other sense of "leader" |
@@ -53,10 +58,18 @@ ORCHESTRATOR (tertius, one, board-level)  ── command line
 
 ### The cockpit (lazygit paradigm)
 
-- **Left rail:** numbered single-purpose list panels — `1 ATTENTION` (needs-you) · `2 THREADS` (worklines, stage-aware) · `3 CREW` (the bench) · `4 MEMORY` · `5 STACK` (git). Number-jump, `Tab` cycles.
-- **Main panel:** follows the focused selection. A thread → its lead conversation + artifact tabs (intent/spec/plan/review) + terminal. A coworker → profile/activity. An attention item → the gate or blocker.
-- **`+` / `_`:** screen-mode zoom of the focused panel to half / full. The three "home surfaces" are just zoom targets: zoom `2 THREADS` → the **pipeline board**; zoom `1 ATTENTION` → the **triage inbox**; the **chief-of-staff chat** is the always-present command line, not a screen.
-- **Bottom:** the orchestrator command line (`tertius ▸`) + a context-sensitive verb bar (`?` for the full menu).
+**Two columns, not three.** Today's cockpit has *two* rails (left sidebar + right STACK/MEMORY) plus a center — that redundancy is the "doing too much" and the poor use of space. Collapse to lazygit's shape: **a workspace spine + one panel rail + one main.**
+
+- **Workspace spine (far left, thin):** the Hyprland-style context switcher — one entry per workspace, current highlighted, `super+1..9` to jump. Just the top layer; nothing else.
+- **The panel rail (one column), top-to-bottom in lazygit's own order:**
+  - **top** — the active **Project** + `⚙` config + repo-switch (fuzzy `Ctrl+O`); lazygit's status/recent-repos slot.
+  - **`NOW` (staging area)** — what's most important / going on right now = the ATTENTION queue (gates + escalations). lazygit's Files/staging.
+  - **`THREADS` (the log)** — the ongoing work, stage-aware. lazygit's Commits/Branches.
+  - **CREW · MEMORY** — lower.
+- **Main panel (the whole right):** follows the focused selection — a thread → its lead conversation + artifact tabs (intent/spec/plan/review) + terminal; a coworker → profile/activity; an attention item → the gate or blocker; STACK-zoom → lazygit. **The old right rail dies into this** (git/activity/detail all become main-on-focus).
+- **`+` / `_`:** screen-mode zoom of the focused panel to half / full. The "home surfaces" are zoom targets: zoom `THREADS` → the **pipeline board**; zoom `NOW` → the **triage inbox**; zoom `STACK` → **lazygit** at the focused project's worktree.
+- **Bottom:** the orchestrator command line (`tertius ▸`, doubles as the project/workspace switcher via NL) + a context-sensitive verb bar (`?` for the full menu).
+- **CRUD/config everywhere:** create/edit/delete screens for every noun — workspace, project, thread, coworker — reached from the `⚙` at the rail top and per-item verbs. Some exists (register/edit/remove_workspace, open/delete_thread, the `n` new-workspace modal); Project CRUD is new.
 - **Twists beyond lazygit:** the main panel is a *live interactive* conversation + PTY (not a read-only diff — the existing `Ctrl+Space` TERM↔NAV focus machine already models this); the bottom line is a *conversation* not a command log; ATTENTION is the async-interrupt channel (lazygit-with-a-doorbell); the THREADS panel carries a stage axis (children/crew nest in the main, not the rail).
 
 ---
@@ -65,50 +78,11 @@ ORCHESTRATOR (tertius, one, board-level)  ── command line
 
 Ordered by dependency + value. Each slice is shippable and gate-green on its own. Slice 0 is bite-sized and executable now; Slices 1–4 carry goal + surfaces + acceptance + opening tasks, and get fully decomposed when reached (this repo's design→slice-plan pattern).
 
-### Slice 0 — Cockpit coherence (execute now)
+### Slice 0 — Cockpit coherence (0.1 DONE; rest parked into Slice 3)
 
-**Goal:** Stop the current cockpit from lying. Leaves off the leader strip; idle standing coworkers off the strip; (root already off the survey). A display-filter stopgap the Slice 2 reshape supersedes — but it makes *today's* screen honest.
+**Status:** **0.1 landed** (d71e314): thread-tagged leaf windows no longer leak onto the leader strip — `view.ex` `window_tabs/1` rejects by the `thread_id` tag first, `t<id>` name as legacy fallback (`leaf_tab?/1`). Console suite 811/0. The root machine thread was already filtered from the survey (0133baf, `Orbis.without_root/2`).
 
-**Surfaces:** `modules/console/lib/aleph/view.ex` (`window_tabs/1`, the strip's `@leaf_window` reject at ~L485–499), `modules/console/lib/aleph/cockpit.ex` (`parse_tlon_tabs`/`leaf_window?` at ~L2312, which already stamp `thread_id` from the `@funes_thread` tag), tests in `modules/console/test/aleph/view_test.exs`.
-
-**Context the engineer needs:** The strip is built by `window_tabs/1`. It rejects leaf windows by *name* regex `^t\d+$` — but leaves are now named descriptively (e.g. `builder-hola-who-is-this-what`) and carry a `@funes_thread` tag (parsed into the tab's `thread_id`). So the name-only reject misses them and they leak onto the strip. A "leader lane" is a window with no `thread_id`. An idle lane is one whose agent is neither warm nor leading an open thread.
-
-**Task 0.1 — Reject leaf windows by their thread_id tag, not just the name**
-
-**Step 1: Write the failing test** in `view_test.exs`: a tab with `thread_id: 2` (any name) is excluded from `window_tabs`; a leader tab (`thread_id: nil`, name `hronir`) is kept; a legacy `t7`-named tab is still excluded.
-
-**Step 2: Run it** — `mix test test/aleph/view_test.exs -v` — expect FAIL (builder-named leaf currently kept).
-
-**Step 3: Implement** — in `view.ex` change the reject to catch either shape:
-```elixir
-|> Enum.reject(fn t -> leaf_tab?(t) end)
-# where:
-defp leaf_tab?(%{thread_id: tid}) when is_integer(tid), do: true
-defp leaf_tab?(%{name: name}), do: Regex.match?(~r/\At\d+\z/, name)
-```
-(Keep the regex as the legacy fallback; the `thread_id` clause is the real rule. Reuse `Cockpit.leaf_window?/1` if it's already exported for the same shape — DRY.)
-
-**Step 4: Run** — expect PASS.
-
-**Step 5: Commit** — `fix(strip): keep thread-tagged leaf windows off the leader strip`.
-
-**Task 0.2 — Hide idle leader lanes (show only warm-or-leading coworkers)**
-
-**Step 1: Write the failing test:** given tabs `[hronir(warm), tertius(cold, leads nothing)]`, `window_tabs` returns only `hronir`; a cold coworker that *leads an open thread* is kept.
-
-**Step 2: Run** — expect FAIL (tertius kept today).
-
-**Step 3: Implement** — after presence-join, reject a leader tab whose agent is `nil`-warm AND not present in the set of leads of open threads. Source the leading-agents set from `reads` (already carries roster; add the open-thread leads from `Channel.staffed_machine_threads/0` if not already in `reads`, threaded through `data_for/2` so `window_tabs` stays a pure render — no server read in the panel).
-
-**Step 4: Run** — expect PASS.
-
-**Step 5: Commit** — `feat(strip): show only working coworker lanes (idle lanes → CREW panel)`.
-
-**Task 0.3 — User-facing label sweep (leaf/leader → thread/lead), labels only**
-
-Rename only the *visible strings* and section titles (LEAVES → CHILD THREADS or nest them; "leader" labels → "lead"), not the code identifiers (that's Slice 4). Grep `modules/console/lib/aleph/panel/*.ex` for user-facing `"Leaf"`/`"Leader"`/`"LEAVES"` literals. TDD each panel's render test. Commit per panel.
-
-**Acceptance:** the running cockpit shows exactly the standing lanes that are working; leaves live under the Leaves/Child-threads panel; no "leaf"/"leader" in visible labels; both suites green.
+**PARKED into Slice 3:** 0.2 (hide idle leader lanes) and 0.3 (leaf/leader label sweep). Slice 3 rebuilds the strip + sidebar entirely (thread-driven strip, two-column layout), so a display-filter stopgap now would be thrown away. Decision (2026-08-30, Andrew): park them.
 
 ### Slice 1 — The orchestrator command line (tertius + receipts)
 
@@ -122,19 +96,31 @@ Rename only the *visible strings* and section titles (LEAVES → CHILD THREADS o
 
 **Opening tasks:** (1) failing test: intent-router maps `"tell @hronir foo"` → `{:post_message, thread_of(hronir), "foo"}`. (2) implement the router as a pure function over the roster + verb table. (3) receipt-format test. (4) wire the key + panel. (5) confirm-gate for consequential verbs.
 
-### Slice 2 — The lazygit cockpit (panels + zoom + verb bar)
+### Slice 2 — Workspace ▸ Project ▸ Thread (the container model + CRUD)
 
-**Goal:** Reshape the cockpit into the lazygit paradigm: numbered rail (`1 ATTENTION · 2 THREADS · 3 CREW · 4 MEMORY · 5 STACK`), follow-the-focus main, `+`/`_` screen-mode zoom, context verb bar. The strip becomes **thread-driven** (one lane per active thread, labeled by its lead) — superseding Slice 0's display-filter stopgap. The three home surfaces become zoom targets.
+**Goal:** Make the three-tier hierarchy real in data *before* the cockpit renders it — a **Project** tier between workspace and thread, **Repos** as project members (a project has ≥1 repo, possibly several), and CRUD/config for every noun. Slice 3's workspace spine + project switcher depend on this.
 
-**Surfaces:** `cockpit.ex` (layout, focus machine, screen-mode state), `keymap.ex` (number-jump, `Tab`, `+`/`_`, verb bar), the existing panels (`triage`→ATTENTION, `overview`/`leaves`→THREADS, `roster`/`crew`→CREW, `memory`, `stack`), a new pipeline-board render (THREADS zoomed), the ghostty PTY embed (already used for the center terminal) for STACK's zoom.
+**Surfaces:** server schema — new `project` (belongs_to workspace; name, knobs) and `repo` (belongs_to project; path/url) tables + migrations; `thread.workspace_id` → `thread.project_id`; a new `Server.Projects` context (mirror `Server.Workspaces`); MCP tools `register_project`/`edit_project`/`remove_project` + repo attach/detach, existing workspace/thread/agent CRUD carried over. Console — project switcher plumbing + `⚙` config/CRUD screens.
 
-**STACK-zoom = embedded lazygit.** STACK small = today's git read-model (branch/commits/files, glanceable, no PTY). `+`-zoom = a **real embedded lazygit** in a ghostty PTY, `lazygit -p <path>` pointed at the focused context's worktree — the focused thread's `work/<slug>/` (once Slice 3 wires per-thread worktrees), falling back to the focused workspace's repo root. `_` collapses back to the glance. Reuses the existing `Ctrl+Space` TERM↔NAV leader verbatim (lazygit captures keys like any PTY; the leader escapes back to nav) — no new input model. This tames worktree sprawl: navigate by thread, git context follows focus. **Infra:** add `lazygit` to the flake (currently system-only) so the cockpit's dependency is nix-owned.
+**Migration care:** existing threads carry `workspace_id`. Backfill one default Project per workspace (the workspace's current repo folder(s) become that project's repos) and repoint threads at it. Reversible; SQLite child-FK rewrite — same pattern as the world→workspace migration (`20260829120000`).
 
-**Acceptance:** number keys jump panels; `+`/`_` zoom the focused panel to half/full; zoom THREADS → pipeline board across stages; zoom ATTENTION → triage inbox; zoom STACK → live lazygit at the focused worktree (repo root until Slice 3); the verb bar shows only the focused panel's keys; the main follows the focused selection. Builds on the already-landed Phase 0/1 focus machine (`Ctrl+Space` TERM↔NAV, `h/l/H/L`).
+**Acceptance:** a workspace holds multiple projects; a project holds one or more repos; a thread belongs to a project; register/edit/remove works for workspace, project, thread, coworker (CLI + MCP + a cockpit screen); the migration backfills cleanly and reverses; both suites green.
 
-**Note:** decompose fully when reached — this is the largest slice. Mine `2026-08-20-tlon-lazygit-panels-design.md` and `2026-08-23-aleph-cockpit-clarity-*.md` for the panel detail, subordinate to the model above.
+**Note:** decompose when reached — TDD schema-first, one table + context + tool at a time.
 
-### Slice 3 — Lead-as-manager + any-stage entry + orchestrator staffing
+### Slice 3 — The lazygit cockpit (workspace spine + panel rail + main)
+
+**Goal:** Collapse the current three-column cockpit into lazygit's shape — a thin **workspace spine** (Hyprland-style, `super+1..9`), one **panel rail** (top: active project + `⚙` config + repo fuzzy-switch `Ctrl+O`; then `NOW`/staging = ATTENTION; then `THREADS`/log; then CREW·MEMORY), one **main** that follows focus. The old right rail (STACK/MEMORY) dies into main-on-focus. `+`/`_` screen-mode zoom; context verb bar. **Absorbs Slice 0's parked work:** 0.2 → the strip goes thread-driven (one lane per active thread by its lead; idle standing lanes gone); 0.3 → leaf/leader labels retired in the UI.
+
+**Surfaces:** `cockpit.ex` (three-column → spine+rail+main layout, focus machine, screen-mode state), `keymap.ex` (`super+1..9` workspace jump, `Ctrl+O` project switch, in-rail number-jump, `Tab`, `+`/`_`, verb bar), existing panels re-homed (`triage`→NOW, `overview`/`leaves`→THREADS, `roster`/`crew`→CREW, `memory`, `stack`), a pipeline-board render (THREADS zoomed), the ghostty PTY embed for STACK-zoom.
+
+**STACK-zoom = embedded lazygit.** STACK small = git read-model (branch/commits/files, glanceable, no PTY). `+`-zoom = a **real embedded lazygit** (`lazygit -p <path>` in a ghostty PTY) at the focused thread's worktree (`work/<slug>/`, wired in Slice 4), falling back to the project's repo (a repo picker when the project has several). `_` collapses back. Reuses the `Ctrl+Space` TERM↔NAV leader verbatim (lazygit captures keys like any PTY) — no new input model. Tames worktree sprawl: navigate by thread, git follows focus. **Infra:** add `lazygit` to the flake (system-only today).
+
+**Acceptance:** two columns + spine, no redundant right rail; `super+1..9` switches workspace and re-scopes everything; `Ctrl+O` fuzzy-switches project; NOW/THREADS/CREW/MEMORY stack in the rail; the strip is thread-driven (idle lanes gone); `+`/`_` zoom (THREADS→board, NOW→inbox, STACK→lazygit at the focused worktree); no leaf/leader in labels; main follows focus. Builds on the landed `Ctrl+Space` TERM↔NAV + `h/l/H/L` focus machine.
+
+**Note:** largest slice — decompose when reached. Mine `2026-08-20-tlon-lazygit-panels-design.md` + `2026-08-23-aleph-cockpit-clarity-*.md`, subordinate to the model above.
+
+### Slice 4 — Lead-as-manager + any-stage entry + orchestrator staffing
 
 **Goal:** Make the coordination model real, not just displayed. A lead delegates (staffs crew / spins child threads / assigns a reviewer) rather than building. Threads open at any stage. tertius actually orchestrates intake + escalation (with human gates).
 
@@ -144,7 +130,7 @@ Rename only the *visible strings* and section titles (LEAVES → CHILD THREADS o
 
 **Note:** mine `2026-08-27-ai-native-sdlc-workline-design.md`, `2026-08-22-per-thread-agents-design.md`, `2026-08-19-orbis-tertius-meta-thread-design.md` — subordinate.
 
-### Slice 4 — Nomenclature retirement + doc supersession
+### Slice 5 — Nomenclature retirement + doc supersession
 
 **Goal:** Finish the rename in *code* (`leaf`→`thread`/`child_thread`, `leader`→`lead`/`orchestrator`), then supersede the lineage docs.
 
@@ -156,6 +142,6 @@ Rename only the *visible strings* and section titles (LEAVES → CHILD THREADS o
 
 ## Execution notes
 
-- **Order:** 0 → 1 → 2 → 3 → 4. Slice 0 now (relief); Slice 1 next (highest new value, lives in the current cockpit); Slice 2 is the big UX reshape; Slice 3 makes the model real; Slice 4 cleans the language and archives lineage.
+- **Order:** 0 → 1 → 2 → 3 → 4 → 5. **Slice 0** — 0.1 done, rest parked into 3. **Slice 1** — orchestrator command line (highest new value, lives in the current cockpit). **Slice 2** — the Workspace▸Project▸Thread data model + CRUD (prereq for the spine/switcher). **Slice 3** — the big UX reshape (two-column lazygit cockpit; absorbs 0.2/0.3). **Slice 4** — makes the coordination model real (lead-as-manager, any-stage, orchestrator staffing, per-thread worktrees). **Slice 5** — cleans the language and archives lineage.
 - **Discipline:** TDD every task (RED → GREEN → REFACTOR), commit small, run both module suites + the machine gate (`flake:check` / `home:switch`) before calling a slice green — module unit suites alone are NOT the gate for this repo.
 - **Dogfood:** each slice should be usable live in the running cockpit before the next starts.
