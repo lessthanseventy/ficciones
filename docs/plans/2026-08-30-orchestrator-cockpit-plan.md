@@ -121,7 +121,7 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 ### Slice 2 — Workspace ▸ Project ▸ Thread (the container model + CRUD)
 
-**STATUS (in progress):** ✅ data entities landed — `Project` (53b6c6e), `Note` + `Ticket` (84e154d); repos = JSON member of `project` (dodges `Server.Repo` clash). ✅ MCP tools landed (61ec216): `file_ticket`/`list_tickets`/`update_ticket`, `write_note`/`get_notes`, `register_project` — workspace-scoped via the bound thread; end-to-end MCP tests. Server 417, console 811, all green. ⏳ REMAINING: the `thread.workspace_id`→default-project backfill (deferred — timestamp-in-SQL care); console CRUD/config screens (fold into Slice 3). Server SIDE of Slice 2 is done.
+**STATUS — DONE.** ✅ data entities (53b6c6e Project, 84e154d Note+Ticket; repos = JSON member of `project`). ✅ MCP tools (61ec216: file_ticket/list_tickets/update_ticket/write_note/get_notes/register_project, e2e-tested). ✅ backfill (dac5785: `Bootstrap.ensure` gives every workspace a `general` project + repoints nil-project threads, idempotent, changeset timestamps). Server 421, console 840, green. (Console CRUD/config *screens* fold into Slice 3's cockpit build.)
 
 **Goal:** Make the three-tier hierarchy real in data *before* the cockpit renders it — a **Project** tier between workspace and thread, **Repos** as project members (a project has ≥1 repo, possibly several), and CRUD/config for every noun. Slice 3's workspace spine + project switcher depend on this.
 
