@@ -66,6 +66,17 @@ Two orthogonal substrates the cockpit composes; keeping them distinct is what ke
 - **funes = the knowledge.** Threads, facts, tickets, notes, the board, the attention queue — coordination spanning **all** workspaces. **God mode is a funes query, never a tmux attach:** the cockpit isn't a client stuck in one session — it drives tmux programmatically (`send-keys`/`new-window`/`capture`) and embeds the panes it wants, while the survey/orchestrator read funes across everything. Switching session changes which terminals you *see*; the board always spans everything.
 - **Native panel vs. pinned app is therefore a free per-surface choice:** agent-shared + searchable → funes-native panel (notes, tickets, the board); a tool you just want open → pin it as a tmux window. Never an architecture decision.
 
+### Local-first, backend-pluggable (every external surface)
+
+The through-line that lets one tool serve home (all local) and work (plugged into a company's infra): **every external-facing surface is local-first with a pluggable backend adapter.** A native funes-backed mode is the default and always works offline/solo; an adapter (under `modules/adapters`) plugs the same surface into the real external backend when you have one. Instances:
+
+- **Tickets** — `Local` funes tracker ↔ Jira / GitHub Issues / Linear.
+- **Reviews / PRs** — a local diff/branch review ↔ a real GitHub/GitLab **PR** (pull it, review with the crew, post comments back). A review is a thread entered at the `review` stage; the target is local or an external PR.
+- **Repos** — local worktrees ↔ remote origins (already how git works; the lazygit pane spans both).
+- (Later: chat/Slack, CI, etc. — same shape.)
+
+Build the **Local** mode first for each; adapters are follow-on and per-user (they need creds/APIs). The abstraction (a backend behaviour) is designed in from the start so adding an adapter never reshapes the surface.
+
 ### The cockpit (lazygit paradigm)
 
 **Two columns, not three.** Today's cockpit has *two* rails (left sidebar + right STACK/MEMORY) plus a center — that redundancy is the "doing too much" and the poor use of space. Collapse to lazygit's shape: **a spine + one panel rail + one main.**
@@ -136,7 +147,7 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 **Surfaces:** server — `staff_leaf`/`spawn_crew`/`open_thread` (tool.ex), the workline stage machine (`advance_stage`, gates), lead assignment (`Channel.assign_lead`), the orchestrator's Maintain loop; console — the lead conversation main panel, gate surfacing into ATTENTION.
 
-**Acceptance:** opening a thread at `review`/`build`/untracked works and owes the right artifacts; a lead, asked to build, delegates to crew/child threads and reports up; tertius routes a new intent to a lead and surfaces the spec/merge gates + escalations into ATTENTION; the two human gates park in `awaiting:andrew`.
+**Acceptance:** opening a thread at `review`/`build`/untracked works and owes the right artifacts; a **review** thread targets either a local diff or an external PR (backend-pluggable — see "Local-first" above; local mode now, GitHub/GitLab PR adapter follow-on); a lead, asked to build, delegates to crew/child threads and reports up; tertius routes a new intent to a lead and surfaces the spec/merge gates + escalations into ATTENTION; the two human gates park in `awaiting:andrew`.
 
 **Note:** mine `2026-08-27-ai-native-sdlc-workline-design.md`, `2026-08-22-per-thread-agents-design.md`, `2026-08-19-orbis-tertius-meta-thread-design.md` — subordinate.
 
@@ -152,6 +163,7 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 ## Execution notes
 
+- **Execution:** autonomous (2026-08-30 — Andrew: "let you cook … won't try it until we're done … do whatever"). Order at builder's discretion in dependency order; verify by tests + gates (Andrew is not eye-passing between slices), commit small, report progress.
 - **Order:** 0 → 1 → 2 → 3 → 4 → 5. **Slice 0** — 0.1 done, rest parked into 3. **Slice 1** — orchestrator command line (highest new value, lives in the current cockpit). **Slice 2** — the Workspace▸Project▸Thread data model + CRUD (prereq for the spine/switcher). **Slice 3** — the big UX reshape (two-column lazygit cockpit; absorbs 0.2/0.3). **Slice 4** — makes the coordination model real (lead-as-manager, any-stage, orchestrator staffing, per-thread worktrees). **Slice 5** — cleans the language and archives lineage.
 - **Discipline:** TDD every task (RED → GREEN → REFACTOR), commit small, run both module suites + the machine gate (`flake:check` / `home:switch`) before calling a slice green — module unit suites alone are NOT the gate for this repo.
 - **Dogfood:** each slice should be usable live in the running cockpit before the next starts.
