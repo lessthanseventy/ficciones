@@ -31,6 +31,8 @@
 | **Thread** | The unit of work/conversation. A **workline** when it carries a non-null SDLC stage; an **untracked thread** for pure exploration. | — |
 | **Child thread** | A thread a lead spins off for separable work; own SDLC, reports up. | **"leaf"** (dies entirely) |
 | **Crew** | Extra doers staffed *on the same thread* (parallel builders, a reviewer). | — |
+| **Ticket** | Not a new entity — a **thread in backlog state** (filed, unstaffed, parked at `intent`). Quick-captured via the god line ("file a ticket for later"); picked up → staffed → becomes an active workline. Jira = the backlog + board view over threads. | — |
+| **Note** | Funes-native freeform scratch, scoped global / workspace / project / thread — agent-readable/writable (the reason it's funes, not a text file), flows into the same recall the briefs read. | — |
 
 **Retire `leaf` and `leader` from code and UI.** `leaf` → `thread` / `child thread`; `leader` → `lead` (per-thread) or `orchestrator` (board). ~205 `leaf` + ~193 `leader` references today (Slice 4).
 
@@ -56,11 +58,19 @@ ORCHESTRATOR (tertius, one, board-level)  ── command line
 3. **Automatic in the middle, you at the ends + exceptions.** Auto: routing, safe mid-stage transitions, spawning crew, verify, kicking off review, Maintain monitors. Surfaced to you (the **attention queue**): the two judgment gates (approve-before-build, approve-the-merge) plus escalations (blocked lead, failing test, unroutable intent, machine-born intent wanting a green light).
 4. **The orchestrator line shows receipts.** Every dispatch echoes what it did (`→ posted to #2 · woke @hronir ✓`; `→ banked fact #47 ✓`). Consequential dispatches (kick off work, approve a merge, delete anything) confirm before firing. A command line you talk *into* with no confirmation is the exact failure this repo hit on 2026-08-30 (a reply lost to a terminal) — it must never be write-only.
 
+### Substrate — tmux = runtime, funes = knowledge
+
+Two orthogonal substrates the cockpit composes; keeping them distinct is what keeps "god mode" intact.
+
+- **tmux = the runtime.** Where live terminals run. **A workspace IS a tmux session** (already true — coworkers run in `console-workspace-<id>`); `super+1..9` switches session = switches workspace, and tmux gives **persistence for free** (coworkers survive the cockpit restarting — kills a class of staleness/roster-backfill bugs) plus **pin-anything** (any TUI, dev server, shell, external app as a session window). A **Project** is a *data grouping within* the session (funes `project_id`), not a tmux primitive — the switcher filters the session's windows to that project; its repos are paths/worktrees the lazygit pane points at. (Alternative reserved: project=session if projects ever need hard-isolated environments — costs a synthetic spine grouping over sessions.)
+- **funes = the knowledge.** Threads, facts, tickets, notes, the board, the attention queue — coordination spanning **all** workspaces. **God mode is a funes query, never a tmux attach:** the cockpit isn't a client stuck in one session — it drives tmux programmatically (`send-keys`/`new-window`/`capture`) and embeds the panes it wants, while the survey/orchestrator read funes across everything. Switching session changes which terminals you *see*; the board always spans everything.
+- **Native panel vs. pinned app is therefore a free per-surface choice:** agent-shared + searchable → funes-native panel (notes, tickets, the board); a tool you just want open → pin it as a tmux window. Never an architecture decision.
+
 ### The cockpit (lazygit paradigm)
 
-**Two columns, not three.** Today's cockpit has *two* rails (left sidebar + right STACK/MEMORY) plus a center — that redundancy is the "doing too much" and the poor use of space. Collapse to lazygit's shape: **a workspace spine + one panel rail + one main.**
+**Two columns, not three.** Today's cockpit has *two* rails (left sidebar + right STACK/MEMORY) plus a center — that redundancy is the "doing too much" and the poor use of space. Collapse to lazygit's shape: **a spine + one panel rail + one main.**
 
-- **Workspace spine (far left, thin):** the Hyprland-style context switcher — one entry per workspace, current highlighted, `super+1..9` to jump. Just the top layer; nothing else.
+- **Spine (far left, thin) = top-level surfaces**, Hyprland-style, current highlighted, `super+1..9` to jump. Not only workspaces — workspaces (contexts) **plus cross-cutting tools**: `Inbox/Tickets` and `Notes` (like Slack's rail = channels + Activity/Later/Files). Some entries are contexts; some are global tools; some can be pinned external apps (tmux). Switching a workspace re-scopes the rail + terminals; the global tools (Tickets/Notes/board) span all workspaces.
 - **The panel rail (one column), top-to-bottom in lazygit's own order:**
   - **top** — the active **Project** + `⚙` config + repo-switch (fuzzy `Ctrl+O`); lazygit's status/recent-repos slot.
   - **`NOW` (staging area)** — what's most important / going on right now = the ATTENTION queue (gates + escalations). lazygit's Files/staging.
@@ -90,7 +100,7 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 **Surfaces:** a new orchestrator agent bound to the root machine thread; `modules/console/lib/aleph/panel/composer.ex` (or a new `orchestrator_line`), `keymap.ex` (a global key to focus the line from any panel), the operator verbs already in `scripts/tlon-cli.sh` + the MCP tools (`post_message`, `bank_fact`, `open_thread`, `advance_stage`, `staff_leaf`, reads).
 
-**Shape:** the line is a thin NL front-end. v1 can be rule/intent-routed (verbs: "tell X …" → post_message to X's thread; "remember …" → bank_fact; "spike/explore/build …" → open_thread at the right stage; "what's blocked / who's free" → read; "approve #N" → advance_stage). v2 hands the turn to the tertius agent for open-ended routing. Every dispatch appends a receipt line; consequential verbs (open_thread, advance_stage past a gate, delete) show a confirm affordance first.
+**Shape:** the line is a thin NL front-end. v1 can be rule/intent-routed (verbs: "tell X …" → post_message to X's thread; "remember …" → bank_fact; "spike/explore/build …" → open_thread at the right stage; **"file a ticket …" → open_thread parked in backlog**; "note …" → a funes note; "what's blocked / who's free" → read; "approve #N" → advance_stage). v2 hands the turn to the tertius agent for open-ended routing. Every dispatch appends a receipt line (`→ filed #51 in backlog ✓`); consequential verbs (open_thread, advance_stage past a gate, delete) show a confirm affordance first.
 
 **Acceptance:** from any panel, one key focuses the line; a "tell hronir …" posts + wakes and shows `→ posted to #N · woke @hronir ✓`; a "remember …" banks a fact with a receipt; an "approve #N" is gated behind a confirm; nothing dispatches silently. Tests drive the intent-router headlessly.
 
@@ -100,7 +110,7 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 **Goal:** Make the three-tier hierarchy real in data *before* the cockpit renders it — a **Project** tier between workspace and thread, **Repos** as project members (a project has ≥1 repo, possibly several), and CRUD/config for every noun. Slice 3's workspace spine + project switcher depend on this.
 
-**Surfaces:** server schema — new `project` (belongs_to workspace; name, knobs) and `repo` (belongs_to project; path/url) tables + migrations; `thread.workspace_id` → `thread.project_id`; a new `Server.Projects` context (mirror `Server.Workspaces`); MCP tools `register_project`/`edit_project`/`remove_project` + repo attach/detach, existing workspace/thread/agent CRUD carried over. Console — project switcher plumbing + `⚙` config/CRUD screens.
+**Surfaces:** server schema — new `project` (belongs_to workspace; name, knobs), `repo` (belongs_to project; path/url), and `note` (funes-native scratch; polymorphic scope global/workspace/project/thread) tables + migrations; `thread.workspace_id` → `thread.project_id`; a thread **backlog state** (a ticket = filed, unstaffed, at `intent`); new `Server.Projects` + `Server.Notes` contexts; MCP tools `register_project`/`edit_project`/`remove_project`, repo attach/detach, `write_note`/`get_notes`, existing workspace/thread/agent CRUD carried over. Console — project switcher plumbing + `⚙` config/CRUD screens.
 
 **Migration care:** existing threads carry `workspace_id`. Backfill one default Project per workspace (the workspace's current repo folder(s) become that project's repos) and repoint threads at it. Reversible; SQLite child-FK rewrite — same pattern as the world→workspace migration (`20260829120000`).
 
@@ -110,7 +120,7 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 ### Slice 3 — The lazygit cockpit (workspace spine + panel rail + main)
 
-**Goal:** Collapse the current three-column cockpit into lazygit's shape — a thin **workspace spine** (Hyprland-style, `super+1..9`), one **panel rail** (top: active project + `⚙` config + repo fuzzy-switch `Ctrl+O`; then `NOW`/staging = ATTENTION; then `THREADS`/log; then CREW·MEMORY), one **main** that follows focus. The old right rail (STACK/MEMORY) dies into main-on-focus. `+`/`_` screen-mode zoom; context verb bar. **Absorbs Slice 0's parked work:** 0.2 → the strip goes thread-driven (one lane per active thread by its lead; idle standing lanes gone); 0.3 → leaf/leader labels retired in the UI.
+**Goal:** Collapse the current three-column cockpit into lazygit's shape — a thin **spine of top-level surfaces** (Hyprland-style, `super+1..9`: workspaces **+** the global `Inbox/Tickets` and `Notes` tools; pinned external apps allowed), one **panel rail** (top: active project + `⚙` config + repo fuzzy-switch `Ctrl+O`; then `NOW`/staging = ATTENTION; then `THREADS`/log; then CREW·MEMORY), one **main** that follows focus. The old right rail (STACK/MEMORY) dies into main-on-focus. `+`/`_` screen-mode zoom (incl. the pipeline board with a **backlog column** fed by filed tickets; a Notes surface). Context verb bar. **Absorbs Slice 0's parked work:** 0.2 → the strip goes thread-driven (one lane per active thread by its lead; idle standing lanes gone); 0.3 → leaf/leader labels retired in the UI. Runs on the **tmux=session substrate** (see Substrate above): switching a workspace switches the tmux session; global tools span all sessions via funes.
 
 **Surfaces:** `cockpit.ex` (three-column → spine+rail+main layout, focus machine, screen-mode state), `keymap.ex` (`super+1..9` workspace jump, `Ctrl+O` project switch, in-rail number-jump, `Tab`, `+`/`_`, verb bar), existing panels re-homed (`triage`→NOW, `overview`/`leaves`→THREADS, `roster`/`crew`→CREW, `memory`, `stack`), a pipeline-board render (THREADS zoomed), the ghostty PTY embed for STACK-zoom.
 
