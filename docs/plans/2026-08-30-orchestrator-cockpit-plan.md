@@ -119,7 +119,7 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 ### Slice 2 — Workspace ▸ Project ▸ Thread (the container model + CRUD)
 
-**STATUS (in progress):** ✅ data entities landed — `Project` (53b6c6e: table + `thread.project_id` additive + `Server.Projects`), `Note` + `Ticket` (84e154d: `Server.Notes` polymorphic-scope, `Server.Tickets` local-backend tracker w/ promote). Repos stored as a JSON member of `project` (no separate table — dodges the `Server.Repo` clash). Server suite 415, console 811, all green. ⏳ REMAINING: MCP tools (`register/edit/remove_project`, `file/update/list/promote_ticket`, `write/get_notes`) so agents + the god line use them; the `thread.workspace_id`→default-project backfill; console CRUD/config screens.
+**STATUS (in progress):** ✅ data entities landed — `Project` (53b6c6e), `Note` + `Ticket` (84e154d); repos = JSON member of `project` (dodges `Server.Repo` clash). ✅ MCP tools landed (61ec216): `file_ticket`/`list_tickets`/`update_ticket`, `write_note`/`get_notes`, `register_project` — workspace-scoped via the bound thread; end-to-end MCP tests. Server 417, console 811, all green. ⏳ REMAINING: the `thread.workspace_id`→default-project backfill (deferred — timestamp-in-SQL care); console CRUD/config screens (fold into Slice 3). Server SIDE of Slice 2 is done.
 
 **Goal:** Make the three-tier hierarchy real in data *before* the cockpit renders it — a **Project** tier between workspace and thread, **Repos** as project members (a project has ≥1 repo, possibly several), and CRUD/config for every noun. Slice 3's workspace spine + project switcher depend on this.
 
