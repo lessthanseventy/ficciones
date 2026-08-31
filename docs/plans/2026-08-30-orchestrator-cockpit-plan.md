@@ -107,6 +107,8 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 ### Slice 1 — The orchestrator command line (tertius + receipts)
 
+**STATUS (in progress):** ✅ the BRAIN landed (8534009): `Console.Orchestrator.Router` (pure NL intent-router, 15 tests) + `Console.Orchestrator` (dispatch/classify/confirm with receipts, 22 DB-booted tests) over the exported `Server` facade/contexts. Safe verbs (post/note/ticket/roster/blocked) dispatch straight; consequential (open/approve) confirm first; approve deferred to Slice 4. ⏳ REMAINING: wire the brain into the cockpit UI — the `tertius ▸` line panel + a global focus key + receipt display (keymap/cockpit/panel).
+
 **Goal:** The always-present `tertius ▸` line: type meta-intent, tertius dispatches over the operator MCP toolset, echoes a receipt, confirms consequential actions. The highest-value new capability (anti-conflation + closes the receipt loop).
 
 **Surfaces:** a new orchestrator agent bound to the root machine thread; `modules/console/lib/aleph/panel/composer.ex` (or a new `orchestrator_line`), `keymap.ex` (a global key to focus the line from any panel), the operator verbs already in `scripts/tlon-cli.sh` + the MCP tools (`post_message`, `bank_fact`, `open_thread`, `advance_stage`, `staff_leaf`, reads).
