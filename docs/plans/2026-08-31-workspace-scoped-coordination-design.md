@@ -1,6 +1,10 @@
 # Workspace-Scoped Coordination + the Thread/Session Split — Design
 
-> **Status:** validated with Andrew 2026-08-31. Subordinate to
+> **Status: BUILT 2026-08-31** (all 6 tasks, on `main`, server 459/0 + console 885/0,
+> both compiles `--warnings-as-errors` clean). Live DB rosters seeded. REMAINING:
+> Andrew's restart (`console:run`) + kitty pass on the session-pane PTY (render/key
+> routing/click/resize — the live seam), and the machine gate (`flake:check`/`home:switch`).
+> Subordinate to
 > `2026-08-30-orchestrator-cockpit-plan.md` (this fills in Slice 3's "re-scope
 > everything" acceptance gap + the Slice 4 lead-as-manager UX). When this and the
 > cockpit plan disagree, the cockpit plan wins on model, this wins on the specifics
