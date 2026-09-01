@@ -1,0 +1,112 @@
+# Tlön roadmap — the single "nothing dangles" tracker
+
+**Date:** 2026-09-01
+**Purpose:** Andrew asked to step back and make sure *everything* open gets done, nothing left
+dangling — one doc encompassing all of it. This is that index. It inventories every open
+thread with status + priority, and links out to the detailed design docs. Priority reflects
+Andrew's framing: **he builds from the outside (via Claude Code); the cockpit/running app is a
+test window, not the point right now. Substance + not losing accumulated knowledge on a wipe
+matter; cockpit visual polish does not.**
+
+Design docs this indexes:
+- `2026-09-01-tlon-architecture-and-coworker-lifecycle-design.md` — WS2 + WS3 detail
+- `2026-09-01-per-thread-reply-input-design.md` — shipped
+- `2026-09-01-cockpit-homogenize-design.md` — WS4 (parked tail)
+
+---
+
+## Shipped (this session, on `main`)
+
+- Per-thread reply box (`54f1092`, `2db0f5b`) — live-verified.
+- NOW activity backfill on restart (`7f197e8`).
+- Test hygiene — hermetic `PI_CODING_AGENT_DIR` (`aa7530c`); console suite 874/0.
+- Design docs (`f441c84`, `2fed2d4`).
+
+## Already built, discovered while surveying
+
+- **`Server.Seed` + boot wiring.** `Server.Bootstrap.ensure` → `Server.Seed.ensure_safe/0`
+  applies `priv/seed/repo_knowledge.exs` (facts keyed by `intent` + baseline projects)
+  idempotently on every boot/wipe. So "seed on boot" is DONE — the gaps are *what* it seeds
+  (WS1) and the fact it never seeds a roster.
+
+---
+
+## WS1 — Bootstrap knowledge (TOP PRIORITY: the wipe-proof brain)
+
+The north star: **the seed is everything Tlön should know and be on a fresh boot** — so wiping
+the DB never loses hard-won knowledge or leaves a dead, unstaffed world. The mechanism exists
+(`priv/seed/repo_knowledge.exs`, applied idempotently); this workstream fills it out and keeps
+it growing.
+
+1. **Seed the roster + baseline staffing.** Add coworker agents (the roster) and a staffed
+   default thread/lead to the seed so a fresh world is *functional*, not just knowledgeable —
+   this is the direct fix for `0/6` / unstaffed threads (`maybe_spawn_absent` needs a lead). Fold
+   the existing `do_seed_world` roster logic into `Server.Seed` (or call it from the same boot
+   path) so there is ONE seed, not a separate manual step. Closes the "durable fix still TODO"
+   from `funes-two-DB-roster-seam`.
+2. **Grow the knowledge corpus.** Curate the genuinely useful things learned (this session and
+   before) into `repo_knowledge.exs` as intent-keyed facts — the standing self-knowledge every
+   wipe restores. Treat it like a version-controlled memory index.
+3. **Fact-promotion path.** A way to take a valuable *session-banked* fact and promote it into
+   the seed file so it survives the next wipe — e.g. `mix server.promote_fact <id>` (or a CLI/MCP
+   verb) that appends the fact, keyed by its `intent`, into `repo_knowledge.exs`. Without this,
+   learnings only reach the seed by hand and silently rot. This is the loop that makes the brain
+   *accumulate* instead of resetting to a fixed baseline.
+4. **(Stretch) Seed richness audit.** Decide what else belongs in the wipe-proof set: baseline
+   worklines, standing tickets, the archetype/role catalog, key project dossiers.
+
+Why first: it's the highest substance-per-effort, it's what Andrew explicitly asked for, the
+infra already exists, and #1 unblocks WS2 (a staffed world is the precondition for a coworker to
+spawn at all).
+
+## WS2 — Coworker lifecycle (make it talk back)
+
+Detail in the architecture/lifecycle design doc §5. Depends on WS1.1 (staffing).
+
+1. **Cold dead-zone fix.** `Switchboard.has_live_session?/2` only checks `ended_at IS NULL`, so a
+   *cold* session is neither woken (`recipients/1` excludes it) nor replaced (`maybe_spawn_absent`
+   sees a session) → the message strands. Treat cold like absent.
+2. **Fresh-seed-on-cold spawn.** A cold/offline lead gets a FRESH session seeded from
+   `Board.brief(thread)` (dossier catch-up), never a `/resume` of a huge context — no burned
+   5-hour window.
+3. **End-to-end verify.** Post → `maybe_spawn_absent` → live coworker → reply, once staffed.
+
+## WS3 — One-brain architecture (the big refactor, deliberate/later)
+
+Detail in the architecture/lifecycle design doc §4. Andrew's stated future (web UI + Oban) makes
+this the correct target; it is a real refactor, its own plan when the time comes.
+
+1. **Cockpit as RPC client.** Stop embedding `:server`; the cockpit `:erpc`s into the always-up
+   server node. Retire the embedded :4041/`.dev` second brain; one seeded real DB; `.dev` =
+   test-only.
+2. **Web UI** (Phoenix/LiveView) over the same always-up server.
+3. **Oban** persistent/scheduled jobs (maintain sweeps, drain, warmth reaping, digests).
+4. **SQLite → Postgres**, likely triggered by #2/#3. Build the client boundary first; migrate the
+   store when Oban/web-UI land.
+
+## WS4 — Cockpit visual tail (PARKED)
+
+The reshape/homogenize plan (`2026-09-01-cockpit-homogenize-design.md`) is structurally done
+(Slices A/B/C + D1/D2). Remaining **D3 Tickets kanban · D4 Notes cards + CREW colors · D5 config
+menus** are visual polish. **Explicitly parked** — Andrew doesn't care about cockpit visuals
+right now. Not dropped; revisit when the app itself becomes the daily surface.
+
+## WS5 — Misc dangling (backlog, not lost)
+
+- **Notes-reimagined** — the AI-iteration box + obsidiantui-lite md store (its own brainstorm;
+  bigger than the D4 card restyle).
+- **lazygit → flake** — package the lazygit dependency into the nix flake.
+- **console leaf/leader rename** — the deferred Slice-5 rename pass (hazards noted in
+  `orchestrator-cockpit-plan`).
+
+---
+
+## Order of attack
+
+1. **WS1.1** — seed the roster/staffing → world is functional, `0/6` fixed. *(smallest real unblock)*
+2. **WS1.2 / WS1.3** — grow the corpus + the promotion path → the accumulating brain.
+3. **WS2** — cold dead-zone + fresh-seed → it talks back.
+4. **WS3** — one-brain refactor, when web-UI/Oban actually start. Own plan.
+5. **WS4 / WS5** — as desired; parked/backlog.
+
+Nothing above is lost: WS1–WS3 are active, WS4 is parked with a reason, WS5 is a named backlog.
