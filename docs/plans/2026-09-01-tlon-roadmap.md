@@ -16,19 +16,35 @@ Design docs this indexes:
 
 ---
 
+## Status (updated end-of-session 2026-09-01)
+
+**WS1 (bootstrap knowledge) — essentially DONE. WS2 (coworker lifecycle) — DONE.** The remaining
+gap to a live "post → coworker replies" is NOT server code — it's verifying the console actuation
+path (`Console.Arbiter.spawn` → `Sessions.spawn_harness` boots a working agent) in the running
+cockpit. Left: WS3 (one-brain refactor, big/later), WS4 (visual tail), WS5 (backlog).
+
 ## Shipped (this session, on `main`)
 
 - Per-thread reply box (`54f1092`, `2db0f5b`) — live-verified.
 - NOW activity backfill on restart (`7f197e8`).
 - Test hygiene — hermetic `PI_CODING_AGENT_DIR` (`aa7530c`); console suite 874/0.
-- Design docs (`f441c84`, `2fed2d4`).
+- **WS1.2** — folded the session's architecture decisions into the wipe-proof seed (`55446e8`).
+- **WS2** — cold-lead ROTATION instead of stranding (`c1bdeb9`): the switchboard spawn-decision
+  is warm-only, so a cold lead is rotated (fresh, brief-seeded) via the already-wired arbiter.
+- **WS1.3** — fact-promotion (`24a6bf3`): `mix server.promote_fact` graduates a banked fact into
+  `promoted_facts.exs`, merged by `Server.Seed` on every boot — learnings survive a wipe.
+- Design docs (`f441c84`, `2fed2d4`, `4047e68`, and corrections `68c983c`).
 
-## Already built, discovered while surveying
+## Already built, discovered while surveying (WS1.1 was a phantom)
 
-- **`Server.Seed` + boot wiring.** `Server.Bootstrap.ensure` → `Server.Seed.ensure_safe/0`
-  applies `priv/seed/repo_knowledge.exs` (facts keyed by `intent` + baseline projects)
-  idempotently on every boot/wipe. So "seed on boot" is DONE — the gaps are *what* it seeds
-  (WS1) and the fact it never seeds a roster.
+- **Seed + boot wiring.** `Bootstrap.ensure` → `Seed.ensure_safe/0` applies `repo_knowledge.exs`
+  idempotently on every boot. DONE.
+- **Staffing is already wired + tested.** `Channel.open_thread` enforces a lead invariant —
+  `designated_lead(workspace_id)` picks the roster's manager (first `builder` = `hronir`) and
+  `ensure_lead_agent` register-or-gets `hronir-machine` (tested, `channel_test.exs:262`). So
+  threads ARE born staffed and the lead agent IS registered — **WS1.1's premise was wrong** (it
+  came from stale memory predating this work). The `0/6 live` is a runtime "no warm sessions"
+  state, not a staffing gap.
 
 ---
 
