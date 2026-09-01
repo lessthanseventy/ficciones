@@ -1,7 +1,14 @@
 # Per-thread agents: leaves, a leader-of-leaders, and a harness-agnostic lifecycle
 
+> **SUPERSEDED (2026-08-31)** by `2026-08-30-orchestrator-cockpit-plan.md` (Slice 4) and
+> `2026-08-31-lead-as-manager-coordination-design.md`. The "leaf / leader-of-leaders" vocabulary is
+> retired: a worker thread is a **child thread** (`thread.parent_thread_id`), a leader is a **lead**,
+> and the "leader of leaders" is **tertius the orchestrator**. The harness-agnostic lifecycle and
+> per-thread-worktree ideas here landed as Slice 4 (`Server.Worktree`, `staff_child`, `assign_lead`).
+> Kept for lineage; do not build from this.
+
 **Date:** 2026-08-22
-**Status:** design (validated in brainstorm; not yet planned into tasks)
+**Status:** SUPERSEDED — see banner above (was: design, validated in brainstorm)
 **Context:** follows the machine-chat staffing fix (`e14dfd6`) and the worlds/orbis reshape
 ([[2026-08-21-worlds-orbis-reshape-design]], [[2026-08-19-aleph-chat-attention-design]]).
 

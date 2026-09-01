@@ -139,6 +139,20 @@ cards + per-item action menus.
 Tickets kanban → D4 Notes cards + CREW colors → D5 config menus. No live-PTY;
 headless-testable + Andrew's eye-pass.
 
+## Backlog — bigger ideas (own brainstorm, not this pass)
+
+- **Notes reimagined → "obsidiantui-lite" + AI iteration (Andrew, 2026-09-01).** The
+  plain notes list has never worked for him (tried nvim/org-mode/apps/checklists).
+  What he actually wants, two parts: (1) an **iterate-a-message box** — type an intent
+  ("I want this"), a model generates a draft, he refines in place ("change it like
+  this" / "take that part out"), it regenerates — the single-message-refinement loop
+  he does constantly; with **copy** + **save-as-note** actions on the result. (2) A
+  real **markdown notes workspace** — capture, move, organize, and view notes as md
+  (Obsidian-lite in the TUI). This reframes "Note" from a static funes row into an
+  AI-drafting surface + an md store; it's bigger than the D4 gutter-card polish and
+  wants its own brainstorm (where does the LLM iteration run? md files vs funes notes?
+  organization model?). D4 still does the card restyle; this is the follow-on.
+
 ## Execution notes
 
 - TDD per task; both module suites + compile `--warnings-as-errors` green per commit;

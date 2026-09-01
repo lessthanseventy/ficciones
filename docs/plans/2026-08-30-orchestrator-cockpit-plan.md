@@ -143,7 +143,44 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 ✅ **Permanent tertius band** (`Panel.Tertius`, replaced the Ticker as the center's bottom band): input line + last-2 receipts. Focus via **click or `:`** (Space is fold now). De-duped — removed the StatusBar :orchestrate clause (52849bc). Bare text PASSES THROUGH → posts to the machine root thread (3bcbdff); verbs are shortcuts over the MCP toolset.
 ✅ **Hot-reload** (3af2be3): `mise run console:reload` (2nd terminal) = `mix compile && touch .reload`; cockpit reloads Console.* modules on the 500ms tick. INTENTIONAL + compile-gated (never auto-on-save). Render/keymap/panel edits live; STATE-SHAPE changes still need `console:run`.
 ✅ `Panel.TicketBoard` (fbb03f5, pure render, NOT yet wired into a layout).
-⏳ REMAINING: **3.4** the layout restructure (workspace spine far-left, re-home NOW/CREW/MEMORY/STACK to a left rail, KILL the right rail — the big visual one, needs Andrew's eyes) · **3.5** wire the Tickets/Notes boards + STACK-zoom embedded lazygit + right-rail click actions (git commit→diff, triage→jump — these reuse commit_detail/focus_thread but need Focus-struct wiring; setting `status_detail` may be the simpler path) · the interactive y/n **confirm** for consequential verbs (open/approve currently SHOW-without-firing) · v2 tertius **agent** (LLM interprets intent, folds into Slice 4).
+✅ **3.4 layout restructure LANDED (code + green, pending Andrew's live eyes-on)**: `View.compose` now paints
+**spine · funes rail · center** — a thin far-left SPINE (`wide_columns` = `spine_width(w)` ≈ w/8, clamped 14–22;
+the Sidebar slimmed to Home + workspace headers, thread/crew sub-rows dropped since the center stack + CREW rail
+carry them), the funes RAIL (`space.left` = `[Activity(NOW), Crew, Memory, Stack]`, stacked, digits 2–5), and the
+center thread-stack + tertius. **Right rail KILLED**: `space.right = []` for both workspace and Orbis; the whole
+carousel/pin machinery RETIRED (`visible_right`/`rail_context`/`pinned_head`/`Space.carousel`, `cycle_pane_view`,
+`right_pane_view` state+reads, the `[`/`]` + Alt-`[`/`]` keymap, `border_tab_hit` click routing, `carousel_border`,
+`pinned_boxes`/`intrinsic_height`). Focus SM unchanged: `left=[Sidebar]` (spine), `right=space.left` (rail) — H/L
+spine↔rail. Leaves-subsystem (attach/preview/yank + `Panel.Leaves`) left LATENT (dormant — no rail pane focuses it;
+full removal is Slice 5). console **854/0 green** (was 868 — dropped the retired carousel/leaf-preview tests; the 5
+CrewTest "failures" in-sandbox are `~/.pi/profiles` write-blocks, green with sandbox off). GOTCHA: setting
+`space.right = []` alone collapses the right column via the existing empty-carousel guards — the real work was the
+new geometry + splitting the Sidebar into the spine.
+✅ **Spine refined to an ICON DOCK (2026-08-31, Andrew's steer)**: the far-left spine is NOT text labels — it's a
+home glyph `⌂` (the Orbis god-view) + one DIGIT per workspace (1-based, the super+1..9 mental model), no names
+(the active space's name rides the status bar). `spine_width` ≈ w/16 clamp 7–11; `section_title(Sidebar)="WS"`;
+`Panel.Sidebar` render is now `glyph_row/4` (the thread/crew sub-row rendering deleted — that paradigm lives in the
+center stack). **Home is NOT cruft** — it's the god-view/dashboard (a funes survey across ALL workspaces); it stays
+as the `⌂` entry. STILL TODO in the spine: global-tools entries (Tickets/Notes/settings) as glyphs — need switch
+targets (Slice 3.5). Future (substrate, not 3.4): a workspace's content can be a pinned TUI (nvim/command) or a
+nested tlon-workspace with its own projects.
+✅ **Seed infra NEW (2026-08-31, Andrew asked)**: `modules/server/priv/seed/repo_knowledge.exs` (editable) +
+`Server.Seed` (loads it, banks base self-knowledge FACTS keyed by `intent` + ensures baseline PROJECTS, idempotent) +
+`mix server.seed` + wired into `Server.Bootstrap.ensure/0` so a fresh/reset scratch DB self-heals to "funes already
+knows the basics". Seeded the cockpit DB (`modules/server/.dev/tlon.db`): workspace #1 ficciones, projects
+general+excessibility+ex_riverside+ex_cortex (real repos under ~/projects), 10 constraint/stated facts (what Tlön
+is, module layout, coordination model, substrate, runtime, DB, knowledge model, toolchain, gates). server 421/0 + 5
+Seed tests.
+NEXT: Andrew's live eyes via `console:run` (spine glyphs/width, rail density; workspaces now populated with projects+knowledge).
+✅ **Interactive y/n confirm LANDED (2026-08-31)**: a consequential verb (`open`/`approve`) now ARMS
+`pending_confirm: %{action, ctx, summary}` (cockpit) + flashes `⏸ <summary>? — y to confirm · n to cancel`;
+`y` fires `Console.Orchestrator.confirm/2`, any other key cancels — a top-priority Keymap modal gate
+(precedes even the input modal + a live terminal), mirroring the `pending_delete` two-key pattern. The arm
+rides the effect (`{:confirm_orchestrate, arm}`) since the keymap clears the arm on `y` (same as
+`{:remove_workspace, id}`). Keymap 5 new tests green; console 876/0 (5 CrewTest sandbox write-blocks green
+with sandbox off). NOTE: cancel leaves the arm flash stale for one render — consistent with `pending_delete`'s
+"press d again" behaviour; not worth a cancel-flash effect.
+⏳ REMAINING: **3.5** wire the Tickets/Notes boards + STACK-zoom embedded lazygit + right-rail click actions (git commit→diff, triage→jump — these reuse commit_detail/focus_thread but need Focus-struct wiring; setting `status_detail` may be the simpler path) · v2 tertius **agent** (LLM interprets intent, folds into Slice 4). Small spine follow-ups Andrew flagged: a **settings/global-tools** entry in the spine (Tickets/Notes), and the "fat Slack sidebar" paradigm stays (it lives in the center thread-stack).
 
 **Goal:** Reshape the cockpit to **spine · left rail · center thread-stack · bottom meta input** (2026-08-30 refinement). **Spine** (thin, Hyprland `super+1..9`): workspaces **+** global `Inbox/Tickets`/`Notes`; pinned apps allowed. **Left rail** of funes panels: top = active project + `⚙` + repo fuzzy-switch `Ctrl+O`; then `NOW`/ATTENTION, CREW, MEMORY, STACK. **Center = a vertical stack of foldable Slack-style thread cards** (the heart — see "The cockpit" above): folded = header (title·lead·stage) so the stack IS the thread list; unfolded (`z`) = conversation + artifacts + a **per-thread reply input**; the most-recently-active thread unfolded by default. **Bottom = the permanent `tertius ▸` meta input** (replaces the `:` stopgap). The old right rail (STACK/MEMORY) dies into the left rail. Two boards reachable as full-screen rail zooms: the **Tickets board** (per-workspace capture→triage→backlog→doing→done, no ceremony) and the **SDLC pipeline board** (worklines intent→…→merged); a ticket *promotes* off Tickets into the pipeline. **Absorbs Slice 0's parked work:** 0.2 → the thread stack replaces the leaves/strip window model (idle standing lanes gone; a card per active thread by its lead); 0.3 → leaf/leader labels retired. Runs on the **tmux=session substrate**: switching a workspace switches the tmux session; global tools span all sessions via funes.
 
@@ -157,6 +194,17 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 ### Slice 4 — Lead-as-manager + any-stage entry + orchestrator staffing
 
+**STATUS (in progress, 2026-08-31, autonomous):** decomposed into 4A worktree primitive → 4B thread→repo resolution → 4C console lazygit zoom → 4D coordination model.
+✅ **4A — `Server.Worktree` LANDED** (server 440/0): lazy per-thread `git worktree add .worktrees/<slug> work/<slug>` (creates branch off HEAD or reuses it), `ensure/2` (idempotent), `prune/2` (`--force`, keeps the branch), `path/2`+`branch/1` pure. **Decision (Andrew):** real worktrees at `.worktrees/<slug>` — NOT `work/<slug>/`, which is already the live artifact-docs dir (`Scribe`/`Artifacts.Git` commit intent/spec/plan/review there in the MAIN tree; a worktree there would collide). `.worktrees/` ignored repo-locally via `.git/info/exclude` (never a committed `.gitignore`). Slug charset re-validated (no traversal). 10 tests, real temp git repos.
+✅ **4B — thread→project→repo resolution LANDED** (was inert): `Server.Projects.repo_for_thread/1` + facade `Server.repo_for_thread/1` (id or struct) → `{:ok, ~-expanded primary-repo path}` | `{:error, :no_repo|:no_thread}`. Explicit `project_id` uses THAT project's first repo (never borrows another's); nil project falls back to the workspace's first repo-bearing project. `repos` = JSON `[%{"name","path"}]`. 4 tests.
+✅ **4C — console STACK-zoom embedded lazygit WIRED** (console 875/5 — 5 = known CrewTest sandbox blocks): tested primitives — `Server.worktree_for_thread/1` (facade: repo_for_thread + Worktree.ensure; a thread with a slug → `.worktrees/<slug>`, no slug → the repo itself) + `Console.Lazygit` (`command/1` builds `/bin/bash -lc "cd … && exec lazygit"`, shell-quoted; `available?/0`). Cockpit overlay: `lazygit` state field; **Enter on the focused STACK rail pane** (`apply_effect(:tlon_enter)` `Panel.Stack` branch) → `open_lazygit` → `Sessions.ensure({:lazygit, id}, …)` → full-frame `lazygit_placements` (`Panel.Terminal` over the PTY); `Ctrl+Space` collapses; keys/clicks/wheel route to the lazygit PTY while up; the tick `reconcile_lazygit` collapses a quit-from-inside pane. **LIVE-ONLY (Andrew's kitty pass):** PTY render + key routing + resize-on-window-change (spawn dims only for now). FOLLOW-UP: add `lazygit` to the flake (on PATH today at /usr/sbin, so it works; flake entry is for reproducibility). NEEDS `console:run` (new state field).
+✅ **4D substrate BUILT (2026-08-31)** — design in `docs/plans/2026-08-31-lead-as-manager-coordination-design.md` (brainstormed w/ Andrew). server 451/0, console 879/5(sandbox):
+  • **4D-1 any-stage entry**: `Workline.open(:stage)` (default intent; validated ∈ ring−merged) + `open_titled/3` (title→slug) + `Thread.workline_changeset` casts `:stage`. Opening later sets the start, doesn't backfill owed artifacts, doesn't gate.
+  • **4D-2 parent link + report-up**: migration `thread.parent_thread_id` (self-FK, unlink-not-cascade) + `belongs_to :parent` + `open_changeset` casts it; `Channel.close_thread` reports up — a closed CHILD posts `✅ child #N “title” closed` into the parent `@`-mentioning its lead (the console mention router wakes them).
+  • **4D-3 toolset**: `StaffLeaf`→ now parents the child at the caller + inherits project (→StaffChild in Slice 5); new first-class **`assign_lead`** MCP tool (thread_id+handle, registered in endpoint.ex).
+  • **4D-4 verb wiring + ATTENTION**: `Orchestrator.confirm({:open,stage,title})` → `Server.open_workline` (stage) / plain thread (nil=explore); `confirm({:approve,n})` → `Server.approve_workline` (un-stubbed). NOW pane (`Panel.Activity`) now leads with a **⏸ AWAITING YOU** gate list from cached `workline_statuses` (new `gates` probe on the @probe_ms cadence).
+⏳ **4D-5 tertius orchestrator mandate** (LEFT — config + LIVE-tuned): tertius archetype/mandate `surveyor`→orchestrator + its brief (triage intents on the root thread, open work, assign leads, surface gates, don't build). A prompt, iterated with the running agent — Andrew's live step. Also LIVE: does tertius/leads actually delegate well (the whole loop feeling right).
+
 **Goal:** Make the coordination model real, not just displayed. A lead delegates (staffs crew / spins child threads / assigns a reviewer) rather than building. Threads open at any stage. tertius actually orchestrates intake + escalation (with human gates).
 
 **Surfaces:** server — `staff_leaf`/`spawn_crew`/`open_thread` (tool.ex), the workline stage machine (`advance_stage`, gates), lead assignment (`Channel.assign_lead`), the orchestrator's Maintain loop; console — the lead conversation main panel, gate surfacing into ATTENTION.
@@ -167,11 +215,15 @@ Ordered by dependency + value. Each slice is shippable and gate-green on its own
 
 ### Slice 5 — Nomenclature retirement + doc supersession
 
-**Goal:** Finish the rename in *code* (`leaf`→`thread`/`child_thread`, `leader`→`lead`/`orchestrator`), then supersede the lineage docs.
+**STATUS (2026-08-31, partial — done what's SAFE, deferred what would break the live cockpit):**
+✅ **Server side clean**: `grep -rEin 'leaf|leader' modules/server/lib` returns nothing — `StaffLeaf`→`StaffChild` + `staff_leaf`→`staff_child` (module + wire name + all refs + tests + tertius mandate), and every server comment/agent-facing doc reworded to thread/child/lead.
+✅ **Doc supersession**: `2026-08-22-per-thread-agents-design.md` + `2026-08-19-orbis-tertius-meta-thread-design.md` stamped SUPERSEDED, pointing at this plan + the 4D design.
+⏳ **Console code rename DEFERRED (deliberate — needs a live-verified pass, not a blind mechanical sweep).** Two hazards make a mechanical `leaf`/`leader` sweep unsafe on the running cockpit:
+  1. **`leader` is overloaded**: `leader_pending?`/`clear_leader`/"the leader: Ctrl+Space" is the **keymap prefix key** (correct term — MUST stay), NOT the coordination lead. Only `focused_session {:leader, name}` and the doc-comments mean the coordination sense. A blind rename corrupts the keymap.
+  2. **The `leaf`-attach subsystem is dormant DEAD CODE slated for REMOVAL, not rename** (`Panel.Leaves`, `{:leaf,id}`/`{:leader,name}` `focused_session`, `attach_leaf`, `jump_to_leaf`, `Console.LeafWindow`, `@leaf_window ~r/^t\d+$/`) — tangled through the live tmux window routing. `@leaf_window ~r/^t\d+$/` and the `t<id>` window pattern are a **runtime tmux contract**. This should be a focused removal pass with Andrew's live cockpit, since it touches window routing he runs.
+  **DOCUMENTED SURVIVORS** (intentional, keep): keymap `leader`/`leader_pending?` (prefix key — right word); the dormant leaves-subsystem identifiers (pending removal, above). **Remaining console rename** = the coordination `{:leader,name}`→`{:lead,name}` + comment vocab in `cockpit.ex`/`view.ex`/`keymap.ex`/`machine_chat/*`/`panel/*`, best done alongside the leaves-subsystem removal.
 
-**Surfaces:** the ~205 `leaf` + ~193 `leader` identifiers across `modules/server` + `modules/console`; module/function/var/test names; the `@leaf_window`/`leaf_window?` seam retired. Then move superseded docs under a `docs/plans/superseded/` (or stamp a header) and update `docs/plans` index.
-
-**Acceptance:** `grep -rin '\bleaf\b\|\bleader\b' modules/{server,console}/lib` returns only intentional survivors (if any, documented); both suites green; lineage docs marked superseded by this plan.
+**Acceptance (revised):** server lib grep-clean ✅; console coordination-`leader` + dead leaves-subsystem retired in a live-verified pass (deferred); both suites green ✅ (server 451/0, console 879/5-sandbox); lineage docs superseded ✅.
 
 ---
 

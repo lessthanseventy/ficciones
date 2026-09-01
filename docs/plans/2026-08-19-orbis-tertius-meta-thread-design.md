@@ -1,5 +1,10 @@
 # Orbis Tertius — the machine meta-thread & orchestrator
 
+> **SUPERSEDED (2026-08-31)** by `2026-08-31-lead-as-manager-coordination-design.md` (Slice 4D).
+> tertius is no longer a passive "vantage/synthesizer" — it is the active **orchestrator**: it triages
+> intents, opens work, assigns leads (`staff_child`/`assign_lead`), and surfaces gates. Its mandate +
+> toolset live in `Console.Profiles` (`@tertius_role`/`@tertius_mcp`). Kept for lineage.
+
 Date: 2026-08-19
 Status: all 5 slices landed (foundation · dashboard · agent · cross-thread read · cadence). Tlön was
 also simplified to a three-window cast — **uqbar** (the console/doorway) · **hronir** (the builder,
