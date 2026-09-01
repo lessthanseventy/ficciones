@@ -4,9 +4,10 @@
 **Purpose:** Andrew asked to step back and make sure *everything* open gets done, nothing left
 dangling — one doc encompassing all of it. This is that index. It inventories every open
 thread with status + priority, and links out to the detailed design docs. Priority reflects
-Andrew's framing: **he builds from the outside (via Claude Code); the cockpit/running app is a
-test window, not the point right now. Substance + not losing accumulated knowledge on a wipe
-matter; cockpit visual polish does not.**
+Andrew's framing: **he builds from the outside (via Claude Code) and the cockpit is mostly a
+test window right now, so substance + not losing accumulated knowledge on a wipe lead. But
+visuals and polish DO matter too — the cockpit visual tail is real work, just sequenced after
+the substance, not dropped.**
 
 Design docs this indexes:
 - `2026-09-01-tlon-architecture-and-coworker-lifecycle-design.md` — WS2 + WS3 detail
@@ -84,12 +85,12 @@ this the correct target; it is a real refactor, its own plan when the time comes
 4. **SQLite → Postgres**, likely triggered by #2/#3. Build the client boundary first; migrate the
    store when Oban/web-UI land.
 
-## WS4 — Cockpit visual tail (PARKED)
+## WS4 — Cockpit visual tail (active, after the substance)
 
 The reshape/homogenize plan (`2026-09-01-cockpit-homogenize-design.md`) is structurally done
 (Slices A/B/C + D1/D2). Remaining **D3 Tickets kanban · D4 Notes cards + CREW colors · D5 config
-menus** are visual polish. **Explicitly parked** — Andrew doesn't care about cockpit visuals
-right now. Not dropped; revisit when the app itself becomes the daily surface.
+menus** are visual polish — real work Andrew wants done, sequenced after WS1–WS2 substance, not
+dropped. Pick these up alongside/after the lifecycle work; they don't block anything.
 
 ## WS5 — Misc dangling (backlog, not lost)
 
@@ -106,7 +107,8 @@ right now. Not dropped; revisit when the app itself becomes the daily surface.
 1. **WS1.1** — seed the roster/staffing → world is functional, `0/6` fixed. *(smallest real unblock)*
 2. **WS1.2 / WS1.3** — grow the corpus + the promotion path → the accumulating brain.
 3. **WS2** — cold dead-zone + fresh-seed → it talks back.
-4. **WS3** — one-brain refactor, when web-UI/Oban actually start. Own plan.
-5. **WS4 / WS5** — as desired; parked/backlog.
+4. **WS4** — the visual tail (D3–D5): real work, do alongside/after WS2; blocks nothing.
+5. **WS3** — one-brain refactor, when web-UI/Oban actually start. Own plan.
+6. **WS5** — named backlog, as desired.
 
-Nothing above is lost: WS1–WS3 are active, WS4 is parked with a reason, WS5 is a named backlog.
+Nothing above is lost: WS1–WS4 are all active work, WS5 is a named backlog.
