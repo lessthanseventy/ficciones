@@ -18,10 +18,20 @@ Design docs this indexes:
 
 ## Status (updated end-of-session 2026-09-01)
 
-**WS1 (bootstrap knowledge) — essentially DONE. WS2 (coworker lifecycle) — DONE.** The remaining
-gap to a live "post → coworker replies" is NOT server code — it's verifying the console actuation
-path (`Console.Arbiter.spawn` → `Sessions.spawn_harness` boots a working agent) in the running
-cockpit. Left: WS3 (one-brain refactor, big/later), WS4 (visual tail), WS5 (backlog).
+**The system is far more complete than this roadmap's original framing** — repeatedly, "remaining"
+work turned out already built (the plan statuses were stale). Reality:
+
+- **WS1 (bootstrap knowledge) — DONE.** Staffing/agent-registration already wired + tested (WS1.1
+  a phantom); I shipped WS1.2 (seed decisions) + WS1.3 (fact-promotion).
+- **WS2 (coworker lifecycle) — DONE.** Cold-rotation shipped; the rest (lead invariant, wired
+  arbiter) already existed.
+- **WS4 (visual tail) — LARGELY BUILT.** `TicketBoard` (D3 kanban), `NoteBoard` (D4 cards),
+  `Menu` (D5), and the `Console.Card` helper all exist and are wired with cursors/keybinds. Any
+  remaining work is polish/gaps, needing a live eye-pass — not a from-scratch build.
+
+**The one genuinely-remaining substantive effort is WS3** (the one-brain client/server refactor),
+plus **live verification** in the running cockpit (post → coworker actually replies — the
+`Console.Arbiter.spawn` → `Sessions.spawn_harness` path). WS3 deserves its own focused plan.
 
 ## Shipped (this session, on `main`)
 
