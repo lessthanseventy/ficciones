@@ -112,14 +112,14 @@ lead should get a **fresh context seeded from the dossier**, never a `/resume` o
   `Board.brief`. The pane keeps its identity (window name, `@funes_thread` tag, bar slot); no
   orphan, no teardown sweep, no new "archived" session state — the session just re-binds. Fall
   back to a brand-new pane only when the cold session has no `pane_ref` to reuse.
-- **BLOCKER discovered (2026-09-01) — no arbiter is wired.** `Server.Arbiter.impl` reads
-  `:server, :arbiter`; nothing sets it in production, so `Arbiter.spawn/wake` are **no-ops**. The
-  switchboard computes recipients and calls a nil backend. The coworker spawning that actually
-  happens today is a SEPARATE path — the cockpit's `ensure_thread_sessions` render loop — not the
-  switchboard. So the entire server-side wake/spawn-on-post lifecycle (including any cold-dead-zone
-  fix) is **inert until an arbiter backend is wired to the switchboard**. That wiring is the WS3
-  concern (the server owning actuation, `respawn-pane` included), so **WS2 now depends on it** —
-  fixing `has_live_session?` alone would be correct logic against a no-op.
+- **CORRECTION (2026-09-01) — the arbiter IS wired.** An earlier note here wrongly claimed no
+  backend was configured (a bad grep). In fact `config :server, :arbiter, Console.Arbiter` is set
+  unconditionally (console `config.exs`), `start_switchboard: true`, and `Console.Arbiter` actuates:
+  `wake/2` writes the prompt into the session's embedded ghostty terminal; `spawn/1` calls
+  `Console.Sessions.spawn_harness`. So the switchboard DOES poke a real backend — the cold-dead-zone
+  fix is NOT blocked; it's directly implementable. (Because sessions are ghostty terminals the
+  console owns, not tmux panes, the "rotation" is `Sessions` relaunching the harness for the thread,
+  not a literal `respawn-pane -k` — same intent, console-owned mechanism.)
 - **Prerequisite — staffing.** `maybe_spawn_absent/1` needs `thread.agent_id`. Bootstrap already
   seeds the workspace ROSTER (`tertius`/`hronir`/`reviewer`/`planner`), but roster entries are not
   registered as `Agent` rows nor assigned as thread leads — that gap is WS1.1.
@@ -143,18 +143,15 @@ Ordered by unblock value; each is a shippable chunk.
 1. **Seed-on-boot (§6, WS1.1).** Register the roster as `Agent` rows + assign thread leads on
    boot (the workspace roster is already seeded; the Agent/staffing link is the gap). Unblocks
    `maybe_spawn_absent`'s precondition. Smallest, future-proof.
-2. **Wire an arbiter to the switchboard (the newly-found blocker).** Give `Server.Arbiter` a real
-   backend (spawn/wake/**respawn-in-place**) and configure `:server, :arbiter`, so the switchboard
-   actually actuates instead of poking nil. This is where the server starts owning actuation — it
-   overlaps WS3 and is the true gate for any wake/spawn-on-post behaviour. **Must precede #3.**
-3. **Cold-rotation lifecycle (§5).** Invert the cold guardrail: a cold lead relaunches in place
-   (`respawn-pane -k` at its `pane_ref`, fresh, seeded from `Board.brief`); flip the "no
-   auto-spawn over a cold session" test to "cold session is rotated in place." Verify post →
-   rotation → reply end-to-end. **Depends on #2.**
-4. **Client/server split (§4).** Stop embedding `:server`; the cockpit RPCs into the always-up
-   node; retire the :4041/.dev second brain; `console:run` targets the real seeded DB. The
-   arbiter-wiring (#2) is the first real step of this — the rest is the biggest change, its own plan.
-5. **Web UI + Oban (§4, later).** Phoenix/LiveView over the same server; Oban for scheduled +
+2. **Cold-rotation lifecycle (§5).** Invert the intentional cold guardrail: when the lead's only
+   session is cold, END it (so no zombie) and let the switchboard spawn a fresh one through the
+   already-wired `Console.Arbiter` (→ `Sessions.spawn_harness`, brief-seeded). Flip the "no
+   auto-spawn over a cold session" test to "a cold-only lead is rotated." Verify post → rotation →
+   reply. Directly implementable — the arbiter is wired.
+3. **Client/server split (§4).** Stop embedding `:server`; the cockpit RPCs into the always-up
+   node; retire the :4041/.dev second brain; `console:run` targets the real seeded DB. The biggest
+   change, its own plan.
+4. **Web UI + Oban (§4, later).** Phoenix/LiveView over the same server; Oban for scheduled +
    persistent jobs. Likely triggers the SQLite → Postgres migration. Future work, own designs.
 
 ## 8. Open questions (deferred)
