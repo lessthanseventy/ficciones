@@ -108,6 +108,37 @@ A shared visual vocabulary applied across surfaces (done last, over the cleaned 
   popup-menu component for config/actions; give boards keybinds + cursor state (fix
   the click-only reachability gap).
 
+### Slice D — validated visual system (2026-09-01, brainstormed w/ Andrew)
+
+**Look: "tasteful unicorn vomit" — meaningful color as the backbone + deliberate
+identity-color splashes.** Three color tiers, all from `Console.Style`'s palette:
+
+1. **Status = signal** (gutter bar + status dot): `working→green · blocked/failing→red
+   · awaiting-you→pink · open→amber · done→dim-green · idle→dim`. Filled chips
+   (ink-on-color) reserved for the loudest (a gate awaiting you, a red check).
+2. **Identity = splash** (same entity → same hue, always): per-archetype coworker
+   color (surveyor→cyan · builder→green · reviewer→amber · planner→pink); per-author
+   (already pink=you); per-workspace accent hue (from icon/knobs, else cycled).
+3. **Flourish**: colored section titles, colored glyphs, priority marks (`↑`red
+   `↓`dim), accent gutters — decorative but keyed to the above, never random.
+
+**Two card primitives (shared helper module so the language can't drift):**
+- **`boxed_card`** — bordered box, status-colored title/border, compact body + footer
+  stat row. For the FEW big items (Home workspace cards, a focused ticket).
+- **`gutter_card`** — the thread-stack idiom generalized: status-colored `▌` gutter +
+  header + optional indented body, blank between. For all LISTS (tickets, notes, crew).
+
+**Surfaces:** Home = stat-row + a row of boxed workspace cards (tint + tallies + top
+thread rows — the per-thread data currently discarded); Tickets = real kanban
+(side-by-side bucket columns of gutter-card tickets + wired `⏎/j·k/p`); Notes =
+gutter-card per note; CREW = archetype-colored rows; Config = menu-styled workspace
+cards + per-item action menus.
+
+**Build order (each TDD):** D1 shared `Panel.Card` helpers + color resolvers
+(`status_color/1`, `archetype_color/1`, `workspace_hue/1`) → D2 Home dashboard → D3
+Tickets kanban → D4 Notes cards + CREW colors → D5 config menus. No live-PTY;
+headless-testable + Andrew's eye-pass.
+
 ## Execution notes
 
 - TDD per task; both module suites + compile `--warnings-as-errors` green per commit;
