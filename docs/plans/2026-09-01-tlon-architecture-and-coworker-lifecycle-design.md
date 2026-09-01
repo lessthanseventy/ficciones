@@ -99,16 +99,32 @@ lead should get a **fresh context seeded from the dossier**, never a `/resume` o
   dossier catch-up that already exists as "the same one-call read that briefs a re-entering
   session from the dossier rather than the transcript." Never re-ingest the old transcript.
   This is the "rotation via re-bind + dossier catch-up, never `/resume`" idea, made real.
-- **Bug to fix — the cold dead-zone.** `Switchboard.has_live_session?/2` only checks
-  `ended_at IS NULL`, so a *cold* session (stale `last_active_at`, not ended) counts as "live":
-  `recipients/1` excludes it (too cold to wake) **and** `maybe_spawn_absent/1` skips it (a
-  session exists) — so it is neither woken nor replaced, and the message strands. The fix: treat
-  a cold session like an absent one — retire/rebind it and spawn fresh (seeded from the brief).
-- **Prerequisite — staffing.** `maybe_spawn_absent/1` needs the thread to have an assigned lead
-  (`thread.agent_id`). This is exactly what the unseeded DB breaks (§2.2), so seed-on-boot
-  (§6) is the unblock.
+- **The cold dead-zone (an INTENTIONAL guardrail today, to be inverted).**
+  `Switchboard.has_live_session?/2` only checks `ended_at IS NULL`, so a *cold* session (stale
+  `last_active_at`, not ended) counts as "live": `recipients/1` excludes it (too cold to wake)
+  **and** `maybe_spawn_absent/1` skips it (a session exists). An existing test locks this in —
+  *"a lead with a live (even cold) session is not auto-spawned — no zombie double-spawn."* So
+  cold-silence is a designed choice, not a bug. Andrew's decision inverts it into a **rotation**:
+  a cold lead's stale session is retired and a fresh one takes its place.
+- **Rotation = relaunch-in-place, not a new pane (Andrew 2026-09-01).** Don't kill the pane and
+  spawn a fresh one — reuse the existing pane: `tmux respawn-pane -k` at the cold session's
+  `pane_ref` kills the stale process and boots a fresh harness in the SAME pane, seeded from
+  `Board.brief`. The pane keeps its identity (window name, `@funes_thread` tag, bar slot); no
+  orphan, no teardown sweep, no new "archived" session state — the session just re-binds. Fall
+  back to a brand-new pane only when the cold session has no `pane_ref` to reuse.
+- **BLOCKER discovered (2026-09-01) — no arbiter is wired.** `Server.Arbiter.impl` reads
+  `:server, :arbiter`; nothing sets it in production, so `Arbiter.spawn/wake` are **no-ops**. The
+  switchboard computes recipients and calls a nil backend. The coworker spawning that actually
+  happens today is a SEPARATE path — the cockpit's `ensure_thread_sessions` render loop — not the
+  switchboard. So the entire server-side wake/spawn-on-post lifecycle (including any cold-dead-zone
+  fix) is **inert until an arbiter backend is wired to the switchboard**. That wiring is the WS3
+  concern (the server owning actuation, `respawn-pane` included), so **WS2 now depends on it** —
+  fixing `has_live_session?` alone would be correct logic against a no-op.
+- **Prerequisite — staffing.** `maybe_spawn_absent/1` needs `thread.agent_id`. Bootstrap already
+  seeds the workspace ROSTER (`tertius`/`hronir`/`reviewer`/`planner`), but roster entries are not
+  registered as `Agent` rows nor assigned as thread leads — that gap is WS1.1.
 
-Cost stays governed: warm → cheap resume; cold/absent → one fresh, brief-seeded boot (bounded
+Cost stays governed: warm → cheap resume; cold → one relaunch-in-place, brief-seeded (bounded
 context), only on an operator post, never a background auto-spawn of an idle roster.
 
 ## 6. Seed-on-boot — the immediate unblock
@@ -124,15 +140,21 @@ note: "durable fix — seed in aleph:run — still TODO." This closes it.)
 
 Ordered by unblock value; each is a shippable chunk.
 
-1. **Seed-on-boot (§6).** Idempotent world/roster seed on server start. Unblocks staffing →
-   makes the cockpit usable today. Smallest, highest value, future-proof. **Do first.**
-2. **Cold dead-zone + fresh-seed lifecycle (§5).** Fix `has_live_session?` so a cold lead is
-   treated as absent; spawn fresh seeded from `Board.brief`; verify the post → `maybe_spawn_absent`
-   → live-coworker path end-to-end once staffed.
-3. **Client/server split (§4).** Stop embedding `:server`; the cockpit RPCs into the always-up
-   node; retire the :4041/.dev second brain; `console:run` targets the real seeded DB. Its own
-   plan — the biggest change, do it deliberately.
-4. **Web UI + Oban (§4, later).** Phoenix/LiveView over the same server; Oban for scheduled +
+1. **Seed-on-boot (§6, WS1.1).** Register the roster as `Agent` rows + assign thread leads on
+   boot (the workspace roster is already seeded; the Agent/staffing link is the gap). Unblocks
+   `maybe_spawn_absent`'s precondition. Smallest, future-proof.
+2. **Wire an arbiter to the switchboard (the newly-found blocker).** Give `Server.Arbiter` a real
+   backend (spawn/wake/**respawn-in-place**) and configure `:server, :arbiter`, so the switchboard
+   actually actuates instead of poking nil. This is where the server starts owning actuation — it
+   overlaps WS3 and is the true gate for any wake/spawn-on-post behaviour. **Must precede #3.**
+3. **Cold-rotation lifecycle (§5).** Invert the cold guardrail: a cold lead relaunches in place
+   (`respawn-pane -k` at its `pane_ref`, fresh, seeded from `Board.brief`); flip the "no
+   auto-spawn over a cold session" test to "cold session is rotated in place." Verify post →
+   rotation → reply end-to-end. **Depends on #2.**
+4. **Client/server split (§4).** Stop embedding `:server`; the cockpit RPCs into the always-up
+   node; retire the :4041/.dev second brain; `console:run` targets the real seeded DB. The
+   arbiter-wiring (#2) is the first real step of this — the rest is the biggest change, its own plan.
+5. **Web UI + Oban (§4, later).** Phoenix/LiveView over the same server; Oban for scheduled +
    persistent jobs. Likely triggers the SQLite → Postgres migration. Future work, own designs.
 
 ## 8. Open questions (deferred)
