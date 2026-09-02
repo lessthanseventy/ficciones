@@ -35,19 +35,21 @@ things with personality; everything else is called what it is.
 
 ```
 ficciones/
-  flake.nix            # the installer — Nix, adopted gradually (see below)
-  hosts/               # per-machine composition: which modules a host turns on
+  flake.nix            # the installer — Nix + home-manager, adopted gradually (see below)
+  mise.toml            # the shared dev loop — every task the human and the agents run
+  scripts/             # the shell side of that loop (cap, watch, the reaper, the tlon CLI)
   modules/
-    server/             # the AI stack — its own spec, its own boundary; the first module built
-    desktop/           # hyprland + its stack        (harvested from the current env, later)
-    theme/             # colours, UI prefs, theming    (harvested, later)
-    shell/             # shell, ghostty, dotfiles        (harvested, later)
+    server/            # the spine — its own spec, its own boundary; the first module built
+    console/           # the TTY cockpit, launched as `tlon`
+    adapters/          # the hands: pi extensions, the Claude Code launcher + hooks, skills
+    desktop/           # hyprland + its stack
+  secrets/             # agenix-encrypted machine secrets
   docs/plans/          # design records, most recent first
 ```
 
-Only `modules/server/` exists as a real module today. The env modules are a separate, incremental track —
-Nix makes pulling them over gradual, so there is no big bang, and empty directories are not created to
-pretend otherwise: a module is born when it has content.
+The rest of the environment (theme, shell, dotfiles) is pulled over incrementally — Nix makes that
+gradual, so there is no big bang, and empty directories are not created to pretend otherwise: a
+module is born when it has content.
 
 ## The installer
 
@@ -57,8 +59,9 @@ manages home declaratively while Arch and `mise` stay exactly where they are. A 
 The reasoning — and why the old "Arch/AUR + mise beats NixOS" verdict was correct until the AI world
 changed one term of it — is in `docs/plans/2026-08-14-machine-v2-and-server-design.md`.
 
-Nix commands are run by the human, not by an agent in this repo: on this machine the tool sandbox
-segfaults the `nix` binary, and building a machine is a system change the human owns anyway.
+`mise run flake:check` (evaluate + build the activation package) is fair for anyone, human or
+agent, to run; the system-mutating step — `mise run home:switch` — stays the human's, because
+building the machine is a change the human owns.
 
 ## Where to start reading
 
