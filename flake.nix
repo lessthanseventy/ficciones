@@ -22,6 +22,10 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
 
+      # Hardcoded, not `self`: consumers load the REAL files so a dev edit is picked up,
+      # not a stale store snapshot. Single-user machine, fixed home dir.
+      repo = "/home/andrew/projects/ficciones";
+
       # pi (github.com/earendil-works/pi) — the agent harness adapters plugs into; a program
       # the human runs (not a build toolchain), so Nix owns it in the home profile. No
       # nixpkgs package/flake, so we wrap the prebuilt bun-compiled linux-x64 tarball whole
@@ -118,16 +122,16 @@
       # server citizen.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
+        extraSpecialArgs = { inherit repo; };
         modules = [
+          # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
+          ./modules/desktop
           # agenix: decrypt age secrets at activation with the box's ssh key (identityPaths
           # defaults to ~/.ssh/id_ed25519 — ours). See the age.secrets block below.
           agenix.homeManagerModules.default
           (
             { lib, ... }:
             let
-              # Hardcoded, not `self`: pi loads the REAL extension/skills so a dev edit is
-              # picked up, not a stale store snapshot. Single-user machine, fixed home dir.
-              repo = "/home/andrew/projects/ficciones";
               adaptersExtension = "${repo}/modules/adapters/pi/src/extension.ts";
               # consult — /consult and /fresh: delegate a question to a different model
               # (e.g. a text-only model delegating a screenshot to minimax-m3) and return
@@ -168,9 +172,12 @@
                 };
               };
 
-              # pi's provider config (~/.pi/agent/models.json) — we OWN this file like
-              # mcp.json (pi's UI-added models land in a separate models-store.json
-              # instead). Two OpenAI-compatible providers: ollama (local daemon, apiKey
+              # pi's provider config (~/.pi/agent/models.json) — SEEDED, not owned. pi writes
+              # this file when an account provider is added (a Kimi coding account did exactly
+              # that), so a store symlink here loses that write on every switch and leaves a
+              # models.json.backup behind. models-store.json only absorbs UI-added *models*,
+              # not providers. The seed below is the starting catalog for a fresh box; once the
+              # file exists pi owns it. Two OpenAI-compatible providers: ollama (local daemon, apiKey
               # "ollama" is a placeholder the daemon ignores) and ollama-cloud (apiKey
               # env-interpolated by pi as \${OLLAMA_API_KEY} so the secret never lands in
               # the nix store; cloud model ids are BARE — no ":cloud" suffix, that's only
@@ -203,7 +210,7 @@
                 };
               };
 
-              # pi-multi-account's config — we own it like models.json (the extension only
+              # pi-multi-account's config — we own it like mcp.json (the extension only
               # READS it; it self-seeds defaults only when the file is ABSENT, so our copy wins
               # and nothing rewrites config at runtime). We keep multi-account's DEFAULT
               # provider order (anthropic-first, ollama last) rather than set providerOrder:
@@ -276,7 +283,7 @@
                 captureModel = "deepseek-v4-flash";
               };
 
-              # pi's keybindings (~/.pi/agent/keybindings.json) — owned like models.json; pi
+              # pi's keybindings (~/.pi/agent/keybindings.json) — owned like mcp.json; pi
               # only reads it (user config, applied by `/reload`). Andrew never model-cycles, so
               # reclaim Ctrl+P/N — pi binds them to app.model.cycleForward / app.session filters
               # by default. Two contexts, both wanted ("Both"):
@@ -581,17 +588,14 @@
               # server' channel config — we own this file; pi only reads it.
               home.file.".pi/agent/mcp.json".text = serverMcpJson;
 
-              # pi's providers (ollama local + ollama.com cloud) — owned like mcp.json.
-              home.file.".pi/agent/models.json".text = piModelsJson;
-
-              # pi-multi-account's failover config — owned like models.json (see the binding
+              # pi-multi-account's failover config — owned like mcp.json (see the binding
               # above for why the default anthropic-first order is left in place).
               home.file.".pi/agent/provider-failover.json".text = piFailoverJson;
 
               # server total-recall's noise knob (correction→habit proposals) — owned; adapter reads it.
               home.file.".pi/agent/server-recall.json".text = piRecallJson;
 
-              # pi keybindings — owned like models.json (pi reads, never writes it). Reclaims
+              # pi keybindings — owned like mcp.json (pi reads, never writes it). Reclaims
               # Ctrl+P/N from model-cycling for history + selector nav; see piKeybindingsJson.
               home.file.".pi/agent/keybindings.json".text = piKeybindingsJson;
 
@@ -716,6 +720,7 @@
                   echo "piPluginSeeds: installed (owned) $2"
                 }
                 force ${piSandboxSeed} "$HOME/.pi/agent/sandbox.json"
+                seed ${pkgs.writeText "pi-models-seed.json" piModelsJson} "$HOME/.pi/agent/models.json"
                 seed ${piPermissionSeed} "$HOME/.pi/agent/extensions/pi-permission-system/config.json"
                 seed ${piInteractiveShellSeed} "$HOME/.pi/agent/interactive-shell.json"
                 seed ${unipiNotifySeed} "$HOME/.unipi/config/notify/config.json"
