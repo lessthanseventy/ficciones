@@ -52,7 +52,7 @@ its own in-process `Server.Repo`. The result is two independent brains:
 | | Embedded (cockpit) | Systemd (`tlon.service`) |
 |---|---|---|
 | Port | :4041 | :4040 |
-| DB | `modules/server/.dev/tlon.db` | `~/.local/share/tlon/wb.db` |
+| DB | `modules/server/.dev/tlon.db` | `~/.local/share/funes/wb.db` (flake.nix pins `TLON_DB` to the pre-rename path) |
 | Lifecycle | dies with the cockpit | always up |
 
 One good property today: the cockpit **and the coworkers it spawns** share the embedded brain
