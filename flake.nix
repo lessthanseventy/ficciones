@@ -107,11 +107,10 @@
         inherit pi expert;
       };
 
-      # server is Elixir/OTP; day-to-day dev runs through mise. This shell is the
-      # reproducible equivalent — Elixir + sqlite3 for the 2am repair path. A `mix
-      # release` package is a later step.
+      # mise owns Elixir/OTP (mise.toml pins erlang 28 + elixir 1.19.5-otp-28); this shell
+      # is the 2am path — sqlite3 to open the db when nothing else is up.
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.beamPackages.elixir_1_18 pkgs.sqlite ];
+        packages = [ pkgs.sqlite ];
       };
 
       # The gradual-adoption path: home-manager on the existing Arch install, applied
@@ -156,7 +155,7 @@
               serverRel = "${repo}/modules/server/_build/prod/rel/server";
 
               # server' MCP server for pi-mcp-adapter. Auth header is a `!command`
-              # (pi-mcp-adapter §headers): server-cli.sh bearer mints a FRESH token per
+              # (pi-mcp-adapter §headers): tlon-cli.sh bearer mints a FRESH token per
               # connect against TLON_MCP_URL's /mint, so it survives a restart/model
               # change/secret regen — no frozen TLON_TOKEN. pi-scoped path avoids
               # colliding with a global ~/.config/mcp/mcp.json.
@@ -232,7 +231,7 @@
               #     healthy fallback instead of hanging on the dead one.
               #   autoContinue — keep true: queues a continuation prompt after a switch so a
               #     long run doesn't stall waiting for a human to notice and re-type. Matches
-              #     "lean on Claude, don't babysit it" — see [[claude-plan-preferred-bucket]].
+              #     "lean on Claude, don't babysit it" (AGENTS.md, the two-bucket routing).
               #   cooldownMs — keep the 6h default: only used when a provider gives no reset
               #     metadata of its own (Anthropic/Codex normally do). With just two real
               #     accounts in rotation (anthropic, ollama), a rare 6h miss just means staying
@@ -306,7 +305,7 @@
 
               # pi-sandbox: was ENABLED with built-in defaults (enabled=true is baked into the
               # extension even with no sandbox.json). Explicit policy instead, modeled on the
-              # Tlön coworker sandbox (Aleph.Profiles): unix sockets + local binding so
+              # Tlön coworker sandbox (Console.Profiles): unix sockets + local binding so
               # adapters-lspd/tmux/agent-browser work, writes scoped to the projects tree + caches,
               # the repo host allowlist, secret files deny-listed (denyWrite is a hard block).
               piSandboxSeed = pkgs.writeText "pi-sandbox-seed.json" (builtins.toJSON {
@@ -465,7 +464,7 @@
               # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
               # repo): mouse, extended-keys, resurrect+continuum (ANDREW's session persistence
               # — coworkers run on their own `-L console-<profile>` servers with a persistence-
-              # free config, see Aleph.Profiles), yank, tmux-thumbs. Dropped the status-script
+              # free config, see Console.Profiles), yank, tmux-thumbs. Dropped the status-script
               # chrome (gitmux/cpu/battery) that churned alongside embedded pi. Old file backed
               # up on `home:switch` via the -b flag.
               programs.tmux = {
@@ -515,7 +514,7 @@
 
                   # Persistence is for ANDREW's tmux only. Coworkers (Tlön's pi, future ones) run on
                   # their own per-profile tmux servers (tmux -L console-<profile>, persistence-free
-                  # config from Aleph.Profiles) and come up FRESH every rebuild — agent harnesses are
+                  # config from Console.Profiles) and come up FRESH every rebuild — agent harnesses are
                   # deliberately NOT in @resurrect-processes: auto-relaunching an agent at restore
                   # hands it stale identity/env (the old torn-down-coworker trap) and silently burns
                   # model budget.
@@ -551,7 +550,7 @@
               # (hover/definition/references/diagnostics as pi tools) — ALL flake-managed now so
               # the next box gets them, including Expert (the Elixir LSP, expert-lsp.org — NOT
               # elixir-ls; the `expert` derivation above fetches its release binary since it's not
-              # in nixpkgs). The adapter registry in modules/adapters/lsp/src/adapters.ts spawns these
+              # in nixpkgs). The adapter registry in modules/adapters/lspd/src/adapters.ts spawns these
               # by name — adding a language is an adapter object + usually a package here.
               home.packages = [
                 pi
@@ -601,12 +600,9 @@
               # idempotently, seeding {} if absent.
               #
               # `.extensions` is PRUNE-then-add, not pure union: every path under modules/adapters/
-              # is ours, so a plain `+ [...] | unique` union let a renamed/deleted module path
-              # (e.g. the old modules/adapters/pi/src/footer.ts, moved to modules/adapters/footer/ in
-              # 2bd34cc) accumulate forever — pi kept trying to load a file that no longer
-              # existed on every subsequent home:switch. Dropping every modules/adapters/ entry
-              # before re-adding the current six makes a rename/removal self-heal instead of
-              # leaving dead paths behind.
+              # is ours, so dropping every modules/adapters/ entry before re-adding the current six
+              # makes a renamed/removed extension self-heal — a plain `+ [...] | unique` union
+              # would leave pi loading a dead path on every subsequent home:switch.
               #
               # Defaults use `//=` (set-only-if-absent), NOT `=`: pi persists your runtime
               # model switch (Ctrl+P) back into this file, so we must not stomp it on every
@@ -744,16 +740,19 @@
                   Type = "exec";
                   # Worklines: artifact checks run git in the repo checkout; the memory pass +
                   # maintain monitor are on for the always-up node (both post/park, never act).
+                  # The switchboard runs here too — delivery bookkeeping only until an arbiter
+                  # exists.
                   Environment = [
                     "TLON_DB=/home/andrew/.local/share/funes/wb.db"
                     "TLON_START_MCP=1"
+                    "TLON_START_SWITCHBOARD=1"
                     "TLON_MCP_PORT=4040"
                     "TLON_WORKLINE_ROOT=${repo}"
                     "TLON_MEMORY_PASS=1"
                     "TLON_MAINTAIN=1"
                   ];
-                  # Seed + repair moved into app boot (Funes.Bootstrap) — only the
-                  # schema migration stays a pre-step.
+                  # Seed + repair run at app boot (Server.Bootstrap); only the schema migration
+                  # is a pre-step.
                   ExecStartPre = [
                     "${serverRel}/bin/server eval Server.Release.migrate()"
                   ];
