@@ -57,7 +57,7 @@ Nix, on the existing Arch install, adopted the low-blast-radius way: **Nix + hom
 manages home declaratively while Arch and `mise` stay exactly where they are. A **disposable NixOS VM**
 (`nixos-rebuild build-vm`) is the testbed where full NixOS gets tried before it ever touches metal.
 The reasoning — and why the old "Arch/AUR + mise beats NixOS" verdict was correct until the AI world
-changed one term of it — is in `docs/plans/2026-08-14-machine-v2-and-server-design.md`.
+changed one term of it — is in `docs/plans/2026-08-14-machine-v2-and-funes-design.md`.
 
 `mise run flake:check` (evaluate + build the activation package) is fair for anyone, human or
 agent, to run; the system-mutating step — `mise run home:switch` — stays the human's, because
@@ -65,7 +65,7 @@ building the machine is a change the human owns.
 
 ## Where to start reading
 
-- `docs/plans/2026-08-14-machine-v2-and-server-design.md` — the machine-level design and every decision behind it.
+- `docs/plans/2026-08-14-machine-v2-and-funes-design.md` — the machine-level design and every decision behind it.
 - `modules/server/README.md` — the AI stack, and where its name comes from.
 - `modules/server/docs/spec.md` — the specification that is the reason any of this exists. Read it before
   writing anything in that module.
