@@ -3,15 +3,37 @@
 # cost a home:switch while this config is still being tuned. Same reasoning as the pi
 # extension paths in flake.nix: the real file, not a store snapshot.
 #
+# The price of that: the live compositor reads a file GIT owns, so a checkout is a desktop
+# change. A commit without this directory leaves ~/.config/hypr/hyprland.conf dangling, and
+# Hyprland answers a missing config by loading built-in defaults — silently, no error. Hence
+# the git hooks below, and hence this module belongs on every branch, not on a feature branch.
+#
 # Individual files, never the `hypr/` directory: caelestia writes ~/.config/hypr/scheme/ and
 # rotate-wallpaper rewrites hyprpaper.conf at runtime, so both stay unmanaged real files —
 # linking them would push runtime churn into the working tree.
-{ config, repo, ... }:
+{
+  config,
+  lib,
+  repo,
+  ...
+}:
 
 let
   linkTo =
     rel:
     { source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}"; };
+
+  # Shared by both activation entries: reload every live instance, no-op when none (a headless
+  # switch, a VM build). hyprctl is the system's (pacman), so probe rather than name a store path.
+  reloadHyprland = ''
+    hyprctl="$(command -v hyprctl 2>/dev/null || echo /usr/bin/hyprctl)"
+    if [ -x "$hyprctl" ]; then
+      for inst in "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/hypr/*/; do
+        [ -d "$inst" ] || continue
+        run env HYPRLAND_INSTANCE_SIGNATURE="$(basename "$inst")" "$hyprctl" reload >/dev/null 2>&1 || true
+      done
+    fi
+  '';
 in
 {
   xdg.configFile = {
@@ -22,4 +44,22 @@ in
     "hypr/scripts/quake-toggle.sh" = linkTo "scripts/quake-toggle.sh";
     "hypr/scripts/shot-region.sh" = linkTo "scripts/shot-region.sh";
   };
+
+  # scripts/git-hooks/ holds the hooks (post-checkout/-merge/-rewrite, all one script), so they
+  # are versioned rather than sitting untracked in .git/hooks — which core.hooksPath then stops
+  # git from reading at all. Only the samples live there, so nothing is lost.
+  # git is probed, not pulled from pkgs: it is a hard prerequisite for having this repo at all,
+  # and a store git would add ~50MB of closure (perl included) for one `config` call.
+  home.activation.hyprlandGitHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    gitBin="$(command -v git 2>/dev/null || echo /usr/bin/git)"
+    if [ -e "${repo}/.git" ] && [ -x "$gitBin" ]; then
+      run "$gitBin" -C "${repo}" config --local core.hooksPath "${repo}/scripts/git-hooks"
+    fi
+  '';
+
+  # linkGeneration's batched `ln -sfn` is atomic, so a steady-state switch does not disturb a
+  # running compositor. The first switch on a fresh box does: taking over an existing real
+  # hyprland.conf goes down home-manager's slow path, which is `mv` to the backup and THEN
+  # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
+  home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
 }
