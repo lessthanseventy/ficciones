@@ -114,6 +114,8 @@ popover.pop {
 }
 
 // ── bar: perf + weather + title ────────────────────────────────────────────
+.cava { color: $accent; font-size: $size-lg; letter-spacing: -1px; }
+
 .windows {
   .win {
     min-height: $bar-height - $rule;

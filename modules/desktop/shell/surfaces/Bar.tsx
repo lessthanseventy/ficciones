@@ -10,6 +10,7 @@ import { For, createBinding, createComputed, onCleanup, type Accessor } from "ag
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import { METRICS, MetricDetail } from "../panes/Perf"
+import { Visualiser } from "../lib/cava"
 import Audio from "./Audio"
 import { Panel } from "../lib/tui"
 import Apps from "gi://AstalApps"
@@ -187,7 +188,7 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
     >
       <box>
         <Windows connector={gdkmonitor.connector} />
-        <box hexpand />
+        <box hexpand halign={Gtk.Align.CENTER}><Visualiser /></box>
         <PerfCells />
         <Status />
       </box>

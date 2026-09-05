@@ -27,6 +27,7 @@ let
     powerprofiles
     bluetooth
     apps
+    cava
   ];
   # glib-networking: GIO's TLS backend, or every https fetch dies with "TLS support is not
   # available". wrapGAppsHook3 turns it into GIO_EXTRA_MODULES on both wrappers.
