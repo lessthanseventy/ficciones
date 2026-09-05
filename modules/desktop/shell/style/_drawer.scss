@@ -1,0 +1,45 @@
+@use "tokens" as *;
+
+// The info pane. A sheet framed in amber (it is the focused thing while open), tabs as
+// inverse-video chips, a keybind rail at the foot — a lazygit window, floating.
+window.drawer { background: transparent; }
+
+.sheet {
+  background: $bg;
+  border: $rule solid $amber;
+  padding: $sp-2 $sp-3 $sp-2;
+}
+
+.tabs {
+  min-height: $cell-h;
+  .tabbtn {
+    padding: 0 $sp-2;
+    color: $dim;
+    &:hover { background: $hover; color: $amber; }
+    &.tab { color: $white; background: $sel; label { color: $white; } }
+  }
+}
+
+.body { padding: $sp-2 0; min-height: 320px; .panel-body { padding-left: $sp-3; padding-right: $sp-3; } }
+
+.keys {
+  min-height: $cell-h - 4px;
+  padding-top: $sp-1;
+  label { color: $dim; font-size: $size-sm; }
+}
+
+// pane content
+.headline .k { color: $dim; }
+.big  { font-size: $size-lg; }
+.huge { font-size: 32px; }
+.spark { color: $amber; }
+.spark.wide { font-size: $size-lg; letter-spacing: 0; }
+.panel.idle .spark { color: $dim; }
+.panel.busy .spark { color: $amber; }
+.panel.hot  .spark { color: $red; }
+.row { min-height: $cell-h; }
+.act { padding: 0 $sp-2; color: $amber; &:hover { background: $hover; } }
+
+.cal-head label { color: $dim; font-size: $size-sm; min-width: 30px; }
+.cal-day { min-width: 30px; min-height: 24px; }
+.cal-day.chip { padding: 0; }

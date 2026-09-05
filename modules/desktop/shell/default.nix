@@ -20,6 +20,12 @@ in
       description = "The built shell (modules/desktop/shell/package.nix).";
     };
     autostart = lib.mkEnableOption "start the shell with graphical-session.target";
+    location = lib.mkOption {
+      type = lib.types.nullOr (lib.types.attrsOf lib.types.float);
+      default = null;
+      example = { lat = 38.8; lon = -104.8; };
+      description = "lat/lon for the weather pane (open-meteo). null = the pane says so.";
+    };
   };
 
   config = {
@@ -29,6 +35,10 @@ in
       cfg.package
       cfg.package.passthru.ags
     ];
+
+    xdg.configFile."astal-shell/config.json" = lib.mkIf (cfg.location != null) {
+      text = builtins.toJSON cfg.location;
+    };
 
     systemd.user.services.astal-shell = lib.mkIf cfg.autostart {
       Unit = {

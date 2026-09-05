@@ -7,18 +7,30 @@ import Pango from "gi://Pango?version=1.0"
 import { For, onCleanup, createComputed } from "ags"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
-import { workspaces, focusedWorkspace, column } from "../lib/hypr"
+import { hypr, workspaces, focusedWorkspace, column } from "../lib/hypr"
 import { Panel } from "../lib/tui"
 import TrayPane from "./Tray"
+import { weather, glyph } from "../lib/weather"
 
-function Workspaces() {
+/** This monitor's workspaces only, its active one chipped — two monitors, two rails. */
+function Workspaces({ connector }: { connector: string }) {
+  const mine = createComputed([workspaces, focusedWorkspace], (all) =>
+    all.filter((w) => w.monitor?.name === connector),
+  )
+  const active = () => hypr.get_monitors().find((m) => m.name === connector)?.activeWorkspace
+  // Wheel over the pane walks this monitor's workspaces (m-1 / m+1 = same-monitor relative).
+  const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
+  scroll.connect("scroll", (_, __, dy) => {
+    hypr.dispatch("workspace", dy > 0 ? "m+1" : "m-1")
+    return true
+  })
   return (
-    <box cssClasses={["workspaces"]} orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-      <For each={workspaces}>
+    <box cssClasses={["workspaces"]} orientation={Gtk.Orientation.VERTICAL} spacing={2} $={(self) => self.add_controller(scroll)}>
+      <For each={mine}>
         {(ws) => {
-          const classes = createComputed([focusedWorkspace], (f) => [
+          const classes = createComputed([focusedWorkspace], () => [
             "ws",
-            ...(f?.id === ws.id ? ["focused"] : []),
+            ...(active()?.id === ws.id ? ["focused"] : []),
             ...(ws.get_clients().length > 0 ? ["occupied"] : []),
           ])
           return (
@@ -62,6 +74,21 @@ function Clock() {
   )
 }
 
+/** Under the clock: the sky and the temperature, two rows. Detail is the drawer's WEATHER tab. */
+function Weather() {
+  const g = weather((w) => (w.ok ? glyph(w.code) : "\u{f0590}"))
+  const t = weather((w) => (w.ok ? `${Math.round(w.temp!)}°` : "—"))
+  const cls = weather((w) => ["wx", ...(w.ok ? [] : ["dim"])])
+  return (
+    <button cssClasses={cls} onClicked={() => app.toggle_window("drawer")} tooltipText={weather((w) => w.note ?? "")}>
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <label cssClasses={["g"]} label={g} />
+        <label cssClasses={["t"]} label={t} />
+      </box>
+    </button>
+  )
+}
+
 function Power() {
   return (
     <button cssClasses={["power"]} halign={Gtk.Align.CENTER} onClicked={() => execAsync(["hyprctl", "dispatch", "exit"]).catch(console.error)}>
@@ -90,11 +117,12 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
     >
       <centerbox orientation={Gtk.Orientation.VERTICAL}>
         <box $type="start" orientation={Gtk.Orientation.VERTICAL}>
-          <Panel title="WS"><Workspaces /></Panel>
+          <Panel title="WS"><Workspaces connector={gdkmonitor.connector} /></Panel>
           <Panel title="COL"><Minimap /></Panel>
         </box>
         <box $type="center" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
           <Clock />
+          <Weather />
         </box>
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>
           <TrayPane />

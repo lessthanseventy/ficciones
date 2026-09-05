@@ -7,9 +7,9 @@ import { fetch } from "ags/fetch"
 
 export type Weather = {
   ok: boolean
-  temp?: number      // °C
+  temp?: number      // °F
   code?: number      // WMO weather code
-  wind?: number      // km/h
+  wind?: number      // mph
   high?: number
   low?: number
   at?: number        // epoch ms of the reading
@@ -47,7 +47,7 @@ async function fetchWeather(): Promise<Weather> {
   try {
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}` +
-      `&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`
+      `&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=1`
     const res = await fetch(url)
     const j: any = await res.json()
     const w: Weather = {

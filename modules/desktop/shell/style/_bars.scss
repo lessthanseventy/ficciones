@@ -57,6 +57,13 @@ window.bar > box {
 }
 
 // ── rail: clock + tray ─────────────────────────────────────────────────────
+.wx {
+  padding: $sp-1 0 $sp-2;
+  .g { font-size: $size-lg; }
+  .t { font-size: $size-sm; }
+  &.dim * { color: $dim; }
+  &:hover { background: $hover; }
+}
 .clock {
   padding: $sp-2 0;
   label { font-size: $size-sm; color: $dim; }
@@ -100,7 +107,17 @@ popover.pop {
 }
 
 // ── bar: perf + weather + title ────────────────────────────────────────────
-.titlecell .klass { color: $dim; font-size: $size-sm; }
+.windows {
+  .win {
+    min-height: $bar-height - $rule;
+    padding: 0 $sp-2;
+    &.focused { background: $hover; }
+    &:hover { background: $pressed; }
+    .klass { color: $dim; font-size: $size-sm; }
+    .title { color: $amber; }
+  }
+  .title.empty { color: $dim; padding: 0 $sp-3; }
+}
 .perf {
   .icon { font-size: $size-lg; }
   .k { color: $dim; }
@@ -113,5 +130,3 @@ popover.pop {
   &.busy .icon { color: $amber; }
   &.hot  .icon { color: $red; }
 }
-.weather label { color: $amber; }
-.weather.dim label { color: $dim; }

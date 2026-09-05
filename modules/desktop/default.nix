@@ -49,6 +49,9 @@ in
   };
 
   config = {
+    # Home. The weather pane's open-meteo query.
+    ficciones.desktop.shell.location = { lat = 38.7977014100912; lon = -104.80787634502575; };
+
     xdg.configFile = {
       "hypr/hyprland.conf" = linkTo "hyprland.conf";
       "hypr/hypridle.conf" = linkTo "hypridle.conf";

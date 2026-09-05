@@ -28,6 +28,7 @@ export function Panel({
         <label cssClasses={["panel-title"]} label={title} />
       </box>
       <box
+        cssClasses={["panel-body"]}
         orientation={vertical ? Gtk.Orientation.VERTICAL : Gtk.Orientation.HORIZONTAL}
         spacing={spacing}
       >
