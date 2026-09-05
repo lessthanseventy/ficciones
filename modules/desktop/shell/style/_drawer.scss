@@ -1,45 +1,47 @@
 @use "tokens" as *;
 
-// The info pane. A sheet framed in amber (it is the focused thing while open), tabs as
-// inverse-video chips, a keybind rail at the foot — a lazygit window, floating.
+// The info panel: one column of cards beside the rail. A card is a pane with an icon in its
+// title; the focused card is amber; content breathes — padding, rows, a headline.
 window.drawer { background: transparent; }
 
 .sheet {
   background: $bg;
-  border: $rule solid $amber;
-  padding: $sp-2 $sp-3 $sp-2;
+  border-right: $rule solid $sep;
+  padding: 0 $sp-3 $sp-2 $sp-2;
 }
 
-.tabs {
-  min-height: $cell-h;
-  .tabbtn {
-    padding: 0 $sp-2;
-    color: $dim;
-    &:hover { background: $hover; color: $amber; }
-    &.tab { color: $white; background: $sel; label { color: $white; } }
-  }
-}
-
-.body { padding: $sp-2 0; min-height: 320px; .panel-body { padding-left: $sp-3; padding-right: $sp-3; } }
+.card { margin-top: $sp-3; }
+.card .panel-body { padding: $sp-3 $sp-3 $sp-3; }
+.card .panel-title { font-size: $size; }
+// splashes: each card's title wears its own hue; focus turns the border amber, not the title
+.card-calendar .panel-title { color: $cyan; }
+.card-media    .panel-title { color: $accent; }
+.card-weather  .panel-title { color: $amber; }
+.card-agents   .panel-title { color: $arch-assistant; }
+.card.focused .panel-title { color: inherit; }
+.cal-head label:nth-child(n+6) { color: $cyan; }
+.pane-hit { padding: 0; &:hover { background: none; } }
 
 .keys {
-  min-height: $cell-h - 4px;
-  padding-top: $sp-1;
+  min-height: $cell-h;
   label { color: $dim; font-size: $size-sm; }
 }
 
-// pane content
-.headline .k { color: $dim; }
+.headline-lg { color: $amber; font-size: $size; margin-bottom: $sp-1; }
+.row { min-height: $cell-h - 4px; padding: 0 $sp-2; }
+.row.chip * { color: $ink; }
 .big  { font-size: $size-lg; }
-.huge { font-size: 32px; }
+.huge { font-size: 34px; }
 .spark { color: $amber; }
 .spark.wide { font-size: $size-lg; letter-spacing: 0; }
-.panel.idle { .spark, .big { color: $green; } }
-.panel.busy { .spark, .big { color: $amber; } }
-.panel.hot  { .spark, .big { color: $red; } }
-.row { min-height: $cell-h; }
-.act { padding: 0 $sp-2; color: $amber; &:hover { background: $hover; } }
+.metric.idle { .huge, .spark { color: $green; } }
+.metric.busy { .huge, .spark { color: $amber; } }
+.metric.hot  { .huge, .spark { color: $red; } }
+.act { padding: 0 $sp-2; color: $amber; min-width: 28px; &:hover { background: $hover; } }
+.act.play { color: $green; font-size: $size-lg; }
+.wx-glyph { font-size: 44px; color: $amber; }
+.counts label { font-size: $size-sm; }
 
-.cal-head label { color: $dim; font-size: $size-sm; min-width: 30px; }
-.cal-day { min-width: 30px; min-height: 24px; }
+.cal-head label { color: $dim; font-size: $size-sm; min-width: 34px; }
+.cal-day { min-width: 34px; min-height: 26px; }
 .cal-day.chip { padding: 0; }

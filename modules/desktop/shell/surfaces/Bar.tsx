@@ -9,14 +9,13 @@ import Wp from "gi://AstalWp"
 import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
 import PowerProfiles from "gi://AstalPowerProfiles"
-import { showDrawer } from "./Drawer"
+import { METRICS, MetricDetail } from "../panes/Perf"
 import Audio from "./Audio"
 import { Panel } from "../lib/tui"
 import Apps from "gi://AstalApps"
 import { Stat, RuleV, RuleH } from "../lib/tui"
 import { pct, meter, spark } from "../lib/format"
-import { perf, tier, rate, NET_HOT } from "../lib/perf"
-import { gpu } from "../lib/gpu"
+import { tier } from "../lib/perf"
 
 /**
  * The workspace's windows, left to right as they sit in the strip: the focused one as
@@ -63,47 +62,36 @@ function Windows({ connector }: { connector: string }) {
   )
 }
 
-// A perf cell: icon coloured by load tier, KEY, the number, a braille sparkline of the last
-// 16 seconds (2 samples per glyph). Detail rides the tooltip; the bar belongs to the window.
+// A perf cell: icon coloured by load tier, KEY, number, an 8-glyph braille sparkline of the last
+// 16 seconds; click drops the metric's detail pane straight off the cell.
 const SPARK_CELLS = 8
-function PerfCell({ k, icon, v, frac, hist, detail, visible }: {
-  k: string
-  icon: string
-  v: Accessor<string>
-  frac: Accessor<number>
-  hist: Accessor<number[]>
-  detail: Accessor<string>
-  visible?: Accessor<boolean>
-}) {
-  const cls = frac((f) => ["cell", "perf", tier(f)])
-  const line = hist((h) => spark(h, SPARK_CELLS))
+function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
+  const cls = m.frac((f) => ["cell", "perf", tier(f)])
   return (
-    <button cssClasses={cls} tooltipText={detail} onClicked={() => showDrawer("PERF")} visible={visible ?? true}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN} visible={m.ok ?? true}>
       <box spacing={6}>
         <label cssClasses={["icon"]} label={icon} />
-        <label cssClasses={["k"]} label={k} />
-        <label cssClasses={["num"]} label={v} widthChars={4} xalign={1} />
-        <label cssClasses={["spark"]} label={line} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
+        <label cssClasses={["k"]} label={m.key} />
+        <label cssClasses={["num"]} label={m.num} widthChars={4} xalign={1} />
+        <label cssClasses={["spark"]} label={m.hist((h) => spark(h, SPARK_CELLS))} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
       </box>
-    </button>
+      <popover cssClasses={["pop"]}>
+        <Panel title={m.key}><MetricDetail m={m} /></Panel>
+      </popover>
+    </menubutton>
   )
 }
 
 function PerfCells() {
-  const cpu = perf((p) => p.cpu)
-  const mem = perf((p) => p.mem)
-  const net = perf((p) => Math.min(1, (p.rx + p.tx) / NET_HOT))
+  const icons = ["\u{f0ee0}", "\u{f035b}", "\u{f0379}", "\u{f06f3}"]
   return (
     <box cssClasses={["perfs"]}>
-      <RuleV />
-      <PerfCell k="CPU" icon={"\u{f0ee0}"} frac={cpu} v={cpu(pct)} hist={perf((p) => p.cpuHist)} detail={perf((p) => `load ${p.load1.toFixed(1)}`)} />
-      <RuleV />
-      <PerfCell k="RAM" icon={"\u{f035b}"} frac={mem} v={mem(pct)} hist={perf((p) => p.memHist)} detail={perf((p) => `${p.memUsedGb.toFixed(1)}/${p.memTotalGb.toFixed(0)}G`)} />
-      <RuleV />
-      <PerfCell k="GPU" icon={"\u{f0379}"} frac={gpu((g) => g.util)} v={gpu((g) => pct(g.util))} hist={gpu((g) => g.hist.flatMap((x) => [x, x, x, x, x]))} /* 5s samples stretched to the 1s grid */ detail={gpu((g) => `${g.temp}°C  ${g.watts.toFixed(0)} W  ${g.memUsed}/${g.memTotal} MiB`)} visible={gpu((g) => g.ok)} />
-      <RuleV visible={gpu((g) => g.ok)} />
-      <PerfCell k="NET" icon={"\u{f06f3}"} frac={net} v={perf((p) => rate(p.rx + p.tx))} hist={perf((p) => p.netHist)} detail={perf((p) => `\u{2193}${rate(p.rx)} \u{2191}${rate(p.tx)}`)} />
-      <RuleV />
+      {METRICS.map((m, i) => (
+        <box>
+          <RuleV visible={m.ok ?? undefined} />
+          <PerfCell m={m} icon={icons[i]} />
+        </box>
+      ))}
     </box>
   )
 }

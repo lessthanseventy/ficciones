@@ -20,14 +20,14 @@ const cfgPath = `${GLib.get_user_config_dir()}/astal-shell/config.json`
 const cachePath = `${GLib.get_user_cache_dir()}/astal-shell/weather.json`
 
 const glyphs: [number, string][] = [
-  [0, "☀"], [1, "🌤"], [2, "⛅"], [3, "☁"], [45, "🌫"], [48, "🌫"],
+  [0, "☀\uFE0F"], [1, "🌤"], [2, "⛅"], [3, "☁\uFE0F"], [45, "🌫"], [48, "🌫"],
   [51, "🌦"], [53, "🌦"], [55, "🌧"], [61, "🌧"], [63, "🌧"], [65, "🌧"],
-  [71, "🌨"], [73, "🌨"], [75, "❄"], [80, "🌦"], [81, "🌧"], [82, "⛈"],
+  [71, "🌨"], [73, "🌨"], [75, "❄\uFE0F"], [80, "🌦"], [81, "🌧"], [82, "⛈"],
   [95, "⛈"], [96, "⛈"], [99, "⛈"],
 ]
 export function glyph(code?: number): string {
   if (code === undefined) return "·"
-  let g = "☁"
+  let g = "☁\uFE0F"
   for (const [c, s] of glyphs) if (code >= c) g = s
   return g
 }

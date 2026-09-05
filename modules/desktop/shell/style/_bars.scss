@@ -84,6 +84,8 @@ menubutton.cell > button:hover { background: none; }
   .icon { font-size: $size-lg; }
   &.dim  * { color: $dim; }
   &.live * { color: $green; }
+  &.net .icon { color: $cyan; }
+  &.bt.live .icon { color: $arch-assistant; }
   &:hover { background: $hover; }
 }
 menubutton.item > button { background: none; border: none; box-shadow: none; padding: 0; }
@@ -118,7 +120,7 @@ popover.pop {
     padding: 0 $sp-2;
     &.focused { background: $hover; }
     &:hover { background: $pressed; }
-    .klass { color: $dim; font-size: $size-sm; }
+    .klass { color: $cyan; font-size: $size-sm; }
     .title { color: $amber; }
   }
   .title.empty { color: $dim; padding: 0 $sp-3; }

@@ -1,30 +1,33 @@
-// AGENTS: the Tlön roster — the pane no other shell can draw. Degrades to "channel down".
+// AGENTS: thread counts, then the roster as rows (j/k, click) — the pane no other shell draws.
 import Gtk from "gi://Gtk?version=4.0"
-import { For } from "ags"
-import { Panel } from "../lib/tui"
+import { For, createComputed } from "ags"
 import { agents } from "../lib/agents"
+import { cursorOf, select } from "../lib/nav"
 
-export default function Agents() {
-  const roster = agents((a) => a.roster)
-  const counts = agents((a) =>
-    a.ok ? Object.entries(a.counts).map(([k, v]) => `${k} ${v}`).join("   ") + `   awaiting ${a.awaiting}` : a.note ?? "",
-  )
+export const roster = agents((a) => a.roster)
+
+export function AgentsCard() {
+  const cur = cursorOf("AGENTS")
   return (
-    <box orientation={Gtk.Orientation.VERTICAL}>
-      <Panel title="THREADS"><label label={counts} xalign={0} cssClasses={agents((a) => (a.ok ? [] : ["dim"]))} /></Panel>
-      <Panel title="ON THE CLOCK" spacing={2}>
-        <For each={roster}>
-          {(r) => (
-            <box cssClasses={["row"]} spacing={12}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+      <box spacing={14} cssClasses={["counts"]}>
+        <box spacing={6}><label cssClasses={["dim"]} label="open" /><label cssClasses={["amber"]} label={agents((a) => String(a.counts.open ?? 0))} /></box>
+        <box spacing={6}><label cssClasses={["dim"]} label="done" /><label cssClasses={["st-done"]} label={agents((a) => String(a.counts.closed ?? a.counts.done ?? 0))} /></box>
+        <box spacing={6}><label cssClasses={["dim"]} label="awaiting you" /><label cssClasses={agents((a) => (a.awaiting > 0 ? ["pink"] : ["dim"]))} label={agents((a) => String(a.awaiting))} /></box>
+      </box>
+      <For each={roster}>
+        {(r, i) => (
+          <button cssClasses={createComputed([cur, i], (c, idx) => ["row", ...(c === idx ? ["chip"] : [])])} onClicked={() => select("AGENTS", i.get())}>
+            <box spacing={8}>
               <label cssClasses={[r.warm ? "st-working" : "st-idle"]} label={r.warm ? "●" : "○"} />
-              <label cssClasses={["pink"]} label={r.agent} widthChars={14} xalign={0} />
-              <label cssClasses={["dim"]} label={`#${r.thread_id}`} widthChars={5} xalign={1} />
-              <label label={r.title} xalign={0} hexpand />
+              <label cssClasses={["pink"]} label={r.agent} widthChars={12} xalign={0} />
+              <label cssClasses={["dim"]} label={`#${r.thread_id}`} />
+              <label label={r.title} hexpand xalign={0} ellipsize={3} maxWidthChars={18} />
             </box>
-          )}
-        </For>
-        <label cssClasses={["dim"]} label="no one on the clock" visible={roster((r) => r.length === 0)} xalign={0} />
-      </Panel>
+          </button>
+        )}
+      </For>
+      <label cssClasses={agents((a) => (a.ok ? ["dim"] : ["red"]))} label={agents((a) => (a.ok ? "no one on the clock" : a.note ?? ""))} visible={agents((a) => !a.ok || a.roster.length === 0)} xalign={0} />
     </box>
   )
 }

@@ -22,7 +22,7 @@ function Net() {
     p === Network.Primary.WIRED ? "eth" : w?.ssid ? meter((w.strength ?? 0) / 100) : "down",
   )
   const cls = createComputed([primary, wifi], (p, w) => [
-    "item",
+    "item", "net",
     ...(p === Network.Primary.WIRED || w?.ssid ? [] : ["dim"]),
   ])
 
@@ -87,7 +87,7 @@ function Bt() {
   const devices = createBinding(bt, "devices")((ds) =>
     ds.filter((d) => d.paired || d.connected).sort((a, b) => Number(b.connected) - Number(a.connected)),
   )
-  const cls = createComputed([powered, connected], (p, c) => ["item", ...(c ? ["live"] : p ? [] : ["dim"])])
+  const cls = createComputed([powered, connected], (p, c) => ["item", "bt", ...(c ? ["live"] : p ? [] : ["dim"])])
   const label = createComputed([powered, connected], (p, c) => (c ? "on" : p ? "idle" : "off"))
 
   return (

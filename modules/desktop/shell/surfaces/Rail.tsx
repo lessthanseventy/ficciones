@@ -9,6 +9,7 @@ import { execAsync } from "ags/process"
 import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
 import { Panel } from "../lib/tui"
 import TrayPane from "./Tray"
+import { toggleDrawer } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
 
 /** This monitor's workspaces only, its active one chipped — two monitors, two rails. */
@@ -47,7 +48,7 @@ function Workspaces({ connector }: { connector: string }) {
 function Clock() {
   const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
   return (
-    <button cssClasses={["clock"]} onClicked={() => app.toggle_window("drawer")}>
+    <button cssClasses={["clock"]} onClicked={() => toggleDrawer()}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["hh"]} label={now((d) => d.format("%H")!)} />
         <label cssClasses={["mm"]} label={now((d) => d.format("%M")!)} />
@@ -65,7 +66,7 @@ function Weather() {
   const t = weather((w) => (w.ok ? `${Math.round(w.temp!)}°` : "—"))
   const cls = weather((w) => ["wx", ...(w.ok ? [] : ["dim"])])
   return (
-    <button cssClasses={cls} onClicked={() => app.toggle_window("drawer")} tooltipText={weather((w) => w.note ?? "")}>
+    <button cssClasses={cls} onClicked={() => toggleDrawer()} tooltipText={weather((w) => w.note ?? "")}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["g"]} label={g} />
         <label cssClasses={["t"]} label={t} />

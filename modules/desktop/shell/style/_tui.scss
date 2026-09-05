@@ -35,7 +35,7 @@ button {
   border: $rule solid $sep;
   border-radius: 0;
   margin-top: $sp-2;
-  &.focused { border-color: $amber; .panel-title { color: $amber; } }
+  &.focused { border-color: $amber; }
 }
 // padding lives on the body, not the overlay: GtkOverlay places overlay children against
 // its own box, so padding there would push the title off the border and not the content down.
