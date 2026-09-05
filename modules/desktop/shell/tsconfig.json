@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // No experimentalDecorators: gnim uses standard TC39 decorators and the legacy emit breaks its
+  // dbus metadata ("meta is undefined" at startup). Keep in step with what `ags init` writes.
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2020",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "ags/gtk4",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "paths": {
+      "ags/*": ["./node_modules/ags/lib/*"],
+      "ags": ["./node_modules/ags/lib/index.ts"],
+      "gnim/*": ["./node_modules/gnim/*"],
+      "gnim": ["./node_modules/gnim/index.ts"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "@girs/*.d.ts"],
+  "exclude": ["node_modules"]
+}

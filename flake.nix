@@ -13,10 +13,16 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # AGS 3 + the Astal libraries (astal follows ags so both come from one lock entry). nixpkgs
+    # only carries ags 2.x. See docs/plans/2026-09-02-astal-shell-design.md §1.
+    ags = {
+      url = "github:Aylur/ags";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { self, nixpkgs, home-manager, agenix }:
+    { self, nixpkgs, home-manager, agenix, ags }:
     let
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
@@ -25,6 +31,12 @@
       # Hardcoded, not `self`: consumers load the REAL files so a dev edit is picked up,
       # not a stale store snapshot. Single-user machine, fixed home dir.
       repo = "/home/andrew/projects/ficciones";
+
+      # The desktop shell (modules/desktop/shell). Built here once and handed to home-manager
+      # as a special arg so the Arch profile and the NixOS VM install the identical package.
+      astalShell = pkgs.callPackage ./modules/desktop/shell/package.nix {
+        agsPackages = ags.packages.${system};
+      };
 
       # pi (github.com/earendil-works/pi) — the agent harness adapters plugs into; a program
       # the human runs (not a build toolchain), so Nix owns it in the home profile. No
@@ -108,7 +120,8 @@
       # the system — the same way server' package will be. home-manager consumes the same
       # derivation below.
       packages.${system} = {
-        inherit pi expert;
+        inherit pi expert astalShell;
+        astal-shell = astalShell;
       };
 
       # mise owns Elixir/OTP (mise.toml pins erlang 28 + elixir 1.19.5-otp-28); this shell
@@ -117,12 +130,25 @@
         packages = [ pkgs.sqlite ];
       };
 
+      # The end state: the whole machine from this flake. `vm` is the laptop's configuration
+      # minus the hardware, booted under QEMU with the working tree shared in at its real path
+      # (modules/os/vm.nix). `ivysaur` lands when the laptop leaves Arch.
+      nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit repo astalShell; };
+        modules = [
+          home-manager.nixosModules.home-manager
+          ./modules/os
+          ./modules/os/vm.nix
+        ];
+      };
+
       # The gradual-adoption path: home-manager on the existing Arch install, applied
       # without touching the OS. Carries pi + the adapters wiring that makes a pi session a
       # server citizen.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        extraSpecialArgs = { inherit repo; };
+        extraSpecialArgs = { inherit repo astalShell; };
         modules = [
           # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
           ./modules/desktop

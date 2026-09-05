@@ -1,0 +1,9 @@
+{
+  "name": "astal-shell",
+  "private": true,
+  "type": "module",
+  "description": "ficciones desktop shell — AGS 3 / Astal / GTK4, styled from Console.Style",
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

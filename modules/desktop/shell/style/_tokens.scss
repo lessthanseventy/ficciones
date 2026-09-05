@@ -1,0 +1,38 @@
+// Console.Style, name for name (modules/console/lib/console/style.ex). No component writes a raw
+// hex value; a re-theme is one edit here. Phosphor floor — the wallpaper accent sheet, when
+// enabled, redefines $accent/$sel only.
+$bg:     #000000;
+$ink:    #0A0A0A;   // chip text — dark on a bright field
+$green:  #33FF00;   // body
+$amber:  #FFB000;   // chrome: titles, labels
+$chip:   #FFD000;   // chip fields (brighter than chrome so ink pops)
+$sel:    #5B00AE;   // selection / tab field
+$accent: #E0218A;   // pink: agents, the operator
+$dim:    #9A803F;
+$sep:    #B5651D;   // structure: borders, rules
+$red:    #FF5555;
+$cyan:   #33C7FF;
+$white:  #FFFFFF;
+
+// status tier
+$st-working: $green;
+$st-blocked: $red;
+$st-await:   $accent;
+$st-open:    $amber;
+$st-done:    #5FA35F;
+$st-idle:    $dim;
+
+// identity tier
+$arch-surveyor:  $cyan;
+$arch-builder:   $green;
+$arch-reviewer:  $amber;
+$arch-planner:   $accent;
+$arch-assistant: #B98AFF;
+
+// The one font. Low vision: sizes bias up, never down.
+$font: "ComicShannsMono Nerd Font", "ComicShannsMono Nerd Font Mono", monospace;
+$size: 15px;
+$size-sm: 13px;
+$size-lg: 18px;
+
+$rail-width: 80px;
