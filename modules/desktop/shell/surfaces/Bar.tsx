@@ -6,6 +6,8 @@ import Hyprland from "gi://AstalHyprland"
 import Pango from "gi://Pango?version=1.0"
 import Battery from "gi://AstalBattery"
 import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
+import { createPoll } from "ags/time"
+import { execAsync } from "ags/process"
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import Brightness from "gi://AstalBrightness"
@@ -135,6 +137,31 @@ function Backlight() {
   )
 }
 
+/**
+ * Software dim: hyprsunset's gamma, 30–100%. It is global (wlr-gamma-control per output would
+ * need a client of our own), which covers the external monitor that exposes no DDC/CI.
+ */
+function Dim() {
+  const gamma = createPoll(1, 3000, async () => {
+    try { return Math.max(0.3, Math.min(1, Number((await execAsync(["hyprctl", "hyprsunset", "gamma"])).trim()) / 100)) } catch { return 1 }
+  })
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+      <box spacing={8}>
+        <label cssClasses={["k", "sm"]} label={"\u{f0335}  dim (software, all screens)"} hexpand xalign={0} />
+        <label cssClasses={["sm"]} label={gamma(pct)} />
+      </box>
+      <slider
+        cssClasses={["vol"]}
+        hexpand
+        min={0.3}
+        value={gamma}
+        onChangeValue={({ value }) => { if (Math.abs(value - gamma.get()) > 0.01) execAsync(["hyprctl", "hyprsunset", "gamma", String(Math.round(value * 100))]).catch(console.error) }}
+      />
+    </box>
+  )
+}
+
 function BatteryCell() {
   const bat = Battery.get_default()
   if (!bat.isPresent) return <box />
@@ -171,6 +198,7 @@ function BatteryCell() {
           </box>
           <RuleH />
           <Backlight />
+          <Dim />
           <RuleH />
           {profiles.get_profiles().map(({ profile }) => (
             <button
