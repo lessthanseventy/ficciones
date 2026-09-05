@@ -23,9 +23,13 @@
   programs.zsh.enable = true;
   security.sudo.wheelNeedsPassword = false;
 
+  # withUWSM: Hyprland no longer starts a systemd session target itself, and the shell's unit
+  # binds to graphical-session.target. uwsm owns the session (env export, the target, teardown)
+  # once hyprland.conf runs `uwsm finalize`.
   programs.hyprland = {
     enable = true;
     xwayland.enable = true;
+    withUWSM = true;
   };
   # hyprland.conf's exec-once expects these on PATH; hyprlock/hypridle are never replaced
   # by the shell (design §7), ghostty is $TERMINAL there.
@@ -46,6 +50,7 @@
     pulse.enable = true;
     wireplumber.enable = true;
   };
+  security.rtkit.enable = true;
   networking.networkmanager.enable = true;
   hardware.bluetooth.enable = true;
   services.upower.enable = true;

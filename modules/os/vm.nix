@@ -14,15 +14,24 @@
 {
   networking.hostName = "vm";
 
-  # No greeter: the VM exists to look at the shell, not to log in.
+  # No greeter: the VM exists to look at the shell, not to log in. The session is uwsm's
+  # (see programs.hyprland.withUWSM in default.nix); start-hyprland alone leaves
+  # graphical-session.target dead and the shell unit never runs.
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${lib.getExe config.programs.hyprland.package}";
+      command = "${lib.getExe pkgs.uwsm} start -- hyprland-uwsm.desktop";
       user = "andrew";
     };
   };
   users.users.andrew.initialPassword = "andrew";
+
+  # The way in from the host: `mise vm:ssh` (password andrew, port 2222). Guest journals and
+  # hyprctl without the serial-console dance.
+  services.openssh = {
+    enable = true;
+    settings.PasswordAuthentication = true;
+  };
 
   home-manager.users.andrew.ficciones.desktop.host = "vm";
 
@@ -30,15 +39,18 @@
     memorySize = 6144;
     cores = 4;
     diskSize = 8192;
+    forwardPorts = [ { from = "host"; host.port = 2222; guest.port = 22; } ];
     sharedDirectories.ficciones = {
       source = repo;
       target = repo;
     };
-    # virtio-gpu with virgl so Hyprland gets a GL renderer instead of dying on llvmpipe probing.
+    # Plain virtio-vga, no virgl: Hyprland and GTK4 run fine on llvmpipe at this size, and
+    # the store QEMU's GL display (gtk or sdl, gl=on) aborts on the Arch host — nix libepoxy
+    # cannot find the host EGL without a nixGL wrapper. Revisit on NixOS, where it just works.
     qemu.options = [
       "-vga none"
-      "-device virtio-vga-gl"
-      "-display gtk,gl=on,show-cursor=on"
+      "-device virtio-vga"
+      "-display gtk,show-cursor=on"
     ];
   };
 }
