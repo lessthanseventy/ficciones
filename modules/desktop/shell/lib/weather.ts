@@ -85,6 +85,7 @@ async function fetchWeather(): Promise<Weather> {
     writeFileAsync(cachePath, JSON.stringify(w)).catch(() => void 0)
     return w
   } catch (e) {
+    console.warn("weather: fetch failed:", String(e))
     try {
       const cached: Weather = JSON.parse(await readFileAsync(cachePath))
       return { ...cached, note: "stale" }
@@ -94,5 +95,13 @@ async function fetchWeather(): Promise<Weather> {
   }
 }
 
-// 15 min; the poll's first sample fires at once.
-export const weather = createPoll<Weather>({ ok: false, note: "…" }, 15 * 60_000, fetchWeather)
+// Ticks every minute but only fetches every 15 — or every minute while the last try failed,
+// so one bad fetch at login does not mean 15 minutes of "stale".
+const FRESH = 15 * 60_000
+let last: Weather = { ok: false, note: "…" }
+export const weather = createPoll<Weather>(last, 60_000, async () => {
+  const due = !last.ok || last.note === "stale" || Date.now() - (last.at ?? 0) > FRESH
+  if (!due) return last
+  last = await fetchWeather()
+  return last
+})

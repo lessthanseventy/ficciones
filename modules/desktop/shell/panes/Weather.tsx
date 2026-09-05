@@ -67,7 +67,7 @@ function Days() {
           <label cssClasses={["dim"]} label={days((d) => (d[i] ? `${Math.round(d[i].low)}°` : ""))} widthChars={4} xalign={1} />
           <label cssClasses={["range"]} label={days((d) => (d[i] ? bar(d[i], range.get()) : ""))} />
           <label cssClasses={["amber"]} label={days((d) => (d[i] ? `${Math.round(d[i].high)}°` : ""))} widthChars={4} xalign={0} />
-          <label cssClasses={days((d) => ["sm", (d[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={days((d) => (d[i] && d[i].rain > 0 ? `\u{f058d} ${d[i].rain}%` : ""))} hexpand xalign={1} />
+          <label cssClasses={days((d) => ["sm", (d[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={days((d) => (d[i] && d[i].rain > 0 ? `\u{f0597} ${d[i].rain}%` : ""))} hexpand xalign={1} />
         </box>
       ))}
     </box>
