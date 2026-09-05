@@ -38,7 +38,7 @@ function Windows({ connector }: { connector: string }) {
     },
   )
   return (
-    <box cssClasses={["windows"]}>
+    <box cssClasses={["windows"]} hexpand={false}>
       <For each={clients}>
         {(c) => {
           const focused = createComputed([focusedClient], (f) => f?.address === c.address)
@@ -52,7 +52,7 @@ function Windows({ connector }: { connector: string }) {
               <box spacing={8}>
                 <image iconName={iconFor(c)} pixelSize={18} />
                 <label cssClasses={["klass"]} label={c.class} visible={focused} />
-                <label cssClasses={["title"]} label={title} visible={focused} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={48} xalign={0} />
+                <label cssClasses={["title"]} label={title} visible={focused} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={40} xalign={0} />
               </box>
             </button>
           )
@@ -188,7 +188,8 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
     >
       <box>
         <Windows connector={gdkmonitor.connector} />
-        <box hexpand halign={Gtk.Align.CENTER}><Visualiser /></box>
+        <box hexpand />
+        <box cssClasses={["cell", "cavacell"]}><Visualiser /></box>
         <PerfCells />
         <Status />
       </box>

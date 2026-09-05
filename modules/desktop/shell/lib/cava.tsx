@@ -27,7 +27,8 @@ export function Visualiser() {
     const n = vs.length / 2
     return Array.from({ length: n }, (_, i) => V[level((vs[i] + vs[n + i]) / 2)]).join("")
   })
-  return <label cssClasses={["cava"]} label={line} />
+  // fixed glyph count so the cell never resizes with the signal
+  return <label cssClasses={["cava"]} label={line} widthChars={BARS} maxWidthChars={BARS} />
 }
 
 /** One channel as a column of horizontal blocks, for the rail. `rows` bars, low freq at the top. */

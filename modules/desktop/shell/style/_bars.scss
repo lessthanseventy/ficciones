@@ -115,6 +115,7 @@ popover.pop {
 
 // ── bar: perf + weather + title ────────────────────────────────────────────
 .cava { color: $accent; font-size: $size-lg; letter-spacing: -1px; }
+.cavacell { padding: 0 $sp-1; }
 .cava-col {
   margin: $sp-1 0;
   .ch { color: $accent; font-size: 11px; min-height: 0; }
