@@ -1,0 +1,57 @@
+@use "tokens" as *;
+
+// Two bars, two axes. The rail is the vertical axis (workspaces, the column minimap); the
+// bar is the horizontal one (title, clock, status). Each is a strip of cells on a 1px grid,
+// bordered on its inner edge so the pair frames the workspace like a lazygit layout.
+
+// ── rail ───────────────────────────────────────────────────────────────────
+window.rail > box {
+  min-width: $rail-width;
+  border-right: $rule solid $sep;
+  padding: 0 $sp-1 $sp-2;
+}
+
+.workspaces {
+  .ws {
+    min-height: $cell-h;
+    min-width: $rail-width - 2 * $sp-2 - 2 * $sp-1 - 2 * $rule;
+    color: $dim;
+    label { font-size: $size-lg; }
+    &.occupied { color: $amber; }
+    &.focused  { background: $chip; color: $ink; label { color: $ink; } }
+    &.focused:hover { background: $chip; }
+  }
+}
+
+.minimap {
+  min-height: $cell-h;
+  .tape { color: $sep; letter-spacing: 1px; }
+  .here { color: $amber; font-size: $size-sm; }
+}
+
+.power {
+  min-height: $cell-h;
+  color: $sep;
+  label { font-size: $size-lg; }
+  &:hover { color: $red; background: none; }
+}
+
+// ── bar ────────────────────────────────────────────────────────────────────
+window.bar > box {
+  min-height: $bar-height;
+  border-bottom: $rule solid $sep;
+}
+
+.cell {
+  min-height: $bar-height - $rule;
+  padding: 0 $sp-3;
+}
+.cell.clickable:hover { background: $hover; }
+
+.title { color: $amber; }
+.title.empty { color: $dim; }
+
+.clock {
+  .hm { color: $amber; font-size: $size-lg; }
+  .date { color: $dim; margin-left: $sp-2; }
+}

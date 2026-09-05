@@ -6,6 +6,7 @@ import Pango from "gi://Pango?version=1.0"
 import { For, onCleanup, createComputed } from "ags"
 import { execAsync } from "ags/process"
 import { workspaces, focusedWorkspace, column } from "../lib/hypr"
+import { Panel } from "../lib/tui"
 
 function Workspaces() {
   return (
@@ -18,7 +19,7 @@ function Workspaces() {
             ...(ws.get_clients().length > 0 ? ["occupied"] : []),
           ])
           return (
-            <button cssClasses={classes} onClicked={() => ws.focus()}>
+            <button cssClasses={classes} onClicked={() => ws.focus()} halign={Gtk.Align.CENTER}>
               <label label={String(ws.id)} />
             </button>
           )
@@ -28,13 +29,22 @@ function Workspaces() {
   )
 }
 
-/** Which column of the scrolling strip you occupy: `▯▮▯▯`, one cell per column. */
+/** Which column of the scrolling strip you occupy: one cell per column, yours lit. */
 function Minimap() {
-  const tape = column((([i, n]) => (n === 0 ? "" : Array.from({ length: n }, (_, k) => (k === i ? "▮" : "▯")).join(""))))
-  const pos = column((([i, n]) => (n === 0 ? "—" : `${i + 1}/${n}`)))
+  const tape = column(([i, n]) =>
+    n === 0 ? "·" : Array.from({ length: n }, (_, k) => (k === i ? "▮" : "▯")).join(""),
+  )
+  const pos = column(([i, n]) => (n === 0 ? "—" : `${i + 1}/${n}`))
   return (
-    <box cssClasses={["minimap"]} orientation={Gtk.Orientation.VERTICAL}>
-      <label label={tape} wrap wrapMode={Pango.WrapMode.CHAR} maxWidthChars={6} justify={Gtk.Justification.CENTER} />
+    <box cssClasses={["minimap"]} orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
+      <label
+        cssClasses={["tape"]}
+        label={tape}
+        wrap
+        wrapMode={Pango.WrapMode.CHAR}
+        maxWidthChars={5}
+        justify={Gtk.Justification.CENTER}
+      />
       <label cssClasses={["here"]} label={pos} />
     </box>
   )
@@ -42,7 +52,11 @@ function Minimap() {
 
 function Power() {
   return (
-    <button cssClasses={["power"]} onClicked={() => execAsync(["hyprctl", "dispatch", "exit"]).catch(console.error)}>
+    <button
+      cssClasses={["power"]}
+      halign={Gtk.Align.CENTER}
+      onClicked={() => execAsync(["hyprctl", "dispatch", "exit"]).catch(console.error)}
+    >
       <label label="⏻" />
     </button>
   )
@@ -68,8 +82,8 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
     >
       <centerbox orientation={Gtk.Orientation.VERTICAL}>
         <box $type="start" orientation={Gtk.Orientation.VERTICAL}>
-          <Workspaces />
-          <Minimap />
+          <Panel title="WS"><Workspaces /></Panel>
+          <Panel title="COL"><Minimap /></Panel>
         </box>
         <box $type="center" />
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>

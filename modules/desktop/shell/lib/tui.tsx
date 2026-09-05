@@ -4,6 +4,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import type { Accessor } from "ags"
 
 type Text = string | Accessor<string>
+type Classes = string[] | Accessor<string[]>
 
 /** fieldset/legend: a 1px border with the title inset into the top edge. */
 export function Panel({
@@ -11,24 +12,24 @@ export function Panel({
   children,
   cssClasses = [],
   vertical = true,
+  spacing = 0,
 }: {
   title: Text
   children?: JSX.Element | JSX.Element[]
-  cssClasses?: string[]
+  cssClasses?: Classes
   vertical?: boolean
+  spacing?: number
 }) {
+  const classes =
+    typeof cssClasses === "function" ? cssClasses((c) => ["panel", ...c]) : ["panel", ...cssClasses]
   return (
-    <overlay cssClasses={["panel", ...cssClasses]}>
-      <box
-        $type="overlay"
-        halign={Gtk.Align.START}
-        valign={Gtk.Align.START}
-        canTarget={false}
-      >
+    <overlay cssClasses={classes}>
+      <box $type="overlay" halign={Gtk.Align.START} valign={Gtk.Align.START} canTarget={false}>
         <label cssClasses={["panel-title"]} label={title} />
       </box>
       <box
         orientation={vertical ? Gtk.Orientation.VERTICAL : Gtk.Orientation.HORIZONTAL}
+        spacing={spacing}
       >
         {children}
       </box>
@@ -41,20 +42,18 @@ export function Chip({ label, cssClasses = [] }: { label: Text; cssClasses?: str
   return <label cssClasses={["chip", ...cssClasses]} label={label} />
 }
 
-/** `KEY val` on one line, key in chrome amber, value in body green. */
-export function Stat({
-  k,
-  v,
-  cssClasses = [],
-}: {
-  k: string
-  v: Text
-  cssClasses?: string[] | Accessor<string[]>
-}) {
+/** `KEY val` on one line: dim key, body value. `low`/`live` classes recolour the value. */
+export function Stat({ k, v, cssClasses = [] }: { k: string; v: Text; cssClasses?: Classes }) {
+  const classes =
+    typeof cssClasses === "function" ? cssClasses((c) => ["stat", ...c]) : ["stat", ...cssClasses]
   return (
-    <box cssClasses={cssClasses} spacing={0} hexpand={false} halign={Gtk.Align.START}>
-      <label cssClasses={["k"]} label={k + " "} hexpand={false} />
-      <label label={v} hexpand={false} />
+    <box cssClasses={classes} hexpand={false} halign={Gtk.Align.START}>
+      <label cssClasses={["k"]} label={k} />
+      <label cssClasses={["v"]} label={v} />
     </box>
   )
 }
+
+/** 1px separators for the cell grid. */
+export const RuleV = () => <box cssClasses={["rule-v"]} />
+export const RuleH = () => <box cssClasses={["rule-h"]} />

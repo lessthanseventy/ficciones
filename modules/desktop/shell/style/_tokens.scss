@@ -40,3 +40,19 @@ $size-sm: 13px;
 $size-lg: 18px;
 
 $rail-width: 80px;
+
+// Spacing scale. Every margin/padding is one of these; nothing is eyeballed per widget.
+$sp-1: 4px;
+$sp-2: 8px;
+$sp-3: 12px;
+$sp-4: 16px;
+$sp-6: 24px;
+
+// Fixed metrics the compositor sees (exclusive zones) and the grid inside them.
+$bar-height: 36px;
+$cell-h: 28px;      // one row of the rail grid / one bar cell
+$rule: 1px;
+
+// Hover/pressed fields: the body colour at low alpha, so hover reads as "lit", not recoloured.
+$hover: rgba($amber, 0.12);
+$pressed: rgba($amber, 0.22);

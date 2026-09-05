@@ -1,20 +1,18 @@
 @use "tokens" as *;
 
-// Everything the shell draws is text on black in one monospace face. GTK's default theme is
-// left loaded (it sizes widgets sanely); these rules strip its chrome where it shows.
+// The visual system. A GUI that feels like a TUI still obeys layout: one font, one spacing
+// scale, borders that mean something (a pane), hierarchy by weight and colour, hover states.
+
 * {
   font-family: $font;
   font-size: $size;
   color: $amber;
+  -gtk-icon-size: $size;
 }
 
-window {
-  background: $bg;
-}
+window { background: $bg; }
 
-label {
-  min-height: 0;
-}
+label { min-height: 0; }
 
 button {
   background: none;
@@ -25,25 +23,34 @@ button {
   min-height: 0;
   min-width: 0;
   outline: none;
-  &:hover { color: $chip; }
+  transition: background 80ms ease-out;
+  &:hover  { background: $hover; }
+  &:active { background: $pressed; }
 }
 
-// <Panel title>: fieldset/legend — the single move that makes a GTK surface read as a TUI.
+// ── panes ──────────────────────────────────────────────────────────────────
+// <Panel title>: fieldset/legend. 1px $sep border, the label cut into the top edge in dim
+// chrome; the focused pane's border and title turn amber. This is the lazygit move.
 .panel {
-  border: 1px solid $sep;
+  border: $rule solid $sep;
   border-radius: 0;
-  margin: 9px 3px 3px;
-  padding: 8px 3px 4px;
+  margin-top: $sp-2;
+  padding: $sp-3 $sp-2 $sp-2;
+  &.focused { border-color: $amber; .panel-title { color: $amber; } }
 }
 .panel-title {
-  color: $amber;
+  color: $dim;
   background: $bg;
   font-size: $size-sm;
-  padding: 0 3px;
-  margin: -9px 0 0 4px;
+  padding: 0 $sp-1;
+  margin: -$sp-2 0 0 $sp-2;
 }
-.panel.focused { border-color: $amber; }
 
+// rules: 1px $sep lines between cells
+.rule-v { min-width: $rule; background: $sep; }
+.rule-h { min-height: $rule; background: $sep; }
+
+// ── text roles ─────────────────────────────────────────────────────────────
 .amber { color: $amber; }
 .green { color: $green; }
 .dim   { color: $dim; }
@@ -51,19 +58,28 @@ button {
 .cyan  { color: $cyan; }
 .pink  { color: $accent; }
 .sep   { color: $sep; }
+.sm    { font-size: $size-sm; }
+.lg    { font-size: $size-lg; }
 
 // inverse video: the active thing is the same amber, swapped
 .chip {
   color: $ink;
   background: $chip;
-  padding: 0 4px;
+  padding: 0 $sp-2;
   * { color: $ink; }
 }
 .tab {
   color: $white;
   background: $sel;
-  padding: 0 4px;
+  padding: 0 $sp-2;
   * { color: $white; }
+}
+
+// key/value stat: dim key, body value, in one cell
+.stat {
+  .k { color: $dim; margin-right: $sp-1; }
+  &.low  .v { color: $red; }
+  &.live .v { color: $green; }
 }
 
 .st-working { color: $st-working; }

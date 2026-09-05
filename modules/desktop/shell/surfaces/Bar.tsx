@@ -11,7 +11,7 @@ import Pango from "gi://Pango?version=1.0"
 import { createBinding, createComputed, createState, onCleanup } from "ags"
 import { createPoll } from "ags/time"
 import { focusedClient } from "../lib/hypr"
-import { Stat } from "../lib/tui"
+import { Stat, RuleV } from "../lib/tui"
 import { pct, meter } from "../lib/format"
 
 function Title() {
@@ -30,15 +30,19 @@ function Title() {
 
   const classes = title((t) => ["title", ...(t ? [] : ["empty"])])
   const text = title((t) => t || "— no window —")
-  return <label cssClasses={classes} label={text} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={80} xalign={0} />
+  return (
+    <box cssClasses={["cell"]}>
+      <label cssClasses={classes} label={text} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={70} xalign={0} />
+    </box>
+  )
 }
 
 function Clock() {
   const time = createPoll("", 1000, () => GLib.DateTime.new_now_local().format("%H:%M")!)
   const date = createPoll("", 60_000, () => GLib.DateTime.new_now_local().format("%a %d %b")!)
   return (
-    <box cssClasses={["clock"]}>
-      <label label={time} />
+    <box cssClasses={["cell", "clock"]}>
+      <label cssClasses={["hm"]} label={time} />
       <label cssClasses={["date"]} label={date} />
     </box>
   )
@@ -56,7 +60,7 @@ function Status() {
   // green = the highlight for "live": charging reads green, a low battery red, else body amber
   const batClass = createComputed(
     [createBinding(bat, "percentage"), createBinding(bat, "charging")],
-    (p, c) => ["stat", ...(c ? ["live"] : p < 0.15 ? ["low"] : [])],
+    (p, c) => (c ? ["live"] : p < 0.15 ? ["low"] : []),
   )
 
   const netText = createComputed(
@@ -77,10 +81,13 @@ function Status() {
     : "n/a"
 
   return (
-    <box cssClasses={["status"]} spacing={18} halign={Gtk.Align.END}>
-      <Stat k="NET" v={netText} />
-      <Stat k="VOL" v={volText} />
-      {bat.isPresent && <Stat k="BAT" v={batText} cssClasses={batClass} />}
+    <box cssClasses={["status"]} halign={Gtk.Align.END}>
+      <RuleV />
+      <box cssClasses={["cell", "clickable"]}><Stat k="NET" v={netText} /></box>
+      <RuleV />
+      <box cssClasses={["cell", "clickable"]}><Stat k="VOL" v={volText} /></box>
+      {bat.isPresent && <RuleV />}
+      {bat.isPresent && <box cssClasses={["cell", "clickable"]}><Stat k="BAT" v={batText} cssClasses={batClass} /></box>}
     </box>
   )
 }
@@ -104,8 +111,8 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       application={app}
     >
       <centerbox>
-        <box $type="start"><Title /></box>
-        <box $type="center"><Clock /></box>
+        <box $type="start"><Title /><RuleV /></box>
+        <box $type="center"><RuleV /><Clock /><RuleV /></box>
         <box $type="end" halign={Gtk.Align.END} hexpand={false}><Status /></box>
       </centerbox>
     </window>
