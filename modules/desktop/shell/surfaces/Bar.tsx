@@ -139,9 +139,9 @@ function BatteryCell() {
   const profiles = PowerProfiles.get_default()
   const pctA = createBinding(bat, "percentage")
   const chg = createBinding(bat, "charging")
-  const text = createComputed([pctA, chg], (p, c) => `${meter(p)} ${pct(p)}${c ? "\u{f0084}" : ""}`)
-  // green = the highlight for "live": charging reads green, a low battery red, else body amber
-  const cls = createComputed([pctA, chg], (p, c) => (c ? ["live"] : p < 0.15 ? ["low"] : []))
+  // Same traffic light as the perf cells. The charge limit is 80%, so 80 IS full: green from
+  // 50, amber to 20, red below; charging always reads green.
+  const cls = createComputed([pctA, chg], (p, c) => [c || p >= 0.5 ? "idle" : p >= 0.2 ? "busy" : "hot"])
   const eta = createComputed([createBinding(bat, "timeToEmpty"), createBinding(bat, "timeToFull"), chg, createBinding(bat, "energyRate")], (e, f, c, rate) => {
     const s = c ? f : e
     if (rate < 0.5 || s <= 0 || s > 48 * 3600) return c ? "charging" : "on mains"
@@ -149,8 +149,11 @@ function BatteryCell() {
   })
   const active = createBinding(profiles, "activeProfile")
   return (
-    <menubutton cssClasses={["cell", "clickable"]} direction={Gtk.ArrowType.DOWN}>
-      <Stat k="BAT" v={text} cssClasses={cls} />
+    <menubutton cssClasses={cls((c) => ["cell", "clickable", "perf", ...c])} direction={Gtk.ArrowType.DOWN}>
+      <box spacing={6}>
+        <label cssClasses={["icon"]} label={createComputed([pctA, chg], (p, c) => (c ? "\u{f0084}" : p > 0.6 ? "\u{f0080}" : p > 0.3 ? "\u{f007c}" : "\u{f007a}"))} />
+        <Stat k="BAT" v={createComputed([pctA], (p) => `${meter(p)} ${pct(p)}`)} />
+      </box>
       <popover cssClasses={["pop"]}>
         <Panel title="POWER" spacing={4}>
           <box cssClasses={["row"]} spacing={12}>

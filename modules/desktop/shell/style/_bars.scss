@@ -123,10 +123,11 @@ popover.pop {
 }
 // load tiers read as a traffic light: idle green, busy amber, hot red — icon, number, spark
 .perf {
-  .icon { font-size: $size-lg; }
+  // nerd glyphs are double-width in this face; give them their cell
+  .icon { font-size: $size-lg; min-width: 24px; margin-right: $sp-1; }
   .k { color: $dim; }
   .spark { letter-spacing: 0; }
-  &.idle { .icon, .num, .spark { color: $green; } }
-  &.busy { .icon, .num, .spark { color: $amber; } }
-  &.hot  { .icon, .num, .spark { color: $red; } }
+  &.idle { .icon, .num, .spark, .v { color: $green; } }
+  &.busy { .icon, .num, .spark, .v { color: $amber; } }
+  &.hot  { .icon, .num, .spark, .v { color: $red; } }
 }
