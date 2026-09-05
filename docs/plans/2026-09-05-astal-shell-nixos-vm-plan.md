@@ -111,15 +111,36 @@ modules/desktop/theme/palette.nix     the one list of semantic colours + the fon
 Console.Style moves to the amber body too; green there becomes the "live" highlight as in the
 shell. This is its own phase, after the drawer, so the palette settles on real surfaces first.
 
+## 5c · What landed 2026-09-05 (afternoon)
+
+- **Rail** (64px): WS pane listing only this monitor's workspaces (wheel switches them), the
+  stacked clock (click = drawer), weather glyph + °F under it, SYS pane at the foot (wifi and
+  bluetooth items with popover panes, StatusNotifier tray), power. The COL minimap is gone —
+  the window row on the bar already says where you are.
+- **Bar**: this monitor's workspace windows in strip order at the left (focused = class +
+  title, others = app icons, click focuses); CPU · RAM · GPU · NET cells pinned right, each
+  icon · KEY · number · 8-glyph braille sparkline, coloured green/amber/red by load, click
+  opens the drawer on PERF; VOL (slider, mute) and BAT (watts, ETA, power profiles) popovers.
+- **Drawer**: DASH (headlines + calendar), PERF (full history), MEDIA (mpris transport),
+  WEATHER, AGENTS (tlon-cli shell-status). 1-5 / Tab / Esc. `Super+Shift+I`, the clock, the
+  weather item, `astal-shell toggle drawer`, `astal-shell show drawer perf`.
+- **Dropped**: the text cat (glyph art at 12px does not read). If a running cat comes back it
+  is sprite frames paced by CPU, not text.
+- **Gotchas**: pane padding lives on `.panel-body` (GtkOverlay); glib-networking or no TLS;
+  private-use glyphs go in source as `\u{...}`; never inject keys with ydotool while testing —
+  keycode 1 is Escape and a stuck modifier follows.
+
 ## 6 · Phase status
 
 Design §7 phases, with where this plan lands them:
 
-1. Scaffold, style system, the two bars — **this plan**. Rail: workspaces, minimap, power.
-   Bar: title, clock, status as text. The rule-30 strip and tray are the next commits.
-2. Drawer + panes — next.
-2b. One palette, every surface (§5b).
-3–6. As designed.
+1. Scaffold, style system, the two bars — **done** (§5c).
+2. Drawer + panes — **done** (§5c); hover-to-open panels and per-metric ambient sprites still open.
+2b. One palette, every surface (§5b) — next.
+3. Notifications → disable caelestia's.
+4. Launcher and clipboard → unbind anyrun.
+5. OSDs, cheatsheet, ambient backdrop, CRT.
+6. Cutover; hyprland.lua migration before Hyprland 0.57 drops .conf.
 
 ## 7 · Laptop migration checklist (deferred, tracked here)
 
