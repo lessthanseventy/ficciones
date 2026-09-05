@@ -5,8 +5,9 @@
 // bordered on its inner edge so the pair frames the workspace like a lazygit layout.
 
 // ── rail ───────────────────────────────────────────────────────────────────
+// min-width is the content box: subtract the padding and the border so the rail IS 64px
 window.rail > box {
-  min-width: $rail-width;
+  min-width: $rail-width - 4px - $rule;
   border-right: $rule solid $sep;
   padding: 0 2px $sp-2;
 }
@@ -116,9 +117,10 @@ popover.pop {
 // ── bar: perf + weather + title ────────────────────────────────────────────
 .cava { color: $accent; font-size: $size-lg; letter-spacing: -1px; }
 .cavacell { padding: 0 $sp-1; }
+.volcell .icon { font-size: 19px; }
 .cava-col {
-  margin: $sp-1 0;
-  .ch { color: $accent; font-size: 11px; min-height: 0; }
+  margin: $sp-1 0 $sp-1 2px;
+  .ch { color: $accent; font-size: 9px; min-height: 0; letter-spacing: 0; }
 }
 
 .status {

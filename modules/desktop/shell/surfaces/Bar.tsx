@@ -71,8 +71,7 @@ function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
   return (
     <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN} visible={m.ok ?? true}>
       <box spacing={4}>
-        <label cssClasses={["icon"]} label={icon} />
-        <label cssClasses={["k"]} label={m.key} />
+        <label cssClasses={["icon"]} label={icon} tooltipText={m.key} />
         <label cssClasses={["num"]} label={m.num} widthChars={4} xalign={1} />
         <label cssClasses={["spark"]} label={m.hist((h) => spark(h, SPARK_CELLS))} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
       </box>
@@ -103,11 +102,15 @@ function Volume() {
   if (!speaker) return <box cssClasses={["cell"]}><Stat k="VOL" v="n/a" /></box>
   const vol = createBinding(speaker, "volume")
   const mute = createBinding(speaker, "mute")
-  const text = createComputed([vol, mute], (v, m) => (m ? "mute" : `${meter(v)} ${pct(v)}`))
-  const cls = mute((m) => (m ? ["dim"] : []))
+  const icon = createComputed([vol, mute], (v, m) => (m ? "\u{f075f}" : v > 0.66 ? "\u{f057e}" : v > 0.33 ? "\u{f0580}" : "\u{f057f}"))
+  const text = createComputed([vol, mute], (v, m) => (m ? "mute" : pct(v)))
+  const cls = mute((m) => ["cell", "clickable", "perf", "volcell", m ? "hot" : "busy"])
   return (
-    <menubutton cssClasses={["cell", "clickable"]} direction={Gtk.ArrowType.DOWN}>
-      <Stat k="VOL" v={text} cssClasses={cls} />
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN}>
+      <box spacing={4}>
+        <label cssClasses={["icon"]} label={icon} />
+        <label cssClasses={["num"]} label={text} widthChars={4} xalign={1} />
+      </box>
       <popover cssClasses={["pop"]}><Audio /></popover>
     </menubutton>
   )
@@ -132,9 +135,14 @@ function BatteryCell() {
   const active = createBinding(profiles, "activeProfile")
   return (
     <menubutton cssClasses={cls((c) => ["cell", "clickable", "perf", ...c])} direction={Gtk.ArrowType.DOWN}>
-      <box spacing={6}>
-        <label cssClasses={["icon"]} label={createComputed([pctA, chg], (p, c) => (c ? "\u{f0084}" : p > 0.6 ? "\u{f0080}" : p > 0.3 ? "\u{f007c}" : "\u{f007a}"))} />
-        <Stat k="BAT" v={createComputed([pctA], (p) => `${meter(p)} ${pct(p)}`)} />
+      <box spacing={4}>
+        <label
+          cssClasses={["icon"]}
+          label={createComputed([pctA, chg], (p, c) =>
+            c ? "\u{f0084}" : p >= 0.95 ? "\u{f0079}" : p >= 0.5 ? "\u{f0080}" : p >= 0.2 ? "\u{f007c}" : "\u{f008e}",
+          )}
+        />
+        <label cssClasses={["num"]} label={pctA(pct)} widthChars={4} xalign={1} />
       </box>
       <popover cssClasses={["pop"]}>
         <Panel title="POWER" spacing={4}>

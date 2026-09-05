@@ -94,6 +94,7 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
     <window
       $={(self) => (win = self)}
       visible
+      defaultWidth={1} // shrink to content; a GtkWindow otherwise pads its default size
       cssClasses={["rail"]}
       namespace="astal-shell-rail"
       name={`rail-${gdkmonitor.connector}`}
