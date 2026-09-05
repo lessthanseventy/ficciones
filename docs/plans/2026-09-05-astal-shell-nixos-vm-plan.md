@@ -84,6 +84,29 @@ anchored to that item. Click and `Super+B` are the sure things; hover-to-expand 
 caelestia does it is wanted and will be tried once the panels exist — with a short dwell so a
 pointer crossing the bar on the way somewhere else does not pop a panel.
 
+## 5b · One palette, every surface (2026-09-05)
+
+The shell's ink is amber on black, with green and pink as highlights and the active thing in
+inverse video (amber field, black text). That is not a shell rule, it is the machine's rule:
+Console.Style, ghostty, floorp, GTK apps, Hyprland borders, hyprlock — anything reasonably
+themeable follows the same palette, so nothing on screen looks like a guest.
+
+Doing that by hand-mirroring hex values into five files is how the shell and the cockpit
+already drifted (green body vs amber body). The fix is a single source of truth and generators:
+
+```
+modules/desktop/theme/palette.nix     the one list of semantic colours + the font
+  → shell/style/_tokens.scss          (generated at build; the checked-in file becomes output)
+  → console/lib/console/style.ex      (Console.Style reads the same names)
+  → ~/.config/ghostty/theme           (palette 0-15 + fg/bg/cursor/selection = inverse)
+  → GTK 3/4 CSS (@define-color)        (Adwaita colours overridden, ComicShanns as gtk-font-name)
+  → floorp userChrome.css / userContent (chrome + about: pages; sites stay themselves)
+  → hyprland.conf general:col.*        (already amber; source the generated file)
+```
+
+Console.Style moves to the amber body too; green there becomes the "live" highlight as in the
+shell. This is its own phase, after the drawer, so the palette settles on real surfaces first.
+
 ## 6 · Phase status
 
 Design §7 phases, with where this plan lands them:
@@ -91,6 +114,7 @@ Design §7 phases, with where this plan lands them:
 1. Scaffold, style system, the two bars — **this plan**. Rail: workspaces, minimap, power.
    Bar: title, clock, status as text. The rule-30 strip and tray are the next commits.
 2. Drawer + panes — next.
+2b. One palette, every surface (§5b).
 3–6. As designed.
 
 ## 7 · Laptop migration checklist (deferred, tracked here)
