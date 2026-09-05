@@ -7,6 +7,7 @@ import Drawer, { showDrawer, toggleDrawer } from "./surfaces/Drawer"
 import Notifications from "./surfaces/Notifications"
 import Hub, { HotEdge, toggleHub } from "./surfaces/Hub"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
+import "./lib/night"
 import type { Pane } from "./lib/nav"
 
 // One process, every surface. Bars per monitor (exclusive, windows reflow around them); the

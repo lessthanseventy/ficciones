@@ -120,44 +120,32 @@ function PerfCells() {
   )
 }
 
-/** Screen brightness, in the power popover: it is a power control. */
-function Backlight() {
-  // the new astal: `screen` is a Device proxy with brightness 0..1 (−1 when there is none)
-  const dev = Brightness.get_default()?.screen
-  if (!dev || dev.maxBrightness <= 0) return <box />
-  const v = createBinding(dev, "brightness")((x) => (Number.isFinite(x) && x >= 0 ? x : 0))
-  return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-      <box spacing={8}>
-        <label cssClasses={["k", "sm"]} label={"\u{f00e0}  brightness"} hexpand xalign={0} />
-        <label cssClasses={["sm"]} label={v(pct)} />
-      </box>
-      <slider cssClasses={["vol"]} hexpand value={v} onChangeValue={({ value }) => { if (Math.abs(value - dev.brightness) > 0.005) dev.brightness = value }} />
-    </box>
-  )
-}
-
 /**
- * Software dim: hyprsunset's gamma, 30–100%. It is global (wlr-gamma-control per output would
- * need a client of our own), which covers the external monitor that exposes no DDC/CI.
+ * One brightness slider, two backends. Laptop alone: the backlight. An external monitor
+ * plugged in (it exposes no DDC/CI through the dock): hyprsunset's gamma, 30–100%, which is
+ * software and global — the honest fake.
  */
-function Dim() {
+function Backlight() {
+  const dev = Brightness.get_default()?.screen
+  const external = createBinding(hypr, "monitors")((ms) => ms.some((m) => m.name !== "eDP-1"))
   const gamma = createPoll(1, 3000, async () => {
     try { return Math.max(0.3, Math.min(1, Number((await execAsync(["hyprctl", "hyprsunset", "gamma"])).trim()) / 100)) } catch { return 1 }
   })
+  const back = dev ? createBinding(dev, "brightness")((x) => (Number.isFinite(x) && x >= 0 ? x : 0)) : null
+  const value = createComputed([external, gamma, ...(back ? [back] : [])], (ext, g, b) => (ext || !back ? g : (b as number)))
+  const label = external((ext) => (ext ? "\u{f0335}  brightness · software, all screens" : "\u{f00e0}  brightness · backlight"))
+  const set = (v: number) => {
+    if (external.get() || !dev) {
+      if (Math.abs(v - gamma.get()) > 0.01) execAsync(["hyprctl", "hyprsunset", "gamma", String(Math.round(v * 100))]).catch(console.error)
+    } else if (Math.abs(v - dev.brightness) > 0.005) dev.brightness = v
+  }
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
       <box spacing={8}>
-        <label cssClasses={["k", "sm"]} label={"\u{f0335}  dim (software, all screens)"} hexpand xalign={0} />
-        <label cssClasses={["sm"]} label={gamma(pct)} />
+        <label cssClasses={["k", "sm"]} label={label} hexpand xalign={0} />
+        <label cssClasses={["sm"]} label={value(pct)} />
       </box>
-      <slider
-        cssClasses={["vol"]}
-        hexpand
-        min={0.3}
-        value={gamma}
-        onChangeValue={({ value }) => { if (Math.abs(value - gamma.get()) > 0.01) execAsync(["hyprctl", "hyprsunset", "gamma", String(Math.round(value * 100))]).catch(console.error) }}
-      />
+      <slider cssClasses={["vol"]} hexpand min={external((e) => (e ? 0.3 : 0))} value={value} onChangeValue={({ value: v }) => set(v)} />
     </box>
   )
 }
@@ -198,7 +186,6 @@ function BatteryCell() {
           </box>
           <RuleH />
           <Backlight />
-          <Dim />
           <RuleH />
           {profiles.get_profiles().map(({ profile }) => (
             <button
