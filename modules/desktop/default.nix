@@ -19,6 +19,7 @@
 }:
 
 let
+  cfg = config.ficciones.desktop;
   linkTo =
     rel:
     { source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}"; };
@@ -36,30 +37,44 @@ let
   '';
 in
 {
-  xdg.configFile = {
-    "hypr/hyprland.conf" = linkTo "hyprland.conf";
-    "hypr/hypridle.conf" = linkTo "hypridle.conf";
+  imports = [ ./shell ];
 
-    "hypr/scripts/launch_hyprland.sh" = linkTo "scripts/launch_hyprland.sh";
-    "hypr/scripts/quake-toggle.sh" = linkTo "scripts/quake-toggle.sh";
-    "hypr/scripts/shot-region.sh" = linkTo "scripts/shot-region.sh";
+  options.ficciones.desktop.host = lib.mkOption {
+    type = lib.types.str;
+    default = "ivysaur";
+    description = ''
+      Which hypr/hosts/<host>.conf becomes ~/.config/hypr/host.conf: the monitor layout,
+      persistent workspaces and GPU device order that only make sense on one machine.
+    '';
   };
 
-  # scripts/git-hooks/ holds the hooks (post-checkout/-merge/-rewrite, all one script), so they
-  # are versioned rather than sitting untracked in .git/hooks — which core.hooksPath then stops
-  # git from reading at all. Only the samples live there, so nothing is lost.
-  # git is probed, not pulled from pkgs: it is a hard prerequisite for having this repo at all,
-  # and a store git would add ~50MB of closure (perl included) for one `config` call.
-  home.activation.hyprlandGitHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    gitBin="$(command -v git 2>/dev/null || echo /usr/bin/git)"
-    if [ -e "${repo}/.git" ] && [ -x "$gitBin" ]; then
-      run "$gitBin" -C "${repo}" config --local core.hooksPath "${repo}/scripts/git-hooks"
-    fi
-  '';
+  config = {
+    xdg.configFile = {
+      "hypr/hyprland.conf" = linkTo "hyprland.conf";
+      "hypr/hypridle.conf" = linkTo "hypridle.conf";
+      "hypr/host.conf" = linkTo "hosts/${cfg.host}.conf";
 
-  # linkGeneration's batched `ln -sfn` is atomic, so a steady-state switch does not disturb a
-  # running compositor. The first switch on a fresh box does: taking over an existing real
-  # hyprland.conf goes down home-manager's slow path, which is `mv` to the backup and THEN
-  # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
-  home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
+      "hypr/scripts/launch_hyprland.sh" = linkTo "scripts/launch_hyprland.sh";
+      "hypr/scripts/quake-toggle.sh" = linkTo "scripts/quake-toggle.sh";
+      "hypr/scripts/shot-region.sh" = linkTo "scripts/shot-region.sh";
+    };
+
+    # scripts/git-hooks/ holds the hooks (post-checkout/-merge/-rewrite, all one script), so they
+    # are versioned rather than sitting untracked in .git/hooks — which core.hooksPath then stops
+    # git from reading at all. Only the samples live there, so nothing is lost.
+    # git is probed, not pulled from pkgs: it is a hard prerequisite for having this repo at all,
+    # and a store git would add ~50MB of closure (perl included) for one `config` call.
+    home.activation.hyprlandGitHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      gitBin="$(command -v git 2>/dev/null || echo /usr/bin/git)"
+      if [ -e "${repo}/.git" ] && [ -x "$gitBin" ]; then
+        run "$gitBin" -C "${repo}" config --local core.hooksPath "${repo}/scripts/git-hooks"
+      fi
+    '';
+
+    # linkGeneration's batched `ln -sfn` is atomic, so a steady-state switch does not disturb a
+    # running compositor. The first switch on a fresh box does: taking over an existing real
+    # hyprland.conf goes down home-manager's slow path, which is `mv` to the backup and THEN
+    # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
+    home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
+  };
 }
