@@ -36,9 +36,9 @@ function Hours() {
   return (
     <box cssClasses={["hours"]}>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={1} cssClasses={["hours-key"]}>
-        <label cssClasses={["sm"]} label="" />
-        <label cssClasses={["sky"]} label="" />
-        <label label="" />
+        <label cssClasses={["k", "sm"]} label={"\u{f0150}"} />
+        <label cssClasses={["sky", "k"]} label={"\u{f0590}"} />
+        <label cssClasses={["k"]} label={"\u{f050f}"} />
         <label cssClasses={["k", "sm"]} label={"\u{f0597}"} />
       </box>
       <box homogeneous hexpand>
