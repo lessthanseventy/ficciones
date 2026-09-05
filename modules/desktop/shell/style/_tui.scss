@@ -41,7 +41,7 @@ button {
 // its own box, so padding there would push the title off the border and not the content down.
 .panel-body { padding: $sp-3 $sp-2 $sp-2; }
 .panel-title {
-  color: $dim;
+  color: $key;
   background: $bg;
   font-size: $size-sm;
   padding: 0 $sp-1;
@@ -55,7 +55,9 @@ button {
 // ── text roles ─────────────────────────────────────────────────────────────
 .amber { color: $amber; }
 .green { color: $green; }
-.dim   { color: $dim; }
+.dim   { color: $meta; }   // secondary text reads lilac, not dimmer amber
+.faint { color: $dim; }    // truly de-emphasised (empty cells, hints)
+.k     { color: $key; }
 .red   { color: $red; }
 .cyan  { color: $cyan; }
 .pink  { color: $accent; }
@@ -79,7 +81,7 @@ button {
 
 // key/value stat: dim key, body value, in one cell
 .stat {
-  .k { color: $dim; margin-right: $sp-1; }
+  .k { color: $key; margin-right: $sp-1; }
   &.low  .v { color: $red; }
   &.live .v { color: $green; }
 }

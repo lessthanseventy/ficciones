@@ -11,9 +11,9 @@ export function AgentsCard() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <box spacing={14} cssClasses={["counts"]}>
-        <box spacing={6}><label cssClasses={["dim"]} label="open" /><label cssClasses={["amber"]} label={agents((a) => String(a.counts.open ?? 0))} /></box>
-        <box spacing={6}><label cssClasses={["dim"]} label="done" /><label cssClasses={["st-done"]} label={agents((a) => String(a.counts.closed ?? a.counts.done ?? 0))} /></box>
-        <box spacing={6}><label cssClasses={["dim"]} label="awaiting you" /><label cssClasses={agents((a) => (a.awaiting > 0 ? ["pink"] : ["dim"]))} label={agents((a) => String(a.awaiting))} /></box>
+        <box spacing={6}><label cssClasses={["k"]} label="open" /><label cssClasses={["amber"]} label={agents((a) => String(a.counts.open ?? 0))} /></box>
+        <box spacing={6}><label cssClasses={["k"]} label="done" /><label cssClasses={["st-done"]} label={agents((a) => String(a.counts.closed ?? a.counts.done ?? 0))} /></box>
+        <box spacing={6}><label cssClasses={["k"]} label="awaiting you" /><label cssClasses={agents((a) => (a.awaiting > 0 ? ["pink"] : ["dim"]))} label={agents((a) => String(a.awaiting))} /></box>
       </box>
       <For each={roster}>
         {(r, i) => (

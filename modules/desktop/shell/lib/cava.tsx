@@ -14,7 +14,8 @@ let inst: Cava.Cava | null | undefined
 function cava() {
   if (inst === undefined) {
     inst = Cava.get_default()
-    if (inst) { inst.bars = BARS * 2; inst.set_stereo(true) }
+    // 30 fps is plenty for block glyphs and halves the shell's own CPU
+    if (inst) { inst.bars = BARS * 2; inst.set_stereo(true); inst.framerate = 30 }
   }
   return inst
 }

@@ -49,7 +49,6 @@ function Windows({ connector }: { connector: string }) {
               cssClasses={focused((f) => ["win", ...(f ? ["focused"] : [])])}
               direction={Gtk.ArrowType.DOWN}
               tooltipText={title}
-              $={(self) => self.connect("notify::active", () => { if (self.active) c.focus() })}
             >
               <box spacing={8}>
                 <image iconName={iconFor(c)} pixelSize={18} />
@@ -68,9 +67,10 @@ function Windows({ connector }: { connector: string }) {
                   </box>
                   <RuleH />
                   <box spacing={6} cssClasses={["winacts"]}>
+                    <button cssClasses={["act", "green"]} onClicked={() => c.focus()}><label label="focus" /></button>
                     <button cssClasses={["act"]} onClicked={() => d("togglefloating")}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => d("pin")}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
-                    <button cssClasses={["act"]} onClicked={() => hypr.dispatch("fullscreen", "1")} /* acts on the focused window, which opening this made it */><label label="fullscreen" /></button>
+                    <button cssClasses={["act"]} onClicked={() => { c.focus(); hypr.dispatch("fullscreen", "1") }}><label label="fullscreen" /></button>
                     <button cssClasses={["act"]} onClicked={() => d("movetoworkspace", "special:magic,")}><label label="to special" /></button>
                     <box hexpand />
                     <button cssClasses={["act", "red"]} onClicked={() => d("closewindow")}><label label="close" /></button>

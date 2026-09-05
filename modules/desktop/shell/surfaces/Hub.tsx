@@ -23,7 +23,7 @@ function History() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
       <box spacing={8} cssClasses={["hub-head"]}>
-        <label cssClasses={["dim"]} label={all((ns) => `${ns.length} ${ns.length === 1 ? "notice" : "notices"}`)} hexpand xalign={0} />
+        <label cssClasses={["k"]} label={all((ns) => `${ns.length} ${ns.length === 1 ? "notice" : "notices"}`)} hexpand xalign={0} />
         <button cssClasses={["act"]} onClicked={() => notifd.get_notifications().forEach((n) => n.dismiss())}><label label="clear all" /></button>
       </box>
       <For each={all}>{(n) => <NoticeCard n={n} />}</For>

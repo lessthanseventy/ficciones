@@ -11,6 +11,7 @@ export type Gpu = {
   memTotal: number
   temp: number      // °C
   watts: number
+  clock: number     // MHz, graphics
   hist: number[]
 }
 
@@ -18,21 +19,21 @@ const HIST = 120
 const hist: number[] = []
 
 export const gpu = createPoll<Gpu>(
-  { ok: false, util: 0, memUsed: 0, memTotal: 0, temp: 0, watts: 0, hist },
+  { ok: false, util: 0, memUsed: 0, memTotal: 0, temp: 0, watts: 0, clock: 0, hist },
   5000,
   async () => {
     try {
       const out = await execAsync([
         "nvidia-smi",
-        "--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw",
+        "--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,clocks.gr",
         "--format=csv,noheader,nounits",
       ])
-      const [u, mu, mt, t, w] = out.trim().split(",").map((x) => Number(x.trim()))
+      const [u, mu, mt, t, w, ck] = out.trim().split(",").map((x) => Number(x.trim()))
       const util = Math.max(0, Math.min(1, u / 100))
       hist.push(util); if (hist.length > HIST) hist.shift()
-      return { ok: true, util, memUsed: mu, memTotal: mt, temp: t, watts: w, hist }
+      return { ok: true, util, memUsed: mu, memTotal: mt, temp: t, watts: w, clock: ck || 0, hist }
     } catch {
-      return { ok: false, util: 0, memUsed: 0, memTotal: 0, temp: 0, watts: 0, hist }
+      return { ok: false, util: 0, memUsed: 0, memTotal: 0, temp: 0, watts: 0, clock: 0, hist }
     }
   },
 )

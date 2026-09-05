@@ -80,7 +80,17 @@ export default function Drawer() {
             title={`${cards[p].icon}  ${i + 1} ${p}`}
             cssClasses={focus((f) => ["card", `card-${p.toLowerCase()}`, ...(f === p ? ["focused"] : [])])}
           >
-            <button cssClasses={["pane-hit"]} onClicked={() => setFocus(p)}>{cards[p].body()}</button>
+            <box
+              $={(self) => {
+                // focus the card on any click inside it, without stealing the click from the
+                // buttons within — a capture-phase gesture that never claims
+                const g = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
+                g.connect("pressed", () => setFocus(p))
+                self.add_controller(g)
+              }}
+            >
+              {cards[p].body()}
+            </box>
           </Panel>
         ))}
         <box vexpand />

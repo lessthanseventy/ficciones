@@ -11,7 +11,7 @@ window.notifications { background: transparent; }
   .panel-body { padding: $sp-3 $sp-3 $sp-2; }
   .toast-hit { padding: 0; &:hover { background: $hover; } }
   .summary { color: $amber; }
-  .body { color: $dim; font-size: $size-sm; }
+  .body { color: $meta; font-size: $size-sm; }
   .actions { margin-top: $sp-1; }
   .act { color: $green; padding: 0 $sp-2; &:hover { background: $hover; } }
 }

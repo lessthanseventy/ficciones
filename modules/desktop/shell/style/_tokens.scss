@@ -26,6 +26,11 @@ $st-open:    $amber;
 $st-done:    #5FA35F;
 $st-idle:    $dim;
 
+// text roles beyond the body: keys/labels are cyan, secondary text lilac — amber is primary,
+// not the only colour (Andrew: "tasteful unicorn vomit")
+$key:  $cyan;
+$meta: #B4A5D6;
+
 // identity tier
 $arch-surveyor:  $cyan;
 $arch-builder:   $green;

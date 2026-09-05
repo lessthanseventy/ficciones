@@ -19,7 +19,7 @@ window.rail .rule-h { margin: $sp-2 $sp-1; }
   .ws {
     min-height: $cell-h;
     min-width: $rail-width - 2 * $sp-2 - 4px - 2 * $rule;
-    color: $dim;
+    color: $meta;
     label { font-size: $size-lg; }
     &.occupied { color: $amber; }
     &.focused  { background: $chip; color: $ink; label { color: $ink; } }
@@ -75,7 +75,7 @@ menubutton.cell > button:hover { background: none; }
 }
 .clock {
   padding: $sp-2 0;
-  label { font-size: $size-sm; color: $dim; }
+  label { font-size: $size-sm; color: $meta; }
   .hh, .mm { font-size: 20px; color: $amber; }
   .day { font-size: $size; color: $amber; }
   &:hover { background: $hover; }
@@ -86,7 +86,7 @@ menubutton.cell > button:hover { background: none; }
   padding: 2px 0;
   background: none; border: none; box-shadow: none; border-radius: 0;
   .icon { font-size: $size-lg; }
-  &.dim  * { color: $dim; }
+  &.dim  * { color: $meta; }
   &.live * { color: $green; }
   &.net .icon { color: $cyan; }
   &.bt.live .icon { color: $arch-assistant; }
@@ -128,7 +128,7 @@ popover.pop {
 
 .status {
   margin-right: $sp-1;
-  label { font-size: $size-sm; }
+  .cell > box > label { font-size: $size-sm; }
   .cell { padding: 0 $sp-1; }
 }
 
@@ -144,15 +144,15 @@ popover.pop {
     .klass { color: $cyan; font-size: $size-sm; }
     .title { color: $amber; }
   }
-  .title.empty { color: $dim; padding: 0 $sp-3; }
+  .title.empty { color: $meta; padding: 0 $sp-3; }
 }
 // load tiers read as a traffic light: idle green, busy amber, hot red — icon, number, spark
 .perf {
   // a scooch smaller than the body, and tighter: these are gauges, not text to read
   padding: 0 $sp-1;
-  label { font-size: $size-sm; }
+  > box > label { font-size: $size-sm; }   // the cell only; the popover under it keeps its sizes
   .icon { font-size: $size; min-width: 20px; margin-right: 2px; }
-  .k { color: $dim; }
+  .k { color: $key; }
   .spark { letter-spacing: 0; }
   &.idle { .icon, .num, .spark, .v { color: $green; } }
   &.busy { .icon, .num, .spark, .v { color: $amber; } }
