@@ -14,6 +14,14 @@
 {
   networking.hostName = "vm";
 
+  # `nix flake check` evaluates the plain toplevel too, and NixOS refuses a system with no
+  # root or bootloader. These match what the vmVariant injects, so they are true, not filler.
+  fileSystems."/" = {
+    device = "/dev/disk/by-label/nixos";
+    fsType = "ext4";
+  };
+  boot.loader.grub.device = "/dev/vda";
+
   # No greeter: the VM exists to look at the shell, not to log in. The session is uwsm's
   # (see programs.hyprland.withUWSM in default.nix); start-hyprland alone leaves
   # graphical-session.target dead and the shell unit never runs.
