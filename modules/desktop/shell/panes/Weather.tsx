@@ -40,7 +40,7 @@ function Hours() {
           <label cssClasses={["dim", "sm"]} label={cols((c) => (c[i] ? hh(c[i].t) : ""))} />
           <label cssClasses={["sky"]} label={cols((c) => (c[i] ? glyph(c[i].code) : ""))} />
           <label label={cols((c) => (c[i] ? `${Math.round(c[i].temp)}°` : ""))} />
-          <label cssClasses={cols((c) => ["sm", (c[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={cols((c) => (c[i] && c[i].rain > 0 ? `${c[i].rain}%` : "·"))} />
+          <label cssClasses={cols((c) => ["sm", (c[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={cols((c) => (c[i] && c[i].rain > 0 ? `\u{f0597} ${c[i].rain}%` : "\u{f0597} 0%"))} />
         </box>
       ))}
     </box>
