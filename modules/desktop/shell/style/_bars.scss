@@ -62,7 +62,7 @@ menubutton.cell > button:hover { background: none; }
 // ── rail: clock + tray ─────────────────────────────────────────────────────
 .wx {
   padding: $sp-1 0 $sp-2;
-  .g { font-size: $size-lg; }
+  .g { font-size: 26px; }
   .t { font-size: $size-sm; }
   &.dim * { color: $dim; }
   &:hover { background: $hover; }

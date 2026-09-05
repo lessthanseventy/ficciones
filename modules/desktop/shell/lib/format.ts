@@ -17,7 +17,8 @@ export function spark(values: number[], width: number): string {
   const s = [...pad, ...v]
   const L = [0x40, 0x04, 0x02, 0x01] // left column, bottom→top
   const R = [0x80, 0x20, 0x10, 0x08]
-  const lvl = (x: number) => (x < 0 ? 0 : Math.min(4, Math.max(x > 0 ? 1 : 0, Math.round(x * 4))))
+  // a real sample always draws at least the baseline dot, so idle and no-data differ
+  const lvl = (x: number) => (x < 0 ? 0 : Math.min(4, Math.max(1, Math.round(x * 4))))
   let out = ""
   for (let i = 0; i < n; i += 2) {
     let bits = 0

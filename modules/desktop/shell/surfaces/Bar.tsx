@@ -99,7 +99,7 @@ function PerfCells() {
       <RuleV />
       <PerfCell k="RAM" icon={"\u{f035b}"} frac={mem} v={mem(pct)} hist={perf((p) => p.memHist)} detail={perf((p) => `${p.memUsedGb.toFixed(1)}/${p.memTotalGb.toFixed(0)}G`)} />
       <RuleV />
-      <PerfCell k="GPU" icon={"\u{f0379}"} frac={gpu((g) => g.util)} v={gpu((g) => pct(g.util))} hist={gpu((g) => g.hist)} detail={gpu((g) => `${g.temp}°C  ${g.watts.toFixed(0)} W  ${g.memUsed}/${g.memTotal} MiB`)} visible={gpu((g) => g.ok)} />
+      <PerfCell k="GPU" icon={"\u{f0379}"} frac={gpu((g) => g.util)} v={gpu((g) => pct(g.util))} hist={gpu((g) => g.hist.flatMap((x) => [x, x, x, x, x]))} /* 5s samples stretched to the 1s grid */ detail={gpu((g) => `${g.temp}°C  ${g.watts.toFixed(0)} W  ${g.memUsed}/${g.memTotal} MiB`)} visible={gpu((g) => g.ok)} />
       <RuleV visible={gpu((g) => g.ok)} />
       <PerfCell k="NET" icon={"\u{f06f3}"} frac={net} v={perf((p) => rate(p.rx + p.tx))} hist={perf((p) => p.netHist)} detail={perf((p) => `\u{2193}${rate(p.rx)} \u{2191}${rate(p.tx)}`)} />
       <RuleV />
@@ -137,10 +137,12 @@ function BatteryCell() {
   const bat = Battery.get_default()
   if (!bat.isPresent) return <box />
   const profiles = PowerProfiles.get_default()
-  const pctA = createBinding(bat, "percentage")
+  // The charge limit is 80%, so the bar shows charge as a share of the cap: 80% reads 100%.
+  const CAP = 0.8
+  const pctA = createBinding(bat, "percentage")((p) => Math.min(1, p / CAP))
   const chg = createBinding(bat, "charging")
-  // Same traffic light as the perf cells. The charge limit is 80%, so 80 IS full: green from
-  // 50, amber to 20, red below; charging always reads green.
+  // Same traffic light as the perf cells: green from 50, amber to 20, red below; charging
+  // always reads green.
   const cls = createComputed([pctA, chg], (p, c) => [c || p >= 0.5 ? "idle" : p >= 0.2 ? "busy" : "hot"])
   const eta = createComputed([createBinding(bat, "timeToEmpty"), createBinding(bat, "timeToFull"), chg, createBinding(bat, "energyRate")], (e, f, c, rate) => {
     const s = c ? f : e
