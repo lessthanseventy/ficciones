@@ -55,3 +55,57 @@ window.bar > box {
   .hm { color: $amber; font-size: $size-lg; }
   .date { color: $dim; margin-left: $sp-2; }
 }
+
+// ── rail: clock + tray ─────────────────────────────────────────────────────
+.clock {
+  padding: $sp-2 0;
+  label { font-size: $size-sm; color: $dim; }
+  .hh, .mm { font-size: 26px; color: $amber; }
+  .day { font-size: $size-lg; color: $amber; }
+  &:hover { background: $hover; }
+}
+
+.item {
+  min-height: $cell-h + 8px;
+  padding: 2px 0;
+  background: none; border: none; box-shadow: none; border-radius: 0;
+  .icon { font-size: $size-lg; }
+  &.dim  * { color: $dim; }
+  &.live * { color: $green; }
+  &:hover { background: $hover; }
+}
+menubutton.item > button { background: none; border: none; box-shadow: none; padding: 0; }
+menubutton.item > button:hover { background: $hover; }
+
+.sni { margin-top: $sp-1; }
+.sni-item > button { padding: 3px; min-height: 0; min-width: 0; background: none; border: none; box-shadow: none; }
+.sni-item > button:hover { background: $hover; }
+
+// ── popovers: a pane floating off the rail ─────────────────────────────────
+popover.pop {
+  > contents {
+    background: $bg;
+    border: $rule solid $amber;
+    border-radius: 0;
+    padding: $sp-1;
+    box-shadow: none;
+    min-width: 280px;
+  }
+  > arrow { background: $bg; border: $rule solid $amber; }
+  .panel { margin-top: $sp-2; }
+  .row { min-height: $cell-h; padding: 0 $sp-2; }
+  .row.head label { color: $amber; }
+  .row.chip { background: $chip; * { color: $ink; } }
+  .act { padding: 0 $sp-2; color: $green; &:hover { background: $hover; } }
+}
+
+// ── bar: perf + weather + title ────────────────────────────────────────────
+.titlecell .klass { color: $dim; font-size: $size-sm; }
+.perf {
+  .icon { font-size: $size-lg; }
+  &.idle .icon { color: $dim; }
+  &.busy .icon { color: $amber; }
+  &.hot  .icon { color: $red; }
+}
+.weather label { color: $amber; }
+.weather.dim label { color: $dim; }
