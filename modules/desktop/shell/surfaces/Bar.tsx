@@ -10,6 +10,7 @@ import { For, createBinding, createComputed, onCleanup, type Accessor } from "ag
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import { showDrawer } from "./Drawer"
+import Audio from "./Audio"
 import { Panel } from "../lib/tui"
 import Apps from "gi://AstalApps"
 import { Stat, RuleV, RuleH } from "../lib/tui"
@@ -118,17 +119,7 @@ function Volume() {
   return (
     <menubutton cssClasses={["cell", "clickable"]} direction={Gtk.ArrowType.DOWN}>
       <Stat k="VOL" v={text} cssClasses={cls} />
-      <popover cssClasses={["pop"]}>
-        <Panel title="AUDIO" spacing={6}>
-          <box cssClasses={["row"]} spacing={12}>
-            <label label={createBinding(speaker, "description")((d) => d || "output")} hexpand xalign={0} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={30} />
-            <button cssClasses={["act"]} onClicked={() => (speaker.mute = !speaker.mute)}>
-              <label label={mute((m) => (m ? "unmute" : "mute"))} />
-            </button>
-          </box>
-          <slider cssClasses={["vol"]} widthRequest={260} hexpand value={vol} onChangeValue={({ value }) => speaker.set_volume(value)} />
-        </Panel>
-      </popover>
+      <popover cssClasses={["pop"]}><Audio /></popover>
     </menubutton>
   )
 }
