@@ -34,9 +34,9 @@ window.drawer { background: transparent; }
 .huge { font-size: 32px; }
 .spark { color: $amber; }
 .spark.wide { font-size: $size-lg; letter-spacing: 0; }
-.panel.idle .spark { color: $dim; }
-.panel.busy .spark { color: $amber; }
-.panel.hot  .spark { color: $red; }
+.panel.idle { .spark, .big { color: $green; } }
+.panel.busy { .spark, .big { color: $amber; } }
+.panel.hot  { .spark, .big { color: $red; } }
 .row { min-height: $cell-h; }
 .act { padding: 0 $sp-2; color: $amber; &:hover { background: $hover; } }
 

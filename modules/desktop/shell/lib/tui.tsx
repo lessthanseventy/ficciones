@@ -13,17 +13,19 @@ export function Panel({
   cssClasses = [],
   vertical = true,
   spacing = 0,
+  visible,
 }: {
   title: Text
   children?: JSX.Element | JSX.Element[]
   cssClasses?: Classes
   vertical?: boolean
   spacing?: number
+  visible?: Accessor<boolean>
 }) {
   const classes =
     typeof cssClasses === "function" ? cssClasses((c) => ["panel", ...c]) : ["panel", ...cssClasses]
   return (
-    <overlay cssClasses={classes}>
+    <overlay cssClasses={classes} visible={visible ?? true}>
       <box $type="overlay" halign={Gtk.Align.START} valign={Gtk.Align.START} canTarget={false}>
         <label cssClasses={["panel-title"]} label={title} />
       </box>
@@ -56,5 +58,5 @@ export function Stat({ k, v, cssClasses = [] }: { k: string; v: Text; cssClasses
 }
 
 /** 1px separators for the cell grid. */
-export const RuleV = () => <box cssClasses={["rule-v"]} />
+export const RuleV = ({ visible }: { visible?: Accessor<boolean> } = {}) => <box cssClasses={["rule-v"]} visible={visible ?? true} />
 export const RuleH = () => <box cssClasses={["rule-h"]} />

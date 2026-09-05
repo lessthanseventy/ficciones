@@ -121,15 +121,12 @@ popover.pop {
   }
   .title.empty { color: $dim; padding: 0 $sp-3; }
 }
+// load tiers read as a traffic light: idle green, busy amber, hot red — icon, number, spark
 .perf {
   .icon { font-size: $size-lg; }
   .k { color: $dim; }
-  .num { color: $amber; }
-  .spark { color: $sep; letter-spacing: 0; }
-  &.busy .spark { color: $amber; }
-  &.hot  .spark { color: $red; }
-  .detail { color: $dim; font-size: $size-sm; }
-  &.idle .icon { color: $dim; }
-  &.busy .icon { color: $amber; }
-  &.hot  .icon { color: $red; }
+  .spark { letter-spacing: 0; }
+  &.idle { .icon, .num, .spark { color: $green; } }
+  &.busy { .icon, .num, .spark { color: $amber; } }
+  &.hot  { .icon, .num, .spark { color: $red; } }
 }

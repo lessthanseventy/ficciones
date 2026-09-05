@@ -15,6 +15,7 @@ import Apps from "gi://AstalApps"
 import { Stat, RuleV, RuleH } from "../lib/tui"
 import { pct, meter, spark } from "../lib/format"
 import { perf, tier, rate, NET_HOT } from "../lib/perf"
+import { gpu } from "../lib/gpu"
 
 /**
  * The workspace's windows, left to right as they sit in the strip: the focused one as
@@ -64,18 +65,19 @@ function Windows({ connector }: { connector: string }) {
 // A perf cell: icon coloured by load tier, KEY, the number, a braille sparkline of the last
 // 16 seconds (2 samples per glyph). Detail rides the tooltip; the bar belongs to the window.
 const SPARK_CELLS = 8
-function PerfCell({ k, icon, v, frac, hist, detail }: {
+function PerfCell({ k, icon, v, frac, hist, detail, visible }: {
   k: string
   icon: string
   v: Accessor<string>
   frac: Accessor<number>
   hist: Accessor<number[]>
   detail: Accessor<string>
+  visible?: Accessor<boolean>
 }) {
   const cls = frac((f) => ["cell", "perf", tier(f)])
   const line = hist((h) => spark(h, SPARK_CELLS))
   return (
-    <button cssClasses={cls} tooltipText={detail} onClicked={() => showDrawer("PERF")}>
+    <button cssClasses={cls} tooltipText={detail} onClicked={() => showDrawer("PERF")} visible={visible ?? true}>
       <box spacing={6}>
         <label cssClasses={["icon"]} label={icon} />
         <label cssClasses={["k"]} label={k} />
@@ -97,6 +99,8 @@ function PerfCells() {
       <RuleV />
       <PerfCell k="RAM" icon={"\u{f035b}"} frac={mem} v={mem(pct)} hist={perf((p) => p.memHist)} detail={perf((p) => `${p.memUsedGb.toFixed(1)}/${p.memTotalGb.toFixed(0)}G`)} />
       <RuleV />
+      <PerfCell k="GPU" icon={"\u{f0379}"} frac={gpu((g) => g.util)} v={gpu((g) => pct(g.util))} hist={gpu((g) => g.hist)} detail={gpu((g) => `${g.temp}°C  ${g.watts.toFixed(0)} W  ${g.memUsed}/${g.memTotal} MiB`)} visible={gpu((g) => g.ok)} />
+      <RuleV visible={gpu((g) => g.ok)} />
       <PerfCell k="NET" icon={"\u{f06f3}"} frac={net} v={perf((p) => rate(p.rx + p.tx))} hist={perf((p) => p.netHist)} detail={perf((p) => `\u{2193}${rate(p.rx)} \u{2191}${rate(p.tx)}`)} />
       <RuleV />
     </box>
