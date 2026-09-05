@@ -66,7 +66,8 @@ window.hub, window.hotedge { background: transparent; }
 
 // weather card
 // emoji and text-style glyphs differ in height; fix every row so the columns line up
-.hours > box > label { min-height: 22px; }
+.hours > box > box > label, .hours-key > label { min-height: 22px; }
+.hours-key { min-width: 18px; }
 .hours .sky { font-size: $size; min-height: 34px; }
 .day { min-height: 24px; .sky { font-size: $size; } .range { color: $sep; letter-spacing: -1px; } }
 .day > label:first-child, .hours > box > label:first-child { color: $key; }

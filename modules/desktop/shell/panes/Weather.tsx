@@ -34,15 +34,23 @@ function Now() {
 function Hours() {
   const cols = weather((w) => (w.hours ?? []).filter((_, i) => i % 2 === 0).slice(0, 8))
   return (
-    <box cssClasses={["hours"]} homogeneous>
+    <box cssClasses={["hours"]}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={1} cssClasses={["hours-key"]}>
+        <label cssClasses={["sm"]} label="" />
+        <label cssClasses={["sky"]} label="" />
+        <label label="" />
+        <label cssClasses={["k", "sm"]} label={"\u{f0597}"} />
+      </box>
+      <box homogeneous hexpand>
       {Array.from({ length: 8 }, (_, i) => (
         <box orientation={Gtk.Orientation.VERTICAL} spacing={1} visible={cols((c) => i < c.length)}>
           <label cssClasses={["dim", "sm"]} label={cols((c) => (c[i] ? hh(c[i].t) : ""))} />
           <label cssClasses={["sky"]} label={cols((c) => (c[i] ? glyph(c[i].code) : ""))} />
           <label label={cols((c) => (c[i] ? `${Math.round(c[i].temp)}°` : ""))} />
-          <label cssClasses={cols((c) => ["sm", (c[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={cols((c) => (c[i] && c[i].rain > 0 ? `\u{f0597} ${c[i].rain}%` : "\u{f0597} 0%"))} />
+          <label cssClasses={cols((c) => ["sm", (c[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={cols((c) => (c[i] ? `${c[i].rain}%` : ""))} />
         </box>
       ))}
+      </box>
     </box>
   )
 }
