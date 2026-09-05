@@ -12,7 +12,10 @@ window.rail > box {
   padding: 0 2px $sp-2;
 }
 
+// sections of the rail are separated by rules, not framed
+window.rail .rule-h { margin: $sp-2 $sp-1; }
 .workspaces {
+  margin-top: $sp-2;
   .ws {
     min-height: $cell-h;
     min-width: $rail-width - 2 * $sp-2 - 4px - 2 * $rule;

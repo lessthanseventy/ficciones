@@ -152,10 +152,10 @@ function Sni() {
 
 export default function TrayPane() {
   return (
-    <Panel title="SYS" spacing={4}>
+    <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
       <Net />
       <Bt />
       <Sni />
-    </Panel>
+    </box>
   )
 }

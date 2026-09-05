@@ -7,7 +7,7 @@ import { For, onCleanup, createComputed } from "ags"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
-import { Panel } from "../lib/tui"
+import { RuleH } from "../lib/tui"
 import TrayPane from "./Tray"
 import { toggleDrawer } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
@@ -105,7 +105,8 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
     >
       <centerbox orientation={Gtk.Orientation.VERTICAL}>
         <box $type="start" orientation={Gtk.Orientation.VERTICAL}>
-          <Panel title="WS"><Workspaces connector={gdkmonitor.connector} /></Panel>
+          <Workspaces connector={gdkmonitor.connector} />
+          <RuleH />
         </box>
         <box $type="center" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
           <Channel side="left" />
@@ -114,6 +115,7 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           <Channel side="right" />
         </box>
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>
+          <RuleH />
           <TrayPane />
           <Power />
         </box>
