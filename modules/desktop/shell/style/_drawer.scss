@@ -69,7 +69,11 @@ window.hub, window.hotedge { background: transparent; }
 .hours > box > box > label, .hours-key > label { min-height: 22px; }
 .hours-key { min-width: 18px; }
 .hours .sky { font-size: $size; min-height: 34px; }
-.day { min-height: 24px; .sky { font-size: $size; } .range { color: $sep; letter-spacing: -1px; } }
+.day {
+  min-height: 24px;
+  .sky { font-size: $size; min-width: 30px; }
+  .range { letter-spacing: -1px; .track { color: $sep; } .span { color: $amber; } }
+}
 .day > label:first-child, .hours > box > label:first-child { color: $key; }
 
 // perf popovers

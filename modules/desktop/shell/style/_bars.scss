@@ -66,6 +66,12 @@ menubutton.cell > button:hover { background: none; }
 }
 
 // ── rail: clock + tray ─────────────────────────────────────────────────────
+.clock {
+  .hm { color: $amber; font-size: $size-lg; }
+  .date { color: $dim; margin-left: $sp-2; }
+}
+
+// ── rail: clock + tray ─────────────────────────────────────────────────────
 .wx {
   padding: $sp-1 0 $sp-2;
   .g { font-size: 26px; }
@@ -78,6 +84,9 @@ menubutton.cell > button:hover { background: none; }
   label { font-size: $size-sm; color: $meta; }
   .hh, .mm { font-size: 20px; color: $amber; }
   .day { font-size: $size; color: $amber; }
+  .g { font-size: 26px; margin-top: $sp-2; }
+  .t { color: $amber; }
+  &.wx-off .g, &.wx-off .t { color: $meta; }
   &:hover { background: $hover; }
 }
 

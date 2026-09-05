@@ -59,21 +59,32 @@ function Hours() {
 function Days() {
   const days = weather((w) => (w.days ?? []).slice(0, 6))
   const range = days((d) => ({ lo: Math.min(...d.map((x) => x.low), 999), hi: Math.max(...d.map((x) => x.high), -999) }))
-  const bar = (d: Day, r: { lo: number; hi: number }) => {
+  // the week's range is the track (dim); the day's span sits on it (amber)
+  const seg = (d: Day, r: { lo: number; hi: number }): [number, number] => {
     const W = 12
     const span = Math.max(1, r.hi - r.lo)
     const a = Math.round(((d.low - r.lo) / span) * W)
     const b = Math.max(a + 1, Math.round(((d.high - r.lo) / span) * W))
-    return " ".repeat(a) + "━".repeat(b - a) + " ".repeat(W - b)
+    return [a, b]
   }
+  const part = (i: number, which: 0 | 1 | 2) =>
+    days((d) => {
+      if (!d[i]) return ""
+      const [a, b] = seg(d[i], range.get())
+      return which === 0 ? "─".repeat(a) : which === 1 ? "━".repeat(b - a) : "─".repeat(12 - b)
+    })
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
       {Array.from({ length: 6 }, (_, i) => (
         <box cssClasses={["day"]} spacing={8} visible={days((d) => i < d.length)}>
           <label cssClasses={["dim"]} label={days((d) => (d[i] ? dow(d[i].t, i) : ""))} widthChars={5} xalign={0} />
-          <label cssClasses={["sky"]} label={days((d) => (d[i] ? glyph(d[i].code) : ""))} widthChars={2} />
+          <label cssClasses={["sky"]} label={days((d) => (d[i] ? glyph(d[i].code) : ""))} />
           <label cssClasses={["dim"]} label={days((d) => (d[i] ? `${Math.round(d[i].low)}°` : ""))} widthChars={4} xalign={1} />
-          <label cssClasses={["range"]} label={days((d) => (d[i] ? bar(d[i], range.get()) : ""))} />
+          <box cssClasses={["range"]}>
+            <label cssClasses={["track"]} label={part(i, 0)} />
+            <label cssClasses={["span"]} label={part(i, 1)} />
+            <label cssClasses={["track"]} label={part(i, 2)} />
+          </box>
           <label cssClasses={["amber"]} label={days((d) => (d[i] ? `${Math.round(d[i].high)}°` : ""))} widthChars={4} xalign={0} />
           <label cssClasses={days((d) => ["sm", (d[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={days((d) => (d[i] && d[i].rain > 0 ? `\u{f0597} ${d[i].rain}%` : ""))} hexpand xalign={1} />
         </box>
