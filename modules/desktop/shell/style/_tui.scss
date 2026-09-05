@@ -5,7 +5,7 @@
 * {
   font-family: $font;
   font-size: $size;
-  color: $green;
+  color: $amber;
 }
 
 window {
@@ -25,7 +25,7 @@ button {
   min-height: 0;
   min-width: 0;
   outline: none;
-  &:hover { color: $amber; }
+  &:hover { color: $chip; }
 }
 
 // <Panel title>: fieldset/legend — the single move that makes a GTK surface read as a TUI.
@@ -45,13 +45,14 @@ button {
 .panel.focused { border-color: $amber; }
 
 .amber { color: $amber; }
+.green { color: $green; }
 .dim   { color: $dim; }
 .red   { color: $red; }
 .cyan  { color: $cyan; }
 .pink  { color: $accent; }
 .sep   { color: $sep; }
 
-// inverse-video chips (status line / focused workspace)
+// inverse video: the active thing is the same amber, swapped
 .chip {
   color: $ink;
   background: $chip;

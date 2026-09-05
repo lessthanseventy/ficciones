@@ -13,7 +13,7 @@ window.bar  > box { min-height: 30px; }
     color: $dim;
     font-size: $size-lg;
     padding: 0 6px;
-    &.occupied { color: $green; }
+    &.occupied { color: $amber; }
     &.focused  { color: $ink; background: $chip; }
     &.focused * { color: $ink; }
   }
@@ -27,7 +27,7 @@ window.bar  > box { min-height: 30px; }
 }
 
 .title {
-  color: $green;
+  color: $amber;
   margin-left: 8px;
 }
 .title.empty { color: $dim; }
@@ -41,8 +41,9 @@ window.bar  > box { min-height: 30px; }
 .status {
   margin-right: 8px;
   label { font-size: $size; }
-  .k { color: $amber; }
+  .k { color: $dim; }
   .low { color: $red; }
+  .live { color: $green; }
 }
 
 .power {

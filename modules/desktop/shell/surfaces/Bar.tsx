@@ -53,7 +53,11 @@ function Status() {
     [createBinding(bat, "percentage"), createBinding(bat, "charging")],
     (p, c) => `${pct(p)}${c ? "⚡" : ""}`,
   )
-  const batClass = createBinding(bat, "percentage")((p) => ["stat", ...(p < 0.15 ? ["low"] : [])])
+  // green = the highlight for "live": charging reads green, a low battery red, else body amber
+  const batClass = createComputed(
+    [createBinding(bat, "percentage"), createBinding(bat, "charging")],
+    (p, c) => ["stat", ...(c ? ["live"] : p < 0.15 ? ["low"] : [])],
+  )
 
   const netText = createComputed(
     [createBinding(net, "primary"), createBinding(net, "wifi"), createBinding(net, "wired")],
