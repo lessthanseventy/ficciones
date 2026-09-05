@@ -3,11 +3,10 @@ import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import GLib from "gi://GLib?version=2.0"
-import Pango from "gi://Pango?version=1.0"
 import { For, onCleanup, createComputed } from "ags"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
-import { hypr, workspaces, focusedWorkspace, column } from "../lib/hypr"
+import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
 import { Panel } from "../lib/tui"
 import TrayPane from "./Tray"
 import { weather, glyph } from "../lib/weather"
@@ -40,20 +39,6 @@ function Workspaces({ connector }: { connector: string }) {
           )
         }}
       </For>
-    </box>
-  )
-}
-
-/** Which column of the scrolling strip you occupy: one cell per column, yours lit. */
-function Minimap() {
-  const tape = column(([i, n]) =>
-    n === 0 ? "·" : Array.from({ length: n }, (_, k) => (k === i ? "▮" : "▯")).join(""),
-  )
-  const pos = column(([i, n]) => (n === 0 ? "—" : `${i + 1}/${n}`))
-  return (
-    <box cssClasses={["minimap"]} orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
-      <label cssClasses={["tape"]} label={tape} wrap wrapMode={Pango.WrapMode.CHAR} maxWidthChars={5} justify={Gtk.Justification.CENTER} />
-      <label cssClasses={["here"]} label={pos} />
     </box>
   )
 }
@@ -118,7 +103,6 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <centerbox orientation={Gtk.Orientation.VERTICAL}>
         <box $type="start" orientation={Gtk.Orientation.VERTICAL}>
           <Panel title="WS"><Workspaces connector={gdkmonitor.connector} /></Panel>
-          <Panel title="COL"><Minimap /></Panel>
         </box>
         <box $type="center" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
           <Clock />

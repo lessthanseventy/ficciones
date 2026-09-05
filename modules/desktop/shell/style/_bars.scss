@@ -1,6 +1,6 @@
 @use "tokens" as *;
 
-// Two bars, two axes. The rail is the vertical axis (workspaces, the column minimap); the
+// Two bars, two axes. The rail is the vertical axis (workspaces, clock, tray); the
 // bar is the horizontal one (title, clock, status). Each is a strip of cells on a 1px grid,
 // bordered on its inner edge so the pair frames the workspace like a lazygit layout.
 
@@ -23,12 +23,6 @@ window.rail > box {
   }
 }
 
-.minimap {
-  min-height: $cell-h;
-  .tape { color: $sep; letter-spacing: 1px; }
-  .here { color: $amber; font-size: $size-sm; }
-}
-
 .power {
   min-height: $cell-h;
   color: $sep;
@@ -47,6 +41,15 @@ window.bar > box {
   padding: 0 $sp-2;
 }
 .cell.clickable:hover { background: $hover; }
+menubutton.cell > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; }
+menubutton.cell > button:hover { background: none; }
+.perf { &:hover { background: $hover; } }
+.vol {
+  min-height: 24px;
+  trough { background: $sep; min-height: 4px; border-radius: 0; }
+  highlight { background: $amber; border-radius: 0; }
+  slider { background: $chip; border: none; border-radius: 0; min-width: 8px; min-height: 16px; margin: -6px; box-shadow: none; }
+}
 
 .title { color: $amber; }
 .title.empty { color: $dim; }

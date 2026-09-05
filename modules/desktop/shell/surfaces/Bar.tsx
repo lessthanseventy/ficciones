@@ -8,8 +8,11 @@ import Battery from "gi://AstalBattery"
 import Wp from "gi://AstalWp"
 import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
+import PowerProfiles from "gi://AstalPowerProfiles"
+import { showDrawer } from "./Drawer"
+import { Panel } from "../lib/tui"
 import Apps from "gi://AstalApps"
-import { Stat, RuleV } from "../lib/tui"
+import { Stat, RuleV, RuleH } from "../lib/tui"
 import { pct, meter, spark } from "../lib/format"
 import { perf, tier, rate, NET_HOT } from "../lib/perf"
 
@@ -72,12 +75,14 @@ function PerfCell({ k, icon, v, frac, hist, detail }: {
   const cls = frac((f) => ["cell", "perf", tier(f)])
   const line = hist((h) => spark(h, SPARK_CELLS))
   return (
-    <box cssClasses={cls} spacing={6} tooltipText={detail}>
-      <label cssClasses={["icon"]} label={icon} />
-      <label cssClasses={["k"]} label={k} />
-      <label cssClasses={["num"]} label={v} widthChars={4} xalign={1} />
-      <label cssClasses={["spark"]} label={line} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
-    </box>
+    <button cssClasses={cls} tooltipText={detail} onClicked={() => showDrawer("PERF")}>
+      <box spacing={6}>
+        <label cssClasses={["icon"]} label={icon} />
+        <label cssClasses={["k"]} label={k} />
+        <label cssClasses={["num"]} label={v} widthChars={4} xalign={1} />
+        <label cssClasses={["spark"]} label={line} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
+      </box>
+    </button>
   )
 }
 
@@ -98,34 +103,78 @@ function PerfCells() {
   )
 }
 
-function Status() {
-  const bat = Battery.get_default()
+function Volume() {
   const wp = Wp.get_default()
-
-  const batText = createComputed(
-    [createBinding(bat, "percentage"), createBinding(bat, "charging")],
-    (p, c) => `${meter(p)} ${pct(p)}${c ? "\u{f0084}" : ""}`,
-  )
-  // green = the highlight for "live": charging reads green, a low battery red, else body amber
-  const batClass = createComputed(
-    [createBinding(bat, "percentage"), createBinding(bat, "charging")],
-    (p, c) => (c ? ["live"] : p < 0.15 ? ["low"] : []),
-  )
-
   const speaker = wp?.defaultSpeaker
-  const volText = speaker
-    ? createComputed(
-        [createBinding(speaker, "volume"), createBinding(speaker, "mute")],
-        (v, m) => (m ? "mute" : `${meter(v)} ${pct(v)}`),
-      )
-    : "n/a"
+  if (!speaker) return <box cssClasses={["cell"]}><Stat k="VOL" v="n/a" /></box>
+  const vol = createBinding(speaker, "volume")
+  const mute = createBinding(speaker, "mute")
+  const text = createComputed([vol, mute], (v, m) => (m ? "mute" : `${meter(v)} ${pct(v)}`))
+  const cls = mute((m) => (m ? ["dim"] : []))
+  return (
+    <menubutton cssClasses={["cell", "clickable"]} direction={Gtk.ArrowType.DOWN}>
+      <Stat k="VOL" v={text} cssClasses={cls} />
+      <popover cssClasses={["pop"]}>
+        <Panel title="AUDIO" spacing={6}>
+          <box cssClasses={["row"]} spacing={12}>
+            <label label={createBinding(speaker, "description")((d) => d || "output")} hexpand xalign={0} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={30} />
+            <button cssClasses={["act"]} onClicked={() => (speaker.mute = !speaker.mute)}>
+              <label label={mute((m) => (m ? "unmute" : "mute"))} />
+            </button>
+          </box>
+          <slider cssClasses={["vol"]} widthRequest={260} hexpand value={vol} onChangeValue={({ value }) => speaker.set_volume(value)} />
+        </Panel>
+      </popover>
+    </menubutton>
+  )
+}
 
+function BatteryCell() {
+  const bat = Battery.get_default()
+  if (!bat.isPresent) return <box />
+  const profiles = PowerProfiles.get_default()
+  const pctA = createBinding(bat, "percentage")
+  const chg = createBinding(bat, "charging")
+  const text = createComputed([pctA, chg], (p, c) => `${meter(p)} ${pct(p)}${c ? "\u{f0084}" : ""}`)
+  // green = the highlight for "live": charging reads green, a low battery red, else body amber
+  const cls = createComputed([pctA, chg], (p, c) => (c ? ["live"] : p < 0.15 ? ["low"] : []))
+  const eta = createComputed([createBinding(bat, "timeToEmpty"), createBinding(bat, "timeToFull"), chg, createBinding(bat, "energyRate")], (e, f, c, rate) => {
+    const s = c ? f : e
+    if (rate < 0.5 || s <= 0 || s > 48 * 3600) return c ? "charging" : "on mains"
+    return `${c ? "full in" : "empty in"} ${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
+  })
+  const active = createBinding(profiles, "activeProfile")
+  return (
+    <menubutton cssClasses={["cell", "clickable"]} direction={Gtk.ArrowType.DOWN}>
+      <Stat k="BAT" v={text} cssClasses={cls} />
+      <popover cssClasses={["pop"]}>
+        <Panel title="POWER" spacing={4}>
+          <box cssClasses={["row"]} spacing={12}>
+            <label label={createBinding(bat, "energyRate")((r) => `${r.toFixed(1)} W`)} />
+            <label cssClasses={["dim"]} label={eta} hexpand xalign={0} />
+          </box>
+          <RuleH />
+          {profiles.get_profiles().map(({ profile }) => (
+            <button
+              cssClasses={active((a) => ["row", ...(a === profile ? ["chip"] : [])])}
+              onClicked={() => profiles.set_active_profile(profile)}
+            >
+              <label label={profile} xalign={0} hexpand />
+            </button>
+          ))}
+        </Panel>
+      </popover>
+    </menubutton>
+  )
+}
+
+function Status() {
   return (
     <box cssClasses={["status"]} halign={Gtk.Align.END}>
       <RuleV />
-      <box cssClasses={["cell", "clickable"]}><Stat k="VOL" v={volText} /></box>
-      {bat.isPresent && <RuleV />}
-      {bat.isPresent && <box cssClasses={["cell", "clickable"]}><Stat k="BAT" v={batText} cssClasses={batClass} /></box>}
+      <Volume />
+      <RuleV />
+      <BatteryCell />
     </box>
   )
 }

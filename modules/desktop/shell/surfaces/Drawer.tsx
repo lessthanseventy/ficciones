@@ -13,7 +13,16 @@ import Weather from "../panes/Weather"
 import Agents from "../panes/Agents"
 
 const TABS = ["DASH", "PERF", "MEDIA", "WEATHER", "AGENTS"] as const
-type Tab = (typeof TABS)[number]
+export type Tab = (typeof TABS)[number]
+
+let goTo: ((t: Tab) => void) | null = null
+/** Open the drawer on a pane, from anywhere (a perf cell, a keybind with an argument). */
+export function showDrawer(tab?: Tab) {
+  const w = app.get_window("drawer")
+  if (!w) return
+  if (tab) goTo?.(tab)
+  w.visible = true
+}
 
 export default function Drawer() {
   let win: Astal.Window
@@ -24,6 +33,7 @@ export default function Drawer() {
     setTab(t)
     stack.visibleChildName = t
   }
+  goTo = go
   const onKey = (_: Gtk.EventControllerKey, keyval: number) => {
     const n = keyval - Gdk.KEY_1
     if (n >= 0 && n < TABS.length) return go(TABS[n]), true

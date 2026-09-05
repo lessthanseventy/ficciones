@@ -3,7 +3,7 @@ import { createBinding, For, This } from "ags"
 import style from "./style/main.scss"
 import Rail from "./surfaces/Rail"
 import Bar from "./surfaces/Bar"
-import Drawer from "./surfaces/Drawer"
+import Drawer, { showDrawer, type Tab } from "./surfaces/Drawer"
 
 // One process, every surface. Bars per monitor (exclusive, windows reflow around them); the
 // drawer once, floating. `astal-shell toggle drawer` from a keybind reaches requestHandler.
@@ -12,12 +12,16 @@ app.start({
   instanceName: "astal-shell",
   gtkTheme: "Adwaita",
   requestHandler(argv, res) {
-    const [verb, what] = argv
+    const [verb, what, tab] = argv
     if (verb === "toggle" && what) {
       try { app.toggle_window(what); res("ok") } catch (e) { res(String(e)) }
       return
     }
-    res("usage: astal-shell toggle <drawer>")
+    if (verb === "show" && what === "drawer") {
+      showDrawer(tab?.toUpperCase() as Tab | undefined)
+      return res("ok")
+    }
+    res("usage: astal-shell toggle drawer | show drawer [dash|perf|media|weather|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
