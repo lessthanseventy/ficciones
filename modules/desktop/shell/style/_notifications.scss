@@ -1,0 +1,17 @@
+@use "tokens" as *;
+
+window.notifications { background: transparent; }
+
+.toast {
+  background: $bg;
+  margin-top: $sp-2;
+  &.low      { border-color: $dim;   .panel-title { color: $dim; } }
+  &.normal   { border-color: $amber; .panel-title { color: $amber; } }
+  &.critical { border-color: $red;   .panel-title { color: $red; } }
+  .panel-body { padding: $sp-3 $sp-3 $sp-2; }
+  .toast-hit { padding: 0; &:hover { background: $hover; } }
+  .summary { color: $amber; }
+  .body { color: $dim; font-size: $size-sm; }
+  .actions { margin-top: $sp-1; }
+  .act { color: $green; padding: 0 $sp-2; &:hover { background: $hover; } }
+}

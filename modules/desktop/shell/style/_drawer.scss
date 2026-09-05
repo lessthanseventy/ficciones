@@ -45,3 +45,22 @@ window.drawer { background: transparent; }
 .cal-head label { color: $dim; font-size: $size-sm; min-width: 34px; }
 .cal-day { min-width: 34px; min-height: 26px; }
 .cal-day.chip { padding: 0; }
+
+// ── the right-hand hub ─────────────────────────────────────────────────────
+window.hub, window.hotedge { background: transparent; }
+.sheet.right { border-right: none; border-left: $rule solid $sep; padding: 0 $sp-2 $sp-2 $sp-3; }
+.card-notices .panel-title { color: $amber; }
+.card-toggles .panel-title { color: $cyan; }
+.group { margin-top: $sp-1; }
+.notice { padding: 2px $sp-2; min-height: 0; }
+.notice.critical .summary { color: $red; }
+.notice.low .summary { color: $dim; }
+.notice .summary { color: $amber; }
+.toggle {
+  min-height: 48px;
+  padding: $sp-1 0;
+  border: $rule solid $sep;
+  .icon { font-size: $size-lg; }
+  &.chip { border-color: $chip; }
+  &:hover { background: $hover; }
+}
