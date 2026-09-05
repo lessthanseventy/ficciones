@@ -14,44 +14,19 @@ import { For, createBinding, createComputed, createState } from "ags"
 import { timeout, type Timer } from "ags/time"
 import { subprocess, type Process } from "ags/process"
 import { Panel, RuleH } from "../lib/tui"
-import { urgencyOf } from "./Notifications"
+import { NoticeCard } from "./Notifications"
 
 const notifd = Notifd.get_default()
 
 function History() {
-  const all = createBinding(notifd, "notifications")
-  const groups = all((ns) => {
-    const by = new Map<string, Notifd.Notification[]>()
-    for (const n of [...ns].sort((a, b) => b.time - a.time)) {
-      const k = n.appName || "notice"
-      by.set(k, [...(by.get(k) ?? []), n])
-    }
-    return [...by.entries()]
-  })
+  const all = createBinding(notifd, "notifications")((ns) => [...ns].sort((a, b) => b.time - a.time))
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-      <box spacing={8}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+      <box spacing={8} cssClasses={["hub-head"]}>
         <label cssClasses={["dim"]} label={all((ns) => `${ns.length} ${ns.length === 1 ? "notice" : "notices"}`)} hexpand xalign={0} />
-        <button cssClasses={["act"]} onClicked={() => (notifd.dontDisturb = !notifd.dontDisturb)}>
-          <label label={createBinding(notifd, "dontDisturb")((d) => (d ? "\u{f009b} DND on" : "\u{f009a} DND off"))} cssClasses={createBinding(notifd, "dontDisturb")((d) => (d ? ["pink"] : ["dim"]))} />
-        </button>
-        <button cssClasses={["act"]} onClicked={() => notifd.get_notifications().forEach((n) => n.dismiss())}><label label="clear" /></button>
+        <button cssClasses={["act"]} onClicked={() => notifd.get_notifications().forEach((n) => n.dismiss())}><label label="clear all" /></button>
       </box>
-      <For each={groups}>
-        {([appName, ns]) => (
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} cssClasses={["group"]}>
-            <label cssClasses={["cyan", "sm"]} label={appName} xalign={0} />
-            {ns.map((n) => (
-              <button cssClasses={["row", "notice", urgencyOf(n)]} onClicked={() => n.dismiss()}>
-                <box orientation={Gtk.Orientation.VERTICAL}>
-                  <label cssClasses={["summary"]} label={n.summary} xalign={0} ellipsize={3} maxWidthChars={40} />
-                  <label cssClasses={["dim", "sm"]} label={(n.body ?? "").replace(/<[^>]+>/g, "")} xalign={0} ellipsize={3} maxWidthChars={44} visible={!!n.body} />
-                </box>
-              </button>
-            ))}
-          </box>
-        )}
-      </For>
+      <For each={all}>{(n) => <NoticeCard n={n} />}</For>
       <label cssClasses={["dim"]} label="all quiet" visible={all((ns) => ns.length === 0)} xalign={0} />
     </box>
   )

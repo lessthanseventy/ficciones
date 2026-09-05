@@ -19,16 +19,13 @@ const DEFAULT_MS = 6000
 export const urgencyOf = (n: Notifd.Notification) =>
   n.urgency === Notifd.Urgency.CRITICAL ? "critical" : n.urgency === Notifd.Urgency.LOW ? "low" : "normal"
 
-function Toast({ n, hide }: { n: Notifd.Notification; hide: () => void }) {
+/** The notice as a pane: app name inset, urgency on the border, summary, body, actions. */
+export function NoticeCard({ n }: { n: Notifd.Notification }) {
   const urgency = urgencyOf(n)
-  // expiring hides the toast but keeps the notification for the hub's history; a click
-  // dismisses it for good (you saw it)
-  const ms = n.expireTimeout > 0 ? n.expireTimeout : urgency === "critical" ? 0 : DEFAULT_MS
-  const t = ms > 0 ? timeout(ms, hide) : null
-  onCleanup(() => t?.cancel())
   const body = (n.body ?? "").replace(/<[^>]+>/g, "").trim()
+  const when = new Date(n.time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   return (
-    <Panel title={n.appName || "notice"} cssClasses={["toast", urgency]} spacing={4}>
+    <Panel title={`${n.appName || "notice"} · ${when}`} cssClasses={["toast", urgency]} spacing={4}>
       <button cssClasses={["toast-hit"]} onClicked={() => n.dismiss()}>
         <box spacing={10}>
           <image visible={!!n.appIcon} iconName={n.appIcon || "dialog-information"} pixelSize={24} valign={Gtk.Align.START} />
@@ -45,6 +42,15 @@ function Toast({ n, hide }: { n: Notifd.Notification; hide: () => void }) {
       </box>
     </Panel>
   )
+}
+
+function Toast({ n, hide }: { n: Notifd.Notification; hide: () => void }) {
+  // expiring hides the toast but keeps the notification for the hub's history; a click
+  // dismisses it for good (you saw it)
+  const ms = n.expireTimeout > 0 ? n.expireTimeout : urgencyOf(n) === "critical" ? 0 : DEFAULT_MS
+  const t = ms > 0 ? timeout(ms, hide) : null
+  onCleanup(() => t?.cancel())
+  return <NoticeCard n={n} />
 }
 
 export default function Notifications() {
