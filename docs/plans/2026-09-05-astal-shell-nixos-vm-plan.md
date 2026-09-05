@@ -102,6 +102,10 @@ modules/desktop/theme/palette.nix     the one list of semantic colours + the fon
   → GTK 3/4 CSS (@define-color)        (Adwaita colours overridden, ComicShanns as gtk-font-name)
   → floorp userChrome.css / userContent (chrome + about: pages; sites stay themselves)
   → hyprland.conf general:col.*        (already amber; source the generated file)
+  → Qt: qt6ct colour scheme + kvantum  (hyprland.conf already sets QT_QPA_PLATFORMTHEME=qt6ct)
+  → btop theme, and whatever else      (mine ~/.config on ivysaur for every app with a theme
+                                        file — lazygit, bat, fzf, cava, hyprlock — and add a
+                                        generator per hit; that survey is the phase's first task)
 ```
 
 Console.Style moves to the amber body too; green there becomes the "live" highlight as in the
