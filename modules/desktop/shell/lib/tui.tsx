@@ -2,7 +2,6 @@
 // the widget tree so one SCSS rule styles every instance the same way (design §3).
 import Gtk from "gi://Gtk?version=4.0"
 import type { Accessor } from "ags"
-import type { JSX } from "ags/gtk4"
 
 type Text = string | Accessor<string>
 

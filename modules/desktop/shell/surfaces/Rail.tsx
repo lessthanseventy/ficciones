@@ -2,6 +2,7 @@ import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
+import Pango from "gi://Pango?version=1.0"
 import { For, onCleanup, createComputed } from "ags"
 import { execAsync } from "ags/process"
 import { workspaces, focusedWorkspace, column } from "../lib/hypr"
@@ -33,7 +34,7 @@ function Minimap() {
   const pos = column((([i, n]) => (n === 0 ? "—" : `${i + 1}/${n}`)))
   return (
     <box cssClasses={["minimap"]} orientation={Gtk.Orientation.VERTICAL}>
-      <label label={tape} wrap wrapMode={Gtk.WrapMode.CHAR} maxWidthChars={6} justify={Gtk.Justification.CENTER} />
+      <label label={tape} wrap wrapMode={Pango.WrapMode.CHAR} maxWidthChars={6} justify={Gtk.Justification.CENTER} />
       <label cssClasses={["here"]} label={pos} />
     </box>
   )
