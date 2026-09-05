@@ -5,13 +5,11 @@ import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import Pango from "gi://Pango?version=1.0"
 import Battery from "gi://AstalBattery"
-import Wp from "gi://AstalWp"
 import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import { METRICS, MetricDetail } from "../panes/Perf"
 import { Visualiser } from "../lib/cava"
-import Audio from "./Audio"
 import { Panel } from "../lib/tui"
 import Apps from "gi://AstalApps"
 import { Stat, RuleV, RuleH } from "../lib/tui"
@@ -119,26 +117,6 @@ function PerfCells() {
   )
 }
 
-function Volume() {
-  const wp = Wp.get_default()
-  const speaker = wp?.defaultSpeaker
-  if (!speaker) return <box cssClasses={["cell"]}><Stat k="VOL" v="n/a" /></box>
-  const vol = createBinding(speaker, "volume")
-  const mute = createBinding(speaker, "mute")
-  const icon = createComputed([vol, mute], (v, m) => (m ? "\u{f075f}" : v > 0.66 ? "\u{f057e}" : v > 0.33 ? "\u{f0580}" : "\u{f057f}"))
-  const text = createComputed([vol, mute], (v, m) => (m ? "mute" : pct(v)))
-  const cls = mute((m) => ["cell", "clickable", "perf", "volcell", m ? "hot" : "busy"])
-  return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN}>
-      <box spacing={4}>
-        <label cssClasses={["icon"]} label={icon} />
-        <label cssClasses={["num"]} label={text} widthChars={4} xalign={1} />
-      </box>
-      <popover cssClasses={["pop"]}><Audio /></popover>
-    </menubutton>
-  )
-}
-
 function BatteryCell() {
   const bat = Battery.get_default()
   if (!bat.isPresent) return <box />
@@ -191,8 +169,6 @@ function BatteryCell() {
 function Status() {
   return (
     <box cssClasses={["status"]} halign={Gtk.Align.END}>
-      <RuleV />
-      <Volume />
       <RuleV />
       <BatteryCell />
     </box>

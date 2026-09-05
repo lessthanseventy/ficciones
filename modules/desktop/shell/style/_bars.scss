@@ -99,6 +99,8 @@ menubutton.cell > button:hover { background: none; }
   &.live * { color: $green; }
   &.net .icon { color: $cyan; }
   &.bt.live .icon { color: $arch-assistant; }
+  &.vol .icon { font-size: 22px; color: $amber; }
+
   &:hover { background: $hover; }
 }
 menubutton.item > button { background: none; border: none; box-shadow: none; padding: 0; }

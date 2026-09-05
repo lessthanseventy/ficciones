@@ -5,9 +5,11 @@ import Gtk from "gi://Gtk?version=4.0"
 import Network from "gi://AstalNetwork"
 import Bluetooth from "gi://AstalBluetooth"
 import Tray from "gi://AstalTray"
+import Wp from "gi://AstalWp"
+import Audio from "./Audio"
 import { For, With, createBinding, createComputed } from "ags"
 import { execAsync } from "ags/process"
-import { meter } from "../lib/format"
+import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 
 function Net() {
@@ -129,6 +131,26 @@ function Bt() {
   )
 }
 
+/** Volume as a rail item: icon over percent, the audio switcher off it. */
+function Vol() {
+  const wp = Wp.get_default()
+  const speaker = wp?.defaultSpeaker
+  if (!speaker) return <box />
+  const vol = createBinding(speaker, "volume")
+  const mute = createBinding(speaker, "mute")
+  const icon = createComputed([vol, mute], (v, m) => (m ? "\u{f075f}" : v > 0.66 ? "\u{f057e}" : v > 0.33 ? "\u{f0580}" : "\u{f057f}"))
+  const cls = mute((m) => ["item", "vol", ...(m ? ["dim"] : [])])
+  return (
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT}>
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <label cssClasses={["icon"]} label={icon} />
+        <label cssClasses={["sm"]} label={createComputed([vol, mute], (v, m) => (m ? "mute" : pct(v)))} />
+      </box>
+      <popover cssClasses={["pop"]}><Audio /></popover>
+    </menubutton>
+  )
+}
+
 function Sni() {
   const tray = Tray.get_default()
   const items = createBinding(tray, "items")
@@ -153,9 +175,10 @@ function Sni() {
 export default function TrayPane() {
   return (
     <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+      <Sni />
       <Net />
       <Bt />
-      <Sni />
+      <Vol />
     </box>
   )
 }
