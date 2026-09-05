@@ -8,7 +8,11 @@ import { For, createBinding, createComputed } from "ags"
 import { Panel, RuleH } from "../lib/tui"
 import { pct } from "../lib/format"
 
-const short = (s: string, n = 28) => (s.length > n ? s.slice(0, n - 1) + "…" : s)
+// Intel names every codec endpoint "Raptor Lake-P/U/H cAVS <thing>"; the thing is the name.
+const clean = (s: string) => s.replace(/^.*?cAVS\s+/, "")
+const short = (s: string, n = 28) => { const c = clean(s); return c.length > n ? c.slice(0, n - 1) + "…" : c }
+// speech-dispatcher (TTS for Orca / Firefox reader) parks idle streams that never play
+const HIDDEN = /^speech-dispatcher/i
 
 function Slider({ node, width = 220 }: { node: Wp.Node; width?: number }) {
   return (
@@ -100,8 +104,10 @@ export default function Audio() {
         <label cssClasses={["dim"]} label="no input" visible={mics((m) => m.length === 0)} xalign={0} />
       </Panel>
       <Panel title="APPS" spacing={6}>
-        <For each={streams}>{(st) => <Stream st={st} speakers={() => audio.get_speakers()} />}</For>
-        <label cssClasses={["dim"]} label="nothing playing" visible={streams((s) => s.length === 0)} xalign={0} />
+        <For each={streams((ss) => ss.filter((st) => !HIDDEN.test(st.get_pw_property("application.name") || st.name || "")))}>
+          {(st) => <Stream st={st} speakers={() => audio.get_speakers()} />}
+        </For>
+        <label cssClasses={["dim"]} label="nothing playing" visible={streams((ss) => ss.filter((st) => !HIDDEN.test(st.get_pw_property("application.name") || st.name || "")).length === 0)} xalign={0} />
       </Panel>
     </box>
   )
