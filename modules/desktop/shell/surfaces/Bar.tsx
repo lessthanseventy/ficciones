@@ -70,7 +70,7 @@ function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
   const cls = m.frac((f) => ["cell", "perf", tier(f)])
   return (
     <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN} visible={m.ok ?? true}>
-      <box spacing={6}>
+      <box spacing={4}>
         <label cssClasses={["icon"]} label={icon} />
         <label cssClasses={["k"]} label={m.key} />
         <label cssClasses={["num"]} label={m.num} widthChars={4} xalign={1} />

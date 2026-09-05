@@ -11,6 +11,7 @@ import { Panel } from "../lib/tui"
 import TrayPane from "./Tray"
 import { toggleDrawer } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
+import { Channel } from "../lib/cava"
 
 /** This monitor's workspaces only, its active one chipped — two monitors, two rails. */
 function Workspaces({ connector }: { connector: string }) {
@@ -106,8 +107,10 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           <Panel title="WS"><Workspaces connector={gdkmonitor.connector} /></Panel>
         </box>
         <box $type="center" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
+          <Channel side="left" />
           <Clock />
           <Weather />
+          <Channel side="right" />
         </box>
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>
           <TrayPane />

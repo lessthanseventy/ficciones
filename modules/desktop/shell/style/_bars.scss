@@ -115,6 +115,16 @@ popover.pop {
 
 // ── bar: perf + weather + title ────────────────────────────────────────────
 .cava { color: $accent; font-size: $size-lg; letter-spacing: -1px; }
+.cava-col {
+  margin: $sp-1 0;
+  .ch { color: $accent; font-size: 11px; min-height: 0; }
+}
+
+.status {
+  margin-right: $sp-1;
+  label { font-size: $size-sm; }
+  .cell { padding: 0 $sp-1; }
+}
 
 .windows {
   .win {
@@ -129,8 +139,10 @@ popover.pop {
 }
 // load tiers read as a traffic light: idle green, busy amber, hot red — icon, number, spark
 .perf {
-  // nerd glyphs are double-width in this face; give them their cell
-  .icon { font-size: $size-lg; min-width: 24px; margin-right: $sp-1; }
+  // a scooch smaller than the body, and tighter: these are gauges, not text to read
+  padding: 0 $sp-1;
+  label { font-size: $size-sm; }
+  .icon { font-size: $size; min-width: 20px; margin-right: 2px; }
   .k { color: $dim; }
   .spark { letter-spacing: 0; }
   &.idle { .icon, .num, .spark, .v { color: $green; } }
