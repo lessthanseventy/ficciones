@@ -43,18 +43,41 @@ function Windows({ connector }: { connector: string }) {
         {(c) => {
           const focused = createComputed([focusedClient], (f) => f?.address === c.address)
           const title = createBinding(c, "title")
+          const d = (cmd: string, arg = "") => hypr.dispatch(cmd, `${arg} address:${c.address}`.trim())
           return (
-            <button
+            <menubutton
               cssClasses={focused((f) => ["win", ...(f ? ["focused"] : [])])}
-              onClicked={() => c.focus()}
+              direction={Gtk.ArrowType.DOWN}
               tooltipText={title}
+              $={(self) => self.connect("notify::active", () => { if (self.active) c.focus() })}
             >
               <box spacing={8}>
                 <image iconName={iconFor(c)} pixelSize={18} />
                 <label cssClasses={["klass"]} label={c.class} visible={focused} />
                 <label cssClasses={["title"]} label={title} visible={focused} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={40} xalign={0} />
               </box>
-            </button>
+              <popover cssClasses={["pop"]}>
+                <Panel title={c.class || "window"} spacing={4}>
+                  <label cssClasses={["amber"]} label={title} xalign={0} wrap maxWidthChars={44} />
+                  <box cssClasses={["kv"]} spacing={16}>
+                    <label cssClasses={["dim", "sm"]} label={`pid ${c.pid}`} />
+                    <label cssClasses={["dim", "sm"]} label={createBinding(c, "workspace")((w) => `ws ${w?.id ?? "?"}`)} />
+                    <label cssClasses={["dim", "sm"]} label={createComputed([createBinding(c, "width"), createBinding(c, "height")], (w, h) => `${w}×${h}`)} />
+                    <label cssClasses={["dim", "sm"]} label={createBinding(c, "floating")((f) => (f ? "floating" : "tiled"))} />
+                    <label cssClasses={["dim", "sm"]} label={c.xwayland ? "xwayland" : "wayland"} />
+                  </box>
+                  <RuleH />
+                  <box spacing={6} cssClasses={["winacts"]}>
+                    <button cssClasses={["act"]} onClicked={() => d("togglefloating")}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
+                    <button cssClasses={["act"]} onClicked={() => d("pin")}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
+                    <button cssClasses={["act"]} onClicked={() => hypr.dispatch("fullscreen", "1")} /* acts on the focused window, which opening this made it */><label label="fullscreen" /></button>
+                    <button cssClasses={["act"]} onClicked={() => d("movetoworkspace", "special:magic,")}><label label="to special" /></button>
+                    <box hexpand />
+                    <button cssClasses={["act", "red"]} onClicked={() => d("closewindow")}><label label="close" /></button>
+                  </box>
+                </Panel>
+              </popover>
+            </menubutton>
           )
         }}
       </For>
