@@ -8,13 +8,13 @@
 window.rail > box {
   min-width: $rail-width;
   border-right: $rule solid $sep;
-  padding: 0 $sp-1 $sp-2;
+  padding: 0 2px $sp-2;
 }
 
 .workspaces {
   .ws {
     min-height: $cell-h;
-    min-width: $rail-width - 2 * $sp-2 - 2 * $sp-1 - 2 * $rule;
+    min-width: $rail-width - 2 * $sp-2 - 4px - 2 * $rule;
     color: $dim;
     label { font-size: $size-lg; }
     &.occupied { color: $amber; }
@@ -44,7 +44,7 @@ window.bar > box {
 
 .cell {
   min-height: $bar-height - $rule;
-  padding: 0 $sp-3;
+  padding: 0 $sp-2;
 }
 .cell.clickable:hover { background: $hover; }
 
@@ -60,8 +60,8 @@ window.bar > box {
 .clock {
   padding: $sp-2 0;
   label { font-size: $size-sm; color: $dim; }
-  .hh, .mm { font-size: 26px; color: $amber; }
-  .day { font-size: $size-lg; color: $amber; }
+  .hh, .mm { font-size: 20px; color: $amber; }
+  .day { font-size: $size; color: $amber; }
   &:hover { background: $hover; }
 }
 
@@ -103,6 +103,12 @@ popover.pop {
 .titlecell .klass { color: $dim; font-size: $size-sm; }
 .perf {
   .icon { font-size: $size-lg; }
+  .k { color: $dim; }
+  .num { color: $amber; }
+  .spark { color: $sep; letter-spacing: 0; }
+  &.busy .spark { color: $amber; }
+  &.hot  .spark { color: $red; }
+  .detail { color: $dim; font-size: $size-sm; }
   &.idle .icon { color: $dim; }
   &.busy .icon { color: $amber; }
   &.hot  .icon { color: $red; }

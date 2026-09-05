@@ -6,11 +6,11 @@ import Hyprland from "gi://AstalHyprland"
 import Pango from "gi://Pango?version=1.0"
 import Battery from "gi://AstalBattery"
 import Wp from "gi://AstalWp"
-import { createBinding, createComputed, createState, onCleanup } from "ags"
+import { createBinding, createComputed, createState, onCleanup, type Accessor } from "ags"
 import { focusedClient } from "../lib/hypr"
 import { Stat, RuleV } from "../lib/tui"
-import { pct, meter } from "../lib/format"
-import { perf, tier, rate } from "../lib/perf"
+import { pct, meter, spark } from "../lib/format"
+import { perf, tier, rate, NET_HOT } from "../lib/perf"
 import { weather, glyph } from "../lib/weather"
 
 function Title() {
@@ -34,18 +34,30 @@ function Title() {
   return (
     <box cssClasses={["cell", "titlecell"]} spacing={8}>
       <label cssClasses={["klass"]} label={klass} visible={klass((k) => !!k)} />
-      <label cssClasses={classes} label={text} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={60} xalign={0} />
+      <label cssClasses={classes} label={text} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={44} xalign={0} />
     </box>
   )
 }
 
-/** A perf cell: glyph coloured by load tier, then `KEY value`. */
-function PerfCell({ k, icon, v, frac }: { k: string; icon: string; v: any; frac: any }) {
-  const cls = frac((f: number) => ["cell", "perf", tier(f)])
+// A perf cell: icon coloured by load tier, KEY, the number, a braille sparkline of the last
+// 16 seconds (2 samples per glyph). Detail rides the tooltip; the bar belongs to the window.
+const SPARK_CELLS = 8
+function PerfCell({ k, icon, v, frac, hist, detail }: {
+  k: string
+  icon: string
+  v: Accessor<string>
+  frac: Accessor<number>
+  hist: Accessor<number[]>
+  detail: Accessor<string>
+}) {
+  const cls = frac((f) => ["cell", "perf", tier(f)])
+  const line = hist((h) => spark(h, SPARK_CELLS))
   return (
-    <box cssClasses={cls} spacing={6}>
+    <box cssClasses={cls} spacing={6} tooltipText={detail}>
       <label cssClasses={["icon"]} label={icon} />
-      <Stat k={k} v={v} />
+      <label cssClasses={["k"]} label={k} />
+      <label cssClasses={["num"]} label={v} widthChars={4} xalign={1} />
+      <label cssClasses={["spark"]} label={line} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
     </box>
   )
 }
@@ -53,15 +65,14 @@ function PerfCell({ k, icon, v, frac }: { k: string; icon: string; v: any; frac:
 function PerfCells() {
   const cpu = perf((p) => p.cpu)
   const mem = perf((p) => p.mem)
-  const net = perf((p) => Math.min(1, (p.rx + p.tx) / (10 * 1048576))) // 10 MB/s = hot
+  const net = perf((p) => Math.min(1, (p.rx + p.tx) / NET_HOT))
   return (
     <box cssClasses={["perfs"]}>
+      <PerfCell k="CPU" icon={"\u{f0ee0}"} frac={cpu} v={cpu(pct)} hist={perf((p) => p.cpuHist)} detail={perf((p) => `load ${p.load1.toFixed(1)}`)} />
       <RuleV />
-      <PerfCell k="CPU" icon={"\u{f0ee0}"} frac={cpu} v={cpu((c) => `${meter(c)} ${pct(c)}`)} />
+      <PerfCell k="RAM" icon={"\u{f035b}"} frac={mem} v={mem(pct)} hist={perf((p) => p.memHist)} detail={perf((p) => `${p.memUsedGb.toFixed(1)}/${p.memTotalGb.toFixed(0)}G`)} />
       <RuleV />
-      <PerfCell k="RAM" icon={"\u{f035b}"} frac={mem} v={perf((p) => `${meter(p.mem)} ${p.memUsedGb.toFixed(1)}G`)} />
-      <RuleV />
-      <PerfCell k="NET" icon={"\u{f06f3}"} frac={net} v={perf((p) => `↓${rate(p.rx)} ↑${rate(p.tx)}`)} />
+      <PerfCell k="NET" icon={"\u{f06f3}"} frac={net} v={perf((p) => rate(p.rx + p.tx))} hist={perf((p) => p.netHist)} detail={perf((p) => `\u{2193}${rate(p.rx)} \u{2191}${rate(p.tx)}`)} />
       <RuleV />
     </box>
   )
@@ -131,11 +142,14 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       anchor={TOP | LEFT | RIGHT}
       application={app}
     >
-      <centerbox>
-        <box $type="start"><Title /><RuleV /></box>
-        <box $type="center"><PerfCells /></box>
-        <box $type="end"><WeatherCell /><Status /></box>
-      </centerbox>
+      <box>
+        <Title />
+        <RuleV />
+        <PerfCells />
+        <box hexpand />
+        <WeatherCell />
+        <Status />
+      </box>
     </window>
   )
 }

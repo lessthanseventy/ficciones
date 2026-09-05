@@ -11,7 +11,16 @@ export type Perf = {
   rx: number         // bytes/s, all non-lo interfaces
   tx: number
   load1: number
+  cpuHist: number[]   // last 120 samples, oldest first
+  memHist: number[]
+  netHist: number[]   // (rx+tx) / NET_HOT
 }
+
+/** 10 MB/s reads as fully hot on the net meter. */
+export const NET_HOT = 10 * 1048576
+const HIST = 120
+const cpuHist: number[] = [], memHist: number[] = [], netHist: number[] = []
+const push = (a: number[], x: number) => { a.push(x); if (a.length > HIST) a.shift() }
 
 let prevCpu: [number, number] | null = null   // [idle, total]
 let prevNet: [number, number, number] | null = null // [rx, tx, tMs]
@@ -64,11 +73,12 @@ function sample(): Perf {
   const [mem, memUsedGb, memTotalGb] = readMem()
   const [rx, tx] = readNet()
   const load1 = Number(readFile("/proc/loadavg").split(" ")[0]) || 0
-  return { cpu, mem, memUsedGb, memTotalGb, rx, tx, load1 }
+  push(cpuHist, cpu); push(memHist, mem); push(netHist, Math.min(1, (rx + tx) / NET_HOT))
+  return { cpu, mem, memUsedGb, memTotalGb, rx, tx, load1, cpuHist, memHist, netHist }
 }
 
 export const perf = createPoll<Perf>(
-  { cpu: 0, mem: 0, memUsedGb: 0, memTotalGb: 0, rx: 0, tx: 0, load1: 0 },
+  { cpu: 0, mem: 0, memUsedGb: 0, memTotalGb: 0, rx: 0, tx: 0, load1: 0, cpuHist, memHist, netHist },
   1000,
   sample,
 )
