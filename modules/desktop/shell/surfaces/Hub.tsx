@@ -12,7 +12,7 @@ import PowerProfiles from "gi://AstalPowerProfiles"
 import Hyprland from "gi://AstalHyprland"
 import { For, createBinding, createComputed, createState } from "ags"
 import { timeout, type Timer } from "ags/time"
-import { subprocess, type Process } from "ags/process"
+import { subprocess, execAsync, type Process } from "ags/process"
 import { Panel, RuleH } from "../lib/tui"
 import { NoticeCard } from "./Notifications"
 
@@ -58,6 +58,12 @@ function Toggles() {
     if (proc) { proc.kill(); proc = null; setInhibit(false) }
     else { proc = subprocess(["systemd-inhibit", "--what=idle", "--who=astal-shell", "--why=toggle", "sleep", "infinity"]); setInhibit(true) }
   }
+  // night light: hyprsunset runs from exec-once; 4000K on, identity off
+  const [night, setNight] = createState(false)
+  const toggleNight = () => {
+    const on = !night.get()
+    execAsync(["hyprctl", "hyprsunset", ...(on ? ["temperature", "4000"] : ["identity"])]).then(() => setNight(on)).catch(console.error)
+  }
   const profile = createBinding(pp, "activeProfile")
   const cycleProfile = () => {
     const ps = pp.get_profiles().map((p) => p.profile)
@@ -69,6 +75,7 @@ function Toggles() {
       <Toggle icon={"\u{f00af}"} label="bt" on={btOn} onToggle={() => bt.toggle()} />
       <Toggle icon={"\u{f009b}"} label="dnd" on={dnd} onToggle={() => (notifd.dontDisturb = !notifd.dontDisturb)} />
       <Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />
+      <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />
       <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />
     </box>
   )

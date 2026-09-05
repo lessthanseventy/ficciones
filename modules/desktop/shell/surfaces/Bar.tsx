@@ -8,6 +8,7 @@ import Battery from "gi://AstalBattery"
 import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
 import PowerProfiles from "gi://AstalPowerProfiles"
+import Brightness from "gi://AstalBrightness"
 import { METRICS, MetricDetail } from "../panes/Perf"
 import { Visualiser } from "../lib/cava"
 import { Panel } from "../lib/tui"
@@ -117,6 +118,23 @@ function PerfCells() {
   )
 }
 
+/** Screen brightness, in the power popover: it is a power control. */
+function Backlight() {
+  // the new astal: `screen` is a Device proxy with brightness 0..1 (−1 when there is none)
+  const dev = Brightness.get_default()?.screen
+  if (!dev || dev.maxBrightness <= 0) return <box />
+  const v = createBinding(dev, "brightness")((x) => (Number.isFinite(x) && x >= 0 ? x : 0))
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+      <box spacing={8}>
+        <label cssClasses={["k", "sm"]} label={"\u{f00e0}  brightness"} hexpand xalign={0} />
+        <label cssClasses={["sm"]} label={v(pct)} />
+      </box>
+      <slider cssClasses={["vol"]} hexpand value={v} onChangeValue={({ value }) => { if (Math.abs(value - dev.brightness) > 0.005) dev.brightness = value }} />
+    </box>
+  )
+}
+
 function BatteryCell() {
   const bat = Battery.get_default()
   if (!bat.isPresent) return <box />
@@ -151,6 +169,8 @@ function BatteryCell() {
             <label label={createBinding(bat, "energyRate")((r) => `${r.toFixed(1)} W`)} />
             <label cssClasses={["dim"]} label={eta} hexpand xalign={0} />
           </box>
+          <RuleH />
+          <Backlight />
           <RuleH />
           {profiles.get_profiles().map(({ profile }) => (
             <button

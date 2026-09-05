@@ -6,6 +6,7 @@ import Bar from "./surfaces/Bar"
 import Drawer, { showDrawer, toggleDrawer } from "./surfaces/Drawer"
 import Notifications from "./surfaces/Notifications"
 import Hub, { HotEdge, toggleHub } from "./surfaces/Hub"
+import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import type { Pane } from "./lib/nav"
 
 // One process, every surface. Bars per monitor (exclusive, windows reflow around them); the
@@ -20,6 +21,14 @@ app.start({
       toggleDrawer()
       return res("ok")
     }
+    if (verb === "toggle" && what === "launcher") {
+      toggleLauncher(null)
+      return res("ok")
+    }
+    if (verb === "toggle" && what === "clipboard") {
+      toggleLauncher("clip")
+      return res("ok")
+    }
     if (verb === "toggle" && what === "hub") {
       toggleHub()
       return res("ok")
@@ -28,7 +37,7 @@ app.start({
       showDrawer(tab?.toUpperCase() as Pane | undefined)
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub | show drawer [calendar|media|weather|agents]")
+    res("usage: astal-shell toggle drawer|hub|launcher|clipboard | show drawer [agents|media|weather|calendar]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
@@ -38,6 +47,7 @@ app.start({
     Notifications()
     Hub()
     HotEdge()
+    Launcher()
     return (
       <For each={monitors}>
         {(monitor) => (

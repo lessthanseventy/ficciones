@@ -38,9 +38,12 @@
     hypridle
     hyprlock
     hyprpaper
+    hyprsunset
     hyprpolkitagent
     cliphist
     wl-clipboard
+    libqalculate
+    fd
     git
     vim
   ];

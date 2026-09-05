@@ -13,16 +13,21 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # AGS 3 + the Astal libraries (astal follows ags so both come from one lock entry). nixpkgs
-    # only carries ags 2.x. See docs/plans/2026-09-02-astal-shell-design.md §1.
+    # The Astal libraries, pinned HERE — the ags flake's own astal input lags by months (it lacked
+    # brightness), so ags follows ours. nixpkgs only carries ags 2.x. Design doc §1.
+    astal = {
+      url = "github:Aylur/astal";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     ags = {
       url = "github:Aylur/ags";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.astal.follows = "astal";
     };
   };
 
   outputs =
-    { self, nixpkgs, home-manager, agenix, ags }:
+    { self, nixpkgs, home-manager, agenix, astal, ags }:
     let
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
