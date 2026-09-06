@@ -19,21 +19,21 @@ rec {
     ink = "FFF7DD"; # chip text — cream on the dark field
     amber = "5C3D00"; # body text AND chrome — amber gone to ink
     chip = "3B2A00"; # the inverse-video field: a dark ground the cream ink pops from
-    ember = "A34700"; # active border gradient partner
-    amberDim = "C9AE7A"; # half-bright amber: inactive border, structure at low emphasis
-    emberDim = "D9A98A";
-    green = "1F7A1F"; # live / ok / occupied / charging
-    moss = "4F7F4F"; # done: a green that recedes
-    pink = "B0186E"; # agents, the operator, attention
-    cyan = "0E6E8E"; # keys, labels, code
-    lilac = "6B5C8A"; # secondary text
-    violet = "5B3FA0"; # assistant identity, terminal blue
+    ember = "843A00"; # active border gradient partner
+    amberDim = "A48343"; # half-bright amber: inactive border, structure at low emphasis
+    emberDim = "C27645";
+    green = "175917"; # live / ok / occupied / charging
+    moss = "365636"; # done: a green that recedes
+    pink = "95145D"; # agents, the operator, attention
+    cyan = "0B556E"; # keys, labels, code
+    lilac = "564A6E"; # secondary text
+    violet = "593E9C"; # assistant identity, terminal blue
     sel = "D9C7F0"; # selection / tab field (violet)
-    red = "B3261E"; # alarm
-    dim = "8A7A5A"; # inactive text
+    red = "99201A"; # alarm
+    dim = "594E3A"; # inactive text
     sep = "A86A2A"; # structure: borders, rules (burnt orange)
     cream = "1A1030"; # selected text on the violet field
-    grey = "5A5A5A"; # italic / muted prose
+    grey = "505050"; # italic / muted prose
     white = "1A1A1A";
     # Elevations for toolkit chrome (GTK/Qt/floorp): black stays the ground, panels lift.
     surface0 = "EDE5D2";
@@ -45,7 +45,7 @@ rec {
     amberTint0 = "EFE2C4";
     amberTint1 = "E8D6AE";
     amberTint2 = "DFC88F";
-    amberSoft = "8A5A10"; # inactive highlight, visited link
+    amberSoft = "6F480D"; # inactive highlight, visited link
   };
 
   # Semantic roles: what a surface asks for, so a re-theme is one edit here.
@@ -81,12 +81,12 @@ rec {
     cyan = cyan;
     white = grey;
     brightBlack = dim;
-    brightRed = "D0433A";
-    brightGreen = "2E9E2E";
+    brightRed = "912923";
+    brightGreen = "1A5B1A";
     brightYellow = chip;
     brightBlue = lilac;
-    brightMagenta = "D0348A";
-    brightCyan = "2A8FB0";
+    brightMagenta = "91225F";
+    brightCyan = "19566A";
     brightWhite = white;
   };
   ansiList = with ansi; [

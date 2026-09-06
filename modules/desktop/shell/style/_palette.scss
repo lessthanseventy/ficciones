@@ -5,10 +5,10 @@ $green:  #33FF00;   // highlight: live / ok / occupied
 $amber:  #FFB000;   // body text AND chrome
 $chip:   #FFD000;   // the inverse-video field
 $sel:    #5B00AE;   // selection / tab field
-$accent: #E0218A;   // highlight: agents, the operator, attention
-$dim:    #9A803F;
+$accent: #EA69B0;   // highlight: agents, the operator, attention
+$dim:    #B09248;
 $sep:    #B5651D;   // structure: borders, rules
-$red:    #FF5555;
+$red:    #FF5F5F;
 $cyan:   #33C7FF;
 $white:  #FFFFFF;
 $lilac:  #B4A5D6;
@@ -16,11 +16,11 @@ $violet: #B98AFF;
 
 // status tier
 $st-working: #33FF00;
-$st-blocked: #FF5555;
-$st-await:   #E0218A;
+$st-blocked: #FF5F5F;
+$st-await:   #EA69B0;
 $st-open:    #FFB000;
-$st-done:    #5FA35F;
-$st-idle:    #9A803F;
+$st-done:    #62A562;
+$st-idle:    #B09248;
 
 // text roles beyond the body: keys/labels cyan, secondary text lilac
 $key:  #33C7FF;
@@ -30,7 +30,7 @@ $meta: #B4A5D6;
 $arch-surveyor:  #33C7FF;
 $arch-builder:   #33FF00;
 $arch-reviewer:  #FFB000;
-$arch-planner:   #E0218A;
+$arch-planner:   #EA69B0;
 $arch-assistant: #B98AFF;
 
 // The one font. Low vision: sizes bias up, never down.
