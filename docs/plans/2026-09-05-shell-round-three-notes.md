@@ -8,13 +8,13 @@ column as work lands.
 
 | # | item | status | notes |
 |---|------|--------|-------|
-| D1 | per-core sparklines + killable process list (click-to-kill, cpu/mem sort toggle) | todo | |
-| D2 | DISK card (df per mount as meters) + NET card (wifi signal history, SSID, IP) | todo | |
-| D3 | TODAY card: missed notifications + khal agenda + agents awaiting, one "needs me" list | todo | |
-| D4 | JOURNAL card: last few journalctl lines at warning+ | todo | |
-| D5 | WORKSPACES overview card: every ws with window icons, click to jump | todo | |
+| D1 | per-core sparklines + killable process list (click-to-kill, cpu/mem sort toggle) | done | perf.ts coreHist (40s), panes/Perf.tsx Procs+CoreGrid |
+| D2 | DISK card (df per mount as meters) + NET card (wifi signal history, SSID, IP) | done | lib/disk.ts lib/wifi.ts panes/Disk.tsx panes/Net.tsx |
+| D3 | TODAY card: missed notifications + khal agenda + agents awaiting, one "needs me" list | done | panes/Today.tsx; agenda exported from Calendar |
+| D4 | JOURNAL card: last few journalctl lines at warning+ | done | lib/journal.ts panes/Journal.tsx (6 lines, sys+user) |
+| D5 | WORKSPACES overview card: every ws with window icons, click to jump | done | panes/Workspaces.tsx; WindowStrip reusable for S3; lib/icons.ts |
 | S1 | sidecar width by drag (grab handle on the zone's right edge) | todo | |
-| S2 | OSD: thin amber meter along the bar's underside for volume/brightness | todo | |
+| S2 | OSD for volume/brightness — Andrew (mid-session): WANTED, and MORE prominent than a thin meter (headphone buttons change volume unseen); scroll on the rail's volume icon changes volume; a slider move in the popover SKIPS the OSD | todo | |
 | S3 | hover-open on rail workspace numbers → strip of that ws's windows | todo | |
 | S4 | notification actions inline on toasts | todo | toasts already render `n.get_actions()`; verify live, check hub history too |
 | P1 | "paper" light palette variant; `astal-shell theme paper` reruns home:switch in bg | todo | |
@@ -28,3 +28,7 @@ column as work lands.
 - Live: `mise shell:dev` (pkill gjs first); screenshot with `grim -o eDP-1`.
 
 ## Decisions / gotchas discovered
+- Board layout is 3 rows packed for 1920×1080 (DP-2): [NOW/WORKSPACES | WEATHER | CALENDAR/TODAY | POWER/SHELL], [PERF | AGENTS/MEDIA | DISK/NET], [JOURNAL | TOGGLES]. Andrew OK'd shrinking the board's type a notch (13/11/16) so it all shows — the ONE exception to sizes-bias-up.
+- `mise shell:check`'s `ags types` step needs the network (npx) → fails in the sandbox; `ags bundle` alone is the hard gate.
+- Sandbox has a PID namespace + blocks the Hyprland socket: live checks (pgrep gjs, hyprctl, grim, ags request) need the sandbox off.
+- Live loop used: `pkill -x gjs; nohup ags run app.tsx &` from modules/desktop/shell, then `ags request -i astal-shell toggle dashboard`, `grim -o DP-2`.
