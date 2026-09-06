@@ -63,8 +63,16 @@ export function setTheme(t: Theme | "toggle") {
   Promise.allSettled([
     execAsync(["hyprctl", "reload"]),
     execAsync(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme]),
-    // Claude Code paints its own light/dark; its global config follows (new sessions)
-    execAsync(["claude", "config", "set", "-g", "theme", next === "zahir" ? "light" : "dark"]),
+    // Claude Code paints its own light/dark from ~/.claude.json (`claude config` is no longer a
+    // CLI); sessions read it at start
+    Promise.resolve().then(() => {
+      const f = `${GLib.get_home_dir()}/.claude.json`
+      const [ok, bytes] = GLib.file_get_contents(f)
+      if (!ok) return
+      const j = JSON.parse(new TextDecoder().decode(bytes))
+      j.theme = next === "zahir" ? "light" : "dark"
+      GLib.file_set_contents(f, JSON.stringify(j, null, 2))
+    }),
     // ghostty re-reads its config on SIGUSR2 but leaves open surfaces alone (1.3), so they are
     // recoloured through OSC 10/11/4 on their ptys; every other app follows on its next launch
     execAsync(["pkill", "-USR2", "-x", "ghostty"]).then(() => execAsync([`${GLib.get_home_dir()}/.local/bin/ficciones-recolor`])),
