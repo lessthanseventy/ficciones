@@ -34,7 +34,7 @@ const KV = ({ k, v, cls = [] }: { k: string; v: any; cls?: string[] }) => (
 )
 
 /** Top processes as rows: name, then the number that matters for this metric. */
-function Top({ list, col }: { list: Accessor<Proc[]>; col: "cpu" | "mem" }) {
+export function Top({ list, col }: { list: Accessor<Proc[]>; col: "cpu" | "mem" }) {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={1}>
       <label cssClasses={["k", "sm"]} label={col === "cpu" ? "top by cpu" : "top by memory"} xalign={0} />
@@ -50,7 +50,7 @@ function Top({ list, col }: { list: Accessor<Proc[]>; col: "cpu" | "mem" }) {
 }
 
 /** Per-core bars: one block column per core. */
-function Cores() {
+export function Cores() {
   const cores = perf((p) => p.cores)
   const V = "▁▂▃▄▅▆▇█"
   return (

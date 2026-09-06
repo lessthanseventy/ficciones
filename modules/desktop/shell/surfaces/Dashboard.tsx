@@ -17,7 +17,9 @@ import { CalendarCard } from "../panes/Calendar"
 import { WeatherCard } from "../panes/Weather"
 import { AgentsCard } from "../panes/Agents"
 import { MediaCard } from "../panes/Media"
-import { METRICS, type Metric } from "../panes/Perf"
+import { METRICS, Cores, Top, type Metric } from "../panes/Perf"
+import { topCpu, topMem } from "../lib/top"
+import { RuleV } from "../lib/tui"
 import { tier } from "../lib/perf"
 import { meter, spark } from "../lib/format"
 
@@ -106,12 +108,21 @@ function Gauge({ m }: { m: Metric }) {
   )
 }
 
+/** btop, more or less: the four gauges with long sparklines, the cores, the top processes. */
 function PerfCard() {
   const [cpu, ram, gpu, net] = METRICS
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
-      <box spacing={24} homogeneous><Gauge m={cpu} /><Gauge m={ram} /></box>
-      <box spacing={24} homogeneous><Gauge m={gpu} /><Gauge m={net} /></box>
+    <box spacing={20}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={14} hexpand>
+        <box spacing={24} homogeneous><Gauge m={cpu} /><Gauge m={ram} /></box>
+        <box spacing={24} homogeneous><Gauge m={gpu} /><Gauge m={net} /></box>
+        <Cores />
+      </box>
+      <RuleV />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
+        <Top list={topCpu} col="cpu" />
+        <Top list={topMem} col="mem" />
+      </box>
     </box>
   )
 }
@@ -155,7 +166,7 @@ export default function Dashboard() {
             <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]} hexpand><WeatherCard /></Panel>
             <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><CalendarCard /></Panel>
           </box>
-          <box spacing={16}>
+          <box spacing={16} vexpand>
             <Panel title={"\u{f0e4a}  PERF"} cssClasses={["card", "card-perf"]} hexpand><PerfCard /></Panel>
             <Panel title={"\u{f06a9}  AGENTS"} cssClasses={["card", "card-agents"]}><AgentsCard /></Panel>
             <Panel title={"\u{f075a}  MEDIA"} cssClasses={["card", "card-media"]}><MediaCard /></Panel>
@@ -165,7 +176,6 @@ export default function Dashboard() {
             <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
             <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
           </box>
-          <box vexpand />
           <box cssClasses={["keys"]} spacing={12}>
             <label label="Esc close" /><label label="Super+D toggle" />
           </box>
