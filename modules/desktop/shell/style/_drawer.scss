@@ -4,6 +4,8 @@
 // title; the focused card is amber; content breathes — padding, rows, a headline.
 window.drawer { background: transparent; }
 .clickaway-field { background: transparent; }
+.floating { background: $bg; padding: 0 $sp-2 $sp-2; }
+.floating .card { margin-top: 0; }
 
 .sheet {
   background: $bg;

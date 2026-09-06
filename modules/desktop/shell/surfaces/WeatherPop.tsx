@@ -43,10 +43,8 @@ export default function WeatherPop() {
       marginLeft={54}
       application={app}
     >
-      <box>
-        <box cssClasses={["sheet"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={460} hexpand={false} halign={Gtk.Align.START} valign={Gtk.Align.START}>
-          <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]}><WeatherCard /></Panel>
-        </box>
+      {/* the field covers the monitor; the card floats over it, centred beside the weather item */}
+      <overlay>
         <box
           cssClasses={["clickaway-field"]}
           hexpand
@@ -57,7 +55,10 @@ export default function WeatherPop() {
             self.add_controller(g)
           }}
         />
-      </box>
+        <box $type="overlay" cssClasses={["floating"]} widthRequest={460} halign={Gtk.Align.START} valign={Gtk.Align.CENTER}>
+          <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]}><WeatherCard /></Panel>
+        </box>
+      </overlay>
     </window>
   )
 }
