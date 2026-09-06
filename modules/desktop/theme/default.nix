@@ -163,6 +163,9 @@ in
 
     # the one mutable link: made once, then owned by the toggle (astal-shell theme / Super+Shift+P)
     home.activation.ficcionesTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      # a fresh home (the VM, a new install) has no ~/.config/ficciones yet; the themes/ tree
+      # under it is linked by linkGeneration, which runs later in the same activation
+      run mkdir -p "$(dirname "${themeDir}")"
       if [ ! -e "${themeDir}" ]; then run ln -sfn themes/uqbar "${themeDir}"; fi
     '';
 
