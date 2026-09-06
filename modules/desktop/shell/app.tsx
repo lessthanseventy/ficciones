@@ -61,10 +61,12 @@ app.start({
       return res("ok")
     }
     if (verb === "show" && what === "drawer") {
-      showDrawer(tab?.toUpperCase() as Pane | undefined)
+      // agents left the info surface for the rail (2026-09-05); the old verb still lands there
+      if (tab === "agents") popAgents()
+      else showDrawer(tab?.toUpperCase() as Pane | undefined)
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | show drawer [agents|calendar]")
+    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")

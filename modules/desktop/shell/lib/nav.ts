@@ -1,11 +1,11 @@
 // The drawer's lazygit state: which pane has focus, and a cursor inside each pane.
 import { createState } from "ags"
 
-export const PANES = ["AGENTS", "CALENDAR"] as const
+export const PANES = ["CALENDAR"] as const
 export type Pane = (typeof PANES)[number]
 
-export const [focus, setFocus] = createState<Pane>("AGENTS")
-export const [cursor, setCursor] = createState<Record<Pane, number>>({ CALENDAR: 0, MEDIA: 0, WEATHER: 0, AGENTS: 0 })
+export const [focus, setFocus] = createState<Pane>("CALENDAR")
+export const [cursor, setCursor] = createState<Record<string, number>>({ CALENDAR: 0, AGENTS: 0 })
 
 export const cursorOf = (p: Pane) => cursor((c) => c[p])
 export function move(delta: number, count: number) {

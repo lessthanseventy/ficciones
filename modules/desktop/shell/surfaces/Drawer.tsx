@@ -11,13 +11,10 @@ import { Panel } from "../lib/tui"
 import { timeout } from "ags/time"
 import { PANES, type Pane, focus, setFocus, move } from "../lib/nav"
 import { CalendarCard } from "../panes/Calendar"
-import { AgentsCard } from "../panes/Agents"
-import { agents } from "../lib/agents"
 import { armClickaway, disarmClickaway } from "./Clickaway"
 
 const cards: Record<Pane, { icon: string; body: () => JSX.Element; rows: () => number }> = {
   CALENDAR: { icon: "\u{f00ed}", body: CalendarCard, rows: () => 0 },
-  AGENTS:   { icon: "\u{f06a9}", body: AgentsCard, rows: () => agents.get().roster.length },
 }
 
 let sheet: Gtk.Widget | null = null
@@ -134,7 +131,7 @@ export default function Drawer() {
             </Panel>
           ))}
           <box cssClasses={["keys"]} spacing={12}>
-            <label label="1-2 card" /><label label="Tab next" /><label label="j/k row" /><label label="Esc close" />
+            <label label="j/k row" /><label label="Esc close" />
           </box>
         </box>
       </overlay>
