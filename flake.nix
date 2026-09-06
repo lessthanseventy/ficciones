@@ -24,10 +24,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.astal.follows = "astal";
     };
+    # hyprexpo (sandwichfarm's fork): the expose-style workspace overview with LIVE window
+    # thumbnails — a compositor plugin, so it must be built against the exact Hyprland it loads
+    # into. The NixOS side runs the Hyprland this flake pins (its `hyprland` input); the Arch box
+    # gets it through hyprpm instead (modules/desktop/hypr/hyprland.lua says how).
+    hyprexpo.url = "github:sandwichfarm/hyprexpo";
   };
 
   outputs =
-    { self, nixpkgs, home-manager, agenix, astal, ags }:
+    { self, nixpkgs, home-manager, agenix, astal, ags, hyprexpo }:
     let
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
@@ -159,7 +164,7 @@
       # (modules/os/vm.nix). `ivysaur` lands when the laptop leaves Arch.
       nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo astalShell; };
+        specialArgs = { inherit repo astalShell hyprexpo; };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os
@@ -170,7 +175,7 @@
       # (docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md).
       nixosConfigurations.ivysaur = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo astalShell; };
+        specialArgs = { inherit repo astalShell hyprexpo; };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os

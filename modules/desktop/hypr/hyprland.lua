@@ -67,6 +67,8 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         hl.exec_cmd("hyprsunset")
         hl.exec_cmd("easyeffects --hide-window --service-mode")
         hl.exec_cmd("hypridle")
+        -- hyprexpo on NixOS (modules/os puts the .so here); on Arch hyprpm loads it itself
+        hl.exec_cmd("test -f /etc/hypr/plugins/hyprexpo.so && hyprctl plugin load /etc/hypr/plugins/hyprexpo.so")
         hl.exec_cmd("bash -c 'wl-paste --type text  --watch cliphist store'")
         hl.exec_cmd("bash -c 'wl-paste --type image --watch cliphist store'")
         hl.exec_cmd("systemctl --user start hyprpolkitagent")
@@ -432,7 +434,12 @@ bind(M .. " + SHIFT + mouse_up", to_ws("r-1"))
 -- Overview
 bind(M .. " + Tab", ws("previous"))
 bind("ALT + Tab", hl.dsp.focus({ last = true }))
-bind(M .. " + O", exec("hyprctl dispatch overview:toggle"))
+-- the workspace overview with LIVE window thumbnails: hyprexpo (github.com/sandwichfarm/hyprexpo),
+-- a compositor plugin. NixOS: programs.hyprland.plugins (modules/os). Arch: once, by hand —
+--   hyprpm update && hyprpm add https://github.com/sandwichfarm/hyprexpo && hyprpm enable hyprexpo
+-- (hyprpm installs matching headers under /usr, so it asks for sudo). Until it is loaded the
+-- dispatcher is unknown and the bind does nothing.
+bind(M .. " + O", exec("hyprctl dispatch hyprexpo:expo toggle"))
 
 -- ----- Window state -----
 bind(M .. " + Q", hl.dsp.window.close())

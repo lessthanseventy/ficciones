@@ -7,6 +7,7 @@
   lib,
   repo,
   astalShell,
+  hyprexpo,
   ...
 }:
 
@@ -30,7 +31,14 @@
     enable = true;
     xwayland.enable = true;
     withUWSM = true;
+    # the Hyprland hyprexpo was built against — a plugin loads into that binary only
+    package = hyprexpo.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+    portalPackage = hyprexpo.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
   };
+  # the plugin at a fixed path; hyprland.lua loads it at start when the file exists (on Arch
+  # hyprpm owns loading, and the path is absent)
+  environment.etc."hypr/plugins/hyprexpo.so".source =
+    "${hyprexpo.packages.${pkgs.stdenv.hostPlatform.system}.hyprexpo}/lib/libhyprexpo.so";
   # hyprland.lua's autostart expects these on PATH; hyprlock/hypridle are never replaced
   # by the shell (design §7), ghostty is $TERMINAL there. No hyprpaper: the shell's backdrop
   # is the wallpaper.

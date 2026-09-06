@@ -39,6 +39,8 @@ in
     home.packages = [
       cfg.package
       cfg.package.passthru.ags
+      # the live workspace overview the rail's screenshot strips cannot be (Super+O)
+      (pkgs.callPackage ../hyprexpose.nix { })
     ];
 
     xdg.configFile."astal-shell/config.json".text = builtins.toJSON (
