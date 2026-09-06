@@ -248,7 +248,7 @@ hl.window_rule({ name = "fzf-picker", match = { class = "^(fzf-picker)$" }, floa
 -- Quake dropdown terminal: ghostty (class com.ghostty.quake) on the special:quake workspace,
 -- toggled globally by F12. quake-toggle.sh sizes/positions it as a full-width top band on the
 -- focused monitor (dual-monitor safe), so only float here.
-hl.window_rule({ name = "quake-term", match = { class = "^(com\\.ghostty\\.quake)$" }, float = true, animation = "fade" })
+hl.window_rule({ name = "quake-term", match = { class = "^(com\\.ghostty\\.quake)$" }, float = true, no_anim = true })
 
 -- Bitwarden popups
 hl.window_rule({

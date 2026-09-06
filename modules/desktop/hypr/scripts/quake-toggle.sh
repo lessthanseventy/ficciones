@@ -12,9 +12,19 @@ WIDTH_PCT=70    # of the monitor, centred
 HEIGHT_PCT=55
 GAP=12          # below the bar
 
-# No animation at all (Andrew, 2026-09-06): moving a window between workspaces nudges it and the
-# correction animates as a slide, so animations are off for the moment of the toggle.
-still() { hyprctl keyword animations:enabled 0 >/dev/null; "$@"; sleep 0.05; hyprctl keyword animations:enabled 1 >/dev/null; }
+# The compositor never animates this window (windowrule no_anim: a workspace move nudged it and
+# every correction slid or unrolled). The fade is done here instead: a short opacity ramp,
+# in place, through the window's own opacity props.
+STEPS=8; STEP_S=0.018
+prop() { hyprctl dispatch setprop "address:$addr" "$1" "$2" >/dev/null; }
+fade() { # fade in|out
+  local i a
+  for i in $(seq 1 $STEPS); do
+    if [ "$1" = in ]; then a=$(( i * 100 / STEPS )); else a=$(( (STEPS - i) * 100 / STEPS )); fi
+    prop opacity "0.$(printf '%02d' $((a % 100)))"; [ $a -ge 100 ] && prop opacity 1
+    sleep $STEP_S
+  done
+}
 
 client() { hyprctl -j clients | jq -c --arg c "$CLASS" '.[]|select(.class==$c)' | head -1; }
 
@@ -35,9 +45,11 @@ pinned=$(jq -r .pinned <<<"$c")
 ring() { "$(dirname "$0")/shell-req.sh" sidecar ring "$1" 2>/dev/null || true; }
 
 if [ "$ws" != "special:quake" ]; then
-  # shown → hide: unpin, park (the window rule fades it; no slide)
+  # shown → hide: fade out, unpin, park, then the opacity goes back to the rules
+  prop opacity_override 1; fade out
   [ "$pinned" = true ] && hyprctl dispatch pin "address:$addr" >/dev/null
-  still hyprctl dispatch movetoworkspacesilent "special:quake,address:$addr" >/dev/null
+  hyprctl dispatch movetoworkspacesilent "special:quake,address:$addr" >/dev/null
+  prop opacity unset; prop opacity_override unset
   ring on
   exit 0
 fi
@@ -49,9 +61,12 @@ w=$(( mw * WIDTH_PCT / 100 ))
 x=$(( mx + (mw - w) / 2 ))
 y=$(( my + rt + GAP ))
 ring off
-# sized and placed while still hidden, so it fades in already in place (windowrule: animation fade)
+# invisible first, sized and placed while still hidden; moving between workspaces nudges a
+# floating window, so it is placed again after the move; then it fades in where it is
+prop opacity_override 1; prop opacity 0
 hyprctl --batch "dispatch setfloating address:$addr; dispatch resizewindowpixel exact $w $HEIGHT_PCT%,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
-# moving between workspaces nudges a floating window; put it back where it belongs, unanimated
-still hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
+hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
 [ "$pinned" = true ] || hyprctl dispatch pin "address:$addr" >/dev/null
 hyprctl --batch "dispatch focuswindow address:$addr; dispatch alterzorder top,address:$addr" >/dev/null
+fade in
+prop opacity unset; prop opacity_override unset
