@@ -37,7 +37,7 @@ let
   '';
 in
 {
-  imports = [ ./shell ];
+  imports = [ ./shell ./theme ];
 
   options.ficciones.desktop.host = lib.mkOption {
     type = lib.types.str;
