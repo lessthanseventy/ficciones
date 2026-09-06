@@ -29,7 +29,7 @@ const GAP = 12 // general:gaps_out
 const MIN = 0.18, MAX = 0.65
 
 type MonitorJson = { name: string; x: number; y: number; width: number; height: number; reserved: [number, number, number, number] }
-type Sidecar = { address: string; zone: Astal.Window; col: number; m: MonitorJson; width: number }
+type Sidecar = { address: string; zone: Astal.Window; frame: Astal.Window; col: number; m: MonitorJson; width: number }
 
 // The dragged width outlives the shell: one line per monitor in the state dir.
 const STATE = `${GLib.get_user_state_dir()}/astal-shell/sidecar-width`
@@ -78,6 +78,38 @@ function makeZone(name: string, col: number): Astal.Window {
   return w
 }
 
+// The double border: Hyprland's own (3px, pink/dim via setprop) plus an outer ring the shell
+// draws — a transparent layer window framing the column, pink while the sidecar is focused,
+// dim otherwise. No plugin: borders-plus-plus rings every window and its only per-window
+// switch (`decorate`) would take the shadows off everything else.
+const RING = 2, RING_GAP = 3, BORDER = 3
+function makeFrame(name: string, m: MonitorJson, col: number, address: string): Astal.Window {
+  const [rl, rt, , rb] = m.reserved
+  const inset = BORDER + RING_GAP + RING
+  const w = new Astal.Window({
+    application: app,
+    namespace: "astal-shell-sidecar-frame",
+    name: `sidecar-frame-${name}`,
+    gdkmonitor: gdkMonitor(name),
+    layer: Astal.Layer.TOP,
+    exclusivity: Astal.Exclusivity.IGNORE,
+    anchor: Astal.WindowAnchor.LEFT | Astal.WindowAnchor.TOP,
+    marginLeft: rl + GAP - inset,
+    marginTop: rt + GAP - inset,
+    cssClasses: ["sidecar-frame-win"],
+  })
+  const ring = new Gtk.Box({ cssClasses: ["sidecar-frame"], hexpand: true, vexpand: true, canTarget: false })
+  w.set_child(ring)
+  w.set_size_request(col - GAP + 2 * inset, m.height - rt - rb - 2 * GAP + 2 * inset)
+  w.visible = true
+  w.get_surface()?.set_input_region(new Cairo.Region())
+  const sync = () => { const f = hypr.focusedClient?.address === address; ring.cssClasses = ["sidecar-frame", ...(f ? [] : ["unfocused"])] }
+  const id = hypr.connect("notify::focused-client", sync)
+  w.connect("destroy", () => hypr.disconnect(id))
+  sync()
+  return w
+}
+
 /** Dispatches in order, as one batch, with Hyprland's answers logged (hypr.dispatch is fire-and-forget). */
 async function batch(cmds: string[]) {
   try {
@@ -123,6 +155,7 @@ function follow(name: string, width: number) {
   if (col !== s.col) {
     s.col = col
     LayerShell.set_exclusive_zone(s.zone, col)
+    s.frame.set_size_request(col - GAP + 2 * (BORDER + RING_GAP + RING), s.frame.get_height())
     widths.set(name, col / s.m.width); saveWidths()
     // the tiled columns re-fit on a relayout, which also shoves floating windows about: place
     // again after it and keep the poll quiet until things settle
@@ -185,7 +218,7 @@ export async function pinSidecar(c: Hyprland.Client) {
   settleUntil = Date.now() + 1200
   timeout(80, relayout)
   timeout(400, () => place(c.address, m, col))
-  sidecars.set(name, { address: c.address, zone: makeZone(name, col), col, m, width: col - GAP })
+  sidecars.set(name, { address: c.address, zone: makeZone(name, col), frame: makeFrame(name, m, col, c.address), col, m, width: col - GAP })
   startFollowing()
 }
 
@@ -194,7 +227,7 @@ function drop(name: string) {
   if (!s) return
   const c = hypr.get_client(s.address)
   if (c) mark(addr(c), false)
-  s.zone.destroy()
+  s.zone.destroy(); s.frame.destroy()
   sidecars.delete(name)
 }
 
