@@ -1,28 +1,44 @@
 #!/usr/bin/env bash
-# Quake-style dropdown terminal for Hyprland, bound to F12 globally (see hyprland.conf).
-# A ghostty window (class com.ghostty.quake) lives on the special:quake workspace, so
-# the toggle works no matter which window is focused. It is sized/positioned as a
-# full-width top band on whichever monitor is currently focused (dual-monitor safe).
+# Quake-style dropdown terminal for Hyprland, bound to F12 globally (see hyprland.lua).
+# A ghostty window (class com.ghostty.quake) parks on the special:quake workspace while hidden.
+# Shown, it is moved to the focused monitor's active workspace and PINNED: Hyprland renders
+# pinned windows above everything else, and the shell's sidecar is a pinned window, so an
+# unpinned quake sat behind it (2026-09-06). Sized as a centred band at the top of the focused
+# monitor (percent size + logical monitor origin are both scale-safe).
 # NB: the class must be a valid GTK app-id (reverse-DNS, needs a dot) or ghostty
 # silently ignores --class and falls back to com.mitchellh.ghostty.
 CLASS="com.ghostty.quake"
-HEIGHT_PCT="45%"
+WIDTH_PCT=70    # of the monitor, centred
+HEIGHT_PCT=55
 
-exists() { hyprctl -j clients | jq -e --arg c "$CLASS" '.[]|select(.class==$c)' >/dev/null 2>&1; }
+client() { hyprctl -j clients | jq -c --arg c "$CLASS" '.[]|select(.class==$c)' | head -1; }
 
 # Spawn on first use, then wait for it to map.
-if ! exists; then
+if [ -z "$(client)" ]; then
   hyprctl dispatch exec "[workspace special:quake silent] ghostty --class=$CLASS"
-  for _ in $(seq 1 30); do exists && break; sleep 0.1; done
+  for _ in $(seq 1 30); do [ -n "$(client)" ] && break; sleep 0.1; done
 fi
 
-hyprctl dispatch togglespecialworkspace quake
+c=$(client)
+addr=$(jq -r .address <<<"$c")
+ws=$(jq -r .workspace.name <<<"$c")
+pinned=$(jq -r .pinned <<<"$c")
+[ -n "$addr" ] || exit 1
 
-# Re-anchor to the focused monitor as a full-width top band (percent size + logical
-# monitor origin are both scale-safe).
-addr=$(hyprctl -j clients | jq -r --arg c "$CLASS" '.[]|select(.class==$c)|.address' | head -1)
-read -r mx my < <(hyprctl -j monitors | jq -r '.[]|select(.focused)|"\(.x) \(.y)"')
-if [ -n "$addr" ] && [ -n "$mx" ]; then
-  hyprctl dispatch resizewindowpixel "exact 100% $HEIGHT_PCT,address:$addr"
-  hyprctl dispatch movewindowpixel "exact $mx $my,address:$addr"
+if [ "$ws" != "special:quake" ]; then
+  # shown → hide: unpin, park
+  [ "$pinned" = true ] && hyprctl dispatch pin "address:$addr" >/dev/null
+  hyprctl dispatch movetoworkspacesilent "special:quake,address:$addr" >/dev/null
+  exit 0
 fi
+
+# hidden → show on the focused monitor, pinned, on top, sized, focused
+# below the bar (reserved top), centred between the reserved left (rail, a sidecar) and the right
+read -r mx my mw rl rt rr wsid < <(hyprctl -j monitors | jq -r '.[]|select(.focused)|"\(.x) \(.y) \(.width) \(.reserved[0]) \(.reserved[1]) \(.reserved[2]) \(.activeWorkspace.id)"')
+usable=$(( mw - rl - rr ))
+w=$(( usable * WIDTH_PCT / 100 ))
+x=$(( mx + rl + (usable - w) / 2 ))
+y=$(( my + rt ))
+hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch setfloating address:$addr; dispatch resizewindowpixel exact $w $HEIGHT_PCT%,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
+[ "$pinned" = true ] || hyprctl dispatch pin "address:$addr" >/dev/null
+hyprctl --batch "dispatch focuswindow address:$addr; dispatch alterzorder top,address:$addr" >/dev/null
