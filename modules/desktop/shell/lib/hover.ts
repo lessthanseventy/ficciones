@@ -5,7 +5,7 @@
 import Gtk from "gi://Gtk?version=4.0"
 import { timeout, type Timer } from "ags/time"
 
-const DWELL_MS = 250
+const DWELL_MS = 500 // a glance across a cell should not open it (Andrew, 2026-09-06: "a slight delay everywhere")
 const GRACE_MS = 350
 
 type Entry = { close: () => void }
