@@ -13,6 +13,23 @@ let closer: (() => void) | null = null
 export function armClickaway(close: () => void) { closer = close; setActive(true) }
 export function disarmClickaway() { closer = null; setActive(false) }
 
+/**
+ * The rail and bar sit above the clickaway on the same layer, so they get this instead: a
+ * capture-phase gesture that closes an open panel and claims the press, so the clock cannot
+ * close and reopen in one click.
+ */
+export function closeOnPress(widget: Gtk.Widget) {
+  const g = new Gtk.GestureClick({ button: 0, propagationPhase: Gtk.PropagationPhase.CAPTURE })
+  g.connect("pressed", () => {
+    if (!closer) return
+    const c = closer
+    disarmClickaway()
+    c()
+    g.set_state(Gtk.EventSequenceState.CLAIMED)
+  })
+  widget.add_controller(g)
+}
+
 export default function Clickaway({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   let win: Astal.Window
   onCleanup(() => win.destroy())
