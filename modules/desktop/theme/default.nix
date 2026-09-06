@@ -13,6 +13,48 @@ let
   palette = import ./palette.nix;
   render = import ./render.nix { inherit lib palette; };
   tpl = name: builtins.readFile (./templates + "/${name}");
+
+  # BOTH palettes rendered at install (2026-09-06): every surface has an aleph (dark) and a zahir (light) copy
+  # under ~/.config/ficciones/themes/<name>/, each app's fixed path is a symlink through
+  # ~/.config/ficciones/theme (the one mutable link, made on activation if missing), and the
+  # toggle repoints it — no nix, under a second. `palette.nix`/`current` remain the build-time
+  # default (the checked-in generated files, Console.Palette).
+  palettes = { aleph = import ./palettes/aleph.nix; zahir = import ./palettes/zahir.nix; };
+  renders = lib.mapAttrs (_: p: import ./render.nix { inherit lib; palette = p; }) palettes;
+  envConf =
+    "env = GTK_THEME,${cfg.gtkTheme}\n"
+    + "env = QT_QPA_PLATFORMTHEME,${cfg.qtPlatformTheme}\n"
+    + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "env = QT_STYLE_OVERRIDE,kvantum\n";
+  envLua =
+    "hl.env(\"GTK_THEME\", \"${cfg.gtkTheme}\")\n"
+    + "hl.env(\"QT_QPA_PLATFORMTHEME\", \"${cfg.qtPlatformTheme}\")\n"
+    + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "hl.env(\"QT_STYLE_OVERRIDE\", \"kvantum\")\n";
+  themeFiles = r: {
+    "ghostty-theme" = r.ghosttyTheme;
+    "kitty-theme.conf" = r.kittyTheme;
+    "wezterm.toml" = r.weztermTheme;
+    "gtk.css" = r.gtkCss;
+    "qt6ct-colors.conf" = r.qt6ctColors;
+    "qt.qss" = r.qss;
+    "kvantum.kvconfig" = r.kvantumConfig;
+    "kvantum.svg" = r.kvantumSvg;
+    "btop.theme" = r.btopTheme;
+    "hypr-theme.conf" = r.hyprlandTheme + envConf;
+    "hypr-theme.lua" = r.hyprlandThemeLua + envLua;
+    "hyprlock.conf" = r.hyprlockConf;
+    "lazygit.yml" = r.lazygitConfig (tpl "lazygit.yml");
+    "bat-config" = r.batConfig;
+    "fzf.zsh" = r.fzfTheme;
+    "cava.conf" = r.cavaConfig (tpl "cava.conf");
+    "tmux.conf" = r.tmuxStyle;
+    "palette.sh" = r.envSh;
+    "shell-palette.json" = r.paletteJson;
+    "floorp-userChrome.css" = r.floorpUserChrome;
+    "floorp-userContent.css" = r.floorpUserContent;
+  };
+  themeDir = "${config.xdg.configHome}/ficciones/theme";
+  # an app's fixed path → the theme dir's copy, through the one mutable link
+  via = file: { source = config.lib.file.mkOutOfStoreSymlink "${themeDir}/${file}"; };
 in
 {
   options.ficciones.desktop.theme = {
@@ -55,60 +97,66 @@ in
   config = {
     home.packages = [ pkgs.nerd-fonts.comic-shanns-mono ];
 
-    xdg.configFile = {
-      # ghostty: the theme file + the config that names it (templates/ghostty.conf is the rest).
-      "ghostty/themes/ficciones".text = render.ghosttyTheme;
-      "ghostty/config".text = render.ghosttyConfig (tpl "ghostty.conf");
+    xdg.configFile = lib.mkMerge [
+      # every surface, both palettes
+      (lib.mkMerge (lib.mapAttrsToList (name: r:
+        lib.mapAttrs' (file: text: lib.nameValuePair "ficciones/themes/${name}/${file}" { inherit text; }) (themeFiles r)
+        // {
+          # the shell's stylesheet for this palette, compiled in the shell package
+          "ficciones/themes/${name}/shell.css".source = "${config.ficciones.desktop.shell.package}/share/astal-shell/themes/${name}.css";
+        }) renders))
+      {
+        # ghostty: the theme file + the config that names it (templates/ghostty.conf is the rest).
+        "ghostty/themes/ficciones" = via "ghostty-theme";
+        "ghostty/config".text = render.ghosttyConfig (tpl "ghostty.conf");
 
-      # kitty / wezterm — theme files only; each config includes its own (comment in the file).
-      "kitty/theme.conf".text = render.kittyTheme;
-      "wezterm/colors/ficciones.toml".text = render.weztermTheme;
+        # kitty / wezterm — theme files only; each config includes its own (comment in the file).
+        "kitty/theme.conf" = via "kitty-theme.conf";
+        "wezterm/colors/ficciones.toml" = via "wezterm.toml";
 
-      # GTK 3/4: libadwaita's named colours + the font, over whichever theme draws the widgets.
-      "gtk-3.0/gtk.css".text = render.gtkCss;
-      "gtk-4.0/gtk.css".text = render.gtkCss;
-      "gtk-3.0/settings.ini".text = render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
-      "gtk-4.0/settings.ini".text = render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
+        # GTK 3/4: libadwaita's named colours + the font, over whichever theme draws the widgets.
+        "gtk-3.0/gtk.css" = via "gtk.css";
+        "gtk-4.0/gtk.css" = via "gtk.css";
+        "gtk-3.0/settings.ini".text = render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
+        "gtk-4.0/settings.ini".text = render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
 
-      # Qt: qt6ct owns the palette + font, kvantum draws the widgets, the qss covers what neither reaches.
-      "qt6ct/qt6ct.conf".text = render.qt6ctConf;
-      "qt6ct/colors/ficciones.conf".text = render.qt6ctColors;
-      "qt6ct/qss/ficciones.qss".text = render.qss;
-      "qt5ct/qt5ct.conf".text = builtins.replaceStrings [ "qt6ct" ] [ "qt5ct" ] render.qt6ctConf;
-      "qt5ct/colors/ficciones.conf".text = render.qt6ctColors;
-      "qt5ct/qss/ficciones.qss".text = render.qss;
-      "Kvantum/kvantum.kvconfig".text = "[General]\ntheme=ficciones\n";
-      "Kvantum/ficciones/ficciones.kvconfig".text = render.kvantumConfig;
-      "Kvantum/ficciones/ficciones.svg".text = render.kvantumSvg;
+        # Qt: qt6ct owns the palette + font, kvantum draws the widgets, the qss covers what neither reaches.
+        "qt6ct/qt6ct.conf".text = render.qt6ctConf;
+        "qt6ct/colors/ficciones.conf" = via "qt6ct-colors.conf";
+        "qt6ct/qss/ficciones.qss" = via "qt.qss";
+        "qt5ct/qt5ct.conf".text = builtins.replaceStrings [ "qt6ct" ] [ "qt5ct" ] render.qt6ctConf;
+        "qt5ct/colors/ficciones.conf" = via "qt6ct-colors.conf";
+        "qt5ct/qss/ficciones.qss" = via "qt.qss";
+        "Kvantum/kvantum.kvconfig".text = "[General]\ntheme=ficciones\n";
+        "Kvantum/ficciones/ficciones.kvconfig" = via "kvantum.kvconfig";
+        "Kvantum/ficciones/ficciones.svg" = via "kvantum.svg";
 
-      "btop/themes/ficciones.theme".text = render.btopTheme;
+        "btop/themes/ficciones.theme" = via "btop.theme";
 
-      # Hyprland colours (dofile'd by hyprland.lua) and the lock screen.
-      "hypr/theme.conf".text = # TRANSITION, see modules/desktop/default.nix
-        render.hyprlandTheme
-        + "env = GTK_THEME,${cfg.gtkTheme}\n"
-        + "env = QT_QPA_PLATFORMTHEME,${cfg.qtPlatformTheme}\n"
-        + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "env = QT_STYLE_OVERRIDE,kvantum\n";
-      "hypr/theme.lua".text =
-        render.hyprlandThemeLua
-        + "hl.env(\"GTK_THEME\", \"${cfg.gtkTheme}\")\n"
-        + "hl.env(\"QT_QPA_PLATFORMTHEME\", \"${cfg.qtPlatformTheme}\")\n"
-        + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "hl.env(\"QT_STYLE_OVERRIDE\", \"kvantum\")\n";
-      "hypr/hyprlock.conf".text = render.hyprlockConf;
+        # Hyprland colours (dofile'd by hyprland.lua) and the lock screen.
+        "hypr/theme.conf" = via "hypr-theme.conf"; # TRANSITION, see modules/desktop/default.nix
+        "hypr/theme.lua" = via "hypr-theme.lua";
+        "hypr/hyprlock.conf" = via "hyprlock.conf";
 
-      "lazygit/config.yml".text = render.lazygitConfig (tpl "lazygit.yml");
-      "bat/config".text = render.batConfig;
-      "fzf/theme.zsh".text = render.fzfTheme;
-      "cava/config".text = render.cavaConfig (tpl "cava.conf");
+        "lazygit/config.yml" = via "lazygit.yml";
+        "bat/config" = via "bat-config";
+        "fzf/theme.zsh" = via "fzf.zsh";
+        "cava/config" = via "cava.conf";
 
-      # The palette as shell variables, for scripts that draw.
-      "ficciones/palette.sh".text = render.envSh;
-    };
+        # The palette as shell variables, for scripts that draw.
+        "ficciones/palette.sh" = via "palette.sh";
+      }
+    ];
 
     home.file = lib.listToAttrs (lib.concatMap (profile: [
-      (lib.nameValuePair ".floorp/${profile}/chrome/userChrome.css" { text = render.floorpUserChrome; })
-      (lib.nameValuePair ".floorp/${profile}/chrome/userContent.css" { text = render.floorpUserContent; })
+      (lib.nameValuePair ".floorp/${profile}/chrome/userChrome.css" (via "floorp-userChrome.css"))
+      (lib.nameValuePair ".floorp/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
     ]) cfg.floorpProfiles);
+
+    # the one mutable link: made once, then owned by the toggle (astal-shell theme / Super+Shift+P)
+    home.activation.ficcionesTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      if [ ! -e "${themeDir}" ]; then run ln -sfn themes/aleph "${themeDir}"; fi
+    '';
 
     # btop rewrites btop.conf on exit, so it stays a real file; only the theme line is ours.
     home.activation.btopTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''

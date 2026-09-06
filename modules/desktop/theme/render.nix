@@ -71,6 +71,12 @@ rec {
     $pressed: rgba($amber, 0.22);
   '';
 
+  # The palette as JSON — the shell loads the theme's copy at runtime for its Pango markup.
+  paletteJson = builtins.toJSON {
+    amber = hex h.amber; green = hex h.green; pink = hex h.pink; cyan = hex h.cyan;
+    lilac = hex h.violet; chip = hex h.chip; red = hex h.red; dim = hex h.dim;
+  };
+
   paletteTs = ''
     // ${gen}. The palette as JS, for the one place CSS cannot reach: Pango markup in a label.
     export const PALETTE = {

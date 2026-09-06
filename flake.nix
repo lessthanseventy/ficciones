@@ -572,8 +572,9 @@
                   set -g status-right ""
                   set -g window-status-current-format " #I #W "
                   set -g window-status-format " #I #W "
-                  # Colours: the machine palette (modules/desktop/theme), never hex here.
-                  ${config.ficciones.desktop.theme.render.tmuxStyle}
+                  # Colours: the machine palette (modules/desktop/theme), never hex here —
+                  # the live theme's copy, so a theme switch reaches new tmux servers
+                  source-file ~/.config/ficciones/theme/tmux.conf
 
                   # Splits + pane nav (prefix chords — the alt- bindings dropped, they clash with
                   # terminal apps like pi/nvim and aren't worth the surface; re-add if you miss them).

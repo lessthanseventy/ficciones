@@ -1,9 +1,8 @@
-# PAPER: the daylight palette — the amber one inverted for a screen read outdoors. Same keys as
-# palettes/amber.nix (render.nix knows only the names): the ground is cream paper, body text a
+# ZAHIR: the daylight palette — the coin you cannot stop seeing; the aleph inverted for a screen
+# read outdoors. Same keys as palettes/aleph.nix (render.nix knows only the names): the ground is cream paper, body text a
 # dark amber-brown, the highlights their deep ink versions, and the active thing is still
 # inverse video — a dark field with cream ink. `white` is the max-contrast-on-ground colour
-# (dark here); `cream` is the selection ink and so dark too. Pick it with `astal-shell theme
-# paper`; `current` records the choice.
+# (dark here); `cream` is the selection ink and so dark too. Super+Shift+P switches to it live.
 #
 # Hex without '#', uppercase, so each renderer adds the syntax its target wants.
 rec {

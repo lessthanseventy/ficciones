@@ -12,7 +12,7 @@ import Backdrop, { setBackdrop } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Tray"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
-import { setTheme, THEMES, type Theme } from "./lib/theme"
+import { setTheme, THEMES, applyShellTheme, type Theme } from "./lib/theme"
 import { sidecarVerb, colresize, focusDir } from "./lib/sidecar"
 import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
@@ -97,7 +97,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [amber|paper] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [aleph|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
@@ -106,6 +106,8 @@ app.start({
     Notifications()
     Hub()
     startHotEdge()
+    // the live theme's stylesheet over the bundled default (the same css when they agree)
+    applyShellTheme()
     // Andrew's defaults: glass and the zen backdrop on from login
     setGlass(true)
     setBackdrop("zen")

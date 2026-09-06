@@ -1,44 +1,69 @@
-// `astal-shell theme amber|paper|toggle`: write modules/desktop/theme/current, regenerate the
-// checked-in palette files, home:switch (every surface: ghostty, GTK, Qt, floorp, hyprland…),
-// then restart the shell on the new store bundle. Minutes, in the background; a notification
-// at each end. Single-user machine, fixed checkout — the same assumption lib/agents.ts makes.
+// The live theme: aleph (dark) or zahir (light). home-manager renders every surface for both
+// under ~/.config/ficciones/themes/<name>/ and each app's fixed path is a link through
+// ~/.config/ficciones/theme — the one mutable link. `astal-shell theme [aleph|zahir|toggle]`
+// (Super+Shift+P, the toggles card) repoints it, swaps the shell's own stylesheet and Pango
+// palette in place, reloads Hyprland, and asks GTK for the matching light/dark scheme. Under a
+// second, no nix. Apps that only read their config at start (GTK apps already open, Qt, Floorp)
+// follow on their next launch.
 import GLib from "gi://GLib?version=2.0"
-import { execAsync } from "ags/process"
+import Gio from "gi://Gio?version=2.0"
+import app from "ags/gtk4/app"
 import { createState } from "ags"
+import { execAsync } from "ags/process"
+import { PALETTE } from "./palette"
 
-const REPO = "/home/andrew/projects/ficciones"
-const CURRENT = `${REPO}/modules/desktop/theme/current`
-export const THEMES = ["amber", "paper"] as const
+export const THEMES = ["aleph", "zahir"] as const
 export type Theme = (typeof THEMES)[number]
+const DIR = `${GLib.get_user_config_dir()}/ficciones`
+const LINK = `${DIR}/theme`
 
 export function currentTheme(): Theme {
   try {
-    const [ok, bytes] = GLib.file_get_contents(CURRENT)
-    const t = ok ? new TextDecoder().decode(bytes).trim() : "amber"
-    return (THEMES as readonly string[]).includes(t) ? (t as Theme) : "amber"
-  } catch { return "amber" }
+    const t = GLib.path_get_basename(Gio.File.new_for_path(LINK).query_info("standard::symlink-target", Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null).get_symlink_target() ?? "")
+    return (THEMES as readonly string[]).includes(t) ? (t as Theme) : "aleph"
+  } catch { return "aleph" }
 }
 
-/** The theme in force (as of the selector file), for the toggles card; `switching` while home:switch runs. */
 export const [theme, setThemeState] = createState<Theme>(currentTheme())
 export const [switching, setSwitching] = createState(false)
 
-let running = false
+/** The shell's own surfaces take the theme now: the stylesheet, then the markup palette. */
+export function applyShellTheme() {
+  try {
+    const [ok, css] = GLib.file_get_contents(`${LINK}/shell.css`)
+    if (ok) app.apply_css(new TextDecoder().decode(css), true)
+  } catch (e) { console.error("theme css:", String(e)) }
+  try {
+    const [ok, json] = GLib.file_get_contents(`${LINK}/shell-palette.json`)
+    if (ok) Object.assign(PALETTE as Record<string, string>, JSON.parse(new TextDecoder().decode(json)))
+  } catch (e) { console.error("theme palette:", String(e)) }
+}
+
 export function setTheme(t: Theme | "toggle") {
-  const next: Theme = t === "toggle" ? (currentTheme() === "amber" ? "paper" : "amber") : t
-  if (running) return
-  running = true
+  const next: Theme = t === "toggle" ? (currentTheme() === "aleph" ? "zahir" : "aleph") : t
+  if (!Gio.File.new_for_path(`${DIR}/themes/${next}`).query_exists(null)) {
+    execAsync(["notify-send", "-u", "critical", "-a", "astal-shell", `theme ${next}`, `${DIR}/themes/${next} is not there — home:switch first`]).catch(console.error)
+    return
+  }
   setSwitching(true)
+  try {
+    // repoint atomically: a fresh link, then rename over the old one
+    const tmp = `${LINK}.next`
+    try { Gio.File.new_for_path(tmp).delete(null) } catch { /* none */ }
+    Gio.File.new_for_path(tmp).make_symbolic_link(`themes/${next}`, null)
+    Gio.File.new_for_path(tmp).move(Gio.File.new_for_path(LINK), Gio.FileCopyFlags.OVERWRITE | Gio.FileCopyFlags.NOFOLLOW_SYMLINKS, null, null)
+  } catch (e) {
+    console.error("theme link:", String(e))
+    setSwitching(false)
+    return
+  }
   setThemeState(next)
-  const script = [
-    `cd ${REPO}`,
-    `printf '%s\\n' ${next} > modules/desktop/theme/current`,
-    `notify-send -a 'astal-shell' 'theme → ${next}' 'regenerating the palette and switching home… (a minute or two)'`,
-    `mise theme:gen && mise home:switch && hyprctl reload`,
-    `notify-send -a 'astal-shell' 'theme → ${next}' 'done — restarting the shell'`,
-    `sleep 1; pkill -x gjs; sleep 0.5; astal-shell`,
-  ].join(" && ")
-  execAsync(["bash", "-lc", script])
-    .catch((e) => execAsync(["notify-send", "-u", "critical", "-a", "astal-shell", `theme → ${next} failed`, String(e).slice(0, 400)]).catch(console.error))
-    .finally(() => { running = false; setSwitching(false); setThemeState(currentTheme()) })
+  applyShellTheme()
+  const scheme = next === "zahir" ? "prefer-light" : "prefer-dark"
+  Promise.allSettled([
+    execAsync(["hyprctl", "reload"]),
+    execAsync(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme]),
+    // ghostty re-reads its config on SIGUSR2; every other app follows on its next launch
+    execAsync(["pkill", "-USR2", "-x", "ghostty"]),
+  ]).finally(() => setSwitching(false))
 }

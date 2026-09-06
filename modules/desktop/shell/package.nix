@@ -11,6 +11,7 @@
   libsoup_3,
   glib-networking,
   writeText,
+  dart-sass,
   agsPackages,
 }:
 
@@ -47,6 +48,16 @@ let
     ) generated
   );
   ags = agsPackages.ags.override { extraPackages = astalLibs ++ extra; };
+  # The stylesheet per palette, compiled here so the running shell can swap themes without a
+  # rebuild: share/astal-shell/themes/<name>.css (home-manager links them into the theme dirs).
+  palettes = { aleph = import ../theme/palettes/aleph.nix; zahir = import ../theme/palettes/zahir.nix; };
+  compileThemes = lib.concatStrings (
+    lib.mapAttrsToList (name: p: ''
+      cp -r style themestyle-${name}
+      cp ${writeText "_palette.scss" (import ../theme/render.nix { inherit lib; palette = p; }).paletteScss} themestyle-${name}/_palette.scss
+      sass --no-source-map themestyle-${name}/main.scss $out/share/astal-shell/themes/${name}.css
+    '') palettes
+  );
 in
 stdenv.mkDerivation {
   pname = "astal-shell";
@@ -61,6 +72,7 @@ stdenv.mkDerivation {
     wrapGAppsHook3
     gobject-introspection
     ags
+    dart-sass
   ];
   buildInputs = astalLibs ++ [ gjs ] ++ extra;
 
@@ -68,9 +80,10 @@ stdenv.mkDerivation {
 
   installPhase = ''
     runHook preInstall
-    mkdir -p $out/bin $out/share/astal-shell
+    mkdir -p $out/bin $out/share/astal-shell/themes
     cp -r . $out/share/astal-shell
     ags bundle app.tsx $out/bin/astal-shell -d "SRC='$out/share/astal-shell'"
+    ${compileThemes}
     runHook postInstall
   '';
 
