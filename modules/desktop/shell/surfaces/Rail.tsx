@@ -16,6 +16,7 @@ import { toggleDashboard } from "./Dashboard"
 import { toggleDrawer, showDrawer, hideDrawer, drawerOpen, drawerSheet } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
+import { WorkspacePop } from "../panes/Workspaces"
 
 /** This monitor's workspaces only, its active one chipped — two monitors, two rails. */
 function Workspaces({ connector }: { connector: string }) {
@@ -43,10 +44,14 @@ function Workspaces({ connector }: { connector: string }) {
             ...(active()?.id === ws.id ? ["focused"] : []),
             ...(ws.get_clients().length > 0 ? ["occupied"] : []),
           ])
+          // hover shows the workspace's windows off to the right; a click still goes there
           return (
-            <button cssClasses={classes} onClicked={() => ws.focus()} halign={Gtk.Align.CENTER}>
+            <menubutton cssClasses={classes} direction={Gtk.ArrowType.RIGHT} halign={Gtk.Align.CENTER} $={(self) => hoverPopover(self, "rail", () => ws.focus())}>
               <label label={String(ws.id)} />
-            </button>
+              <popover cssClasses={["pop"]}>
+                <Panel title={createComputed([focusedWorkspace], () => `WS ${ws.id} · ${ws.monitor?.name ?? ""}`)}><WorkspacePop ws={ws} /></Panel>
+              </popover>
+            </menubutton>
           )
         }}
       </For>

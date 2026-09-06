@@ -12,6 +12,22 @@ window.notifications { background: transparent; }
   .toast-hit { padding: 0; &:hover { background: $hover; } }
   .summary { color: $amber; }
   .body { color: $meta; font-size: $size-sm; }
-  .actions { margin-top: $sp-1; }
-  .act { color: $green; padding: 0 $sp-2; &:hover { background: $hover; } }
+  // actions read as buttons: outlined green, inverse video on hover (notifd carries them;
+  // Slack's "Reply", a browser's "Open", pi's "Allow")
+  .actions { margin-top: $sp-2; }
+  .act { color: $green; padding: 2px $sp-3; min-height: 24px; border: $rule solid $green; &:hover { background: $green; color: $ink; label { color: $ink; } } }
+  .act label { color: $green; }
+}
+
+// ── the OSD ────────────────────────────────────────────────────────────────
+window.osd { background: transparent; }
+.osd-pane {
+  background: $bg;
+  border-color: $amber;
+  .panel-title { color: $amber; font-size: $size; }
+  .panel-body { padding: $sp-4 $sp-6 $sp-3; }
+  .osd-icon { font-size: 40px; color: $amber; min-width: 48px; }
+  .osd-bar { font-size: 26px; letter-spacing: 1px; color: $amber; }
+  .osd-num { font-size: 26px; color: $amber; }
+  &.muted { border-color: $dim; .panel-title, .osd-icon, .osd-bar, .osd-num { color: $dim; } }
 }

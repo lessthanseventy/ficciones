@@ -22,6 +22,7 @@ import { iconFor } from "../lib/icons"
 import { Stat, RuleV, RuleH } from "../lib/tui"
 import { pct, meter, spark } from "../lib/format"
 import { tier } from "../lib/perf"
+import { quietOsd } from "./Osd"
 
 /**
  * The workspace's windows, left to right as they sit in the strip: the focused one as
@@ -133,6 +134,7 @@ function Backlight() {
   const value = createComputed([external, gamma, ...(back ? [back] : [])], (ext, g, b) => (ext || !back ? g : (b as number)))
   const label = external((ext) => (ext ? "\u{f0335}  brightness · software, all screens" : "\u{f00e0}  brightness · backlight"))
   const set = (v: number) => {
+    quietOsd()
     if (external.get() || !dev) {
       if (Math.abs(v - gamma.get()) > 0.01) execAsync(["hyprctl", "hyprsunset", "gamma", String(Math.round(v * 100))]).catch(console.error)
     } else if (Math.abs(v - dev.brightness) > 0.005) dev.brightness = v

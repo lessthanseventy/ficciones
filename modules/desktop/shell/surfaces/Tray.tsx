@@ -175,8 +175,15 @@ function Vol() {
   const mute = createBinding(speaker, "mute")
   const icon = createComputed([vol, mute], (v, m) => (m ? "\u{f075f}" : v > 0.66 ? "\u{f057e}" : v > 0.33 ? "\u{f0580}" : "\u{f057f}"))
   const cls = mute((m) => ["item", "vol", ...(m ? ["dim"] : [])])
+  // wheel over the icon: 2 % a notch, capped at 100 % (the keys go to 150 %; the wheel is for
+  // nudging). The OSD shows it — the popover is closed while you scroll.
+  const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
+  scroll.connect("scroll", (_, __, dy) => {
+    speaker.set_volume(Math.max(0, Math.min(1, speaker.volume + (dy > 0 ? -0.02 : 0.02))))
+    return true
+  })
   return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => hoverPopover(self, "rail")}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => { hoverPopover(self, "rail"); self.add_controller(scroll) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={icon} />
         <label cssClasses={["sm"]} label={createComputed([vol, mute], (v, m) => (m ? "mute" : pct(v)))} />

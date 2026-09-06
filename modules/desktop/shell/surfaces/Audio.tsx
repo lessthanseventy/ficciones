@@ -7,6 +7,7 @@ import Wp from "gi://AstalWp"
 import { For, createBinding, createComputed } from "ags"
 import { Panel, RuleH } from "../lib/tui"
 import { pct } from "../lib/format"
+import { quietOsd } from "./Osd"
 
 // Intel names every codec endpoint "Raptor Lake-P/U/H cAVS <thing>"; the thing is the name.
 const clean = (s: string) => s.replace(/^.*?cAVS\s+/, "")
@@ -21,7 +22,7 @@ function Slider({ node, width = 220 }: { node: Wp.Node; width?: number }) {
       widthRequest={width}
       hexpand
       value={createBinding(node, "volume")}
-      onChangeValue={({ value }) => { if (Math.abs(value - node.volume) > 0.005) node.set_volume(value) }}
+      onChangeValue={({ value }) => { if (Math.abs(value - node.volume) > 0.005) { quietOsd(); node.set_volume(value) } }}
     />
   )
 }
@@ -90,7 +91,7 @@ export default function Audio() {
       <Panel title="OUTPUT" spacing={2}>
         <box cssClasses={["row"]} spacing={8}>
           <label label={sDesc((d) => short(d ?? "no output"))} hexpand xalign={0} ellipsize={Pango.EllipsizeMode.END} />
-          <button cssClasses={sMute((m) => ["act", ...(m ? ["red"] : [])])} onClicked={() => (speaker.mute = !speaker.mute)}>
+          <button cssClasses={sMute((m) => ["act", ...(m ? ["red"] : [])])} onClicked={() => { quietOsd(); speaker.mute = !speaker.mute }}>
             <label label={sMute((m) => (m ? "muted" : "mute"))} />
           </button>
         </box>

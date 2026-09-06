@@ -13,6 +13,7 @@ import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
 import Backdrop, { setBackdrop } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Tray"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
+import Osd from "./surfaces/Osd"
 import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
 import type { Pane } from "./lib/nav"
@@ -89,6 +90,7 @@ app.start({
     Launcher()
     Cheatsheet()
     Dashboard()
+    Osd()
     return (
       <For each={monitors}>
         {(monitor) => (
