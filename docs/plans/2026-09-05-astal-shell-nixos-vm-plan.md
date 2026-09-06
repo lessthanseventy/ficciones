@@ -170,7 +170,16 @@ external monitor (no DDC/CI through the dock) is plugged in. astal is a top-leve
   GRUB on the 300 MB ESP, nvidia-open + PRIME offload, snapper on /home, steam+gamemode,
   nix-ld, tailscale, greetd/tuigreet). Runbook: `2026-09-05-ivysaur-nixos-migration-runbook.md`.
 - **Bar:** window cells icon-snug (6px), hover opens the popover, click focuses, no tooltip,
-  no wrap on the rail wheel, `cursor:no_warps`.
+  no wrap on the rail wheel, `cursor:no_warps`. Every `address:` dispatch from the popover was
+  silently missing — AstalHyprland's client.address has no `0x`; `addr(c)` in lib/hypr.ts.
+- **Sidecar** (lib/sidecar.ts): pin = float + size to a left column + pin + an invisible
+  BOTTOM-layer window with an exclusive zone holding the column (addreserved pushed the bar
+  too); unpin reverses; one per monitor; a closed sidecar gives the column back.
+- **The shell is the wallpaper** (lib/wallpaper.ts): a random photo per monitor from
+  `ficciones.desktop.shell.wallpapers` under the zen grid, rotated every 5 min, click skips.
+  hyprpaper and rotate-wallpaper.sh are gone from both OS layers — the nix hyprpaper died on
+  the host GBM seam on Arch, the shell's GTK4 layer does not. Gotcha: an Astal window's
+  `visible` prop must come AFTER layer/anchor or it maps on TOP for good.
 
 ## 6 · Phase status
 
@@ -181,8 +190,8 @@ Design §7 phases, with where this plan lands them:
 restart** (then delete hyprland.conf, hosts/*.conf, the three TRANSITION lines in
 modules/desktop/default.nix and theme.conf in theme/default.nix). ivysaur — **config built,
 install pending Andrew** (§7, the runbook).
-Next: the pinned "sidecar" window (pin = float + left edge + reserved area on every workspace);
-hover-to-open for the other bar cells; agents card → dossier.
+Next: hover-to-open for the other bar cells; agents card → dossier; the sidecar's width as a
+setting (0.34 today).
 
 ## 7 · Laptop migration checklist
 
