@@ -73,8 +73,15 @@ hypr.connect("notify::focused-workspace", () => {
 })
 // gone windows leave their thumbs; a sweep at start keeps the dir honest
 hypr.connect("client-removed", (_, address: string) => { try { Gio.File.new_for_path(pathFor(address)).delete(null) } catch { /* none */ } })
-// and every showing workspace refreshes every few seconds, so a strip is never far behind
-interval(5000, () => captureShowing())
+// and while a strip is open every showing workspace refreshes every few seconds, so it is
+// never far behind. Not at idle: a capture is a grim per window and every strip's pictures
+// (hidden ones too) decode their jpeg again on the stamp — measured at ~2% of a core all day.
+let watchers = 0
+let live: Timer | null = null
+export function watchThumbs(pop: { connect(sig: string, cb: () => void): number }) {
+  pop.connect("show", () => { if (++watchers === 1) live = interval(5000, () => captureShowing()) })
+  pop.connect("hide", () => { if (--watchers <= 0) { watchers = 0; live?.cancel(); live = null } })
+}
 timeout(3000, () => {
   try {
     const live = new Set(hypr.get_clients().map((c) => c.address.replace(/^0x/, "")))

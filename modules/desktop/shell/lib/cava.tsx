@@ -4,7 +4,9 @@
 import Cava from "gi://AstalCava"
 import Gtk from "gi://Gtk?version=4.0"
 import Pango from "gi://Pango?version=1.0"
+import Wp from "gi://AstalWp"
 import { createBinding } from "ags"
+import { interval } from "ags/time"
 
 const V = "▁▂▃▄▅▆▇█"
 const H = "▏▎▍▌▋▊▉█"
@@ -15,7 +17,18 @@ function cava() {
   if (inst === undefined) {
     inst = Cava.get_default()
     // 30 fps is plenty for block glyphs and halves the shell's own CPU
-    if (inst) { inst.bars = BARS * 2; inst.set_stereo(true); inst.framerate = 30 }
+    if (inst) {
+      inst.bars = BARS * 2; inst.set_stereo(true); inst.framerate = 30
+      // silence is not free: libcava resamples and FFTs it at 30 fps regardless (~3% of a core
+      // at idle, measured). Run only while a playback stream is RUNNING; the bars read empty
+      // the same either way. Polled, like lib/opaque — Wp's stream signals are not enough.
+      const c = inst
+      let on = true
+      interval(2000, () => {
+        const want = !!Wp.get_default()?.audio?.get_streams().some((st) => st.state === Wp.NodeState.RUNNING)
+        if (want !== on) { on = want; c.active = want }
+      })
+    }
   }
   return inst
 }

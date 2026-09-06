@@ -31,7 +31,10 @@ class Canvas {
   idx: number
   ticks = 0
   hold = false // a named mode is held: no rotation
-  lines = createState<string[]>(this.grid.lines())
+  // one state per row: createState skips equal strings, so a row that did not change costs
+  // nothing downstream — no label reset, no Pango relayout, no overlay re-allocate (the
+  // relayout of 64×210 glyphs × 2 monitors at 8 fps was the shell's idle CPU)
+  rows = this.grid.lines().map((l) => createState(l))
   timer: Timer | null = null
   constructor(start: number) { this.idx = start % this.modes.length }
   step = () => {
@@ -42,7 +45,8 @@ class Canvas {
     this.ticks++
     const m = this.modes[this.idx]
     m.step(this.grid)
-    this.lines[1](m.text ? m.text() : this.grid.lines())
+    const ls = m.text ? m.text() : this.grid.lines()
+    for (let r = 0; r < ROWS; r++) this.rows[r][1](ls[r] ?? "")
   }
   /** Jump to a mode by name and hold it for a full cycle. */
   jump(name: string) {
@@ -92,7 +96,6 @@ export function setBackdrop(mode: "zen" | "photo" | "toggle" | "cycle" | Backdro
 
 export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   const canvas = new Canvas(created++)
-  const [lines] = canvas.lines
   const { file, next } = wallpaper()
   nexts.push(next)
   onCleanup(() => { for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
@@ -130,7 +133,7 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             self.add_controller(g)
           }}
         >
-          {Array.from({ length: ROWS }, (_, r) => <label cssClasses={["gl"]} useMarkup label={lines((l) => l[r] ?? "")} xalign={0} />)}
+          {canvas.rows.map(([line]) => <label cssClasses={["gl"]} useMarkup label={line} xalign={0} />)}
         </box>
         <box
           $type="overlay"

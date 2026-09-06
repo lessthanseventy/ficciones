@@ -18,7 +18,7 @@ import { type HoverPop } from "../lib/hover"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
 import { WorkspacePop } from "../panes/Workspaces"
-import { captureShowing } from "../lib/thumbs"
+import { captureShowing, watchThumbs } from "../lib/thumbs"
 
 /** Debug: `astal-shell pop ws <id>` opens that number's strip without a hover. */
 const wsPops = new Map<number, HoverPop>()
@@ -57,7 +57,7 @@ function Workspaces({ connector }: { connector: string }) {
               direction={Gtk.ArrowType.RIGHT}
               halign={Gtk.Align.CENTER}
               // a long dwell (Andrew: "only on hover for a while"); the showing workspace's thumbs refresh first
-              $={(self) => wsPops.set(ws.id, hoverPopover(self, "rail", () => ws.focus(), { dwell: 900, onShow: () => captureShowing() }))}
+              $={(self) => { watchThumbs(self.popover as Gtk.Popover); wsPops.set(ws.id, hoverPopover(self, "rail", () => ws.focus(), { dwell: 900, onShow: () => captureShowing() })) }}
             >
               <label label={String(ws.id)} />
               <popover cssClasses={["pop"]}>
