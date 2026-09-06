@@ -37,7 +37,8 @@ window.cheatsheet { background: transparent; }
 
 // zen backdrop
 window.backdrop { background: $bg; }
-window.sidecar-zone { background: transparent; }
+// the sidecar zone has NO css class on purpose: a `window.<class>` rule of any kind leaves the
+// content-less toplevel at 200px with a zero exclusive zone (bisected 2026-09-06)
 .backdrop .grid .gl { color: $amber; font-size: 14px; letter-spacing: 0; min-height: 0; }
 .backdrop .grid.green .gl { color: $green; }
 .backdrop .grid.pink  .gl { color: $accent; }

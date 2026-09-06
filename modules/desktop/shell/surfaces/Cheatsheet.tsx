@@ -23,7 +23,7 @@ const SHELL_WORDS: Record<string, string> = {
   "toggle drawer": "calendar", "toggle hub": "notifications", "toggle dashboard": "dashboard",
   "toggle weather": "weather", "show drawer agents": "agents", "show drawer calendar": "calendar",
   "backdrop": "backdrop: next mode", "theme": "light / dark", "crt": "crt scanlines", "glass": "glass",
-  "sidecar toggle": "pin as sidecar", "colresize -0.05": "column narrower", "colresize +0.05": "column wider",
+  "sidecar toggle": "pin as sidecar", "colresize narrower": "column narrower", "colresize wider": "column wider",
 }
 
 /** A readable line for a dispatcher + arg; the description wins when the config sets one. */

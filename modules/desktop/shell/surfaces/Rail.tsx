@@ -19,6 +19,7 @@ import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
 import { WorkspacePop } from "../panes/Workspaces"
 import { captureShowing } from "../lib/thumbs"
+import { registerRail } from "../lib/railzone"
 
 /** Debug: `astal-shell pop ws <id>` opens that number's strip without a hover. */
 const wsPops = new Map<number, HoverPop>()
@@ -144,7 +145,7 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
 
   return (
     <window
-      $={(self) => { win = self; closeOnPress(self) }}
+      $={(self) => { win = self; closeOnPress(self); registerRail(gdkmonitor.connector, self) }}
       visible
       defaultWidth={1} // shrink to content; a GtkWindow otherwise pads its default size
       cssClasses={["rail"]}

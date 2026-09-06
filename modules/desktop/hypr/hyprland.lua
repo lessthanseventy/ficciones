@@ -457,10 +457,10 @@ bind(M .. " + SHIFT + V", hl.dsp.window.float())
 -- ----- Column width / resize -----
 -- through the shell: a focused sidecar resizes (colresize ignores floating windows), anything
 -- else falls through to colresize
-bind(M .. " + Semicolon", exec("astal-shell colresize -0.05"))
-bind(M .. " + Apostrophe", exec("astal-shell colresize +0.05"))
-bind(M .. " + Minus", exec("astal-shell colresize -0.05"))
-bind(M .. " + Equal", exec("astal-shell colresize +0.05"))
+bind(M .. " + Semicolon", exec("astal-shell colresize narrower"))
+bind(M .. " + Apostrophe", exec("astal-shell colresize wider"))
+bind(M .. " + Minus", exec("astal-shell colresize narrower"))
+bind(M .. " + Equal", exec("astal-shell colresize wider"))
 bind(M .. " + F", layout("fit active"))
 bind(M .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 bind("CTRL + " .. M .. " + C", layout("center"))
