@@ -27,3 +27,10 @@ window.launcher { background: transparent; }
   &.chip { .sub, .glyph { color: $ink; } }
   &:hover:not(.chip) { background: $hover; }
 }
+
+// cheatsheet
+window.cheatsheet { background: transparent; }
+.sheet-pane { background: $bg; .panel-body { padding: $sp-3; } }
+.columns .col { min-width: 330px; }
+.columns .keys { color: $amber; font-size: $size-sm; }
+.columns .what { color: $meta; font-size: $size-sm; }

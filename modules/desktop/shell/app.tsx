@@ -7,6 +7,7 @@ import Drawer, { showDrawer, toggleDrawer } from "./surfaces/Drawer"
 import Notifications from "./surfaces/Notifications"
 import Hub, { HotEdge, toggleHub } from "./surfaces/Hub"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
+import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import "./lib/night"
 import type { Pane } from "./lib/nav"
 
@@ -30,6 +31,10 @@ app.start({
       toggleLauncher("clip")
       return res("ok")
     }
+    if (verb === "toggle" && what === "cheatsheet") {
+      toggleCheatsheet()
+      return res("ok")
+    }
     if (verb === "toggle" && what === "hub") {
       toggleHub()
       return res("ok")
@@ -38,7 +43,7 @@ app.start({
       showDrawer(tab?.toUpperCase() as Pane | undefined)
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|launcher|clipboard | show drawer [agents|media|weather|calendar]")
+    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet | show drawer [agents|media|weather|calendar]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
@@ -49,6 +54,7 @@ app.start({
     Hub()
     HotEdge()
     Launcher()
+    Cheatsheet()
     return (
       <For each={monitors}>
         {(monitor) => (
