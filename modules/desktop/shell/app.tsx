@@ -1,10 +1,8 @@
 import app from "ags/gtk4/app"
 import { createBinding, For, This } from "ags"
 import style from "./style/main.scss"
-import Rail from "./surfaces/Rail"
-import WeatherPop, { toggleWeather } from "./surfaces/WeatherPop"
+import Rail, { toggleCalendarPop, toggleWeatherPop } from "./surfaces/Rail"
 import Bar from "./surfaces/Bar"
-import Drawer, { showDrawer, toggleDrawer } from "./surfaces/Drawer"
 import Notifications from "./surfaces/Notifications"
 import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
@@ -17,7 +15,6 @@ import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, type Theme } from "./lib/theme"
 import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
-import type { Pane } from "./lib/nav"
 
 // One process, every surface. Bars per monitor (exclusive, windows reflow around them); the
 // drawer once, floating. `astal-shell toggle drawer` from a keybind reaches requestHandler.
@@ -27,8 +24,10 @@ app.start({
   gtkTheme: "Adwaita",
   requestHandler(argv, res) {
     const [verb, what, tab] = argv
-    if (verb === "toggle" && what === "drawer") {
-      toggleDrawer()
+    // the drawer and the weather surface are popovers off the rail now (2026-09-05); the
+    // verbs still land
+    if (verb === "toggle" && (what === "drawer" || what === "calendar")) {
+      toggleCalendarPop()
       return res("ok")
     }
     if (verb === "toggle" && what === "launcher") {
@@ -57,7 +56,7 @@ app.start({
       return res("ok")
     }
     if (verb === "toggle" && what === "weather") {
-      toggleWeather()
+      toggleWeatherPop()
       return res("ok")
     }
     if (verb === "toggle" && what === "dashboard") {
@@ -75,7 +74,7 @@ app.start({
     if (verb === "show" && what === "drawer") {
       // agents left the info surface for the rail (2026-09-05); the old verb still lands there
       if (tab === "agents") popAgents()
-      else showDrawer(tab?.toUpperCase() as Pane | undefined)
+      else toggleCalendarPop()
       return res("ok")
     }
     res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | theme [amber|paper] | show drawer [calendar|agents]")
@@ -84,8 +83,6 @@ app.start({
     const monitors = createBinding(app, "monitors")
     // gnim cannot nest a <For> inside a fragment, so the drawer is created outright and the
     // per-monitor bars come back as the tree.
-    Drawer()
-    WeatherPop()
     Notifications()
     Hub()
     startHotEdge()

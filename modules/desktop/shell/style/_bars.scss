@@ -97,6 +97,8 @@ menubutton.cell > button:hover { background: none; }
   &.dim * { color: $dim; }
   &:hover { background: $hover; }
 }
+menubutton.clock > button, menubutton.wx > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; min-width: 0; }
+menubutton.clock > button:hover, menubutton.wx > button:hover { background: none; }
 .clock {
   padding: $sp-2 0;
   label { font-size: $size-sm; color: $meta; }
@@ -197,4 +199,13 @@ popover.pop {
   &.idle { .icon, .num, .spark, .v { color: $green; } }
   &.busy { .icon, .num, .spark, .v { color: $amber; } }
   &.hot  { .icon, .num, .spark, .v { color: $red; } }
+}
+
+// workspace strips: thumbnails with a caption in the corner; the focused window's frame is amber
+.thumbs .thumb {
+  padding: 0;
+  .shot { background: $hover; border: $rule solid $sep; }
+  &.focused .shot { border-color: $amber; }
+  &:hover .shot { border-color: $chip; }
+  .cap { background: $bg; padding: 1px 6px; margin: 0 0 $rule $rule; label { color: $meta; } }
 }

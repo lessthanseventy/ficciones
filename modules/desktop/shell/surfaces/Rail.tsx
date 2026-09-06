@@ -9,14 +9,16 @@ import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
 import { RuleH, Panel } from "../lib/tui"
-import { toggleWeather, showWeather, hideWeather, weatherOpen, weatherCard } from "./WeatherPop"
-import { hoverPopover, hoverPanel } from "../lib/hover"
+import { WeatherCard } from "../panes/Weather"
+import { CalendarCard } from "../panes/Calendar"
+import { hoverPopover } from "../lib/hover"
 import TrayPane from "./Tray"
 import { toggleDashboard } from "./Dashboard"
-import { toggleDrawer, showDrawer, hideDrawer, drawerOpen, drawerSheet } from "./Drawer"
+import { type HoverPop } from "../lib/hover"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
 import { WorkspacePop } from "../panes/Workspaces"
+import { captureShowing } from "../lib/thumbs"
 
 /** This monitor's workspaces only, its active one chipped — two monitors, two rails. */
 function Workspaces({ connector }: { connector: string }) {
@@ -46,7 +48,13 @@ function Workspaces({ connector }: { connector: string }) {
           ])
           // hover shows the workspace's windows off to the right; a click still goes there
           return (
-            <menubutton cssClasses={classes} direction={Gtk.ArrowType.RIGHT} halign={Gtk.Align.CENTER} $={(self) => hoverPopover(self, "rail", () => ws.focus())}>
+            <menubutton
+              cssClasses={classes}
+              direction={Gtk.ArrowType.RIGHT}
+              halign={Gtk.Align.CENTER}
+              // a long dwell (Andrew: "only on hover for a while"); the showing workspace's thumbs refresh first
+              $={(self) => hoverPopover(self, "rail", () => ws.focus(), { dwell: 900, onShow: () => captureShowing() })}
+            >
               <label label={String(ws.id)} />
               <popover cssClasses={["pop"]}>
                 <Panel title={createComputed([focusedWorkspace], () => `WS ${ws.id} · ${ws.monitor?.name ?? ""}`)}><WorkspacePop ws={ws} /></Panel>
@@ -76,15 +84,22 @@ function Corner() {
   )
 }
 
-/** Stacked clock: click opens the info panel. */
-function Clock() {
+// The clock and weather popovers, per monitor, so a keybind can pop the one on the focused
+// monitor's rail (`astal-shell toggle drawer|weather`, Super+I / Super+Shift+W).
+const clockPops = new Map<string, HoverPop>()
+const weatherPops = new Map<string, HoverPop>()
+function onFocused(pops: Map<string, HoverPop>) {
+  const name = hypr.focusedMonitor?.name
+  return pops.get(name ?? "") ?? [...pops.values()][0]
+}
+export const toggleCalendarPop = () => onFocused(clockPops)?.toggle()
+export const toggleWeatherPop = () => onFocused(weatherPops)?.toggle()
+
+/** Stacked clock: the calendar and agenda hang off it, like every other popover. */
+function Clock({ connector }: { connector: string }) {
   const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
   return (
-    <button
-      cssClasses={["clock"]}
-      onClicked={() => toggleDrawer()}
-      $={(self) => hoverPanel(self, "rail", { show: () => showDrawer(undefined, false), hide: hideDrawer, isOpen: drawerOpen, window: drawerSheet })}
-    >
+    <menubutton cssClasses={["clock"]} direction={Gtk.ArrowType.RIGHT} $={(self) => clockPops.set(connector, hoverPopover(self, "rail"))}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["hh"]} label={now((d) => d.format("%H")!)} />
         <label cssClasses={["mm"]} label={now((d) => d.format("%M")!)} />
@@ -92,26 +107,28 @@ function Clock() {
         <label cssClasses={["day"]} label={now((d) => d.format("%d")!)} />
         <label cssClasses={["mon"]} label={now((d) => d.format("%b")!)} />
       </box>
-    </button>
+      <popover cssClasses={["pop"]}>
+        <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><box widthRequest={420}><CalendarCard /></box></Panel>
+      </popover>
+    </menubutton>
   )
 }
 
-/** Under the clock: the sky and the temperature; click for the whole forecast. */
-function Weather() {
+/** Under the clock: the sky and the temperature; the whole forecast hangs off it. */
+function Weather({ connector }: { connector: string }) {
   const g = weather((w) => (w.ok ? glyph(w.code) : "\u{f0590}"))
   const t = weather((w) => (w.ok ? `${Math.round(w.temp!)}°` : "—"))
   const cls = weather((w) => ["item", "wx", ...(w.ok ? [] : ["dim"])])
   return (
-    <button
-      cssClasses={cls}
-      onClicked={() => toggleWeather()}
-      $={(self) => hoverPanel(self, "rail", { show: () => showWeather(false), hide: hideWeather, isOpen: weatherOpen, window: weatherCard })}
-    >
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => weatherPops.set(connector, hoverPopover(self, "rail"))}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["g"]} label={g} />
         <label cssClasses={["t"]} label={t} />
       </box>
-    </button>
+      <popover cssClasses={["pop"]}>
+        <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]}><box widthRequest={460}><WeatherCard /></box></Panel>
+      </popover>
+    </menubutton>
   )
 }
 
@@ -142,8 +159,8 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         </box>
         <box $type="center" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
           <Channel side="left" />
-          <Clock />
-          <Weather />
+          <Clock connector={gdkmonitor.connector} />
+          <Weather connector={gdkmonitor.connector} />
           <Channel side="right" />
         </box>
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>

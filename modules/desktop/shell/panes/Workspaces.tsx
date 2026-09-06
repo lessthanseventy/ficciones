@@ -5,6 +5,8 @@ import Hyprland from "gi://AstalHyprland"
 import { For, createBinding, createComputed } from "ags"
 import { hypr, workspaces, focusedWorkspace, focusedClient } from "../lib/hypr"
 import { iconFor } from "../lib/icons"
+import Gio from "gi://Gio?version=2.0"
+import { stamp, hasThumb, pathFor, geom } from "../lib/thumbs"
 
 /** The workspace's windows as a strip of icons: shared with the rail's hover strip. */
 export function WindowStrip({ ws, size = 22 }: { ws: Hyprland.Workspace; size?: number }) {
@@ -36,22 +38,41 @@ function Row({ ws }: { ws: Hyprland.Workspace }) {
 }
 
 /** Two columns of workspaces, so ten fit under the clock. */
-/** The rail's hover pane for a workspace number: its windows as rows (icon, class, title). */
+const THUMB_H = 140
+
+/**
+ * The rail's hover strip for a workspace number: the windows as a literal strip of thumbnails
+ * (lib/thumbs.ts), each captioned with its class, click to focus. A window never captured
+ * (opened on a workspace that has not been shown since) falls back to its icon.
+ */
 export function WorkspacePop({ ws }: { ws: Hyprland.Workspace }) {
   const clients = createBinding(hypr, "clients")((cs) => cs.filter((c) => c.workspace?.id === ws.id && c.mapped).sort((a, b) => a.x - b.x))
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={1} widthRequest={300}>
-      <For each={clients}>
-        {(c) => (
-          <button cssClasses={focusedClient((f) => ["row", ...(f?.address === c.address ? ["chip"] : [])])} onClicked={() => c.focus()}>
-            <box spacing={8}>
-              <image iconName={iconFor(c)} pixelSize={18} />
-              <label cssClasses={["cyan", "sm"]} label={c.class} widthChars={10} xalign={0} ellipsize={3} />
-              <label label={createBinding(c, "title")} xalign={0} hexpand ellipsize={3} maxWidthChars={28} />
-            </box>
-          </button>
-        )}
-      </For>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+      <box spacing={8} cssClasses={["thumbs"]}>
+        <For each={clients}>
+          {(c) => {
+            const file = stamp(() => (hasThumb(c.address) ? Gio.File.new_for_path(pathFor(c.address)) : null))
+            const w = stamp(() => { const g = geom.get(c.address); return Math.max(80, Math.min(320, Math.round((THUMB_H * (g?.w ?? c.width)) / Math.max(1, g?.h ?? c.height)))) })
+            return (
+              <button cssClasses={focusedClient((f) => ["thumb", ...(f?.address === c.address ? ["focused"] : [])])} onClicked={() => c.focus()} tooltipText={createBinding(c, "title")}>
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+                  <overlay>
+                    <box cssClasses={["shot"]} widthRequest={w} heightRequest={THUMB_H}>
+                      <Gtk.Picture file={file} contentFit={Gtk.ContentFit.CONTAIN} hexpand vexpand visible={file((f) => !!f)} />
+                      <image iconName={iconFor(c)} pixelSize={48} hexpand vexpand halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} visible={file((f) => !f)} />
+                    </box>
+                    <box $type="overlay" halign={Gtk.Align.START} valign={Gtk.Align.END} spacing={4} cssClasses={["cap"]} canTarget={false}>
+                      <image iconName={iconFor(c)} pixelSize={14} />
+                      <label cssClasses={["sm"]} label={c.class} ellipsize={3} maxWidthChars={16} />
+                    </box>
+                  </overlay>
+                </box>
+              </button>
+            )
+          }}
+        </For>
+      </box>
       <label cssClasses={["dim"]} label="empty" visible={clients((cs) => cs.length === 0)} xalign={0} />
     </box>
   )

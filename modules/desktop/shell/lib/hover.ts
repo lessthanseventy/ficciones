@@ -33,13 +33,14 @@ function watch(w: Gtk.Widget, onEnter: () => void, onLeave: () => void) {
  * A menubutton whose popover opens on hover. `onClick` replaces the click-to-toggle (the
  * window cells use it to focus); without it a click still toggles as before.
  */
-export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => void) {
+export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => void, opts: { dwell?: number; onShow?: () => void } = {}) {
   const pop = mb.popover as Gtk.Popover
+  const dwellMs = opts.dwell ?? DWELL_MS
   pop.autohide = false // a grab would send the trigger a synthetic leave the moment it opened
   let dwell: Timer | null = null
   let grace: Timer | null = null
   const me: Entry = { close: () => { mb.popdown(); untrack(group, me) } }
-  const show = () => { track(group, me); mb.popup() }
+  const show = () => { track(group, me); opts.onShow?.(); mb.popup() }
   let inTrigger = () => false
   let inPop = () => false
   const armClose = () => {
@@ -49,8 +50,10 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   inTrigger = watch(mb, () => {
     grace?.cancel(); dwell?.cancel()
     const cur = open.get(group)
-    if (cur && cur !== me) show() // sliding along the bar: swap now
-    else dwell = timeout(DWELL_MS, () => { if (inTrigger()) show() })
+    // sliding along the bar swaps at once — unless this one asked for a long dwell (the
+    // workspace strips: a glance at the numbers should not throw thumbnails up)
+    if (cur && cur !== me && !opts.dwell) show()
+    else dwell = timeout(dwellMs, () => { if (inTrigger()) show() })
   }, () => { dwell?.cancel(); armClose() })
   inPop = watch(pop, () => grace?.cancel(), armClose)
   if (onClick) {
@@ -59,40 +62,12 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
     click.connect("pressed", () => { click.set_state(Gtk.EventSequenceState.CLAIMED); onClick(); me.close() })
     mb.add_controller(click)
   }
-  return () => { dwell?.cancel(); grace?.cancel() }
-}
-
-/**
- * A plain trigger (a button on the rail) that opens a separate window (the info panel, the
- * weather surface). The window is watched too, so moving into it keeps it open.
- */
-export function hoverPanel(
-  trigger: Gtk.Widget,
-  group: string,
-  panel: { show: () => void; hide: () => void; isOpen: () => boolean; window: () => Gtk.Widget | null },
-) {
-  let dwell: Timer | null = null
-  let grace: Timer | null = null
-  const me: Entry = { close: () => { panel.hide(); untrack(group, me) } }
-  const show = () => { track(group, me); panel.show() }
-  let inTrigger = () => false
-  let inPanel = () => false
-  let watched = false
-  const armClose = () => {
-    grace?.cancel()
-    grace = timeout(GRACE_MS, () => { if (panel.isOpen() && !inTrigger() && !inPanel()) me.close() })
+  // a keybind opens without the pointer: it closes on the next toggle, or once the pointer
+  // has visited and left
+  return {
+    toggle: () => (mb.popover.visible ? me.close() : show()),
+    close: me.close,
+    open: () => mb.popover.visible,
   }
-  const watchPanel = () => {
-    if (watched) return
-    const w = panel.window()
-    if (!w) return
-    watched = true
-    inPanel = watch(w, () => grace?.cancel(), armClose)
-  }
-  inTrigger = watch(trigger, () => {
-    grace?.cancel(); dwell?.cancel()
-    const cur = open.get(group)
-    if (cur && cur !== me) { show(); watchPanel() }
-    else dwell = timeout(DWELL_MS, () => { if (inTrigger()) { show(); watchPanel() } })
-  }, () => { dwell?.cancel(); armClose() })
 }
+export type HoverPop = ReturnType<typeof hoverPopover>
