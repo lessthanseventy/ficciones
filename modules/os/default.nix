@@ -44,6 +44,7 @@
     wl-clipboard
     libqalculate
     fd
+    jq
     git
     vim
   ];

@@ -33,6 +33,8 @@
     };
   };
   users.users.andrew.initialPassword = "andrew";
+  # The host's key, so `mise vm:ssh` (and the scripted checks) need no password prompt.
+  users.users.andrew.openssh.authorizedKeys.keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH5nX7KoAVzS9v+ByfpGkk1A+mLV9L8d2PP9aZ9mZuyS andrew@lessthanseventy.com" ];
 
   # The way in from the host: `mise vm:ssh` (password andrew, port 2222). Guest journals and
   # hyprctl without the serial-console dance.
