@@ -4,6 +4,7 @@
 import Gtk from "gi://Gtk?version=4.0"
 import Network from "gi://AstalNetwork"
 import Bluetooth from "gi://AstalBluetooth"
+import Gio from "gi://Gio?version=2.0"
 import Tray from "gi://AstalTray"
 import Wp from "gi://AstalWp"
 import Audio from "./Audio"
@@ -82,15 +83,35 @@ function Net() {
   )
 }
 
+// Vala async methods reach GJS as callback-style; promisify once so they can be awaited.
+Gio._promisify(Bluetooth.Device.prototype, "connect_device", "connect_device_finish")
+Gio._promisify(Bluetooth.Device.prototype, "disconnect_device", "disconnect_device_finish")
+
 function Bt() {
   const bt = Bluetooth.get_default()
   const powered = createBinding(bt, "isPowered")
   const connected = createBinding(bt, "isConnected")
-  const devices = createBinding(bt, "devices")((ds) =>
-    ds.filter((d) => d.paired || d.connected).sort((a, b) => Number(b.connected) - Number(a.connected)),
-  )
+  const adapter = createBinding(bt, "adapter")
+  const discovering = createBinding(bt, "adapter")((a) => !!a?.discovering)
+  const all = createBinding(bt, "devices")
+  const known = all((ds) => ds.filter((d) => d.paired || d.connected).sort((a, b) => Number(b.connected) - Number(a.connected)))
+  const found = all((ds) => ds.filter((d) => !d.paired && !d.connected && (d.alias || d.name)).slice(0, 10))
   const cls = createComputed([powered, connected], (p, c) => ["item", "bt", ...(c ? ["live"] : p ? [] : ["dim"])])
   const label = createComputed([powered, connected], (p, c) => (c ? "on" : p ? "idle" : "off"))
+  const act = async (d: Bluetooth.Device) => {
+    try {
+      if (d.connected) await (d as any).disconnect_device()
+      else await (d as any).connect_device()
+    } catch (e) { console.error("bluetooth:", String(e)) }
+  }
+  const scan = () => {
+    const a = bt.adapter
+    if (!a) return
+    try { a.discovering ? a.stop_discovery() : a.start_discovery() } catch (e) { console.error("bluetooth:", String(e)) }
+  }
+  const pair = (d: Bluetooth.Device) => {
+    try { d.pair(); d.trusted = true } catch (e) { console.error("bluetooth:", String(e)) }
+  }
 
   return (
     <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT}>
@@ -102,29 +123,40 @@ function Bt() {
         <Panel title="BLUETOOTH" spacing={2}>
           <box cssClasses={["row", "head"]} spacing={8}>
             <label label={powered((p) => (p ? "powered" : "off"))} hexpand xalign={0} />
+            <button cssClasses={discovering((d) => ["act", ...(d ? ["green"] : [])])} onClicked={scan} visible={powered}>
+              <label label={discovering((d) => (d ? "scanning…" : "scan"))} />
+            </button>
             <button cssClasses={["act"]} onClicked={() => bt.toggle()}>
               <label label={powered((p) => (p ? "off" : "on"))} />
             </button>
           </box>
           <RuleH />
-          <For each={devices}>
+          <For each={known}>
             {(d: Bluetooth.Device) => (
-              <button
-                cssClasses={createBinding(d, "connected")((c) => ["row", ...(c ? ["chip"] : [])])}
-                onClicked={() =>
-                  (d.connected ? d.disconnect_device() : d.connect_device()).catch(console.error)
-                }
-              >
+              <button cssClasses={createBinding(d, "connected")((c) => ["row", ...(c ? ["chip"] : [])])} onClicked={() => act(d)}>
                 <box spacing={8}>
                   <label label={createBinding(d, "alias")} hexpand xalign={0} />
-                  <label
-                    cssClasses={["dim"]}
-                    label={createBinding(d, "batteryPercentage")((b) => (b > 0 ? `${Math.round(b * 100)}%` : ""))}
-                  />
+                  <label cssClasses={["dim", "sm"]} label={createBinding(d, "connecting")((c) => (c ? "connecting…" : ""))} />
+                  <label cssClasses={["dim"]} label={createBinding(d, "batteryPercentage")((b) => (b > 0 ? `${Math.round(b * 100)}%` : ""))} />
                 </box>
               </button>
             )}
           </For>
+          <label cssClasses={["dim", "sm"]} label="no paired devices" visible={known((k) => k.length === 0)} xalign={0} />
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={found((f) => f.length > 0)}>
+            <RuleH />
+            <label cssClasses={["k", "sm"]} label="nearby · click to pair" xalign={0} />
+            <For each={found}>
+              {(d: Bluetooth.Device) => (
+                <button cssClasses={["row"]} onClicked={() => pair(d)}>
+                  <box spacing={8}>
+                    <label label={createBinding(d, "alias")((a) => a || d.name || d.address)} hexpand xalign={0} />
+                    <label cssClasses={["dim", "sm"]} label={createBinding(d, "rssi")((r) => (r ? `${r} dBm` : ""))} />
+                  </box>
+                </button>
+              )}
+            </For>
+          </box>
         </Panel>
       </popover>
     </menubutton>

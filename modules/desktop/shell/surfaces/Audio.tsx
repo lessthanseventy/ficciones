@@ -73,8 +73,10 @@ function Stream({ st, speakers }: { st: Wp.Stream; speakers: () => Wp.Endpoint[]
 export default function Audio() {
   const wp = Wp.get_default()!
   const audio = wp.audio
-  const speakers = createBinding(audio, "speakers")
-  const mics = createBinding(audio, "microphones")
+  // sorted by (cleaned) name with numeric collation, so HDMI 1/2/3 sit in order
+  const byName = (a: Wp.Endpoint, b: Wp.Endpoint) => clean(a.description ?? "").localeCompare(clean(b.description ?? ""), undefined, { numeric: true })
+  const speakers = createBinding(audio, "speakers")((s) => [...s].sort(byName))
+  const mics = createBinding(audio, "microphones")((s) => [...s].sort(byName))
   const streams = createBinding(audio, "streams")
   // The default-speaker endpoint object is stable across default changes in AstalWp (it is
   // the "default" pseudo-node), so bind its fields rather than the object.
