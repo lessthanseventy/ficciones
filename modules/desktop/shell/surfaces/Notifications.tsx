@@ -15,6 +15,7 @@ import { For, createState, createComputed, createBinding, onCleanup, type Access
 import { hubOpen } from "./Hub"
 import { timeout, type Timer } from "ags/time"
 import { Panel } from "../lib/tui"
+import { isFullscreen, fullscreenMonitors } from "../lib/hypr"
 
 const DEFAULT_MS = 6000
 const MAX_TOASTS = 5
@@ -115,10 +116,13 @@ export default function Notifications() {
   notifd.connect("notified", (_, id) => {
     const n = notifd.get_notification(id)
     if (!n || notifd.dontDisturb) return
-    // toasts follow the pointer's monitor
-    const name = Hyprland.get_default().focusedMonitor?.name
+    // toasts follow the pointer's monitor — unless a film is on it: then the other monitor,
+    // or none at all (the notice still lands in the hub's history)
+    const focused = Hyprland.get_default().focusedMonitor?.name
+    const name = isFullscreen(focused) ? Hyprland.get_default().get_monitors().map((m) => m.name).find((m) => !isFullscreen(m)) : focused
     const mon = app.get_monitors().find((m) => m.connector === name)
-    if (mon) win.gdkmonitor = mon
+    if (!mon) return
+    win.gdkmonitor = mon
     setList((l) => [n, ...l.filter((x) => x.id !== id)])
   })
   notifd.connect("resolved", (_, id) => setList((l) => l.filter((x) => x.id !== id)))
@@ -127,7 +131,8 @@ export default function Notifications() {
   return (
     <window
       $={(self) => (win = self)}
-      visible={createComputed([list, hubOpen], (l, h) => l.length > 0 && !h)}
+      // a film starting under a toast hides it too
+      visible={createComputed([list, hubOpen, fullscreenMonitors], (l, h, fs) => l.length > 0 && !h && !fs.has(win?.gdkmonitor?.connector ?? ""))}
       cssClasses={["notifications"]}
       namespace="astal-shell-notifications"
       name="notifications"
