@@ -35,3 +35,9 @@ column as work lands.
 - `mise shell:check`'s `ags types` step needs the network (npx) → fails in the sandbox; `ags bundle` alone is the hard gate.
 - Sandbox has a PID namespace + blocks the Hyprland socket: live checks (pgrep gjs, hyprctl, grim, ags request) need the sandbox off.
 - Live loop used: `pkill -x gjs; nohup ags run app.tsx &` from modules/desktop/shell, then `ags request -i astal-shell toggle dashboard`, `grim -o DP-2`.
+
+## State at the end of the session (2026-09-05 ~22:45)
+- Every item above is committed on `astal-shell` (18 commits this round). The LIVE shell is `ags run app.tsx` from the working tree (source build), not the store package — a `home:switch` + "restart shell" puts the store build back in charge.
+- Untested by eye: sidecar drag (S1), the workspace thumbnail strip on hover (S6), the paper palette live (P1), the floorp site rules (P2 — lands on home:switch; open github/claude.ai afterwards).
+- Not run this round: `mise flake:check` / `home:switch` (the machine gate). palette-sync check IS green. Run flake:check before calling the round done.
+- Rail's Drawer/WeatherPop windows are gone; `astal-shell toggle drawer` / `show drawer calendar` now pop the calendar off the clock on the focused monitor.
