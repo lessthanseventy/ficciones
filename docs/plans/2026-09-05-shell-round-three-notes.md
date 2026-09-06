@@ -13,7 +13,7 @@ column as work lands.
 | D3 | TODAY card: missed notifications + khal agenda + agents awaiting, one "needs me" list | done | panes/Today.tsx; agenda exported from Calendar |
 | D4 | JOURNAL card: last few journalctl lines at warning+ | done | lib/journal.ts panes/Journal.tsx (6 lines, sys+user) |
 | D5 | WORKSPACES overview card: every ws with window icons, click to jump | done | panes/Workspaces.tsx; WindowStrip reusable for S3; lib/icons.ts |
-| S1 | sidecar width by drag (grab handle on the zone's right edge) | todo | |
+| S1 | sidecar width by drag (grab handle on the zone's right edge) | done, UNTESTED live (would have unpinned Andrew's window mid-use) | lib/sidecar.ts makeHandle/resize; drag reads Hyprland cursorpos, not widget offsets |
 | S2 | OSD for volume/brightness — Andrew (mid-session): WANTED, and MORE prominent than a thin meter (headphone buttons change volume unseen); scroll on the rail's volume icon changes volume; a slider move in the popover SKIPS the OSD | done | surfaces/Osd.tsx; quietOsd() from Audio slider/mute + Backlight; Tray Vol scroll caps at 100% |
 | S3 | hover-open on rail workspace numbers → strip of that ws's windows | done | Rail ws → menubutton + WorkspacePop (panes/Workspaces.tsx); hover untested live (movecursor moves his mouse) |
 | S4 | notification actions inline on toasts | done | actions already rendered; now outlined green buttons; verified with notify-send -A |
