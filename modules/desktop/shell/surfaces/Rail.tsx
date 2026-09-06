@@ -4,7 +4,7 @@ import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import GLib from "gi://GLib?version=2.0"
-import { For, onCleanup, createComputed } from "ags"
+import { For, onCleanup, createComputed, type Accessor } from "ags"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
@@ -12,7 +12,11 @@ import { RuleH, Panel } from "../lib/tui"
 import { toggleWeather, showWeather, hideWeather, weatherOpen, weatherCard } from "./WeatherPop"
 import { hoverPopover, hoverPanel } from "../lib/hover"
 import TrayPane from "./Tray"
-import { toggleLauncher } from "./Launcher"
+import { toggleCheatsheet } from "./Cheatsheet"
+import { zen, setBackdrop } from "./Backdrop"
+import { glass, toggleGlass } from "../lib/glass"
+import { crt, cycleCrt } from "../lib/crt"
+import { night, toggleNight } from "../lib/night"
 import { toggleDrawer, showDrawer, hideDrawer, drawerOpen, drawerSheet } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
@@ -58,16 +62,39 @@ function Workspaces({ connector }: { connector: string }) {
  * The corner where the rail meets the bar: a hrön of the Aleph. In Tlön an object looked for
  * is found twice; here the second aleph is the double a pair of XLRS eyes would see anyway, a
  * few pixels off and dimmer — until you look straight at it, when the two resolve into one.
- * Click = launcher (the point that holds every other point).
+ * Click = the shell's own menu: what is about the shell itself and has no other home.
  */
 function Corner() {
+  const run = (cmd: string[]) => execAsync(cmd).catch(console.error)
+  const onoff = (b: boolean) => (b ? "on" : "off")
+  const items: [string, string | Accessor<string>, () => void][] = [
+    ["\u{f030c}", "keys", () => toggleCheatsheet()],
+    ["\u{f0e13}", zen((z) => `backdrop · ${z ? "zen" : "photo"}`), () => setBackdrop("toggle")],
+    ["\u{f1c3d}", glass((g) => `glass · ${onoff(g)}`), () => toggleGlass()],
+    ["\u{f0379}", crt((c) => `crt · ${c}`), () => cycleCrt()],
+    ["\u{f0594}", night((n) => `night light · ${onoff(n)}`), () => toggleNight()],
+    ["\u{f0450}", "restart shell", () => run(["bash", "-c", "sleep 0.2; pkill -x gjs; sleep 0.3; astal-shell"])],
+    ["\u{f0453}", "reload hyprland", () => run(["hyprctl", "reload"])],
+  ]
   return (
-    <button cssClasses={["corner"]} onClicked={() => toggleLauncher()}>
+    <menubutton cssClasses={["corner"]} direction={Gtk.ArrowType.RIGHT}>
       <overlay>
         <label cssClasses={["hron"]} label={"\u2135"} />
         <label $type="overlay" cssClasses={["aleph"]} label={"\u2135"} />
       </overlay>
-    </button>
+      <popover cssClasses={["pop"]}>
+        <Panel title="\u2135  SHELL" spacing={2}>
+          {items.map(([icon, label, act]) => (
+            <button cssClasses={["row", "powerrow"]} onClicked={act}>
+              <box spacing={10}>
+                <label cssClasses={["icon"]} label={icon} widthChars={2} />
+                <label label={label} xalign={0} hexpand />
+              </box>
+            </button>
+          ))}
+        </Panel>
+      </popover>
+    </menubutton>
   )
 }
 
