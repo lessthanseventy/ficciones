@@ -132,11 +132,14 @@ function startFollowing() {
   following = interval(500, () => {
     if (!sidecars.size) { following?.cancel(); following = null; return }
     if (Date.now() < settleUntil) return
-    let clients: { address: string; size: [number, number] }[] = []
+    let clients: { address: string; size: [number, number]; pinned: boolean; monitor: number; mapped: boolean }[] = []
     try { clients = JSON.parse(query("j/clients")) } catch { return }
     for (const [name, s] of sidecars) {
       const c = clients.find((x) => x.address === `0x${s.address.replace(/^0x/, "")}`)
       if (c && c.size[0] !== s.width) follow(name, c.size[0])
+      // the ring is a layer surface, above every window: while ANOTHER pinned window is up on
+      // this monitor (the quake terminal) it would bleed through, so it hides
+      if (c) s.frame.visible = !clients.some((x) => x.pinned && x.mapped && x.monitor === c.monitor && x.address !== c.address)
     }
   })
 }
