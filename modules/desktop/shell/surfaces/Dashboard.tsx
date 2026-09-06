@@ -9,9 +9,17 @@ import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
+import GLib from "gi://GLib?version=2.0"
+import { createPoll } from "ags/time"
 import { Toggles } from "../panes/Toggles"
 import { toggleCheatsheet } from "./Cheatsheet"
 import { CalendarCard } from "../panes/Calendar"
+import { WeatherCard } from "../panes/Weather"
+import { AgentsCard } from "../panes/Agents"
+import { MediaCard } from "../panes/Media"
+import { METRICS, type Metric } from "../panes/Perf"
+import { tier } from "../lib/perf"
+import { meter, spark } from "../lib/format"
 
 let win: Astal.Window | null = null
 export const dashboardOpen = () => !!win?.visible
@@ -61,6 +69,53 @@ function Shell() {
   )
 }
 
+/** The big clock: time, date, how long the box has been up. */
+function ClockCard() {
+  const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
+  const up = createPoll("", 30_000, () => {
+    try {
+      const [ok, bytes] = GLib.file_get_contents("/proc/uptime")
+      const s = ok ? parseFloat(new TextDecoder().decode(bytes)) : 0
+      const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60)
+      return `up ${d ? `${d}d ` : ""}${h}h ${m}m`
+    } catch { return "" }
+  })
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={2} valign={Gtk.Align.CENTER}>
+      <label cssClasses={["bigtime"]} label={now((d) => d.format("%H:%M")!)} xalign={0} />
+      <label cssClasses={["amber", "lg"]} label={now((d) => d.format("%A")!)} xalign={0} />
+      <label cssClasses={["dim"]} label={now((d) => d.format("%-d %B %Y")!)} xalign={0} />
+      <label cssClasses={["dim", "sm"]} label={up} xalign={0} />
+      <label cssClasses={["faint", "sm"]} label={GLib.get_host_name()} xalign={0} />
+    </box>
+  )
+}
+
+/** One gauge: KEY, number, a meter, a sparkline, the detail line — coloured by load. */
+function Gauge({ m }: { m: Metric }) {
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} cssClasses={m.frac((f) => ["gauge", tier(f)])} spacing={2} hexpand visible={m.ok ?? true}>
+      <box spacing={10}>
+        <label cssClasses={["k", "lg"]} label={m.key} xalign={0} />
+        <label cssClasses={["num", "lg"]} label={m.num} xalign={1} hexpand />
+      </box>
+      <label cssClasses={["bar"]} label={m.frac((f) => meter(f, 24))} xalign={0} />
+      <label cssClasses={["spark"]} label={m.hist((h) => spark(h, 24))} xalign={0} />
+      <label cssClasses={["dim", "sm"]} label={m.detail} xalign={0} />
+    </box>
+  )
+}
+
+function PerfCard() {
+  const [cpu, ram, gpu, net] = METRICS
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
+      <box spacing={24} homogeneous><Gauge m={cpu} /><Gauge m={ram} /></box>
+      <box spacing={24} homogeneous><Gauge m={gpu} /><Gauge m={net} /></box>
+    </box>
+  )
+}
+
 export default function Dashboard() {
   return (
     <window
@@ -82,7 +137,7 @@ export default function Dashboard() {
       application={app}
       visible={false}
     >
-      {/* the field is the click-away; the board sits in it with a margin on every side — most of the screen, not all */}
+      {/* the field is the click-away; the board sits in it with desktop showing round it */}
       <overlay>
         <box
           cssClasses={["clickaway-field"]}
@@ -94,14 +149,21 @@ export default function Dashboard() {
             self.add_controller(g)
           }}
         />
-        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={12} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={48} marginBottom={64} marginStart={48} marginEnd={96}>
-          <box spacing={12}>
-            <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]} hexpand><Toggles perRow={5} /></Panel>
+        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={4} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={40} marginBottom={56} marginStart={40} marginEnd={80}>
+          <box spacing={16}>
+            <Panel title={"\u{f0954}  NOW"} cssClasses={["card", "card-now"]}><ClockCard /></Panel>
+            <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]} hexpand><WeatherCard /></Panel>
             <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><CalendarCard /></Panel>
           </box>
-          <box spacing={12}>
-            <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]} hexpand><Power /></Panel>
-            <Panel title={"ℵ  SHELL"} cssClasses={["card", "card-shell"]} hexpand><Shell /></Panel>
+          <box spacing={16}>
+            <Panel title={"\u{f0e4a}  PERF"} cssClasses={["card", "card-perf"]} hexpand><PerfCard /></Panel>
+            <Panel title={"\u{f06a9}  AGENTS"} cssClasses={["card", "card-agents"]}><AgentsCard /></Panel>
+            <Panel title={"\u{f075a}  MEDIA"} cssClasses={["card", "card-media"]}><MediaCard /></Panel>
+          </box>
+          <box spacing={16}>
+            <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]} hexpand><Toggles perRow={5} /></Panel>
+            <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
+            <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
           </box>
           <box vexpand />
           <box cssClasses={["keys"]} spacing={12}>

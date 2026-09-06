@@ -89,17 +89,43 @@ window.hub, window.clickaway { background: transparent; }
 // perf popovers
 .cores { color: $amber; font-size: $size-lg; letter-spacing: 1px; }
 
-// the dashboard: the board is a black sheet with a margin of desktop showing round it
+// the dashboard: the board is a black sheet with a margin of desktop showing round it; every
+// card wears its own hue on title AND border, so the sections read as sections, not text
 window.dashboard { background: transparent; }
-.board { background: $bg; border: $rule solid $sep; padding: $sp-2 $sp-3 $sp-3; }
-.board .card { margin-top: $sp-2; }
+.board { background: $bg; border: $rule solid $sep; padding: $sp-2 $sp-4 $sp-3; }
+.board .card { margin-top: $sp-3; }
+.board .card .panel-body { padding: $sp-4 $sp-4 $sp-3; }
+.board .card .panel-title { font-size: $size; padding: 0 $sp-2; }
+@mixin hue($c) { border-color: $c; .panel-title { color: $c; } }
+.card-now      { @include hue($amber); }
+.card-weather  { @include hue($cyan); }
+.card-calendar { @include hue($cyan); }
+.card-perf     { @include hue($green); }
+.card-agents   { @include hue($accent); }
+.card-media    { @include hue($arch-assistant); }
+.card-toggles  { @include hue($amber); }
+.card-power    { @include hue($red); }
+.card-shell    { @include hue($amber); }
+.card-now { min-width: 250px; }
 .card-calendar { min-width: 380px; }
+.card-agents, .card-media { min-width: 360px; }
+.bigtime { color: $amber; font-size: 56px; }
+.lg { font-size: $size-lg; }
+.gauge {
+  min-width: 220px;
+  .bar { font-size: $size-sm; letter-spacing: 0; }
+  .spark { letter-spacing: 0; }
+  &.idle { .num, .bar, .spark { color: $green; } }
+  &.busy { .num, .bar, .spark { color: $amber; } }
+  &.hot  { .num, .bar, .spark { color: $red; } }
+}
 .action {
-  min-height: 72px;
+  min-height: 72px; min-width: 84px;
   background: none; border: $rule solid $sep; border-radius: 0; box-shadow: none;
   .icon { font-size: 26px; color: $amber; }
   .sm { color: $meta; }
   &.red .icon { color: $red; }
   &:hover { background: $chip; .icon, .sm { color: $ink; } }
 }
-.card-toggles .toggle { min-height: 64px; }
+.card-power .action { border-color: rgba($red, 0.5); }
+.card-toggles .toggle { min-height: 64px; min-width: 84px; }
