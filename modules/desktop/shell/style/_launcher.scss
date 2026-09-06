@@ -38,10 +38,6 @@ window.cheatsheet { background: transparent; }
 // zen backdrop
 window.backdrop { background: $bg; }
 window.sidecar-zone { background: transparent; }
-// the sidecar's grab handle: invisible until hovered, then a 2px amber line down the gap
-window.sidecar-handle, window.sidecar-handle > box { background: transparent; }
-.sidecar-handle .grip { background: transparent; }
-.sidecar-handle .grip:hover, .sidecar-handle .grip:active { background: linear-gradient(to right, transparent 5px, $amber 5px, $amber 7px, transparent 7px); }
 .backdrop .grid .gl { color: $amber; font-size: 14px; letter-spacing: 0; min-height: 0; }
 .backdrop .grid.green .gl { color: $green; }
 .backdrop .grid.pink  .gl { color: $accent; }

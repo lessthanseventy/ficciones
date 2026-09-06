@@ -13,6 +13,7 @@ import { popAgents } from "./surfaces/Tray"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, type Theme } from "./lib/theme"
+import { sidecarVerb } from "./lib/sidecar"
 import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
 
@@ -63,6 +64,10 @@ app.start({
       toggleDashboard()
       return res("ok")
     }
+    if (verb === "sidecar") {
+      sidecarVerb(what)
+      return res("ok")
+    }
     if (verb === "theme") {
       setTheme(what && (THEMES as readonly string[]).includes(what) ? (what as Theme) : "toggle")
       return res("ok")
@@ -77,7 +82,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo|babel] | glass [on|off] | theme [amber|paper] | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo|babel] | glass [on|off] | theme [amber|paper] | sidecar [toggle|pin|unpin] | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")

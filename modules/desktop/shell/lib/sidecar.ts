@@ -1,25 +1,30 @@
 // The sidecar: a window pinned to the LEFT of every workspace on its monitor, with the tiled
 // columns of each workspace laid out beside it (Andrew, 2026-09-05). Hyprland only pins floating
 // windows, so pin = float + size to a left column + pin, and the column is held open by an
-// invisible layer-shell window with an EXCLUSIVE zone (layer BOTTOM, so the bar on TOP is
-// arranged first and keeps its full width — `hyprctl keyword monitor addreserved` pushed the bar
-// too). Unpin reverses all of it. One sidecar per monitor.
+// invisible layer-shell window with an exclusive zone on the TOP layer, created after the rail
+// and bar so it is arranged after them (`hyprctl keyword monitor addreserved` pushed the bar
+// too). Unpin reverses all of it. One sidecar per monitor. It should not feel like a special
+// window (Andrew, 2026-09-05): the normal resize keybinds size it and the column follows; what
+// marks it is a thicker border in the accent (per-window setprop — no plugin).
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
-import Gtk from "gi://Gtk?version=4.0"
 import GLib from "gi://GLib?version=2.0"
+import Gtk from "gi://Gtk?version=4.0"
+import LayerShell from "gi://Gtk4LayerShell?version=1.0"
 import { execAsync } from "ags/process"
-import { hypr, addr } from "./hypr"
+import { timeout, interval, type Timer } from "ags/time"
 import { query } from "./hyprsock"
+import { hypr, addr } from "./hypr"
+import { PALETTE } from "./palette"
 
-const WIDTH = 0.34 // of the monitor, until dragged
+const WIDTH = 0.34 // of the monitor, until resized
 const GAP = 12 // general:gaps_out
 const MIN = 0.18, MAX = 0.65
 
 type MonitorJson = { name: string; x: number; y: number; width: number; height: number; reserved: [number, number, number, number] }
-type Sidecar = { address: string; zone: Astal.Window; handle: Astal.Window; col: number; m: MonitorJson }
+type Sidecar = { address: string; zone: Astal.Window; col: number; m: MonitorJson; width: number }
 
 // The dragged width outlives the shell: one line per monitor in the state dir.
 const STATE = `${GLib.get_user_state_dir()}/astal-shell/sidecar-width`
@@ -56,14 +61,20 @@ function makeZone(name: string, width: number): Astal.Window {
     namespace: "astal-shell-sidecar",
     name: `sidecar-${name}`,
     gdkmonitor: gdkMonitor(name),
-    layer: Astal.Layer.BOTTOM,
-    exclusivity: Astal.Exclusivity.EXCLUSIVE,
+    // TOP, like the rail: Hyprland hands out exclusive zones background→overlay, then in order
+    // of creation within a layer, so this comes after the rail and the bar and sits beside them
+    layer: Astal.Layer.TOP,
     anchor: Astal.WindowAnchor.LEFT | Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM,
     cssClasses: ["sidecar-zone"],
-    widthRequest: width,
-    defaultWidth: width,
-    visible: true,
   })
+  // an empty window sizes to GTK's 200px default whatever width-request says: a child fixes the
+  // width, and the exclusive zone is asked for once the surface exists
+  w.set_child(new Gtk.Box({ widthRequest: width, hexpand: true, vexpand: true, canTarget: false }))
+  w.set_size_request(width, -1)
+  w.visible = true
+  // Astal's `exclusivity: EXCLUSIVE` (auto zone) does not take on this window inside the shell
+  // (it does in a bare test app — unexplained, 2026-09-06), so the zone is set explicitly
+  LayerShell.set_exclusive_zone(w, width)
   return w
 }
 
@@ -84,60 +95,67 @@ const placeCmds = (address: string, m: MonitorJson, col: number) => {
 /** Place the pinned window in a column `col` px wide on monitor `m`. */
 const place = (address: string, m: MonitorJson, col: number) => batch(placeCmds(address, m, col))
 
-/**
- * The grab handle: a 12px layer window in the gap right of the column (layer TOP, so it sits
- * over the workspace gap; the zone itself is on BOTTOM under every window). Dragging reads the
- * pointer from Hyprland — the handle moves under the pointer as it drags, so widget-relative
- * offsets would chase themselves.
- */
-function makeHandle(name: string, m: MonitorJson, col: number): Astal.Window {
-  const [rl] = m.reserved
-  const w = new Astal.Window({
-    application: app,
-    namespace: "astal-shell-sidecar-handle",
-    name: `sidecar-handle-${name}`,
-    gdkmonitor: gdkMonitor(name),
-    layer: Astal.Layer.TOP,
-    exclusivity: Astal.Exclusivity.IGNORE,
-    anchor: Astal.WindowAnchor.LEFT | Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM,
-    cssClasses: ["sidecar-handle"],
-    marginLeft: rl + col,
-    widthRequest: GAP,
-    defaultWidth: GAP,
+// AstalHyprland's client size does not update on a resize (no event for it), so while a sidecar
+// exists its size is read over the socket twice a second and the column follows.
+let following: Timer | null = null
+let settleUntil = 0 // our own relayout moves floating windows about; the poll waits it out
+function startFollowing() {
+  if (following) return
+  following = interval(500, () => {
+    if (!sidecars.size) { following?.cancel(); following = null; return }
+    if (Date.now() < settleUntil) return
+    let clients: { address: string; size: [number, number] }[] = []
+    try { clients = JSON.parse(query("j/clients")) } catch { return }
+    for (const [name, s] of sidecars) {
+      const c = clients.find((x) => x.address === `0x${s.address.replace(/^0x/, "")}`)
+      if (c && c.size[0] !== s.width) follow(name, c.size[0])
+    }
   })
-  const grip = new Gtk.Box({ cssClasses: ["grip"], hexpand: true, vexpand: true, cursor: Gdk.Cursor.new_from_name("col-resize", null) })
-  w.set_child(grip)
-  const drag = new Gtk.GestureDrag()
-  let last = 0
-  drag.connect("drag-update", () => {
-    const s = sidecars.get(name)
-    if (!s) return
-    let x = 0
-    try { x = Number(query("cursorpos").split(",")[0]) } catch { return }
-    const frac = Math.max(MIN, Math.min(MAX, (x - m.x - rl - GAP / 2) / m.width))
-    const next = Math.round(frac * m.width)
-    if (Math.abs(next - last) < 6) return
-    last = next
-    resize(name, next)
-  })
-  drag.connect("drag-end", () => {
-    const s = sidecars.get(name)
-    if (s) { widths.set(name, s.col / m.width); saveWidths() }
-  })
-  grip.add_controller(drag)
-  w.visible = true
-  return w
 }
 
-function resize(name: string, col: number) {
+/** The column follows the window: after a resize keybind the zone takes the new width, and the
+ * window is put back on the left edge at that width (clamped — a resize moves it as well). */
+function follow(name: string, width: number) {
   const s = sidecars.get(name)
   if (!s) return
-  s.col = col
-  s.zone.set_size_request(col, -1)
-  s.zone.defaultWidth = col
-  s.handle.marginLeft = s.m.reserved[0] + col
+  const col = Math.max(Math.round(s.m.width * MIN), Math.min(Math.round(s.m.width * MAX), width + GAP))
+  s.width = col - GAP
+  if (col !== s.col) {
+    s.col = col
+    s.zone.set_size_request(col, -1)
+    ;(s.zone.get_child() as Gtk.Box | null)?.set_size_request(col, -1)
+    LayerShell.set_exclusive_zone(s.zone, col)
+    widths.set(name, col / s.m.width); saveWidths()
+    // the tiled columns re-fit on a relayout, which also shoves floating windows about: place
+    // again after it and keep the poll quiet until things settle
+    settleUntil = Date.now() + 1200
+    timeout(80, relayout)
+    timeout(400, () => place(s.address, s.m, col))
+  }
   place(s.address, s.m, col)
 }
+
+/**
+ * The scrolling layout only re-fits its columns to the usable area on a config change, so the
+ * reserved column would sit over the first tiled one until then: re-set gaps_out to itself.
+ */
+async function relayout() {
+  try {
+    const g = JSON.parse(await execAsync(["hyprctl", "getoption", "general:gaps_out", "-j"])).custom as string
+    await execAsync(["hyprctl", "keyword", "general:gaps_out", g])
+    // and the visible columns of the active workspace re-fit beside the column, so the first
+    // tiled one does not hang under it (other workspaces re-fit when you next `fit` there)
+    await execAsync(["hyprctl", "dispatch", "layoutmsg", "fit visible"])
+  } catch (e) { console.error("sidecar relayout:", String(e)) }
+}
+
+const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
+/** The mark of a sidecar: a thicker border in the accent, dim when unfocused. `unset` restores. */
+// setprop is a dispatcher in Hyprland 0.56 (snake_case props, `unset` restores)
+const mark = (a: string, on: boolean) =>
+  batch(on
+    ? [`setprop ${a} border_size 3`, `setprop ${a} active_border_color ${rgb(PALETTE.pink)}`, `setprop ${a} inactive_border_color ${rgb(PALETTE.dim)}`]
+    : [`setprop ${a} border_size unset`, `setprop ${a} active_border_color unset`, `setprop ${a} inactive_border_color unset`])
 
 export const isSidecar = (c: Hyprland.Client) => [...sidecars.values()].some((s) => s.address === c.address)
 
@@ -157,26 +175,42 @@ export async function pinSidecar(c: Hyprland.Client) {
   // a fullscreen or maximised window (hyprscroller's maximise counts) cannot float, and a tiled
   // one cannot pin — Hyprland refused both silently until the batch reported them
   await batch([`fullscreenstate 0 0,${a}`, `setfloating ${a}`, ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [`pin ${a}`])])
-  sidecars.set(name, { address: c.address, zone: makeZone(name, col), handle: makeHandle(name, m, col), col, m })
+  mark(a, true)
+  settleUntil = Date.now() + 1200
+  timeout(80, relayout)
+  timeout(400, () => place(c.address, m, col))
+  sidecars.set(name, { address: c.address, zone: makeZone(name, col), col, m, width: col - GAP })
+  startFollowing()
 }
 
 function drop(name: string) {
   const s = sidecars.get(name)
   if (!s) return
-  s.zone.destroy(); s.handle.destroy(); sidecars.delete(name)
+  const c = hypr.get_client(s.address)
+  if (c) mark(addr(c), false)
+  s.zone.destroy(); sidecars.delete(name)
 }
 
 export async function unpinSidecar(c: Hyprland.Client) {
   const name = c.get_monitor().name
   const a = addr(c)
-  await batch([...(c.pinned ? [`pin ${a}`] : []), `settiled ${a}`])
   const s = sidecars.get(name)
   if (s && s.address === c.address) drop(name)
+  await batch([...(c.pinned ? [`pin ${a}`] : []), `settiled ${a}`])
+  timeout(80, relayout)
 }
 
 export const toggleSidecar = (c: Hyprland.Client) => (isSidecar(c) ? unpinSidecar(c) : pinSidecar(c))
+/** `astal-shell sidecar [toggle|pin|unpin]` on the focused window — for a keybind. */
+export function sidecarVerb(what = "toggle") {
+  const c = hypr.focusedClient
+  if (!c) return
+  if (what === "pin") pinSidecar(c)
+  else if (what === "unpin") unpinSidecar(c)
+  else toggleSidecar(c)
+}
 
 // A sidecar that closes must give its column back.
 hypr.connect("client-removed", (_, address: string) => {
-  for (const [name, s] of sidecars) if (s.address === address) drop(name)
+  for (const [name, s] of sidecars) if (s.address === address) { drop(name); timeout(80, relayout) }
 })
