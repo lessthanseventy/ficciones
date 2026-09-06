@@ -18,7 +18,7 @@ import { METRICS, MetricDetail } from "../panes/Perf"
 import { MediaCard } from "../panes/Media"
 import { Visualiser } from "../lib/cava"
 import { Panel } from "../lib/tui"
-import Apps from "gi://AstalApps"
+import { iconFor } from "../lib/icons"
 import { Stat, RuleV, RuleH } from "../lib/tui"
 import { pct, meter, spark } from "../lib/format"
 import { tier } from "../lib/perf"
@@ -28,13 +28,8 @@ import { tier } from "../lib/perf"
  * class + title, the rest as icons (click focuses). The bar's left half is theirs.
  */
 function Windows({ connector }: { connector: string }) {
-  const apps = new Apps.Apps()
   // This monitor's active workspace, not the globally focused one: two bars, two workspaces.
   const activeWs = () => hypr.get_monitors().find((m) => m.name === connector)?.activeWorkspace
-  const iconFor = (c: Hyprland.Client) => {
-    const q = apps.exact_query(c.class)[0] ?? apps.fuzzy_query(c.class)[0]
-    return q?.iconName ?? "application-x-executable"
-  }
   const clients = createComputed(
     [focusedWorkspace, createBinding(hypr, "clients")],
     (_, cs) => {

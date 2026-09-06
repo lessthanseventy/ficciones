@@ -80,7 +80,7 @@ export function Procs() {
         const p = list((l) => l[i])
         return (
           <box spacing={8} cssClasses={["proc"]} visible={p((x) => !!x)}>
-            <label cssClasses={["sm"]} label={p((x) => x?.comm ?? "")} widthChars={22} xalign={0} ellipsize={3} hexpand />
+            <label cssClasses={["sm"]} label={p((x) => x?.comm ?? "")} widthChars={17} xalign={0} ellipsize={3} hexpand />
             <label cssClasses={["dim", "sm"]} label={p((x) => (x ? String(x.pid) : ""))} widthChars={7} xalign={1} />
             <label cssClasses={by((b) => [b === "cpu" ? "amber" : "dim", "sm"])} label={p((x) => (x ? `${x.cpu.toFixed(1)}%` : ""))} widthChars={6} xalign={1} />
             <label cssClasses={by((b) => [b === "mem" ? "amber" : "dim", "sm"])} label={p((x) => (x ? `${x.mem.toFixed(1)}%` : ""))} widthChars={6} xalign={1} />

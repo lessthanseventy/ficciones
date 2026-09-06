@@ -6,7 +6,7 @@ import { execAsync } from "ags/process"
 export type Proc = { pid: number; cpu: number; mem: number; comm: string }
 
 /** ROWS rows: the popovers show six, the dashboard's list all of them. */
-export const ROWS = 12
+export const ROWS = 10
 
 async function ps(sort: string): Promise<Proc[]> {
   try {

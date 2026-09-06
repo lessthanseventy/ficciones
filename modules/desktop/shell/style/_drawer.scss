@@ -93,8 +93,15 @@ window.hub, window.clickaway { background: transparent; }
 // card wears its own hue on title AND border, so the sections read as sections, not text
 window.dashboard { background: transparent; }
 .board { background: $bg; border: $rule solid $sep; padding: $sp-2 $sp-4 $sp-3; }
+// the board is the one surface that shows everything at once, so its type steps down a notch
+// (Andrew, 2026-09-05: "shrink the text a notch or two if that lets me see it all")
+.board {
+  * { font-size: 13px; }
+  .sm { font-size: 11px; } .lg { font-size: 16px; } .panel-title { font-size: 13px; }
+  .bigtime { font-size: 52px; } .wx-glyph { font-size: 40px; } .hours .sky { font-size: 15px; } .action .icon { font-size: 16px; }
+}
 .board .card { margin-top: $sp-3; }
-.board .card .panel-body { padding: $sp-4 $sp-4 $sp-3; }
+.board .card .panel-body { padding: $sp-3 $sp-3 $sp-3; }
 .board .card .panel-title { font-size: $size; padding: 0 $sp-2; }
 @mixin hue($c) { border-color: $c; .panel-title { color: $c; } }
 .card-now      { @include hue($amber); }
@@ -106,9 +113,27 @@ window.dashboard { background: transparent; }
 .card-toggles  { @include hue($amber); }
 .card-power    { @include hue($red); }
 .card-shell    { @include hue($amber); }
-.card-now { min-width: 250px; }
+.card-today    { @include hue($accent); }
+.card-disk     { @include hue($amber); }
+.card-net      { @include hue($cyan); }
+.card-journal  { @include hue($red); }
+.card-workspaces { @include hue($arch-assistant); }
+.card-today { min-width: 380px; }
+.card-disk, .card-net { min-width: 380px; }
+.mount {
+  .bar { letter-spacing: 0; }
+  &.idle { .bar, .num { color: $green; } }
+  &.busy { .bar, .num { color: $amber; } }
+  &.hot  { .bar, .num { color: $red; } }
+}
+.today-row { min-height: 24px; padding: 0 $sp-1; &:disabled { opacity: 1; } }
+.journal label { min-height: 22px; }
+.ws-row { min-height: 24px; }
+.ws-num { min-width: 26px; padding: 0 2px; label { color: $meta; } &.chip label { color: $ink; } }
+.strip-win { padding: 2px; &.focused { background: $hover; } &:hover { background: $pressed; } }
+.card-now, .card-workspaces { min-width: 250px; }
 .card-calendar { min-width: 380px; }
-.card-agents, .card-media { min-width: 360px; }
+.card-agents, .card-media { min-width: 320px; }
 .bigtime { color: $amber; font-size: 56px; }
 .lg { font-size: $size-lg; }
 .gauge {
@@ -120,15 +145,14 @@ window.dashboard { background: transparent; }
   &.hot  { .num, .bar, .spark { color: $red; } }
 }
 .action {
-  min-height: 72px; min-width: 84px;
-  background: none; border: $rule solid $sep; border-radius: 0; box-shadow: none;
-  .icon { font-size: 26px; color: $amber; }
+  min-height: 30px; min-width: 150px; padding: 0 $sp-2;
+  background: none; border: none; border-radius: 0; box-shadow: none;
+  .icon { font-size: $size-lg; color: $amber; }
   .sm { color: $meta; }
   &.red .icon { color: $red; }
   &:hover { background: $chip; .icon, .sm { color: $ink; } }
 }
-.card-power .action { border-color: rgba($red, 0.5); }
-.card-toggles .toggle { min-height: 64px; min-width: 84px; }
+.card-toggles .toggle { min-height: 56px; min-width: 84px; }
 
 // perf card: the core grid and the process table
 .core {

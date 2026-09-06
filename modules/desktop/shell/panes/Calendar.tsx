@@ -11,7 +11,7 @@ import { RuleH } from "../lib/tui"
  * next three days. Until those are set up the card says so — the shell never talks CalDAV
  * itself. Polled every 5 minutes.
  */
-const agenda = createPoll<{ ok: boolean; lines: string[] }>({ ok: false, lines: [] }, 5 * 60_000, async () => {
+export const agenda = createPoll<{ ok: boolean; lines: string[] }>({ ok: false, lines: [] }, 5 * 60_000, async () => {
   try {
     const out = await execAsync(["khal", "list", "--format", "{start-time} {title}", "--day-format", "· {name} {date}", "now", "3d"])
     return { ok: true, lines: out.trim().split("\n").filter(Boolean).slice(0, 12) }
