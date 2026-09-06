@@ -17,12 +17,25 @@ const MODS: [number, string][] = [[64, "Super"], [8, "Alt"], [4, "Ctrl"], [1, "S
 const mods = (m: number) => MODS.filter(([b]) => m & b).map(([, n]) => n).join("+")
 const keyName = (k: string) => k.replace(/^mouse:272$/, "LMB").replace(/^mouse:273$/, "RMB").replace(/^XF86Audio/, "").replace(/^XF86MonBrightness/, "Brightness").replace(/^code:/, "#")
 
+/** The shell's own verbs, in words. */
+const SHELL_WORDS: Record<string, string> = {
+  "toggle launcher": "launcher", "toggle clipboard": "clipboard", "toggle cheatsheet": "this sheet",
+  "toggle drawer": "calendar", "toggle hub": "notifications", "toggle dashboard": "dashboard",
+  "toggle weather": "weather", "show drawer agents": "agents", "show drawer calendar": "calendar",
+  "backdrop": "backdrop: next mode", "theme": "light / dark", "crt": "crt scanlines", "glass": "glass",
+  "sidecar toggle": "pin as sidecar", "colresize -0.05": "column narrower", "colresize +0.05": "column wider",
+}
+
 /** A readable line for a dispatcher + arg; the description wins when the config sets one. */
 function what(b: Bind): string {
   if (b.description) return b.description
   const a = b.arg.trim()
   switch (b.dispatcher) {
-    case "exec": return a.replace(/^bash -c ['"]?/, "").replace(/^astal-shell /, "shell: ").slice(0, 34)
+    case "exec": {
+      const m = a.match(/^astal-shell\s+(.*)$/)
+      if (m) return SHELL_WORDS[m[1].trim()] ?? `shell: ${m[1]}`.slice(0, 34)
+      return a.replace(/^bash -c ['"]?/, "").slice(0, 34)
+    }
     case "workspace": return `workspace ${a}`
     case "movetoworkspace": case "movetoworkspacesilent": return `move to ws ${a}`
     case "movefocus": return `focus ${a}`
@@ -37,6 +50,7 @@ function what(b: Bind): string {
 
 function group(b: Bind): string {
   if (b.mouse) return "mouse"
+  if (b.dispatcher === "exec" && /sidecar|colresize/.test(b.arg)) return "move & size"
   if (b.dispatcher === "exec") return "launch"
   if (/workspace/.test(b.dispatcher)) return "workspaces"
   if (/focus|cycle/.test(b.dispatcher)) return "focus"
