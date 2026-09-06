@@ -356,7 +356,9 @@ rec {
     + lib.replaceStrings [ "@ROOT_DARK@" "@FONT_STACK@" ] [ floorpRootDark fontStack ]
       (fill (builtins.readFile (./templates/floorp + "/${name}")) templateSubs);
   floorpUserChrome = floorpFile "userChrome.css";
-  floorpUserContent = floorpFile "userContent.css";
+  # the sites too, not just the chrome: floorp-sites.nix appends @-moz-document blocks
+  floorpUserContent = floorpFile "userContent.css" + "\n/* ---- sites (floorp-sites.nix) ---- */\n"
+    + import ./floorp-sites.nix { inherit hex h fontStack; };
 
   # ---- hyprland / hyprlock -------------------------------------------------------------
   # Sourced by hyprland.conf (and required by hyprland.lua): only the colours live here.
