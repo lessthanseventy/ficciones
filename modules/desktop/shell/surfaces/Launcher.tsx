@@ -56,7 +56,7 @@ async function search(q: string) {
       if (!body) {
         // the empty prompt: what Funes remembers, across modes, then the apps by frecency
         const seen = new Set<string>()
-        out = recent(8, ["apps", "shell", "files", "calc"]).map(recall).filter((x): x is Item => !!x && seen.add(`${x.mode}:${x.key}`))
+        out = recent(8, ["apps", "shell", "files", "calc"]).map(recall).filter((x): x is Item => { if (!x) return false; seen.add(`${x.mode}:${x.key}`); return true })
         for (const a of [...apps.get_list()].sort((a, b) => score("apps", b.entry) - score("apps", a.entry)).slice(0, 12 - out.length)) {
           if (seen.has(`apps:${a.entry}`)) continue
           out.push({ icon: a.iconName || "application-x-executable", title: a.name, sub: a.description ?? "", key: a.entry, mode: "apps", run: () => { a.launch() } })

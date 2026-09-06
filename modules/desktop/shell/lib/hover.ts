@@ -65,9 +65,9 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   // a keybind opens without the pointer: it closes on the next toggle, or once the pointer
   // has visited and left
   return {
-    toggle: () => (mb.popover.visible ? me.close() : show()),
+    toggle: () => (mb.popover?.visible ? me.close() : show()),
     close: me.close,
-    open: () => mb.popover.visible,
+    open: () => !!mb.popover?.visible,
   }
 }
 export type HoverPop = ReturnType<typeof hoverPopover>

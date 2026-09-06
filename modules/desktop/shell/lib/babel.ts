@@ -152,7 +152,7 @@ export class Babel {
       let s = "", run = "", runHue: string | null = null
       const flush = () => { if (run) s += runHue ? `<span foreground="${runHue}">${esc(run)}</span>` : esc(run); run = "" }
       for (let x = 0; x < cols; x++) {
-        const h = row[x] === " " ? runHue : hue[y][x]
+        const h: string | null = row[x] === " " ? runHue : hue[y][x]
         if (h !== runHue) { flush(); runHue = h }
         run += row[x]
       }
