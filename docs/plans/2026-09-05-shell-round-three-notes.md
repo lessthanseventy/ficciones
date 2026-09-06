@@ -20,7 +20,8 @@ column as work lands.
 | S5 | (mid-session ask) battery cell click-to-open + wheel = brightness/gamma | done | lib/brightness.ts; OSD hooks gamma via onGammaChange |
 | P1 | "paper" light palette variant; `astal-shell theme paper` reruns home:switch in bg | done (paper values UNSEEN live — switching reruns home:switch for minutes; Andrew to try `astal-shell theme paper`) | theme/palette.nix selector + current + palettes/{amber,paper}.nix; shell lib/theme.ts |
 | P2 | floorp userContent rules for lived-in sites from the palette | todo | |
-| S6 | (mid-session ask) workspace hover strip = real window thumbnails, only after a LONG hover | todo | grim -g per window on workspace switch → cache; hidden workspaces show their last capture |
+| S6 | (mid-session ask) workspace hover strip = real window thumbnails, only after a LONG hover | done | lib/thumbs.ts (jpeg, ~/.cache/astal-shell/thumbs), hoverPopover dwell 900ms; strip unseen live (needs a real hover) |
+| S7 | (mid-session ask) popover arrow+gap universal: clock/calendar + weather as rail popovers | done | Drawer.tsx + WeatherPop.tsx DELETED; drawer j/k nav gone with them (was vestigial); keybinds pop on the focused monitor's rail; palette-sync check green |
 | B1 | Library of Babel zen mode: hexagonal cells of drifting amber text, real book fragments | todo | |
 | B2 | Funes launcher: frecency ranking of everything typed | todo | |
 
