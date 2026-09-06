@@ -359,7 +359,7 @@ bind(M .. " + Slash", exec("astal-shell toggle launcher"))
 bind(M .. " + SHIFT + Slash", exec("astal-shell toggle cheatsheet"))
 bind(M .. " + SHIFT + C", exec("astal-shell crt"))
 bind(M .. " + SHIFT + Z", exec("astal-shell backdrop"))
--- light/dark: zahir / aleph, live — ~/.config/ficciones/theme repoints, the shell restyles itself
+-- light/dark: zahir / uqbar, live — ~/.config/ficciones/theme repoints, the shell restyles itself
 bind(M .. " + SHIFT + P", exec("astal-shell theme"))
 bind(M .. " + SHIFT + T", exec("astal-shell glass"))
 bind(M .. " + SHIFT + W", exec("astal-shell toggle weather"))

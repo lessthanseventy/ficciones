@@ -1,5 +1,5 @@
-# ALEPH: the dark palette — the point in the cellar that holds everything, black with all the
-# light inside it. The one palette + the one font, as data. Every themed surface on the machine — the astal
+# UQBAR: the dark palette — the country that exists in a single copy of the encyclopedia, found
+# by lamplight. The one palette + the one font, as data. Every themed surface on the machine — the astal
 # shell, Console.Style, ghostty, GTK, Qt, btop, floorp, hyprland, hyprlock, lazygit, bat, fzf,
 # cava, tmux — is GENERATED from this file (render.nix); nothing else carries a hex value.
 # Plan doc §5b. Rule (Andrew, 2026-09-05): body text amber on black; cyan for keys/labels,

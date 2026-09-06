@@ -1,6 +1,6 @@
-// The live theme: aleph (dark) or zahir (light). home-manager renders every surface for both
+// The live theme: uqbar (dark) or zahir (light). home-manager renders every surface for both
 // under ~/.config/ficciones/themes/<name>/ and each app's fixed path is a link through
-// ~/.config/ficciones/theme — the one mutable link. `astal-shell theme [aleph|zahir|toggle]`
+// ~/.config/ficciones/theme — the one mutable link. `astal-shell theme [uqbar|zahir|toggle]`
 // (Super+Shift+P, the toggles card) repoints it, swaps the shell's own stylesheet and Pango
 // palette in place, reloads Hyprland, and asks GTK for the matching light/dark scheme. Under a
 // second, no nix. Apps that only read their config at start (GTK apps already open, Qt, Floorp)
@@ -12,7 +12,7 @@ import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { PALETTE } from "./palette"
 
-export const THEMES = ["aleph", "zahir"] as const
+export const THEMES = ["uqbar", "zahir"] as const
 export type Theme = (typeof THEMES)[number]
 const DIR = `${GLib.get_user_config_dir()}/ficciones`
 const LINK = `${DIR}/theme`
@@ -20,8 +20,8 @@ const LINK = `${DIR}/theme`
 export function currentTheme(): Theme {
   try {
     const t = GLib.path_get_basename(Gio.File.new_for_path(LINK).query_info("standard::symlink-target", Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null).get_symlink_target() ?? "")
-    return (THEMES as readonly string[]).includes(t) ? (t as Theme) : "aleph"
-  } catch { return "aleph" }
+    return (THEMES as readonly string[]).includes(t) ? (t as Theme) : "uqbar"
+  } catch { return "uqbar" }
 }
 
 export const [theme, setThemeState] = createState<Theme>(currentTheme())
@@ -40,7 +40,7 @@ export function applyShellTheme() {
 }
 
 export function setTheme(t: Theme | "toggle") {
-  const next: Theme = t === "toggle" ? (currentTheme() === "aleph" ? "zahir" : "aleph") : t
+  const next: Theme = t === "toggle" ? (currentTheme() === "uqbar" ? "zahir" : "uqbar") : t
   if (!Gio.File.new_for_path(`${DIR}/themes/${next}`).query_exists(null)) {
     execAsync(["notify-send", "-u", "critical", "-a", "astal-shell", `theme ${next}`, `${DIR}/themes/${next} is not there — home:switch first`]).catch(console.error)
     return
@@ -63,7 +63,8 @@ export function setTheme(t: Theme | "toggle") {
   Promise.allSettled([
     execAsync(["hyprctl", "reload"]),
     execAsync(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme]),
-    // ghostty re-reads its config on SIGUSR2; every other app follows on its next launch
-    execAsync(["pkill", "-USR2", "-x", "ghostty"]),
+    // ghostty re-reads its config on SIGUSR2 but leaves open surfaces alone (1.3), so they are
+    // recoloured through OSC 10/11/4 on their ptys; every other app follows on its next launch
+    execAsync(["pkill", "-USR2", "-x", "ghostty"]).then(() => execAsync([`${GLib.get_home_dir()}/.local/bin/ficciones-recolor`])),
   ]).finally(() => setSwitching(false))
 }

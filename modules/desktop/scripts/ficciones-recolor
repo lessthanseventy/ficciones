@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Recolour every open ghostty surface to the live theme (~/.config/ficciones/theme) through the
+# OSC 10/11/12/4 sequences, written to each ghostty child's pty — a config reload does not touch
+# surfaces that are already up (ghostty 1.3). tmux clients pass them on to the outer terminal.
+theme="${XDG_CONFIG_HOME:-$HOME/.config}/ficciones/theme/ghostty-theme"
+[ -r "$theme" ] || exit 0
+bg=$(sed -n 's/^background = //p' "$theme"); fg=$(sed -n 's/^foreground = //p' "$theme"); cur=$(sed -n 's/^cursor-color = //p' "$theme")
+seq=$(printf '\033]11;%s\007\033]10;%s\007\033]12;%s\007' "$bg" "$fg" "$cur")
+while IFS='=' read -r n c; do seq+=$(printf '\033]4;%s;%s\007' "$n" "$c"); done < <(sed -n 's/^palette = //p' "$theme")
+for g in $(pgrep -x ghostty); do
+  for child in $(pgrep -P "$g"); do
+    tty=$(ps -o tty= -p "$child" 2>/dev/null | tr -d ' ')
+    [ -n "$tty" ] && [ "$tty" != "?" ] && printf '%s' "$seq" > "/dev/$tty" 2>/dev/null
+  done
+done

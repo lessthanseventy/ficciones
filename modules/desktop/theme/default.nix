@@ -14,12 +14,12 @@ let
   render = import ./render.nix { inherit lib palette; };
   tpl = name: builtins.readFile (./templates + "/${name}");
 
-  # BOTH palettes rendered at install (2026-09-06): every surface has an aleph (dark) and a zahir (light) copy
+  # BOTH palettes rendered at install (2026-09-06): every surface has an uqbar (dark) and a zahir (light) copy
   # under ~/.config/ficciones/themes/<name>/, each app's fixed path is a symlink through
   # ~/.config/ficciones/theme (the one mutable link, made on activation if missing), and the
   # toggle repoints it — no nix, under a second. `palette.nix`/`current` remain the build-time
   # default (the checked-in generated files, Console.Palette).
-  palettes = { aleph = import ./palettes/aleph.nix; zahir = import ./palettes/zahir.nix; };
+  palettes = { uqbar = import ./palettes/uqbar.nix; zahir = import ./palettes/zahir.nix; };
   renders = lib.mapAttrs (_: p: import ./render.nix { inherit lib; palette = p; }) palettes;
   envConf =
     "env = GTK_THEME,${cfg.gtkTheme}\n"
@@ -155,7 +155,7 @@ in
 
     # the one mutable link: made once, then owned by the toggle (astal-shell theme / Super+Shift+P)
     home.activation.ficcionesTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      if [ ! -e "${themeDir}" ]; then run ln -sfn themes/aleph "${themeDir}"; fi
+      if [ ! -e "${themeDir}" ]; then run ln -sfn themes/uqbar "${themeDir}"; fi
     '';
 
     # btop rewrites btop.conf on exit, so it stays a real file; only the theme line is ours.
