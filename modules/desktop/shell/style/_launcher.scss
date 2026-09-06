@@ -32,5 +32,5 @@ window.launcher { background: transparent; }
 window.cheatsheet { background: transparent; }
 .sheet-pane { background: $bg; .panel-body { padding: $sp-3; } }
 .columns .col { min-width: 330px; }
-.columns .keys { color: $amber; font-size: $size-sm; }
-.columns .what { color: $meta; font-size: $size-sm; }
+.columns .keys { color: $amber; font-size: 12px; }
+.columns .what { color: $meta; font-size: 12px; }

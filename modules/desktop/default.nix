@@ -60,6 +60,10 @@ in
       "hypr/scripts/launch_hyprland.sh" = linkTo "scripts/launch_hyprland.sh";
       "hypr/scripts/quake-toggle.sh" = linkTo "scripts/quake-toggle.sh";
       "hypr/scripts/shot-region.sh" = linkTo "scripts/shot-region.sh";
+
+      # CRT screen shaders, switched by path (hyprctl keyword decoration:screen_shader …).
+      "hypr/shaders/crt-full.glsl" = linkTo "shaders/crt-full.glsl";
+      "hypr/shaders/crt-subtle.glsl" = linkTo "shaders/crt-subtle.glsl";
     };
 
     # scripts/git-hooks/ holds the hooks (post-checkout/-merge/-rewrite, all one script), so they
