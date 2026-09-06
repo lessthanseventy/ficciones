@@ -25,13 +25,13 @@
 
   # withUWSM: Hyprland no longer starts a systemd session target itself, and the shell's unit
   # binds to graphical-session.target. uwsm owns the session (env export, the target, teardown)
-  # once hyprland.conf runs `uwsm finalize`.
+  # once hyprland.lua runs `uwsm finalize`.
   programs.hyprland = {
     enable = true;
     xwayland.enable = true;
     withUWSM = true;
   };
-  # hyprland.conf's exec-once expects these on PATH; hyprlock/hypridle are never replaced
+  # hyprland.lua's autostart expects these on PATH; hyprlock/hypridle are never replaced
   # by the shell (design §7), ghostty is $TERMINAL there.
   environment.systemPackages = with pkgs; [
     ghostty

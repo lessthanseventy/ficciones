@@ -383,6 +383,36 @@ rec {
         font_family = ${f.family}
     }
   '';
+  # The same, for hyprland.lua (dofile'd as ~/.config/hypr/theme.lua). Env lines are appended by
+  # the home-manager module, which knows the GTK/Qt theme options.
+  hyprlandThemeLua = ''
+    -- ${gen}
+    hl.config({
+        general = {
+            col = {
+                active_border = { colors = { "rgba(${h.amber}ff)", "rgba(${h.ember}ff)" }, angle = 45 },
+                inactive_border = { colors = { "rgba(${h.amberDim}ff)", "rgba(${h.emberDim}ff)" }, angle = 45 },
+            },
+        },
+        group = {
+            col = {
+                border_active = "rgba(${h.amber}ff)",
+                border_inactive = "rgba(${h.amberDim}ff)",
+                border_locked_active = "rgba(${h.pink}ff)",
+                border_locked_inactive = "rgba(${h.sel}ff)",
+            },
+            groupbar = {
+                font_family = "${f.family}",
+                text_color = "rgba(${h.ink}ff)",
+                col = { active = "rgba(${h.chip}ff)", inactive = "rgba(${h.surface3}ff)" },
+            },
+        },
+        misc = {
+            background_color = "rgba(${h.bg}ff)",
+            font_family = "${f.family}",
+        },
+    })
+  '';
   hyprlockConf = ''
     # ${gen}
     general {

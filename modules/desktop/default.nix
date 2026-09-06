@@ -4,7 +4,7 @@
 # extension paths in flake.nix: the real file, not a store snapshot.
 #
 # The price of that: the live compositor reads a file GIT owns, so a checkout is a desktop
-# change. A commit without this directory leaves ~/.config/hypr/hyprland.conf dangling, and
+# change. A commit without this directory leaves ~/.config/hypr/hyprland.lua dangling, and
 # Hyprland answers a missing config by loading built-in defaults — silently, no error. Hence
 # the git hooks below, and hence this module belongs on every branch, not on a feature branch.
 #
@@ -43,7 +43,7 @@ in
     type = lib.types.str;
     default = "ivysaur";
     description = ''
-      Which hypr/hosts/<host>.conf becomes ~/.config/hypr/host.conf: the monitor layout,
+      Which hypr/hosts/<host>.lua becomes ~/.config/hypr/host.lua: the monitor layout,
       persistent workspaces and GPU device order that only make sense on one machine.
     '';
   };
@@ -53,9 +53,14 @@ in
     ficciones.desktop.shell.location = { lat = 38.7977014100912; lon = -104.80787634502575; };
 
     xdg.configFile = {
+      "hypr/hyprland.lua" = linkTo "hyprland.lua";
+      # TRANSITION (2026-09-05): a running Hyprland stays pinned to the config path it started
+      # with, so the .conf (and its host/theme includes) stay linked until the next Hyprland
+      # start picks hyprland.lua. Delete these three lines + hyprland.conf + hosts/*.conf then.
       "hypr/hyprland.conf" = linkTo "hyprland.conf";
-      "hypr/hypridle.conf" = linkTo "hypridle.conf";
       "hypr/host.conf" = linkTo "hosts/${cfg.host}.conf";
+      "hypr/hypridle.conf" = linkTo "hypridle.conf";
+      "hypr/host.lua" = linkTo "hosts/${cfg.host}.lua";
 
       "hypr/scripts/launch_hyprland.sh" = linkTo "scripts/launch_hyprland.sh";
       "hypr/scripts/quake-toggle.sh" = linkTo "scripts/quake-toggle.sh";

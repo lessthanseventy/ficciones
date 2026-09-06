@@ -83,12 +83,17 @@ in
 
       "btop/themes/ficciones.theme".text = render.btopTheme;
 
-      # Hyprland colours (sourced by hyprland.conf / required by hyprland.lua) and the lock screen.
-      "hypr/theme.conf".text =
+      # Hyprland colours (dofile'd by hyprland.lua) and the lock screen.
+      "hypr/theme.conf".text = # TRANSITION, see modules/desktop/default.nix
         render.hyprlandTheme
         + "env = GTK_THEME,${cfg.gtkTheme}\n"
         + "env = QT_QPA_PLATFORMTHEME,${cfg.qtPlatformTheme}\n"
         + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "env = QT_STYLE_OVERRIDE,kvantum\n";
+      "hypr/theme.lua".text =
+        render.hyprlandThemeLua
+        + "hl.env(\"GTK_THEME\", \"${cfg.gtkTheme}\")\n"
+        + "hl.env(\"QT_QPA_PLATFORMTHEME\", \"${cfg.qtPlatformTheme}\")\n"
+        + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "hl.env(\"QT_STYLE_OVERRIDE\", \"kvantum\")\n";
       "hypr/hyprlock.conf".text = render.hyprlockConf;
 
       "lazygit/config.yml".text = render.lazygitConfig (tpl "lazygit.yml");

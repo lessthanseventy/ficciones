@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reload the live Hyprland after any operation that rewrites the working tree.
 #
-# ~/.config/hypr/hyprland.conf is an out-of-store symlink into THIS repo, so the running
+# ~/.config/hypr/hyprland.lua is an out-of-store symlink into THIS repo, so the running
 # compositor reads a file git owns. Two consequences, both silent:
 #
 #   1. A checkout onto a commit without modules/desktop/ (main before this landed, and every
@@ -20,7 +20,7 @@
 set -u
 
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-conf="$root/modules/desktop/hypr/hyprland.conf"
+conf="$root/modules/desktop/hypr/hyprland.lua"
 
 hyprctl="$(command -v hyprctl 2>/dev/null || true)"
 [ -n "$hyprctl" ] || exit 0
@@ -32,7 +32,7 @@ instances=("${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/hypr/*/)
 # Reloading with the file gone is the one thing that must NOT happen: it is precisely what
 # resets the compositor to defaults. Warn instead, and leave the running config alone.
 if [ ! -e "$conf" ]; then
-  echo "hyprland-reload: modules/desktop is not on this commit; ~/.config/hypr/hyprland.conf now dangles." >&2
+  echo "hyprland-reload: modules/desktop is not on this commit; ~/.config/hypr/hyprland.lua now dangles." >&2
   echo "hyprland-reload: the live desktop is untouched, but any reload from here lands on Hyprland defaults." >&2
   echo "hyprland-reload: return to a commit that carries it, then run 'hyprctl reload'." >&2
   exit 0

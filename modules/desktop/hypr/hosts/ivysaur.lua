@@ -1,0 +1,19 @@
+-- ivysaur — the laptop. Hybrid Intel/NVIDIA, eDP-1 + a Samsung 27" on the dock.
+-- GPU selection (Intel first for battery, NVIDIA fallback)
+hl.env("AQ_DRM_DEVICES", "/dev/dri/card2:/dev/dri/card1")
+
+-- Hybrid GPU workarounds — uncomment if stable Hyprland still hangs on page-flip.
+-- hl.env("AQ_NO_MODIFIERS", "1")
+-- hl.env("AQ_MGPU_NO_EXPLICIT", "1")
+
+local external = "desc:Samsung Electric Company LS27D36xG"
+
+hl.monitor({ output = "eDP-1", mode = "1920x1200@59.95", position = "0x0", scale = 1 })
+hl.monitor({ output = external, mode = "preferred", position = "auto", scale = "auto" })
+
+-- Persistent workspaces (eDP-1 owns 1, external owns 2-10)
+hl.workspace_rule({ workspace = "1", monitor = "eDP-1", persistent = true, default = true })
+hl.workspace_rule({ workspace = "2", monitor = external, persistent = true, default = true })
+for i = 3, 10 do
+    hl.workspace_rule({ workspace = tostring(i), monitor = external, persistent = true })
+end
