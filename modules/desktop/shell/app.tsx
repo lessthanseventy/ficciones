@@ -80,7 +80,7 @@ app.start({
       return res("ok")
     }
     if (verb === "sidecar") {
-      sidecarVerb(what)
+      sidecarVerb(what, tab)
       return res("ok")
     }
     if (verb === "theme") {

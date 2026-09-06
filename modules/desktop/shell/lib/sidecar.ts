@@ -139,7 +139,7 @@ function startFollowing() {
       if (c && c.size[0] !== s.width) follow(name, c.size[0])
       // the ring is a layer surface, above every window: while ANOTHER pinned window is up on
       // this monitor (the quake terminal) it would bleed through, so it hides
-      if (c) s.frame.visible = !clients.some((x) => x.pinned && x.mapped && x.monitor === c.monitor && x.address !== c.address)
+      if (c) s.frame.visible = !ringOff && !clients.some((x) => x.pinned && x.mapped && x.monitor === c.monitor && x.address !== c.address)
     }
   })
 }
@@ -278,7 +278,15 @@ export function focusDir(dir: "l" | "r") {
 }
 
 /** `astal-shell sidecar [toggle|pin|unpin]` on the focused window — for a keybind. */
-export function sidecarVerb(what = "toggle") {
+let ringOff = false
+export function sidecarVerb(what = "toggle", arg?: string) {
+  if (what === "ring") {
+    // the quake script: the ring off before its slide, on after; the poll keeps it off while
+    // another pinned window is up regardless
+    ringOff = arg === "off"
+    for (const s of sidecars.values()) s.frame.visible = !ringOff
+    return
+  }
   const c = hypr.focusedClient
   if (!c) return
   if (what === "pin") pinSidecar(c)
