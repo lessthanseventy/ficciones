@@ -51,7 +51,6 @@ function Windows({ connector }: { connector: string }) {
             <menubutton
               cssClasses={focused((f) => ["win", ...(f ? ["focused"] : [])])}
               direction={Gtk.ArrowType.DOWN}
-              tooltipText={title}
               $={(self) => {
                 // Hover opens the popover after a short dwell; a click focuses the window
                 // (Andrew, 2026-09-05). The popover is autohide=false so it takes no grab —
