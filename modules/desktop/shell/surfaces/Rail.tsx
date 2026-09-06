@@ -9,6 +9,7 @@ import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
 import { RuleH } from "../lib/tui"
+import { toggleWeather } from "./WeatherPop"
 import TrayPane from "./Tray"
 import { toggleDrawer } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
@@ -46,20 +47,30 @@ function Workspaces({ connector }: { connector: string }) {
   )
 }
 
-/** Stacked clock with the weather under it: one button, one hover, one job — the panel. */
-function ClockWeather() {
+/** Stacked clock: click opens the info panel. */
+function Clock() {
   const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
-  const g = weather((w) => (w.ok ? glyph(w.code) : "\u{f0590}"))
-  const t = weather((w) => (w.ok ? `${Math.round(w.temp!)}°` : "—"))
-  const cls = weather((w) => ["clock", ...(w.ok ? [] : ["wx-off"])])
   return (
-    <button cssClasses={cls} onClicked={() => toggleDrawer()} tooltipText={weather((w) => w.note ?? "")}>
+    <button cssClasses={["clock"]} onClicked={() => toggleDrawer()}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["hh"]} label={now((d) => d.format("%H")!)} />
         <label cssClasses={["mm"]} label={now((d) => d.format("%M")!)} />
         <label cssClasses={["dow"]} label={now((d) => d.format("%a")!)} />
         <label cssClasses={["day"]} label={now((d) => d.format("%d")!)} />
         <label cssClasses={["mon"]} label={now((d) => d.format("%b")!)} />
+      </box>
+    </button>
+  )
+}
+
+/** Under the clock: the sky and the temperature; click for the whole forecast. */
+function Weather() {
+  const g = weather((w) => (w.ok ? glyph(w.code) : "\u{f0590}"))
+  const t = weather((w) => (w.ok ? `${Math.round(w.temp!)}°` : "—"))
+  const cls = weather((w) => ["item", "wx", ...(w.ok ? [] : ["dim"])])
+  return (
+    <button cssClasses={cls} onClicked={() => toggleWeather()} tooltipText={weather((w) => w.note ?? "")}>
+      <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["g"]} label={g} />
         <label cssClasses={["t"]} label={t} />
       </box>
@@ -101,7 +112,8 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         </box>
         <box $type="center" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
           <Channel side="left" />
-          <ClockWeather />
+          <Clock />
+          <Weather />
           <Channel side="right" />
         </box>
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>

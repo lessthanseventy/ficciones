@@ -6,21 +6,16 @@ import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
-import Mpris from "gi://AstalMpris"
 import { Panel } from "../lib/tui"
 import { timeout } from "ags/time"
 import { PANES, type Pane, focus, setFocus, move } from "../lib/nav"
 import { CalendarCard } from "../panes/Calendar"
-import { MediaCard } from "../panes/Media"
-import { WeatherCard } from "../panes/Weather"
 import { AgentsCard } from "../panes/Agents"
 import { agents } from "../lib/agents"
 import { armClickaway, disarmClickaway } from "./Clickaway"
 
 const cards: Record<Pane, { icon: string; body: () => JSX.Element; rows: () => number }> = {
   CALENDAR: { icon: "\u{f00ed}", body: CalendarCard, rows: () => 0 },
-  MEDIA:    { icon: "\u{f075a}", body: MediaCard, rows: () => Mpris.get_default().get_players().length },
-  WEATHER:  { icon: "\u{f0590}", body: WeatherCard, rows: () => 0 },
   AGENTS:   { icon: "\u{f06a9}", body: AgentsCard, rows: () => agents.get().roster.length },
 }
 
@@ -113,7 +108,7 @@ export default function Drawer() {
         ))}
         <box vexpand />
         <box cssClasses={["keys"]} spacing={12}>
-          <label label="1-4 card" /><label label="Tab next" /><label label="j/k row" /><label label="Esc close" />
+          <label label="1-2 card" /><label label="Tab next" /><label label="j/k row" /><label label="Esc close" />
         </box>
       </box>
       <box

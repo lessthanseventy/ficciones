@@ -2,6 +2,7 @@ import app from "ags/gtk4/app"
 import { createBinding, For, This } from "ags"
 import style from "./style/main.scss"
 import Rail from "./surfaces/Rail"
+import WeatherPop, { toggleWeather } from "./surfaces/WeatherPop"
 import Bar from "./surfaces/Bar"
 import Drawer, { showDrawer, toggleDrawer } from "./surfaces/Drawer"
 import Notifications from "./surfaces/Notifications"
@@ -51,6 +52,10 @@ app.start({
       else cycleCrt()
       return res("ok")
     }
+    if (verb === "toggle" && what === "weather") {
+      toggleWeather()
+      return res("ok")
+    }
     if (verb === "toggle" && what === "hub") {
       toggleHub()
       return res("ok")
@@ -59,13 +64,14 @@ app.start({
       showDrawer(tab?.toUpperCase() as Pane | undefined)
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | show drawer [agents|media|weather|calendar]")
+    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | show drawer [agents|calendar]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
     // gnim cannot nest a <For> inside a fragment, so the drawer is created outright and the
     // per-monitor bars come back as the tree.
     Drawer()
+    WeatherPop()
     Notifications()
     Hub()
     startHotEdge()

@@ -85,11 +85,16 @@ menubutton.cell > button:hover { background: none; }
   label { font-size: $size-sm; color: $meta; }
   .hh, .mm { font-size: 19px; color: $amber; }
   .day { font-size: $size; color: $amber; }
-  .g { font-size: 22px; margin-top: $sp-2; }
-  .t { color: $amber; }
-  &.wx-off .g, &.wx-off .t { color: $meta; }
   &:hover { background: $hover; }
 }
+.item.wx {
+  &:hover { background: $hover; }
+  .g { font-size: 22px; }
+  .t { color: $amber; font-size: $size-sm; }
+  &.dim .g, &.dim .t { color: $meta; }
+}
+popover.mediapop > contents { min-width: 420px; }
+menubutton.cavacell > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; }
 
 .item {
   min-height: $cell-h + 8px;
@@ -131,7 +136,7 @@ popover.pop {
 }
 
 // ── bar: perf + weather + title ────────────────────────────────────────────
-.cava { color: $accent; font-size: $size-lg; letter-spacing: -1px; }
+.cava { color: $green; font-size: $size-lg; letter-spacing: -1px; }
 .cavacell { padding: 0 $sp-1; }
 .volcell .icon { font-size: 19px; }
 .cava-col {

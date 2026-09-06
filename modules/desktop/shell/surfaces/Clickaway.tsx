@@ -20,7 +20,7 @@ export function closeOnPress(widget: Gtk.Widget) {
   g.connect("pressed", (_, n, x, y) => {
     if (!closer) return
     // the clock toggles on its own; closing here too would close-then-reopen
-    for (let t = widget.pick(x, y, Gtk.PickFlags.DEFAULT); t; t = t.get_parent()) if (t.cssClasses.includes("clock")) return
+    for (let t = widget.pick(x, y, Gtk.PickFlags.DEFAULT); t; t = t.get_parent()) if (t.cssClasses.includes("clock") || t.cssClasses.includes("wx")) return
     const c = closer
     disarmClickaway()
     c()

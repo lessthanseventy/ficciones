@@ -13,6 +13,7 @@ import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import Brightness from "gi://AstalBrightness"
 import { METRICS, MetricDetail } from "../panes/Perf"
+import { MediaCard } from "../panes/Media"
 import { Visualiser } from "../lib/cava"
 import { Panel } from "../lib/tui"
 import Apps from "gi://AstalApps"
@@ -232,7 +233,12 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <box>
         <Windows connector={gdkmonitor.connector} />
         <box hexpand />
-        <box cssClasses={["cell", "cavacell"]}><Visualiser /></box>
+        <menubutton cssClasses={["cell", "cavacell", "clickable"]} direction={Gtk.ArrowType.DOWN}>
+          <Visualiser />
+          <popover cssClasses={["pop", "mediapop"]}>
+            <Panel title={"\u{f075a}  MEDIA"} cssClasses={["card", "card-media"]}><MediaCard /></Panel>
+          </popover>
+        </menubutton>
         <PerfCells />
         <Status />
       </box>

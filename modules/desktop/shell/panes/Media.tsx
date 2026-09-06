@@ -3,7 +3,8 @@ import Gtk from "gi://Gtk?version=4.0"
 import Mpris from "gi://AstalMpris"
 import { For, createBinding, createComputed } from "ags"
 import { meter } from "../lib/format"
-import { cursorOf, select } from "../lib/nav"
+import { createState } from "ags"
+const [curSel, setCurSel] = createState(0)
 
 const players = createBinding(Mpris.get_default(), "players")
 
@@ -28,14 +29,14 @@ function Player({ p }: { p: Mpris.Player }) {
 }
 
 export function MediaCard() {
-  const cur = cursorOf("MEDIA")
+  const cur = curSel
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <For each={players}>{(p, i) => <box visible={createComputed([cur, i], (c, idx) => c === idx)}><Player p={p} /></box>}</For>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={players((ps) => ps.length > 1)}>
         <For each={players}>
           {(p, i) => (
-            <button cssClasses={createComputed([cur, i], (c, idx) => ["row", ...(c === idx ? ["chip"] : [])])} onClicked={() => select("MEDIA", i.get())}>
+            <button cssClasses={createComputed([cur, i], (c, idx) => ["row", ...(c === idx ? ["chip"] : [])])} onClicked={() => setCurSel(i.get())}>
               <box spacing={8}>
                 <label label={createBinding(p, "playbackStatus")((s) => (s === Mpris.PlaybackStatus.PLAYING ? "▶" : "⏸"))} />
                 <label label={createBinding(p, "identity")} hexpand xalign={0} />
