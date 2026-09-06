@@ -18,8 +18,9 @@ column as work lands.
 | S3 | hover-open on rail workspace numbers → strip of that ws's windows | done | Rail ws → menubutton + WorkspacePop (panes/Workspaces.tsx); hover untested live (movecursor moves his mouse) |
 | S4 | notification actions inline on toasts | done | actions already rendered; now outlined green buttons; verified with notify-send -A |
 | S5 | (mid-session ask) battery cell click-to-open + wheel = brightness/gamma | done | lib/brightness.ts; OSD hooks gamma via onGammaChange |
-| P1 | "paper" light palette variant; `astal-shell theme paper` reruns home:switch in bg | todo | |
+| P1 | "paper" light palette variant; `astal-shell theme paper` reruns home:switch in bg | done (paper values UNSEEN live — switching reruns home:switch for minutes; Andrew to try `astal-shell theme paper`) | theme/palette.nix selector + current + palettes/{amber,paper}.nix; shell lib/theme.ts |
 | P2 | floorp userContent rules for lived-in sites from the palette | todo | |
+| S6 | (mid-session ask) workspace hover strip = real window thumbnails, only after a LONG hover | todo | grim -g per window on workspace switch → cache; hidden workspaces show their last capture |
 | B1 | Library of Babel zen mode: hexagonal cells of drifting amber text, real book fragments | todo | |
 | B2 | Funes launcher: frecency ranking of everything typed | todo | |
 
