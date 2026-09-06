@@ -8,7 +8,7 @@ import { For, onCleanup, createComputed } from "ags"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
-import { RuleH } from "../lib/tui"
+import { RuleH, Panel } from "../lib/tui"
 import { toggleWeather } from "./WeatherPop"
 import TrayPane from "./Tray"
 import { toggleDrawer } from "./Drawer"
@@ -78,11 +78,32 @@ function Weather() {
   )
 }
 
+/** The power menu. Lock delegates to hyprlock; this shell never draws one (design §5). */
 function Power() {
+  const run = (cmd: string[]) => execAsync(cmd).catch(console.error)
+  const items: [string, string, string[], string[]][] = [
+    ["\u{f033e}", "lock", ["hyprlock"], []],
+    ["\u{f0343}", "logout", ["hyprctl", "dispatch", "exit"], ["red"]],
+    ["\u{f04b2}", "suspend", ["systemctl", "suspend"], []],
+    ["\u{f0709}", "reboot", ["systemctl", "reboot"], ["red"]],
+    ["\u{f0425}", "shutdown", ["systemctl", "poweroff"], ["red"]],
+  ]
   return (
-    <button cssClasses={["power"]} halign={Gtk.Align.CENTER} onClicked={() => execAsync(["hyprctl", "dispatch", "exit"]).catch(console.error)}>
-      <label label="⏻" />
-    </button>
+    <menubutton cssClasses={["item", "power"]} direction={Gtk.ArrowType.RIGHT}>
+      <label cssClasses={["icon"]} label={"\u{f0425}"} />
+      <popover cssClasses={["pop"]}>
+        <Panel title="POWER" spacing={2}>
+          {items.map(([icon, label, cmd, cls]) => (
+            <button cssClasses={["row", "powerrow", ...cls]} onClicked={() => run(cmd)}>
+              <box spacing={10}>
+                <label cssClasses={["icon"]} label={icon} widthChars={2} />
+                <label label={label} xalign={0} hexpand />
+              </box>
+            </button>
+          ))}
+        </Panel>
+      </popover>
+    </menubutton>
   )
 }
 
