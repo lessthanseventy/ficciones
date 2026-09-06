@@ -16,7 +16,7 @@ import { query } from "../lib/hyprsock"
 import { subprocess, execAsync, type Process } from "ags/process"
 import GLib from "gi://GLib?version=2.0"
 import { Panel, RuleH } from "../lib/tui"
-import { NoticeCard } from "./Notifications"
+import { NoticeCard, groups } from "./Notifications"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
 import { zen, setBackdrop } from "./Backdrop"
@@ -24,17 +24,33 @@ import { glass, toggleGlass } from "../lib/glass"
 import { armClickaway, disarmClickaway } from "./Clickaway"
 
 const notifd = Notifd.get_default()
+const PAGE = 40
 
+// The history scrolls, and only a page of groups is in the tree at once: ags's For detaches
+// and reattaches every child on each change, so thousands of wrapped labels was the lag.
 function History() {
-  const all = createBinding(notifd, "notifications")((ns) => [...ns].sort((a, b) => b.time - a.time))
+  const [cap, setCap] = createState(PAGE)
+  const shown = createComputed([groups, cap], (gs, c) => gs.slice(0, c))
+  const rest = createComputed([groups, cap], (gs, c) => Math.max(0, gs.length - c))
+  const head = groups((gs) => {
+    const n = gs.reduce((a, g) => a + g.count, 0)
+    return `${n} ${n === 1 ? "notice" : "notices"}${gs.length < n ? ` · ${gs.length} distinct` : ""}`
+  })
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
       <box spacing={8} cssClasses={["hub-head"]}>
-        <label cssClasses={["k"]} label={all((ns) => `${ns.length} ${ns.length === 1 ? "notice" : "notices"}`)} hexpand xalign={0} />
+        <label cssClasses={["k"]} label={head} hexpand xalign={0} />
         <button cssClasses={["act"]} onClicked={() => notifd.get_notifications().forEach((n) => n.dismiss())}><label label="clear all" /></button>
       </box>
-      <For each={all}>{(n) => <NoticeCard n={n} />}</For>
-      <label cssClasses={["dim"]} label="all quiet" visible={all((ns) => ns.length === 0)} xalign={0} />
+      <scrolledwindow cssClasses={["history"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} propagateNaturalHeight>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+          <For each={shown} id={(g) => g.key}>{(g) => <NoticeCard g={g} />}</For>
+          <button cssClasses={["act", "more"]} visible={rest((r) => r > 0)} onClicked={() => setCap((c) => c + PAGE)}>
+            <label label={rest((r) => `${r} more…`)} />
+          </button>
+        </box>
+      </scrolledwindow>
+      <label cssClasses={["dim"]} label="all quiet" visible={groups((gs) => gs.length === 0)} xalign={0} />
     </box>
   )
 }

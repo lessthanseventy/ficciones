@@ -31,3 +31,8 @@ window.osd { background: transparent; }
   .osd-num { font-size: 26px; color: $amber; }
   &.muted { border-color: $dim; .panel-title, .osd-icon, .osd-bar, .osd-num { color: $dim; } }
 }
+
+// the hub's history scrolls once it outgrows the sheet; the bar is a thin amber rule
+.history { min-height: 0; }
+.history scrollbar { background: transparent; slider { background: $dim; min-width: 4px; border-radius: 0; &:hover { background: $amber; } } }
+.card-notices .more { margin-top: $sp-2; }
