@@ -7,7 +7,7 @@ import Hyprland from "gi://AstalHyprland"
 import Pango from "gi://Pango?version=1.0"
 import Battery from "gi://AstalBattery"
 import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
-import { createPoll } from "ags/time"
+import { createPoll, timeout, type Timer } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
 import PowerProfiles from "gi://AstalPowerProfiles"
@@ -52,6 +52,38 @@ function Windows({ connector }: { connector: string }) {
               cssClasses={focused((f) => ["win", ...(f ? ["focused"] : [])])}
               direction={Gtk.ArrowType.DOWN}
               tooltipText={title}
+              $={(self) => {
+                // Hover opens the popover after a short dwell; a click focuses the window
+                // (Andrew, 2026-09-05). The popover is autohide=false so it takes no grab —
+                // a grab would send the cell a synthetic leave the moment it opened.
+                const pop = self.popover as Gtk.Popover
+                pop.autohide = false
+                const over = new Gtk.EventControllerMotion()
+                const overPop = new Gtk.EventControllerMotion()
+                let dwell: Timer | null = null
+                let grace: Timer | null = null
+                const armClose = () => {
+                  grace?.cancel()
+                  grace = timeout(350, () => {
+                    if (!over.containsPointer && !overPop.containsPointer) self.popdown()
+                  })
+                }
+                over.connect("enter", () => {
+                  grace?.cancel()
+                  dwell?.cancel()
+                  dwell = timeout(250, () => { if (over.containsPointer) self.popup() })
+                })
+                over.connect("leave", () => { dwell?.cancel(); armClose() })
+                overPop.connect("enter", () => grace?.cancel())
+                overPop.connect("leave", armClose)
+                self.add_controller(over)
+                pop.add_controller(overPop)
+                // CAPTURE + claimed: the menubutton never sees the press, so it does not toggle.
+                const click = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
+                click.connect("pressed", () => { click.set_state(Gtk.EventSequenceState.CLAIMED); c.focus(); self.popdown() })
+                self.add_controller(click)
+                onCleanup(() => { dwell?.cancel(); grace?.cancel() })
+              }}
             >
               <box spacing={8}>
                 <image iconName={iconFor(c)} pixelSize={18} />

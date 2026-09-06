@@ -143,6 +143,10 @@ hl.config({
     -- plane — skips the i915 composite+flip path. Added 2026-07-02.
     render = { direct_scanout = 1 },
 
+    -- Never warp the pointer: a focus change (movefocus, the bar's window cells, a new window)
+    -- leaves the mouse where the hand left it (Andrew, 2026-09-05).
+    cursor = { no_warps = true, warp_on_change_workspace = false },
+
     binds = {
         allow_workspace_cycles = false,
         workspace_back_and_forth = false,
