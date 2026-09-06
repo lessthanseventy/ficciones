@@ -11,7 +11,8 @@ import Bluetooth from "gi://AstalBluetooth"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import Hyprland from "gi://AstalHyprland"
 import { For, createBinding, createComputed, createState } from "ags"
-import { timeout, type Timer } from "ags/time"
+import { timeout, interval, type Timer } from "ags/time"
+import { query } from "../lib/hyprsock"
 import { subprocess, execAsync, type Process } from "ags/process"
 import GLib from "gi://GLib?version=2.0"
 import { Panel, RuleH } from "../lib/tui"
@@ -113,30 +114,38 @@ export function toggleHub() {
 }
 
 /**
- * The strip along each monitor's right edge: park the pointer there and the hub slides in
- * on that monitor. The dwell keeps a crossing between monitors from firing it.
+ * The hot edge: the pointer parked within 2px of a monitor's right edge for 400 ms opens the
+ * hub on that monitor. Polled from Hyprland's socket at 5 Hz — a layer surface for the strip
+ * would not shrink below 200px and swallowed clicks.
  */
-export function HotEdge({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
-  let dwell: Timer | null = null
-  const motion = new Gtk.EventControllerMotion()
-  motion.connect("enter", () => { dwell?.cancel(); dwell = timeout(400, () => showHub(gdkmonitor)) })
-  motion.connect("leave", () => { dwell?.cancel(); dwell = null })
-  return (
-    <window
-      $={(self) => self.add_controller(motion)}
-      visible
-      cssClasses={["hotedge"]}
-      namespace="astal-shell-hotedge"
-      name={`hotedge-${gdkmonitor.connector}`}
-      gdkmonitor={gdkmonitor}
-      layer={Astal.Layer.TOP}
-      exclusivity={Astal.Exclusivity.IGNORE}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
-      application={app}
-    >
-      <box widthRequest={3} />
-    </window>
-  )
+export function startHotEdge() {
+  let since = 0
+  let armedFor: string | null = null
+  let away = 0
+  interval(200, () => {
+    let x = 0, y = 0
+    try { [x, y] = query("cursorpos").split(",").map((v) => Number(v.trim())) } catch { return }
+    if (hubWin?.visible) {
+      // open: close once the pointer has been off the hub's monitor-right column for a second
+      since = 0
+      const name = hubWin.gdkmonitor?.connector
+      const m = Hyprland.get_default().get_monitors().find((mm) => mm.name === name)
+      const inside = m ? x >= m.x + m.width - 440 && x < m.x + m.width && y >= m.y && y < m.y + m.height : true
+      if (inside) away = 0
+      else if (!away) away = Date.now()
+      else if (Date.now() - away > 1000) { away = 0; hideHub() }
+      return
+    }
+    away = 0
+    const mon = Hyprland.get_default().get_monitors().find((m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y && y < m.y + m.height)
+    if (!mon) { since = 0; armedFor = null; return }
+    if (armedFor !== mon.name) { armedFor = mon.name; since = Date.now(); return }
+    if (Date.now() - since >= 400) {
+      since = Date.now() + 1e9   // once per visit
+      const g = app.get_monitors().find((m) => m.connector === mon.name)
+      showHub(g)
+    }
+  })
 }
 
 export default function Hub() {

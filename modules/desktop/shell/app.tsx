@@ -5,7 +5,7 @@ import Rail from "./surfaces/Rail"
 import Bar from "./surfaces/Bar"
 import Drawer, { showDrawer, toggleDrawer } from "./surfaces/Drawer"
 import Notifications from "./surfaces/Notifications"
-import Hub, { HotEdge, toggleHub } from "./surfaces/Hub"
+import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Clickaway from "./surfaces/Clickaway"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
@@ -69,6 +69,10 @@ app.start({
     Drawer()
     Notifications()
     Hub()
+    startHotEdge()
+    // Andrew's defaults: glass and the zen backdrop on from login
+    setGlass(true)
+    setBackdrop("zen")
     Launcher()
     Cheatsheet()
     return (
@@ -79,7 +83,6 @@ app.start({
             <Bar gdkmonitor={monitor} />
             <Backdrop gdkmonitor={monitor} />
             <Clickaway gdkmonitor={monitor} />
-            <HotEdge gdkmonitor={monitor} />
           </This>
         )}
       </For>
