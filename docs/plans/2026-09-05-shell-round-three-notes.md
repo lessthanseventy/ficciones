@@ -41,3 +41,10 @@ column as work lands.
 - Untested by eye: sidecar drag (S1), the workspace thumbnail strip on hover (S6), the paper palette live (P1), the floorp site rules (P2 — lands on home:switch; open github/claude.ai afterwards).
 - Not run this round: `mise flake:check` / `home:switch` (the machine gate). palette-sync check IS green. Run flake:check before calling the round done.
 - Rail's Drawer/WeatherPop windows are gone; `astal-shell toggle drawer` / `show drawer calendar` now pop the calendar off the clock on the focused monitor.
+
+## 2026-09-06 00:xx — sidecar rework (Andrew: "feel like the first window on the workspace")
+- Drag handle dropped. Keybind resize → poll `j/clients` every 500ms → zone follows, window re-placed on the left edge.
+- Mark = `dispatch setprop <addr> border_size 3 / active_border_color rgb(pink) / inactive_border_color rgb(dim)`; `unset` restores. (setprop is a DISPATCHER in 0.56; plain `hyprctl setprop` → "unknown request".)
+- Zone: Astal `exclusivity: EXCLUSIVE` reads back 0 inside the shell (works in a bare ags app — unexplained); `Gtk4LayerShell.set_exclusive_zone(w, col)` explicit works. Layer TOP so it is arranged after the rail (BOTTOM got the left strip and shoved the rail right).
+- Scrolling layout only re-fits on a config change: relayout = `keyword general:gaps_out <same>` + `dispatch layoutmsg "fit visible"`, with a 1.2s settle window on the poll (Hyprland nudges floating windows on relayout → fed back → ballooned to MAX once).
+- Verified live on DP-2 with a throwaway ghostty: pin → reserved 714, columns fit beside; resize +200 → reserved 914; unpin → back to 61.
