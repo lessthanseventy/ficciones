@@ -33,11 +33,10 @@ if [ "$ws" != "special:quake" ]; then
 fi
 
 # hidden → show on the focused monitor, pinned, on top, sized, focused
-# below the bar (reserved top), centred between the reserved left (rail, a sidecar) and the right
-read -r mx my mw rl rt rr wsid < <(hyprctl -j monitors | jq -r '.[]|select(.focused)|"\(.x) \(.y) \(.width) \(.reserved[0]) \(.reserved[1]) \(.reserved[2]) \(.activeWorkspace.id)"')
-usable=$(( mw - rl - rr ))
-w=$(( usable * WIDTH_PCT / 100 ))
-x=$(( mx + rl + (usable - w) / 2 ))
+# below the bar (reserved top), centred on the whole monitor — over a sidecar, not beside it
+read -r mx my mw rt wsid < <(hyprctl -j monitors | jq -r '.[]|select(.focused)|"\(.x) \(.y) \(.width) \(.reserved[1]) \(.activeWorkspace.id)"')
+w=$(( mw * WIDTH_PCT / 100 ))
+x=$(( mx + (mw - w) / 2 ))
 y=$(( my + rt ))
 hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch setfloating address:$addr; dispatch resizewindowpixel exact $w $HEIGHT_PCT%,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
 [ "$pinned" = true ] || hyprctl dispatch pin "address:$addr" >/dev/null
