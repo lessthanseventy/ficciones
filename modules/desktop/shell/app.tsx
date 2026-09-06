@@ -14,6 +14,7 @@ import Backdrop, { setBackdrop } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Tray"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
+import { setTheme, THEMES, type Theme } from "./lib/theme"
 import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
 import type { Pane } from "./lib/nav"
@@ -63,6 +64,10 @@ app.start({
       toggleDashboard()
       return res("ok")
     }
+    if (verb === "theme") {
+      setTheme(what && (THEMES as readonly string[]).includes(what) ? (what as Theme) : "toggle")
+      return res("ok")
+    }
     if (verb === "toggle" && what === "hub") {
       toggleHub()
       return res("ok")
@@ -73,7 +78,7 @@ app.start({
       else showDrawer(tab?.toUpperCase() as Pane | undefined)
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | theme [amber|paper] | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
