@@ -151,11 +151,15 @@ async function relayout() {
 
 const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
 /** The mark of a sidecar: a thicker border in the accent, dim when unfocused. `unset` restores. */
-// setprop is a dispatcher in Hyprland 0.56 (snake_case props, `unset` restores)
-const mark = (a: string, on: boolean) =>
-  batch(on
-    ? [`setprop ${a} border_size 3`, `setprop ${a} active_border_color ${rgb(PALETTE.pink)}`, `setprop ${a} inactive_border_color ${rgb(PALETTE.dim)}`]
-    : [`setprop ${a} border_size unset`, `setprop ${a} active_border_color unset`, `setprop ${a} inactive_border_color unset`])
+// setprop is a dispatcher in Hyprland 0.56 (snake_case props). `unset` restores border_size but
+// leaves the colour props as an EMPTY gradient (no border at all), so unmarking writes the
+// global gradients back explicitly.
+async function mark(a: string, on: boolean) {
+  if (on) return batch([`setprop ${a} border_size 3`, `setprop ${a} active_border_color ${rgb(PALETTE.pink)}`, `setprop ${a} inactive_border_color ${rgb(PALETTE.dim)}`])
+  const opt = async (k: string) => (JSON.parse(await execAsync(["hyprctl", "getoption", k, "-j"])).custom as string) || "ffffffff"
+  const [act, ina] = await Promise.all([opt("general:col.active_border"), opt("general:col.inactive_border")])
+  return batch([`setprop ${a} border_size unset`, `setprop ${a} active_border_color ${act}`, `setprop ${a} inactive_border_color ${ina}`])
+}
 
 export const isSidecar = (c: Hyprland.Client) => [...sidecars.values()].some((s) => s.address === c.address)
 
