@@ -30,10 +30,7 @@ pinned=$(jq -r .pinned <<<"$c")
 ring() { "$(dirname "$0")/shell-req.sh" sidecar ring "$1" 2>/dev/null || true; }
 
 if [ "$ws" != "special:quake" ]; then
-  # shown → hide: slide up off the top (a move animates), then unpin and park
-  read -r wx wy wh < <(jq -r '"\(.at[0]) \(.at[1]) \(.size[1])"' <<<"$c")
-  hyprctl dispatch movewindowpixel "exact $wx $(( wy - wh - 40 )),address:$addr" >/dev/null
-  sleep 0.25
+  # shown → hide: unpin, park (the window rule fades it; no slide)
   [ "$pinned" = true ] && hyprctl dispatch pin "address:$addr" >/dev/null
   hyprctl dispatch movetoworkspacesilent "special:quake,address:$addr" >/dev/null
   ring on
@@ -42,15 +39,14 @@ fi
 
 # hidden → show on the focused monitor, pinned, on top, sized, focused.
 # Below the bar (reserved top), centred on the whole monitor — over a sidecar, not beside it.
-read -r mx my mw mh rt wsid < <(hyprctl -j monitors | jq -r '.[]|select(.focused)|"\(.x) \(.y) \(.width) \(.height) \(.reserved[1]) \(.activeWorkspace.id)"')
+read -r mx my mw rt wsid < <(hyprctl -j monitors | jq -r '.[]|select(.focused)|"\(.x) \(.y) \(.width) \(.reserved[1]) \(.activeWorkspace.id)"')
 w=$(( mw * WIDTH_PCT / 100 ))
 x=$(( mx + (mw - w) / 2 ))
 y=$(( my + rt ))
-h=$(( mh * HEIGHT_PCT / 100 ))
 ring off
-# a moved window animates from where it was: park it above the screen first, while still
-# hidden, so the move slides it down from the top
-hyprctl --batch "dispatch setfloating address:$addr; dispatch resizewindowpixel exact $w $HEIGHT_PCT%,address:$addr; dispatch movewindowpixel exact $x $(( y - h - 40 )),address:$addr" >/dev/null
+# sized and placed while still hidden, so it fades in already in place (windowrule: animation fade)
+hyprctl --batch "dispatch setfloating address:$addr; dispatch resizewindowpixel exact $w $HEIGHT_PCT%,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
+# moving between workspaces nudges a floating window; put it back where it belongs
 hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
 [ "$pinned" = true ] || hyprctl dispatch pin "address:$addr" >/dev/null
 hyprctl --batch "dispatch focuswindow address:$addr; dispatch alterzorder top,address:$addr" >/dev/null
