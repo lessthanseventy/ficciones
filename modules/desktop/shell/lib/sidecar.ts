@@ -78,9 +78,9 @@ function makeZone(name: string, col: number): Astal.Window {
   return w
 }
 
-// The double border: Hyprland's own (3px, pink/dim via setprop) plus an outer ring the shell
-// draws — a transparent layer window framing the column, pink while the sidecar is focused,
-// dim otherwise. No plugin: borders-plus-plus rings every window and its only per-window
+// The double border: an outer pink ring the shell draws — a transparent layer window framing
+// the column, always pink: "this is the sidecar" — and Hyprland's own border inside it carrying
+// focus as every window does, amber focused / dim not (Andrew, 2026-09-06). No plugin: borders-plus-plus rings every window and its only per-window
 // switch (`decorate`) would take the shadows off everything else.
 const RING = 2, RING_GAP = 3, BORDER = 3
 function makeFrame(name: string, m: MonitorJson, col: number, address: string): Astal.Window {
@@ -103,10 +103,6 @@ function makeFrame(name: string, m: MonitorJson, col: number, address: string): 
   w.set_size_request(col - GAP + 2 * inset, m.height - rt - rb - 2 * GAP + 2 * inset)
   w.visible = true
   w.get_surface()?.set_input_region(new Cairo.Region())
-  const sync = () => { const f = hypr.focusedClient?.address === address; ring.cssClasses = ["sidecar-frame", ...(f ? [] : ["unfocused"])] }
-  const id = hypr.connect("notify::focused-client", sync)
-  w.connect("destroy", () => hypr.disconnect(id))
-  sync()
   return w
 }
 
@@ -186,7 +182,7 @@ const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
 // leaves the colour props as an EMPTY gradient (no border at all), so unmarking writes the
 // global gradients back explicitly.
 async function mark(a: string, on: boolean) {
-  if (on) return batch([`setprop ${a} border_size 3`, `setprop ${a} active_border_color ${rgb(PALETTE.pink)}`, `setprop ${a} inactive_border_color ${rgb(PALETTE.dim)}`])
+  if (on) return batch([`setprop ${a} border_size 3`, `setprop ${a} active_border_color ${rgb(PALETTE.amber)}`, `setprop ${a} inactive_border_color ${rgb(PALETTE.dim)}`])
   // getoption gives "aarrggbb aarrggbb 45deg"; setprop only renders rgba()/rgb() stops
   const opt = async (k: string) => {
     const raw = ((JSON.parse(await execAsync(["hyprctl", "getoption", k, "-j"])).custom as string) || "ffffffff").trim()
