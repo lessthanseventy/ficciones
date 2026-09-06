@@ -34,6 +34,10 @@ class Canvas {
     this.modes[this.idx].step(this.grid)
     this.lines[1](this.grid.lines())
   }
+  /** a click on the desktop, in widget px → dot coordinates */
+  poke(px: number, py: number, w: number, h: number) {
+    this.modes[this.idx].poke?.(this.grid, (px / w) * COLS * 2, (py / h) * ROWS * 4)
+  }
   run(on: boolean) {
     this.timer?.cancel(); this.timer = null
     if (on) { this.ticks = 0; this.timer = interval(TICK_MS, this.step) }
@@ -66,7 +70,18 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       application={app}
     >
-      <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["grid"]} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}>
+      <box
+        orientation={Gtk.Orientation.VERTICAL}
+        cssClasses={["grid"]}
+        halign={Gtk.Align.CENTER}
+        valign={Gtk.Align.CENTER}
+        $={(self) => {
+          // clicks on the bare desktop reach the backdrop: poke whatever is running
+          const g = new Gtk.GestureClick({ button: 0 })
+          g.connect("pressed", (_, __, x, y) => canvas.poke(x, y, self.get_width(), self.get_height()))
+          self.add_controller(g)
+        }}
+      >
         {Array.from({ length: ROWS }, (_, r) => <label cssClasses={["gl"]} useMarkup label={lines((l) => l[r] ?? "")} xalign={0} />)}
       </box>
     </window>

@@ -3,13 +3,17 @@
 // mode is a pure `step` over the CharGrid so the backdrop only paces and switches them.
 import { CharGrid } from "./chargrid"
 
-export type Mode = { name: string; colour: string; init(g: CharGrid): void; step(g: CharGrid): void }
+export type Mode = { name: string; colour: string; init(g: CharGrid): void; step(g: CharGrid): void; poke?(g: CharGrid, x: number, y: number): void }
 
 const lorenz = (): Mode => {
   const t = [{ x: 0.1, y: 0, z: 0 }, { x: -0.2, y: 0.1, z: 20 }, { x: 8, y: 8, z: 27 }]
   return {
     name: "lorenz", colour: "amber",
     init(g) { g.clear() },
+    poke(g, x, y) {
+      t.push({ x: (x / (g.cols * 2)) * 48 - 24, y: 0.1, z: (1 - y / (g.rows * 4)) * 50 + 2 })
+      if (t.length > 6) t.shift()
+    },
     step(g) {
       g.decay(0.03)
       t.forEach((p, k) => {
@@ -33,6 +37,10 @@ const life = (): Mode => {
       a = new Uint8Array(w * h); b = new Uint8Array(w * h)
       for (let i = 0; i < a.length; i++) a[i] = Math.random() < 0.18 ? 1 : 0
       age = new Uint8Array(w * h)
+    },
+    poke(g, px, py) {
+      const gx = Math.floor(px), gy = Math.floor(py)
+      for (const [dx, dy] of [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]]) a[((gy + dy) % h) * w + ((gx + dx) % w)] = 1
     },
     step(g) {
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -68,6 +76,12 @@ const boids = (): Mode => {
       flock = Array.from({ length: 70 }, (_, i) => ({ x: Math.random() * W, y: Math.random() * H, vx: Math.random() - 0.5, vy: Math.random() - 0.5, hue: i % 5 }))
       g.clear()
     },
+    poke(g, px, py) {
+      for (const b of flock) {
+        const dx = b.x - px, dy = b.y - py, d = Math.hypot(dx, dy) || 1
+        if (d < 120) { b.vx += (dx / d) * 3; b.vy += (dy / d) * 3 }
+      }
+    },
     step(g) {
       g.decay(0.12)
       for (const b of flock) {
@@ -101,6 +115,7 @@ const rule30 = (): Mode => {
       rows = []
       g.clear()
     },
+    poke(g, px) { row[Math.floor(px) % row.length] = 1 },
     step(g) {
       const w = row.length, next = new Uint8Array(w)
       for (let x = 0; x < w; x++) {
