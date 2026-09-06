@@ -11,7 +11,7 @@ CLASS="com.ghostty.quake"
 WIDTH_PCT=70    # of the monitor, centred
 HEIGHT_PCT=55
 GAP=12          # below the bar
-STYLE="${QUAKE_STYLE:-fade}"   # fade | slide — the compositor never animates this window (no_anim), the
+STYLE="${QUAKE_STYLE:-slide}"  # slide | fade — the compositor never animates this window (no_anim), the
                                # script does: an opacity ramp, or a position ramp from above (eased,
                                # ~18 steps; each step is a hyprctl call, so it is not compositor-smooth)
 
