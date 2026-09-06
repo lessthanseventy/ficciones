@@ -71,7 +71,7 @@ export default function Drawer() {
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.BOTTOM}
       marginTop={36} // under the bar; both sit on the TOP layer
-      marginLeft={70} // beside the rail with a gap, never over it
+      marginLeft={54} // beside the rail with a gap, never over it
       application={app}
     >
       <box cssClasses={["sheet"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420}>

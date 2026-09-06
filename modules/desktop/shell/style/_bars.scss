@@ -18,7 +18,8 @@ window.rail .rule-h { margin: $sp-2 $sp-1; }
   margin-top: $sp-2;
   .ws {
     min-height: $cell-h;
-    min-width: $rail-width - 2 * $sp-2 - 4px - 2 * $rule;
+    min-width: 30px;   // the label's width plus a little, not the whole rail
+    padding: 0 $sp-1;
     color: $meta;
     label { font-size: $size-lg; }
     &.occupied { color: $amber; }
@@ -82,9 +83,9 @@ menubutton.cell > button:hover { background: none; }
 .clock {
   padding: $sp-2 0;
   label { font-size: $size-sm; color: $meta; }
-  .hh, .mm { font-size: 20px; color: $amber; }
+  .hh, .mm { font-size: 19px; color: $amber; }
   .day { font-size: $size; color: $amber; }
-  .g { font-size: 26px; margin-top: $sp-2; }
+  .g { font-size: 22px; margin-top: $sp-2; }
   .t { color: $amber; }
   &.wx-off .g, &.wx-off .t { color: $meta; }
   &:hover { background: $hover; }

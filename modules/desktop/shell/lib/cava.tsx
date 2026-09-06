@@ -36,7 +36,7 @@ export function Visualiser() {
   return <label cssClasses={["cava"]} label={line} widthChars={BARS} maxWidthChars={BARS} />
 }
 
-const COLS = 5 // cells per row: full blocks + one fractional block, 40 levels
+const COLS = 4 // cells per row: full blocks + one fractional block, 32 levels
 
 /** A horizontal bar of `cols` cells: full blocks then a partial, grown from the left. */
 function hbar(v: number, cols = COLS): string {
