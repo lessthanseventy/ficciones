@@ -130,17 +130,23 @@ shell. This is its own phase, after the drawer, so the palette settles on real s
   private-use glyphs go in source as `\u{...}`; never inject keys with ydotool while testing —
   keycode 1 is Escape and a stuck modifier follows.
 
+## 5d · Evening 2026-09-05 — cutover and the rest of the surfaces
+
+caelestia is gone from hyprland.conf; swaync masked (it D-Bus-activated into the gap). Landed:
+notifications (toasts + the right-hand hub with history and toggles, hot edge, Super+N),
+launcher and clipboard (anyrun and fuzzel retired), keybind cheatsheet (Super+Shift+/), CRT
+shaders (Super+Shift+C, hub), the zen backdrop (per monitor, lorenz/life/boids/rule 30 in
+colour, Super+Shift+Z), glass (window opacity, Super+Shift+T), night light on the sunset
+schedule, a brightness slider that is the backlight alone and hyprsunset gamma when the
+external monitor (no DDC/CI through the dock) is plugged in. astal is a top-level flake input.
+
 ## 6 · Phase status
 
 Design §7 phases, with where this plan lands them:
 
-1. Scaffold, style system, the two bars — **done** (§5c).
-2. Drawer + panes — **done** (§5c); hover-to-open panels and per-metric ambient sprites still open.
-2b. One palette, every surface (§5b) — next.
-3. Notifications → disable caelestia's.
-4. Launcher and clipboard → unbind anyrun.
-5. OSDs, cheatsheet, ambient backdrop, CRT.
-6. Cutover; hyprland.lua migration before Hyprland 0.57 drops .conf.
+1–6. **Done** (§5c, §5d). OSDs dropped on purpose (Andrew: not wanted).
+Next: one palette, every surface (§5b); hyprland.lua migration before Hyprland 0.57 drops
+.conf; modules/os/ivysaur.nix and the laptop migration (§7).
 
 ## 7 · Laptop migration checklist (deferred, tracked here)
 
