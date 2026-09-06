@@ -20,6 +20,11 @@ in
       description = "The built shell (modules/desktop/shell/package.nix).";
     };
     autostart = lib.mkEnableOption "start the shell with graphical-session.target";
+    wallpapers = lib.mkOption {
+      type = lib.types.str;
+      default = "~/Pictures/Wallpapers";
+      description = "Directory of images the backdrop rotates through (the shell is the wallpaper daemon).";
+    };
     location = lib.mkOption {
       type = lib.types.nullOr (lib.types.attrsOf lib.types.float);
       default = null;
@@ -36,9 +41,9 @@ in
       cfg.package.passthru.ags
     ];
 
-    xdg.configFile."astal-shell/config.json" = lib.mkIf (cfg.location != null) {
-      text = builtins.toJSON cfg.location;
-    };
+    xdg.configFile."astal-shell/config.json".text = builtins.toJSON (
+      { wallpapers = cfg.wallpapers; } // (if cfg.location != null then cfg.location else { })
+    );
 
     systemd.user.services.astal-shell = lib.mkIf cfg.autostart {
       Unit = {

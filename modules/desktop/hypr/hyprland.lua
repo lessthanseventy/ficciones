@@ -71,8 +71,6 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         hl.exec_cmd("bash -c 'wl-paste --type image --watch cliphist store'")
         hl.exec_cmd("systemctl --user start hyprpolkitagent")
         hl.exec_cmd("wgtray")
-        hl.exec_cmd("hyprpaper")
-        hl.exec_cmd(hyprdir .. "/scripts/rotate-wallpaper.sh")
     end)
 end
 

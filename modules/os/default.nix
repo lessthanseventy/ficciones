@@ -32,12 +32,12 @@
     withUWSM = true;
   };
   # hyprland.lua's autostart expects these on PATH; hyprlock/hypridle are never replaced
-  # by the shell (design §7), ghostty is $TERMINAL there.
+  # by the shell (design §7), ghostty is $TERMINAL there. No hyprpaper: the shell's backdrop
+  # is the wallpaper.
   environment.systemPackages = with pkgs; [
     ghostty
     hypridle
     hyprlock
-    hyprpaper
     hyprsunset
     hyprpolkitagent
     cliphist

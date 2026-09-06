@@ -1,5 +1,6 @@
-// The zen backdrop: a background-layer surface drawing a Lorenz attractor in braille with
-// phosphor decay, in place of the photo wallpaper. `astal-shell backdrop zen|photo|toggle`.
+// The backdrop: a background-layer surface per monitor. Underneath, the photo wallpaper
+// (lib/wallpaper.ts — the shell IS the wallpaper daemon, no hyprpaper); on top, when zen is on,
+// a Lorenz attractor in braille with phosphor decay. `astal-shell backdrop zen|photo|toggle`.
 // It earns its place purely by looking incredible (design §6).
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
@@ -9,6 +10,8 @@ import Gdk from "gi://Gdk?version=4.0"
 import { interval, type Timer } from "ags/time"
 import { CharGrid } from "../lib/chargrid"
 import { makeModes } from "../lib/ambient"
+import { wallpaper } from "../lib/wallpaper"
+import Gio from "gi://Gio"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
 const TICK_MS = 120
@@ -49,18 +52,19 @@ let created = 0
 
 export function setBackdrop(mode: "zen" | "photo" | "toggle") {
   const on = mode === "toggle" ? !zen.get() : mode === "zen"
-  for (const [w, c] of canvases) { w.visible = on; c.run(on) }
+  for (const [, c] of canvases) c.run(on)
   setZen(on)
 }
 
 export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   const canvas = new Canvas(created++)
   const [lines] = canvas.lines
+  const { file, next } = wallpaper()
   onCleanup(() => { for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
   return (
     <window
-      $={(self) => { canvases.set(self, canvas); self.visible = zen.get(); canvas.run(zen.get()) }}
-      visible={false}
+      $={(self) => { canvases.set(self, canvas); canvas.run(zen.get()) }}
+      visible
       cssClasses={["backdrop"]}
       namespace="astal-shell-backdrop"
       name={`backdrop-${gdkmonitor.connector}`}
@@ -70,20 +74,39 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       application={app}
     >
-      <box
-        orientation={Gtk.Orientation.VERTICAL}
-        cssClasses={["grid"]}
-        halign={Gtk.Align.CENTER}
-        valign={Gtk.Align.CENTER}
-        $={(self) => {
-          // clicks on the bare desktop reach the backdrop: poke whatever is running
-          const g = new Gtk.GestureClick({ button: 0 })
-          g.connect("pressed", (_, __, x, y) => canvas.poke(x, y, self.get_width(), self.get_height()))
-          self.add_controller(g)
-        }}
-      >
-        {Array.from({ length: ROWS }, (_, r) => <label cssClasses={["gl"]} useMarkup label={lines((l) => l[r] ?? "")} xalign={0} />)}
-      </box>
+      <overlay>
+        <Gtk.Picture
+          contentFit={Gtk.ContentFit.COVER}
+          file={file((f) => (f ? Gio.File.new_for_path(f) : null))}
+          visible={zen((z) => !z)}
+        />
+        <box
+          $type="overlay"
+          orientation={Gtk.Orientation.VERTICAL}
+          cssClasses={["grid"]}
+          halign={Gtk.Align.CENTER}
+          valign={Gtk.Align.CENTER}
+          visible={zen}
+          $={(self) => {
+            // clicks on the bare desktop reach the backdrop: poke whatever is running
+            const g = new Gtk.GestureClick({ button: 0 })
+            g.connect("pressed", (_, __, x, y) => canvas.poke(x, y, self.get_width(), self.get_height()))
+            self.add_controller(g)
+          }}
+        >
+          {Array.from({ length: ROWS }, (_, r) => <label cssClasses={["gl"]} useMarkup label={lines((l) => l[r] ?? "")} xalign={0} />)}
+        </box>
+        <box
+          $type="overlay"
+          visible={zen((z) => !z)}
+          $={(self) => {
+            // a click on the photo skips to the next one
+            const g = new Gtk.GestureClick({ button: 0 })
+            g.connect("pressed", () => next())
+            self.add_controller(g)
+          }}
+        />
+      </overlay>
     </window>
   )
 }

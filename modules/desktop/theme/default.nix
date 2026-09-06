@@ -101,7 +101,7 @@ in
       "fzf/theme.zsh".text = render.fzfTheme;
       "cava/config".text = render.cavaConfig (tpl "cava.conf");
 
-      # The palette as shell variables, for scripts that draw (rotate-wallpaper, notify glue).
+      # The palette as shell variables, for scripts that draw.
       "ficciones/palette.sh".text = render.envSh;
     };
 

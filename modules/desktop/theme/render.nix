@@ -534,6 +534,6 @@ rec {
     set -g pane-active-border-style "fg=${hex h.amber}"
   '';
 
-  # Convenience: the palette as shell exports, for scripts (rotate-wallpaper, hyprpaper glue).
+  # Convenience: the palette as shell exports, for scripts that draw.
   envSh = "# ${gen}\n" + lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "PALETTE_${lib.toUpper k}=${hex v}") h) + "\nPALETTE_FONT=\"${f.family}\"\n";
 }

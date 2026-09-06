@@ -8,9 +8,8 @@
 # Hyprland answers a missing config by loading built-in defaults — silently, no error. Hence
 # the git hooks below, and hence this module belongs on every branch, not on a feature branch.
 #
-# Individual files, never the `hypr/` directory: caelestia writes ~/.config/hypr/scheme/ and
-# rotate-wallpaper rewrites hyprpaper.conf at runtime, so both stay unmanaged real files —
-# linking them would push runtime churn into the working tree.
+# Individual files, never the `hypr/` directory: leftovers (caelestia's scheme/, hyprpaper.conf)
+# still sit there as real files, and linking the directory would push them into the tree.
 {
   config,
   lib,
@@ -65,7 +64,6 @@ in
       "hypr/scripts/launch_hyprland.sh" = linkTo "scripts/launch_hyprland.sh";
       "hypr/scripts/quake-toggle.sh" = linkTo "scripts/quake-toggle.sh";
       "hypr/scripts/shot-region.sh" = linkTo "scripts/shot-region.sh";
-      "hypr/scripts/rotate-wallpaper.sh" = linkTo "scripts/rotate-wallpaper.sh";
 
       # CRT screen shaders, switched by path (hyprctl keyword decoration:screen_shader …).
       "hypr/shaders/crt-full.glsl" = linkTo "shaders/crt-full.glsl";
