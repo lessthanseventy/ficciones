@@ -49,6 +49,7 @@ let
     "tmux.conf" = r.tmuxStyle;
     "palette.sh" = r.envSh;
     "shell-palette.json" = r.paletteJson;
+    "claude-powerline.json" = r.claudePowerlineJson;
     "floorp-userChrome.css" = r.floorpUserChrome;
     "floorp-userContent.css" = r.floorpUserContent;
   };
@@ -150,6 +151,9 @@ in
 
     # Claude Code's theme per palette; the switch points ~/.claude/settings.json at one
     home.file = {
+      # the statusline (scripts/statusline-box.sh) and its renderer's config, per theme
+      ".claude/statusline-box.sh" = { source = ../scripts/statusline-box.sh; executable = true; };
+      ".claude/claude-powerline.json" = via "claude-powerline.json";
       ".claude/themes/uqbar.json".text = renders.uqbar.claudeTheme { name = "uqbar"; light = false; };
       ".claude/themes/zahir.json".text = renders.zahir.claudeTheme { name = "zahir"; light = true; };
     } // lib.listToAttrs (lib.concatMap (profile: [
