@@ -20,6 +20,10 @@ import { Channel } from "../lib/cava"
 import { WorkspacePop } from "../panes/Workspaces"
 import { captureShowing } from "../lib/thumbs"
 
+/** Debug: `astal-shell pop ws <id>` opens that number's strip without a hover. */
+const wsPops = new Map<number, HoverPop>()
+export const popWorkspace = (id: number) => wsPops.get(id)?.toggle()
+
 /** This monitor's workspaces only, its active one chipped — two monitors, two rails. */
 function Workspaces({ connector }: { connector: string }) {
   const mine = createComputed([workspaces, focusedWorkspace], (all) =>
@@ -53,7 +57,7 @@ function Workspaces({ connector }: { connector: string }) {
               direction={Gtk.ArrowType.RIGHT}
               halign={Gtk.Align.CENTER}
               // a long dwell (Andrew: "only on hover for a while"); the showing workspace's thumbs refresh first
-              $={(self) => hoverPopover(self, "rail", () => ws.focus(), { dwell: 900, onShow: () => captureShowing() })}
+              $={(self) => wsPops.set(ws.id, hoverPopover(self, "rail", () => ws.focus(), { dwell: 900, onShow: () => captureShowing() }))}
             >
               <label label={String(ws.id)} />
               <popover cssClasses={["pop"]}>

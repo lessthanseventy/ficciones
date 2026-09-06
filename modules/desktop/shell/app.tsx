@@ -1,7 +1,7 @@
 import app from "ags/gtk4/app"
 import { createBinding, For, This } from "ags"
 import style from "./style/main.scss"
-import Rail, { toggleCalendarPop, toggleWeatherPop } from "./surfaces/Rail"
+import Rail, { toggleCalendarPop, toggleWeatherPop, popWorkspace } from "./surfaces/Rail"
 import Bar from "./surfaces/Bar"
 import Notifications from "./surfaces/Notifications"
 import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
@@ -64,6 +64,10 @@ app.start({
     }
     if (verb === "toggle" && what === "dashboard") {
       toggleDashboard()
+      return res("ok")
+    }
+    if (verb === "pop" && what === "ws") {
+      popWorkspace(Number(tab))
       return res("ok")
     }
     if (verb === "colresize") {

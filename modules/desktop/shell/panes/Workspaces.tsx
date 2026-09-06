@@ -5,8 +5,7 @@ import Hyprland from "gi://AstalHyprland"
 import { For, createBinding, createComputed } from "ags"
 import { hypr, workspaces, focusedWorkspace, focusedClient } from "../lib/hypr"
 import { iconFor } from "../lib/icons"
-import Gio from "gi://Gio?version=2.0"
-import { stamp, hasThumb, pathFor, geom } from "../lib/thumbs"
+import { stamp, texture } from "../lib/thumbs"
 
 /** The workspace's windows as a strip of icons: shared with the rail's hover strip. */
 export function WindowStrip({ ws, size = 22 }: { ws: Hyprland.Workspace; size?: number }) {
@@ -52,15 +51,15 @@ export function WorkspacePop({ ws }: { ws: Hyprland.Workspace }) {
       <box spacing={8} cssClasses={["thumbs"]}>
         <For each={clients}>
           {(c) => {
-            const file = stamp(() => (hasThumb(c.address) ? Gio.File.new_for_path(pathFor(c.address)) : null))
-            const w = stamp(() => { const g = geom.get(c.address); return Math.max(80, Math.min(320, Math.round((THUMB_H * (g?.w ?? c.width)) / Math.max(1, g?.h ?? c.height)))) })
+            // the texture is scaled at load, so the picture's natural size is the thumbnail's
+            const tex = stamp(() => texture(c.address, THUMB_H))
             return (
               <button cssClasses={focusedClient((f) => ["thumb", ...(f?.address === c.address ? ["focused"] : [])])} onClicked={() => c.focus()} tooltipText={createBinding(c, "title")}>
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
                   <overlay>
-                    <box cssClasses={["shot"]} widthRequest={w} heightRequest={THUMB_H}>
-                      <Gtk.Picture file={file} contentFit={Gtk.ContentFit.CONTAIN} hexpand vexpand visible={file((f) => !!f)} />
-                      <image iconName={iconFor(c)} pixelSize={48} hexpand vexpand halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} visible={file((f) => !f)} />
+                    <box cssClasses={["shot"]} heightRequest={THUMB_H} widthRequest={tex((t) => (t ? t.get_width() : 120))}>
+                      <Gtk.Picture paintable={tex} canShrink={false} contentFit={Gtk.ContentFit.CONTAIN} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} visible={tex((t) => !!t)} />
+                      <image iconName={iconFor(c)} pixelSize={48} hexpand vexpand halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} visible={tex((t) => !t)} />
                     </box>
                     <box $type="overlay" halign={Gtk.Align.START} valign={Gtk.Align.END} spacing={4} cssClasses={["cap"]} canTarget={false}>
                       <image iconName={iconFor(c)} pixelSize={14} />

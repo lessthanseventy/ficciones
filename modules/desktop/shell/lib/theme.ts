@@ -4,6 +4,7 @@
 // at each end. Single-user machine, fixed checkout — the same assumption lib/agents.ts makes.
 import GLib from "gi://GLib?version=2.0"
 import { execAsync } from "ags/process"
+import { createState } from "ags"
 
 const REPO = "/home/andrew/projects/ficciones"
 const CURRENT = `${REPO}/modules/desktop/theme/current`
@@ -18,11 +19,17 @@ export function currentTheme(): Theme {
   } catch { return "amber" }
 }
 
+/** The theme in force (as of the selector file), for the toggles card; `switching` while home:switch runs. */
+export const [theme, setThemeState] = createState<Theme>(currentTheme())
+export const [switching, setSwitching] = createState(false)
+
 let running = false
 export function setTheme(t: Theme | "toggle") {
   const next: Theme = t === "toggle" ? (currentTheme() === "amber" ? "paper" : "amber") : t
   if (running) return
   running = true
+  setSwitching(true)
+  setThemeState(next)
   const script = [
     `cd ${REPO}`,
     `printf '%s\\n' ${next} > modules/desktop/theme/current`,
@@ -33,5 +40,5 @@ export function setTheme(t: Theme | "toggle") {
   ].join(" && ")
   execAsync(["bash", "-lc", script])
     .catch((e) => execAsync(["notify-send", "-u", "critical", "-a", "astal-shell", `theme → ${next} failed`, String(e).slice(0, 400)]).catch(console.error))
-    .finally(() => { running = false })
+    .finally(() => { running = false; setSwitching(false); setThemeState(currentTheme()) })
 }

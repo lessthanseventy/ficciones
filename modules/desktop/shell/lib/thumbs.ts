@@ -6,9 +6,11 @@
 import Gio from "gi://Gio?version=2.0"
 import GLib from "gi://GLib?version=2.0"
 import Hyprland from "gi://AstalHyprland"
+import Gdk from "gi://Gdk?version=4.0"
+import GdkPixbuf from "gi://GdkPixbuf?version=2.0"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
-import { timeout, type Timer } from "ags/time"
+import { timeout, interval, type Timer } from "ags/time"
 import { hypr } from "./hypr"
 
 const DIR = `${GLib.get_user_cache_dir()}/astal-shell/thumbs`
@@ -52,6 +54,14 @@ export async function capture(ws: Hyprland.Workspace | null | undefined) {
 
 export const hasThumb = (address: string) => Gio.File.new_for_path(pathFor(address)).query_exists(null)
 
+/** The thumb as a texture already scaled to `h` px tall — a Picture at natural size then IS the thumbnail. */
+export function texture(address: string, h: number): Gdk.Texture | null {
+  try {
+    const pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(pathFor(address), -1, h, true)
+    return pb ? Gdk.Texture.new_for_pixbuf(pb) : null
+  } catch { return null }
+}
+
 /** Capture every showing workspace now (fresh thumbs before a strip opens on the active one). */
 export const captureShowing = () => Promise.all(hypr.get_monitors().map((m) => capture(m.activeWorkspace)))
 
@@ -63,6 +73,8 @@ hypr.connect("notify::focused-workspace", () => {
 })
 // gone windows leave their thumbs; a sweep at start keeps the dir honest
 hypr.connect("client-removed", (_, address: string) => { try { Gio.File.new_for_path(pathFor(address)).delete(null) } catch { /* none */ } })
+// and every showing workspace refreshes every few seconds, so a strip is never far behind
+interval(5000, () => captureShowing())
 timeout(3000, () => {
   try {
     const live = new Set(hypr.get_clients().map((c) => c.address.replace(/^0x/, "")))

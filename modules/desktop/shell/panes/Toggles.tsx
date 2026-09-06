@@ -10,6 +10,8 @@ import { subprocess, type Process } from "ags/process"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
 import { zen, setBackdrop, nextWallpaper, backdropMode } from "../surfaces/Backdrop"
+import { theme, switching, setTheme } from "../lib/theme"
+import { createComputed } from "ags"
 import { glass, toggleGlass } from "../lib/glass"
 
 const notifd = Notifd.get_default()
@@ -53,6 +55,8 @@ export function Toggles({ perRow = 4 }: { perRow?: number }) {
     <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />,
     <Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />,
     <Toggle icon={"\u{f0e2a}"} label={backdropMode((m) => (m === "photo" ? "zen" : m))} on={zen} onToggle={() => setBackdrop("cycle")} />,
+    // light/dark = the paper/amber palette; the whole machine re-themes (a minute or two)
+    <Toggle icon={theme((t) => (t === "paper" ? "\u{f0599}" : "\u{f0594}"))} label={createComputed([theme, switching], (t, s) => (s ? "switching…" : t === "paper" ? "paper" : "dark"))} on={theme((t) => t === "paper")} onToggle={() => setTheme("toggle")} />,
     <Toggle icon={"◐"} label="glass" on={glass} onToggle={toggleGlass} />,
     <Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={nextWallpaper} />,
     <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />,
