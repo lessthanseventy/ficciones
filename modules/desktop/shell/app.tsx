@@ -10,6 +10,7 @@ import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
 import Backdrop, { setBackdrop } from "./surfaces/Backdrop"
+import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
 import type { Pane } from "./lib/nav"
 
@@ -37,6 +38,10 @@ app.start({
       toggleCheatsheet()
       return res("ok")
     }
+    if (verb === "glass") {
+      what === "on" ? setGlass(true) : what === "off" ? setGlass(false) : toggleGlass()
+      return res("ok")
+    }
     if (verb === "backdrop") {
       setBackdrop(what === "zen" || what === "photo" ? what : "toggle")
       return res("ok")
@@ -54,7 +59,7 @@ app.start({
       showDrawer(tab?.toUpperCase() as Pane | undefined)
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet | crt [off|subtle|full] | backdrop [zen|photo] | show drawer [agents|media|weather|calendar]")
+    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | show drawer [agents|media|weather|calendar]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
@@ -66,13 +71,13 @@ app.start({
     HotEdge()
     Launcher()
     Cheatsheet()
-    Backdrop()
     return (
       <For each={monitors}>
         {(monitor) => (
           <This this={app}>
             <Rail gdkmonitor={monitor} />
             <Bar gdkmonitor={monitor} />
+            <Backdrop gdkmonitor={monitor} />
           </This>
         )}
       </For>

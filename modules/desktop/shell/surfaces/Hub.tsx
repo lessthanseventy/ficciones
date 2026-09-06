@@ -12,12 +12,14 @@ import PowerProfiles from "gi://AstalPowerProfiles"
 import Hyprland from "gi://AstalHyprland"
 import { For, createBinding, createComputed, createState } from "ags"
 import { timeout, type Timer } from "ags/time"
-import { subprocess, type Process } from "ags/process"
+import { subprocess, execAsync, type Process } from "ags/process"
+import GLib from "gi://GLib?version=2.0"
 import { Panel, RuleH } from "../lib/tui"
 import { NoticeCard } from "./Notifications"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
 import { zen, setBackdrop } from "./Backdrop"
+import { glass, toggleGlass } from "../lib/glass"
 
 const notifd = Notifd.get_default()
 
@@ -75,6 +77,8 @@ function Toggles() {
       <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />
       <Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />
       <Toggle icon={"\u{f0e2a}"} label="zen" on={zen} onToggle={() => setBackdrop("toggle")} />
+      <Toggle icon={"\u{f0e0f}"} label="glass" on={glass} onToggle={toggleGlass} />
+      <Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={() => execAsync([`${GLib.get_home_dir()}/.local/bin/rotate-wallpaper`]).catch(console.error)} />
       <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />
     </box>
   )
