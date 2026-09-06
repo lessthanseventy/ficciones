@@ -7,10 +7,11 @@ import Hyprland from "gi://AstalHyprland"
 import Pango from "gi://Pango?version=1.0"
 import Battery from "gi://AstalBattery"
 import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
-import { createPoll, timeout, type Timer } from "ags/time"
+import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, focusedClient, focusedWorkspace, addr } from "../lib/hypr"
 import { toggleSidecar } from "../lib/sidecar"
+import { hoverPopover } from "../lib/hover"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import Brightness from "gi://AstalBrightness"
 import { METRICS, MetricDetail } from "../panes/Perf"
@@ -26,10 +27,6 @@ import { tier } from "../lib/perf"
  * The workspace's windows, left to right as they sit in the strip: the focused one as
  * class + title, the rest as icons (click focuses). The bar's left half is theirs.
  */
-// The one open window popover per bar: moving from cell to cell swaps it at once (menu-bar
-// feel) instead of letting the old one fade while the new one dwells — that read as a flash.
-let openCell: Gtk.MenuButton | null = null
-
 function Windows({ connector }: { connector: string }) {
   const apps = new Apps.Apps()
   // This monitor's active workspace, not the globally focused one: two bars, two workspaces.
@@ -56,49 +53,7 @@ function Windows({ connector }: { connector: string }) {
             <menubutton
               cssClasses={focused((f) => ["win", ...(f ? ["focused"] : [])])}
               direction={Gtk.ArrowType.DOWN}
-              $={(self) => {
-                // Hover opens the popover after a short dwell; a click focuses the window
-                // (Andrew, 2026-09-05). The popover is autohide=false so it takes no grab —
-                // a grab would send the cell a synthetic leave the moment it opened.
-                const pop = self.popover as Gtk.Popover
-                pop.autohide = false
-                const over = new Gtk.EventControllerMotion()
-                const overPop = new Gtk.EventControllerMotion()
-                let dwell: Timer | null = null
-                let grace: Timer | null = null
-                const open = () => {
-                  if (openCell && openCell !== self) openCell.popdown()
-                  openCell = self
-                  self.popup()
-                }
-                const close = () => {
-                  if (openCell === self) openCell = null
-                  self.popdown()
-                }
-                const armClose = () => {
-                  grace?.cancel()
-                  grace = timeout(350, () => {
-                    if (!over.containsPointer && !overPop.containsPointer) close()
-                  })
-                }
-                over.connect("enter", () => {
-                  grace?.cancel()
-                  dwell?.cancel()
-                  // another cell's popover is up: this is a slide along the bar, swap now
-                  if (openCell && openCell !== self) open()
-                  else dwell = timeout(250, () => { if (over.containsPointer) open() })
-                })
-                over.connect("leave", () => { dwell?.cancel(); armClose() })
-                overPop.connect("enter", () => grace?.cancel())
-                overPop.connect("leave", armClose)
-                self.add_controller(over)
-                pop.add_controller(overPop)
-                // CAPTURE + claimed: the menubutton never sees the press, so it does not toggle.
-                const click = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
-                click.connect("pressed", () => { click.set_state(Gtk.EventSequenceState.CLAIMED); c.focus(); close() })
-                self.add_controller(click)
-                onCleanup(() => { dwell?.cancel(); grace?.cancel() })
-              }}
+              $={(self) => hoverPopover(self, "bar", () => c.focus())}
             >
               <box spacing={8}>
                 <image iconName={iconFor(c)} pixelSize={18} />
@@ -141,7 +96,7 @@ const SPARK_CELLS = 8
 function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
   const cls = m.frac((f) => ["cell", "perf", tier(f)])
   return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN} visible={m.ok ?? true}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN} visible={m.ok ?? true} $={(self) => hoverPopover(self, "bar")}>
       <box spacing={4}>
         <label cssClasses={["icon"]} label={icon} tooltipText={m.key} />
         <label cssClasses={["num"]} label={m.num} widthChars={4} xalign={1} />
@@ -216,7 +171,7 @@ function BatteryCell() {
   })
   const active = createBinding(profiles, "activeProfile")
   return (
-    <menubutton cssClasses={cls((c) => ["cell", "clickable", "perf", ...c])} direction={Gtk.ArrowType.DOWN}>
+    <menubutton cssClasses={cls((c) => ["cell", "clickable", "perf", ...c])} direction={Gtk.ArrowType.DOWN} $={(self) => hoverPopover(self, "bar")}>
       <box spacing={4}>
         <label
           cssClasses={["icon"]}
@@ -279,7 +234,7 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <box>
         <Windows connector={gdkmonitor.connector} />
         <box hexpand />
-        <menubutton cssClasses={["cell", "cavacell", "clickable"]} direction={Gtk.ArrowType.DOWN}>
+        <menubutton cssClasses={["cell", "cavacell", "clickable"]} direction={Gtk.ArrowType.DOWN} $={(self) => hoverPopover(self, "bar")}>
           <Visualiser />
           <popover cssClasses={["pop", "mediapop"]}>
             <Panel title={"\u{f075a}  MEDIA"} cssClasses={["card", "card-media"]}><MediaCard /></Panel>

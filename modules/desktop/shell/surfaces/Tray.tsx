@@ -12,6 +12,7 @@ import { For, With, createBinding, createComputed } from "ags"
 import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
+import { hoverPopover } from "../lib/hover"
 
 function Net() {
   const net = Network.get_default()
@@ -38,7 +39,7 @@ function Net() {
   }
 
   return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => hoverPopover(self, "rail")}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={icon} />
         <label cssClasses={["sm"]} label={label} />
@@ -114,7 +115,7 @@ function Bt() {
   }
 
   return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => hoverPopover(self, "rail")}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={"\u{f00af}"} />
         <label cssClasses={["sm"]} label={label} />
@@ -173,7 +174,7 @@ function Vol() {
   const icon = createComputed([vol, mute], (v, m) => (m ? "\u{f075f}" : v > 0.66 ? "\u{f057e}" : v > 0.33 ? "\u{f0580}" : "\u{f057f}"))
   const cls = mute((m) => ["item", "vol", ...(m ? ["dim"] : [])])
   return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => hoverPopover(self, "rail")}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={icon} />
         <label cssClasses={["sm"]} label={createComputed([vol, mute], (v, m) => (m ? "mute" : pct(v)))} />

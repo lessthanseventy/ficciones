@@ -10,16 +10,24 @@ import { Panel } from "../lib/tui"
 import { WeatherCard } from "../panes/Weather"
 
 let win: Astal.Window | null = null
+let card: Gtk.Widget | null = null
+/** The floating card — what hover-open watches (the window spans the monitor). */
+export const weatherCard = () => card
+export const weatherOpen = () => !!win?.visible
 
 export function hideWeather() { if (win) { win.visible = false; win.keymode = Astal.Keymode.NONE } }
-export function toggleWeather() {
+/** `keyboard` false = a hover open: no focus taken. */
+export function showWeather(keyboard = true) {
   if (!win) return
-  if (win.visible) return hideWeather()
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = app.get_monitors().find((m) => m.connector === name)
   if (mon) win.gdkmonitor = mon
-  win.keymode = Astal.Keymode.ON_DEMAND
+  win.keymode = keyboard ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE
   win.visible = true
+}
+export function toggleWeather() {
+  if (!win) return
+  win.visible ? hideWeather() : showWeather()
 }
 
 export default function WeatherPop() {
@@ -55,7 +63,7 @@ export default function WeatherPop() {
             self.add_controller(g)
           }}
         />
-        <box $type="overlay" cssClasses={["floating"]} widthRequest={460} halign={Gtk.Align.START} valign={Gtk.Align.CENTER}>
+        <box $type="overlay" cssClasses={["floating"]} widthRequest={460} halign={Gtk.Align.START} valign={Gtk.Align.CENTER} $={(self) => { card = self }}>
           <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]}><WeatherCard /></Panel>
         </box>
       </overlay>

@@ -9,9 +9,10 @@ import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
 import { RuleH, Panel } from "../lib/tui"
-import { toggleWeather } from "./WeatherPop"
+import { toggleWeather, showWeather, hideWeather, weatherOpen, weatherCard } from "./WeatherPop"
+import { hoverPopover, hoverPanel } from "../lib/hover"
 import TrayPane from "./Tray"
-import { toggleDrawer } from "./Drawer"
+import { toggleDrawer, showDrawer, hideDrawer, drawerOpen, drawerSheet } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
 
@@ -56,7 +57,11 @@ function Workspaces({ connector }: { connector: string }) {
 function Clock() {
   const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
   return (
-    <button cssClasses={["clock"]} onClicked={() => toggleDrawer()}>
+    <button
+      cssClasses={["clock"]}
+      onClicked={() => toggleDrawer()}
+      $={(self) => hoverPanel(self, "rail", { show: () => showDrawer(undefined, false), hide: hideDrawer, isOpen: drawerOpen, window: drawerSheet })}
+    >
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["hh"]} label={now((d) => d.format("%H")!)} />
         <label cssClasses={["mm"]} label={now((d) => d.format("%M")!)} />
@@ -74,7 +79,11 @@ function Weather() {
   const t = weather((w) => (w.ok ? `${Math.round(w.temp!)}°` : "—"))
   const cls = weather((w) => ["item", "wx", ...(w.ok ? [] : ["dim"])])
   return (
-    <button cssClasses={cls} onClicked={() => toggleWeather()} tooltipText={weather((w) => w.note ?? "")}>
+    <button
+      cssClasses={cls}
+      onClicked={() => toggleWeather()}
+      $={(self) => hoverPanel(self, "rail", { show: () => showWeather(false), hide: hideWeather, isOpen: weatherOpen, window: weatherCard })}
+    >
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["g"]} label={g} />
         <label cssClasses={["t"]} label={t} />
@@ -94,7 +103,7 @@ function Power() {
     ["\u{f0425}", "shutdown", ["systemctl", "poweroff"], ["red"]],
   ]
   return (
-    <menubutton cssClasses={["item", "power"]} direction={Gtk.ArrowType.RIGHT}>
+    <menubutton cssClasses={["item", "power"]} direction={Gtk.ArrowType.RIGHT} $={(self) => hoverPopover(self, "rail")}>
       <label cssClasses={["icon"]} label={"\u{f0425}"} />
       <popover cssClasses={["pop"]}>
         <Panel title="POWER" spacing={2}>

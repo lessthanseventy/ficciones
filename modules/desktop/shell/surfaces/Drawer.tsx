@@ -19,15 +19,23 @@ const cards: Record<Pane, { icon: string; body: () => JSX.Element; rows: () => n
   AGENTS:   { icon: "\u{f06a9}", body: AgentsCard, rows: () => agents.get().roster.length },
 }
 
-/** Open the panel (on a card, from anywhere) on the monitor the pointer is on. */
-export function showDrawer(pane?: Pane) {
+let sheet: Gtk.Widget | null = null
+/** The card column — what hover-open watches (the window itself spans the monitor). */
+export const drawerSheet = () => sheet
+export const drawerOpen = () => !!app.get_window("drawer")?.visible
+
+/**
+ * Open the panel (on a card, from anywhere) on the monitor the pointer is on. `keyboard`
+ * false = a hover open: no focus taken from what Andrew is typing into.
+ */
+export function showDrawer(pane?: Pane, keyboard = true) {
   const w = app.get_window("drawer") as Astal.Window | undefined
   if (!w) return
   if (pane) setFocus(pane)
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = app.get_monitors().find((m) => m.connector === name)
   if (mon) w.gdkmonitor = mon
-  w.keymode = Astal.Keymode.ON_DEMAND
+  w.keymode = keyboard ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE
   w.visible = true
   armClickaway(() => hideDrawer())
 }
@@ -87,7 +95,7 @@ export default function Drawer() {
     >
       {/* the surface spans the monitor: the column at the left, and the rest is the click-away */}
       <box>
-      <box cssClasses={["sheet"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.START}>
+      <box cssClasses={["sheet"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.START} $={(self) => { sheet = self }}>
         {PANES.map((p, i) => (
           <Panel
             title={`${cards[p].icon}  ${i + 1} ${p}`}
