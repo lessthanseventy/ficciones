@@ -101,7 +101,6 @@ function Windows({ connector }: { connector: string }) {
                   </box>
                   <RuleH />
                   <box spacing={6} cssClasses={["winacts"]}>
-                    <button cssClasses={["act", "green"]} onClicked={() => c.focus()}><label label="focus" /></button>
                     <button cssClasses={["act"]} onClicked={() => d("togglefloating")}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => d("pin")}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => { c.focus(); hypr.dispatch("fullscreen", "1") }}><label label="fullscreen" /></button>
