@@ -148,7 +148,11 @@ in
       }
     ];
 
-    home.file = lib.listToAttrs (lib.concatMap (profile: [
+    # Claude Code's theme per palette; the switch points ~/.claude/settings.json at one
+    home.file = {
+      ".claude/themes/uqbar.json".text = renders.uqbar.claudeTheme { name = "uqbar"; light = false; };
+      ".claude/themes/zahir.json".text = renders.zahir.claudeTheme { name = "zahir"; light = true; };
+    } // lib.listToAttrs (lib.concatMap (profile: [
       (lib.nameValuePair ".floorp/${profile}/chrome/userChrome.css" (via "floorp-userChrome.css"))
       (lib.nameValuePair ".floorp/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
     ]) cfg.floorpProfiles);

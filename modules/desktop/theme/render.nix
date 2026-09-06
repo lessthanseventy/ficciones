@@ -93,6 +93,44 @@ rec {
     export const HUES: Hue[] = ["amber", "green", "pink", "cyan", "lilac"]
   '';
 
+  # ---- Claude Code: a custom theme per palette (~/.claude/themes/<name>.json) -------------
+  # The keys are Claude Code's; Andrew's hand-made high-contrast theme was the model (green
+  # body text there, on purpose). `light` tells whether the ground is light.
+  claudeTheme = { name, light }:
+    let
+      t = c: hex (low c);
+      # message grounds: a tint of the hue on the ground, one step off it
+      tint = if light then h.surface1 else h.surface0;
+      tint2 = if light then h.surface2 else h.surface1;
+    in
+    builtins.toJSON {
+      inherit name;
+      base = if light then "light" else "dark";
+      overrides = {
+        text = t h.green; claude = t h.amber; inverseText = t h.bg; background = t h.bg;
+        subtle = t h.lilac; inactive = t h.dim; suggestion = t h.pink; permission = t h.pink;
+        remember = t h.violet; success = t h.green; error = t h.red; warning = t h.amber;
+        merged = t h.pink; promptBorder = t h.amber; planMode = t h.cyan; autoAccept = t h.chip;
+        fastMode = t h.pink; bashBorder = t h.sep; ide = t h.cyan; thinking = t h.cyan;
+        toolUse = t h.amber; agentsView = t h.green; subagentStatusLine = t h.amber;
+        diffAdded = t (if light then "D6EDD6" else "0C2E0C"); diffAddedWord = t (if light then "A8DCA8" else "1B5E1B");
+        diffAddedDimmed = t (if light then "E6F2E6" else "081F08");
+        diffRemoved = t (if light then "F2D9D9" else "2E0C0C"); diffRemovedWord = t (if light then "E3AFAF" else "5E1B1B");
+        diffRemovedDimmed = t (if light then "F7E8E8" else "1F0808");
+        userMessageBackground = t tint; userMessageBackgroundHover = t tint2;
+        bashMessageBackgroundColor = t h.amberTint0; memoryBackgroundColor = t tint;
+        selectionBg = t h.amberTint1; composerSidebarBackground = t tint;
+        rate_limit_fill = t h.green; rate_limit_empty = t tint2;
+        briefLabelYou = t h.chip; briefLabelClaude = t h.green;
+        claudeShimmer = t h.chip; warningShimmer = t h.chip; permissionShimmer = t h.pink;
+        promptBorderShimmer = t h.chip; inactiveShimmer = t h.dim; fastModeShimmer = t h.pink;
+        red_FOR_SUBAGENTS_ONLY = t h.red; blue_FOR_SUBAGENTS_ONLY = t h.cyan;
+        green_FOR_SUBAGENTS_ONLY = t h.green; yellow_FOR_SUBAGENTS_ONLY = t h.chip;
+        purple_FOR_SUBAGENTS_ONLY = t h.violet; orange_FOR_SUBAGENTS_ONLY = t h.ember;
+        pink_FOR_SUBAGENTS_ONLY = t h.pink; cyan_FOR_SUBAGENTS_ONLY = t h.cyan;
+      };
+    };
+
   # ---- Console.Style (modules/console) --------------------------------------------------
   consolePaletteEx =
     let
