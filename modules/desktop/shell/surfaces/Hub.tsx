@@ -68,18 +68,24 @@ function Toggles() {
     const ps = pp.get_profiles().map((p) => p.profile)
     pp.set_active_profile(ps[(ps.indexOf(pp.activeProfile) + 1) % ps.length])
   }
+  // four per row; the hub stays the width of a notice
+  const all = [
+    <Toggle icon={"\u{f05a9}"} label="wifi" on={wifiOn} onToggle={() => { if (net.wifi) net.wifi.enabled = !net.wifi.enabled }} />,
+    <Toggle icon={"\u{f00af}"} label="bt" on={btOn} onToggle={() => bt.toggle()} />,
+    <Toggle icon={"\u{f009b}"} label="dnd" on={dnd} onToggle={() => (notifd.dontDisturb = !notifd.dontDisturb)} />,
+    <Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />,
+    <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />,
+    <Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />,
+    <Toggle icon={"\u{f0e2a}"} label="zen" on={zen} onToggle={() => setBackdrop("toggle")} />,
+    <Toggle icon={"◐"} label="glass" on={glass} onToggle={toggleGlass} />,
+    <Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={() => execAsync([`${GLib.get_home_dir()}/.local/bin/rotate-wallpaper`]).catch(console.error)} />,
+    <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />,
+  ]
+  const rows: JSX.Element[][] = []
+  for (let i = 0; i < all.length; i += 4) rows.push(all.slice(i, i + 4))
   return (
-    <box cssClasses={["toggles"]} spacing={6} homogeneous>
-      <Toggle icon={"\u{f05a9}"} label="wifi" on={wifiOn} onToggle={() => { if (net.wifi) net.wifi.enabled = !net.wifi.enabled }} />
-      <Toggle icon={"\u{f00af}"} label="bt" on={btOn} onToggle={() => bt.toggle()} />
-      <Toggle icon={"\u{f009b}"} label="dnd" on={dnd} onToggle={() => (notifd.dontDisturb = !notifd.dontDisturb)} />
-      <Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />
-      <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />
-      <Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />
-      <Toggle icon={"\u{f0e2a}"} label="zen" on={zen} onToggle={() => setBackdrop("toggle")} />
-      <Toggle icon={"\u{f0e0f}"} label="glass" on={glass} onToggle={toggleGlass} />
-      <Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={() => execAsync([`${GLib.get_home_dir()}/.local/bin/rotate-wallpaper`]).catch(console.error)} />
-      <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />
+    <box cssClasses={["toggles"]} orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+      {rows.map((r) => <box spacing={6} homogeneous>{r}</box>)}
     </box>
   )
 }
