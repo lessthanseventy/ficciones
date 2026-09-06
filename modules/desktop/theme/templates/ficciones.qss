@@ -1,0 +1,254 @@
+/* Force all backgrounds dark and text amber */
+QWidget {
+    background-color: @surface0@;
+    color: @amber@;
+    selection-background-color: @amber@;
+    selection-color: @surface0@;
+}
+
+QTabBar::tab {
+    background: @surface0@;
+    color: @amberDim@;
+    border: none;
+    padding: 6px 16px;
+    border-bottom: 2px solid transparent;
+}
+
+QTabBar::tab:selected {
+    background: @amber@;
+    color: @surface0@;
+    border-bottom: 2px solid @amber@;
+    margin-left: 4px;
+    margin-right: -4px;
+}
+
+QTabBar::tab:first {
+    margin-left: 0px;
+}
+
+QTabBar::tab:hover:!selected {
+    background: @amberTint1@;
+    color: @amber@;
+    border-bottom: 2px solid @amberSoft@;
+}
+
+QTabBar::tab:!selected {
+    background: @surface0@;
+    color: @amberDim@;
+    margin-right: 4px;
+}
+
+QTabWidget::pane {
+    background: @surface0@;
+    border: none;
+}
+
+QToolBar {
+    background: @surface0@;
+    border: none;
+}
+
+QToolButton {
+    background: transparent;
+    color: @green@;
+    border: none;
+    padding: 4px;
+    qproperty-iconSize: 16px;
+}
+
+QToolButton:hover {
+    background: @amberTint0@;
+}
+
+QToolButton:pressed {
+    background: @amberTint1@;
+}
+
+QMenuBar {
+    background: @surface0@;
+    color: @amber@;
+}
+
+QMenuBar::item:selected {
+    background: @amber@;
+    color: @surface0@;
+}
+
+QMenu {
+    background: @surface0@;
+    color: @amber@;
+    border: 1px solid @amberTint2@;
+}
+
+QMenu::item:selected {
+    background: @amber@;
+    color: @surface0@;
+}
+
+QTreeView, QListView, QTableView {
+    background: @surface0@;
+    alternate-background-color: @surface1@;
+    color: @amber@;
+    border: none;
+}
+
+QTreeView::item:selected, QListView::item:selected,
+QTreeView::item:selected:active, QListView::item:selected:active,
+QAbstractItemView::item:selected {
+    background: @amber@;
+    color: @surface0@;
+}
+
+QTreeView::item:selected:!active, QListView::item:selected:!active,
+QAbstractItemView::item:selected:!active {
+    background: @amberSoft@;
+    color: @surface0@;
+}
+
+QTreeView::item:hover:!selected, QListView::item:hover:!selected,
+QAbstractItemView::item:hover:!selected {
+    background: @amberTint1@;
+    color: @amber@;
+}
+
+QHeaderView::section {
+    background: @surface0@;
+    color: @amber@;
+    border: none;
+    border-bottom: 1px solid @amberTint2@;
+    padding: 4px;
+}
+
+QScrollBar:vertical, QScrollBar:horizontal {
+    background: @surface0@;
+    border: none;
+    width: 10px;
+}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: rgba(255, 176, 0, 0.3);
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background: rgba(255, 176, 0, 0.5);
+}
+
+QScrollBar::add-line, QScrollBar::sub-line,
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
+    border: none;
+}
+
+QStatusBar {
+    background: @surface0@;
+    color: @amber@;
+}
+
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background: @surface0@;
+    color: @amber@;
+    border: 1px solid @amberTint2@;
+    selection-background-color: @amber@;
+    selection-color: @surface0@;
+}
+
+QLineEdit:focus {
+    border: 1px solid @amber@;
+}
+
+QPushButton {
+    background: @surface2@;
+    color: @amber@;
+    border: 1px solid @amberTint2@;
+    padding: 4px 12px;
+    border-radius: 4px;
+}
+
+QPushButton:hover {
+    border-color: @amber@;
+}
+
+QPushButton:pressed {
+    background: @amberTint1@;
+}
+
+QComboBox {
+    background: @surface0@;
+    color: @amber@;
+    border: 1px solid @amberTint2@;
+}
+
+QComboBox:hover {
+    border-color: @amber@;
+}
+
+QComboBox QAbstractItemView {
+    background: @surface0@;
+    color: @amber@;
+    selection-background-color: @amber@;
+    selection-color: @surface0@;
+}
+
+QSplitter::handle {
+    background: @surface2@;
+}
+
+QFrame, QGroupBox {
+    border-color: @amberTint2@;
+}
+
+QToolTip {
+    background: @surface0@;
+    color: @amber@;
+    border: 1px solid @amberTint2@;
+}
+
+/* Sidebar / Places panel */
+QDockWidget {
+    background: @surface0@;
+    color: @amber@;
+    titlebar-close-icon: none;
+}
+
+QDockWidget::title {
+    background: @surface0@;
+    color: @amber@;
+}
+
+/* Dolphin sidebar places panel - force highlight colors */
+QDockWidget QListView::item:selected,
+QDockWidget QTreeView::item:selected,
+QDockWidget QAbstractItemView::item:selected,
+#placesPanel QAbstractItemView::item:selected {
+    background: @amber@ !important;
+    color: @surface0@ !important;
+}
+
+/* Force all item views including KDE custom ones */
+QAbstractItemView {
+    background: @surface0@;
+    color: @amber@;
+    outline: none;
+}
+
+QAbstractItemView::item {
+    background: @surface0@;
+    color: @amber@;
+}
+
+QAbstractItemView::item:selected {
+    background: @amber@;
+    color: @surface0@;
+}
+
+QAbstractItemView::item:selected:!active {
+    background: @amberSoft@;
+    color: @surface0@;
+}
+
+QAbstractItemView::item:hover:!selected {
+    background: @amberTint1@;
+    color: @amber@;
+}

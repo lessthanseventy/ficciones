@@ -1,0 +1,818 @@
+
+/*************************************************************************************************************************************************************************************************************************************************************
+
+"userChrome.css" is a custom CSS file that can be used to specify CSS style rules for Floorp's interface (NOT internal site) using "chrome" privileges.
+For instance, if you want to hide the tab bar, you can use the following CSS rule:
+
+**************************************
+#TabsToolbar {                       *
+    display: none !important;        *
+}                                    *
+**************************************
+
+NOTE: You can use the userChrome.css file without change preferences (about:config)
+
+Quote: https://userChrome.org | https://github.com/topics/userchrome 
+
+************************************************************************************************************************************************************************************************************************************************************/
+
+@charset "UTF-8";
+@-moz-document url(chrome://browser/content/browser.xhtml) {
+/* Please write your custom CSS under this line*/
+
+/* RetroTerminal Theme for Floorp - Dark/Light Mode Support */
+
+/* Dark Mode Colors (default) */
+@media (prefers-color-scheme: dark) {
+  :root {
+@ROOT_DARK@
+  }
+}
+
+/* Light Mode Colors */
+@media (prefers-color-scheme: light) {
+  :root {
+    --retro-bg: #f5f5dc;
+    --retro-bg-elevated: #ebe8db;
+    --retro-surface: #e5e5d5;
+    --retro-surface-dim: #d8d5c5;
+    --retro-accent: @amber@;
+    --retro-accent-dim: #cc8c00;
+    --retro-text: #3d3000;
+    --retro-text-secondary: #5a4a00;
+    --retro-text-dim: #7a6a00;
+    --retro-border: #d4a017;
+    --retro-border-bright: @amber@;
+    --retro-font: @FONT_STACK@;
+    --retro-green: #2d8800;
+  }
+}
+
+/* Force CaskaydiaCove Nerd Font everywhere */
+* {
+  font-family: var(--retro-font) !important;
+}
+
+/* Specific font overrides for UI elements */
+#urlbar,
+#searchbar,
+.urlbar-input,
+.searchbar-textbox {
+  font-family: var(--retro-font) !important;
+}
+
+tab,
+.tabbrowser-tab,
+.tab-text {
+  font-family: var(--retro-font) !important;
+}
+
+menuitem,
+menu,
+menubar {
+  font-family: var(--retro-font) !important;
+}
+
+toolbarbutton,
+toolbar {
+  font-family: var(--retro-font) !important;
+}
+
+/* Main browser background - pure black in dark mode */
+#browser,
+#main-window {
+  background-color: var(--retro-bg) !important;
+}
+
+/* Sidebar */
+#sidebar-box,
+#sidebar-header,
+.sidebar-panel {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  border-color: var(--retro-border) !important;
+  min-width: 300px !important; /* Wider sidebar for tree view */
+}
+
+/* Add subtle CRT scanline effect in dark mode */
+@media (prefers-color-scheme: dark) {
+  #sidebar-box::before,
+  #nav-bar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.15),
+      rgba(0, 0, 0, 0.15) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+}
+
+#sidebar-switcher-target,
+#sidebar-close {
+  fill: var(--retro-accent) !important;
+  color: var(--retro-accent) !important;
+}
+
+/* Floorp's vertical tabs sidebar (bsidebar) */
+#bsb-main,
+#bsb-context,
+.browserSidebarChild {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+}
+
+/* Tab elements in sidebar */
+.tabbrowser-tab[visuallyselected="true"] {
+  background-color: var(--retro-accent) !important;
+  color: var(--retro-bg) !important;
+  box-shadow: 0 0 8px var(--retro-accent) !important;
+}
+
+.tabbrowser-tab:hover:not([visuallyselected="true"]) {
+  background-color: var(--retro-surface) !important;
+  border-color: var(--retro-border-bright) !important;
+}
+
+.tabbrowser-tab {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text-secondary) !important;
+  border-color: var(--retro-border) !important;
+}
+
+/* Toolbars and navbar */
+#nav-bar,
+toolbar {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text) !important;
+  border-color: var(--retro-border) !important;
+  position: relative;
+}
+
+/* Hide Bookmarks Toolbar (using Floorp sidebar instead) */
+#PersonalToolbar {
+  display: none !important;
+}
+
+/* URL bar */
+#urlbar,
+#urlbar-background,
+#searchbar {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-border) !important;
+}
+
+#urlbar * {
+  background-color: transparent !important;
+}
+
+#urlbar:focus-within {
+  border-color: var(--retro-accent) !important;
+  box-shadow: 0 0 6px var(--retro-accent) !important;
+}
+
+#urlbar-input,
+.urlbar-input-box {
+  color: var(--retro-text) !important;
+  background-color: transparent !important;
+}
+
+#urlbar-container,
+.urlbar-input-container {
+  background-color: transparent !important;
+}
+
+/* URL bar dropdown/autocomplete */
+#urlbar-results,
+.urlbarView,
+.urlbarView-results {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text) !important;
+  border: none !important;
+}
+
+.urlbarView-row {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text) !important;
+  border: none !important;
+  border-bottom: 1px solid #6b5500 !important;
+  border-radius: 4px !important;
+  margin: 0 !important;
+  padding: 8px !important;
+}
+
+.urlbarView-row:last-child {
+  border-bottom: none !important;
+}
+
+.urlbarView-row[selected],
+.urlbarView-row:hover {
+  background-color: var(--retro-surface) !important;
+  color: var(--retro-accent) !important;
+  border-bottom: 1px solid #998000 !important;
+}
+
+.urlbarView-row[selected] .urlbarView-url,
+.urlbarView-row:hover .urlbarView-url {
+  color: var(--retro-text-secondary) !important;
+}
+
+/* Remove pill/badge styling */
+.urlbarView-row-inner,
+.urlbarView-no-wrap {
+  border: none !important;
+  border-radius: 4px !important;
+  background: none !important;
+}
+
+panel[type="autocomplete-richlistbox"],
+.autocomplete-richlistbox {
+  background-color: var(--retro-bg-elevated) !important;
+  border: 2px solid var(--retro-border) !important;
+}
+
+/* Buttons */
+toolbarbutton {
+  fill: var(--retro-accent) !important;
+  color: var(--retro-accent) !important;
+}
+
+toolbarbutton:hover {
+  background-color: var(--retro-surface) !important;
+  border-color: var(--retro-accent) !important;
+  border-radius: 6px !important;
+}
+
+toolbarbutton[checked="true"],
+toolbarbutton[open="true"] {
+  background-color: var(--retro-accent) !important;
+  fill: var(--retro-bg) !important;
+}
+
+/* Context menus */
+menupopup,
+menuitem,
+menu {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  border-color: var(--retro-border) !important;
+}
+
+menuitem:hover,
+menu:hover {
+  background-color: var(--retro-accent) !important;
+  color: var(--retro-bg) !important;
+  border-radius: 6px !important;
+  border-color: var(--retro-accent) !important;
+}
+
+/* Dropdowns, panels, and settings */
+panel,
+panel[type],
+.panel-arrowcontent,
+#appMenu-popup,
+#appMenu-multiView,
+.panel-viewstack,
+.PanelUI-subView,
+panelview,
+vbox.panel-subview-body,
+.panel-header,
+.subviewbutton,
+menuseparator {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  border-color: var(--retro-border) !important;
+}
+
+.subviewbutton:hover {
+  background-color: var(--retro-accent) !important;
+  color: var(--retro-bg) !important;
+  border-radius: 6px !important;
+  border-color: var(--retro-accent) !important;
+}
+
+/* Scrollbars */
+scrollbar {
+  background-color: var(--retro-bg) !important;
+}
+
+thumb {
+  background-color: var(--retro-border) !important;
+}
+
+thumb:hover {
+  background-color: var(--retro-text-dim) !important;
+}
+
+/* Floorp Sidebar (Notes, Bookmarks, etc.) */
+/* Style sidebar containers but NOT webextension content */
+#sidebar-box,
+#sidebar-header,
+#sidebar-splitter,
+.sidebar-panel {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+}
+
+#sidebar-box,
+#sidebar-header,
+#sidebar-splitter,
+.sidebar-panel {
+  border-color: var(--retro-border) !important;
+}
+
+#sidebar-title,
+#sidebar-switcher-target {
+  color: var(--retro-accent) !important;
+  background-color: var(--retro-bg) !important;
+}
+
+/* Native sidebar background */
+#sidebar-box > browser:not([webextension]),
+#sidebar-box > iframe:not([webextension]) {
+  background-color: var(--retro-bg) !important;
+}
+
+/* Specific Firefox/Floorp sidebar panels - native elements only */
+#sidebar,
+.sidebar-panel,
+#sidebar-panel-header,
+#sidebar-search-container,
+.sidebar-placesTree,
+.sidebar-placesTreechildren,
+#bookmarksPanel,
+#history-panel,
+#bookmarks-view-children,
+#bookmarks-view,
+#historyTree {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  -moz-appearance: none !important;
+}
+
+/* Webextension panels - minimal styling to preserve extension appearance */
+#webextpanels-window,
+#webext-panels-browser {
+  background-color: var(--retro-bg) !important;
+  -moz-appearance: none !important;
+  /* Don't force text color - let extension control it */
+}
+
+/* CRITICAL: Exclude webextension content from global font override */
+/* This preserves Sideberry's icon fonts and tree structure */
+#webext-panels-browser,
+#webext-panels-browser * {
+  font-family: inherit !important;
+}
+
+/* Sidebar theme-specific selectors */
+.sidebar-panel[lwt-sidebar],
+.sidebar-panel[lwt-sidebar="dark"],
+.sidebar-panel[lwt-sidebar-highlight] {
+  background-color: var(--retro-bg) !important;
+  --sidebar-text-color: var(--retro-text) !important;
+  --lwt-sidebar-highlight-background-color: var(--retro-accent) !important;
+  --lwt-sidebar-highlight-text-color: var(--retro-bg) !important;
+}
+
+/* Sidebar content */
+#sidebar-box tree,
+#sidebar-box treechildren,
+#sidebar-box .tree-bodybox {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+}
+
+#sidebar-box treechildren::-moz-tree-row {
+  background-color: var(--retro-bg-elevated) !important;
+  border-bottom: 1px solid var(--retro-border-bright) !important;
+}
+
+#sidebar-box treechildren::-moz-tree-row(hover) {
+  background-color: var(--retro-surface) !important;
+}
+
+#sidebar-box treechildren::-moz-tree-row(selected) {
+  background-color: var(--retro-accent) !important;
+}
+
+#sidebar-box treechildren::-moz-tree-cell-text {
+  color: var(--retro-text) !important;
+}
+
+#sidebar-box treechildren::-moz-tree-cell-text(selected) {
+  color: var(--retro-bg) !important;
+}
+
+/* Sidebar textboxes (search, notes) */
+#sidebar-box input,
+#sidebar-box textarea,
+#sidebar-box textbox {
+  background-color: var(--retro-surface) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-border) !important;
+  border-radius: 6px !important;
+}
+
+#sidebar-box input:focus,
+#sidebar-box textarea:focus {
+  border-color: var(--retro-accent) !important;
+  box-shadow: 0 0 6px var(--retro-accent) !important;
+}
+
+/* Sidebar buttons */
+#sidebar-box button,
+#sidebar-box toolbarbutton {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-accent) !important;
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 6px !important;
+}
+
+#sidebar-box button:hover,
+#sidebar-box toolbarbutton:hover {
+  background-color: var(--retro-accent) !important;
+  color: var(--retro-bg) !important;
+}
+
+/* Notification boxes (fullscreen, permission prompts, etc.) */
+notification,
+.notificationbox,
+#notification-popup,
+#notification-popup-box,
+.notification-anchor-icon,
+.popup-notification-panel,
+#notification-popup-box > notification,
+notificationbox notification {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-accent) !important;
+}
+
+/* Notification message text */
+.notification-message,
+.notification-content,
+.popup-notification-body,
+.popup-notification-description {
+  color: var(--retro-text) !important;
+  background-color: transparent !important;
+}
+
+/* Notification headers and labels */
+.popup-notification-header-value,
+.popup-notification-origin,
+label.notification-message {
+  color: var(--retro-accent) !important;
+}
+
+/* Notification buttons */
+.notification-button,
+.notification-button-default,
+.popup-notification-primary-button,
+.popup-notification-secondary-button {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-accent) !important;
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 4px !important;
+}
+
+.notification-button:hover,
+.notification-button-default:hover,
+.popup-notification-primary-button:hover,
+.popup-notification-secondary-button:hover {
+  background-color: var(--retro-accent) !important;
+  color: var(--retro-bg) !important;
+  box-shadow: 0 0 6px var(--retro-accent) !important;
+  border-radius: 4px !important;
+  border-color: var(--retro-accent) !important;
+}
+
+/* Notification close button */
+.messageCloseButton,
+.notification-close-button {
+  fill: var(--retro-text-dim) !important;
+  background-color: transparent !important;
+}
+
+.messageCloseButton:hover,
+.notification-close-button:hover {
+  fill: var(--retro-accent) !important;
+  background-color: var(--retro-surface) !important;
+}
+
+/* Fullscreen notification specific */
+#fullscreen-warning,
+.pointerlockfswarning {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-accent) !important;
+  box-shadow: 0 0 12px var(--retro-accent) !important;
+  border-radius: 4px !important;
+  position: relative;
+}
+
+/* Add CRT scanlines to fullscreen warning for cohesiveness */
+@media (prefers-color-scheme: dark) {
+  #fullscreen-warning::before,
+  .pointerlockfswarning::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.15),
+      rgba(0, 0, 0, 0.15) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+}
+
+#fullscreen-warning > .pointerlockfswarning-domain-text,
+#fullscreen-warning > .pointerlockfswarning-generic-text {
+  color: var(--retro-text) !important;
+  background-color: transparent !important;
+}
+
+/* Permission prompts, doorhangers, and popup panels */
+.panel-arrowbox,
+.panel-arrow {
+  fill: var(--retro-accent) !important;
+  stroke: var(--retro-accent) !important;
+}
+
+/* Notification icons */
+.notification-icon,
+.popup-notification-icon {
+  filter: brightness(0) saturate(100%) invert(73%) sepia(52%) saturate(1569%) hue-rotate(359deg) brightness(102%) contrast(101%) !important;
+}
+
+/* Find bar (Ctrl+F) */
+findbar,
+.findbar-container,
+.findbar-textbox {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-border) !important;
+}
+
+.findbar-find-status {
+  color: var(--retro-text-secondary) !important;
+}
+
+.findbar-textbox:focus {
+  border-color: var(--retro-accent) !important;
+  box-shadow: 0 0 6px var(--retro-accent) !important;
+}
+
+.findbar-button {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-accent) !important;
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 4px !important;
+}
+
+.findbar-button:hover {
+  background-color: var(--retro-accent) !important;
+  color: var(--retro-bg) !important;
+}
+
+/* Downloads button and panel */
+#downloads-button,
+#downloads-indicator-icon {
+  fill: var(--retro-accent) !important;
+}
+
+#downloadsPanel,
+#downloadsListBox,
+#downloadsHistory,
+richlistitem.download {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  border-color: var(--retro-border) !important;
+}
+
+.downloadButton {
+  fill: var(--retro-accent) !important;
+  background-color: transparent !important;
+}
+
+.downloadButton:hover {
+  background-color: var(--retro-surface) !important;
+}
+
+/* Library window (bookmarks, history, downloads) */
+#placesToolbar,
+#searchFilter,
+#placesView,
+tree,
+treechildren {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  border-color: var(--retro-border) !important;
+}
+
+/* Dialog boxes */
+dialog,
+window[type="dialog"],
+.dialogBox {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+}
+
+dialog button,
+.dialog-button {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-accent) !important;
+  border: 1px solid var(--retro-border) !important;
+  border-radius: 4px !important;
+}
+
+dialog button:hover {
+  background-color: var(--retro-accent) !important;
+  color: var(--retro-bg) !important;
+}
+
+/* Tooltips */
+tooltip {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-accent) !important;
+  border-radius: 4px !important;
+}
+
+/* Reader mode button */
+#reader-mode-button {
+  fill: var(--retro-accent) !important;
+}
+
+/* Picture-in-Picture */
+.picture-in-picture-toggle {
+  background-color: var(--retro-bg) !important;
+  border: 2px solid var(--retro-accent) !important;
+}
+
+/* Status panels (link preview on hover) */
+#statuspanel,
+#statuspanel-label {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-border) !important;
+  border-radius: 4px !important;
+}
+
+/* Extension popups */
+.webextension-popup-browser {
+  background-color: var(--retro-bg) !important;
+}
+
+/* Info bars (translation, permissions, etc.) */
+.infobar,
+notification-message {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-accent) !important;
+}
+
+/* Tab modal dialogs (HTTP auth, etc.) */
+.tabmodalprompt,
+.tabmodalprompt-mainContainer {
+  background-color: var(--retro-bg) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-accent) !important;
+}
+
+.tabmodalprompt-infoContainer {
+  background-color: transparent !important;
+}
+
+/* Search bar in pages */
+.browserContainer > findbar {
+  background-color: var(--retro-bg-elevated) !important;
+}
+
+/* Page action buttons (reader, bookmark, etc.) */
+.urlbar-page-action {
+  fill: var(--retro-accent) !important;
+}
+
+.urlbar-page-action:hover {
+  background-color: var(--retro-surface) !important;
+}
+
+/* Identity box (lock icon, site info) */
+#identity-box,
+#identity-icon-label {
+  color: var(--retro-text-secondary) !important;
+}
+
+#identity-box:hover {
+  background-color: var(--retro-surface) !important;
+}
+
+/* Password manager doorhanger */
+.panel-footer,
+.panel-footer > button {
+  background-color: var(--retro-bg-elevated) !important;
+  color: var(--retro-accent) !important;
+  border-color: var(--retro-border) !important;
+}
+
+/* Checkbox and radio buttons in UI */
+checkbox,
+radio {
+  -moz-appearance: none !important;
+  background-color: var(--retro-bg-elevated) !important;
+  border: 2px solid var(--retro-border) !important;
+  border-radius: 4px !important;
+}
+
+checkbox[checked="true"]::before {
+  content: "✓" !important;
+  color: var(--retro-accent) !important;
+  font-weight: bold !important;
+}
+
+radio[selected="true"] {
+  border-color: var(--retro-accent) !important;
+  background-color: var(--retro-accent) !important;
+}
+
+/* Input fields in dialogs */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="search"],
+textarea {
+  background-color: var(--retro-surface) !important;
+  color: var(--retro-text) !important;
+  border: 2px solid var(--retro-border) !important;
+  border-radius: 4px !important;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--retro-accent) !important;
+  box-shadow: 0 0 6px var(--retro-accent) !important;
+}
+
+/* Floorp Panel Sidebar (icon strip) */
+#panel-sidebar-select-box {
+  background-color: var(--retro-bg) !important;
+  --panel-sidebar-background-color: var(--retro-bg) !important;
+  --toolbar-color: var(--retro-accent) !important;
+  color: var(--retro-accent) !important;
+  border-color: var(--retro-border) !important;
+}
+
+#panel-sidebar-select-box .panel-sidebar-button-wrapper,
+#panel-sidebar-select-box .panel-sidebar-panel,
+#panel-sidebar-select-box toolbarbutton {
+  fill: var(--retro-accent) !important;
+  color: var(--retro-accent) !important;
+}
+
+#panel-sidebar-select-box toolbarbutton:hover,
+#panel-sidebar-select-box .panel-sidebar-button-wrapper:hover {
+  background-color: var(--retro-surface) !important;
+}
+
+#panel-sidebar-select-box [data-checked="true"],
+#panel-sidebar-select-box .panel-sidebar-panel[data-checked="true"] {
+  background-color: var(--retro-accent) !important;
+  fill: var(--retro-bg) !important;
+  color: var(--retro-bg) !important;
+}
+
+/* Panel sidebar content area */
+#panel-sidebar-box {
+  background-color: var(--retro-bg) !important;
+}
+
+/* Bottom button box */
+#panel-sidebar-bottomButtonBox {
+  background-color: var(--retro-bg) !important;
+}
+
+/* Splitters */
+#panel-sidebar-splitter,
+.sidebar-splitter {
+  background-color: var(--retro-border) !important;
+  border-color: var(--retro-border) !important;
+}
+
+}

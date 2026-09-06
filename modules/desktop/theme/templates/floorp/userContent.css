@@ -1,0 +1,701 @@
+
+/*************************************************************************************************************************************************************************************************************************************************************
+
+"userContent.css" is a custom CSS file that can be used to specify CSS style rules for Floorp's internal site using "chrome" privileges.
+For instance, if you want to apply CSS at "about:newtab" and "about:home", you can use the following CSS rule:
+
+***********************************************************************
+@-moz-document url-prefix("about:newtab"), url-prefix("about:home") { *
+                                                                      *
+* Write your css *                                                    *
+                                                                      *
+}                                                                     *
+***********************************************************************
+
+NOTE: You can use the userContent.css file without change preferences (about:config)
+
+************************************************************************************************************************************************************************************************************************************************************/
+
+@charset "UTF-8";
+/* Please write your custom CSS under this line*/
+
+/* RetroTerminal Theme for Internal Pages */
+
+/* Dark Mode Colors */
+@media (prefers-color-scheme: dark) {
+  :root {
+@ROOT_DARK@
+  }
+}
+
+/* Light Mode Colors */
+@media (prefers-color-scheme: light) {
+  :root {
+    --retro-bg: #f5f5dc;
+    --retro-bg-elevated: #ebe8db;
+    --retro-surface: #e5e5d5;
+    --retro-surface-dim: #d8d5c5;
+    --retro-accent: @amber@;
+    --retro-accent-dim: #cc8c00;
+    --retro-text: #3d3000;
+    --retro-text-secondary: #5a4a00;
+    --retro-text-dim: #7a6a00;
+    --retro-border: #d4a017;
+    --retro-border-bright: @amber@;
+    --retro-font: @FONT_STACK@;
+    --retro-green: #2d8800;
+  }
+}
+
+/* Settings/Preferences (about:preferences) */
+@-moz-document url-prefix("about:preferences"), url-prefix("about:settings") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body,
+  #preferences-body,
+  #mainPrefPane {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  .category,
+  .category-name {
+    color: var(--retro-text-secondary) !important;
+  }
+
+  .category[selected],
+  .category[selected] .category-name {
+    background-color: var(--retro-accent) !important;
+    color: var(--retro-bg) !important;
+  }
+
+  .category:hover {
+    background-color: var(--retro-surface) !important;
+  }
+
+  button,
+  .accessory-button {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-accent) !important;
+    border: 1px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  button:hover {
+    background-color: var(--retro-accent) !important;
+    color: var(--retro-bg) !important;
+    box-shadow: 0 0 6px var(--retro-accent) !important;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    background-color: var(--retro-surface) !important;
+    color: var(--retro-text) !important;
+    border: 2px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: var(--retro-accent) !important;
+    box-shadow: 0 0 6px var(--retro-accent) !important;
+  }
+
+  checkbox {
+    -moz-appearance: none !important;
+    background-color: var(--retro-bg-elevated) !important;
+    border: 2px solid var(--retro-border) !important;
+    border-radius: 4px !important;
+  }
+
+  checkbox[checked] {
+    background-color: var(--retro-accent) !important;
+    border-color: var(--retro-accent) !important;
+  }
+
+  .search-header,
+  #searchInput {
+    background-color: var(--retro-surface) !important;
+    color: var(--retro-text) !important;
+    border: 2px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  .search-header:focus-within,
+  #searchInput:focus {
+    border-color: var(--retro-accent) !important;
+    box-shadow: 0 0 6px var(--retro-accent) !important;
+  }
+
+  .indent {
+    border-left-color: var(--retro-border-bright) !important;
+  }
+
+  h1, h2, h3 {
+    color: var(--retro-accent) !important;
+  }
+
+  .description {
+    color: var(--retro-text-secondary) !important;
+  }
+}
+
+/* Add-ons Manager (about:addons) */
+@-moz-document url-prefix("about:addons") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body,
+  #main {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  .card,
+  .addon-card,
+  panel-item {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-text) !important;
+    border: 1px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  .card:hover,
+  .addon-card:hover {
+    border-color: var(--retro-accent) !important;
+    box-shadow: 0 0 6px var(--retro-accent) !important;
+  }
+
+  button,
+  panel-item[action] {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-accent) !important;
+    border: 1px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  button:hover,
+  panel-item[action]:hover {
+    background-color: var(--retro-accent) !important;
+    color: var(--retro-bg) !important;
+  }
+
+  .addon-name-container,
+  .addon-name {
+    color: var(--retro-accent) !important;
+  }
+
+  .addon-description {
+    color: var(--retro-text-secondary) !important;
+  }
+
+  search-addons > search-textbox,
+  input[type="search"] {
+    background-color: var(--retro-surface) !important;
+    color: var(--retro-text) !important;
+    border: 2px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  .list-section-heading {
+    color: var(--retro-accent) !important;
+  }
+}
+
+/* New Tab / Home (about:home, about:newtab) */
+@-moz-document url-prefix("about:home"), url-prefix("about:newtab") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  .search-wrapper input,
+  .search-handoff-button {
+    background-color: var(--retro-surface) !important;
+    color: var(--retro-text) !important;
+    border: 2px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  .search-wrapper input:focus {
+    border-color: var(--retro-accent) !important;
+    box-shadow: 0 0 12px var(--retro-accent) !important;
+  }
+
+  .top-site-outer,
+  .top-sites-list a {
+    background-color: var(--retro-bg-elevated) !important;
+    border-radius: 10px !important;
+  }
+
+  .top-site-outer:hover {
+    background-color: var(--retro-surface) !important;
+    box-shadow: 0 0 6px var(--retro-accent) !important;
+  }
+
+  .top-site-inner > .tile {
+    background-color: var(--retro-bg-elevated) !important;
+  }
+
+  .title {
+    color: var(--retro-text) !important;
+  }
+
+  .outer-wrapper {
+    background-color: var(--retro-bg) !important;
+  }
+}
+
+/* Error pages (about:neterror, etc.) */
+@-moz-document url-prefix("about:neterror"), url-prefix("about:certerror"), url-prefix("about:blocked") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  #errorPageContainer {
+    background-color: var(--retro-bg) !important;
+  }
+
+  #errorTitle,
+  .title-text {
+    color: var(--retro-accent) !important;
+  }
+
+  #errorShortDesc,
+  #errorLongDesc {
+    color: var(--retro-text) !important;
+  }
+
+  button {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-accent) !important;
+    border: 2px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  button:hover {
+    background-color: var(--retro-accent) !important;
+    color: var(--retro-bg) !important;
+    box-shadow: 0 0 6px var(--retro-accent) !important;
+  }
+}
+
+/* Reader Mode */
+@-moz-document url-prefix("about:reader") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body {
+    background-color: var(--retro-bg) !important;
+  }
+
+  .container {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  .content {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-text) !important;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--retro-accent) !important;
+  }
+
+  a {
+    color: var(--retro-accent) !important;
+  }
+
+  a:hover {
+    color: var(--retro-text) !important;
+  }
+
+  button {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-accent) !important;
+    border: 1px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  button:hover {
+    background-color: var(--retro-accent) !important;
+    color: var(--retro-bg) !important;
+  }
+}
+
+/* Developer Tools Config (about:config) */
+@-moz-document url-prefix("about:config") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  #warningButton {
+    background-color: var(--retro-accent) !important;
+    color: var(--retro-bg) !important;
+    border: 2px solid var(--retro-accent) !important;
+    border-radius: 10px !important;
+  }
+
+  #about-config-search {
+    background-color: var(--retro-surface) !important;
+    color: var(--retro-text) !important;
+    border: 2px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  #about-config-search:focus {
+    border-color: var(--retro-accent) !important;
+    box-shadow: 0 0 6px var(--retro-accent) !important;
+  }
+
+  #prefs {
+    background-color: var(--retro-bg) !important;
+  }
+
+  tr {
+    background-color: var(--retro-bg-elevated) !important;
+    border-bottom: 1px solid var(--retro-border) !important;
+  }
+
+  tr:hover {
+    background-color: var(--retro-surface) !important;
+  }
+
+  th {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-accent) !important;
+    border-color: var(--retro-border) !important;
+  }
+
+  td {
+    color: var(--retro-text) !important;
+  }
+
+  button {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-accent) !important;
+    border: 1px solid var(--retro-border) !important;
+    border-radius: 10px !important;
+  }
+
+  button:hover {
+    background-color: var(--retro-accent) !important;
+    color: var(--retro-bg) !important;
+  }
+}
+
+/* Downloads page (about:downloads) */
+@-moz-document url-prefix("about:downloads") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  #contentAreaDownloadsView {
+    background-color: var(--retro-bg) !important;
+  }
+
+  richlistitem {
+    background-color: var(--retro-bg-elevated) !important;
+    color: var(--retro-text) !important;
+    border-bottom: 1px solid var(--retro-border) !important;
+  }
+
+  richlistitem:hover {
+    background-color: var(--retro-surface) !important;
+  }
+}
+
+/* History and Bookmarks sidebar (about:history, about:bookmarks) */
+@-moz-document url-prefix("about:history"), url-prefix("about:bookmarks") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  tree,
+  treechildren {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  treechildren::-moz-tree-row {
+    background-color: var(--retro-bg-elevated) !important;
+    border-color: var(--retro-border) !important;
+  }
+
+  treechildren::-moz-tree-row(hover) {
+    background-color: var(--retro-surface) !important;
+  }
+
+  treechildren::-moz-tree-row(selected) {
+    background-color: var(--retro-accent) !important;
+  }
+
+  treechildren::-moz-tree-cell-text(selected) {
+    color: var(--retro-bg) !important;
+  }
+}
+
+/* All about: pages - global fallback */
+@-moz-document url-prefix("about:") {
+  * {
+    font-family: var(--retro-font) !important;
+  }
+
+  body {
+    background-color: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+  }
+
+  a {
+    color: var(--retro-accent) !important;
+  }
+
+  a:hover {
+    color: var(--retro-text-secondary) !important;
+  }
+}
+
+/* ===== OUTLOOK (sidebar + regular tabs) ===== */
+@-moz-document url-prefix("https://outlook.office.com"),
+    url-prefix("https://outlook.live.com"),
+    url-prefix("https://outlook.office365.com") {
+
+    :root,
+    html,
+    body,
+    [class*="fui-FluentProvider"] {
+        /* Fluent UI tokens */
+        --colorNeutralBackground1: @surface0@ !important;
+        --colorNeutralBackground1Hover: #313244 !important;
+        --colorNeutralBackground1Pressed: #45475a !important;
+        --colorNeutralBackground1Selected: #45475a !important;
+        --colorNeutralBackground2: #080808 !important;
+        --colorNeutralBackground2Hover: #313244 !important;
+        --colorNeutralBackground3: #313244 !important;
+        --colorNeutralBackground4: #45475a !important;
+        --colorNeutralBackground5: #585b70 !important;
+        --colorNeutralBackground6: #080808 !important;
+        --colorNeutralBackgroundInverted: #dda020 !important;
+        --colorNeutralBackgroundStatic: @surface0@ !important;
+        --colorSubtleBackground: transparent !important;
+        --colorSubtleBackgroundHover: #313244 !important;
+        --colorSubtleBackgroundPressed: #45475a !important;
+        --colorSubtleBackgroundSelected: #313244 !important;
+        --colorTransparentBackground: transparent !important;
+        --colorTransparentBackgroundHover: #313244 !important;
+        --colorTransparentBackgroundPressed: #45475a !important;
+
+        --colorNeutralForeground1: #dda020 !important;
+        --colorNeutralForeground1Hover: @amber@ !important;
+        --colorNeutralForeground2: #bb8818 !important;
+        --colorNeutralForeground2Hover: #dda020 !important;
+        --colorNeutralForeground3: #996e10 !important;
+        --colorNeutralForeground4: #806010 !important;
+        --colorNeutralForegroundDisabled: #6c7086 !important;
+        --colorNeutralForegroundInverted: @surface0@ !important;
+        --colorNeutralForegroundOnBrand: @surface0@ !important;
+
+        --colorNeutralStroke1: #45475a !important;
+        --colorNeutralStroke1Hover: #585b70 !important;
+        --colorNeutralStroke2: #313244 !important;
+        --colorNeutralStroke3: #313244 !important;
+        --colorNeutralStrokeAccessible: #585b70 !important;
+        --colorNeutralStrokeDisabled: #313244 !important;
+
+        --colorBrandBackground: @amber@ !important;
+        --colorBrandBackgroundHover: #dda020 !important;
+        --colorBrandBackgroundPressed: #bb8818 !important;
+        --colorBrandBackgroundSelected: #dda020 !important;
+        --colorBrandForeground1: @amber@ !important;
+        --colorBrandForeground2: #dda020 !important;
+        --colorBrandForegroundLink: @green@ !important;
+        --colorBrandForegroundLinkHover: @amber@ !important;
+        --colorBrandForegroundLinkPressed: #dda020 !important;
+        --colorBrandStroke1: @amber@ !important;
+
+        --colorCompoundBrandBackground: @amber@ !important;
+        --colorCompoundBrandBackgroundHover: #dda020 !important;
+        --colorCompoundBrandStroke: @amber@ !important;
+        --colorCompoundBrandForeground1: @amber@ !important;
+
+        --colorPaletteRedForeground1: #f38ba8 !important;
+        --colorPaletteRedBackground1: rgba(243, 139, 168, 0.1) !important;
+        --colorPaletteGreenForeground1: @green@ !important;
+        --colorPaletteGreenBackground1: rgba(51, 255, 0, 0.1) !important;
+        --colorPaletteYellowForeground1: @amber@ !important;
+        --colorPaletteBlueForeground2: #89b4fa !important;
+
+        --colorStatusSuccessForeground1: @green@ !important;
+        --colorStatusWarningForeground1: @amber@ !important;
+        --colorStatusDangerForeground1: #f38ba8 !important;
+
+        --colorScrollbarOverlay: #585b70 !important;
+
+        color-scheme: dark !important;
+    }
+
+    html, body {
+        background-color: @surface0@ !important;
+        color: #dda020 !important;
+    }
+
+    /* App rail */
+    [data-app-section="AppBar"],
+    nav[role="navigation"] {
+        background-color: #050505 !important;
+    }
+
+    /* Folder pane */
+    [data-app-section="FolderPane"],
+    [class*="folderPane" i],
+    [class*="FolderPane"] {
+        background-color: #080808 !important;
+    }
+
+    /* Message list */
+    [role="list"],
+    [role="listitem"],
+    [role="option"],
+    [data-convid] {
+        background-color: @surface0@ !important;
+    }
+
+    [role="listitem"]:hover,
+    [role="option"]:hover,
+    [data-convid]:hover {
+        background-color: #313244 !important;
+    }
+
+    [aria-selected="true"],
+    [data-is-selected="true"] {
+        background-color: #313244 !important;
+    }
+
+    /* Reading pane */
+    [data-app-section="ReadingPane"],
+    [class*="readingPane" i] {
+        background-color: @surface0@ !important;
+    }
+
+    /* Ribbon / toolbar */
+    [class*="ribbon" i],
+    [class*="CommandBar"],
+    [role="toolbar"] {
+        background-color: #080808 !important;
+    }
+
+    /* Top header */
+    [data-app-section="Header"] {
+        background-color: #050505 !important;
+    }
+
+    /* Search */
+    [role="search"] input,
+    [role="searchbox"] {
+        background-color: #313244 !important;
+        color: #dda020 !important;
+        border-color: #45475a !important;
+    }
+
+    /* Tabs (Focused / Other) */
+    [role="tab"] {
+        color: #bb8818 !important;
+    }
+    [role="tab"][aria-selected="true"] {
+        color: @amber@ !important;
+        border-bottom-color: @amber@ !important;
+    }
+
+    /* Info bars */
+    [class*="InfoBar" i],
+    [class*="messageBanner" i] {
+        background-color: #313244 !important;
+        border-color: #45475a !important;
+    }
+
+    /* Buttons */
+    button, [role="button"] {
+        background-color: #313244 !important;
+        color: #dda020 !important;
+        border-color: #45475a !important;
+    }
+    button:hover, [role="button"]:hover {
+        background-color: #45475a !important;
+        color: @amber@ !important;
+    }
+
+    /* Menus, flyouts */
+    [role="menu"],
+    [role="dialog"],
+    [class*="flyout" i],
+    [class*="Callout" i] {
+        background-color: #313244 !important;
+        border-color: #45475a !important;
+    }
+
+    /* Generic containers */
+    div, section, article, aside, main, header, footer {
+        background-color: inherit !important;
+    }
+
+    /* Typography */
+    h1, h2, h3, h4, h5, h6 { color: @amber@ !important; }
+    p, span, li, td, th, label { color: #dda020 !important; }
+    strong, b { color: @amber@ !important; }
+    small, [class*="muted"] { color: #bb8818 !important; }
+    a { color: @green@ !important; }
+    a:hover { color: @amber@ !important; }
+
+    /* Scrollbar */
+    * {
+        scrollbar-color: #585b70 @surface0@ !important;
+        border-color: #45475a !important;
+    }
+}
+
+/* GLOBAL: Force ComicShannsMono on EVERY website */
+/* Excludes elements that use icon fonts (Material Icons/Symbols, Font Awesome, etc.) */
+@-moz-document regexp(".*") {
+  *:not([class*="material-icon"]):not([class*="material-symbol"]):not([class*="Material"]):not([data-icon]):not([class*="fa "]):not([class*="fa-"]):not([class*="fas "]):not([class*="far "]):not([class*="fab "]):not([class*="fal "]):not([class*="fad "]):not([class*="icon-"]):not([class*="glyphicon"]):not([class*="bi-"]):not([class*="pi-"]):not([class*="mdi-"]):not([class*="lucide"]):not([class*="remixicon"]):not([class*="ri-"]):not([aria-hidden="true"]):not([class*="msi-"]):not([class*="zmci-"]):not([class*="zsci-"]):not([class*="zmipath-"]):not([class*="zmDoubleIcon"]):not([class*="zmei-"]):not([class*="zcf-"]) {
+    font-family: @FONT_STACK@ !important;
+  }
+
+  /* Ensure code blocks also use it */
+  code, pre, kbd, samp, tt, var {
+    font-family: @FONT_STACK@ !important;
+  }
+}

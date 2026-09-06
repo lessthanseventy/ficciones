@@ -129,6 +129,25 @@
         astal-shell = astalShell;
       };
 
+      # The checked-in palette outputs (shell scss/ts, Console.Palette) must equal what
+      # modules/desktop/theme/palette.nix renders — `mise theme:gen` rewrites them. Without this a
+      # palette edit would ship to ghostty and GTK but leave the shell and the cockpit behind.
+      checks.${system}.palette-sync =
+        let
+          generated = import ./modules/desktop/theme/generated.nix { inherit (pkgs) lib; };
+        in
+        pkgs.runCommand "palette-sync" { } (
+          pkgs.lib.concatStrings (
+            pkgs.lib.mapAttrsToList (path: text: ''
+              if ! diff -u ${self}/${path} ${pkgs.writeText (baseNameOf path) text}; then
+                echo "palette-sync: ${path} drifts from palette.nix — run: mise theme:gen" >&2
+                exit 1
+              fi
+            '') generated
+          )
+          + "touch $out\n"
+        );
+
       # mise owns Elixir/OTP (mise.toml pins erlang 28 + elixir 1.19.5-otp-28); this shell
       # is the 2am path — sqlite3 to open the db when nothing else is up.
       devShells.${system}.default = pkgs.mkShell {
@@ -161,7 +180,7 @@
           # defaults to ~/.ssh/id_ed25519 — ours). See the age.secrets block below.
           agenix.homeManagerModules.default
           (
-            { lib, ... }:
+            { config, lib, ... }:
             let
               adaptersExtension = "${repo}/modules/adapters/pi/src/extension.ts";
               # consult — /consult and /fresh: delegate a question to a different model
@@ -533,12 +552,12 @@
                   # dropped). Load-bearing in Tlön: this is how the pi⇄claude windows show/click.
                   set -g status-position top
                   set -g status-interval 15
-                  set -g status-style "bg=default,fg=#FFB000"
                   set -g status-left " #S "
                   set -g status-right ""
-                  set -g window-status-current-style "fg=#0a0a0a,bg=#FFB000,bold"
                   set -g window-status-current-format " #I #W "
                   set -g window-status-format " #I #W "
+                  # Colours: the machine palette (modules/desktop/theme), never hex here.
+                  ${config.ficciones.desktop.theme.render.tmuxStyle}
 
                   # Splits + pane nav (prefix chords — the alt- bindings dropped, they clash with
                   # terminal apps like pi/nvim and aren't worth the surface; re-add if you miss them).

@@ -1,45 +1,8 @@
-// Console.Style's colours, name for name (modules/console/lib/console/style.ex). No component
-// writes a raw hex value; a re-theme is one edit here. Phosphor floor — the wallpaper accent
-// sheet, when enabled, redefines $accent/$sel only.
-//
-// The shell's own rule (Andrew, 2026-09-05): body text is AMBER on black; green and pink are
-// highlights, not the default ink. The active thing is inverse video — amber field, black text
-// — so "selected" is the same colour swapped, never a third colour.
-$bg:     #000000;
-$ink:    #0A0A0A;   // chip text — dark on a bright field
-$green:  #33FF00;   // highlight: live / ok / occupied
-$amber:  #FFB000;   // body text AND chrome
-$chip:   #FFD000;   // the inverse-video field (brighter than body amber so ink pops)
-$sel:    #5B00AE;   // selection / tab field
-$accent: #E0218A;   // highlight: agents, the operator, attention
-$dim:    #9A803F;
-$sep:    #B5651D;   // structure: borders, rules
-$red:    #FF5555;
-$cyan:   #33C7FF;
-$white:  #FFFFFF;
+// The palette and font come from modules/desktop/theme/palette.nix via _palette.scss
+// (generated — never edit that one). This file adds the shell's own metrics.
+@forward "palette";
 
-// status tier
-$st-working: $green;
-$st-blocked: $red;
-$st-await:   $accent;
-$st-open:    $amber;
-$st-done:    #5FA35F;
-$st-idle:    $dim;
-
-// text roles beyond the body: keys/labels are cyan, secondary text lilac — amber is primary,
-// not the only colour (Andrew: "tasteful unicorn vomit")
-$key:  $cyan;
-$meta: #B4A5D6;
-
-// identity tier
-$arch-surveyor:  $cyan;
-$arch-builder:   $green;
-$arch-reviewer:  $amber;
-$arch-planner:   $accent;
-$arch-assistant: #B98AFF;
-
-// The one font. Low vision: sizes bias up, never down.
-$font: "ComicShannsMono Nerd Font", "ComicShannsMono Nerd Font Mono", monospace;
+// Low vision: sizes bias up, never down.
 $size: 15px;
 $size-sm: 13px;
 $size-lg: 18px;
@@ -58,6 +21,3 @@ $bar-height: 36px;
 $cell-h: 28px;      // one row of the rail grid / one bar cell
 $rule: 1px;
 
-// Hover/pressed fields: the body colour at low alpha, so hover reads as "lit", not recoloured.
-$hover: rgba($amber, 0.12);
-$pressed: rgba($amber, 0.22);
