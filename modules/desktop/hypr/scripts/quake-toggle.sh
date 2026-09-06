@@ -17,14 +17,15 @@ GAP=12          # below the bar
 # in place, through the window's own opacity props.
 STEPS=8; STEP_S=0.018
 prop() { hyprctl dispatch setprop "address:$addr" "$1" "$2" >/dev/null; }
-fade() { # fade in|out
+fade() { # fade in|out — the window stays opaque while shown (a terminal over the sidecar)
   local i a
   for i in $(seq 1 $STEPS); do
     if [ "$1" = in ]; then a=$(( i * 100 / STEPS )); else a=$(( (STEPS - i) * 100 / STEPS )); fi
-    prop opacity "0.$(printf '%02d' $((a % 100)))"; [ $a -ge 100 ] && prop opacity 1
+    if [ $a -ge 100 ]; then prop opacity 1; else prop opacity "0.$(printf '%02d' $a)"; fi
     sleep $STEP_S
   done
 }
+PREV="${XDG_RUNTIME_DIR:-/tmp}/quake-prev"
 
 client() { hyprctl -j clients | jq -c --arg c "$CLASS" '.[]|select(.class==$c)' | head -1; }
 
@@ -46,10 +47,12 @@ ring() { "$(dirname "$0")/shell-req.sh" sidecar ring "$1" 2>/dev/null || true; }
 
 if [ "$ws" != "special:quake" ]; then
   # shown → hide: fade out, unpin, park, then the opacity goes back to the rules
-  prop opacity_override 1; fade out
+  fade out
   [ "$pinned" = true ] && hyprctl dispatch pin "address:$addr" >/dev/null
   hyprctl dispatch movetoworkspacesilent "special:quake,address:$addr" >/dev/null
   prop opacity unset; prop opacity_override unset
+  # focus goes back to the window that had it (Hyprland leaves it nowhere otherwise)
+  prev=$(cat "$PREV" 2>/dev/null); [ -n "$prev" ] && hyprctl dispatch focuswindow "address:$prev" >/dev/null
   ring on
   exit 0
 fi
@@ -60,6 +63,7 @@ read -r mx my mw rt wsid < <(hyprctl -j monitors | jq -r '.[]|select(.focused)|"
 w=$(( mw * WIDTH_PCT / 100 ))
 x=$(( mx + (mw - w) / 2 ))
 y=$(( my + rt + GAP ))
+hyprctl -j activewindow | jq -r .address > "$PREV"
 ring off
 # invisible first, sized and placed while still hidden; moving between workspaces nudges a
 # floating window, so it is placed again after the move; then it fades in where it is
@@ -69,4 +73,3 @@ hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch movewind
 [ "$pinned" = true ] || hyprctl dispatch pin "address:$addr" >/dev/null
 hyprctl --batch "dispatch focuswindow address:$addr; dispatch alterzorder top,address:$addr" >/dev/null
 fade in
-prop opacity unset; prop opacity_override unset
