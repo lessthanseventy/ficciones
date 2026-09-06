@@ -12,8 +12,9 @@ import Hyprland from "gi://AstalHyprland"
 import { For, createState, createComputed } from "ags"
 import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
+import { remember, score, recent, times, type Memory } from "../lib/funes"
 
-type Item = { icon?: string; glyph?: string; title: string; sub?: string; run: () => void | Promise<void>; key: string }
+type Item = { icon?: string; glyph?: string; title: string; sub?: string; run: () => void | Promise<void>; key: string; mode?: Mode }
 type Mode = "apps" | "calc" | "files" | "shell" | "clip"
 
 const apps = new Apps.Apps()
@@ -30,6 +31,20 @@ const mode = createComputed([query], (q): Mode =>
   modeOverride ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : "apps"),
 )
 
+const glyphOf: Record<string, string> = { calc: "=", files: "/", shell: ":", apps: "" }
+/** A remembered thing as an item again: apps relaunch, shell lines rerun, files reopen, sums recopy. */
+function recall(m: Memory): Item | null {
+  if (m.mode === "apps") {
+    const a = apps.get_list().find((x) => x.entry === m.key)
+    if (!a) return null
+    return { icon: a.iconName || "application-x-executable", title: a.name, sub: `${times("apps", m.key)}×`, key: a.entry, mode: "apps", run: () => { a.launch() } }
+  }
+  if (m.mode === "shell") return { glyph: ":", title: m.key, sub: `${times("shell", m.key)}×`, key: m.key, mode: "shell", run: () => execAsync(["sh", "-c", m.key]).then(() => void 0) }
+  if (m.mode === "files") return { glyph: "/", title: m.key.replace(home, "~"), sub: `${times("files", m.key)}×`, key: m.key, mode: "files", run: () => execAsync(["xdg-open", m.key]).then(() => void 0) }
+  if (m.mode === "calc") return { glyph: "=", title: m.title, sub: m.key, key: m.key, mode: "calc", run: () => execAsync(["wl-copy", m.title]).then(() => void 0) }
+  return null
+}
+
 let seq = 0
 async function search(q: string) {
   const my = ++seq
@@ -38,24 +53,46 @@ async function search(q: string) {
   let out: Item[] = []
   try {
     if (m === "apps") {
-      out = apps.fuzzy_query(body).slice(0, 12).map((a) => ({
-        icon: a.iconName || "application-x-executable", title: a.name, sub: a.description ?? "", key: a.entry,
-        run: () => { a.launch() },
-      }))
+      if (!body) {
+        // the empty prompt: what Funes remembers, across modes, then the apps by frecency
+        const seen = new Set<string>()
+        out = recent(8, ["apps", "shell", "files", "calc"]).map(recall).filter((x): x is Item => !!x && seen.add(`${x.mode}:${x.key}`))
+        for (const a of [...apps.get_list()].sort((a, b) => score("apps", b.entry) - score("apps", a.entry)).slice(0, 12 - out.length)) {
+          if (seen.has(`apps:${a.entry}`)) continue
+          out.push({ icon: a.iconName || "application-x-executable", title: a.name, sub: a.description ?? "", key: a.entry, mode: "apps", run: () => { a.launch() } })
+        }
+      } else {
+        // fuzzy order, then the remembered ones float: a launcher that learns
+        const hits = apps.fuzzy_query(body).slice(0, 24)
+        out = hits
+          .map((a, i) => ({ a, s: score("apps", a.entry) * 10 - i }))
+          .sort((x, y) => y.s - x.s)
+          .slice(0, 12)
+          .map(({ a }) => ({
+            icon: a.iconName || "application-x-executable", title: a.name, sub: times("apps", a.entry) ? `${a.description ?? ""}  · ${times("apps", a.entry)}×` : (a.description ?? ""), key: a.entry, mode: "apps",
+            run: () => { a.launch() },
+          }))
+        // a shell line typed before that starts the same way rides along
+        for (const r of recent(3, ["shell"]).filter((r) => r.key.startsWith(body))) { const it = recall(r); if (it) out.push(it) }
+      }
     } else if (m === "calc") {
       if (body) {
         const r = (await execAsync(["qalc", "-t", body])).trim()
-        out = [{ glyph: "=", title: r, sub: body, key: "calc", run: () => execAsync(["wl-copy", r]).then(() => void 0) }]
+        out = [{ glyph: "=", title: r, sub: body, key: body, mode: "calc", run: () => execAsync(["wl-copy", r]).then(() => void 0) }]
       }
     } else if (m === "files") {
       if (body.length >= 2) {
         const r = await execAsync(["fd", "--max-results", "14", "--hidden", "--exclude", ".git", "--exclude", "node_modules", "--exclude", ".cache", "-i", body, home])
         out = r.trim().split("\n").filter(Boolean).map((p) => ({
-          glyph: "/", title: p.replace(home, "~"), key: p, run: () => execAsync(["xdg-open", p]).then(() => void 0),
-        }))
+          glyph: "/", title: p.replace(home, "~"), key: p, mode: "files" as Mode, run: () => execAsync(["xdg-open", p]).then(() => void 0),
+        })).sort((a, b) => score("files", b.key) - score("files", a.key))
+      } else {
+        out = recent(8, ["files"]).map(recall).filter((x): x is Item => !!x)
       }
     } else if (m === "shell") {
-      if (body) out = [{ glyph: ":", title: body, sub: "run in a shell", key: "sh", run: () => execAsync(["sh", "-c", body]).then(() => void 0) }]
+      out = body ? [{ glyph: ":", title: body, sub: "run in a shell", key: body, mode: "shell", run: () => execAsync(["sh", "-c", body]).then(() => void 0) }] : []
+      // lines run before that start the same way, most-reached-for first
+      for (const r of recent(8, ["shell"]).filter((r) => r.key !== body && r.key.startsWith(body))) { const it = recall(r); if (it) out.push(it) }
     } else if (m === "clip") {
       const r = await execAsync(["cliphist", "list"])
       const rows = r.split("\n").filter(Boolean)
@@ -81,6 +118,7 @@ function activate() {
   const it = items.get()[sel.get()]
   if (!it) return
   hide()
+  if (it.mode && it.key !== "err") remember({ key: it.key, mode: it.mode, title: it.title, sub: it.sub })
   Promise.resolve(it.run()).catch(console.error)
 }
 function hide() { if (win) win.visible = false }
