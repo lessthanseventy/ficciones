@@ -34,8 +34,17 @@ class Canvas {
       this.modes[this.idx].init(this.grid)
     }
     this.ticks++
-    this.modes[this.idx].step(this.grid)
-    this.lines[1](this.grid.lines())
+    const m = this.modes[this.idx]
+    m.step(this.grid)
+    this.lines[1](m.text ? m.text() : this.grid.lines())
+  }
+  /** Jump to a mode by name and hold it for a full cycle. */
+  jump(name: string) {
+    const i = this.modes.findIndex((m) => m.name === name)
+    if (i < 0) return
+    this.idx = i
+    this.ticks = 1
+    this.modes[i].init(this.grid)
   }
   /** a click on the desktop, in widget px → dot coordinates */
   poke(px: number, py: number, w: number, h: number) {
@@ -53,9 +62,9 @@ const nexts: (() => void)[] = []
 export const nextWallpaper = () => nexts.forEach((n) => n())
 let created = 0
 
-export function setBackdrop(mode: "zen" | "photo" | "toggle") {
-  const on = mode === "toggle" ? !zen.get() : mode === "zen"
-  for (const [, c] of canvases) c.run(on)
+export function setBackdrop(mode: "zen" | "photo" | "toggle" | "babel") {
+  const on = mode === "toggle" ? !zen.get() : mode !== "photo"
+  for (const [, c] of canvases) { if (!zen.get() || !on) c.run(on); if (mode === "babel") c.jump("babel") }
   setZen(on)
 }
 

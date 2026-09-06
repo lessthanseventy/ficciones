@@ -47,7 +47,7 @@ app.start({
       return res("ok")
     }
     if (verb === "backdrop") {
-      setBackdrop(what === "zen" || what === "photo" ? what : "toggle")
+      setBackdrop(what === "zen" || what === "photo" || what === "babel" ? what : "toggle")
       return res("ok")
     }
     if (verb === "crt") {
@@ -77,7 +77,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | theme [amber|paper] | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo|babel] | glass [on|off] | theme [amber|paper] | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")

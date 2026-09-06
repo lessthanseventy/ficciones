@@ -2,8 +2,10 @@
 // (the attractor), Life (seeded at random), boids (a flock), rule 30 (falling rows). Every
 // mode is a pure `step` over the CharGrid so the backdrop only paces and switches them.
 import { CharGrid } from "./chargrid"
+import { Babel, ensureBooks } from "./babel"
 
-export type Mode = { name: string; colour: string; init(g: CharGrid): void; step(g: CharGrid): void; poke?(g: CharGrid, x: number, y: number): void }
+/** `text` supersedes the dot grid: the mode paints whole rows of markup itself (the Library). */
+export type Mode = { name: string; colour: string; init(g: CharGrid): void; step(g: CharGrid): void; poke?(g: CharGrid, x: number, y: number): void; text?(): string[] }
 
 const lorenz = (): Mode => {
   const t = [{ x: 0.1, y: 0, z: 0 }, { x: -0.2, y: 0.1, z: 20 }, { x: 8, y: 8, z: 27 }]
@@ -137,5 +139,17 @@ const rule30 = (): Mode => {
   }
 }
 
+const babel = (): Mode => {
+  let lib: Babel | null = null
+  return {
+    name: "babel", colour: "amber",
+    init(g) { ensureBooks(); lib = new Babel(g.cols, g.rows); lib.scroll = Math.random() * 1000; g.clear() },
+    // a click hurries the drift for a moment — a reader turning pages
+    poke() { if (lib) { lib.speed = 0.6; setTimeout(() => { if (lib) lib.speed = 0.06 }, 1500) } },
+    step() { lib?.step() },
+    text() { return lib?.lines() ?? [] },
+  }
+}
+
 /** A fresh set per canvas, so two monitors never share a flock or a tracer. */
-export const makeModes = (): Mode[] => [lorenz(), life(), boids(), rule30()]
+export const makeModes = (): Mode[] => [lorenz(), babel(), life(), boids(), rule30()]
