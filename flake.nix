@@ -61,11 +61,11 @@
       # invokes the store ld-linux without touching the bytes (or nix-ld) — deferred, tracked here.
       pi = pkgs.stdenv.mkDerivation rec {
         pname = "pi-coding-agent";
-        version = "0.84.2";
+        version = "0.85.1";
 
         src = pkgs.fetchurl {
           url = "https://github.com/earendil-works/pi/releases/download/v${version}/pi-linux-x64.tar.gz";
-          hash = "sha256-kG++eH/SJcSsYk/n69Wx1Vpg4PXH71F5XSMVZPnuHBM=";
+          hash = "sha256-SU5Jj0fXTSH0CzOG9qXpIaPUlTGhacq1W72soOof4lo=";
         };
 
         sourceRoot = "pi";
