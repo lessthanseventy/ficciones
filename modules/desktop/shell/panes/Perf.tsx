@@ -2,13 +2,14 @@
 import Gtk from "gi://Gtk?version=4.0"
 import type { Accessor } from "ags"
 import { pct, spark } from "../lib/format"
-import { perf, tier, rate, stats, NET_HOT } from "../lib/perf"
-import { topCpu, topMem, addrs, type Proc } from "../lib/top"
+import { perf, tier, rate, stats, NET_HOT, CORE_HIST } from "../lib/perf"
+import { topCpu, topMem, addrs, kill, ROWS, type Proc } from "../lib/top"
 import { RuleH } from "../lib/tui"
-import { createComputed } from "ags"
+import { createComputed, createState } from "ags"
+import { timeout } from "ags/time"
 import { gpu } from "../lib/gpu"
 
-type Metric = {
+export type Metric = {
   key: string
   frac: Accessor<number>
   num: Accessor<string>
@@ -43,6 +44,80 @@ export function Top({ list, col }: { list: Accessor<Proc[]>; col: "cpu" | "mem" 
           <label cssClasses={["sm"]} label={list((l) => l[i]?.comm ?? "")} widthChars={22} xalign={0} ellipsize={3} />
           <label cssClasses={["dim", "sm"]} label={list((l) => (l[i] ? String(l[i].pid) : ""))} widthChars={7} xalign={1} />
           <label cssClasses={["amber", "sm"]} label={list((l) => (l[i] ? `${l[i][col].toFixed(1)}%` : ""))} widthChars={6} xalign={1} />
+        </box>
+      ))}
+    </box>
+  )
+}
+
+/**
+ * The dashboard's process list: one table, sorted by cpu or memory (the toggle in the head),
+ * every row killable — the ✕ arms, a second click within 2.5 s sends SIGTERM (btop's k).
+ */
+export function Procs() {
+  const [by, setBy] = createState<"cpu" | "mem">("cpu")
+  const list = createComputed([by, topCpu, topMem], (b, c, m) => (b === "cpu" ? c : m))
+  const [armed, setArmed] = createState(0)
+  const arm = (pid: number) => {
+    if (armed.get() === pid) { kill(pid); setArmed(0); return }
+    setArmed(pid)
+    timeout(2500, () => { if (armed.get() === pid) setArmed(0) })
+  }
+  const Sort = ({ k }: { k: "cpu" | "mem" }) => (
+    <button cssClasses={by((b) => ["sort", ...(b === k ? ["chip"] : [])])} onClicked={() => setBy(k)}><label cssClasses={["sm"]} label={k} /></button>
+  )
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={1} cssClasses={["procs"]}>
+      <box spacing={6}>
+        <label cssClasses={["k", "sm"]} label="processes · by" xalign={0} />
+        <Sort k="cpu" /><Sort k="mem" />
+        <box hexpand />
+        <label cssClasses={["k", "sm"]} label="cpu" widthChars={6} xalign={1} />
+        <label cssClasses={["k", "sm"]} label="mem" widthChars={6} xalign={1} />
+        <box widthRequest={40} />
+      </box>
+      {Array.from({ length: ROWS }, (_, i) => {
+        const p = list((l) => l[i])
+        return (
+          <box spacing={8} cssClasses={["proc"]} visible={p((x) => !!x)}>
+            <label cssClasses={["sm"]} label={p((x) => x?.comm ?? "")} widthChars={22} xalign={0} ellipsize={3} hexpand />
+            <label cssClasses={["dim", "sm"]} label={p((x) => (x ? String(x.pid) : ""))} widthChars={7} xalign={1} />
+            <label cssClasses={by((b) => [b === "cpu" ? "amber" : "dim", "sm"])} label={p((x) => (x ? `${x.cpu.toFixed(1)}%` : ""))} widthChars={6} xalign={1} />
+            <label cssClasses={by((b) => [b === "mem" ? "amber" : "dim", "sm"])} label={p((x) => (x ? `${x.mem.toFixed(1)}%` : ""))} widthChars={6} xalign={1} />
+            <button
+              cssClasses={createComputed([armed, p], (a, x) => ["kill", ...(x && a === x.pid ? ["armed"] : [])])}
+              onClicked={() => { const x = p.get(); if (x) arm(x.pid) }}
+              widthRequest={40}
+            >
+              <label cssClasses={["sm"]} label={createComputed([armed, p], (a, x) => (x && a === x.pid ? "sure?" : "✕"))} />
+            </button>
+          </box>
+        )
+      })}
+    </box>
+  )
+}
+
+/** Every core its own sparkline: `cN ⣀⣀⣠⣴ 42%`, four columns, coloured by its own load. */
+export function CoreGrid({ cols = 4 }: { cols?: number }) {
+  const cores = perf((p) => p.cores)
+  const MAX = 32
+  const Cell = ({ i }: { i: number }) => {
+    const f = perf((p) => p.cores[i] ?? 0)
+    return (
+      <box spacing={6} cssClasses={f((x) => ["core", tier(x)])} visible={cores((c) => i < c.length)} hexpand>
+        <label cssClasses={["k", "sm"]} label={`c${i}`} widthChars={3} xalign={0} />
+        <label cssClasses={["spark", "sm"]} label={perf((p) => spark(p.coreHist[i] ?? [], 12))} />
+        <label cssClasses={["num", "sm"]} label={f(pct)} widthChars={4} xalign={1} />
+      </box>
+    )
+  }
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={1}>
+      <label cssClasses={["k", "sm"]} label={cores((c) => `${c.length} cores · last ${CORE_HIST}s`)} xalign={0} />
+      {Array.from({ length: MAX / cols }, (_, r) => (
+        <box spacing={16} visible={cores((c) => r * cols < c.length)} homogeneous>
+          {Array.from({ length: cols }, (_, c) => <Cell i={r * cols + c} />)}
         </box>
       ))}
     </box>

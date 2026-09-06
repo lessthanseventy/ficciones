@@ -129,3 +129,14 @@ window.dashboard { background: transparent; }
 }
 .card-power .action { border-color: rgba($red, 0.5); }
 .card-toggles .toggle { min-height: 64px; min-width: 84px; }
+
+// perf card: the core grid and the process table
+.core {
+  .spark { letter-spacing: 0; }
+  &.idle { .spark, .num { color: $green; } }
+  &.busy { .spark, .num { color: $amber; } }
+  &.hot  { .spark, .num { color: $red; } }
+}
+.procs .sort { padding: 0 $sp-1; min-width: 34px; label { color: $meta; } &.chip label { color: $ink; } }
+.proc { min-height: 22px; }
+.proc .kill { padding: 0 $sp-1; label { color: $dim; } &:hover label { color: $red; } &.armed { background: $red; label { color: $ink; } } }

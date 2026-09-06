@@ -15,6 +15,7 @@ export type Perf = {
   memHist: number[]
   netHist: number[]   // (rx+tx) / NET_HOT
   cores: number[]     // per-core busy fraction
+  coreHist: number[][] // per core, last CORE_HIST samples, oldest first
   load5: number
   load15: number
   swapUsed: number    // GB
@@ -26,8 +27,11 @@ export type Perf = {
 /** 10 MB/s reads as fully hot on the net meter. */
 export const NET_HOT = 10 * 1048576
 const HIST = 120
+/** per-core history is shorter: twenty sparklines of two minutes would be noise */
+export const CORE_HIST = 40
 const cpuHist: number[] = [], memHist: number[] = [], netHist: number[] = []
-const push = (a: number[], x: number) => { a.push(x); if (a.length > HIST) a.shift() }
+const coreHist: number[][] = []
+const push = (a: number[], x: number, max = HIST) => { a.push(x); if (a.length > max) a.shift() }
 
 let prevCpu: [number, number][] = []          // per line: [idle, total]; index 0 = all
 let prevNet: Map<string, [number, number]> = new Map()
@@ -96,11 +100,12 @@ function sample(): Perf {
   const n = readNet()
   const [load1, load5, load15] = readFile("/proc/loadavg").split(" ").slice(0, 3).map(Number)
   push(cpuHist, cpu); push(memHist, m.mem); push(netHist, Math.min(1, (n.rx + n.tx) / NET_HOT))
-  return { cpu, ...m, ...n, load1: load1 || 0, load5: load5 || 0, load15: load15 || 0, cpuHist, memHist, netHist, cores }
+  cores.forEach((c, i) => { coreHist[i] ??= []; push(coreHist[i], c, CORE_HIST) })
+  return { cpu, ...m, ...n, load1: load1 || 0, load5: load5 || 0, load15: load15 || 0, cpuHist, memHist, netHist, cores, coreHist }
 }
 
 export const perf = createPoll<Perf>(
-  { cpu: 0, mem: 0, memUsedGb: 0, memTotalGb: 0, rx: 0, tx: 0, load1: 0, load5: 0, load15: 0, cpuHist, memHist, netHist, cores: [], swapUsed: 0, swapTotal: 0, cached: 0, ifaces: [] },
+  { cpu: 0, mem: 0, memUsedGb: 0, memTotalGb: 0, rx: 0, tx: 0, load1: 0, load5: 0, load15: 0, cpuHist, memHist, netHist, cores: [], coreHist, swapUsed: 0, swapTotal: 0, cached: 0, ifaces: [] },
   1000,
   sample,
 )

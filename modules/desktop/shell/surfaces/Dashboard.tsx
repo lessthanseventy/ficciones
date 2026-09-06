@@ -17,8 +17,7 @@ import { CalendarCard } from "../panes/Calendar"
 import { WeatherCard } from "../panes/Weather"
 import { AgentsCard } from "../panes/Agents"
 import { MediaCard } from "../panes/Media"
-import { METRICS, Cores, Top, type Metric } from "../panes/Perf"
-import { topCpu, topMem } from "../lib/top"
+import { METRICS, CoreGrid, Procs, type Metric } from "../panes/Perf"
 import { RuleV } from "../lib/tui"
 import { tier } from "../lib/perf"
 import { meter, spark } from "../lib/format"
@@ -116,13 +115,10 @@ function PerfCard() {
       <box orientation={Gtk.Orientation.VERTICAL} spacing={14} hexpand>
         <box spacing={24} homogeneous><Gauge m={cpu} /><Gauge m={ram} /></box>
         <box spacing={24} homogeneous><Gauge m={gpu} /><Gauge m={net} /></box>
-        <Cores />
+        <CoreGrid />
       </box>
       <RuleV />
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
-        <Top list={topCpu} col="cpu" />
-        <Top list={topMem} col="mem" />
-      </box>
+      <Procs />
     </box>
   )
 }
