@@ -18,12 +18,7 @@ export default function Clickaway({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   onCleanup(() => win.destroy())
   return (
     <window
-      $={(self) => {
-        win = self
-        const g = new Gtk.GestureClick()
-        g.connect("pressed", () => { const c = closer; disarmClickaway(); c?.() })
-        self.add_controller(g)
-      }}
+      $={(self) => (win = self)}
       visible={active}
       cssClasses={["clickaway"]}
       namespace="astal-shell-clickaway"
@@ -34,7 +29,16 @@ export default function Clickaway({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       application={app}
     >
-      <box />
+      <box
+        hexpand
+        vexpand
+        $={(self) => {
+          // the box IS the surface: a full-size target, or there is nothing under the pointer
+          const g = new Gtk.GestureClick({ button: 0 })
+          g.connect("pressed", () => { const c = closer; disarmClickaway(); c?.() })
+          self.add_controller(g)
+        }}
+      />
     </window>
   )
 }
