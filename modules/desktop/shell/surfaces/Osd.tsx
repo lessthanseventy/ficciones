@@ -15,8 +15,8 @@ import { meter, pct } from "../lib/format"
 import { onGammaChange } from "../lib/brightness"
 
 const HOLD_MS = 1400
-type Kind = "volume" | "brightness"
-const [osd, setOsd] = createState<{ kind: Kind; frac: number; muted: boolean; icon: string } | null>(null)
+type Kind = "volume" | "brightness" | "text"
+const [osd, setOsd] = createState<{ kind: Kind; frac: number; muted: boolean; icon: string; title?: string; text?: string } | null>(null)
 
 let hide: Timer | null = null
 let quietUntil = 0
@@ -35,6 +35,16 @@ function show(kind: Kind, frac: number, muted = false) {
 }
 
 let win: Astal.Window | null = null
+
+/** A word on screen for a moment: the backdrop mode, a theme change. */
+export function showText(title: string, text: string, icon = "\u{f0e2a}") {
+  setOsd({ kind: "text", frac: 0, muted: false, icon, title, text })
+  const name = Hyprland.get_default().focusedMonitor?.name
+  const mon = app.get_monitors().find((m) => m.connector === name)
+  if (win && mon) win.gdkmonitor = mon
+  hide?.cancel()
+  hide = timeout(HOLD_MS, () => setOsd(null))
+}
 
 /** Watch the sources. The first notify of each is the initial value, not a change. */
 function watch() {
@@ -71,11 +81,12 @@ export default function Osd() {
       marginBottom={96}
       application={app}
     >
-      <Panel title={osd((o) => (o?.kind === "brightness" ? "\u{f00e0}  BRIGHTNESS" : "\u{f057e}  VOLUME"))} cssClasses={osd((o) => ["osd-pane", ...(o?.muted ? ["muted"] : [])])}>
+      <Panel title={osd((o) => (o?.kind === "text" ? o.title ?? "" : o?.kind === "brightness" ? "\u{f00e0}  BRIGHTNESS" : "\u{f057e}  VOLUME"))} cssClasses={osd((o) => ["osd-pane", ...(o?.muted ? ["muted"] : [])])}>
         <box spacing={16}>
           <label cssClasses={["osd-icon"]} label={osd((o) => o?.icon ?? "")} />
-          <label cssClasses={["osd-bar"]} label={osd((o) => meter(o?.frac ?? 0, 30))} />
-          <label cssClasses={["osd-num"]} label={osd((o) => (o?.muted ? "mute" : pct(o?.frac ?? 0)))} widthChars={4} xalign={1} />
+          <label cssClasses={["osd-bar"]} label={osd((o) => meter(o?.frac ?? 0, 30))} visible={osd((o) => o?.kind !== "text")} />
+          <label cssClasses={["osd-num"]} label={osd((o) => (o?.muted ? "mute" : pct(o?.frac ?? 0)))} widthChars={4} xalign={1} visible={osd((o) => o?.kind !== "text")} />
+          <label cssClasses={["osd-num"]} label={osd((o) => o?.text ?? "")} xalign={0} visible={osd((o) => o?.kind === "text")} />
         </box>
       </Panel>
     </window>

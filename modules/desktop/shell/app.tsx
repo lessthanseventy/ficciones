@@ -48,7 +48,9 @@ app.start({
       return res("ok")
     }
     if (verb === "backdrop") {
-      setBackdrop(what === "zen" || what === "photo" || what === "babel" ? what : "toggle")
+      // no argument cycles (Super+Shift+Z); `toggle` is the old on/off; a mode name holds it
+      const names = ["zen", "photo", "toggle", "cycle", "random", "lorenz", "babel", "life", "boids", "rule 30", "rule30"]
+      setBackdrop(!what ? "cycle" : names.includes(what) ? (what === "rule30" ? "rule 30" : what) as any : "cycle")
       return res("ok")
     }
     if (verb === "crt") {
@@ -82,7 +84,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo|babel] | glass [on|off] | theme [amber|paper] | sidecar [toggle|pin|unpin] | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [amber|paper] | sidecar [toggle|pin|unpin] | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")

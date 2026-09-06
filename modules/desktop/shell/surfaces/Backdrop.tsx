@@ -12,12 +12,17 @@ import { CharGrid } from "../lib/chargrid"
 import { makeModes } from "../lib/ambient"
 import { wallpaper } from "../lib/wallpaper"
 import Gio from "gi://Gio"
+import { showText } from "./Osd"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
 const TICK_MS = 120
 const SWITCH_TICKS = Math.round(90_000 / TICK_MS)
 
 export const [zen, setZen] = createState(false)
+/** What the backdrop shows: a named ambient held, "random" (the modes rotate), or the photo. */
+export const MODE_NAMES = ["lorenz", "babel", "life", "boids", "rule 30"] as const
+export type BackdropMode = (typeof MODE_NAMES)[number] | "random" | "photo"
+export const [backdropMode, setBackdropMode] = createState<BackdropMode>("photo")
 
 /** One canvas per monitor: its own grid, modes, phase — neighbours never show the same thing. */
 class Canvas {
@@ -25,11 +30,12 @@ class Canvas {
   modes = makeModes()
   idx: number
   ticks = 0
+  hold = false // a named mode is held: no rotation
   lines = createState<string[]>(this.grid.lines())
   timer: Timer | null = null
   constructor(start: number) { this.idx = start % this.modes.length }
   step = () => {
-    if (this.ticks % SWITCH_TICKS === 0) {
+    if (this.ticks % SWITCH_TICKS === 0 && !(this.hold && this.ticks)) {
       if (this.ticks) this.idx = (this.idx + 1) % this.modes.length
       this.modes[this.idx].init(this.grid)
     }
@@ -62,10 +68,26 @@ const nexts: (() => void)[] = []
 export const nextWallpaper = () => nexts.forEach((n) => n())
 let created = 0
 
-export function setBackdrop(mode: "zen" | "photo" | "toggle" | "babel") {
-  const on = mode === "toggle" ? !zen.get() : mode !== "photo"
-  for (const [, c] of canvases) { if (!zen.get() || !on) c.run(on); if (mode === "babel") c.jump("babel") }
+const ORDER: BackdropMode[] = [...MODE_NAMES, "random", "photo"]
+/**
+ * `zen` = random rotation on, `photo` off, `toggle` between those, `cycle` (Super+Shift+Z) steps
+ * through every ambient by name, then random, then the photo; a mode name holds that one.
+ */
+export function setBackdrop(mode: "zen" | "photo" | "toggle" | "cycle" | BackdropMode) {
+  let next: BackdropMode
+  if (mode === "zen") next = "random"
+  else if (mode === "toggle") next = zen.get() ? "photo" : "random"
+  else if (mode === "cycle") next = ORDER[(ORDER.indexOf(backdropMode.get()) + 1) % ORDER.length]
+  else next = mode
+  const on = next !== "photo"
+  for (const [, c] of canvases) {
+    if (!zen.get() || !on) c.run(on)
+    c.hold = on && next !== "random"
+    if (c.hold) c.jump(next)
+  }
   setZen(on)
+  setBackdropMode(next)
+  if (mode === "cycle") showText("\u{f0e2a}  BACKDROP", next === "random" ? "random — the ambients rotate" : next === "photo" ? "photo" : next)
 }
 
 export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
