@@ -20,6 +20,7 @@ import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
 import { zen, setBackdrop } from "./Backdrop"
 import { glass, toggleGlass } from "../lib/glass"
+import { armClickaway, disarmClickaway } from "./Clickaway"
 
 const notifd = Notifd.get_default()
 
@@ -93,23 +94,32 @@ function Toggles() {
 let hubWin: Astal.Window | null = null
 /** True while the hub is up — the toast window hides itself so the two never overlap. */
 export const [hubOpen, setHubOpen] = createState(false)
-export function showHub() {
+export function showHub(on?: Gdk.Monitor) {
   if (!hubWin) return
   const name = Hyprland.get_default().focusedMonitor?.name
-  const mon = app.get_monitors().find((m) => m.connector === name)
+  const mon = on ?? app.get_monitors().find((m) => m.connector === name)
   if (mon) hubWin.gdkmonitor = mon
+  hubWin.keymode = Astal.Keymode.EXCLUSIVE
   hubWin.visible = true
+  armClickaway(() => hideHub())
+}
+export function hideHub() {
+  if (hubWin) { hubWin.visible = false; hubWin.keymode = Astal.Keymode.NONE }
+  disarmClickaway()
 }
 export function toggleHub() {
-  if (hubWin?.visible) hubWin.visible = false
+  if (hubWin?.visible) hideHub()
   else showHub()
 }
 
-/** The 2px strip along the right edge: park the pointer there and the hub slides in. */
-export function HotEdge() {
+/**
+ * The strip along each monitor's right edge: park the pointer there and the hub slides in
+ * on that monitor. The dwell keeps a crossing between monitors from firing it.
+ */
+export function HotEdge({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   let dwell: Timer | null = null
   const motion = new Gtk.EventControllerMotion()
-  motion.connect("enter", () => { dwell?.cancel(); dwell = timeout(250, () => showHub()) })
+  motion.connect("enter", () => { dwell?.cancel(); dwell = timeout(400, () => showHub(gdkmonitor)) })
   motion.connect("leave", () => { dwell?.cancel(); dwell = null })
   return (
     <window
@@ -117,13 +127,14 @@ export function HotEdge() {
       visible
       cssClasses={["hotedge"]}
       namespace="astal-shell-hotedge"
-      name="hotedge"
+      name={`hotedge-${gdkmonitor.connector}`}
+      gdkmonitor={gdkmonitor}
       layer={Astal.Layer.TOP}
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       application={app}
     >
-      <box widthRequest={2} />
+      <box widthRequest={3} />
     </window>
   )
 }
@@ -135,10 +146,10 @@ export default function Hub() {
   // a button press inside emits a synthetic leave (implicit grab), so the grace timer re-checks
   motion.connect("leave", () => {
     leave?.cancel()
-    leave = timeout(600, () => { if (hubWin && !motion.containsPointer) hubWin.visible = false })
+    leave = timeout(600, () => { if (hubWin && !motion.containsPointer) hideHub() })
   })
   const keys = new Gtk.EventControllerKey()
-  keys.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape || kv === Gdk.KEY_q ? ((hubWin!.visible = false), true) : false))
+  keys.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape || kv === Gdk.KEY_q ? (hideHub(), true) : false))
   return (
     <window
       $={(self) => {
@@ -151,8 +162,8 @@ export default function Hub() {
       cssClasses={["hub"]}
       namespace="astal-shell-hub"
       name="hub"
-      layer={Astal.Layer.TOP}
-      keymode={Astal.Keymode.ON_DEMAND}
+      layer={Astal.Layer.OVERLAY} // above the clickaway, which sits on TOP
+      keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       marginTop={36}

@@ -14,6 +14,7 @@ import { MediaCard } from "../panes/Media"
 import { WeatherCard } from "../panes/Weather"
 import { AgentsCard } from "../panes/Agents"
 import { agents } from "../lib/agents"
+import { armClickaway, disarmClickaway } from "./Clickaway"
 
 const cards: Record<Pane, { icon: string; body: () => JSX.Element; rows: () => number }> = {
   CALENDAR: { icon: "\u{f00ed}", body: CalendarCard, rows: () => 0 },
@@ -30,11 +31,20 @@ export function showDrawer(pane?: Pane) {
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = app.get_monitors().find((m) => m.connector === name)
   if (mon) w.gdkmonitor = mon
+  w.keymode = Astal.Keymode.EXCLUSIVE   // the panel owns the keyboard while up
   w.visible = true
+  armClickaway(() => hideDrawer())
+}
+export function hideDrawer() {
+  const w = app.get_window("drawer") as Astal.Window | undefined
+  if (!w) return
+  w.visible = false
+  w.keymode = Astal.Keymode.NONE
+  disarmClickaway()
 }
 export function toggleDrawer() {
   const w = app.get_window("drawer")
-  if (w?.visible) w.visible = false
+  if (w?.visible) hideDrawer()
   else showDrawer()
 }
 
@@ -49,7 +59,7 @@ export default function Drawer() {
       case Gdk.KEY_ISO_Left_Tab: return cycle(-1), true
       case Gdk.KEY_j: case Gdk.KEY_Down: return move(1, cards[focus.get()].rows()), true
       case Gdk.KEY_k: case Gdk.KEY_Up: return move(-1, cards[focus.get()].rows()), true
-      case Gdk.KEY_Escape: case Gdk.KEY_q: return (win.visible = false), true
+      case Gdk.KEY_Escape: case Gdk.KEY_q: return hideDrawer(), true
     }
     return false
   }
@@ -66,8 +76,8 @@ export default function Drawer() {
       cssClasses={["drawer"]}
       namespace="astal-shell-drawer"
       name="drawer"
-      layer={Astal.Layer.TOP}
-      keymode={Astal.Keymode.ON_DEMAND}
+      layer={Astal.Layer.OVERLAY} // above the clickaway, which sits on TOP
+      keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.BOTTOM}
       marginTop={36} // under the bar; both sit on the TOP layer

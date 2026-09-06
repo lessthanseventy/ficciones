@@ -46,7 +46,7 @@ window.drawer { background: transparent; }
 .cal-day.chip { padding: 0; }
 
 // ── the right-hand hub ─────────────────────────────────────────────────────
-window.hub, window.hotedge { background: transparent; }
+window.hub, window.hotedge, window.clickaway { background: transparent; }
 .sheet.right { border-right: none; border-left: $rule solid $sep; padding: 0 $sp-2 $sp-2 $sp-3; }
 .card-notices .panel-title { color: $amber; }
 .card-toggles .panel-title { color: $cyan; }

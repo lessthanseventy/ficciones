@@ -6,6 +6,7 @@ import Bar from "./surfaces/Bar"
 import Drawer, { showDrawer, toggleDrawer } from "./surfaces/Drawer"
 import Notifications from "./surfaces/Notifications"
 import Hub, { HotEdge, toggleHub } from "./surfaces/Hub"
+import Clickaway from "./surfaces/Clickaway"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
@@ -68,7 +69,6 @@ app.start({
     Drawer()
     Notifications()
     Hub()
-    HotEdge()
     Launcher()
     Cheatsheet()
     return (
@@ -78,6 +78,8 @@ app.start({
             <Rail gdkmonitor={monitor} />
             <Bar gdkmonitor={monitor} />
             <Backdrop gdkmonitor={monitor} />
+            <Clickaway gdkmonitor={monitor} />
+            <HotEdge gdkmonitor={monitor} />
           </This>
         )}
       </For>
