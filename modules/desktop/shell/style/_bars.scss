@@ -152,13 +152,15 @@ popover.pop {
 }
 
 .windows {
-  menubutton.win > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; }
+  menubutton.win > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; min-width: 0; }
   .kv { margin: $sp-1 0; }
   .winacts { margin-top: $sp-1; }
   .win {
     min-height: $bar-height - $rule;
-    padding: 0 $sp-2;
-    &.focused { background: $hover; }
+    // an unfocused window is just its icon: keep the cell snug so a row of them reads as a
+    // strip, not a spread (Andrew, 2026-09-05: "a little wide")
+    padding: 0 $sp-1;
+    &.focused { background: $hover; padding: 0 $sp-2; }
     &:hover { background: $pressed; }
     .klass { color: $cyan; font-size: $size-sm; }
     .title { color: $amber; }
