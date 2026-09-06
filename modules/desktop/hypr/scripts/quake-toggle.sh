@@ -10,6 +10,11 @@
 CLASS="com.ghostty.quake"
 WIDTH_PCT=70    # of the monitor, centred
 HEIGHT_PCT=55
+GAP=12          # below the bar
+
+# No animation at all (Andrew, 2026-09-06): moving a window between workspaces nudges it and the
+# correction animates as a slide, so animations are off for the moment of the toggle.
+still() { hyprctl keyword animations:enabled 0 >/dev/null; "$@"; sleep 0.05; hyprctl keyword animations:enabled 1 >/dev/null; }
 
 client() { hyprctl -j clients | jq -c --arg c "$CLASS" '.[]|select(.class==$c)' | head -1; }
 
@@ -32,7 +37,7 @@ ring() { "$(dirname "$0")/shell-req.sh" sidecar ring "$1" 2>/dev/null || true; }
 if [ "$ws" != "special:quake" ]; then
   # shown → hide: unpin, park (the window rule fades it; no slide)
   [ "$pinned" = true ] && hyprctl dispatch pin "address:$addr" >/dev/null
-  hyprctl dispatch movetoworkspacesilent "special:quake,address:$addr" >/dev/null
+  still hyprctl dispatch movetoworkspacesilent "special:quake,address:$addr" >/dev/null
   ring on
   exit 0
 fi
@@ -42,11 +47,11 @@ fi
 read -r mx my mw rt wsid < <(hyprctl -j monitors | jq -r '.[]|select(.focused)|"\(.x) \(.y) \(.width) \(.reserved[1]) \(.activeWorkspace.id)"')
 w=$(( mw * WIDTH_PCT / 100 ))
 x=$(( mx + (mw - w) / 2 ))
-y=$(( my + rt ))
+y=$(( my + rt + GAP ))
 ring off
 # sized and placed while still hidden, so it fades in already in place (windowrule: animation fade)
 hyprctl --batch "dispatch setfloating address:$addr; dispatch resizewindowpixel exact $w $HEIGHT_PCT%,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
-# moving between workspaces nudges a floating window; put it back where it belongs
-hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
+# moving between workspaces nudges a floating window; put it back where it belongs, unanimated
+still hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null
 [ "$pinned" = true ] || hyprctl dispatch pin "address:$addr" >/dev/null
 hyprctl --batch "dispatch focuswindow address:$addr; dispatch alterzorder top,address:$addr" >/dev/null
