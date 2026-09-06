@@ -54,11 +54,12 @@ function Workspaces({ connector }: { connector: string }) {
   )
 }
 
-/** The corner where the rail meets the bar: the flake, because the machine is one. Click = launcher. */
+/** The corner where the rail meets the bar: the Aleph, the point that holds every other point —
+ *  which is what a launcher is. Click = launcher. */
 function Corner() {
   return (
     <button cssClasses={["corner"]} onClicked={() => toggleLauncher()}>
-      <label label={"\u{f313}"} />
+      <label label={"\u2135"} />
     </button>
   )
 }
