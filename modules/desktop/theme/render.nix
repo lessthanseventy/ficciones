@@ -438,35 +438,26 @@ rec {
   # ---- lazygit / bat / fzf / cava / tmux --------------------------------------------------
   lazygitConfig = template:
     let
-      theme = ''
-
-          activeBorderColor:
-            - "${hex h.amber}"
-            - bold
-          inactiveBorderColor:
-            - "${hex h.amberDim}"
-          searchingActiveBorderColor:
-            - "${hex h.cyan}"
-            - bold
-          optionsTextColor:
-            - "${hex h.cyan}"
-          selectedLineBgColor:
-            - "${hex h.chip}"
-          selectedLineTextColor:
-            - "${hex h.ink}"
-          inactiveViewSelectedLineBgColor:
-            - "${hex h.surface3}"
-          cherryPickedCommitBgColor:
-            - "${hex h.sel}"
-          cherryPickedCommitFgColor:
-            - "${hex h.cream}"
-          unstagedChangesColor:
-            - "${hex h.red}"
-          defaultFgColor:
-            - "${hex h.amber}"'';
+      # Built line by line: an indented '' string would strip the YAML indentation.
+      entry = k: vs: [ "    ${k}:" ] ++ map (v: "      - ${v}") vs;
+      q = c: "\"${hex c}\"";
+      theme = lib.concatStringsSep "\n" (lib.concatLists [
+        (entry "activeBorderColor" [ (q h.amber) "bold" ])
+        (entry "inactiveBorderColor" [ (q h.amberDim) ])
+        (entry "searchingActiveBorderColor" [ (q h.cyan) "bold" ])
+        (entry "optionsTextColor" [ (q h.cyan) ])
+        (entry "selectedLineBgColor" [ (q h.chip) ])
+        (entry "inactiveViewSelectedLineBgColor" [ (q h.surface3) ])
+        (entry "cherryPickedCommitBgColor" [ (q h.sel) ])
+        (entry "cherryPickedCommitFgColor" [ (q h.cream) ])
+        (entry "markedBaseCommitBgColor" [ (q h.sel) ])
+        (entry "markedBaseCommitFgColor" [ (q h.cream) ])
+        (entry "unstagedChangesColor" [ (q h.red) ])
+        (entry "defaultFgColor" [ (q h.amber) ])
+      ]);
     in
     "# ${gen} (gui.theme); the rest is templates/lazygit.yml in the repo.\n"
-    + lib.replaceStrings [ "  theme: @THEME@\n" ] [ "  theme:${theme}\n" ] template;
+    + lib.replaceStrings [ "  theme: @THEME@\n" ] [ "  theme:\n${theme}\n" ] template;
 
   # bat: `ansi` is the honest choice — it renders through the terminal's 16 colours, which
   # ghostty already gets from this palette, so bat and the prompt agree by construction.

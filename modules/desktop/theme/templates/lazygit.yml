@@ -6,9 +6,9 @@ gui:
   nerdFontsVersion: 3
   theme: @THEME@
 git:
-  pagers:
+  diffRenderers:
     - colorArg: always
-      pager: diff-so-fancy
+      command: diff-so-fancy
   branchLogCmd: "git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=oneline {{branchName}} --"
 # determines whether hitting 'esc' will quit the application when there is nothing to cancel/close
 quitOnTopLevelReturn: false

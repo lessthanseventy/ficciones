@@ -33,6 +33,15 @@ in
       default = [ "d0p2n4mq.default-nightly-1725500522201" ];
       description = "Profile directories under ~/.floorp that get userChrome.css/userContent.css.";
     };
+    qtPlatformTheme = lib.mkOption {
+      type = lib.types.enum [ "qt6ct" "gtk3" ];
+      default = "gtk3";
+      description = ''
+        How Qt apps get the palette. "qt6ct" (+ kvantum) is the real thing and what modules/os
+        installs; "gtk3" is Qt's own platform theme, which derives a palette from the GTK theme
+        and our gtk.css — the honest choice on the Arch box, where qt6ct was never installed.
+      '';
+    };
     gtkTheme = lib.mkOption {
       type = lib.types.str;
       default = "catppuccin-mocha-yellow-standard+default";
@@ -75,7 +84,11 @@ in
       "btop/themes/ficciones.theme".text = render.btopTheme;
 
       # Hyprland colours (sourced by hyprland.conf / required by hyprland.lua) and the lock screen.
-      "hypr/theme.conf".text = render.hyprlandTheme + "env = GTK_THEME,${cfg.gtkTheme}\n";
+      "hypr/theme.conf".text =
+        render.hyprlandTheme
+        + "env = GTK_THEME,${cfg.gtkTheme}\n"
+        + "env = QT_QPA_PLATFORMTHEME,${cfg.qtPlatformTheme}\n"
+        + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "env = QT_STYLE_OVERRIDE,kvantum\n";
       "hypr/hyprlock.conf".text = render.hyprlockConf;
 
       "lazygit/config.yml".text = render.lazygitConfig (tpl "lazygit.yml");

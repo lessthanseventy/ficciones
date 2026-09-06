@@ -60,6 +60,7 @@ in
       "hypr/scripts/launch_hyprland.sh" = linkTo "scripts/launch_hyprland.sh";
       "hypr/scripts/quake-toggle.sh" = linkTo "scripts/quake-toggle.sh";
       "hypr/scripts/shot-region.sh" = linkTo "scripts/shot-region.sh";
+      "hypr/scripts/rotate-wallpaper.sh" = linkTo "scripts/rotate-wallpaper.sh";
 
       # CRT screen shaders, switched by path (hyprctl keyword decoration:screen_shader …).
       "hypr/shaders/crt-full.glsl" = linkTo "shaders/crt-full.glsl";
