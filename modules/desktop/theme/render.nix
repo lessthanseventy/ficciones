@@ -132,24 +132,23 @@ rec {
     };
 
   # claude-powerline (the statusline's renderer): the segment colours, on the ground
-  claudePowerlineJson = builtins.toJSON {
-    theme = "custom";
-    display = {
-      style = "minimal"; charset = "unicode"; autoWrap = false;
-      lines = [
-        { segments = { directory = { enabled = true; style = "fish"; }; git = { enabled = true; }; model = { enabled = true; }; }; }
-        { segments = { context = { enabled = true; percentageMode = "used"; }; block = { enabled = true; }; weekly = { enabled = true; }; }; }
-      ];
-    };
-    colors.custom = {
-      directory = { bg = hex h.surface0; fg = hex h.violet; };
-      git = { bg = hex h.surface0; fg = hex h.pink; };
-      model = { bg = hex h.surface0; fg = hex h.pink; };
-      context = { bg = hex h.surface0; fg = hex h.green; };
-      block = { bg = hex h.surface0; fg = hex h.chip; };
-      weekly = { bg = hex h.surface0; fg = hex h.violet; };
-    };
-  };
+  # segments render in key order and builtins.toJSON sorts keys, so the lines are literal JSON:
+  # dir / git / model, then ctx / 5h / wk
+  claudePowerlineJson =
+    let
+      colors = builtins.toJSON {
+        directory = { bg = hex h.surface0; fg = hex h.violet; };
+        git = { bg = hex h.surface0; fg = hex h.pink; };
+        model = { bg = hex h.surface0; fg = hex h.pink; };
+        context = { bg = hex h.surface0; fg = hex h.green; };
+        block = { bg = hex h.surface0; fg = hex h.chip; };
+        weekly = { bg = hex h.surface0; fg = hex h.violet; };
+      };
+    in
+    ''{"theme":"custom","display":{"style":"minimal","charset":"unicode","autoWrap":false,"lines":[''
+    + ''{"segments":{"directory":{"enabled":true,"style":"fish"},"git":{"enabled":true},"model":{"enabled":true}}},''
+    + ''{"segments":{"context":{"enabled":true,"percentageMode":"used"},"block":{"enabled":true},"weekly":{"enabled":true}}}''
+    + '']},"colors":{"custom":${colors}}}'';
 
   # ---- Console.Style (modules/console) --------------------------------------------------
   consolePaletteEx =
