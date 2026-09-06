@@ -54,12 +54,19 @@ function Workspaces({ connector }: { connector: string }) {
   )
 }
 
-/** The corner where the rail meets the bar: the Aleph, the point that holds every other point —
- *  which is what a launcher is. Click = launcher. */
+/**
+ * The corner where the rail meets the bar: a hrön of the Aleph. In Tlön an object looked for
+ * is found twice; here the second aleph is the double a pair of XLRS eyes would see anyway, a
+ * few pixels off and dimmer — until you look straight at it, when the two resolve into one.
+ * Click = launcher (the point that holds every other point).
+ */
 function Corner() {
   return (
     <button cssClasses={["corner"]} onClicked={() => toggleLauncher()}>
-      <label label={"\u2135"} />
+      <overlay>
+        <label cssClasses={["hron"]} label={"\u2135"} />
+        <label $type="overlay" cssClasses={["aleph"]} label={"\u2135"} />
+      </overlay>
     </button>
   )
 }

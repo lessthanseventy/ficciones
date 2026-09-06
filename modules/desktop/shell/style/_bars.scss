@@ -14,14 +14,18 @@ window.rail > box {
 
 // sections of the rail are separated by rules, not framed
 window.rail .rule-h { margin: $sp-2 $sp-1; }
-// the bar-height square at the top of the rail: the aleph, amber, inverse on hover
+// the bar-height square at the top of the rail: the aleph and its hrön (the double, offset
+// and dim), which slides home on hover — double vision, resolved by looking
 .corner {
   min-height: $bar-height - $rule;
   padding: 0;
   background: none; border: none; box-shadow: none; border-radius: 0;
   border-bottom: $rule solid $sep;
-  label { color: $amber; font-size: 24px; }
-  &:hover { background: $chip; label { color: $ink; } }
+  label { font-size: 24px; }
+  .aleph { color: $amber; }
+  .hron { color: $accent; opacity: 0.55; margin-left: 7px; margin-top: 3px; transition: margin 180ms ease-out, opacity 180ms ease-out; }
+  &:hover .hron { margin-left: 0; margin-top: 0; opacity: 0; }
+  &:hover { background: $chip; .aleph { color: $ink; } }
 }
 .workspaces {
   margin-top: $sp-2;
