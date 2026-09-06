@@ -21,10 +21,15 @@ function Workspaces({ connector }: { connector: string }) {
     all.filter((w) => w.monitor?.name === connector),
   )
   const active = () => hypr.get_monitors().find((m) => m.name === connector)?.activeWorkspace
-  // Wheel over the pane walks this monitor's workspaces (m-1 / m+1 = same-monitor relative).
+  // Wheel over the pane walks this monitor's workspaces in id order and stops at the ends —
+  // Hyprland's m+1/m-1 wrap around, which Andrew does not want (2026-09-05).
   const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
   scroll.connect("scroll", (_, __, dy) => {
-    hypr.dispatch("workspace", dy > 0 ? "m+1" : "m-1")
+    const cur = active()
+    const ids = mine.get().map((w) => w.id).filter((id) => id > 0).sort((a, b) => a - b)
+    const i = cur ? ids.indexOf(cur.id) : -1
+    const next = ids[i + (dy > 0 ? 1 : -1)]
+    if (i >= 0 && next !== undefined) hypr.dispatch("workspace", String(next))
     return true
   })
   return (

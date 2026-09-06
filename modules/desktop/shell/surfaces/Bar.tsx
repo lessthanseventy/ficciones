@@ -25,6 +25,10 @@ import { tier } from "../lib/perf"
  * The workspace's windows, left to right as they sit in the strip: the focused one as
  * class + title, the rest as icons (click focuses). The bar's left half is theirs.
  */
+// The one open window popover per bar: moving from cell to cell swaps it at once (menu-bar
+// feel) instead of letting the old one fade while the new one dwells — that read as a flash.
+let openCell: Gtk.MenuButton | null = null
+
 function Windows({ connector }: { connector: string }) {
   const apps = new Apps.Apps()
   // This monitor's active workspace, not the globally focused one: two bars, two workspaces.
@@ -61,16 +65,27 @@ function Windows({ connector }: { connector: string }) {
                 const overPop = new Gtk.EventControllerMotion()
                 let dwell: Timer | null = null
                 let grace: Timer | null = null
+                const open = () => {
+                  if (openCell && openCell !== self) openCell.popdown()
+                  openCell = self
+                  self.popup()
+                }
+                const close = () => {
+                  if (openCell === self) openCell = null
+                  self.popdown()
+                }
                 const armClose = () => {
                   grace?.cancel()
                   grace = timeout(350, () => {
-                    if (!over.containsPointer && !overPop.containsPointer) self.popdown()
+                    if (!over.containsPointer && !overPop.containsPointer) close()
                   })
                 }
                 over.connect("enter", () => {
                   grace?.cancel()
                   dwell?.cancel()
-                  dwell = timeout(250, () => { if (over.containsPointer) self.popup() })
+                  // another cell's popover is up: this is a slide along the bar, swap now
+                  if (openCell && openCell !== self) open()
+                  else dwell = timeout(250, () => { if (over.containsPointer) open() })
                 })
                 over.connect("leave", () => { dwell?.cancel(); armClose() })
                 overPop.connect("enter", () => grace?.cancel())
@@ -79,7 +94,7 @@ function Windows({ connector }: { connector: string }) {
                 pop.add_controller(overPop)
                 // CAPTURE + claimed: the menubutton never sees the press, so it does not toggle.
                 const click = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
-                click.connect("pressed", () => { click.set_state(Gtk.EventSequenceState.CLAIMED); c.focus(); self.popdown() })
+                click.connect("pressed", () => { click.set_state(Gtk.EventSequenceState.CLAIMED); c.focus(); close() })
                 self.add_controller(click)
                 onCleanup(() => { dwell?.cancel(); grace?.cancel() })
               }}
@@ -102,7 +117,7 @@ function Windows({ connector }: { connector: string }) {
                   <RuleH />
                   <box spacing={6} cssClasses={["winacts"]}>
                     <button cssClasses={["act"]} onClicked={() => d("togglefloating")}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
-                    <button cssClasses={["act"]} onClicked={() => d("pin")}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
+                    <button cssClasses={["act"]} onClicked={() => { if (!c.pinned && !c.floating) d("togglefloating"); d("pin") }}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => { c.focus(); hypr.dispatch("fullscreen", "1") }}><label label="fullscreen" /></button>
                     <button cssClasses={["act"]} onClicked={() => d("movetoworkspace", "special:magic,")}><label label="to special" /></button>
                     <box hexpand />
