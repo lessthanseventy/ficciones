@@ -159,7 +159,7 @@ popover.pop {
     min-height: $bar-height - $rule;
     // an unfocused window is just its icon: keep the cell snug so a row of them reads as a
     // strip, not a spread (Andrew, 2026-09-05: "a little wide")
-    padding: 0 $sp-1;
+    padding: 0 6px;   // between $sp-1 (too close) and $sp-2 (too spread) — tuned by eye
     &.focused { background: $hover; padding: 0 $sp-2; }
     &:hover { background: $pressed; }
     .klass { color: $cyan; font-size: $size-sm; }
