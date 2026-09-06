@@ -3,6 +3,7 @@
 // The info panel: one column of cards beside the rail. A card is a pane with an icon in its
 // title; the focused card is amber; content breathes — padding, rows, a headline.
 window.drawer { background: transparent; }
+.clickaway-field { background: transparent; }
 
 .sheet {
   background: $bg;

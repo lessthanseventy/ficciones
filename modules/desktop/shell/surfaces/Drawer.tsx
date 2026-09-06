@@ -8,6 +8,7 @@ import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import Mpris from "gi://AstalMpris"
 import { Panel } from "../lib/tui"
+import { timeout } from "ags/time"
 import { PANES, type Pane, focus, setFocus, move } from "../lib/nav"
 import { CalendarCard } from "../panes/Calendar"
 import { MediaCard } from "../panes/Media"
@@ -31,7 +32,7 @@ export function showDrawer(pane?: Pane) {
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = app.get_monitors().find((m) => m.connector === name)
   if (mon) w.gdkmonitor = mon
-  w.keymode = Astal.Keymode.EXCLUSIVE   // the panel owns the keyboard while up
+  w.keymode = Astal.Keymode.ON_DEMAND
   w.visible = true
   armClickaway(() => hideDrawer())
 }
@@ -71,6 +72,11 @@ export default function Drawer() {
         const k = new Gtk.EventControllerKey()
         k.connect("key-pressed", onKey)
         self.add_controller(k)
+        // on-demand keyboard: Hyprland focuses the panel on map, and a click anywhere else
+        // takes the focus back — that is the click-away
+        self.connect("notify::is-active", () => {
+          if (self.visible && !self.isActive) timeout(120, () => { if (self.visible && !self.isActive) hideDrawer() })
+        })
       }}
       visible={false}
       cssClasses={["drawer"]}
@@ -79,12 +85,14 @@ export default function Drawer() {
       layer={Astal.Layer.OVERLAY} // above the clickaway, which sits on TOP
       keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.BOTTOM}
-      marginTop={36} // under the bar; both sit on the TOP layer
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.RIGHT}
+      marginTop={36} // under the bar
       marginLeft={54} // beside the rail with a gap, never over it
       application={app}
     >
-      <box cssClasses={["sheet"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420}>
+      {/* the surface spans the monitor: the column at the left, and the rest is the click-away */}
+      <box>
+      <box cssClasses={["sheet"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.START}>
         {PANES.map((p, i) => (
           <Panel
             title={`${cards[p].icon}  ${i + 1} ${p}`}
@@ -107,6 +115,17 @@ export default function Drawer() {
         <box cssClasses={["keys"]} spacing={12}>
           <label label="1-4 card" /><label label="Tab next" /><label label="j/k row" /><label label="Esc close" />
         </box>
+      </box>
+      <box
+        cssClasses={["clickaway-field"]}
+        hexpand
+        vexpand
+        $={(self) => {
+          const g = new Gtk.GestureClick({ button: 0 })
+          g.connect("pressed", () => hideDrawer())
+          self.add_controller(g)
+        }}
+      />
       </box>
     </window>
   )

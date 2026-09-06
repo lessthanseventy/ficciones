@@ -163,7 +163,6 @@ export default function Hub() {
     <window
       $={(self) => {
         hubWin = self
-        self.add_controller(motion)
         self.add_controller(keys)
         self.connect("notify::visible", () => setHubOpen(self.visible))
       }}
@@ -174,14 +173,27 @@ export default function Hub() {
       layer={Astal.Layer.OVERLAY} // above the clickaway, which sits on TOP
       keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT}
       marginTop={36}
+      marginLeft={48}
       application={app}
     >
-      <box cssClasses={["sheet", "right"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420}>
+      <box>
+      <box
+        cssClasses={["clickaway-field"]}
+        hexpand
+        vexpand
+        $={(self) => {
+          const g = new Gtk.GestureClick({ button: 0 })
+          g.connect("pressed", () => hideHub())
+          self.add_controller(g)
+        }}
+      />
+      <box cssClasses={["sheet", "right"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.END} $={(self) => self.add_controller(motion)}>
         <Panel title={"\u{f009a}  NOTIFICATIONS"} cssClasses={["card", "card-notices"]}><History /></Panel>
         <box vexpand />
         <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles /></Panel>
+      </box>
       </box>
     </window>
   )

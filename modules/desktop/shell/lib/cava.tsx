@@ -59,11 +59,23 @@ export function Channel({ side, rows = 8 }: { side: "left" | "right"; rows?: num
       return hbar(v)
     })
   })
+  // block glyphs are wider than a mono cell, so the column is clipped to a fixed width — a
+  // full row must never widen the rail
+  const W = 36
   return (
-    <box cssClasses={["cava-col", side]} orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.START}>
-      {Array.from({ length: rows }, (_, r) => (
-        <label cssClasses={["ch"]} label={lines((l) => l[r])} xalign={0} widthChars={COLS - 1} maxWidthChars={COLS - 1} ellipsize={Pango.EllipsizeMode.END} />
-      ))}
-    </box>
+    <scrolledwindow
+      cssClasses={["cava-col", side]}
+      hscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
+      vscrollbarPolicy={Gtk.PolicyType.NEVER}
+      widthRequest={W}
+      maxContentWidth={W}
+      halign={Gtk.Align.START}
+    >
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        {Array.from({ length: rows }, (_, r) => (
+          <label cssClasses={["ch"]} label={lines((l) => l[r])} xalign={0} />
+        ))}
+      </box>
+    </scrolledwindow>
   )
 }

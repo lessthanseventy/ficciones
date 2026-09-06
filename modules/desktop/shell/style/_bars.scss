@@ -99,6 +99,7 @@ menubutton.cell > button:hover { background: none; }
   &.dim  * { color: $meta; }
   &.live * { color: $green; }
   &.net .icon { color: $cyan; }
+  &.net .sm { font-size: 9px; letter-spacing: -1px; }   // block glyphs are wide; the meter must fit 48px
   &.bt.live .icon { color: $arch-assistant; }
   &.vol .icon { font-size: 22px; color: $amber; }
 
@@ -135,6 +136,7 @@ popover.pop {
 .volcell .icon { font-size: 19px; }
 .cava-col {
   margin: $sp-1 0 $sp-1 2px;
+  background: none;
   .ch { color: $accent; font-size: 9px; min-height: 0; letter-spacing: 0; }
 }
 

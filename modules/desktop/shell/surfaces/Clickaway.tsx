@@ -1,17 +1,14 @@
-// The clickaway: while a panel is up, a transparent surface covers each monitor under it,
-// on the TOP layer, so a click anywhere else closes the panel instead of reaching a window.
-import app from "ags/gtk4/app"
-import Astal from "gi://Astal?version=4.0"
+// Click-away for the panels. A covering layer surface turned out to swallow clicks at the
+// compositor without GTK ever seeing them, so there is none: a click on a window takes the
+// keyboard focus and the panel closes on focus loss (see Drawer/Hub); a press on the rail or
+// bar — which never take focus — closes it through closeOnPress.
 import Gtk from "gi://Gtk?version=4.0"
-import Gdk from "gi://Gdk?version=4.0"
-import { createState, onCleanup } from "ags"
 
-const [active, setActive] = createState(false)
 let closer: (() => void) | null = null
 
 /** Arm the clickaway; `close` runs on the first outside click. */
-export function armClickaway(close: () => void) { closer = close; setActive(true) }
-export function disarmClickaway() { closer = null; setActive(false) }
+export function armClickaway(close: () => void) { closer = close }
+export function disarmClickaway() { closer = null }
 
 /**
  * The rail and bar sit above the clickaway on the same layer, so they get this instead: a
@@ -20,42 +17,14 @@ export function disarmClickaway() { closer = null; setActive(false) }
  */
 export function closeOnPress(widget: Gtk.Widget) {
   const g = new Gtk.GestureClick({ button: 0, propagationPhase: Gtk.PropagationPhase.CAPTURE })
-  g.connect("pressed", () => {
+  g.connect("pressed", (_, n, x, y) => {
     if (!closer) return
+    // the clock toggles on its own; closing here too would close-then-reopen
+    for (let t = widget.pick(x, y, Gtk.PickFlags.DEFAULT); t; t = t.get_parent()) if (t.cssClasses.includes("clock")) return
     const c = closer
     disarmClickaway()
     c()
     g.set_state(Gtk.EventSequenceState.CLAIMED)
   })
   widget.add_controller(g)
-}
-
-export default function Clickaway({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
-  let win: Astal.Window
-  onCleanup(() => win.destroy())
-  return (
-    <window
-      $={(self) => (win = self)}
-      visible={active}
-      cssClasses={["clickaway"]}
-      namespace="astal-shell-clickaway"
-      name={`clickaway-${gdkmonitor.connector}`}
-      gdkmonitor={gdkmonitor}
-      layer={Astal.Layer.TOP}
-      exclusivity={Astal.Exclusivity.IGNORE}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
-      application={app}
-    >
-      <box
-        hexpand
-        vexpand
-        $={(self) => {
-          // the box IS the surface: a full-size target, or there is nothing under the pointer
-          const g = new Gtk.GestureClick({ button: 0 })
-          g.connect("pressed", () => { const c = closer; disarmClickaway(); c?.() })
-          self.add_controller(g)
-        }}
-      />
-    </window>
-  )
 }
