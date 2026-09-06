@@ -67,13 +67,22 @@ function makeZone(name: string, width: number): Astal.Window {
   return w
 }
 
-/** Place the pinned window in a column `col` px wide on monitor `m`. */
-function place(address: string, m: MonitorJson, col: number) {
+/** Dispatches in order, as one batch, with Hyprland's answers logged (hypr.dispatch is fire-and-forget). */
+async function batch(cmds: string[]) {
+  try {
+    const out = await execAsync(["hyprctl", "--batch", cmds.map((c) => `dispatch ${c}`).join("; ")])
+    const bad = out.split("\n").filter((l) => l.trim() && l.trim() !== "ok")
+    if (bad.length) console.error("sidecar:", bad.join(" | "))
+  } catch (e) { console.error("sidecar:", String(e)) }
+}
+
+const placeCmds = (address: string, m: MonitorJson, col: number) => {
   const [rl, rt, , rb] = m.reserved
   const a = `address:0x${address.replace(/^0x/, "")}`
-  hypr.dispatch("resizewindowpixel", `exact ${col - GAP} ${m.height - rt - rb - 2 * GAP},${a}`)
-  hypr.dispatch("movewindowpixel", `exact ${m.x + rl + GAP} ${m.y + rt + GAP},${a}`)
+  return [`resizewindowpixel exact ${col - GAP} ${m.height - rt - rb - 2 * GAP},${a}`, `movewindowpixel exact ${m.x + rl + GAP} ${m.y + rt + GAP},${a}`]
 }
+/** Place the pinned window in a column `col` px wide on monitor `m`. */
+const place = (address: string, m: MonitorJson, col: number) => batch(placeCmds(address, m, col))
 
 /**
  * The grab handle: a 12px layer window in the gap right of the column (layer TOP, so it sits
@@ -145,9 +154,9 @@ export async function pinSidecar(c: Hyprland.Client) {
   // reserved = rail + bar; no sidecar zone yet on this monitor
   const col = Math.round(m.width * (widths.get(name) ?? WIDTH))
   const a = addr(c)
-  hypr.dispatch("setfloating", a)
-  place(c.address, m, col)
-  if (!c.pinned) hypr.dispatch("pin", a)
+  // a fullscreen or maximised window (hyprscroller's maximise counts) cannot float, and a tiled
+  // one cannot pin — Hyprland refused both silently until the batch reported them
+  await batch([`fullscreenstate 0 0,${a}`, `setfloating ${a}`, ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [`pin ${a}`])])
   sidecars.set(name, { address: c.address, zone: makeZone(name, col), handle: makeHandle(name, m, col), col, m })
 }
 
@@ -160,8 +169,7 @@ function drop(name: string) {
 export async function unpinSidecar(c: Hyprland.Client) {
   const name = c.get_monitor().name
   const a = addr(c)
-  if (c.pinned) hypr.dispatch("pin", a)
-  hypr.dispatch("settiled", a)
+  await batch([...(c.pinned ? [`pin ${a}`] : []), `settiled ${a}`])
   const s = sidecars.get(name)
   if (s && s.address === c.address) drop(name)
 }
