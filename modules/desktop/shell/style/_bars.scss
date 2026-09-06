@@ -106,7 +106,7 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
   &.net .icon { color: $cyan; }
   &.net .sm { font-size: 9px; letter-spacing: -1px; }   // block glyphs are wide; the meter must fit 48px
   &.bt.live .icon { color: $arch-assistant; }
-  &.agents .icon { color: $accent; }          // agents are pink, always
+  &.agents .icon { color: $accent; margin-right: 8px; }   // pink always; the glyph inks right of its box, so 4px left
   &.agents.await * { color: $accent; }        // someone awaits you: the number too
   &.vol .icon { font-size: 22px; color: $amber; }
 
