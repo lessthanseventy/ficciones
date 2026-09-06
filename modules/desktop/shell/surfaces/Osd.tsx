@@ -12,6 +12,7 @@ import { createState } from "ags"
 import { timeout, type Timer } from "ags/time"
 import { Panel } from "../lib/tui"
 import { meter, pct } from "../lib/format"
+import { onGammaChange } from "../lib/brightness"
 
 const HOLD_MS = 1400
 type Kind = "volume" | "brightness"
@@ -45,6 +46,7 @@ function watch() {
     speaker.connect("notify::mute", onVol)
     timeout(2000, () => { armed = true })
   }
+  onGammaChange((v) => show("brightness", v))
   const screen = Brightness.get_default()?.screen
   if (screen) {
     let armed = false

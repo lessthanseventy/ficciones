@@ -13,7 +13,7 @@ import { hypr, focusedClient, focusedWorkspace, addr } from "../lib/hypr"
 import { toggleSidecar } from "../lib/sidecar"
 import { hoverPopover } from "../lib/hover"
 import PowerProfiles from "gi://AstalPowerProfiles"
-import Brightness from "gi://AstalBrightness"
+import { external, brightness, setBrightness, stepBrightness } from "../lib/brightness"
 import { METRICS, MetricDetail } from "../panes/Perf"
 import { MediaCard } from "../panes/Media"
 import { Visualiser } from "../lib/cava"
@@ -119,33 +119,16 @@ function PerfCells() {
   )
 }
 
-/**
- * One brightness slider, two backends. Laptop alone: the backlight. An external monitor
- * plugged in (it exposes no DDC/CI through the dock): hyprsunset's gamma, 30–100%, which is
- * software and global — the honest fake.
- */
+/** The brightness slider (lib/brightness.ts picks the backend). */
 function Backlight() {
-  const dev = Brightness.get_default()?.screen
-  const external = createBinding(hypr, "monitors")((ms) => ms.some((m) => m.name !== "eDP-1"))
-  const gamma = createPoll(1, 3000, async () => {
-    try { return Math.max(0.3, Math.min(1, Number((await execAsync(["hyprctl", "hyprsunset", "gamma"])).trim()) / 100)) } catch { return 1 }
-  })
-  const back = dev ? createBinding(dev, "brightness")((x) => (Number.isFinite(x) && x >= 0 ? x : 0)) : null
-  const value = createComputed([external, gamma, ...(back ? [back] : [])], (ext, g, b) => (ext || !back ? g : (b as number)))
   const label = external((ext) => (ext ? "\u{f0335}  brightness · software, all screens" : "\u{f00e0}  brightness · backlight"))
-  const set = (v: number) => {
-    quietOsd()
-    if (external.get() || !dev) {
-      if (Math.abs(v - gamma.get()) > 0.01) execAsync(["hyprctl", "hyprsunset", "gamma", String(Math.round(v * 100))]).catch(console.error)
-    } else if (Math.abs(v - dev.brightness) > 0.005) dev.brightness = v
-  }
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
       <box spacing={8}>
         <label cssClasses={["k", "sm"]} label={label} hexpand xalign={0} />
-        <label cssClasses={["sm"]} label={value(pct)} />
+        <label cssClasses={["sm"]} label={brightness(pct)} />
       </box>
-      <slider cssClasses={["vol"]} hexpand min={external((e) => (e ? 0.3 : 0))} value={value} onChangeValue={({ value: v }) => set(v)} />
+      <slider cssClasses={["vol"]} hexpand min={external((e) => (e ? 0.3 : 0))} value={brightness} onChangeValue={({ value: v }) => { quietOsd(); setBrightness(v) }} />
     </box>
   )
 }
@@ -167,8 +150,11 @@ function BatteryCell() {
     return `${c ? "full in" : "empty in"} ${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
   })
   const active = createBinding(profiles, "activeProfile")
+  // click opens (not hover — Andrew, 2026-09-05); the wheel over the cell is brightness, 5 % a notch
+  const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
+  scroll.connect("scroll", (_, __, dy) => { stepBrightness(dy > 0 ? -0.05 : 0.05); return true })
   return (
-    <menubutton cssClasses={cls((c) => ["cell", "clickable", "perf", ...c])} direction={Gtk.ArrowType.DOWN} $={(self) => hoverPopover(self, "bar")}>
+    <menubutton cssClasses={cls((c) => ["cell", "clickable", "perf", ...c])} direction={Gtk.ArrowType.DOWN} $={(self) => self.add_controller(scroll)}>
       <box spacing={4}>
         <label
           cssClasses={["icon"]}
