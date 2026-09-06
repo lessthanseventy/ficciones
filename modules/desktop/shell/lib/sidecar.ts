@@ -156,7 +156,11 @@ const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
 // global gradients back explicitly.
 async function mark(a: string, on: boolean) {
   if (on) return batch([`setprop ${a} border_size 3`, `setprop ${a} active_border_color ${rgb(PALETTE.pink)}`, `setprop ${a} inactive_border_color ${rgb(PALETTE.dim)}`])
-  const opt = async (k: string) => (JSON.parse(await execAsync(["hyprctl", "getoption", k, "-j"])).custom as string) || "ffffffff"
+  // getoption gives "aarrggbb aarrggbb 45deg"; setprop only renders rgba()/rgb() stops
+  const opt = async (k: string) => {
+    const raw = ((JSON.parse(await execAsync(["hyprctl", "getoption", k, "-j"])).custom as string) || "ffffffff").trim()
+    return raw.split(/\s+/).map((t) => (/^[0-9a-f]{8}$/i.test(t) ? `rgba(${t.slice(2)}${t.slice(0, 2)})` : t)).join(" ")
+  }
   const [act, ina] = await Promise.all([opt("general:col.active_border"), opt("general:col.inactive_border")])
   return batch([`setprop ${a} border_size unset`, `setprop ${a} active_border_color ${act}`, `setprop ${a} inactive_border_color ${ina}`])
 }
