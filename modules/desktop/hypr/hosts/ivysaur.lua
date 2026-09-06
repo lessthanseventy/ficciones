@@ -1,6 +1,7 @@
 -- ivysaur — the laptop. Hybrid Intel/NVIDIA, eDP-1 + a Samsung 27" on the dock.
 -- GPU selection (Intel first for battery, NVIDIA fallback)
-hl.env("AQ_DRM_DEVICES", "/dev/dri/card2:/dev/dri/card1")
+-- by-path, not cardN: Arch numbers simpledrm as card0 (Intel=card2, NVIDIA=card1); NixOS will not.
+hl.env("AQ_DRM_DEVICES", "/dev/dri/by-path/pci-0000:00:02.0-card:/dev/dri/by-path/pci-0000:01:00.0-card")
 
 -- Hybrid GPU workarounds — uncomment if stable Hyprland still hangs on page-flip.
 -- hl.env("AQ_NO_MODIFIERS", "1")

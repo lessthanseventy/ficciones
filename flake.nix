@@ -166,6 +166,17 @@
           ./modules/os/vm.nix
         ];
       };
+      # The laptop. Evaluates and builds today; installs when Andrew runs the runbook
+      # (docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md).
+      nixosConfigurations.ivysaur = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit repo astalShell; };
+        modules = [
+          home-manager.nixosModules.home-manager
+          ./modules/os
+          ./modules/os/ivysaur.nix
+        ];
+      };
 
       # The gradual-adoption path: home-manager on the existing Arch install, applied
       # without touching the OS. Carries pi + the adapters wiring that makes a pi session a

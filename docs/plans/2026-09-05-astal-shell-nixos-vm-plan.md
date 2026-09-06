@@ -140,19 +140,61 @@ colour, Super+Shift+Z), glass (window opacity, Super+Shift+T), night light on th
 schedule, a brightness slider that is the backlight alone and hyprsunset gamma when the
 external monitor (no DDC/CI through the dock) is plugged in. astal is a top-level flake input.
 
+## 5e · Night of 2026-09-05 — one palette, Lua, ivysaur
+
+- **§5b landed.** `modules/desktop/theme/palette.nix` is the single source (hues, roles, ANSI
+  slots, the font); `render.nix` is one pure function per surface; `default.nix` is the
+  home-manager module that writes them. Surfaces: shell `_palette.scss` + `lib/palette.ts`
+  (checked in, generated — `mise theme:gen` writes them, `checks.palette-sync` fails the flake
+  on drift, the shell package rewrites them before bundling), `Console.Palette` + Console.Style
+  on the amber body (green = live), ghostty theme+config, kitty, wezterm, GTK 3/4 (@define-color
+  + font + selection), qt6ct/qt5ct colours+qss, kvantum, btop, floorp userChrome/userContent
+  (vendored, the `:root` block generated), hyprland `theme.lua`/`theme.conf`, hyprlock,
+  lazygit, bat (`--theme=ansi`), fzf, cava, tmux (spliced into flake.nix). Vendored templates
+  carry `@placeholders@` where they carried hex. Verified by screenshot: btop, lazygit,
+  nautilus, pavucontrol-qt, the bar. Not verified: floorp (needs a restart), hyprlock, the
+  cockpit live (865 tests green).
+- **Found and fixed:** `~/.local/bin/rotate-wallpaper` still called `caelestia wallpaper` every
+  five minutes and caelestia's scheme applier rewrote gtk.css/cava/btop behind the generators.
+  Replaced by `hypr/scripts/rotate-wallpaper.sh` (hyprpaper on every monitor; on Arch hyprpaper
+  must come from pacman — the nix one dies on GBM). Qt was never themed on this box: no
+  qt6ct/kvantum installed; `theme.qtPlatformTheme` defaults to Qt's `gtk3` theme here and
+  `ivysaur.nix` sets `qt6ct`.
+- **hyprland.lua.** 1:1 port, `hosts/<host>.lua`, `theme.lua` dofile'd. `scripts/hypr-lua-check.sh`
+  runs the file in a nested Hyprland (`FICCIONES_HYPRDIR`, `FICCIONES_HYPR_NO_AUTOSTART`) and
+  diffs binds/options/workspace rules/animations against the live instance: identical. A
+  running Hyprland stays pinned to the config path it started with, so **the .conf files stay
+  linked until the next Hyprland start** (which prefers `.lua`, per the log). The VM boots the
+  Lua config with the shell unit active.
+- **ivysaur.** `modules/os/ivysaur.nix` + `nixosConfigurations.ivysaur` (btrfs layout by UUID,
+  GRUB on the 300 MB ESP, nvidia-open + PRIME offload, snapper on /home, steam+gamemode,
+  nix-ld, tailscale, greetd/tuigreet). Runbook: `2026-09-05-ivysaur-nixos-migration-runbook.md`.
+- **Bar:** window cells icon-snug (6px), hover opens the popover, click focuses, no tooltip,
+  no wrap on the rail wheel, `cursor:no_warps`.
+
 ## 6 · Phase status
 
 Design §7 phases, with where this plan lands them:
 
 1–6. **Done** (§5c, §5d). OSDs dropped on purpose (Andrew: not wanted).
-Next: one palette, every surface (§5b); hyprland.lua migration before Hyprland 0.57 drops
-.conf; modules/os/ivysaur.nix and the laptop migration (§7).
+§5b one palette — **done** (§5e). hyprland.lua — **done, transition pending a Hyprland
+restart** (then delete hyprland.conf, hosts/*.conf, the three TRANSITION lines in
+modules/desktop/default.nix and theme.conf in theme/default.nix). ivysaur — **config built,
+install pending Andrew** (§7, the runbook).
+Next: the pinned "sidecar" window (pin = float + left edge + reserved area on every workspace);
+hover-to-open for the other bar cells; agents card → dossier.
 
-## 7 · Laptop migration checklist (deferred, tracked here)
+## 7 · Laptop migration checklist
 
-- `modules/os/ivysaur.nix`: `hardware.nvidia` + PRIME offload, `programs.steam`, gamemode,
-  btrfs subvolumes + snapper for `/home` only (generations cover `/`).
-- `programs.nix-ld` for the pi bun binary (see the note in `flake.nix`).
-- Everything from the AUR that has no nixpkgs twin — enumerate with `pacman -Qm` first.
-- The `personalbox` home configuration's Arch-only assumptions (`/usr/bin/hyprctl` probes) —
-  each already falls back on `command -v`, so they are warnings, not blockers.
+Written up in full in `docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md`: the hardware
+table, backups, the exact install commands (keep the disk and subvolumes, replace `@`), the
+rollback (`@arch-2026-09` read-only snapshot), the `pacman -Qm` review (dead / twin / TODO per
+tool), the Arch-only assumptions left in the flake, and the open decisions (floorp, kernel,
+when to delete Garuda's ESP entry, which TUI binaries to package first).
+
+- [x] `modules/os/ivysaur.nix`: nvidia-open + PRIME offload, steam, gamemode, btrfs by UUID,
+      snapper for `/home` only.
+- [x] `programs.nix-ld` (pi's bun binary and mise's toolchains).
+- [x] `pacman -Qm` enumerated (runbook §5).
+- [x] Arch-only assumptions listed (runbook §5); `/usr/bin` probes stay as warnings.
+- [ ] Andrew: the open decisions, then the runbook.
