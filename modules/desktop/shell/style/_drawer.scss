@@ -53,8 +53,10 @@ window.hub, window.hotedge { background: transparent; }
 .hub-head { min-height: $cell-h; }
 .card-notices .toast { margin-top: $sp-2; }
 // toggles: outlined, not filled — amber when on, dim when off, both brighten on hover
+.toggles { flex-wrap: wrap; }
 .toggle {
   min-height: 48px;
+  min-width: 56px;
   padding: $sp-1 0;
   border: $rule solid $sep;
   background: none;

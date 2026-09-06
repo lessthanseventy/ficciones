@@ -17,6 +17,7 @@ import { Panel, RuleH } from "../lib/tui"
 import { NoticeCard } from "./Notifications"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
+import { zen, setBackdrop } from "./Backdrop"
 
 const notifd = Notifd.get_default()
 
@@ -73,6 +74,7 @@ function Toggles() {
       <Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />
       <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />
       <Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />
+      <Toggle icon={"\u{f0e2a}"} label="zen" on={zen} onToggle={() => setBackdrop("toggle")} />
       <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />
     </box>
   )

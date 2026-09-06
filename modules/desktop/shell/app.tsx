@@ -9,6 +9,7 @@ import Hub, { HotEdge, toggleHub } from "./surfaces/Hub"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
+import Backdrop, { setBackdrop } from "./surfaces/Backdrop"
 import "./lib/night"
 import type { Pane } from "./lib/nav"
 
@@ -36,6 +37,10 @@ app.start({
       toggleCheatsheet()
       return res("ok")
     }
+    if (verb === "backdrop") {
+      setBackdrop(what === "zen" || what === "photo" ? what : "toggle")
+      return res("ok")
+    }
     if (verb === "crt") {
       if (what && (MODES as readonly string[]).includes(what)) setCrt(what as Crt)
       else cycleCrt()
@@ -49,7 +54,7 @@ app.start({
       showDrawer(tab?.toUpperCase() as Pane | undefined)
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet | crt [off|subtle|full] | show drawer [agents|media|weather|calendar]")
+    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet | crt [off|subtle|full] | backdrop [zen|photo] | show drawer [agents|media|weather|calendar]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
@@ -61,6 +66,7 @@ app.start({
     HotEdge()
     Launcher()
     Cheatsheet()
+    Backdrop()
     return (
       <For each={monitors}>
         {(monitor) => (

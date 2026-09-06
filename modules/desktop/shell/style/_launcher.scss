@@ -34,3 +34,7 @@ window.cheatsheet { background: transparent; }
 .columns .col { min-width: 330px; }
 .columns .keys { color: $amber; font-size: 12px; }
 .columns .what { color: $meta; font-size: 12px; }
+
+// zen backdrop
+window.backdrop { background: $bg; }
+.backdrop .grid .gl { color: $amber; font-size: 14px; letter-spacing: 0; min-height: 0; }
