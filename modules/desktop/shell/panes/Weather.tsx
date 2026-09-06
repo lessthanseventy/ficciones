@@ -1,7 +1,7 @@
 // WEATHER: the card is where the depth lives — now with feels-like, humidity, wind and UV;
 // the next hours as a strip; five days with rain chance; sunrise and sunset. open-meteo.
 import Gtk from "gi://Gtk?version=4.0"
-import { weather, glyph, type Hour, type Day } from "../lib/weather"
+import { weather, glyph, describe, type Hour, type Day } from "../lib/weather"
 import { RuleH } from "../lib/tui"
 
 const hh = (ms: number) => {
@@ -62,7 +62,7 @@ function Days() {
   const range = days((d) => ({ lo: Math.min(...d.map((x) => x.low), 999), hi: Math.max(...d.map((x) => x.high), -999) }))
   // the week's range is the track (dim); the day's span sits on it (amber)
   const seg = (d: Day, r: { lo: number; hi: number }): [number, number] => {
-    const W = 12
+    const W = 8
     const span = Math.max(1, r.hi - r.lo)
     const a = Math.round(((d.low - r.lo) / span) * W)
     const b = Math.max(a + 1, Math.round(((d.high - r.lo) / span) * W))
@@ -72,7 +72,7 @@ function Days() {
     days((d) => {
       if (!d[i]) return ""
       const [a, b] = seg(d[i], range.get())
-      return which === 0 ? "─".repeat(a) : which === 1 ? "━".repeat(b - a) : "─".repeat(12 - b)
+      return which === 0 ? "─".repeat(a) : which === 1 ? "━".repeat(b - a) : "─".repeat(8 - b)
     })
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
@@ -80,6 +80,7 @@ function Days() {
         <box cssClasses={["day"]} spacing={8} visible={days((d) => i < d.length)}>
           <label cssClasses={["dim"]} label={days((d) => (d[i] ? dow(d[i].t, i) : ""))} widthChars={5} xalign={0} />
           <label cssClasses={["sky"]} label={days((d) => (d[i] ? glyph(d[i].code) : ""))} />
+          <label cssClasses={["desc"]} label={days((d) => (d[i] ? describe(d[i].code) : ""))} widthChars={13} xalign={0} ellipsize={3} />
           <label cssClasses={["dim"]} label={days((d) => (d[i] ? `${Math.round(d[i].low)}°` : ""))} widthChars={4} xalign={1} />
           <box cssClasses={["range"]}>
             <label cssClasses={["track"]} label={part(i, 0)} />

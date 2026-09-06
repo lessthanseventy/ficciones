@@ -11,8 +11,11 @@ const lorenz = (): Mode => {
     name: "lorenz", colour: "amber",
     init(g) { g.clear() },
     poke(g, x, y) {
-      t.push({ x: (x / (g.cols * 2)) * 48 - 24, y: 0.1, z: (1 - y / (g.rows * 4)) * 50 + 2 })
-      if (t.length > 6) t.shift()
+      // spawn near the attractor (clamped), keep the three originals, at most three extras
+      const px = Math.max(-18, Math.min(18, (x / (g.cols * 2)) * 48 - 24))
+      const pz = Math.max(5, Math.min(45, (1 - y / (g.rows * 4)) * 50 + 2))
+      t.push({ x: px, y: px, z: pz })
+      if (t.length > 6) t.splice(3, 1)
     },
     step(g) {
       g.decay(0.03)
@@ -23,6 +26,8 @@ const lorenz = (): Mode => {
           p.x += dx * dt; p.y += dy * dt; p.z += dz * dt
           g.plot((p.x + 24) / 48 * g.cols * 2, (1 - (p.z - 2) / 50) * g.rows * 4, k)
         }
+        // a runaway (numerical or a wild spawn) comes home
+        if (!Number.isFinite(p.x + p.y + p.z) || Math.abs(p.x) > 60 || Math.abs(p.y) > 80 || p.z > 100 || p.z < -20) { p.x = 0.1; p.y = 0; p.z = 20 }
       })
     },
   }

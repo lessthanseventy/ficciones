@@ -32,6 +32,23 @@ const glyphs: [number, string][] = [
   [71, "🌨"], [73, "🌨"], [75, "❄\uFE0F"], [80, "🌦"], [81, "🌧"], [82, "⛈"],
   [95, "⛈"], [96, "⛈"], [99, "⛈"],
 ]
+/** A word or two for a WMO code: the forecast rows read, not just glyph. */
+export function describe(code?: number): string {
+  if (code === undefined) return ""
+  if (code === 0) return "clear"
+  if (code === 1) return "mostly clear"
+  if (code === 2) return "partly cloudy"
+  if (code === 3) return "overcast"
+  if (code <= 48) return "fog"
+  if (code <= 55) return "drizzle"
+  if (code <= 57) return "icy drizzle"
+  if (code <= 65) return "rain"
+  if (code <= 67) return "icy rain"
+  if (code <= 77) return "snow"
+  if (code <= 82) return "showers"
+  if (code <= 86) return "snow showers"
+  return "storms"
+}
 export function glyph(code?: number): string {
   if (code === undefined) return "·"
   let g = "☁\uFE0F"

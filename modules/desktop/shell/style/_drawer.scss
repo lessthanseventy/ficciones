@@ -42,8 +42,9 @@ window.drawer { background: transparent; }
 .wx-glyph { font-size: 44px; color: $amber; }
 .counts label { font-size: $size-sm; }
 
-.cal-head label { color: $meta; font-size: $size-sm; min-width: 34px; }
-.cal-day { min-width: 34px; min-height: 26px; }
+.cal-head label { color: $meta; font-size: $size-sm; }
+.cal-day { min-height: 26px; }
+.agenda { margin-top: $sp-1; .agenda-day { margin-top: $sp-1; } }
 .cal-day.chip { padding: 0; }
 
 // ── the right-hand hub ─────────────────────────────────────────────────────
@@ -75,6 +76,7 @@ window.hub, window.clickaway { background: transparent; }
 .day {
   min-height: 24px;
   .sky { font-size: $size; min-width: 30px; }
+  .desc { color: $meta; font-size: $size-sm; }
   .range { letter-spacing: -1px; .track { color: $sep; } .span { color: $amber; } }
 }
 .day > label:first-child, .hours > box > label:first-child { color: $key; }
