@@ -63,8 +63,8 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   onCleanup(() => { for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
   return (
     <window
-      $={(self) => { canvases.set(self, canvas); canvas.run(zen.get()) }}
-      visible
+      // layer/anchor BEFORE visible: gtk4-layer-shell fixes the level at map time, and a
+      // `visible` prop that comes first maps the window on the default (TOP) level for good.
       cssClasses={["backdrop"]}
       namespace="astal-shell-backdrop"
       name={`backdrop-${gdkmonitor.connector}`}
@@ -73,6 +73,7 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       application={app}
+      $={(self) => { canvases.set(self, canvas); canvas.run(zen.get()); self.visible = true }}
     >
       <overlay>
         <Gtk.Picture
