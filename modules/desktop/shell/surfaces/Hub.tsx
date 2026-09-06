@@ -10,13 +10,15 @@ import Network from "gi://AstalNetwork"
 import Bluetooth from "gi://AstalBluetooth"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import Hyprland from "gi://AstalHyprland"
-import { For, createBinding, createComputed, createState } from "ags"
+import { createBinding, createComputed, createState } from "ags"
 import { timeout, interval, type Timer } from "ags/time"
 import { query } from "../lib/hyprsock"
 import { subprocess, execAsync, type Process } from "ags/process"
 import GLib from "gi://GLib?version=2.0"
 import { Panel, RuleH } from "../lib/tui"
 import { NoticeCard, groups } from "./Notifications"
+import { VList } from "../lib/vlist"
+import { isFullscreen } from "../lib/hypr"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
 import { zen, setBackdrop } from "./Backdrop"
@@ -24,14 +26,11 @@ import { glass, toggleGlass } from "../lib/glass"
 import { armClickaway, disarmClickaway } from "./Clickaway"
 
 const notifd = Notifd.get_default()
-const PAGE = 40
 
-// The history scrolls, and only a page of groups is in the tree at once: ags's For detaches
-// and reattaches every child on each change, so thousands of wrapped labels was the lag.
+// The history is a virtualised list (lib/vlist): only the cards on screen exist as widgets,
+// however long the backlog — ags's For built one per notice and detached/reattached them all
+// on every change, which was the lag at a few thousand.
 function History() {
-  const [cap, setCap] = createState(PAGE)
-  const shown = createComputed([groups, cap], (gs, c) => gs.slice(0, c))
-  const rest = createComputed([groups, cap], (gs, c) => Math.max(0, gs.length - c))
   const head = groups((gs) => {
     const n = gs.reduce((a, g) => a + g.count, 0)
     return `${n} ${n === 1 ? "notice" : "notices"}${gs.length < n ? ` · ${gs.length} distinct` : ""}`
@@ -43,12 +42,12 @@ function History() {
         <button cssClasses={["act"]} onClicked={() => notifd.get_notifications().forEach((n) => n.dismiss())}><label label="clear all" /></button>
       </box>
       <scrolledwindow cssClasses={["history"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} propagateNaturalHeight>
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-          <For each={shown} id={(g) => g.key}>{(g) => <NoticeCard g={g} />}</For>
-          <button cssClasses={["act", "more"]} visible={rest((r) => r > 0)} onClicked={() => setCap((c) => c + PAGE)}>
-            <label label={rest((r) => `${r} more…`)} />
-          </button>
-        </box>
+        <VList
+          items={groups}
+          id={(g) => g.key}
+          equal={(a, b) => a.count === b.count && a.head.id === b.head.id}
+          render={(g) => (<NoticeCard g={g} />) as Gtk.Widget}
+        />
       </scrolledwindow>
       <label cssClasses={["dim"]} label="all quiet" visible={groups((gs) => gs.length === 0)} xalign={0} />
     </box>
@@ -101,7 +100,8 @@ export function startHotEdge() {
     }
     away = 0
     const mon = Hyprland.get_default().get_monitors().find((m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y && y < m.y + m.height)
-    if (!mon) { since = 0; armedFor = null; return }
+    // no hot edge on a monitor showing a film
+    if (!mon || isFullscreen(mon.name)) { since = 0; armedFor = null; return }
     if (armedFor !== mon.name) { armedFor = mon.name; since = Date.now(); return }
     if (Date.now() - since >= 400) {
       since = Date.now() + 1e9   // once per visit
