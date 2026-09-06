@@ -435,7 +435,7 @@ bind(M .. " + SHIFT + mouse_up", to_ws("r-1"))
 bind(M .. " + Tab", ws("previous"))
 bind("ALT + Tab", hl.dsp.focus({ last = true }))
 -- the workspace overview with LIVE window thumbnails: hyprexpo (github.com/sandwichfarm/hyprexpo),
--- a compositor plugin. NixOS: programs.hyprland.plugins (modules/os). Arch: once, by hand —
+-- a compositor plugin. NixOS: modules/os puts the .so under /etc/hypr/plugins. Arch: once, by hand —
 --   hyprpm update && hyprpm add https://github.com/sandwichfarm/hyprexpo && hyprpm enable hyprexpo
 -- (hyprpm installs matching headers under /usr, so it asks for sudo). Until it is loaded the
 -- dispatcher is unknown and the bind does nothing.
