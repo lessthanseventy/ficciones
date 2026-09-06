@@ -51,6 +51,11 @@ in
     # Home. The weather pane's open-meteo query.
     ficciones.desktop.shell.location = { lat = 38.7977014100912; lon = -104.80787634502575; };
 
+    # sudo's askpass (scripts/sudo-askpass): random glyphs per keystroke; a tty or a dialog
+    # when stdin is not a terminal (hyprpm and friends used to hang on it).
+    home.file.".local/bin/sudo-askpass" = { source = ./scripts/sudo-askpass; executable = true; };
+    home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
+
     xdg.configFile = {
       "hypr/hyprland.lua" = linkTo "hyprland.lua";
       # TRANSITION (2026-09-05): a running Hyprland stays pinned to the config path it started
