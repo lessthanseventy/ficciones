@@ -209,6 +209,19 @@ export async function unpinSidecar(c: Hyprland.Client) {
 }
 
 export const toggleSidecar = (c: Hyprland.Client) => (isSidecar(c) ? unpinSidecar(c) : pinSidecar(c))
+/**
+ * `astal-shell colresize ±0.05`: the Super+;/' keys. A focused sidecar changes width by that
+ * fraction of the monitor (the column follows); anything else is the layout's own colresize.
+ */
+export function colresize(arg: string) {
+  const c = hypr.focusedClient
+  const s = c && [...sidecars.entries()].find(([, x]) => x.address === c.address)
+  if (!c || !s) return batch([`layoutmsg colresize ${arg}`])
+  const [name, side] = s
+  const d = Number(arg) || 0
+  follow(name, side.width + Math.round(side.m.width * d))
+}
+
 /** `astal-shell sidecar [toggle|pin|unpin]` on the focused window — for a keybind. */
 export function sidecarVerb(what = "toggle") {
   const c = hypr.focusedClient

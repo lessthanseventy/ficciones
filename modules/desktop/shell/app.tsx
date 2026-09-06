@@ -13,7 +13,7 @@ import { popAgents } from "./surfaces/Tray"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, type Theme } from "./lib/theme"
-import { sidecarVerb } from "./lib/sidecar"
+import { sidecarVerb, colresize } from "./lib/sidecar"
 import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
 
@@ -66,6 +66,10 @@ app.start({
       toggleDashboard()
       return res("ok")
     }
+    if (verb === "colresize") {
+      colresize(what ?? "+0.05")
+      return res("ok")
+    }
     if (verb === "sidecar") {
       sidecarVerb(what)
       return res("ok")
@@ -84,7 +88,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [amber|paper] | sidecar [toggle|pin|unpin] | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [amber|paper] | sidecar [toggle|pin|unpin] | colresize ±0.05 | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")

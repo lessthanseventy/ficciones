@@ -1,37 +1,37 @@
 // generated from modules/desktop/theme/palette.nix — edit THAT, never this file. _tokens.scss forwards this and adds the metrics. Rule: body text amber on black; green/pink highlights; active = inverse video.
-$bg:     #000000;
-$ink:    #0A0A0A;   // chip text — dark on a bright field
-$green:  #33FF00;   // highlight: live / ok / occupied
-$amber:  #FFB000;   // body text AND chrome
-$chip:   #FFD000;   // the inverse-video field
-$sel:    #5B00AE;   // selection / tab field
-$accent: #E0218A;   // highlight: agents, the operator, attention
-$dim:    #9A803F;
-$sep:    #B5651D;   // structure: borders, rules
-$red:    #FF5555;
-$cyan:   #33C7FF;
-$white:  #FFFFFF;
-$lilac:  #B4A5D6;
-$violet: #B98AFF;
+$bg:     #F5EFE0;
+$ink:    #FFF7DD;   // chip text — dark on a bright field
+$green:  #1F7A1F;   // highlight: live / ok / occupied
+$amber:  #5C3D00;   // body text AND chrome
+$chip:   #3B2A00;   // the inverse-video field
+$sel:    #D9C7F0;   // selection / tab field
+$accent: #B0186E;   // highlight: agents, the operator, attention
+$dim:    #8A7A5A;
+$sep:    #A86A2A;   // structure: borders, rules
+$red:    #B3261E;
+$cyan:   #0E6E8E;
+$white:  #1A1A1A;
+$lilac:  #6B5C8A;
+$violet: #5B3FA0;
 
 // status tier
-$st-working: #33FF00;
-$st-blocked: #FF5555;
-$st-await:   #E0218A;
-$st-open:    #FFB000;
-$st-done:    #5FA35F;
-$st-idle:    #9A803F;
+$st-working: #1F7A1F;
+$st-blocked: #B3261E;
+$st-await:   #B0186E;
+$st-open:    #5C3D00;
+$st-done:    #4F7F4F;
+$st-idle:    #8A7A5A;
 
 // text roles beyond the body: keys/labels cyan, secondary text lilac
-$key:  #33C7FF;
-$meta: #B4A5D6;
+$key:  #0E6E8E;
+$meta: #6B5C8A;
 
 // identity tier
-$arch-surveyor:  #33C7FF;
-$arch-builder:   #33FF00;
-$arch-reviewer:  #FFB000;
-$arch-planner:   #E0218A;
-$arch-assistant: #B98AFF;
+$arch-surveyor:  #0E6E8E;
+$arch-builder:   #1F7A1F;
+$arch-reviewer:  #5C3D00;
+$arch-planner:   #B0186E;
+$arch-assistant: #5B3FA0;
 
 // The one font. Low vision: sizes bias up, never down.
 $font: "ComicShannsMono Nerd Font", "ComicShannsMono Nerd Font Mono", monospace;

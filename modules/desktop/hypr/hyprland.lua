@@ -436,7 +436,9 @@ bind(M .. " + O", exec("hyprctl dispatch overview:toggle"))
 bind(M .. " + Q", hl.dsp.window.close())
 bind("ALT + F4", hl.dsp.window.close())
 bind("CTRL + " .. M .. " + SHIFT + Q", hl.dsp.window.kill())
-bind("CTRL + " .. M .. " + P", hl.dsp.window.pin())
+-- pin = the shell's sidecar: a floating pinned column on the left of every workspace on the
+-- monitor, the tiled columns re-fit beside it (modules/desktop/shell/lib/sidecar.ts)
+bind("CTRL + " .. M .. " + P", exec("astal-shell sidecar toggle"))
 
 -- Toggle windowed-fullscreen (internal=0 windowed, client=3 fullscreen client-side)
 bind("ALT + " .. M .. " + F", hl.dsp.window.fullscreen_state({ internal = 0, client = 3 }))
@@ -444,10 +446,12 @@ bind("ALT + " .. M .. " + Space", hl.dsp.window.float())
 bind(M .. " + SHIFT + V", hl.dsp.window.float())
 
 -- ----- Column width / resize -----
-bind(M .. " + Semicolon", layout("colresize -0.05"))
-bind(M .. " + Apostrophe", layout("colresize +0.05"))
-bind(M .. " + Minus", layout("colresize -0.05"))
-bind(M .. " + Equal", layout("colresize +0.05"))
+-- through the shell: a focused sidecar resizes (colresize ignores floating windows), anything
+-- else falls through to colresize
+bind(M .. " + Semicolon", exec("astal-shell colresize -0.05"))
+bind(M .. " + Apostrophe", exec("astal-shell colresize +0.05"))
+bind(M .. " + Minus", exec("astal-shell colresize -0.05"))
+bind(M .. " + Equal", exec("astal-shell colresize +0.05"))
 bind(M .. " + F", layout("fit active"))
 bind(M .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 bind("CTRL + " .. M .. " + C", layout("center"))

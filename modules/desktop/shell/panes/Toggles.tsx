@@ -9,7 +9,7 @@ import { createBinding, createState } from "ags"
 import { subprocess, type Process } from "ags/process"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
-import { zen, setBackdrop, nextWallpaper } from "../surfaces/Backdrop"
+import { zen, setBackdrop, nextWallpaper, backdropMode } from "../surfaces/Backdrop"
 import { glass, toggleGlass } from "../lib/glass"
 
 const notifd = Notifd.get_default()
@@ -52,7 +52,7 @@ export function Toggles({ perRow = 4 }: { perRow?: number }) {
     <Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />,
     <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />,
     <Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />,
-    <Toggle icon={"\u{f0e2a}"} label="zen" on={zen} onToggle={() => setBackdrop("toggle")} />,
+    <Toggle icon={"\u{f0e2a}"} label={backdropMode((m) => (m === "photo" ? "zen" : m))} on={zen} onToggle={() => setBackdrop("cycle")} />,
     <Toggle icon={"◐"} label="glass" on={glass} onToggle={toggleGlass} />,
     <Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={nextWallpaper} />,
     <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />,
