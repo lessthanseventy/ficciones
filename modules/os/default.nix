@@ -12,6 +12,34 @@
   ...
 }:
 
+let
+  # Hyprland + hyprexpo from Hyprland's own overlay on Hyprland's own nixpkgs pin (its deps
+  # are cached against that gcc; ours links a newer libstdc++ and guiutils fails to link),
+  # with glaze held at 7.x: Hyprland 0.56.2's CMake wants `glaze 7...<8`, that nixpkgs has 8,
+  # so the stock flake package falls to a FetchContent git clone the sandbox cannot do. The
+  # plugin is built in the same package set, so it loads into the exact binary it was compiled
+  # against.
+  hyprland = hyprexpo.inputs.hyprland;
+  pkgsHypr = import hyprland.inputs.nixpkgs {
+    inherit (pkgs.stdenv.hostPlatform) system;
+    config.allowUnfree = true;
+    overlays = [
+      hyprland.overlays.hyprland-packages
+      hyprexpo.overlays.default
+      (final: prev: {
+        glaze-hyprland = (prev.glaze.override { enableSSL = false; enableInterop = false; }).overrideAttrs (_: rec {
+          version = "7.2.0";
+          src = prev.fetchFromGitHub {
+            owner = "stephenberry";
+            repo = "glaze";
+            tag = "v${version}";
+            hash = "sha256-f3NVRi3SXKo42hn0WCw7JsOK3EkdOVJIcuzhPorKjFY=";
+          };
+        });
+      })
+    ];
+  };
+in
 {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   nixpkgs.config.allowUnfree = true;
@@ -33,13 +61,13 @@
     xwayland.enable = true;
     withUWSM = true;
     # the Hyprland hyprexpo was built against — a plugin loads into that binary only
-    package = hyprexpo.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-    portalPackage = hyprexpo.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+    package = pkgsHypr.hyprland;
+    portalPackage = pkgsHypr.xdg-desktop-portal-hyprland;
   };
   # the plugin at a fixed path; hyprland.lua loads it at start when the file exists (on Arch
   # hyprpm owns loading, and the path is absent)
   environment.etc."hypr/plugins/hyprexpo.so".source =
-    "${hyprexpo.packages.${pkgs.stdenv.hostPlatform.system}.hyprexpo}/lib/libhyprexpo.so";
+    "${pkgsHypr.hyprlandPlugins.hyprexpo}/lib/libhyprexpo.so";
   # hyprland.lua's autostart expects these on PATH; hyprlock/hypridle are never replaced
   # by the shell (design §7), ghostty is $TERMINAL there. No hyprpaper: the shell's backdrop
   # is the wallpaper.
