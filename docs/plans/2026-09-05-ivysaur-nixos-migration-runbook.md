@@ -151,7 +151,7 @@ Groups, with the decision each needs. Anything not listed either has a twin that
   for glibc — `programs.nix-ld` with `stdenv.cc.cc`, `zlib`, `openssl`, `ncurses` covers them;
   if `mix` fails to start on first boot, `ldd $(mise which erl)` names the missing library to
   add to `programs.nix-ld.libraries`.
-- The `pi` bun binary (flake.nix) — nix-ld as well; the flake's note is resolved by this.
+- The `pi` bun binary (flake.nix) — nix-ld as well, now in modules/os/default.nix so the VM has it too; verified 2026-09-06 (`pi --version` → 0.85.1 in the guest, /lib64/ld-linux → nix-ld).
 - `AQ_DRM_DEVICES` in `hosts/ivysaur.{lua,conf}` now uses `/dev/dri/by-path/...` names because
   Arch numbers simpledrm as `card0` and NixOS will not. Verified to resolve on Arch (card2/card1);
   **verify at the next Hyprland start** that aquamarine accepts the symlinked paths (it `open()`s

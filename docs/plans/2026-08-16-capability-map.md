@@ -95,7 +95,7 @@ Legend below: ✅ built · 🔜 planned slice · ⬜ gap.
 | **funes release built BY NIX** (`nix build .#funes`) | ⬜ | move **A**, deferred: today the release is built locally by `funes:release` (repo-path service, like manos). Nix-packaging it (mix2nix incl. the exqlite NIF) is what reproduces on a bare next-box — do it when box #2 is real. |
 | **aleph packaged** | ⬜ | the cockpit as a real app |
 | **sandbox/cache-path allowlist** (Claude Code settings) | ⬜ | so npm/mise/pip installs+caches don't trip the sandbox and force retries |
-| **NixOS pi wrapper** (byte-preserving ld-linux / nix-ld) | ⬜ | deferred with metal — a bun binary can't be patchelf'd |
+| **NixOS pi wrapper** (byte-preserving ld-linux / nix-ld) | ✅ | `programs.nix-ld` in modules/os/default.nix; pi 0.85.1 runs unpatched in the VM (2026-09-06) |
 
 ## The parity lens (the sharpest view of the gaps)
 

@@ -58,7 +58,8 @@
       # trailer, so bun stops detecting the embedded app and degrades to the bare bun CLI
       # (observed: `pi` printed bun's help) — never patch or strip it. Arch's system glibc
       # loader runs it as-is; a NixOS box has no such loader and would need a wrapper that
-      # invokes the store ld-linux without touching the bytes (or nix-ld) — deferred, tracked here.
+      # invokes the store ld-linux without touching the bytes: modules/os/default.nix enables
+      # programs.nix-ld, which does exactly that (verified in the VM, 2026-09-06).
       pi = pkgs.stdenv.mkDerivation rec {
         pname = "pi-coding-agent";
         version = "0.85.1";
@@ -164,7 +165,7 @@
       # (modules/os/vm.nix). `ivysaur` lands when the laptop leaves Arch.
       nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo astalShell hyprexpo; };
+        specialArgs = { inherit repo astalShell hyprexpo pi; };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os
@@ -175,7 +176,7 @@
       # (docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md).
       nixosConfigurations.ivysaur = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo astalShell hyprexpo; };
+        specialArgs = { inherit repo astalShell hyprexpo pi; };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os

@@ -131,12 +131,6 @@ in
   };
   programs.gamemode.enable = true;
 
-  # ---- the pi bun binary + mise-installed toolchains -----------------------------------------
-  # A `bun build --compile` ELF must not be patchelf'd (flake.nix); nix-ld gives it a loader.
-  # The same loader serves mise's erlang/elixir/node downloads, which are plain dynamic binaries.
-  programs.nix-ld.enable = true;
-  programs.nix-ld.libraries = with pkgs; [ stdenv.cc.cc zlib openssl ncurses libxcrypt-legacy ];
-
   # ---- network ----------------------------------------------------------------------------
   # networking.networkmanager is on in ./default.nix.
   networking.extraHosts = ''
