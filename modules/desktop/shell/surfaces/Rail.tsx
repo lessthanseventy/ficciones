@@ -102,7 +102,8 @@ function Weather() {
   )
 }
 
-/** The power menu. Lock delegates to hyprlock; this shell never draws one (design §5). */
+/** The power menu. Lock delegates to hyprlock; this shell never draws one (design §5).
+ *  Click only — a menu with shutdown in it must never open by brushing past it. */
 function Power() {
   const run = (cmd: string[]) => execAsync(cmd).catch(console.error)
   const items: [string, string, string[], string[]][] = [
@@ -113,7 +114,7 @@ function Power() {
     ["\u{f0425}", "shutdown", ["systemctl", "poweroff"], ["red"]],
   ]
   return (
-    <menubutton cssClasses={["item", "power"]} direction={Gtk.ArrowType.RIGHT} $={(self) => hoverPopover(self, "rail")}>
+    <menubutton cssClasses={["item", "power"]} direction={Gtk.ArrowType.RIGHT}>
       <label cssClasses={["icon"]} label={"\u{f0425}"} />
       <popover cssClasses={["pop"]}>
         <Panel title="POWER" spacing={2}>
