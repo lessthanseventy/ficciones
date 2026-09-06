@@ -7,11 +7,13 @@ window.drawer { background: transparent; }
 .floating { background: $bg; padding: 0 $sp-2 $sp-2; }
 .floating .card { margin-top: 0; }
 
+// the hub's sheet (right edge); the info surface is a .floating stack like the weather card
 .sheet {
   background: $bg;
   border-right: $rule solid $sep;
   padding: 0 $sp-3 $sp-2 $sp-2;
 }
+.stack .card + .card { margin-top: $sp-3; }
 
 .card { margin-top: $sp-3; }
 .card .panel-body { padding: $sp-3 $sp-3 $sp-3; }
@@ -23,6 +25,8 @@ window.drawer { background: transparent; }
 .card-agents   .panel-title { color: $arch-assistant; }
 .card.focused .panel-title { color: inherit; }
 .cal-head label:nth-child(n+6) { color: $accent; }
+
+.sheet.right { border-right: none; border-left: $rule solid $sep; padding: 0 $sp-2 $sp-2 $sp-3; }
 
 .keys {
   min-height: $cell-h;
@@ -51,7 +55,6 @@ window.drawer { background: transparent; }
 
 // ── the right-hand hub ─────────────────────────────────────────────────────
 window.hub, window.clickaway { background: transparent; }
-.sheet.right { border-right: none; border-left: $rule solid $sep; padding: 0 $sp-2 $sp-2 $sp-3; }
 .card-notices .panel-title { color: $amber; }
 .card-toggles .panel-title { color: $cyan; }
 .hub-head { min-height: $cell-h; }

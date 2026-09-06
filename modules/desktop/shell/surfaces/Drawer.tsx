@@ -1,5 +1,6 @@
-// The info panel: a single column of cards beside the rail. Each card is a pane with an icon
-// in its title; the focused card is framed amber. 1-4 focus, Tab/Shift-Tab cycle, j/k move
+// The info surface: a stack of cards floating beside the rail, the same shape as the weather
+// card (a dropright, not a sheet). Each card is a pane with an icon in its title; the focused
+// card is framed amber. 1-4 focus, Tab/Shift-Tab cycle, j/k move
 // the cursor inside a card, Escape or q closes. Opens on the monitor the pointer is on.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
@@ -93,43 +94,50 @@ export default function Drawer() {
       marginLeft={54} // beside the rail with a gap, never over it
       application={app}
     >
-      {/* the surface spans the monitor: the column at the left, and the rest is the click-away */}
-      <box>
-      <box cssClasses={["sheet"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.START} $={(self) => { sheet = self }}>
-        {PANES.map((p, i) => (
-          <Panel
-            title={`${cards[p].icon}  ${i + 1} ${p}`}
-            cssClasses={focus((f) => ["card", `card-${p.toLowerCase()}`, ...(f === p ? ["focused"] : [])])}
-          >
-            <box
-              $={(self) => {
-                // focus the card on any click inside it, without stealing the click from the
-                // buttons within — a capture-phase gesture that never claims
-                const g = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
-                g.connect("pressed", () => setFocus(p))
-                self.add_controller(g)
-              }}
+      {/* the field covers the monitor; the cards float over it beside the clock, like the weather card */}
+      <overlay>
+        <box
+          cssClasses={["clickaway-field"]}
+          hexpand
+          vexpand
+          $={(self) => {
+            const g = new Gtk.GestureClick({ button: 0 })
+            g.connect("pressed", () => hideDrawer())
+            self.add_controller(g)
+          }}
+        />
+        <box
+          $type="overlay"
+          cssClasses={["floating", "stack"]}
+          orientation={Gtk.Orientation.VERTICAL}
+          widthRequest={460}
+          halign={Gtk.Align.START}
+          valign={Gtk.Align.CENTER}
+          $={(self) => { sheet = self }}
+        >
+          {PANES.map((p, i) => (
+            <Panel
+              title={`${cards[p].icon}  ${i + 1} ${p}`}
+              cssClasses={focus((f) => ["card", `card-${p.toLowerCase()}`, ...(f === p ? ["focused"] : [])])}
             >
-              {cards[p].body()}
-            </box>
-          </Panel>
-        ))}
-        <box vexpand />
-        <box cssClasses={["keys"]} spacing={12}>
-          <label label="1-2 card" /><label label="Tab next" /><label label="j/k row" /><label label="Esc close" />
+              <box
+                $={(self) => {
+                  // focus the card on any click inside it, without stealing the click from the
+                  // buttons within — a capture-phase gesture that never claims
+                  const g = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
+                  g.connect("pressed", () => setFocus(p))
+                  self.add_controller(g)
+                }}
+              >
+                {cards[p].body()}
+              </box>
+            </Panel>
+          ))}
+          <box cssClasses={["keys"]} spacing={12}>
+            <label label="1-2 card" /><label label="Tab next" /><label label="j/k row" /><label label="Esc close" />
+          </box>
         </box>
-      </box>
-      <box
-        cssClasses={["clickaway-field"]}
-        hexpand
-        vexpand
-        $={(self) => {
-          const g = new Gtk.GestureClick({ button: 0 })
-          g.connect("pressed", () => hideDrawer())
-          self.add_controller(g)
-        }}
-      />
-      </box>
+      </overlay>
     </window>
   )
 }
