@@ -14,9 +14,9 @@ column as work lands.
 | D4 | JOURNAL card: last few journalctl lines at warning+ | done | lib/journal.ts panes/Journal.tsx (6 lines, sys+user) |
 | D5 | WORKSPACES overview card: every ws with window icons, click to jump | done | panes/Workspaces.tsx; WindowStrip reusable for S3; lib/icons.ts |
 | S1 | sidecar width by drag (grab handle on the zone's right edge) | todo | |
-| S2 | OSD for volume/brightness — Andrew (mid-session): WANTED, and MORE prominent than a thin meter (headphone buttons change volume unseen); scroll on the rail's volume icon changes volume; a slider move in the popover SKIPS the OSD | todo | |
-| S3 | hover-open on rail workspace numbers → strip of that ws's windows | todo | |
-| S4 | notification actions inline on toasts | todo | toasts already render `n.get_actions()`; verify live, check hub history too |
+| S2 | OSD for volume/brightness — Andrew (mid-session): WANTED, and MORE prominent than a thin meter (headphone buttons change volume unseen); scroll on the rail's volume icon changes volume; a slider move in the popover SKIPS the OSD | done | surfaces/Osd.tsx; quietOsd() from Audio slider/mute + Backlight; Tray Vol scroll caps at 100% |
+| S3 | hover-open on rail workspace numbers → strip of that ws's windows | done | Rail ws → menubutton + WorkspacePop (panes/Workspaces.tsx); hover untested live (movecursor moves his mouse) |
+| S4 | notification actions inline on toasts | done | actions already rendered; now outlined green buttons; verified with notify-send -A |
 | P1 | "paper" light palette variant; `astal-shell theme paper` reruns home:switch in bg | todo | |
 | P2 | floorp userContent rules for lived-in sites from the palette | todo | |
 | B1 | Library of Babel zen mode: hexagonal cells of drifting amber text, real book fragments | todo | |
