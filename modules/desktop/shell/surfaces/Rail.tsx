@@ -12,6 +12,7 @@ import { RuleH, Panel } from "../lib/tui"
 import { toggleWeather, showWeather, hideWeather, weatherOpen, weatherCard } from "./WeatherPop"
 import { hoverPopover, hoverPanel } from "../lib/hover"
 import TrayPane from "./Tray"
+import { toggleLauncher } from "./Launcher"
 import { toggleDrawer, showDrawer, hideDrawer, drawerOpen, drawerSheet } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
@@ -50,6 +51,15 @@ function Workspaces({ connector }: { connector: string }) {
         }}
       </For>
     </box>
+  )
+}
+
+/** The corner where the rail meets the bar: the flake, because the machine is one. Click = launcher. */
+function Corner() {
+  return (
+    <button cssClasses={["corner"]} onClicked={() => toggleLauncher()}>
+      <label label={"\u{f313}"} />
+    </button>
   )
 }
 
@@ -142,6 +152,7 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
     >
       <centerbox orientation={Gtk.Orientation.VERTICAL}>
         <box $type="start" orientation={Gtk.Orientation.VERTICAL}>
+          <Corner />
           <Workspaces connector={gdkmonitor.connector} />
           <RuleH />
         </box>

@@ -14,6 +14,15 @@ window.rail > box {
 
 // sections of the rail are separated by rules, not framed
 window.rail .rule-h { margin: $sp-2 $sp-1; }
+// the bar-height square at the top of the rail: the flake, amber, inverse on hover
+.corner {
+  min-height: $bar-height - $rule;
+  padding: 0;
+  background: none; border: none; box-shadow: none; border-radius: 0;
+  border-bottom: $rule solid $sep;
+  label { color: $amber; font-size: 22px; }
+  &:hover { background: $chip; label { color: $ink; } }
+}
 .workspaces {
   margin-top: $sp-2;
   .ws {
