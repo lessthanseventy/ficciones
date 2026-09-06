@@ -10,6 +10,7 @@ import { For, createBinding, createComputed, onCleanup, type Accessor } from "ag
 import { createPoll, timeout, type Timer } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
+import { toggleSidecar } from "../lib/sidecar"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import Brightness from "gi://AstalBrightness"
 import { METRICS, MetricDetail } from "../panes/Perf"
@@ -117,7 +118,7 @@ function Windows({ connector }: { connector: string }) {
                   <RuleH />
                   <box spacing={6} cssClasses={["winacts"]}>
                     <button cssClasses={["act"]} onClicked={() => d("togglefloating")}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
-                    <button cssClasses={["act"]} onClicked={() => { if (!c.pinned && !c.floating) d("togglefloating"); d("pin") }}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
+                    <button cssClasses={["act"]} onClicked={() => toggleSidecar(c)}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => { c.focus(); hypr.dispatch("fullscreen", "1") }}><label label="fullscreen" /></button>
                     <button cssClasses={["act"]} onClicked={() => d("movetoworkspace", "special:magic,")}><label label="to special" /></button>
                     <box hexpand />
