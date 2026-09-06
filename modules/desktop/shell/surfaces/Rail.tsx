@@ -79,8 +79,8 @@ function Corner() {
   return (
     <menubutton cssClasses={["corner"]} direction={Gtk.ArrowType.RIGHT}>
       <overlay>
-        <label cssClasses={["hron"]} label={"\u2135"} />
-        <label $type="overlay" cssClasses={["aleph"]} label={"\u2135"} />
+        <label cssClasses={["aleph"]} label={"\u2135"} />
+        <label $type="overlay" cssClasses={["hron"]} label={"\u2135"} canTarget={false} />
       </overlay>
       <popover cssClasses={["pop"]}>
         <Panel title="\u2135  SHELL" spacing={2}>
