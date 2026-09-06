@@ -17,8 +17,9 @@ export function spark(values: number[], width: number): string {
   const s = [...pad, ...v]
   const L = [0x40, 0x04, 0x02, 0x01] // left column, bottom→top
   const R = [0x80, 0x20, 0x10, 0x08]
-  // a real sample always draws at least the baseline dot, so idle and no-data differ
-  const lvl = (x: number) => (x < 0 ? 0 : Math.min(4, Math.max(1, Math.round(x * 4))))
+  // a real sample always draws at least the baseline dot, so idle and no-data differ; each
+  // further row is a quarter (25/50/75), not a rounding — 18% and 36% must not look alike
+  const lvl = (x: number) => (x < 0 ? 0 : Math.min(4, 1 + Math.floor(Math.min(0.999, x) * 4)))
   let out = ""
   for (let i = 0; i < n; i += 2) {
     let bits = 0
