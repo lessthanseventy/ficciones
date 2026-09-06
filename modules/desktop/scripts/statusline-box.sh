@@ -19,6 +19,14 @@ raw=$(printf '%s' "$input" | "$CPL" 2>/dev/null \
   | sed -e 's/◔/󰧑  ctx/g' -e 's/◱/⏱  5h/g' -e 's/◑/▦  wk/g')
 mapfile -t L <<< "$raw"
 
+# ctx: trust Claude Code's own used_percentage (its compaction popup keys off this); claude-powerline
+# recomputes from raw token counts and under-reads badly (60% shown at the ~90% popup)
+used=$(printf '%s' "$input" | sed -n 's/.*"used_percentage":\([0-9.]*\).*/\1/p' | head -1)
+if [ -n "$used" ] && [ "${#L[@]}" -ge 2 ]; then
+  used=$(printf '%.0f' "$used")
+  L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
+fi
+
 # background agents: unanswered Agent / background-Bash tool uses in the transcript
 transcript=$(printf '%s' "$input" | sed -n 's/.*"transcript_path":"\([^"]*\)".*/\1/p')
 agents=0
