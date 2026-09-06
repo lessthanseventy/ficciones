@@ -23,6 +23,7 @@ import { Stat, RuleV, RuleH } from "../lib/tui"
 import { pct, meter, spark } from "../lib/format"
 import { tier } from "../lib/perf"
 import { quietOsd } from "./Osd"
+import { query } from "../lib/hyprsock"
 
 /**
  * The workspace's windows, left to right as they sit in the strip: the focused one as
@@ -31,11 +32,16 @@ import { quietOsd } from "./Osd"
 function Windows({ connector }: { connector: string }) {
   // This monitor's active workspace, not the globally focused one: two bars, two workspaces.
   const activeWs = () => hypr.get_monitors().find((m) => m.name === connector)?.activeWorkspace
+  // left to right by LIVE position: AstalHyprland's cached x goes stale as the scrolling
+  // layout shifts columns (and a pinned sidecar sits at the far left)
   const clients = createComputed(
-    [focusedWorkspace, createBinding(hypr, "clients")],
-    (_, cs) => {
+    [focusedWorkspace, focusedClient, createBinding(hypr, "clients")],
+    (_, __, cs) => {
       const ws = activeWs()
-      return cs.filter((c) => ws && c.workspace?.id === ws.id && c.mapped).sort((a, b) => a.x - b.x)
+      let live = new Map<string, number>()
+      try { live = new Map((JSON.parse(query("j/clients")) as { address: string; at: [number, number] }[]).map((c) => [c.address.replace(/^0x/, ""), c.at[0]])) } catch { /* cached order */ }
+      const x = (c: Hyprland.Client) => live.get(c.address.replace(/^0x/, "")) ?? c.x
+      return cs.filter((c) => ws && c.workspace?.id === ws.id && c.mapped).sort((a, b) => x(a) - x(b))
     },
   )
   return (

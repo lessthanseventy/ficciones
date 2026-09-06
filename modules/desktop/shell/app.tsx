@@ -13,9 +13,10 @@ import { popAgents } from "./surfaces/Tray"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, type Theme } from "./lib/theme"
-import { sidecarVerb, colresize } from "./lib/sidecar"
+import { sidecarVerb, colresize, focusDir } from "./lib/sidecar"
 import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
+import "./lib/opaque"
 
 // One process, every surface. Bars per monitor (exclusive, windows reflow around them); the
 // drawer once, floating. `astal-shell toggle drawer` from a keybind reaches requestHandler.
@@ -70,6 +71,10 @@ app.start({
       popWorkspace(Number(tab))
       return res("ok")
     }
+    if (verb === "focus" && (what === "l" || what === "r")) {
+      focusDir(what)
+      return res("ok")
+    }
     if (verb === "colresize") {
       colresize(what ?? "wider")
       return res("ok")
@@ -92,7 +97,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [amber|paper] | sidecar [toggle|pin|unpin] | colresize narrower|wider | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [amber|paper] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")

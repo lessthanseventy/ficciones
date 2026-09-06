@@ -369,13 +369,15 @@ bind(M .. " + D", exec("astal-shell toggle dashboard"))
 bind("CTRL + " .. M .. " + Slash", exec("xdg-open " .. hyprdir .. "/hyprland.lua"))
 
 -- ----- Focus (vim H/L = column, J/K = workspace; arrows = column/window) -----
-bind(M .. " + H", layout("focus l"))
-bind(M .. " + L", layout("focus r"))
+-- through the shell (scripts/shell-req.sh, ~15 ms): the sidecar is a floating window the
+-- layout's focus skips, so the shell stitches it in at the start of the row
+bind(M .. " + H", exec(shell .. "/shell-req.sh focus l"))
+bind(M .. " + L", exec(shell .. "/shell-req.sh focus r"))
 bind(M .. " + J", ws("r+1"))
 bind(M .. " + K", ws("r-1"))
 
-bind(M .. " + Left", layout("focus l"))
-bind(M .. " + Right", layout("focus r"))
+bind(M .. " + Left", exec(shell .. "/shell-req.sh focus l"))
+bind(M .. " + Right", exec(shell .. "/shell-req.sh focus r"))
 bind(M .. " + Up", layout("focus u"))
 bind(M .. " + Down", layout("focus d"))
 
@@ -447,7 +449,7 @@ bind("ALT + F4", hl.dsp.window.close())
 bind("CTRL + " .. M .. " + SHIFT + Q", hl.dsp.window.kill())
 -- pin = the shell's sidecar: a floating pinned column on the left of every workspace on the
 -- monitor, the tiled columns re-fit beside it (modules/desktop/shell/lib/sidecar.ts)
-bind("CTRL + " .. M .. " + P", exec("astal-shell sidecar toggle"))
+bind("CTRL + " .. M .. " + P", exec(shell .. "/shell-req.sh sidecar toggle"))
 
 -- Toggle windowed-fullscreen (internal=0 windowed, client=3 fullscreen client-side)
 bind("ALT + " .. M .. " + F", hl.dsp.window.fullscreen_state({ internal = 0, client = 3 }))
@@ -457,10 +459,10 @@ bind(M .. " + SHIFT + V", hl.dsp.window.float())
 -- ----- Column width / resize -----
 -- through the shell: a focused sidecar resizes (colresize ignores floating windows), anything
 -- else falls through to colresize
-bind(M .. " + Semicolon", exec("astal-shell colresize narrower"))
-bind(M .. " + Apostrophe", exec("astal-shell colresize wider"))
-bind(M .. " + Minus", exec("astal-shell colresize narrower"))
-bind(M .. " + Equal", exec("astal-shell colresize wider"))
+bind(M .. " + Semicolon", exec(shell .. "/shell-req.sh colresize narrower"))
+bind(M .. " + Apostrophe", exec(shell .. "/shell-req.sh colresize wider"))
+bind(M .. " + Minus", exec(shell .. "/shell-req.sh colresize narrower"))
+bind(M .. " + Equal", exec(shell .. "/shell-req.sh colresize wider"))
 bind(M .. " + F", layout("fit active"))
 bind(M .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 bind("CTRL + " .. M .. " + C", layout("center"))
