@@ -359,6 +359,7 @@ bind(M .. " + SHIFT + C", exec("astal-shell crt"))
 bind(M .. " + SHIFT + Z", exec("astal-shell backdrop"))
 bind(M .. " + SHIFT + T", exec("astal-shell glass"))
 bind(M .. " + SHIFT + W", exec("astal-shell toggle weather"))
+bind(M .. " + D", exec("astal-shell toggle dashboard"))
 
 -- Edit configs
 bind("CTRL + " .. M .. " + Slash", exec("xdg-open " .. hyprdir .. "/hyprland.lua"))

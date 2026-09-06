@@ -12,11 +12,7 @@ import { RuleH, Panel } from "../lib/tui"
 import { toggleWeather, showWeather, hideWeather, weatherOpen, weatherCard } from "./WeatherPop"
 import { hoverPopover, hoverPanel } from "../lib/hover"
 import TrayPane from "./Tray"
-import { toggleCheatsheet } from "./Cheatsheet"
-import { zen, setBackdrop } from "./Backdrop"
-import { glass, toggleGlass } from "../lib/glass"
-import { crt, cycleCrt } from "../lib/crt"
-import { night, toggleNight } from "../lib/night"
+import { toggleDashboard } from "./Dashboard"
 import { toggleDrawer, showDrawer, hideDrawer, drawerOpen, drawerSheet } from "./Drawer"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
@@ -62,39 +58,16 @@ function Workspaces({ connector }: { connector: string }) {
  * The corner where the rail meets the bar: a hrön of the Aleph. In Tlön an object looked for
  * is found twice; here the second aleph is the double a pair of XLRS eyes would see anyway, a
  * few pixels off and dimmer — until you look straight at it, when the two resolve into one.
- * Click = the shell's own menu: what is about the shell itself and has no other home.
+ * Click = the dashboard (the point that holds every other point).
  */
 function Corner() {
-  const run = (cmd: string[]) => execAsync(cmd).catch(console.error)
-  const onoff = (b: boolean) => (b ? "on" : "off")
-  const items: [string, string | Accessor<string>, () => void][] = [
-    ["\u{f030c}", "keys", () => toggleCheatsheet()],
-    ["\u{f0e13}", zen((z) => `backdrop · ${z ? "zen" : "photo"}`), () => setBackdrop("toggle")],
-    ["\u{f1c3d}", glass((g) => `glass · ${onoff(g)}`), () => toggleGlass()],
-    ["\u{f0379}", crt((c) => `crt · ${c}`), () => cycleCrt()],
-    ["\u{f0594}", night((n) => `night light · ${onoff(n)}`), () => toggleNight()],
-    ["\u{f0450}", "restart shell", () => run(["bash", "-c", "sleep 0.2; pkill -x gjs; sleep 0.3; astal-shell"])],
-    ["\u{f0453}", "reload hyprland", () => run(["hyprctl", "reload"])],
-  ]
   return (
-    <menubutton cssClasses={["corner"]} direction={Gtk.ArrowType.RIGHT}>
+    <button cssClasses={["corner"]} onClicked={() => toggleDashboard()}>
       <overlay>
         <label cssClasses={["aleph"]} label={"\u2135"} />
         <label $type="overlay" cssClasses={["hron"]} label={"\u2135"} canTarget={false} />
       </overlay>
-      <popover cssClasses={["pop"]}>
-        <Panel title="\u2135  SHELL" spacing={2}>
-          {items.map(([icon, label, act]) => (
-            <button cssClasses={["row", "powerrow"]} onClicked={act}>
-              <box spacing={10}>
-                <label cssClasses={["icon"]} label={icon} widthChars={2} />
-                <label label={label} xalign={0} hexpand />
-              </box>
-            </button>
-          ))}
-        </Panel>
-      </popover>
-    </menubutton>
+    </button>
   )
 }
 
@@ -137,36 +110,6 @@ function Weather() {
   )
 }
 
-/** The power menu. Lock delegates to hyprlock; this shell never draws one (design §5).
- *  Click only — a menu with shutdown in it must never open by brushing past it. */
-function Power() {
-  const run = (cmd: string[]) => execAsync(cmd).catch(console.error)
-  const items: [string, string, string[], string[]][] = [
-    ["\u{f033e}", "lock", ["hyprlock"], []],
-    ["\u{f0343}", "logout", ["hyprctl", "dispatch", "exit"], ["red"]],
-    ["\u{f04b2}", "suspend", ["systemctl", "suspend"], []],
-    ["\u{f0709}", "reboot", ["systemctl", "reboot"], ["red"]],
-    ["\u{f0425}", "shutdown", ["systemctl", "poweroff"], ["red"]],
-  ]
-  return (
-    <menubutton cssClasses={["item", "power"]} direction={Gtk.ArrowType.RIGHT}>
-      <label cssClasses={["icon"]} label={"\u{f0425}"} />
-      <popover cssClasses={["pop"]}>
-        <Panel title="POWER" spacing={2}>
-          {items.map(([icon, label, cmd, cls]) => (
-            <button cssClasses={["row", "powerrow", ...cls]} onClicked={() => run(cmd)}>
-              <box spacing={10}>
-                <label cssClasses={["icon"]} label={icon} widthChars={2} />
-                <label label={label} xalign={0} hexpand />
-              </box>
-            </button>
-          ))}
-        </Panel>
-      </popover>
-    </menubutton>
-  )
-}
-
 export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   let win: Astal.Window
   const { TOP, LEFT, BOTTOM } = Astal.WindowAnchor
@@ -201,7 +144,6 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>
           <RuleH />
           <TrayPane />
-          <Power />
         </box>
       </centerbox>
     </window>

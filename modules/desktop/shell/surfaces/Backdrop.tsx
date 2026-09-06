@@ -48,6 +48,9 @@ class Canvas {
 }
 
 const canvases = new Map<Astal.Window, Canvas>()
+const nexts: (() => void)[] = []
+/** Skip every monitor to its next photo (the dashboard's "next wp"). */
+export const nextWallpaper = () => nexts.forEach((n) => n())
 let created = 0
 
 export function setBackdrop(mode: "zen" | "photo" | "toggle") {
@@ -60,6 +63,7 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   const canvas = new Canvas(created++)
   const [lines] = canvas.lines
   const { file, next } = wallpaper()
+  nexts.push(next)
   onCleanup(() => { for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
   return (
     <window

@@ -88,3 +88,18 @@ window.hub, window.clickaway { background: transparent; }
 
 // perf popovers
 .cores { color: $amber; font-size: $size-lg; letter-spacing: 1px; }
+
+// the dashboard: the board is a black sheet with a margin of desktop showing round it
+window.dashboard { background: transparent; }
+.board { background: $bg; border: $rule solid $sep; padding: $sp-2 $sp-3 $sp-3; }
+.board .card { margin-top: $sp-2; }
+.card-calendar { min-width: 380px; }
+.action {
+  min-height: 72px;
+  background: none; border: $rule solid $sep; border-radius: 0; box-shadow: none;
+  .icon { font-size: 26px; color: $amber; }
+  .sm { color: $meta; }
+  &.red .icon { color: $red; }
+  &:hover { background: $chip; .icon, .sm { color: $ink; } }
+}
+.card-toggles .toggle { min-height: 64px; }

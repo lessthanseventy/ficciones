@@ -56,6 +56,10 @@ app.start({
       toggleWeather()
       return res("ok")
     }
+    if (verb === "toggle" && what === "dashboard") {
+      toggleDashboard()
+      return res("ok")
+    }
     if (verb === "toggle" && what === "hub") {
       toggleHub()
       return res("ok")
@@ -66,7 +70,7 @@ app.start({
       else showDrawer(tab?.toUpperCase() as Pane | undefined)
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [zen|photo] | glass [on|off] | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
@@ -82,6 +86,7 @@ app.start({
     setBackdrop("zen")
     Launcher()
     Cheatsheet()
+    Dashboard()
     return (
       <For each={monitors}>
         {(monitor) => (

@@ -1,5 +1,5 @@
 // The right-hand hub: a column of cards beside the right edge — notification history grouped
-// by app, and toggles at the foot. Opens when the pointer parks on the right edge (a 2px hot
+// by app. Opens when the pointer parks on the right edge (a 2px hot
 // strip), on Super+N, or `astal-shell toggle hub`; closes when the pointer leaves it, or Esc.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
@@ -35,59 +35,6 @@ function History() {
       </box>
       <For each={all}>{(n) => <NoticeCard n={n} />}</For>
       <label cssClasses={["dim"]} label="all quiet" visible={all((ns) => ns.length === 0)} xalign={0} />
-    </box>
-  )
-}
-
-/** A toggle: icon + label, chip when on. */
-function Toggle({ icon, label, on, onToggle }: { icon: string; label: any; on: any; onToggle: () => void }) {
-  return (
-    <button cssClasses={on((o: boolean) => ["toggle", ...(o ? ["chip"] : [])])} onClicked={onToggle}>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-        <label cssClasses={["icon"]} label={icon} />
-        <label cssClasses={["sm"]} label={label} />
-      </box>
-    </button>
-  )
-}
-
-function Toggles() {
-  const net = Network.get_default()
-  const bt = Bluetooth.get_default()
-  const pp = PowerProfiles.get_default()
-  const wifiOn = createBinding(net, "wifi")((w) => !!w?.enabled)
-  const btOn = createBinding(bt, "isPowered")
-  const dnd = createBinding(notifd, "dontDisturb")
-  // idle inhibit: hold a systemd-inhibit while on; hypridle keeps running, this only blocks it
-  const [inhibit, setInhibit] = createState(false)
-  let proc: Process | null = null
-  const toggleInhibit = () => {
-    if (proc) { proc.kill(); proc = null; setInhibit(false) }
-    else { proc = subprocess(["systemd-inhibit", "--what=idle", "--who=astal-shell", "--why=toggle", "sleep", "infinity"]); setInhibit(true) }
-  }
-  const profile = createBinding(pp, "activeProfile")
-  const cycleProfile = () => {
-    const ps = pp.get_profiles().map((p) => p.profile)
-    pp.set_active_profile(ps[(ps.indexOf(pp.activeProfile) + 1) % ps.length])
-  }
-  // four per row; the hub stays the width of a notice
-  const all = [
-    <Toggle icon={"\u{f05a9}"} label="wifi" on={wifiOn} onToggle={() => { if (net.wifi) net.wifi.enabled = !net.wifi.enabled }} />,
-    <Toggle icon={"\u{f00af}"} label="bt" on={btOn} onToggle={() => bt.toggle()} />,
-    <Toggle icon={"\u{f009b}"} label="dnd" on={dnd} onToggle={() => (notifd.dontDisturb = !notifd.dontDisturb)} />,
-    <Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />,
-    <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />,
-    <Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />,
-    <Toggle icon={"\u{f0e2a}"} label="zen" on={zen} onToggle={() => setBackdrop("toggle")} />,
-    <Toggle icon={"◐"} label="glass" on={glass} onToggle={toggleGlass} />,
-    <Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={() => execAsync([`${GLib.get_home_dir()}/.local/bin/rotate-wallpaper`]).catch(console.error)} />,
-    <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />,
-  ]
-  const rows: JSX.Element[][] = []
-  for (let i = 0; i < all.length; i += 4) rows.push(all.slice(i, i + 4))
-  return (
-    <box cssClasses={["toggles"]} orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-      {rows.map((r) => <box spacing={6} homogeneous>{r}</box>)}
     </box>
   )
 }
@@ -191,8 +138,6 @@ export default function Hub() {
       />
       <box cssClasses={["sheet", "right"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.END} $={(self) => self.add_controller(motion)}>
         <Panel title={"\u{f009a}  NOTIFICATIONS"} cssClasses={["card", "card-notices"]}><History /></Panel>
-        <box vexpand />
-        <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles /></Panel>
       </box>
       </box>
     </window>
