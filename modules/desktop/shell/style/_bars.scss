@@ -112,7 +112,7 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
   .icon { font-size: $size-lg; }
   &.dim  * { color: $meta; }
   &.live * { color: $green; }
-  &.net .icon { color: $cyan; }
+  &.net .icon { color: $cyan; margin-right: 6px; }   // the glyph inks right of its box: 3px left
   &.net .sm { font-size: 9px; letter-spacing: -1px; }   // block glyphs are wide; the meter must fit 48px
   &.bt.live .icon { color: $arch-assistant; }
   &.agents .icon { color: $accent; margin-right: 8px; }   // pink always; the glyph inks right of its box, so 4px left
