@@ -10,3 +10,6 @@ export const focusedClient = createBinding(hypr, "focusedClient")
 export const workspaces: Accessor<Hyprland.Workspace[]> = createBinding(hypr, "workspaces")(
   (ws) => ws.filter((w) => w.id > 0).sort((a, b) => a.id - b.id),
 )
+
+/** The `address:0x…` selector for a dispatcher — AstalHyprland's client.address has no 0x. */
+export const addr = (c: { address: string }) => `address:0x${c.address.replace(/^0x/, "")}`

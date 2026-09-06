@@ -9,7 +9,7 @@ import Battery from "gi://AstalBattery"
 import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
 import { createPoll, timeout, type Timer } from "ags/time"
 import { execAsync } from "ags/process"
-import { hypr, focusedClient, focusedWorkspace } from "../lib/hypr"
+import { hypr, focusedClient, focusedWorkspace, addr } from "../lib/hypr"
 import { toggleSidecar } from "../lib/sidecar"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import Brightness from "gi://AstalBrightness"
@@ -51,7 +51,7 @@ function Windows({ connector }: { connector: string }) {
         {(c) => {
           const focused = createComputed([focusedClient], (f) => f?.address === c.address)
           const title = createBinding(c, "title")
-          const d = (cmd: string, arg = "") => hypr.dispatch(cmd, `${arg} address:${c.address}`.trim())
+          const d = (cmd: string, arg = "") => hypr.dispatch(cmd, `${arg} ${addr(c)}`.trim())
           return (
             <menubutton
               cssClasses={focused((f) => ["win", ...(f ? ["focused"] : [])])}

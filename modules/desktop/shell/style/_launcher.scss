@@ -37,6 +37,7 @@ window.cheatsheet { background: transparent; }
 
 // zen backdrop
 window.backdrop { background: $bg; }
+window.sidecar-zone { background: transparent; }
 .backdrop .grid .gl { color: $amber; font-size: 14px; letter-spacing: 0; min-height: 0; }
 .backdrop .grid.green .gl { color: $green; }
 .backdrop .grid.pink  .gl { color: $accent; }
