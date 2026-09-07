@@ -19,10 +19,6 @@ window.drawer { background: transparent; }
 .card .panel-body { padding: $sp-3 $sp-3 $sp-3; }
 .card .panel-title { font-size: $size; }
 // splashes: each card's title wears its own hue; focus turns the border amber, not the title
-.card-calendar .panel-title { color: $cyan; }
-.card-media    .panel-title { color: $accent; }
-.card-weather  .panel-title { color: $amber; }
-.card-agents   .panel-title { color: $arch-assistant; }
 .card.focused .panel-title { color: inherit; }
 .cal-head label:nth-child(n+6) { color: $accent; }
 

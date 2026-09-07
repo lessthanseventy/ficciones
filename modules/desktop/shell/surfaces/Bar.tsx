@@ -68,7 +68,7 @@ function Windows({ connector }: { connector: string }) {
                 <label cssClasses={["klass"]} label={c.class} visible={focused} />
                 <label cssClasses={["title"]} label={title} visible={focused} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={40} xalign={0} />
               </box>
-              <popover cssClasses={["pop"]}>
+              <popover cssClasses={["pop", "pop-window"]}>
                 <Panel title={`\u{f05af}  ${(c.class || "window").toUpperCase()}`} cssClasses={["card", "card-window"]} spacing={4}>
                   <label cssClasses={["amber"]} label={title} xalign={0} wrap maxWidthChars={44} />
                   <box cssClasses={["kv"]} spacing={16}>
@@ -110,7 +110,7 @@ function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
         <label cssClasses={["icon"]} label={icon} xalign={0.5} />
         <label cssClasses={["spark"]} label={m.hist((h) => spark(h, SPARK_CELLS))} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-perf"]}>
         <Panel title={`\u{f0e4a}  ${m.key.toUpperCase()}`} cssClasses={["card", "card-perf"]}><MetricDetail m={m} /></Panel>
       </popover>
     </menubutton>
@@ -176,7 +176,7 @@ function BatteryCell() {
         />
         <label cssClasses={["num"]} label={pctA(pct)} widthChars={4} xalign={1} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-power"]}>
         <Panel title={"\u{f0079}  POWER"} cssClasses={["card", "card-power"]} spacing={4}>
           <box cssClasses={["row"]} spacing={12}>
             <label label={createBinding(bat, "energyRate")((r) => `${r.toFixed(1)} W`)} />

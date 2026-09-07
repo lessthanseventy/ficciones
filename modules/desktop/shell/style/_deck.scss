@@ -40,7 +40,6 @@ window.deck { background: $bg; }
 window.deck-drawer { background: transparent; }
 .sheet.bottom { border-right: none; border-top: $rule solid $sep; padding: 0 $sp-3 $sp-3; }
 .card-log   .panel-title { color: $amber; }
-.card-timer .panel-title { color: $cyan; }
 .card-timer .big { font-size: 26px; }
 .deck-filters {
   min-height: $cell-h;

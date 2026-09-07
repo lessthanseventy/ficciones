@@ -71,7 +71,7 @@ function Workspaces({ connector }: { connector: string }) {
                   </box>
                 )
               })()}
-              <popover cssClasses={["pop"]}>
+              <popover cssClasses={["pop", "pop-workspaces"]}>
                 <Panel title={createComputed([focusedWorkspace], () => `\u{f0e18}  WS ${ws.id} · ${ws.monitor?.name ?? ""}`)} cssClasses={["card", "card-workspaces"]}><WorkspacePop ws={ws} /></Panel>
               </popover>
             </menubutton>
@@ -125,7 +125,7 @@ function Clock({ connector }: { connector: string }) {
         <label cssClasses={["day"]} label={now((d) => d.format("%d")!)} />
         <label cssClasses={["mon"]} label={now((d) => d.format("%b")!)} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-calendar"]}>
         <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><box widthRequest={420}><CalendarCard /></box></Panel>
       </popover>
     </menubutton>
@@ -143,7 +143,7 @@ function Weather({ connector }: { connector: string }) {
         <label cssClasses={["g"]} label={g} />
         <label cssClasses={["t"]} label={t} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-weather"]}>
         <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]}><box widthRequest={460}><WeatherCard /></box></Panel>
       </popover>
     </menubutton>

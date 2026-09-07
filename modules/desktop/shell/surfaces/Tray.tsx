@@ -51,7 +51,7 @@ function Net() {
         <label cssClasses={["icon"]} label={icon} />
         <label cssClasses={["sm"]} label={label} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-net"]}>
         <With value={wifi}>
           {(w) =>
             w ? (
@@ -72,9 +72,11 @@ function Net() {
                         }
                       >
                         <box spacing={8}>
-                          <label label={meter(ap.strength / 100)} />
+                          {/* signal in tiers (green strong / amber fair / red weak), the band as a cyan tag */}
+                          <label cssClasses={["sig", ap.strength >= 60 ? "strong" : ap.strength >= 35 ? "fair" : "weak"]} label={meter(ap.strength / 100)} />
                           <label label={ap.ssid!} hexpand xalign={0} />
-                          <label cssClasses={["dim"]} label={ap.frequency > 5000 ? "5G" : "2.4"} />
+                          <label cssClasses={["k", "sm"]} label={ap.frequency > 5000 ? "5G" : "2.4"} />
+                          <label cssClasses={["k", "sm"]} label={ap.flags || ap.wpaFlags || ap.rsnFlags ? "\u{f033e}" : "\u{f0fc6}"} />
                         </box>
                       </button>
                     )
@@ -127,7 +129,7 @@ function Bt() {
         <label cssClasses={["icon"]} label={"\u{f00af}"} />
         <label cssClasses={["sm"]} label={label} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-bt"]}>
         <Panel title={"\u{f00af}  BLUETOOTH"} cssClasses={["card", "card-bt"]} spacing={2}>
           <box cssClasses={["row", "head"]} spacing={8}>
             <label label={powered((p) => (p ? "powered" : "off"))} hexpand xalign={0} />
@@ -144,8 +146,8 @@ function Bt() {
               <button cssClasses={createBinding(d, "connected")((c) => ["row", ...(c ? ["chip"] : [])])} onClicked={() => act(d)}>
                 <box spacing={8}>
                   <label label={createBinding(d, "alias")} hexpand xalign={0} />
-                  <label cssClasses={["dim", "sm"]} label={createBinding(d, "connecting")((c) => (c ? "connecting…" : ""))} />
-                  <label cssClasses={["dim"]} label={createBinding(d, "batteryPercentage")((b) => (b > 0 ? `${Math.round(b * 100)}%` : ""))} />
+                  <label cssClasses={["pink", "sm"]} label={createBinding(d, "connecting")((c) => (c ? "connecting…" : ""))} />
+                  <label cssClasses={createBinding(d, "batteryPercentage")((b) => ["sm", b <= 0 ? "dim" : b < 0.2 ? "red" : b < 0.5 ? "amber" : "green"])} label={createBinding(d, "batteryPercentage")((b) => (b > 0 ? `\u{f0079} ${Math.round(b * 100)}%` : ""))} />
                 </box>
               </button>
             )}
@@ -159,7 +161,7 @@ function Bt() {
                 <button cssClasses={["row"]} onClicked={() => pair(d)}>
                   <box spacing={8}>
                     <label label={createBinding(d, "alias")((a) => a || d.name || d.address)} hexpand xalign={0} />
-                    <label cssClasses={["dim", "sm"]} label={createBinding(d, "rssi")((r) => (r ? `${r} dBm` : ""))} />
+                    <label cssClasses={createBinding(d, "rssi")((r) => ["sm", !r ? "dim" : r > -60 ? "green" : r > -75 ? "amber" : "red"])} label={createBinding(d, "rssi")((r) => (r ? `${r} dBm` : ""))} />
                   </box>
                 </button>
               )}
@@ -194,7 +196,7 @@ function Vol() {
         {/* a five-block meter like the wifi item's; the percentage is the tooltip and the OSD */}
         <label cssClasses={["sm"]} label={createComputed([vol, mute], (v, m) => (m ? "mute" : meter(v, 5)))} />
       </box>
-      <popover cssClasses={["pop"]}><Audio /></popover>
+      <popover cssClasses={["pop", "pop-audio"]}><Audio /></popover>
     </menubutton>
   )
 }
@@ -220,7 +222,7 @@ function Sni() {
         <label cssClasses={["icon"]} label={"\u{f00a}"} halign={Gtk.Align.CENTER} xalign={0.5} />
         <label cssClasses={["sm"]} label={items((l) => String(l.length))} halign={Gtk.Align.CENTER} xalign={0.5} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-tray"]}>
         <Panel title={"\u{f00a}  TRAY"} cssClasses={["card", "card-tray"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <For each={items} id={(it) => it.itemId}>
@@ -267,7 +269,7 @@ function ClipItem() {
         <label cssClasses={["icon"]} label={"\u{f0ea}"} />
         <label cssClasses={["sm"]} label={clipCount} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-clip"]}>
         <Panel title={"\u{f0ea}  CLIPBOARD"} cssClasses={["card", "card-clip"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <For each={recentClips} id={(c) => c.id}>
@@ -344,7 +346,7 @@ function CaptureItem() {
         <label cssClasses={["icon"]} label={recording((r) => (r ? "\u{f03d}" : "\u{f030}"))} />
         <label cssClasses={["sm"]} label={recording((r) => (r ? "rec" : "shot"))} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-capture"]}>
         <Panel title={"\u{f030}  CAPTURE"} cssClasses={["card", "card-capture"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <Shot glyph={"\u{f065}"} label="region" what="region" />
@@ -382,7 +384,7 @@ function VpnItem() {
         <label cssClasses={["icon"]} label={"\u{f0582}"} />
         <label cssClasses={["sm"]} label={vpn((v) => (v.length ? "on" : "off"))} />
       </box>
-      <popover cssClasses={["pop"]}>
+      <popover cssClasses={["pop", "pop-vpn"]}>
         <Panel title={"\u{f0582}  VPN"} cssClasses={["card", "card-vpn"]} spacing={2}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={mullvad((m) => m.present)}>
             <button cssClasses={mullvad((m) => ["row", ...(m.connected ? ["chip"] : [])])} onClicked={() => { mullvadToggle(); pop?.close() }}>

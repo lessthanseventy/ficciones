@@ -149,7 +149,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.next()} visible={nowPlaying((n) => !!n?.p.canGoNext)}><label label="⏭" /></button>
           <menubutton cssClasses={["clickable", "deck-title"]} direction={Gtk.ArrowType.UP} $={(self) => hoverPopover(self, "deck")}>
             <label cssClasses={["deck-track"]} label={trackText} widthChars={TRACK_W} maxWidthChars={TRACK_W} xalign={0} />
-            <popover cssClasses={["pop", "mediapop"]} $={(self) => { self.connect("show", () => setMediaShown(++mediaPops > 0)); self.connect("hide", () => setMediaShown((mediaPops = Math.max(0, mediaPops - 1)) > 0)) }}>
+            <popover cssClasses={["pop", "pop-media", "mediapop"]} $={(self) => { self.connect("show", () => setMediaShown(++mediaPops > 0)); self.connect("hide", () => setMediaShown((mediaPops = Math.max(0, mediaPops - 1)) > 0)) }}>
               <Panel title={"\u{f075a}  MEDIA"} cssClasses={["card", "card-media"]}><MediaCard /></Panel>
             </popover>
           </menubutton>
@@ -160,7 +160,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             <label cssClasses={timer((t) => (t ? ["cyan"] : ["dim"]))} label={timer((t) => (t?.kind === "pomodoro" ? (t.phase === "work" ? "\u{f0a3d}" : "\u{f0a3b}") : t?.kind === "alarm" ? "\u{f0021}" : "\u{f051b}"))} />
             <label cssClasses={timer((t) => (t ? ["cyan"] : ["dim"]))} label={createComputed([timer, left], (t, s) => (t ? `${fmtLeft(s)}${t.kind === "pomodoro" ? ` ${t.phase} ${t.round}` : ""}` : "timer"))} />
           </box>
-          <popover cssClasses={["pop", "timerpop"]}>
+          <popover cssClasses={["pop", "pop-timer", "timerpop"]}>
             <Panel title={"\u{f051b}  TIMER"} cssClasses={["card", "card-timer"]}><TimerPane /></Panel>
           </popover>
         </menubutton>
@@ -170,7 +170,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             <label cssClasses={["pink"]} label={"\u{f06a9}"} />
             <label cssClasses={["pink"]} label={agents((a) => (!a.ok ? "down" : a.awaiting > 0 ? `${a.awaiting}!` : `${a.roster.filter((r) => r.warm).length}/${a.roster.length}`))} />
           </box>
-          <popover cssClasses={["pop"]}>
+          <popover cssClasses={["pop", "pop-agents"]}>
             <Panel title={"\u{f06a9}  AGENTS"} cssClasses={["card", "card-agents"]}><AgentsCard /></Panel>
           </popover>
         </menubutton>
