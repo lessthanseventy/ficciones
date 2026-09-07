@@ -21,7 +21,7 @@ import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
 import { fullscreenMonitors } from "../lib/hypr"
 import { MediaCard } from "../panes/Media"
 import { AgentsCard } from "../panes/Agents"
-import { armClickaway, disarmClickaway, closeOnPress } from "./Clickaway"
+import { armClickaway, disarmClickaway, closeOnPress, closeAny } from "./Clickaway"
 import { hoverPopover } from "../lib/hover"
 
 const TAIL = 2 // the activity segment: the last couple of events; the drawer has the rest
@@ -92,8 +92,10 @@ export const popAgents = () => agentsBtn?.popup()
 export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   const tail = log((l) => l.slice(-TAIL))
   const crit = critical()
+  // the one toggle for the drawer: closeOnPress leaves the log alone (see Clickaway), so a
+  // press here closes an open drawer, or closes any other panel and opens the drawer
   const click = new Gtk.GestureClick({ button: 1 })
-  click.connect("released", () => toggleDeck(gdkmonitor))
+  click.connect("pressed", () => { if (deckVisible()) hideDeck(); else { closeAny(); showDeck(gdkmonitor) } })
   return (
     <window
       visible={fullscreenMonitors((fs) => !fs.has(gdkmonitor.connector))}

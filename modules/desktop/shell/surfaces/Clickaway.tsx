@@ -9,6 +9,8 @@ let closer: (() => void) | null = null
 /** Arm the clickaway; `close` runs on the first outside click. */
 export function armClickaway(close: () => void) { closer = close }
 export function disarmClickaway() { closer = null }
+/** Close whatever panel is open, if one is. */
+export function closeAny() { const c = closer; closer = null; c?.() }
 
 /**
  * The rail and bar sit above the clickaway on the same layer, so they get this instead: a
@@ -20,7 +22,7 @@ export function closeOnPress(widget: Gtk.Widget) {
   g.connect("pressed", (_, n, x, y) => {
     if (!closer) return
     // the clock toggles on its own; closing here too would close-then-reopen
-    for (let t = widget.pick(x, y, Gtk.PickFlags.DEFAULT); t; t = t.get_parent()) if (t.cssClasses.includes("clock") || t.cssClasses.includes("wx")) return
+    for (let t = widget.pick(x, y, Gtk.PickFlags.DEFAULT); t; t = t.get_parent()) if (t.cssClasses.includes("clock") || t.cssClasses.includes("wx") || t.cssClasses.includes("deck-log")) return
     const c = closer
     disarmClickaway()
     c()
