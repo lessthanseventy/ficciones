@@ -211,11 +211,11 @@ function Sni() {
   return (
     <menubutton cssClasses={["item", "sni"]} direction={Gtk.ArrowType.RIGHT} visible={items((l) => l.length > 0)} $={(self) => hoverPopover(self, "rail")}>
       <box orientation={Gtk.Orientation.VERTICAL}>
-        <label cssClasses={["icon"]} label={"\u{f0b74}"} />
+        <label cssClasses={["icon"]} label={"\u{f00a}"} />
         <label cssClasses={["sm"]} label={items((l) => String(l.length))} />
       </box>
       <popover cssClasses={["pop"]}>
-        <Panel title={"\u{f0b74}  TRAY"} cssClasses={["card", "card-tray"]}>
+        <Panel title={"\u{f00a}  TRAY"} cssClasses={["card", "card-tray"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <For each={items} id={(it) => it.itemId}>
               {(item) => (
@@ -258,11 +258,11 @@ function ClipItem() {
   return (
     <menubutton cssClasses={["item", "clip"]} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail", undefined, { onShow: refreshClips }) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
-        <label cssClasses={["icon"]} label={"\u{f0cea}"} />
+        <label cssClasses={["icon"]} label={"\u{f0ea}"} />
         <label cssClasses={["sm"]} label={clipCount} />
       </box>
       <popover cssClasses={["pop"]}>
-        <Panel title={"\u{f0cea}  CLIPBOARD"} cssClasses={["card", "card-clip"]}>
+        <Panel title={"\u{f0ea}  CLIPBOARD"} cssClasses={["card", "card-clip"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <For each={recentClips} id={(c) => c.id}>
               {(c, i) => (
