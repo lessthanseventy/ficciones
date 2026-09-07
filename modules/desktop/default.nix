@@ -76,6 +76,8 @@ in
       # dev / cli
       direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wev pamixer bluetui
       lazydocker lazysql lazyjj lazyjournal lazyssh
+      # screenshots: Super+Shift+S and the rail's edit path (hypr/scripts/shot-region.sh, shell/lib/capture.ts)
+      flameshot
     ];
 
     xdg.configFile = {

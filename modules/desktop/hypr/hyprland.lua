@@ -249,6 +249,19 @@ hl.window_rule({
     pin = true,
 })
 
+-- flameshot's capture overlay arrives with an EMPTY class and a "flameshot" title; tiled, it is
+-- a shrunken desktop in a column (2026-09-07). It sizes itself to its --region (the focused
+-- monitor, shot-region.sh), so: float, pin, no chrome, and no animation into place.
+hl.window_rule({
+    name = "flameshot-overlay",
+    match = { class = "^(flameshot)?$", title = "^(flameshot)$" },
+    float = true,
+    pin = true,
+    no_anim = true,
+    border_size = 0,
+    rounding = 0,
+})
+
 -- fzf-picker
 hl.window_rule({ name = "fzf-picker", match = { class = "^(fzf-picker)$" }, float = true, size = { 800, 600 } })
 

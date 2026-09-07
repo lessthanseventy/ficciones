@@ -34,8 +34,10 @@ export async function screenshot(what: "region" | "monitor" | "window", edit = f
   const file = `${shotsDir()}/${stamp()}_${what}.png`
   try {
     if (edit) {
-      await execAsync(["sh", "-c", `grim -g '${g}' - | swappy -f -`])
-      logEvent("shell", `screenshot (${what}) → swappy`)
+      // flameshot over the geometry (its --region is WxH+X+Y; ours is `x,y wxh`); it copies/saves itself
+      const [xy, wh] = g.split(" ")
+      await execAsync(["flameshot", "gui", "--region", `${wh}+${xy.replace(",", "+")}`])
+      logEvent("shell", `screenshot (${what}) → flameshot`)
       return
     }
     await execAsync(["grim", "-g", g, file])

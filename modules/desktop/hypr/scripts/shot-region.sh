@@ -1,21 +1,9 @@
 #!/usr/bin/env bash
-# Region screenshot that remembers its region.
-#   shot-region.sh          select a region, capture it, remember it
-#   shot-region.sh repeat   capture the remembered region again, no selection
+# Screenshot with flameshot (select, annotate, copy/save — Andrew, 2026-09-07). Its overlay
+# comes up on the focused monitor; the flameshot-overlay rule in hyprland.lua floats and pins it.
+#   shot-region.sh          select freely
+#   shot-region.sh repeat   flameshot's last region pre-selected
 set -euo pipefail
-
-state="${XDG_RUNTIME_DIR:-/tmp}/hypr-last-region"
-
-if [[ "${1:-}" == "repeat" ]]; then
-    if [[ ! -s "$state" ]]; then
-        notify-send -u critical "Screenshot" "No remembered region yet — grab one with Super+Shift+S first."
-        exit 1
-    fi
-    geom=$(<"$state")
-else
-    # slurp exits non-zero when the selection is cancelled; don't clobber the saved region.
-    geom=$(slurp) || exit 0
-    printf '%s' "$geom" > "$state"
-fi
-
-grim -g "$geom" - | swappy -f -
+args=(gui)
+[[ "${1:-}" == "repeat" ]] && args+=(--last-region)
+exec flameshot "${args[@]}"
