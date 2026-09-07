@@ -12,6 +12,7 @@ import { CharGrid } from "../lib/chargrid"
 import { makeModes } from "../lib/ambient"
 import { wallpaper } from "../lib/wallpaper"
 import Gio from "gi://Gio"
+import Cairo from "cairo"
 import { showText } from "./Osd"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
@@ -36,6 +37,9 @@ class Canvas {
   // relayout of 64×210 glyphs × 2 monitors at 8 fps was the shell's idle CPU)
   rows = this.grid.lines().map((l) => createState(l))
   timer: Timer | null = null
+  /** the dot canvas (cairo), told to redraw each step; text modes go through the labels */
+  area: Gtk.DrawingArea | null = null
+  textMode = createState(false)
   constructor(start: number) { this.idx = start % this.modes.length }
   step = () => {
     if (this.ticks % SWITCH_TICKS === 0 && !(this.hold && this.ticks)) {
@@ -45,8 +49,40 @@ class Canvas {
     this.ticks++
     const m = this.modes[this.idx]
     m.step(this.grid)
-    const ls = m.text ? m.text() : this.grid.lines()
-    for (let r = 0; r < ROWS; r++) this.rows[r][1](ls[r] ?? "")
+    // a text mode (babel) is glyphs and goes through Pango; a dot mode is drawn straight onto
+    // the canvas — 64 rows × 210 glyphs of colour-span markup relaid out 8× a second per
+    // monitor was ~35% of a core (2026-09-07); the same dots as cairo rects is a few ms
+    const text = !!m.text
+    if (this.textMode[0].peek() !== text) this.textMode[1](text)
+    if (text) {
+      const ls = m.text!()
+      for (let r = 0; r < ROWS; r++) this.rows[r][1](ls[r] ?? "")
+    } else this.area?.queue_draw()
+  }
+  /** the dot field: every lit dot a small rect in its cell's hue, cell size from the widget */
+  draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number, h: number) => {
+    const g = this.grid
+    const cw = w / COLS, ch = h / ROWS, dw = cw / 2, dh = ch / 4
+    const rw = dw * 0.7, rh = dh * 0.7
+    const rgb = new Map<number, [number, number, number]>()
+    const colour = (hue: number) => {
+      let c = rgb.get(hue)
+      if (!c) { const x = g.colour(hue).replace("#", ""); c = [parseInt(x.slice(0, 2), 16) / 255, parseInt(x.slice(2, 4), 16) / 255, parseInt(x.slice(4, 6), 16) / 255]; rgb.set(hue, c) }
+      return c
+    }
+    // braille bit layout: left column bits 0,1,2,6 ; right column bits 3,4,5,7
+    const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 2], [0x40, 0, 3], [0x08, 1, 0], [0x10, 1, 1], [0x20, 1, 2], [0x80, 1, 3]]
+    let last = -1
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const i = r * COLS + c
+      const d = g.dots[i]
+      if (!d) continue
+      const hue = g.hue[i]
+      if (hue !== last) { const [cr_, cg, cb] = colour(hue); cr.setSourceRGB(cr_, cg, cb); last = hue }
+      const x0 = c * cw, y0 = r * ch
+      for (const [bit, dx, dy] of BITS) if (d & bit) cr.rectangle(x0 + dx * dw + (dw - rw) / 2, y0 + dy * dh + (dh - rh) / 2, rw, rh)
+      cr.fill()
+    }
   }
   /** Jump to a mode by name and hold it for a full cycle. */
   jump(name: string) {
@@ -133,7 +169,15 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             self.add_controller(g)
           }}
         >
-          {canvas.rows.map(([line]) => <label cssClasses={["gl"]} useMarkup label={line} xalign={0} />)}
+          <box orientation={Gtk.Orientation.VERTICAL} visible={canvas.textMode[0]}>
+            {canvas.rows.map(([line]) => <label cssClasses={["gl"]} useMarkup label={line} xalign={0} />)}
+          </box>
+          <Gtk.DrawingArea
+            visible={canvas.textMode[0]((t) => !t)}
+            widthRequest={COLS * 9}
+            heightRequest={ROWS * 18}
+            $={(self) => { canvas.area = self; self.set_draw_func(canvas.draw) }}
+          />
         </box>
         <box
           $type="overlay"

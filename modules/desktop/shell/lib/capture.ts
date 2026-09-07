@@ -6,6 +6,7 @@ import { createState } from "ags"
 import { execAsync, subprocess, type Process } from "ags/process"
 import { logEvent } from "./log"
 import { hypr } from "./hypr"
+import { L, dispatch } from "./hyprlua"
 
 const stamp = () => GLib.DateTime.new_now_local().format("%Y-%m-%d_%H.%M.%S")
 const shotsDir = () => `${GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES) ?? `${GLib.get_home_dir()}/Pictures`}/Screenshots`
@@ -54,6 +55,13 @@ export async function screenshot(what: "region" | "monitor" | "window", sink: Si
     }
     const args = ["flameshot", "gui", ...out]
     if (what === "window") {
+      // a window on another workspace: go there first (the region is in screen coordinates)
+      const c = address ? hypr.get_client(address.replace(/^0x/, "")) ?? hypr.get_client(address) : hypr.focusedClient
+      const ws = c?.workspace
+      if (c && ws && ws.id !== hypr.focusedMonitor?.activeWorkspace?.id && ws.id > 0) {
+        await dispatch(L.workspace(String(ws.id)))
+        await new Promise((r) => setTimeout(r, 400))
+      }
       const r = windowRegion(address)
       if (!r) return
       args.push("--region", r)

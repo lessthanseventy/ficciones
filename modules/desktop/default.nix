@@ -86,6 +86,9 @@ in
       lazydocker lazysql lazyjj lazyjournal lazyssh
       # screenshots: Super+Shift+S and the rail's edit path (hypr/scripts/shot-region.sh, shell/lib/capture.ts)
       flameshot
+      # the clipboard history behind the rail's clipboard card and Super+V (hyprland.lua's
+      # wl-paste --watch at start); pacman's went in the 2026-09-07 sweep as a dependency
+      cliphist wl-clipboard
     ];
 
     xdg.configFile = {

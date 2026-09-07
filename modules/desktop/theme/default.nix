@@ -50,6 +50,33 @@ let
     "floorp-userContent.css" = r.floorpUserContent;
   };
   themeDir = "${config.xdg.configHome}/ficciones/theme";
+  fontconfigFiles =
+    let
+      prefer = fams: lib.concatMapStrings (f: "            <family>${f}</family>\n") fams;
+      alias = name: fams: "  <alias binding=\"same\">\n    <family>${name}</family>\n    <prefer>\n${prefer fams}    </prefer>\n  </alias>\n";
+      mono = [ palette.font.family palette.font.mono "Noto Sans Mono" "Noto Sans CJK SC" "Noto Color Emoji" ];
+      sans = [ palette.font.family "Noto Sans" "Noto Sans CJK SC" "Noto Color Emoji" ];
+      profile = config.home.profileDirectory;
+    in
+    pkgs.runCommand "ficciones-fontconfig" { } ''
+      mkdir -p $out
+      cat > $out/10-ficciones-fonts.conf <<EOF
+      <?xml version="1.0" encoding="utf-8"?>
+      <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+      <fontconfig>
+        <description>fonts from the Nix user profile (modules/desktop/theme)</description>
+        <dir>${profile}/share/fonts</dir>
+        <dir>${profile}/lib/X11/fonts</dir>
+      </fontconfig>
+      EOF
+      cat > $out/52-ficciones-default-fonts.conf <<EOF
+      <?xml version="1.0" encoding="utf-8"?>
+      <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+      <fontconfig>
+      ${alias "monospace" mono}${alias "sans-serif" sans}${alias "serif" sans}${alias "emoji" [ "Noto Color Emoji" ]}</fontconfig>
+      EOF
+      sed -i 's/^      //' $out/*.conf
+    '';
   # an app's fixed path → the theme dir's copy, through the one mutable link
   via = file: { source = config.lib.file.mkOutOfStoreSymlink "${themeDir}/${file}"; };
 in
@@ -94,18 +121,23 @@ in
   config = {
     # the one font, plus coverage for what it has no glyphs for: non-Latin text and emoji
     home.packages = [ pkgs.nerd-fonts.comic-shanns-mono pkgs.noto-fonts pkgs.noto-fonts-cjk-sans pkgs.noto-fonts-color-emoji ];
-    # fontconfig reads ~/.nix-profile/share/fonts only through this (it writes the conf.d entry).
-    # Every generic family resolves to THE font — mono for sans and serif too (Andrew, 2026-09-07:
-    # easier on his eyes than any proportional face); Noto only fills the glyphs it lacks.
-    fonts.fontconfig = {
-      enable = true;
-      defaultFonts = rec {
-        monospace = [ palette.font.family palette.font.mono "Noto Sans Mono" "Noto Sans CJK SC" "Noto Color Emoji" ];
-        sansSerif = [ palette.font.family "Noto Sans" "Noto Sans CJK SC" "Noto Color Emoji" ];
-        serif = sansSerif;
-        emoji = [ "Noto Color Emoji" ];
-      };
-    };
+    # fontconfig, by hand rather than fonts.fontconfig.enable: home-manager re-links its conf.d
+    # files at EVERY switch, fontconfig's timestamp bumps, GTK broadcasts it, and ghostty
+    # re-initialises its bundled fontconfig and segfaults in FcPatternDestroy (16:33 on
+    # 2026-09-07, with a Claude session inside it). These two files are written only when their
+    # content changes, from paths that do not change (~/.nix-profile, not the store path).
+    # Every generic family resolves to THE font — mono for sans and serif too (Andrew: easier on
+    # his eyes than any proportional face); Noto only fills the glyphs it lacks.
+    home.activation.fontconfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      d="${config.xdg.configHome}/fontconfig/conf.d"; run mkdir -p "$d"
+      for f in ${fontconfigFiles}/*.conf; do
+        if ! cmp -s "$f" "$d/$(basename "$f")"; then run install -m644 "$f" "$d/$(basename "$f")"; fi
+      done
+      # the cache follows the profile's font set, not the switch
+      stamp="${config.xdg.cacheHome}/fontconfig/.ficciones-fonts"
+      cur="$(readlink -f "${config.home.profileDirectory}/share/fonts" 2>/dev/null || true)"
+      if [ "$(cat "$stamp" 2>/dev/null)" != "$cur" ]; then run ${pkgs.fontconfig}/bin/fc-cache -f >/dev/null 2>&1 || true; run sh -c 'printf %s "$1" > "$2"' _ "$cur" "$stamp"; fi
+    '';
 
     # GTK reads org.gnome.desktop.interface AHEAD of settings.ini on Wayland, and a D-Bus-activated
     # app (gcr-prompter, the portal dialogs) never sees Hyprland's GTK_THEME — a stale

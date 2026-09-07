@@ -310,8 +310,12 @@ function CaptureItem() {
   // any window, not just the focused one: a fold-out list of the workspace's windows, each with
   // the two sinks (Andrew, 2026-09-07: "screenshot a window easily")
   const [listOpen, setListOpen] = createState(false)
+  // every window on every workspace, this workspace's first (Andrew, 2026-09-07: "like all
+  // windows"); a background window is shot on its own workspace — flameshot's --region is in
+  // screen coordinates, so the workspace is switched to first (capture.ts)
   const wins = createComputed([focusedWorkspace, createBinding(hypr, "clients")], (ws, cs) =>
-    cs.filter((c) => c.mapped && c.workspace?.id === ws?.id).sort((a, b) => a.x - b.x))
+    cs.filter((c) => c.mapped && (c.workspace?.id ?? 0) > 0)
+      .sort((a, b) => ((a.workspace?.id === ws?.id ? 0 : 1) - (b.workspace?.id === ws?.id ? 0 : 1)) || (a.workspace?.id ?? 0) - (b.workspace?.id ?? 0) || a.x - b.x))
   const Windows = () => (
     <box orientation={Gtk.Orientation.VERTICAL}>
       <button cssClasses={["row", "cap-row"]} onClicked={() => setListOpen(!listOpen.get())}>
@@ -322,6 +326,7 @@ function CaptureItem() {
           <For each={wins}>
             {(c) => (
               <box cssClasses={["cap-row", "cap-shot"]} spacing={8}>
+                <label cssClasses={["dim", "sm"]} label={createBinding(c, "workspace")((w) => String(w?.id ?? ""))} widthChars={2} xalign={1} />
                 <image iconName={iconFor(c)} pixelSize={16} />
                 <label label={createBinding(c, "title")} xalign={0} hexpand ellipsize={Pango.EllipsizeMode.END} maxWidthChars={26} />
                 <button cssClasses={["act"]} tooltipText="save to ~/Pictures/Screenshots" onClicked={() => go(() => screenshot("window", "file", c.address))}><label label={"\u{f0193}"} /></button>

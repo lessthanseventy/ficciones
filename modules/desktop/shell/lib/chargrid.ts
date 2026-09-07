@@ -5,8 +5,8 @@ import { PALETTE, HUES, type Hue } from "./palette"
 export class CharGrid {
   readonly cols: number
   readonly rows: number
-  private dots: Uint8Array
-  private hue: Uint8Array
+  readonly dots: Uint8Array
+  readonly hue: Uint8Array
   /** rotates the hue ring, so "the same" colour index drifts through the palette */
   shift = 0
   constructor(cols: number, rows: number) {
@@ -34,7 +34,7 @@ export class CharGrid {
     this.dots[i] |= bit
     this.hue[i] = hue
   }
-  private colour(h: number): string {
+  colour(h: number): string {
     return PALETTE[HUES[(h + this.shift) % HUES.length] as Hue]
   }
   /** one markup string per row: runs of equal hue share a span, blanks stay plain */
