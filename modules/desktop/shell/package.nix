@@ -78,6 +78,12 @@ stdenv.mkDerivation {
 
   prePatch = bakePalette;
 
+  # The shell brings its own stylesheet; a GTK_THEME from the session (theme.lua sets one for
+  # the other GTK apps) would paint under it — grey popovers and bars (2026-09-07).
+  preFixup = ''
+    gappsWrapperArgs+=(--unset GTK_THEME)
+  '';
+
   installPhase = ''
     runHook preInstall
     mkdir -p $out/bin $out/share/astal-shell/themes

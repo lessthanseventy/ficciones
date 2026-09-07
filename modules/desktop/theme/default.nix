@@ -21,10 +21,6 @@ let
   # default (the checked-in generated files, Console.Palette).
   palettes = { uqbar = import ./palettes/uqbar.nix; zahir = import ./palettes/zahir.nix; };
   renders = lib.mapAttrs (_: p: import ./render.nix { inherit lib; palette = p; }) palettes;
-  envConf =
-    "env = GTK_THEME,${cfg.gtkTheme}\n"
-    + "env = QT_QPA_PLATFORMTHEME,${cfg.qtPlatformTheme}\n"
-    + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "env = QT_STYLE_OVERRIDE,kvantum\n";
   envLua =
     "hl.env(\"GTK_THEME\", \"${cfg.gtkTheme}\")\n"
     + "hl.env(\"QT_QPA_PLATFORMTHEME\", \"${cfg.qtPlatformTheme}\")\n"
@@ -39,7 +35,6 @@ let
     "kvantum.kvconfig" = r.kvantumConfig;
     "kvantum.svg" = r.kvantumSvg;
     "btop.theme" = r.btopTheme;
-    "hypr-theme.conf" = r.hyprlandTheme + envConf;
     "hypr-theme.lua" = r.hyprlandThemeLua + envLua;
     "hyprlock.conf" = r.hyprlockConf;
     "lazygit.yml" = r.lazygitConfig (tpl "lazygit.yml");
@@ -135,7 +130,6 @@ in
         "btop/themes/ficciones.theme" = via "btop.theme";
 
         # Hyprland colours (dofile'd by hyprland.lua) and the lock screen.
-        "hypr/theme.conf" = via "hypr-theme.conf"; # TRANSITION, see modules/desktop/default.nix
         "hypr/theme.lua" = via "hypr-theme.lua";
         "hypr/hyprlock.conf" = via "hyprlock.conf";
 

@@ -424,57 +424,7 @@ rec {
     + import ./floorp-sites.nix { inherit hex h fontStack; };
 
   # ---- hyprland / hyprlock -------------------------------------------------------------
-  # Sourced by hyprland.conf (and required by hyprland.lua): only the colours live here.
-  hyprlandTheme = ''
-    # ${gen}
-    general {
-        col.active_border = rgba(${h.amber}ff) rgba(${h.ember}ff) 45deg
-        col.inactive_border = rgba(${h.amberDim}ff) rgba(${h.emberDim}ff) 45deg
-    }
-    group {
-        col.border_active = rgba(${h.amber}ff)
-        col.border_inactive = rgba(${h.amberDim}ff)
-        col.border_locked_active = rgba(${h.pink}ff)
-        col.border_locked_inactive = rgba(${h.sel}ff)
-        groupbar {
-            font_family = ${f.family}
-            col.active = rgba(${h.chip}ff)
-            col.inactive = rgba(${h.surface3}ff)
-            text_color = rgba(${h.ink}ff)
-        }
-    }
-    misc {
-        background_color = rgba(${h.bg}ff)
-        font_family = ${f.family}
-    }
-    # hyprexpo (the workspace overview plugin, Super+O): a black field, tiles framed in the
-    # structure colour, the current one amber, keyboard focus chip, hover pink; labels in the font
-    plugin {
-        hyprexpo {
-            bg_col = rgba(${h.bg}ff)
-            gaps_in = 12
-            gaps_out = 24
-            tile_rounding = 8
-            border_width = 2
-            border_color = rgba(${h.sep}ff)
-            border_color_current = rgba(${h.amber}ff)
-            border_color_focus = rgba(${h.chip}ff)
-            border_color_hover = rgba(${h.pink}ff)
-            label_font_family = ${f.family}
-            label_font_size = 18
-            label_position = top-left
-            label_bg_shape = square
-            label_bg_color = rgba(${h.bg}ff)
-            label_color_default = rgba(${h.lilac}ff)
-            label_color_current = rgba(${h.amber}ff)
-            label_color_focus = rgba(${h.chip}ff)
-            label_color_hover = rgba(${h.pink}ff)
-            selection_label_color = rgba(${h.cyan}ff)
-            keynav_enable = 1
-        }
-    }
-  '';
-  # The same, for hyprland.lua (dofile'd as ~/.config/hypr/theme.lua). Env lines are appended by
+  # dofile'd as ~/.config/hypr/theme.lua: only the colours live here. Env lines are appended by
   # the home-manager module, which knows the GTK/Qt theme options.
   hyprlandThemeLua = ''
     -- ${gen}

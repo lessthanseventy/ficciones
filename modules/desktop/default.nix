@@ -60,11 +60,6 @@ in
 
     xdg.configFile = {
       "hypr/hyprland.lua" = linkTo "hyprland.lua";
-      # TRANSITION (2026-09-05): a running Hyprland stays pinned to the config path it started
-      # with, so the .conf (and its host/theme includes) stay linked until the next Hyprland
-      # start picks hyprland.lua. Delete these three lines + hyprland.conf + hosts/*.conf then.
-      "hypr/hyprland.conf" = linkTo "hyprland.conf";
-      "hypr/host.conf" = linkTo "hosts/${cfg.host}.conf";
       "hypr/hypridle.conf" = linkTo "hypridle.conf";
       "hypr/host.lua" = linkTo "hosts/${cfg.host}.lua";
 
@@ -92,7 +87,7 @@ in
 
     # linkGeneration's batched `ln -sfn` is atomic, so a steady-state switch does not disturb a
     # running compositor. The first switch on a fresh box does: taking over an existing real
-    # hyprland.conf goes down home-manager's slow path, which is `mv` to the backup and THEN
+    # hyprland.lua goes down home-manager's slow path, which is `mv` to the backup and THEN
     # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
     home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
   };
