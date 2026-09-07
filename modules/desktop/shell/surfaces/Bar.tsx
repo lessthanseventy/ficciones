@@ -245,11 +245,11 @@ function StateCells() {
   return (
     <box cssClasses={["states"]} spacing={0}>
       <RuleV visible={any} />
-      <box cssClasses={["cell", "statecell"]} spacing={10} visible={any}>
+      <box cssClasses={["cell", "statecell"]} spacing={3} visible={any}>
         <label cssClasses={["state", "red"]} label={"\u{f0a9b} CAPS"} visible={caps} tooltipText="caps lock is on" />
         <label cssClasses={["state", "cyan"]} label={kbd((k) => layoutShort(k.layout))} visible={layout} tooltipText={kbd((k) => k.layout)} />
         <label cssClasses={["state", "dim"]} label={"\u{f009b}"} visible={dnd} tooltipText="do not disturb" />
-        <label cssClasses={["state", "amber"]} label={"\u{f0208}"} visible={awake} tooltipText="awake: idle inhibited" />
+        <label cssClasses={["state", "amber"]} label={"\u{f0176}"} visible={awake} tooltipText="awake: idle inhibited" />
       </box>
     </box>
   )
