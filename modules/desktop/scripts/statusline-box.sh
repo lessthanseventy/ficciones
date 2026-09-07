@@ -21,7 +21,9 @@ mapfile -t L <<< "$raw"
 
 # ctx: trust Claude Code's own used_percentage (its compaction popup keys off this); claude-powerline
 # recomputes from raw token counts and under-reads badly (60% shown at the ~90% popup)
-used=$(printf '%s' "$input" | sed -n 's/.*"used_percentage":\([0-9.]*\).*/\1/p' | head -1)
+# the context window's own field — the JSON carries three used_percentage keys (context,
+# 5h limit, 7d limit) and a greedy sed took the last: ctx showed the weekly number (2026-09-07)
+used=$(printf '%s' "$input" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)
 if [ -n "$used" ] && [ "${#L[@]}" -ge 2 ]; then
   used=$(printf '%.0f' "$used")
   L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
