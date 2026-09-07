@@ -15,8 +15,11 @@ cp -r modules/desktop/hypr/scripts "$scratch/scripts"
 
 live="$HYPRLAND_INSTANCE_SIGNATURE"
 before="$(ls "$XDG_RUNTIME_DIR/hypr")"
+# start-hyprland (0.56+) is the launcher Hyprland asks for; bare `Hyprland` puts a warning on its
+# error overlay. Its watchdog is the child we kill at the end.
+launch=(Hyprland); command -v start-hyprland >/dev/null && launch=(start-hyprland --)
 FICCIONES_HYPRDIR="$scratch" FICCIONES_HYPR_NO_AUTOSTART=1 \
-  Hyprland --config "$PWD/modules/desktop/hypr/hyprland.lua" >"$scratch/hyprland.log" 2>&1 &
+  "${launch[@]}" --config "$PWD/modules/desktop/hypr/hyprland.lua" >"$scratch/hyprland.log" 2>&1 &
 pid=$!
 nested=""
 for _ in $(seq 1 40); do
@@ -29,7 +32,16 @@ sleep 2
 n() { HYPRLAND_INSTANCE_SIGNATURE="$nested" hyprctl "$@"; }
 l() { HYPRLAND_INSTANCE_SIGNATURE="$live" hyprctl "$@"; }
 
-echo "== configerrors (nested)"; n configerrors
+# theme.lua sets plugin.hyprexpo.* keys; with autostart off nothing loads the plugin into the
+# nested instance (the live one gets it from hyprpm/modules/os at start), and every key would
+# read "unknown". Load it, reload, and only then read the errors — which must be none.
+for so in /etc/hypr/plugins/hyprexpo.so "/var/cache/hyprpm/$USER/hyprexpo/hyprexpo.so"; do
+  [ -f "$so" ] && { n plugin load "$so" >/dev/null; n reload >/dev/null; sleep 1; break; }
+done
+echo "== configerrors (nested)"
+errs="$(n configerrors)"
+if [ -n "$errs" ] && [ "$errs" != "no errors" ]; then echo "$errs"; kill $pid; wait $pid 2>/dev/null || true; exit 1; fi
+echo "configerrors: none"
 # Lua binds report dispatcher "__lua" + a handle id, so the dispatcher/arg cannot be compared
 # textually; keys, modmasks and flags can (dispatcher equivalence is the by-hand pass after the flip).
 norm='.[] | {modmask, key, locked, mouse, release, repeat} | tostring'
