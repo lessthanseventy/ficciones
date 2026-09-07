@@ -270,8 +270,10 @@ export default function Deck() {
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}
+      // no bottom margin: while the drawer is up Hyprland routes no pointer input to the other
+      // layers, so the window reaches down over the row and its clickaway field takes the
+      // press there — a second click on the row closes (2026-09-07)
       anchor={Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.TOP}
-      marginBottom={36}
       marginTop={36}
       marginLeft={48}
       application={app}
@@ -287,6 +289,7 @@ export default function Deck() {
           <Panel title={"\u{f0a0d}  LOG"} cssClasses={["card", "card-log"]} hexpand><LogPane /></Panel>
           <Panel title={"\u{f06a9}  AGENTS"} cssClasses={["card", "card-agents"]}><AgentsCard /></Panel>
         </box>
+        <box cssClasses={["clickaway-field", "deck-rowfield"]} heightRequest={36} $={(self) => { const g = new Gtk.GestureClick({ button: 0 }); g.connect("pressed", () => hideDeck()); self.add_controller(g) }} />
       </box>
     </window>
   )

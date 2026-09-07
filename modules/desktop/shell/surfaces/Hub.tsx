@@ -126,7 +126,6 @@ export default function Hub() {
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT}
       marginTop={36}
-      marginBottom={36} // the deck row
       marginLeft={48}
       application={app}
     >
