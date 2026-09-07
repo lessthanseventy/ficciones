@@ -2,6 +2,7 @@
 // do not hide: the dashboard's JOURNAL card reads them.
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
+import { logEvent } from "./log"
 
 export type Entry = { t: string; unit: string; msg: string; prio: number }
 
@@ -18,11 +19,16 @@ async function tail(args: string[]): Promise<Entry[]> {
   })
 }
 
+let seenUs = 0
 export const journal = createPoll<{ ok: boolean; lines: Entry[] }>({ ok: true, lines: [] }, 20_000, async () => {
   try {
     const [sys, usr] = await Promise.all([tail([]).catch(() => []), tail(["--user"]).catch(() => [])])
     const all = [...sys, ...usr] as (Entry & { us: number })[]
     all.sort((a, b) => b.us - a.us)
+    // new lines since the last poll feed the command log (errors red, warnings dim); the
+    // first poll sets the mark without replaying the backlog
+    if (seenUs) for (const e of [...all].reverse()) if (e.us > seenUs) logEvent("journal", `${e.unit}: ${e.msg}`, e.prio <= 3 ? "crit" : "dim")
+    if (all[0]) seenUs = Math.max(seenUs, all[0].us)
     return { ok: true, lines: all.slice(0, 6) }
   } catch {
     return { ok: false, lines: [] }
