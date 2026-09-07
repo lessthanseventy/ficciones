@@ -153,7 +153,7 @@ menubutton.item > button:hover { background: $hover; }
   // flush with the screen's bottom edge (the rail's box pads 8px there), so the rule meets the deck's top line
   min-height: $bar-height - $rule; border-top: $rule solid $sep; margin-top: $sp-1; margin-bottom: -$sp-2; padding: 0;
   // the menubutton's inner button carries GTK's 34px minimum: reset it, as the corner does
-  .item.sni { min-height: 0; padding: 0; margin: 0; > button { background: none; border: none; box-shadow: none; border-radius: 0; padding: 0; min-height: 0; min-width: 0; } .icon { color: $dim; font-size: 18px; margin: 0; } &.live .icon { color: $amber; } &:hover { background: $chip; .icon { color: $ink; } } }
+  .item.sni { min-height: 0; padding: 0; margin: 0; > button { background: none; border: none; box-shadow: none; border-radius: 0; padding: 0; min-height: 0; min-width: 0; } .icon { color: $dim; font-size: 18px; margin: 0 6px 0 0; /* measured: the glyph inks 3px right of its box */ } &.live .icon { color: $amber; } &:hover { background: $chip; .icon { color: $ink; } } }
 }
 .tray-row { padding: 0 0 0 $sp-2; min-height: $cell-h; }
 .tray-hit { padding: 0; min-height: 0; &:hover { background: $hover; } }
