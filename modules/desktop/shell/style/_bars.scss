@@ -138,7 +138,7 @@ menubutton.item > button { background: none; border: none; box-shadow: none; pad
 menubutton.item > button > * { min-height: 0; }
 menubutton.item > button:hover { background: $hover; }
 
-.sys .item.sni { .icon { color: $meta; } &:hover .icon { color: $chip; } }
+.sys .item.sni { .icon { color: $meta; margin-right: 0; } &:hover .icon { color: $chip; } }   // the grid glyph inks centred: no nudge
 .card-tray { border-color: $meta; .panel-title { color: $meta; } }
 .tray-row { padding: 0 0 0 $sp-2; min-height: $cell-h; }
 .tray-hit { padding: 0; min-height: 0; &:hover { background: $hover; } }
