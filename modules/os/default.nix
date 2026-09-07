@@ -64,6 +64,9 @@ in
     package = pkgsHypr.hyprland;
     portalPackage = pkgsHypr.xdg-desktop-portal-hyprland;
   };
+  # the gtk portal answers what hyprland's does not: Settings (the color-scheme GTK 4 reads)
+  # and the FileChooser modules/desktop names in hyprland-portals.conf
+  xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
   # the plugin at a fixed path; hyprland.lua loads it at start when the file exists (on Arch
   # hyprpm owns loading, and the path is absent)
   environment.etc."hypr/plugins/hyprexpo.so".source =

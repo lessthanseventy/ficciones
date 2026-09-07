@@ -13,6 +13,7 @@
 {
   config,
   lib,
+  pkgs,
   repo,
   ...
 }:
@@ -58,7 +59,19 @@ in
     home.file.".local/bin/ficciones-recolor" = { source = ./scripts/ficciones-recolor; executable = true; };
     home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
 
+    # terminal file managers on trial as THE picker (a termfilechooser portal wraps one of them);
+    # yazi was pacman's before, lf/vifm are new (2026-09-07)
+    home.packages = [ pkgs.yazi pkgs.lf pkgs.vifm ];
+
     xdg.configFile = {
+      # portals: hyprland for screencast/screenshot, gtk for the rest — including the file
+      # chooser (GTK 3, so it takes the theme + gtk.css like every other GTK window). Was a
+      # hand-written file naming kde for FileChooser, the one Qt/KDE piece on the desktop.
+      "xdg-desktop-portal/hyprland-portals.conf".text = ''
+        [preferred]
+        default = hyprland;gtk
+        org.freedesktop.impl.portal.FileChooser = gtk
+      '';
       # no BLE MIDI: wireplumber's bluez5 monitor registers a GATT MIDI application every
       # start and bluez refuses it (journal noise at every login, 2026-09-07)
       "wireplumber/wireplumber.conf.d/50-no-bluez-midi.conf".text = ''
