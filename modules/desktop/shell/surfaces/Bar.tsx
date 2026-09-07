@@ -83,9 +83,6 @@ function Windows({ connector }: { connector: string }) {
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.fullscreen(w, "fullscreen"))}><label label="fullscreen" /></button>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.moveToWorkspace(w, "special:magic", true))}><label label="to special" /></button>
                     <box hexpand />
-        <NextUpCell />
-        <box hexpand />
-        <StateCells />
                     <button cssClasses={["act", "red"]} onClicked={() => dispatch(L.close(w))}><label label="close" /></button>
                   </box>
                 </Panel>
@@ -282,6 +279,9 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <box>
         <Windows connector={gdkmonitor.connector} />
         <box hexpand />
+        <NextUpCell />
+        <box hexpand />
+        <StateCells />
         <RecCell />
         <PerfCells />
         <Status />
