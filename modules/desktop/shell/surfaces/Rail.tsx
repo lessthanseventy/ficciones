@@ -52,14 +52,14 @@ function Workspaces({ connector }: { connector: string }) {
             ...(active()?.id === ws.id ? ["focused"] : []),
             ...(ws.get_clients().length > 0 ? ["occupied"] : []),
           ])
-          // hover shows the workspace's windows off to the right; a click still goes there
+          // Super held + hover shows the workspace's windows off to the right; a click goes there
           return (
             <menubutton
               cssClasses={classes}
               direction={Gtk.ArrowType.RIGHT}
               halign={Gtk.Align.CENTER}
               // a long dwell (Andrew: "only on hover for a while"); the showing workspace's thumbs refresh first
-              $={(self) => { watchThumbs(self.popover as Gtk.Popover); wsPops.set(ws.id, hoverPopover(self, "rail", () => dispatch(L.workspace(String(ws.id))), { hover: true, dwell: 900, onShow: () => captureShowing() })) }}
+              $={(self) => { watchThumbs(self.popover as Gtk.Popover); wsPops.set(ws.id, hoverPopover(self, "rail", () => dispatch(L.workspace(String(ws.id))), { hover: () => superHeld.peek(), dwell: 250, onShow: () => captureShowing() })) }}
             >
               {/* the last active window's icon; the number when empty, or while Super is held */}
               {(() => {

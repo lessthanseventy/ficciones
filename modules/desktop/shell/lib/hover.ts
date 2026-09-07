@@ -35,7 +35,9 @@ function watch(w: Gtk.Widget, onEnter: () => void, onLeave: () => void) {
  * the click as well — the window cells focus, the workspace numbers switch — and then the
  * popover opens too unless the cell is hover-driven (there a click means "do it and close").
  */
-export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => void, opts: { dwell?: number; hover?: boolean; onShow?: () => void } = {}) {
+export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => void, opts: { dwell?: number; hover?: boolean | (() => boolean); onShow?: () => void } = {}) {
+  // `hover` may be a predicate: the workspace strips open on hover only while Super is held
+  const hoverOn = () => (typeof opts.hover === "function" ? opts.hover() : !!opts.hover)
   const pop = mb.popover as Gtk.Popover
   const dwellMs = opts.dwell ?? DWELL_MS
   pop.autohide = false // a grab would send the trigger a synthetic leave the moment it opened
@@ -70,7 +72,7 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
     // one is open in this group: sliding to the next swaps at once — unless this one is
     // hover-driven with its own long dwell (the workspace strips)
     if (cur && cur !== me && !opts.hover) show()
-    else if (opts.hover) dwell = timeout(dwellMs, () => { if (inTrigger()) show() })
+    else if (opts.hover && hoverOn()) dwell = timeout(dwellMs, () => { if (inTrigger() && hoverOn()) show() })
   }, () => { dwell?.cancel(); armClose() })
   inPop = watch(pop, () => grace?.cancel(), armClose)
   // CAPTURE + claimed: the menubutton never sees the press, so this is the one click path
