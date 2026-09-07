@@ -285,7 +285,7 @@ function ClipItem() {
 
 export default function TrayPane() {
   return (
-    <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+    <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={2}>
       <Sni />
       <ClipItem />
       <Net />

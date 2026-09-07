@@ -116,10 +116,11 @@ popover.mediapop > contents { min-width: 420px; }
 menubutton.cavacell > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; }
 
 .item {
-  min-height: $cell-h + 8px;
-  padding: 2px 0;
+  min-height: $cell-h + 2px;
+  padding: 0;
   background: none; border: none; box-shadow: none; border-radius: 0;
-  .icon { font-size: $size-lg; }
+  // nerd glyphs ink right of their box: every icon nudged left so the column lines up
+  .icon { font-size: $size-lg; margin-right: 4px; }
   &.dim  * { color: $meta; }
   &.live * { color: $green; }
   &.net .icon { color: $cyan; margin-right: 6px; }   // the glyph inks right of its box: 3px left
@@ -127,7 +128,7 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
   &.bt.live .icon { color: $arch-assistant; }
   &.agents .icon { color: $accent; margin-right: 8px; }   // pink always; the glyph inks right of its box, so 4px left
   &.agents.await * { color: $accent; }        // someone awaits you: the number too
-  &.vol .icon { font-size: 22px; color: $amber; }
+  &.vol .icon { font-size: 22px; color: $amber; margin-right: 6px; }
 
   &:hover { background: $hover; }
 }
