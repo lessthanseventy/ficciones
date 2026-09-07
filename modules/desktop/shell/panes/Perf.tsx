@@ -2,7 +2,7 @@
 import Gtk from "gi://Gtk?version=4.0"
 import type { Accessor } from "ags"
 import { pct, spark } from "../lib/format"
-import { perf, tier, rate, stats, NET_HOT, CORE_HIST } from "../lib/perf"
+import { perf, tier, rate, stats, NET_HOT, DISK_HOT, CORE_HIST } from "../lib/perf"
 import { topCpu, topMem, addrs, kill, ROWS, type Proc } from "../lib/top"
 import { RuleH } from "../lib/tui"
 import { createComputed, createState } from "ags"
@@ -24,6 +24,9 @@ export const METRICS: Metric[] = [
   { key: "RAM", frac: perf((p) => p.mem), num: perf((p) => pct(p.mem)), hist: perf((p) => p.memHist), detail: perf((p) => `${p.memUsedGb.toFixed(1)} of ${p.memTotalGb.toFixed(0)} GB`), fmt: pct },
   { key: "GPU", frac: gpu((g) => g.util), num: gpu((g) => (g.ok ? pct(g.util) : "off")), hist: gpu((g) => g.hist.flatMap((x) => [x, x, x, x, x])), detail: gpu((g) => (g.ok ? `${g.temp}°C   ${g.watts.toFixed(0)} W` : "nvidia is off")), fmt: pct, ok: gpu((g) => g.ok) },
   { key: "NET", frac: perf((p) => Math.min(1, p.netHist.at(-1) ?? 0)), num: perf((p) => rate(p.rx + p.tx)), hist: perf((p) => p.netHist), detail: perf((p) => `↓ ${rate(p.rx)}/s   ↑ ${rate(p.tx)}/s`), fmt: (x) => rate(x * NET_HOT) + "/s" },
+  { key: "DISK", frac: perf((p) => Math.min(1, p.diskHist.at(-1) ?? 0)), num: perf((p) => rate(p.disk)), hist: perf((p) => p.diskHist), detail: perf(() => "read + write on the root disk"), fmt: (x) => rate(x * DISK_HOT) + "/s" },
+  // the colour bands: green under 60°, amber to 80°, red past — 50..90 maps to 0..1 through tier()
+  { key: "TEMP", frac: perf((p) => Math.max(0, Math.min(1, (p.temp - 50) / 40))), num: perf((p) => `${Math.round(p.temp)}°`), hist: perf((p) => p.tempHist), detail: perf(() => "cpu package · green <60° · red >80°"), fmt: (x) => `${Math.round(x * 100)}°`, ok: perf((p) => p.temp > 0) },
 ]
 
 /** A dim key with a body value, inline. */

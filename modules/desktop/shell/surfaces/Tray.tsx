@@ -14,6 +14,7 @@ import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 import { hoverPopover, type HoverPop } from "../lib/hover"
 import { volumeGlyph } from "../lib/icons"
+import { vpn } from "../lib/vpn"
 import { createPoll, timeout } from "ags/time"
 import { toggleLauncher } from "./Launcher"
 import { screenshot, startRecording, stopRecording, recording } from "../lib/capture"
@@ -325,6 +326,18 @@ function CaptureItem() {
 }
 
 const items = createBinding(Tray.get_default(), "items")
+/** A VPN tunnel up: its interface name under the glyph; absent otherwise. */
+function VpnItem() {
+  return (
+    <box cssClasses={["item", "vpn"]} halign={Gtk.Align.CENTER} visible={vpn((v) => v.length > 0)} tooltipText={vpn((v) => (v.length ? `vpn up: ${v.join(", ")}` : ""))}>
+      <box orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.CENTER}>
+        <label cssClasses={["icon"]} label={"\u{f0582}"} />
+        <label cssClasses={["sm"]} label="on" />
+      </box>
+    </box>
+  )
+}
+
 export default function TrayPane() {
   return (
     <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={2}>
@@ -333,6 +346,7 @@ export default function TrayPane() {
       <CaptureItem />
       <ClipItem />
       <Net />
+      <VpnItem />
       <Bt />
       <Vol />
     </box>

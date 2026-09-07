@@ -14,6 +14,10 @@ export type Perf = {
   cpuHist: number[]   // last 120 samples, oldest first
   memHist: number[]
   netHist: number[]   // (rx+tx) / NET_HOT
+  disk: number        // bytes/s read+written on the root disk
+  diskHist: number[]  // / DISK_HOT
+  temp: number        // °C, the CPU package
+  tempHist: number[]  // / 100
   cores: number[]     // per-core busy fraction
   coreHist: number[][] // per core, last CORE_HIST samples, oldest first
   load5: number
@@ -100,12 +104,60 @@ function sample(): Perf {
   const n = readNet()
   const [load1, load5, load15] = readFile("/proc/loadavg").split(" ").slice(0, 3).map(Number)
   push(cpuHist, cpu); push(memHist, m.mem); push(netHist, Math.min(1, (n.rx + n.tx) / NET_HOT))
+  const d = diskRate(); push(diskHist, Math.min(1, d / DISK_HOT))
+  const temp = pkgTemp(); push(tempHist, Math.min(1, temp / 100))
   cores.forEach((c, i) => { coreHist[i] ??= []; push(coreHist[i], c, CORE_HIST) })
-  return { cpu, ...m, ...n, load1: load1 || 0, load5: load5 || 0, load15: load15 || 0, cpuHist, memHist, netHist, cores, coreHist }
+  return { cpu, ...m, ...n, load1: load1 || 0, load5: load5 || 0, load15: load15 || 0, cpuHist, memHist, netHist, cores, coreHist, disk: d, diskHist, temp, tempHist }
+}
+
+// ── the root disk's i/o and the package temperature ────────────────────────────────────
+export const DISK_HOT = 200 * 1048576 // 200 MB/s reads as a full spark
+const diskHist: number[] = []
+const tempHist: number[] = []
+let lastSectors = -1, lastDiskT = 0
+/** /proc/diskstats for the whole device under / (nvme0n1 for nvme0n1p2): sectors read + written */
+function diskRate(): number {
+  try {
+    const stats = readFile("/proc/diskstats")
+    const dev = rootDevice()
+    const line = stats.split("\n").find((l) => l.trim().split(/\s+/)[2] === dev)
+    if (!line) return 0
+    const f = line.trim().split(/\s+/)
+    const sectors = Number(f[5]) + Number(f[9])
+    const now = Date.now()
+    const rate = lastSectors < 0 ? 0 : ((sectors - lastSectors) * 512) / Math.max(0.001, (now - lastDiskT) / 1000)
+    lastSectors = sectors; lastDiskT = now
+    return Math.max(0, rate)
+  } catch { return 0 }
+}
+let rootDev = ""
+/** the whole device under /: nvme0n1 for /dev/nvme0n1p2, sda for /dev/sda3 */
+function rootDevice(): string {
+  if (rootDev) return rootDev
+  try {
+    const m = readFile("/proc/self/mountinfo").split("\n").find((l) => l.split(" ")[4] === "/")
+    const src = (m?.split(" - ")[1]?.split(" ")[1] ?? "").replace(/^\/dev\//, "")
+    rootDev = /^nvme/.test(src) ? src.replace(/p\d+$/, "") : src.replace(/\d+$/, "")
+  } catch { rootDev = "" }
+  return rootDev
+}
+let tempZone = ""
+/** the x86_pkg_temp zone (or TCPU), in °C */
+function pkgTemp(): number {
+  try {
+    if (!tempZone) {
+      for (let i = 0; i < 32; i++) {
+        let t = ""
+        try { t = readFile(`/sys/class/thermal/thermal_zone${i}/type`).trim() } catch { break }
+        if (t === "x86_pkg_temp" || (t === "TCPU" && !tempZone)) { tempZone = `/sys/class/thermal/thermal_zone${i}/temp`; if (t === "x86_pkg_temp") break }
+      }
+    }
+    return tempZone ? Number(readFile(tempZone).trim()) / 1000 : 0
+  } catch { return 0 }
 }
 
 export const perf = createPoll<Perf>(
-  { cpu: 0, mem: 0, memUsedGb: 0, memTotalGb: 0, rx: 0, tx: 0, load1: 0, load5: 0, load15: 0, cpuHist, memHist, netHist, cores: [], coreHist, swapUsed: 0, swapTotal: 0, cached: 0, ifaces: [] },
+  { cpu: 0, mem: 0, memUsedGb: 0, memTotalGb: 0, rx: 0, tx: 0, load1: 0, load5: 0, load15: 0, cpuHist, memHist, netHist, cores: [], coreHist, swapUsed: 0, swapTotal: 0, cached: 0, ifaces: [], disk: 0, diskHist, temp: 0, tempHist },
   1000,
   sample,
 )

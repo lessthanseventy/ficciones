@@ -17,6 +17,9 @@ import { glass, toggleGlass } from "../lib/glass"
 const notifd = Notifd.get_default()
 
 /** A toggle: icon + label, chip when on. */
+/** The idle inhibitor is on (the "awake" toggle) — the bar shows a glyph while it is. */
+export const [awake, setAwake] = createState(false)
+
 function Toggle({ icon, label, on, onToggle }: { icon: string; label: any; on: any; onToggle: () => void }) {
   return (
     <button cssClasses={on((o: boolean) => ["toggle", ...(o ? ["chip"] : [])])} onClicked={onToggle}>
@@ -37,7 +40,7 @@ export function Toggles({ perRow = 4, only }: { perRow?: number; only?: string[]
   const btOn = createBinding(bt, "isPowered")
   const dnd = createBinding(notifd, "dontDisturb")
   // idle inhibit: hold a systemd-inhibit while on; hypridle keeps running, this only blocks it
-  const [inhibit, setInhibit] = createState(false)
+  const [inhibit, setInhibit] = [awake, setAwake]
   let proc: Process | null = null
   const toggleInhibit = () => {
     if (proc) { proc.kill(); proc = null; setInhibit(false) }

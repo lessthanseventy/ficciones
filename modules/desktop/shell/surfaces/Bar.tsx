@@ -1,5 +1,9 @@
 import { L, dispatch } from "../lib/hyprlua"
 import { capture } from "../lib/hypr"
+import { nextUp, untilText } from "../lib/nextup"
+import { kbd, layoutShort } from "../lib/state"
+import { awake } from "../panes/Toggles"
+import Notifd from "gi://AstalNotifd"
 import app from "ags/gtk4/app"
 import { closeOnPress } from "./Clickaway"
 import Astal from "gi://Astal?version=4.0"
@@ -79,6 +83,9 @@ function Windows({ connector }: { connector: string }) {
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.fullscreen(w, "fullscreen"))}><label label="fullscreen" /></button>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.moveToWorkspace(w, "special:magic", true))}><label label="to special" /></button>
                     <box hexpand />
+        <NextUpCell />
+        <box hexpand />
+        <StateCells />
                     <button cssClasses={["act", "red"]} onClicked={() => dispatch(L.close(w))}><label label="close" /></button>
                   </box>
                 </Panel>
@@ -94,7 +101,7 @@ function Windows({ connector }: { connector: string }) {
 
 // A perf cell: icon coloured by load tier, KEY, number, an 8-glyph braille sparkline of the last
 // 16 seconds; click drops the metric's detail pane straight off the cell.
-const SPARK_CELLS = 8
+const SPARK_CELLS = 10
 function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
   const cls = m.frac((f) => ["cell", "perf", tier(f)])
   return (
@@ -112,7 +119,7 @@ function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
 }
 
 function PerfCells() {
-  const icons = ["\u{f0ee0}", "\u{f035b}", "\u{f0379}", "\u{f06f3}"]
+  const icons = ["\u{f0ee0}", "\u{f035b}", "\u{f0379}", "\u{f06f3}", "\u{f02ca}", "\u{f050f}"]
   return (
     <box cssClasses={["perfs"]}>
       {METRICS.map((m, i) => (
@@ -213,6 +220,34 @@ function RecCell() {
       <label cssClasses={["rec-text"]} label={capture((c) => (c.count > 1 ? `REC ×${c.count}` : "REC"))} />
       <label cssClasses={["rec-text"]} label={elapsed} />
       <label cssClasses={["rec-who"]} label={capture((c) => c.who)} visible={capture((c) => !!c.who)} ellipsize={3} maxWidthChars={18} />
+    </box>
+  )
+}
+
+/** The next calendar event and the time to it — the bar's centre; pink inside ten minutes. */
+function NextUpCell() {
+  const [now, setNow] = createState(Date.now())
+  interval(15_000, () => setNow(Date.now()))
+  const text = createComputed([nextUp, now], (n, t) => (n ? `${n.title}  ·  ${untilText(n.at, t)}` : ""))
+  const cls = createComputed([nextUp, now], (n, t) => ["cell", "nextup", ...(n && n.at - t < 10 * 60_000 ? ["soon"] : [])])
+  return (
+    <box cssClasses={cls} spacing={6} visible={nextUp((n) => !!n)} tooltipText={nextUp((n) => (n ? new Date(n.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""))}>
+      <label cssClasses={["nextup-glyph"]} label={"\u{f00ed}"} />
+      <label cssClasses={["nextup-text"]} label={text} ellipsize={3} maxWidthChars={40} />
+    </box>
+  )
+}
+
+/** State glyphs, only when notable: caps lock, a non-default layout, dnd, the idle inhibitor. */
+function StateCells() {
+  const notifd = Notifd.get_default()
+  const dnd = createBinding(notifd, "dontDisturb")
+  return (
+    <box cssClasses={["states"]} spacing={0}>
+      <label cssClasses={["cell", "state", "red"]} label={"\u{f0a9b}  CAPS"} visible={kbd((k) => k.caps)} tooltipText="caps lock is on" />
+      <label cssClasses={["cell", "state", "cyan"]} label={kbd((k) => layoutShort(k.layout))} visible={kbd((k) => !!k.layout && layoutShort(k.layout) !== "us")} tooltipText={kbd((k) => k.layout)} />
+      <label cssClasses={["cell", "state", "dim"]} label={"\u{f009b}"} visible={dnd} tooltipText="do not disturb" />
+      <label cssClasses={["cell", "state", "amber"]} label={"\u{f0cf3}"} visible={awake} tooltipText="awake: idle inhibited" />
     </box>
   )
 }
