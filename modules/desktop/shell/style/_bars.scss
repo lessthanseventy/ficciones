@@ -134,9 +134,11 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
 menubutton.item > button { background: none; border: none; box-shadow: none; padding: 0; }
 menubutton.item > button:hover { background: $hover; }
 
-.sni { margin-top: $sp-1; }
-.sni-item > button { padding: 3px; min-height: 0; min-width: 0; background: none; border: none; box-shadow: none; }
-.sni-item > button:hover { background: $hover; }
+.sys .item.sni { .icon { color: $meta; } &:hover .icon { color: $chip; } }
+.card-tray { border-color: $meta; .panel-title { color: $meta; } }
+.tray-row { padding: 0 0 0 $sp-2; min-height: $cell-h; }
+.tray-hit { padding: 0; min-height: 0; &:hover { background: $hover; } }
+.tray-menu > button { padding: 0 $sp-2; min-height: 0; min-width: 0; background: none; border: none; box-shadow: none; label { color: $green; } }
 
 // ── popovers: a pane floating off the rail ─────────────────────────────────
 // the popover's amber frame around a card with its own inset, hued, glyphed title — the

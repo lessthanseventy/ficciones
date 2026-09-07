@@ -193,24 +193,47 @@ function Vol() {
   )
 }
 
+/**
+ * The system tray as one rail item (icon + how many), its card a row per app: the app's icon
+ * and title, a click activates it (what a left click on the tray icon did), ≡ opens the app's
+ * own menu. Absent when nothing sits in the tray.
+ */
+/** "discord_status_icon_1" → "discord": the SNI id is what some apps hand over as a title */
+const pretty = (t: string) => t.replace(/[_-]?status[_-]?icon[_-]?\d*$/i, "").replace(/[_-]\d+$/, "").replace(/[_-]+/g, " ").trim() || t
 function Sni() {
   const tray = Tray.get_default()
   const items = createBinding(tray, "items")
-  const init = (btn: Gtk.MenuButton, item: Tray.TrayItem) => {
+  const menu = (btn: Gtk.MenuButton, item: Tray.TrayItem) => {
     btn.menuModel = item.menuModel
     btn.insert_action_group("dbusmenu", item.actionGroup)
     item.connect("notify::action-group", () => btn.insert_action_group("dbusmenu", item.actionGroup))
   }
   return (
-    <box cssClasses={["sni"]} orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.CENTER}>
-      <For each={items}>
-        {(item) => (
-          <menubutton cssClasses={["sni-item"]} $={(self) => init(self, item)} tooltipText={createBinding(item, "tooltipMarkup")}>
-            <image gicon={createBinding(item, "gicon")} pixelSize={18} />
-          </menubutton>
-        )}
-      </For>
-    </box>
+    <menubutton cssClasses={["item", "sni"]} direction={Gtk.ArrowType.RIGHT} visible={items((l) => l.length > 0)} $={(self) => hoverPopover(self, "rail")}>
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <label cssClasses={["icon"]} label={"\u{f0b74}"} />
+        <label cssClasses={["sm"]} label={items((l) => String(l.length))} />
+      </box>
+      <popover cssClasses={["pop"]}>
+        <Panel title={"\u{f0b74}  TRAY"} cssClasses={["card", "card-tray"]}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+            <For each={items} id={(it) => it.itemId}>
+              {(item) => (
+                <box cssClasses={["row", "tray-row"]} spacing={8}>
+                  <button cssClasses={["tray-hit"]} hexpand onClicked={() => item.activate(0, 0)} tooltipText={createBinding(item, "tooltipMarkup")}>
+                    <box spacing={8}>
+                      <image gicon={createBinding(item, "gicon")} pixelSize={18} />
+                      <label label={createBinding(item, "title")((t) => pretty(t || item.id))} xalign={0} hexpand ellipsize={3} maxWidthChars={28} />
+                    </box>
+                  </button>
+                  <menubutton cssClasses={["act", "tray-menu"]} $={(self) => menu(self, item)} tooltipText="menu"><label label="≡" /></menubutton>
+                </box>
+              )}
+            </For>
+          </box>
+        </Panel>
+      </popover>
+    </menubutton>
   )
 }
 
