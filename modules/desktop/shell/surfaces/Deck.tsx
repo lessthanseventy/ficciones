@@ -134,7 +134,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         </box>
         {/* ambient cells */}
         {/* now playing: transport in the cell, the title marquees when long, the media card in a popover */}
-        <box cssClasses={["cell", "deck-media"]} spacing={8} visible={nowPlaying((p) => !!p)}>
+        <box cssClasses={["cell", "deck-media"]} spacing={6} visible={nowPlaying((p) => !!p)}>
           <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.previous()} visible={nowPlaying((n) => !!n?.p.canGoPrevious)}><label label="⏮" /></button>
           <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.play_pause()}><label label={nowPlaying((p) => (p?.playing ? "⏸" : "▶"))} /></button>
           <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.next()} visible={nowPlaying((n) => !!n?.p.canGoNext)}><label label="⏭" /></button>

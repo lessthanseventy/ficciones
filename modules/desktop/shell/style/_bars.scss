@@ -209,7 +209,7 @@ popover.pop {
   // a scooch smaller than the body, and tighter: these are gauges, not text to read
   padding: 0 $sp-1;
   > box > label { font-size: $size-sm; }   // the cell only; the popover under it keeps its sizes
-  .icon { font-size: $size; min-width: 20px; margin-right: 2px; }
+  .icon { font-size: $size; min-width: 16px; margin-right: 0; }
   .k { color: $key; }
   .spark { letter-spacing: 0; }
   &.idle { .icon, .num, .spark, .v { color: $green; } }

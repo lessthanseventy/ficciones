@@ -33,7 +33,7 @@ window.deck { background: $bg; }
 .src-agent   { color: $accent; }
 .src-hypr    { color: $cyan; }
 .src-journal { color: $red; }
-.deck-row .cell { padding: 0 $sp-3; border-left: $rule solid $sep; min-height: $cell-h; }
+.deck-row .cell { padding: 0 $sp-2; border-left: $rule solid $sep; min-height: $cell-h; }   // the bar's cell padding
 .deck-track { color: $amber; }
 
 // ── the drawer ─────────────────────────────────────────────────────────────
