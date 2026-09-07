@@ -209,7 +209,7 @@ popover.pop {
 // load tiers read as a traffic light: idle green, busy amber, hot red — icon, number, spark
 .perf {
   // a scooch smaller than the body, and tighter: these are gauges, not text to read
-  padding: 0 $sp-1;
+  padding: 0 6px 0 2px;   // measured: rule→icon and spark→rule both ~6px with the icon centred in its slot
   > box > label { font-size: $size-sm; }   // the cell only; the popover under it keeps its sizes
   .icon { font-size: $size; min-width: 22px; margin-right: 0; }   // the widest glyph (the monitor) inks ~20px
   .k { color: $key; }

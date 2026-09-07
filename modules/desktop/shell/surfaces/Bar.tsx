@@ -105,7 +105,7 @@ function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
     <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN} visible={m.ok ?? true} $={(self) => hoverPopover(self, "bar")}>
       {/* icon + spark only; the number is the tooltip and the popover (Andrew, 2026-09-07) */}
       <box spacing={3} tooltipText={m.num((n) => `${m.key.toLowerCase()} ${n.trim()}`)}>
-        <label cssClasses={["icon"]} label={icon} xalign={0} />
+        <label cssClasses={["icon"]} label={icon} xalign={0.5} />
         <label cssClasses={["spark"]} label={m.hist((h) => spark(h, SPARK_CELLS))} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
       </box>
       <popover cssClasses={["pop"]}>
