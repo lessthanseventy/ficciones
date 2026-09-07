@@ -63,7 +63,7 @@ in
     programs.mpv = {
       enable = true;
       scripts = [ pkgs.mpvScripts.mpris ]; # real Mpris: the deck's transport and position work
-      config = { hwdec = "auto-safe"; force-window = "yes"; keep-open = "yes"; ytdl = "yes"; osd-font = "ComicShannsMono Nerd Font"; };
+      config = { gpu-context = "wayland"; hwdec = "auto-safe"; force-window = "yes"; keep-open = "yes"; ytdl = "yes"; osd-font = "ComicShannsMono Nerd Font"; };
     };
     home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
 
