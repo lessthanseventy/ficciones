@@ -90,7 +90,10 @@ function Workspaces({ connector }: { connector: string }) {
  */
 function Corner() {
   return (
-    <button cssClasses={["corner"]} onClicked={() => toggleDashboard()}>
+    // toggles on the PRESS, not GTK's clicked: once the dashboard is up and holds the keyboard
+    // the rail loses its pointer crossing state, and a second click on the same spot without a
+    // move never completes as a click (Andrew, 2026-09-07)
+    <button cssClasses={["corner"]} $={(self) => { const g = new Gtk.GestureClick({ button: 0, propagationPhase: Gtk.PropagationPhase.CAPTURE }); g.connect("pressed", () => { toggleDashboard(); g.set_state(Gtk.EventSequenceState.CLAIMED) }); self.add_controller(g) }}>
       <overlay>
         <label cssClasses={["aleph"]} label={"\u2135"} />
         <label $type="overlay" cssClasses={["hron"]} label={"\u2135"} canTarget={false} />
