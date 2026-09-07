@@ -100,28 +100,33 @@ window.dashboard { background: transparent; }
   .sm { font-size: 11px; } .lg { font-size: 16px; } .panel-title { font-size: 13px; }
   .bigtime { font-size: 52px; } .wx-glyph { font-size: 40px; } .hours .sky { font-size: 15px; } .action .icon { font-size: 16px; }
 }
-.board .card { margin-top: $sp-3; }
+// the popover look on the board too: an outer frame outside each card's hued border — "card on
+// a panel" (Andrew, 2026-09-07) — in a palette partner of the inner hue (amber↔violet,
+// cyan↔amber, green↔pink, pink↔cyan, violet↔green, red↔amber), not one colour for all. GTK
+// paints an outline AFTER the children, so it sits 10px out to clear the title tag's 8px
+// overhang; the margins make room for it.
+.board .card { margin: 20px 12px 12px; outline: $rule solid $sep; outline-offset: 10px; }
 .board .card .panel-body { padding: $sp-3 $sp-3 $sp-3; }
 .board .card .panel-title { font-size: $size; padding: 0 $sp-2; }
 // the card's hue on its frame and title tag — the board is fun that way (Andrew, 2026-09-07:
 // uniform frames were "way less fun") — but the BODY follows role (amber / cyan keys / lilac
 // meta) and a quiet gauge is amber, not green: green frame + green title + green body was the
 // green-on-green he did not like
-@mixin hue($c) { border-color: $c; .panel-title { color: $c; } }
-.card-now      { @include hue($amber); }
-.card-weather  { @include hue($cyan); }
-.card-calendar { @include hue($cyan); }
-.card-perf     { @include hue($green); }
-.card-agents   { @include hue($accent); }
-.card-media    { @include hue($arch-assistant); }
-.card-toggles  { @include hue($amber); }
-.card-power    { @include hue($red); }
-.card-shell    { @include hue($amber); }
-.card-today    { @include hue($accent); }
-.card-disk     { @include hue($amber); }
-.card-net      { @include hue($cyan); }
-.card-journal  { @include hue($red); }
-.card-workspaces { @include hue($arch-assistant); }
+@mixin hue($c, $outer: $sep) { border-color: $c; .panel-title { color: $c; } .board & { outline-color: $outer; } }
+.card-now      { @include hue($amber, $violet); }
+.card-weather  { @include hue($cyan, $amber); }
+.card-calendar { @include hue($cyan, $amber); }
+.card-perf     { @include hue($green, $accent); }
+.card-agents   { @include hue($accent, $cyan); }
+.card-media    { @include hue($arch-assistant, $green); }
+.card-toggles  { @include hue($amber, $violet); }
+.card-power    { @include hue($red, $amber); }
+.card-shell    { @include hue($amber, $violet); }
+.card-today    { @include hue($accent, $cyan); }
+.card-disk     { @include hue($amber, $violet); }
+.card-net      { @include hue($cyan, $amber); }
+.card-journal  { @include hue($red, $amber); }
+.card-workspaces { @include hue($arch-assistant, $green); }
 .card-today { min-width: 380px; }
 .card-disk, .card-net { min-width: 380px; }
 .mount {
