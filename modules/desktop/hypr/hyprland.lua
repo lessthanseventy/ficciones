@@ -272,7 +272,7 @@ hl.window_rule({
 -- Reference: github.com/hyprwm/Hyprland/issues/4809.
 hl.window_rule({
     name = "zoom-popups",
-    match = { class = "^(zoom)$", title = "^(menu window|Toolbar Menu|Meeting security|Meeting info|confirm window)$" },
+    match = { class = "^(zoom|Zoom)$", title = "^(menu window|Toolbar Menu|Meeting security|Meeting info|confirm window)$" },
     float = true,
     no_initial_focus = true,
     move = "onscreen cursor",
@@ -283,17 +283,21 @@ hl.window_rule({
 -- follow the share, which is what they are for
 hl.window_rule({
     name = "zoom-toolbars",
-    match = { class = "^(zoom)$", title = "^(annotate_toolbar|as_toolbar)$" },
+    match = { class = "^(zoom|Zoom)$", title = "^(annotate_toolbar|as_toolbar)$" },
     float = true,
     pin = true,
+    no_initial_focus = true,
     border_size = 0,
     rounding = 0,
     no_shadow = true,
+    -- native Wayland Zoom (xwayland=false in zoomus.conf, 2026-09-07): its toolbar is a plain
+    -- toplevel that asks for no position, so it goes top-centre under the bar
+    move = "50%-50% 40",
 })
 -- the share preview strip (a 1px green frame): float, no focus, no chrome, not pinned
 hl.window_rule({
     name = "zoom-share-preview",
-    match = { class = "^(zoom)$", title = "^as_preview$" },
+    match = { class = "^(zoom|Zoom)$", title = "^as_preview$" },
     float = true,
     no_initial_focus = true,
     border_size = 0,
@@ -310,13 +314,13 @@ hl.window_rule({
 })
 hl.window_rule({
     name = "zoom-mini-video",
-    match = { class = "^(zoom)$", title = "^zoom_linux_float_video_window$" },
+    match = { class = "^(zoom|Zoom)$", title = "^zoom_linux_float_video_window$" },
     float = true,
     no_initial_focus = true,
 })
 hl.window_rule({
     name = "zoom-share-picker",
-    match = { class = "^(zoom)$", title = "^Select a window or an application.*" },
+    match = { class = "^(zoom|Zoom)$", title = "^Select a window or an application.*" },
     float = true,
     center = true,
 })
