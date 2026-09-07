@@ -8,6 +8,7 @@ import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Deck, { DeckRow, toggleDeck } from "./surfaces/Deck"
 import { logEvent } from "./lib/log"
 import { setSuperHeld } from "./lib/hypr"
+import { initAwake } from "./lib/awake"
 import { screenshot, startRecording, stopRecording } from "./lib/capture"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
@@ -131,6 +132,7 @@ app.start({
     // Andrew's defaults: glass and the zen backdrop on from login
     setGlass(true)
     setBackdrop("zen")
+    initAwake()
     Launcher()
     Cheatsheet()
     Dashboard()

@@ -1,5 +1,6 @@
 // The toggles: wifi, bt, dnd, awake, night, crt, zen, glass, next wallpaper, power profile.
 // Lived in the hub; now the dashboard's (Andrew, 2026-09-05).
+import { awake, toggleAwake } from "../lib/awake"
 import Gtk from "gi://Gtk?version=4.0"
 import Notifd from "gi://AstalNotifd"
 import Network from "gi://AstalNetwork"
@@ -17,9 +18,6 @@ import { glass, toggleGlass } from "../lib/glass"
 const notifd = Notifd.get_default()
 
 /** A toggle: icon + label, chip when on. */
-/** The idle inhibitor is on (the "awake" toggle) — the bar shows a glyph while it is. */
-export const [awake, setAwake] = createState(false)
-
 function Toggle({ icon, label, on, onToggle }: { icon: string; label: any; on: any; onToggle: () => void }) {
   return (
     <button cssClasses={on((o: boolean) => ["toggle", ...(o ? ["chip"] : [])])} onClicked={onToggle}>
@@ -39,13 +37,9 @@ export function Toggles({ perRow = 4, only }: { perRow?: number; only?: string[]
   const wifiOn = createBinding(net, "wifi")((w) => !!w?.enabled)
   const btOn = createBinding(bt, "isPowered")
   const dnd = createBinding(notifd, "dontDisturb")
-  // idle inhibit: hold a systemd-inhibit while on; hypridle keeps running, this only blocks it
-  const [inhibit, setInhibit] = [awake, setAwake]
-  let proc: Process | null = null
-  const toggleInhibit = () => {
-    if (proc) { proc.kill(); proc = null; setInhibit(false) }
-    else { proc = subprocess(["systemd-inhibit", "--what=idle", "--who=astal-shell", "--why=toggle", "sleep", "infinity"]); setInhibit(true) }
-  }
+  // the idle inhibitor lives in lib/awake: on by default, remembered across restarts
+  const inhibit = awake
+  const toggleInhibit = toggleAwake
   const profile = createBinding(pp, "activeProfile")
   const cycleProfile = () => {
     const ps = pp.get_profiles().map((p) => p.profile)
@@ -55,7 +49,7 @@ export function Toggles({ perRow = 4, only }: { perRow?: number; only?: string[]
     { key: "wifi", el: (<Toggle icon={"\u{f05a9}"} label="wifi" on={wifiOn} onToggle={() => { if (net.wifi) net.wifi.enabled = !net.wifi.enabled }} />) },
     { key: "bt", el: (<Toggle icon={"\u{f00af}"} label="bt" on={btOn} onToggle={() => bt.toggle()} />) },
     { key: "dnd", el: (<Toggle icon={"\u{f009b}"} label="dnd" on={dnd} onToggle={() => (notifd.dontDisturb = !notifd.dontDisturb)} />) },
-    { key: "awake", el: (<Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />) },
+    { key: "awake", el: (<Toggle icon={"\u{f0176}"} label="awake" on={inhibit} onToggle={toggleInhibit} />) },
     { key: "night", el: (<Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />) },
     { key: "crt", el: (<Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />) },
     { key: "zen", el: (<Toggle icon={"\u{f0e2a}"} label={backdropMode((m) => (m === "photo" ? "zen" : m))} on={zen} onToggle={() => setBackdrop("cycle")} />) },
