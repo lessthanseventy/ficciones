@@ -13,6 +13,8 @@ import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 import { hoverPopover } from "../lib/hover"
+import { createPoll } from "ags/time"
+import { toggleLauncher } from "./Launcher"
 
 function Net() {
   const net = Network.get_default()
@@ -212,10 +214,26 @@ function Sni() {
   )
 }
 
+/** The clipboard: how many clips cliphist holds; a click opens the picker (the launcher in clip mode). */
+const clips = createPoll(0, 15_000, async () => {
+  try { return (await execAsync(["sh", "-c", "cliphist list | wc -l"])).trim() } catch { return "0" }
+})
+function Clip() {
+  return (
+    <button cssClasses={["item", "clip"]} onClicked={() => toggleLauncher("clip")} tooltipText="clipboard">
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <label cssClasses={["icon"]} label={"\u{f0cea}"} />
+        <label cssClasses={["sm"]} label={clips((n) => String(n))} />
+      </box>
+    </button>
+  )
+}
+
 export default function TrayPane() {
   return (
     <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
       <Sni />
+      <Clip />
       <Net />
       <Bt />
       <Vol />
