@@ -277,14 +277,37 @@ hl.window_rule({
     no_initial_focus = true,
     move = "onscreen cursor",
 })
+-- the share toolbar ("You are screen sharing · Stop share") and the annotation bar: pinned
+-- after all — Zoom re-creates them constantly and an unpinned one sank under the tiled
+-- meeting, where Stop share could not be clicked (2026-09-07); pinned they stay on top and
+-- follow the share, which is what they are for
 hl.window_rule({
     name = "zoom-toolbars",
-    match = { class = "^(zoom)$", title = "^(annotate_toolbar|as_toolbar|as_preview)$" },
+    match = { class = "^(zoom)$", title = "^(annotate_toolbar|as_toolbar)$" },
+    float = true,
+    pin = true,
+    no_initial_focus = true,
+    border_size = 0,
+    rounding = 0,
+    no_shadow = true,
+})
+-- the share preview strip (a 1px green frame): float, no focus, no chrome, not pinned
+hl.window_rule({
+    name = "zoom-share-preview",
+    match = { class = "^(zoom)$", title = "^as_preview$" },
     float = true,
     no_initial_focus = true,
     border_size = 0,
     rounding = 0,
     no_shadow = true,
+})
+-- the portal's "which monitor / window" picker (xdg-desktop-portal-hyprland's own app): a
+-- centred floating dialog, not a tile
+hl.window_rule({
+    name = "share-picker",
+    match = { class = "^(hyprland-share-picker)$" },
+    float = true,
+    center = true,
 })
 hl.window_rule({
     name = "zoom-mini-video",
