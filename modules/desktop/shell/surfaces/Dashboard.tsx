@@ -168,15 +168,14 @@ export default function Dashboard() {
             <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
               <Panel title={"\u{f0954}  NOW"} cssClasses={["card", "card-now"]}><ClockCard /></Panel>
               <Panel title={"\u{f0771}  WORKSPACES"} cssClasses={["card", "card-workspaces"]}><WorkspacesCard /></Panel>
+              <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
             </box>
-            <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]} hexpand><WeatherCard /></Panel>
+            {/* weather is short (the week as columns) so the calendar column sets row one's height
+                and TODAY, the agenda, takes what is left of it (Andrew, 2026-09-07) */}
+            <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]} hexpand><WeatherCard compact /></Panel>
             <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
               <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><CalendarCard /></Panel>
-              <Panel title={"\u{f0e7e}  TODAY"} cssClasses={["card", "card-today"]}><TodayCard /></Panel>
-            </box>
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-              <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
-              <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
+              <Panel title={"\u{f0e7e}  TODAY"} cssClasses={["card", "card-today"]} vexpand><TodayCard /></Panel>
             </box>
           </box>
           <box spacing={16}>
@@ -189,6 +188,7 @@ export default function Dashboard() {
           <box spacing={16} vexpand>
             <Panel title={"\u{f0a0d}  JOURNAL"} cssClasses={["card", "card-journal"]} hexpand><JournalCard /></Panel>
             <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles perRow={5} /></Panel>
+            <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
           </box>
           <box cssClasses={["keys"]} spacing={12}>
             <label label="Esc close" /><label label="Super+D toggle" />

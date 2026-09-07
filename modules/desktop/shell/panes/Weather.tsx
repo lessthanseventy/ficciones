@@ -3,6 +3,8 @@
 import Gtk from "gi://Gtk?version=4.0"
 import { weather, glyph, describe, type Hour, type Day } from "../lib/weather"
 import { RuleH } from "../lib/tui"
+import Cairo from "cairo"
+import { PALETTE } from "../lib/palette"
 
 const hh = (ms: number) => {
   const h = new Date(ms).getHours()
@@ -57,6 +59,69 @@ function Hours() {
 }
 
 /** Five days: day / sky / low–high with a bar spanning the week's range / rain chance. */
+// The board's weather is a picture, not the popover's table again (Andrew, 2026-09-07): the next
+// 24 h as two panels on one time axis — temperature as a line (its high and low labelled, and
+// nothing else), rain chance as thin bars beneath — with now, sunrise and sunset marked.
+// cairo, so it costs nothing at rest (drawn on data change only).
+const rgb = (hex: string): [number, number, number] => { const x = hex.replace("#", ""); return [parseInt(x.slice(0, 2), 16) / 255, parseInt(x.slice(2, 4), 16) / 255, parseInt(x.slice(4, 6), 16) / 255] }
+function Chart() {
+  let area: Gtk.DrawingArea | null = null
+  const draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number, h: number) => {
+    const wx = weather.peek()
+    const hs = (wx.hours ?? []).slice(0, 24)
+    if (hs.length < 2) return
+    const set = (c: string) => { const [r, g, b] = rgb(c); cr.setSourceRGB(r, g, b) }
+    const left = 34, right = 8, top = 10, gap = 8, rainH = 34, labelH = 16
+    const tempH = h - top - gap - rainH - labelH
+    const x = (i: number) => left + ((w - left - right) * i) / (hs.length - 1)
+    const temps = hs.map((p) => p.temp)
+    const lo = Math.min(...temps), hi = Math.max(...temps)
+    const span = Math.max(4, hi - lo)
+    const y = (t: number) => top + tempH - ((t - lo) / span) * tempH
+    cr.selectFontFace("ComicShannsMono Nerd Font", Cairo.FontSlant.NORMAL, Cairo.FontWeight.NORMAL)
+    cr.setFontSize(11)
+    // the axis: a recessive baseline and the hour labels every 3 h
+    set(PALETTE.dim); cr.setLineWidth(1)
+    cr.moveTo(left, top + tempH + 0.5); cr.lineTo(w - right, top + tempH + 0.5); cr.stroke()
+    set(PALETTE.dim)
+    for (let i = 0; i < hs.length; i += 3) { const s = hh(hs[i].t); cr.moveTo(x(i) - cr.textExtents(s).width / 2, h - 3); cr.showText(s) }
+    // now, sunrise, sunset: dim uprights with a small label
+    const t0 = hs[0].t, t1 = hs[hs.length - 1].t
+    const xt = (ms: number) => left + ((w - left - right) * (ms - t0)) / (t1 - t0)
+    const marks: [number, string][] = [[Date.now(), "now"]]
+    for (const d of (wx.days ?? []).slice(0, 2)) for (const [iso, tag] of [[d.sunrise, "\u{f059c}"], [d.sunset, "\u{f059b}"]] as const) { const ms = new Date(iso).getTime(); if (ms > t0 && ms < t1) marks.push([ms, tag]) }
+    for (const [ms, tag] of marks) {
+      if (ms < t0 || ms > t1) continue
+      const mx = Math.round(xt(ms)) + 0.5
+      set(tag === "now" ? PALETTE.amber : PALETTE.dim)
+      cr.setLineWidth(1); cr.moveTo(mx, top); cr.lineTo(mx, top + tempH + gap + rainH); cr.stroke()
+      cr.moveTo(mx + 3, top + 9); cr.showText(tag)
+    }
+    // rain chance: thin cyan bars, a 2px gap between them, on their own panel
+    const bw = (w - left - right) / hs.length
+    const rainTop = top + tempH + gap
+    set(PALETTE.cyan)
+    hs.forEach((p, i) => { if (p.rain > 0) { const bh = Math.max(1, (p.rain / 100) * rainH); cr.rectangle(x(i) - bw / 2 + 1, rainTop + rainH - bh, Math.max(1, bw - 2), bh) } })
+    cr.fill()
+    set(PALETTE.dim); cr.moveTo(2, rainTop + rainH - 2); cr.showText("\u{f0597}")
+    // temperature: the line, then its two labelled points
+    set(PALETTE.amber); cr.setLineWidth(2); cr.setLineJoin(Cairo.LineJoin.ROUND)
+    hs.forEach((p, i) => (i ? cr.lineTo(x(i), y(p.temp)) : cr.moveTo(x(i), y(p.temp))))
+    cr.stroke()
+    const iHi = temps.indexOf(hi), iLo = temps.indexOf(lo)
+    for (const [i, v, above] of [[iHi, hi, true], [iLo, lo, false]] as const) {
+      cr.arc(x(i), y(v), 3, 0, Math.PI * 2); cr.fill()
+      const s = `${Math.round(v)}°`; const tw = cr.textExtents(s).width
+      cr.moveTo(Math.min(Math.max(left, x(i) - tw / 2), w - right - tw), above ? y(v) - 7 : y(v) + 14); cr.showText(s)
+    }
+    // the scale: high and low on the left
+    set(PALETTE.dim); cr.setFontSize(10)
+    cr.moveTo(2, top + 4); cr.showText(`${Math.round(hi)}°`); cr.moveTo(2, top + tempH); cr.showText(`${Math.round(lo)}°`)
+  }
+  weather.subscribe(() => area?.queue_draw())
+  return <Gtk.DrawingArea heightRequest={130} hexpand $={(self) => { area = self; self.set_draw_func(draw) }} />
+}
+
 function Days() {
   const days = weather((w) => (w.days ?? []).slice(0, 6))
   const range = days((d) => ({ lo: Math.min(...d.map((x) => x.low), 999), hi: Math.max(...d.map((x) => x.high), -999) }))
@@ -95,13 +160,13 @@ function Days() {
   )
 }
 
-export function WeatherCard() {
+export function WeatherCard({ compact = false }: { compact?: boolean } = {}) {
   const stale = weather((w) => (w.note === "stale" ? "stale — network down" : ""))
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
       <Now />
       <RuleH />
-      <Hours />
+      {compact ? <Chart /> : <Hours />}
       <RuleH />
       <Days />
       <label cssClasses={["red", "sm"]} label={stale} xalign={0} visible={stale((n) => !!n)} />

@@ -18,6 +18,7 @@ export function Panel({
   spacing = 0,
   visible,
   hexpand = false,
+  vexpand = false,
 }: {
   title: Text
   children?: Children
@@ -26,11 +27,12 @@ export function Panel({
   spacing?: number
   visible?: Accessor<boolean>
   hexpand?: boolean
+  vexpand?: boolean
 }) {
   const classes =
     typeof cssClasses === "function" ? cssClasses((c) => ["panel", ...c]) : ["panel", ...cssClasses]
   return (
-    <overlay cssClasses={classes} visible={visible ?? true} hexpand={hexpand}>
+    <overlay cssClasses={classes} visible={visible ?? true} hexpand={hexpand} vexpand={vexpand}>
       <box $type="overlay" halign={Gtk.Align.START} valign={Gtk.Align.START} canTarget={false}>
         <label cssClasses={["panel-title"]} label={title} />
       </box>
