@@ -59,7 +59,9 @@ function Windows({ connector }: { connector: string }) {
             <menubutton
               cssClasses={focused((f) => ["win", ...(f ? ["focused"] : [])])}
               direction={Gtk.ArrowType.DOWN}
-              $={(self) => hoverPopover(self, "bar", () => dispatch(L.focusWindow(w)))}
+              // an already-focused window just opens its menu: focuswindow on it would still scroll
+              // the layout to it (Andrew, 2026-09-07)
+              $={(self) => hoverPopover(self, "bar", () => { if (hypr.focusedClient?.address !== c.address) dispatch(L.focusWindow(w)) })}
             >
               <box spacing={8}>
                 <image iconName={iconFor(c)} pixelSize={18} />
