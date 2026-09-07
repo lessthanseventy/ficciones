@@ -21,7 +21,7 @@ import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
 import { fullscreenMonitors } from "../lib/hypr"
 import { MediaCard } from "../panes/Media"
 import { AgentsCard } from "../panes/Agents"
-import { armClickaway, disarmClickaway } from "./Clickaway"
+import { armClickaway, disarmClickaway, closeOnPress } from "./Clickaway"
 import { hoverPopover } from "../lib/hover"
 
 const TAIL = 2 // the activity segment: the last couple of events; the drawer has the rest
@@ -105,7 +105,8 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       anchor={Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
       application={app}
     >
-      <box cssClasses={["deck-row"]} spacing={0}>
+      {/* like the rail and bar: a press here closes whatever panel is open (the drawer, the hub) */}
+      <box cssClasses={["deck-row"]} spacing={0} $={(self) => closeOnPress(self)}>
         {/* pinned: critical notices (up to 3, then +N), then an agent waiting — in their own
             box, since a For appends to whatever holds it */}
         <box cssClasses={["deck-pinned"]} spacing={0}>
