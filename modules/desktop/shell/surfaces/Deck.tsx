@@ -212,7 +212,8 @@ function LogPane() {
         ))}
         <label cssClasses={["dim", "sm"]} label={shown((l) => `${l.length}`)} hexpand xalign={1} />
       </box>
-      <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
+      {/* a real scrollbar with its own column, not the overlay one that fades in over the counts */}
+      <scrolledwindow cssClasses={["history"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.ALWAYS} overlayScrolling={false} vexpand>
         <VList items={shown} id={(e) => String(e.id)} equal={(a, b) => a.count === b.count} render={(e) => (<Line e={e} wide />) as Gtk.Widget} />
       </scrolledwindow>
     </box>

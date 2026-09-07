@@ -42,7 +42,7 @@ function History() {
         <label cssClasses={["k"]} label={head} hexpand xalign={0} />
         <button cssClasses={["act"]} onClicked={() => notifd.get_notifications().forEach((n) => n.dismiss())}><label label="clear all" /></button>
       </box>
-      <scrolledwindow cssClasses={["history"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} propagateNaturalHeight>
+      <scrolledwindow cssClasses={["history"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} overlayScrolling={false} propagateNaturalHeight>
         <VList
           items={groups}
           id={(g) => g.key}
