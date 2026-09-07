@@ -139,19 +139,19 @@ menubutton.item > button:hover { background: $hover; }
 .sni-item > button:hover { background: $hover; }
 
 // ── popovers: a pane floating off the rail ─────────────────────────────────
-// the popover itself has no frame: the card inside is the frame, title inset and hued like
-// every other card (the hub, the deck, the dashboard) — one system, no double border
+// the popover's amber frame around a card with its own inset, hued, glyphed title — the
+// double frame is the look (Andrew, 2026-09-07); every popover carries a card now
 popover.pop {
   > contents {
-    background: transparent;
-    border: none;
+    background: $bg;
+    border: $rule solid $amber;
     border-radius: 0;
-    padding: 0;
+    padding: $sp-1 $sp-2 $sp-2;
     box-shadow: none;
     min-width: 280px;
   }
-  > arrow { background: $bg; border: $rule solid $sep; }
-  .panel { margin-top: $sp-2; background: $bg; }
+  > arrow { background: $bg; border: $rule solid $amber; }
+  .panel { margin-top: $sp-2; }
   .card .panel-body { padding: $sp-3; }
   .card + .card { margin-top: $sp-3; }
   .row { min-height: $cell-h; padding: 0 $sp-2; }
