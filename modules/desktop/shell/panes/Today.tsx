@@ -4,7 +4,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import { For, createComputed } from "ags"
 import { agenda } from "./Calendar"
 import { agents } from "../lib/agents"
-import { popAgents } from "../surfaces/Tray"
+import { popAgents } from "../surfaces/Deck"
 import { urgencyOf, groups, dismissGroup } from "../surfaces/Notifications"
 
 type Row = { key: string; glyph: string; cls: string; text: string; sub?: string; onClick?: () => void }

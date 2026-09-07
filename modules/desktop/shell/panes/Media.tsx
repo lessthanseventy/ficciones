@@ -10,14 +10,14 @@ import GLib from "gi://GLib?version=2.0"
 import { execAsync } from "ags/process"
 import { interval, type Timer } from "ags/time"
 import { hypr } from "../lib/hypr"
-import { deckOpen } from "../surfaces/Deck"
+import { mediaShown } from "../surfaces/Deck"
 const [curSel, setCurSel] = createState(0)
 
 const players = createBinding(Mpris.get_default(), "players")
 
 /**
- * The picture of what plays: a live capture of the player's window while the deck's drawer is
- * open (the window is found through the player's D-Bus pid — a film in Floorp, mpv), else the
+ * The picture of what plays: a live capture of the player's window while the media popover is
+ * up (the window is found through the player's D-Bus pid — a film in Floorp, mpv), else the
  * track's cover art, else nothing. grim every 2 s, scaled to the pane on load.
  */
 const ART_H = 150
@@ -53,9 +53,9 @@ function Art({ p }: { p: Mpris.Player }) {
   }
   p.connect("notify::cover-art", () => { if (!live) cover() })
   cover()
-  // live only while the drawer shows it
-  deckOpen.subscribe(() => {
-    if (deckOpen.peek()) { shot(); live ??= interval(2000, shot) }
+  // live only while the media popover shows it
+  mediaShown.subscribe(() => {
+    if (mediaShown.peek()) { shot(); live ??= interval(2000, shot) }
     else { live?.cancel(); live = null }
   })
   return (

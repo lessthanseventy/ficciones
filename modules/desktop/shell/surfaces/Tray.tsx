@@ -13,8 +13,6 @@ import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 import { hoverPopover } from "../lib/hover"
-import { agents } from "../lib/agents"
-import { AgentsCard } from "../panes/Agents"
 
 function Net() {
   const net = Network.get_default()
@@ -214,30 +212,10 @@ function Sni() {
   )
 }
 
-/** The Tlön roster off the rail: warm agents as the number, pink when someone awaits you. */
-let agentsBtn: Gtk.MenuButton | null = null
-export const popAgents = () => agentsBtn?.popup()
-function AgentsItem() {
-  const cls = agents((a) => ["item", "agents", ...(a.awaiting > 0 ? ["await"] : a.roster.some((r) => r.warm) ? ["live"] : ["dim"])])
-  const label = agents((a) => (a.awaiting > 0 ? `${a.awaiting}!` : String(a.roster.filter((r) => r.warm).length)))
-  return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => { agentsBtn = self; hoverPopover(self, "rail") }}>
-      <box orientation={Gtk.Orientation.VERTICAL}>
-        <label cssClasses={["icon"]} label={"\u{f06a9}"} />
-        <label cssClasses={["sm"]} label={label} />
-      </box>
-      <popover cssClasses={["pop"]}>
-        <Panel title="AGENTS" cssClasses={["card-agents"]}><AgentsCard /></Panel>
-      </popover>
-    </menubutton>
-  )
-}
-
 export default function TrayPane() {
   return (
     <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
       <Sni />
-      <AgentsItem />
       <Net />
       <Bt />
       <Vol />

@@ -67,3 +67,7 @@ window.deck-drawer { background: transparent; }
 .src-all { color: $amber; }
 .deck-filters .filter.chip.src-all { background: $amber; }
 .deck-filters .filter.off { border-color: $sep; label { color: $meta; } }
+.deck-media .tp { padding: 0 $sp-1; min-height: 0; min-width: 0; label { color: $amber; } &:hover label { color: $chip; } }
+.deck-title > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
+.deck-agents.await { background: $accent; label { color: $ink; } }
+.deck-agents > button, .deck-timer > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
