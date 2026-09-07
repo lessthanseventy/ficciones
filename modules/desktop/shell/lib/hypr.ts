@@ -45,7 +45,9 @@ export type Capture = { count: number; since: number; who: string }
 export const [capture, setCapture] = createState<Capture>({ count: 0, since: 0, who: "" })
 async function whoCaptures(owner: string): Promise<string> {
   try {
-    const out = await execAsync(["pw-dump"])
+    // PIPEWIRE_DEBUG=0: pw-dump otherwise journals "no such resource" errors for anything that
+    // vanished mid-dump — every screenshot put a line in the log (2026-09-07)
+    const out = await execAsync(["env", "PIPEWIRE_DEBUG=0", "pw-dump"])
     const names = new Set<string>()
     for (const n of JSON.parse(out) as any[]) {
       const p = n?.info?.props
