@@ -99,10 +99,9 @@ function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
   const cls = m.frac((f) => ["cell", "perf", tier(f)])
   return (
     <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN} visible={m.ok ?? true} $={(self) => hoverPopover(self, "bar")}>
-      <box spacing={3}>
-        <label cssClasses={["icon"]} label={icon} tooltipText={m.key} xalign={0} />
-        {/* right-aligned in four characters, the value zero/space-padded: the unit is the fixed point */}
-        <label cssClasses={["num"]} label={m.num} widthChars={4} xalign={1} />
+      {/* icon + spark only; the number is the tooltip and the popover (Andrew, 2026-09-07) */}
+      <box spacing={3} tooltipText={m.num((n) => `${m.key.toLowerCase()} ${n.trim()}`)}>
+        <label cssClasses={["icon"]} label={icon} xalign={0} />
         <label cssClasses={["spark"]} label={m.hist((h) => spark(h, SPARK_CELLS))} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
       </box>
       <popover cssClasses={["pop"]}>

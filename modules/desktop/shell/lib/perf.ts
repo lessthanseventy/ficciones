@@ -120,13 +120,6 @@ export function rate(bytesPerSec: number): string {
   if (bytesPerSec < 1048576) return `${(bytesPerSec / 1024).toFixed(0)}K`
   return `${(bytesPerSec / 1048576).toFixed(1)}M`
 }
-/** For a gauge cell: three characters then the unit, right-aligned, so the unit is the fixed point. */
-export function rate4(bytesPerSec: number): string {
-  if (bytesPerSec < 1024) return `${String(Math.round(bytesPerSec)).padStart(3)}B`
-  if (bytesPerSec < 1048576) return `${String(Math.round(bytesPerSec / 1024)).padStart(3)}K`
-  const m = bytesPerSec / 1048576
-  return m < 10 ? `${m.toFixed(1)}M` : `${String(Math.round(m)).padStart(3)}M`
-}
 
 /** Mean and peak of a history window, for the "last two minutes" lines. */
 export function stats(h: number[]): { mean: number; peak: number } {
