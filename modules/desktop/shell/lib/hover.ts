@@ -41,15 +41,21 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   pop.autohide = false // a grab would send the trigger a synthetic leave the moment it opened
   let dwell: Timer | null = null
   let grace: Timer | null = null
-  // no tooltip over an open popover: every tooltip under the trigger is off while it is up
-  let tipped: Gtk.Widget[] = []
+  // no tooltip over an open popover: every tooltip under the trigger is off while it is up.
+  // Setting tooltip-text turns has-tooltip back on (the gauges re-set theirs every second),
+  // so each is watched and pinned off until the close.
+  let tipped: { w: Gtk.Widget; id: number }[] = []
   const tipsOff = () => {
-    tipped = []
-    const walk = (w: Gtk.Widget | null) => { for (let c = w?.get_first_child() ?? null; c; c = c.get_next_sibling()) { if (c === pop) continue; if (c.hasTooltip) { tipped.push(c); c.hasTooltip = false }; walk(c) } }
-    if (mb.hasTooltip) { tipped.push(mb); mb.hasTooltip = false }
+    tipsOn()
+    const pin = (w: Gtk.Widget) => {
+      w.hasTooltip = false
+      tipped.push({ w, id: w.connect("notify::has-tooltip", () => { if (w.hasTooltip) w.hasTooltip = false }) })
+    }
+    const walk = (w: Gtk.Widget | null) => { for (let c = w?.get_first_child() ?? null; c; c = c.get_next_sibling()) { if (c === pop) continue; if (c.hasTooltip) pin(c); walk(c) } }
+    if (mb.hasTooltip) pin(mb)
     walk(mb)
   }
-  const tipsOn = () => { for (const w of tipped) w.hasTooltip = true; tipped = [] }
+  const tipsOn = () => { for (const { w, id } of tipped) { w.disconnect(id); w.hasTooltip = true }; tipped = [] }
   const me: Entry = { close: () => { mb.popdown(); untrack(group, me); tipsOn() } }
   const show = () => { track(group, me); opts.onShow?.(); tipsOff(); mb.popup() }
   let inTrigger = () => false
