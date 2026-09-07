@@ -17,11 +17,13 @@ window.rail .rule-h { margin: $sp-2 $sp-1; }
 // the bar-height square at the top of the rail: the aleph and its hrön (the double, offset
 // and dim), which slides home on hover — double vision, resolved by looking
 .corner {
-  min-height: $bar-height - $rule;
+  min-height: $bar-height;   // its rule then sits on the bar's (row 36)
   padding: 0;
   border-bottom: $rule solid $sep;
   > button { background: none; border: none; box-shadow: none; border-radius: 0; padding: 0; min-height: 0; min-width: 0; }
-  label { font-size: 33px; }
+  // a 33px glyph's line box is taller than the square: pull the labels in so the corner stays
+  // bar-height and its rule meets the bar's
+  label { font-size: 33px; margin-top: -6px; margin-bottom: -6px; }
   .aleph { color: $amber; }
   // the echo sits up and to the right, as on the board's mark (Andrew, 2026-09-07)
   .hron { color: $accent; opacity: 0.55; margin-left: 7px; margin-bottom: 3px; transition: margin 180ms ease-out, opacity 180ms ease-out; }
@@ -148,8 +150,10 @@ menubutton.item > button:hover { background: $hover; }
 // the foot: the corner's square at the bottom — a rule above, the tray glyph and its count in
 // one line, the corner's hover
 .foot {
-  min-height: $bar-height - $rule; border-top: $rule solid $sep; margin-top: $sp-1;
-  .item.sni { min-height: $bar-height - $rule; padding: 0; margin: 0; .icon { color: $dim; font-size: 20px; margin: 0; } &.live .icon { color: $amber; } &:hover { background: $chip; .icon { color: $ink; } } }
+  // flush with the screen's bottom edge (the rail's box pads 8px there), so the rule meets the deck's top line
+  min-height: $bar-height - $rule; border-top: $rule solid $sep; margin-top: $sp-1; margin-bottom: -$sp-2; padding: 0;
+  // the menubutton's inner button carries GTK's 34px minimum: reset it, as the corner does
+  .item.sni { min-height: 0; padding: 0; margin: 0; > button { background: none; border: none; box-shadow: none; border-radius: 0; padding: 0; min-height: 0; min-width: 0; } .icon { color: $dim; font-size: 18px; margin: 0; } &.live .icon { color: $amber; } &:hover { background: $chip; .icon { color: $ink; } } }
 }
 .tray-row { padding: 0 0 0 $sp-2; min-height: $cell-h; }
 .tray-hit { padding: 0; min-height: 0; &:hover { background: $hover; } }

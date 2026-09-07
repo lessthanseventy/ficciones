@@ -217,7 +217,7 @@ function Sni() {
     item.connect("notify::action-group", () => btn.insert_action_group("dbusmenu", item.actionGroup))
   }
   return (
-    <menubutton cssClasses={items((l) => ["item", "sni", ...(l.length ? ["live"] : [])])} direction={Gtk.ArrowType.RIGHT} hexpand $={(self) => hoverPopover(self, "rail")}>
+    <menubutton cssClasses={items((l) => ["item", "sni", ...(l.length ? ["live"] : [])])} direction={Gtk.ArrowType.RIGHT} hexpand tooltipText={items((l) => (l.length ? `${l.length} in the tray` : "tray: empty"))} $={(self) => hoverPopover(self, "rail")}>
       {/* no count: the glyph is dim with nothing in the tray, amber with something (Andrew, 2026-09-07) */}
       <label cssClasses={["icon"]} label={"\u{f00a}"} halign={Gtk.Align.CENTER} xalign={0.5} />
       <popover cssClasses={["pop", "pop-tray"]}>
