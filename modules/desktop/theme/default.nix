@@ -114,7 +114,9 @@ in
         "gtk-3.0/gtk.css" = via "gtk.css";
         "gtk-4.0/gtk.css" = via "gtk.css";
         "gtk-3.0/settings.ini".text = render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
-        "gtk-4.0/settings.ini".text = render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
+        # libadwaita refuses gtk-application-prefer-dark-theme (a warning at every shell start); GTK 4
+        # takes the scheme from the portal's color-scheme, which the theme switch sets
+        "gtk-4.0/settings.ini".text = builtins.replaceStrings [ "gtk-application-prefer-dark-theme=true\n" ] [ "" ] render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
 
         # Qt: qt6ct owns the palette + font, kvantum draws the widgets, the qss covers what neither reaches.
         "qt6ct/qt6ct.conf".text = render.qt6ctConf;

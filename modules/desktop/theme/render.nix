@@ -314,7 +314,6 @@ rec {
     [Settings]
     gtk-font-name=${f.family} ${toString f.size}
     gtk-application-prefer-dark-theme=true
-    gtk-theme-name=Adwaita
     gtk-icon-theme-name=Papirus-Dark
     gtk-cursor-theme-name=Bibata-Modern-Classic
     gtk-cursor-theme-size=24
