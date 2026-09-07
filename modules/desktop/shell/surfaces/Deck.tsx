@@ -45,12 +45,15 @@ function pick() {
 function hook() {
   for (const p of players.peek()) if (!hooked.has(p)) {
     hooked.add(p)
-    for (const sig of ["notify::playback-status", "notify::title", "notify::artist"]) p.connect(sig, pick)
+    for (const sig of ["notify::playback-status", "notify::title", "notify::artist", "notify::metadata"]) p.connect(sig, pick)
   }
   pick()
 }
 players.subscribe(hook)
 hook()
+// and a re-pick on a timer: Floorp on a streaming site advanced an episode with no property
+// notify the cell saw (it sat on the old one until a restart, 2026-09-07); pick is cheap
+interval(5000, pick)
 // the title as a marquee when it is longer than the cell: a window that slides every 300 ms
 const TRACK_W = 36
 const [slide, setSlide] = createState(0)
