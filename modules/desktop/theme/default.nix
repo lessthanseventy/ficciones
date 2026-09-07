@@ -93,6 +93,18 @@ in
   config = {
     home.packages = [ pkgs.nerd-fonts.comic-shanns-mono ];
 
+    # GTK reads org.gnome.desktop.interface AHEAD of settings.ini on Wayland, and a D-Bus-activated
+    # app (gcr-prompter, the portal dialogs) never sees Hyprland's GTK_THEME — a stale
+    # `adw-gtk3-dark` here (caelestia's) left every one of those on stock Adwaita light (2026-09-07).
+    # color-scheme is NOT declared: the shell's theme switch owns it live.
+    dconf.settings."org/gnome/desktop/interface" = {
+      gtk-theme = cfg.gtkTheme;
+      font-name = "${palette.font.family} ${toString palette.font.size}";
+      icon-theme = "Papirus-Dark";
+      cursor-theme = "Bibata-Modern-Classic";
+      cursor-size = 24;
+    };
+
     xdg.configFile = lib.mkMerge [
       # every surface, both palettes
       (lib.mkMerge (lib.mapAttrsToList (name: r:
