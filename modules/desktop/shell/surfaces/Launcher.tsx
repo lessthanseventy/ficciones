@@ -168,10 +168,14 @@ export default function Launcher() {
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.EXCLUSIVE}
       exclusivity={Astal.Exclusivity.IGNORE}
-      anchor={Astal.WindowAnchor.TOP}
-      marginTop={180}
+      // the whole monitor: a transparent field around the pane, and a click on it closes
+      // (Andrew, 2026-09-07: "clickaway on anything that pops up")
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT}
       application={app}
     >
+      <overlay>
+        <box cssClasses={["clickaway-field"]} hexpand vexpand $={(self) => { const g = new Gtk.GestureClick({ button: 0 }); g.connect("pressed", () => hide()); self.add_controller(g) }} />
+      <box $type="overlay" halign={Gtk.Align.CENTER} valign={Gtk.Align.START} marginTop={180}>
       <Panel title={mode((m) => (m === "clip" ? "CLIPBOARD" : "RUN"))} cssClasses={["launch-pane", "focused"]} spacing={4}>
         <box cssClasses={["prompt"]} spacing={8}>
           <label cssClasses={["ps"]} label={mode((m) => prompt[m])} />
@@ -201,6 +205,8 @@ export default function Launcher() {
           <label cssClasses={["dim", "sm"]} label="nothing" visible={createComputed([items, query], (l, q) => l.length === 0 && q.length > 0)} xalign={0} />
         </box>
       </Panel>
+      </box>
+      </overlay>
     </window>
   )
 }
