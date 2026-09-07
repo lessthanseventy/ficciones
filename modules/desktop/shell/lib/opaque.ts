@@ -1,10 +1,9 @@
 // Windows with video playing are opaque under glass (Andrew, 2026-09-06). Hyprland has no
 // "playing video" state, so it is inferred every 2 s: an idle inhibitor (players ask for one),
-// a playing Mpris player from the window's process (matched by pid; a multi-window app like
+// a process making sound (lib/sound, matched by pid; a multi-window app like
 // the browser also needs a video-ish title, or every window of it would go opaque), a player
 // class, or fullscreen. `setprop opaque` per window; `unset` when it stops.
-import Mpris from "gi://AstalMpris"
-import { execAsync } from "ags/process"
+import { soundPids } from "./sound"
 import { L, dispatch } from "./hyprlua"
 import { interval } from "ags/time"
 import { query } from "./hyprsock"
@@ -16,36 +15,13 @@ const VIDEO_TITLE = /youtube|cineby|netflix|plex|jellyfin|twitch|vimeo|hulu|disn
 
 const opaque = new Set<string>()
 
-// Which processes are playing: the Mpris players that say PLAYING, their pids through the
-// bus (cached per bus name). AstalWp's stream state never leaves CREATING here, so it is not
-// the signal (2026-09-07).
-const mpris = Mpris.get_default()
-const pidOf = new Map<string, number>()
-function resolvePids() {
-  for (const p of mpris.get_players()) {
-    const bus = p.busName
-    if (!bus || pidOf.has(bus)) continue
-    pidOf.set(bus, 0)
-    execAsync(["busctl", "--user", "call", "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetConnectionUnixProcessID", "s", bus])
-      .then((out) => pidOf.set(bus, Number(out.trim().split(/\s+/).pop() ?? 0)))
-      .catch(() => pidOf.set(bus, -1))
-  }
-}
-function playingPids(): Set<number> {
-  resolvePids()
-  const out = new Set<number>()
-  for (const p of mpris.get_players()) {
-    if (p.playbackStatus !== Mpris.PlaybackStatus.PLAYING) continue
-    const pid = pidOf.get(p.busName ?? "") ?? 0
-    if (pid > 0) out.add(pid)
-  }
-  return out
-}
-
+// Which processes are making sound: PipeWire's running output streams (lib/sound) — Mpris
+// said Paused for a streaming site with the audio live, and the video window stayed glass
+// (2026-09-07).
 function tick() {
   let clients: Client[]
   try { clients = JSON.parse(query("j/clients")) } catch { return }
-  const pids = playingPids()
+  const pids = soundPids.peek()
   const perPid = new Map<number, number>()
   for (const c of clients) if (c.mapped) perPid.set(c.pid, (perPid.get(c.pid) ?? 0) + 1)
   const want = new Set<string>()
