@@ -1,8 +1,8 @@
 // The deck: the bottom of the screen. A one-line row on every monitor — pinned attention
 // (critical notices, an agent waiting on you) on the left, the command log's tail through the
 // middle, now-playing (transport, a marquee title, the media card in a popover) / the timer
-// (its popover) / agents on the right — and, pulled up over it (bottom hot edge, Super+C, a
-// click on the row), a wide drawer: the full log with source filters and the agents roster.
+// (its popover) / agents on the right — and, pulled up over it (Super+C, a click on the
+// activity segment), a wide drawer: the full log with source filters and the agents roster.
 // A monitor showing a fullscreen window has no row.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"

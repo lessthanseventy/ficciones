@@ -20,7 +20,7 @@ import { NoticeCard, groups } from "./Notifications"
 import { VList } from "../lib/vlist"
 import { Toggles } from "../panes/Toggles"
 import { isFullscreen } from "../lib/hypr"
-import { showDeck, deckVisible } from "./Deck"
+import { deckVisible } from "./Deck"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
 import { zen, setBackdrop } from "./Backdrop"
@@ -78,8 +78,8 @@ export function toggleHub() {
 }
 
 /**
- * The hot edges: the pointer parked within 2px of a monitor's right edge for 400 ms opens the
- * hub on that monitor; its bottom edge, the deck's drawer. Polled from Hyprland's socket at 5 Hz — a layer surface for the strip
+ * The hot edge: the pointer parked within 2px of a monitor's right edge for 400 ms opens the
+ * hub on that monitor. Polled from Hyprland's socket at 5 Hz — a layer surface for the strip
  * would not shrink below 200px and swallowed clicks.
  */
 export function startHotEdge() {
@@ -91,19 +91,15 @@ export function startHotEdge() {
     // open: nothing here — the hub and the deck close on Esc or a click outside, not on the
     // pointer leaving (Andrew, 2026-09-07)
     if (hubWin?.visible || deckVisible()) { since = 0; return }
+    // the right edge only: the deck opens on a click (Andrew, 2026-09-07: no hover for it)
     const mons = Hyprland.get_default().get_monitors()
-    const right = mons.find((m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y && y < m.y + m.height)
-    const bottom = mons.find((m) => y >= m.y + m.height - 2 && y < m.y + m.height && x >= m.x && x < m.x + m.width)
-    const mon = right ?? bottom
+    const mon = mons.find((m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y && y < m.y + m.height)
     // no hot edge on a monitor showing a film
     if (!mon || isFullscreen(mon.name)) { since = 0; armedFor = null; return }
-    const key = `${right ? "r" : "b"}:${mon.name}`
-    if (armedFor !== key) { armedFor = key; since = Date.now(); return }
+    if (armedFor !== mon.name) { armedFor = mon.name; since = Date.now(); return }
     if (Date.now() - since >= 400) {
       since = Date.now() + 1e9   // once per visit
-      const g = app.get_monitors().find((m) => m.connector === mon.name)
-      if (right) showHub(g)
-      else showDeck(g)
+      showHub(app.get_monitors().find((m) => m.connector === mon.name))
     }
   })
 }
