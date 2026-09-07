@@ -2,6 +2,7 @@
 // change. Prominent on purpose (Andrew, 2026-09-05: headphone buttons change the volume with
 // nothing on screen). A change made from a popover slider is already visible, so those call
 // `quietOsd()` first and the OSD stays down.
+import { volumeGlyph } from "../lib/icons"
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -25,7 +26,7 @@ export const quietOsd = () => { quietUntil = Date.now() + 1000 }
 
 function show(kind: Kind, frac: number, muted = false) {
   if (Date.now() < quietUntil) return
-  const icon = kind === "brightness" ? "\u{f00e0}" : muted ? "\u{f075f}" : frac > 0.66 ? "\u{f057e}" : frac > 0.33 ? "\u{f0580}" : "\u{f057f}"
+  const icon = kind === "brightness" ? "\u{f00e0}" : volumeGlyph(frac, muted)
   setOsd({ kind, frac, muted, icon })
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = app.get_monitors().find((m) => m.connector === name)

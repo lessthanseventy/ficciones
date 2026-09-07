@@ -13,6 +13,7 @@ import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 import { hoverPopover, type HoverPop } from "../lib/hover"
+import { volumeGlyph } from "../lib/icons"
 import { createPoll, timeout } from "ags/time"
 import { toggleLauncher } from "./Launcher"
 import { screenshot, startRecording, stopRecording, recording } from "../lib/capture"
@@ -174,7 +175,7 @@ function Vol() {
   if (!speaker) return <box />
   const vol = createBinding(speaker, "volume")
   const mute = createBinding(speaker, "mute")
-  const icon = createComputed([vol, mute], (v, m) => (m ? "\u{f075f}" : v > 0.66 ? "\u{f057e}" : v > 0.33 ? "\u{f0580}" : "\u{f057f}"))
+  const icon = createComputed([vol, mute], (v, m) => volumeGlyph(v, m))
   const cls = mute((m) => ["item", "vol", ...(m ? ["dim"] : [])])
   // wheel over the icon: 2 % a notch, capped at 100 % (the keys go to 150 %; the wheel is for
   // nudging). The OSD shows it — the popover is closed while you scroll.
