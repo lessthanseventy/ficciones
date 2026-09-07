@@ -57,6 +57,14 @@ in
     home.file.".local/bin/sudo-askpass" = { source = ./scripts/sudo-askpass; executable = true; };
     # recolours open ghostty surfaces to the live theme (the switch runs it; see lib/theme.ts)
     home.file.".local/bin/ficciones-recolor" = { source = ./scripts/ficciones-recolor; executable = true; };
+    # a stream URL (m3u8/mpd) into mpv, referer and all — what The Stream Detector copies out of
+    # a page whose own player lies to Mpris (Ctrl+Super+M plays the clipboard)
+    home.file.".local/bin/mpv-stream" = { source = ./scripts/mpv-stream; executable = true; };
+    programs.mpv = {
+      enable = true;
+      scripts = [ pkgs.mpvScripts.mpris ]; # real Mpris: the deck's transport and position work
+      config = { hwdec = "auto-safe"; force-window = "yes"; keep-open = "yes"; ytdl = "yes"; osd-font = "ComicShannsMono Nerd Font"; };
+    };
     home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
 
     home.packages = with pkgs; [

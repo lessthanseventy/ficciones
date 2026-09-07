@@ -557,6 +557,8 @@ bind("XF86AudioLowerVolume", exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"), 
 bind("XF86AudioMute", exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true })
 bind("XF86AudioMicMute", exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
 bind(M .. " + SHIFT + M", exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"))
+-- the stream URL on the clipboard (The Stream Detector's copy) into mpv — see scripts/mpv-stream
+bind("CTRL + " .. M .. " + M", exec("mpv-stream"))
 bind("ALT + " .. M .. " + M", exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"))
 
 -- ----- Brightness -----
