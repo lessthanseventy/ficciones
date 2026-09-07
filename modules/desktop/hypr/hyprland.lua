@@ -68,8 +68,11 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         hl.exec_cmd("hyprsunset")
         hl.exec_cmd("easyeffects --hide-window --service-mode")
         hl.exec_cmd("hypridle")
-        -- hyprexpo on NixOS (modules/os puts the .so here); on Arch hyprpm loads it itself
+        -- hyprexpo: on NixOS modules/os puts the .so here; on Arch hyprpm owns it, and nothing
+        -- loads hyprpm's plugins at start unless asked — without this the plugin.hyprexpo.*
+        -- keys in theme.lua are "unknown" until someone runs `hyprpm reload` (2026-09-07)
         hl.exec_cmd("test -f /etc/hypr/plugins/hyprexpo.so && hyprctl plugin load /etc/hypr/plugins/hyprexpo.so")
+        hl.exec_cmd("test -e /etc/NIXOS || hyprpm reload -n")
         hl.exec_cmd("bash -c 'wl-paste --type text  --watch cliphist store'")
         hl.exec_cmd("bash -c 'wl-paste --type image --watch cliphist store'")
         hl.exec_cmd("systemctl --user start hyprpolkitagent")
