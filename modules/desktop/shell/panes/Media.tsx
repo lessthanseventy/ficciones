@@ -1,6 +1,7 @@
 // MEDIA: the selected player large with transport; other players as rows below (j/k, click).
 import Gtk from "gi://Gtk?version=4.0"
 import Mpris from "gi://AstalMpris"
+import { soundPids, playerSounding } from "../lib/sound"
 import { For, createBinding, createComputed, type Accessor } from "ags"
 import { meter } from "../lib/format"
 import { createState } from "ags"
@@ -66,10 +67,13 @@ function Art({ p }: { p: Mpris.Player }) {
 }
 
 function Player({ p }: { p: Mpris.Player }) {
-  const playing = createBinding(p, "playbackStatus")((s) => s === Mpris.PlaybackStatus.PLAYING)
+  const playing = createComputed([createBinding(p, "playbackStatus"), soundPids], (s, pids) => s === Mpris.PlaybackStatus.PLAYING || playerSounding(p.busName, pids))
   const t = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`
-  const pos = createComputed([createBinding(p, "position"), createBinding(p, "length")], (a, b) => (b > 0 ? meter(a / b, 26) : ""))
-  const time = createComputed([createBinding(p, "position"), createBinding(p, "length")], (a, b) => (b > 0 ? `${t(a)} / ${t(b)}` : ""))
+  // a position sitting at the end while sound runs is the page's stale story (a streaming site
+  // that never reset it for the next episode, 2026-09-07): show no time rather than a done bar
+  const bogus = (a: number, b: number, snd: boolean) => b <= 0 || (snd && a >= b - 1)
+  const pos = createComputed([createBinding(p, "position"), createBinding(p, "length"), playing], (a, b, snd) => (bogus(a, b, snd) ? "" : meter(a / b, 26)))
+  const time = createComputed([createBinding(p, "position"), createBinding(p, "length"), playing], (a, b, snd) => (bogus(a, b, snd) ? "" : `${t(a)} / ${t(b)}`))
   return (
     <box spacing={12}>
     <Art p={p} />

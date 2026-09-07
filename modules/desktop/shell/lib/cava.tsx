@@ -5,8 +5,7 @@ import Cava from "gi://AstalCava"
 import Gtk from "gi://Gtk?version=4.0"
 import Pango from "gi://Pango?version=1.0"
 import { createBinding } from "ags"
-import { execAsync } from "ags/process"
-import { interval } from "ags/time"
+import { soundRunning } from "./sound"
 
 const V = "▁▂▃▄▅▆▇█"
 const H = "▏▎▍▌▋▊▉█"
@@ -20,18 +19,10 @@ function cava() {
     if (inst) {
       inst.bars = BARS * 2; inst.set_stereo(true); inst.framerate = 30
       // silence is not free: libcava resamples and FFTs it at 30 fps regardless (~3% of a core
-      // at idle, measured). Run only while sound actually plays: a PipeWire output stream in
-      // state "running", polled every 2 s. Mpris said PLAYING/Paused as the site felt like it
-      // (Floorp on a streaming site sat on Paused with the audio live, 2026-09-07), and
-      // AstalWp's stream state never leaves CREATING here.
+      // at idle, measured). Run only while sound actually plays (lib/sound).
       const c = inst
-      const sync = () =>
-        execAsync(["env", "PIPEWIRE_DEBUG=0", "pw-dump"]).then((out) => {
-          const nodes = JSON.parse(out) as { info?: { state?: string; props?: Record<string, string> } }[]
-          const want = nodes.some((n) => n.info?.props?.["media.class"] === "Stream/Output/Audio" && n.info?.state === "running")
-          if (c.active !== want) c.active = want
-        }).catch(() => {})
-      interval(2000, sync)
+      soundRunning.subscribe(() => { const want = soundRunning.peek(); if (c.active !== want) c.active = want })
+      c.active = soundRunning.peek()
     }
   }
   return inst

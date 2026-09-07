@@ -20,6 +20,7 @@ import { agents } from "../lib/agents"
 import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
 import { fullscreenMonitors } from "../lib/hypr"
 import { MediaCard } from "../panes/Media"
+import { soundPids, playerSounding } from "../lib/sound"
 import { AgentsCard } from "../panes/Agents"
 import { armClickaway, disarmClickaway, closeOnPress, closeAny } from "./Clickaway"
 import { hoverPopover } from "../lib/hover"
@@ -37,11 +38,16 @@ type Now = { p: Mpris.Player; title: string; artist: string; playing: boolean } 
 /** what to show: the playing player first, else the first with a title; re-picked on any change */
 const [nowPlaying, setNow] = createState<Now>(null)
 const hooked = new WeakSet<Mpris.Player>()
+// "playing" is the truth from PipeWire when the player's process is making sound, whatever
+// its Mpris status says (lib/sound); the Mpris status still counts when nothing is audible yet
 function pick() {
   const ps = players.peek()
-  const p = ps.find((x) => x.playbackStatus === Mpris.PlaybackStatus.PLAYING) ?? ps.find((x) => x.title) ?? null
-  setNow(p ? { p, title: p.title ?? "", artist: p.artist ?? "", playing: p.playbackStatus === Mpris.PlaybackStatus.PLAYING } : null)
+  const pids = soundPids.peek()
+  const playing = (x: Mpris.Player) => x.playbackStatus === Mpris.PlaybackStatus.PLAYING || playerSounding(x.busName, pids)
+  const p = ps.find(playing) ?? ps.find((x) => x.title) ?? null
+  setNow(p ? { p, title: p.title ?? "", artist: p.artist ?? "", playing: playing(p) } : null)
 }
+soundPids.subscribe(pick)
 function hook() {
   for (const p of players.peek()) if (!hooked.has(p)) {
     hooked.add(p)
