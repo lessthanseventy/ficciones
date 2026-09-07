@@ -8,6 +8,7 @@ import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Deck, { DeckRow, toggleDeck } from "./surfaces/Deck"
 import { logEvent } from "./lib/log"
 import { setSuperHeld } from "./lib/hypr"
+import { screenshot, startRecording, stopRecording } from "./lib/capture"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
@@ -32,6 +33,14 @@ app.start({
     // the command log: what you asked for (focus/colresize are keys, not events)
     if (verb && !["focus", "colresize", "super"].includes(verb)) logEvent("shell", argv.join(" "))
     if (verb === "super") { setSuperHeld(what === "down"); return res("ok") }
+    // `astal-shell capture shot region|monitor|window [edit]` / `capture rec region|monitor` / `capture stop`
+    if (verb === "capture") {
+      if (what === "shot" && (tab === "region" || tab === "monitor" || tab === "window")) screenshot(tab, argv[3] === "edit")
+      else if (what === "rec" && (tab === "region" || tab === "monitor")) startRecording(tab)
+      else if (what === "stop") stopRecording()
+      else return res("usage: astal-shell capture shot region|monitor|window [edit] | rec region|monitor | stop")
+      return res("ok")
+    }
     if (verb === "toggle" && what === "deck") {
       toggleDeck()
       return res("ok")
@@ -107,7 +116,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|deck|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
+    res("usage: astal-shell capture … | toggle drawer|hub|deck|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")

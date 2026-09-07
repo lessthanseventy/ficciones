@@ -509,9 +509,12 @@ bind(M .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 bind(M .. " + SHIFT + S", exec(shell .. "/shot-region.sh"))
 bind("CTRL + " .. M .. " + S", exec(shell .. "/shot-region.sh repeat"))
 bind(M .. " + SHIFT + CTRL + S", exec([[bash -c 'grim -o "$(hyprctl monitors -j | jq -r ".[] | select(.focused) | .name")" - | swappy -f -']]))
-bind("ALT + Print", exec("hyprshot -m window"))
-bind("Print", exec("bash -c 'grim - | wl-copy'"))
-bind("CTRL + Print", exec([[bash -c 'mkdir -p "$(xdg-user-dir PICTURES)/Screenshots" && grim "$(xdg-user-dir PICTURES)/Screenshots/Screenshot_$(date +%Y-%m-%d_%H.%M.%S).png"']]))
+-- the shell's capture (the rail's camera item): file + clipboard + a notice, one path for all
+bind("ALT + Print", exec(shell .. "/shell-req.sh capture shot window"))
+bind("Print", exec(shell .. "/shell-req.sh capture shot monitor"))
+bind("CTRL + Print", exec(shell .. "/shell-req.sh capture shot region"))
+bind("SHIFT + Print", exec(shell .. "/shell-req.sh capture rec monitor"))
+bind("CTRL + SHIFT + Print", exec(shell .. "/shell-req.sh capture stop"))
 
 -- ----- Color picker / OCR -----
 bind(M .. " + P", exec("hyprpicker -a"))

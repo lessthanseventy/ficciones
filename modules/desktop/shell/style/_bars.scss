@@ -231,3 +231,6 @@ popover.pop {
 .card-log       { border-color: $amber; .panel-title { color: $amber; } }
 // the screen is being captured: red field, black ink — the one thing that must not be missed
 .cell.rec { background: $red; padding: 0 $sp-3; margin-right: $sp-2; .rec-dot, .rec-text, .rec-who { color: $ink; } .rec-who { font-size: $size-sm; } }
+.sys .item.cap { .icon { color: $amber; } &.live .icon, &.live .sm { color: $red; } &:hover .icon { color: $chip; } }
+.card-capture { border-color: $amber; .panel-title { color: $amber; } }
+.cap-row { padding: 0 $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } .cap-glyph { color: $green; } &.stop label { color: $red; } }

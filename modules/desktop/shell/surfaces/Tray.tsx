@@ -13,8 +13,9 @@ import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 import { hoverPopover, type HoverPop } from "../lib/hover"
-import { createPoll } from "ags/time"
+import { createPoll, timeout } from "ags/time"
 import { toggleLauncher } from "./Launcher"
+import { screenshot, startRecording, stopRecording, recording } from "../lib/capture"
 
 function Net() {
   const net = Network.get_default()
@@ -283,10 +284,49 @@ function ClipItem() {
   )
 }
 
+/** Screenshots and recordings: the card closes first, so slurp's overlay is not under it. */
+function CaptureItem() {
+  let pop: HoverPop | null = null
+  const go = (fn: () => void) => { pop?.close(); timeout(180, fn) }
+  const Row = ({ glyph, label, on }: { glyph: string; label: string; on: () => void }) => (
+    <button cssClasses={["row", "cap-row"]} onClicked={() => go(on)}>
+      <box spacing={8}><label cssClasses={["cap-glyph"]} label={glyph} widthChars={2} /><label label={label} xalign={0} hexpand /></box>
+    </button>
+  )
+  return (
+    <menubutton cssClasses={recording((r) => ["item", "cap", ...(r ? ["live"] : [])])} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail") }}>
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <label cssClasses={["icon"]} label={recording((r) => (r ? "\u{f03d}" : "\u{f030}"))} />
+        <label cssClasses={["sm"]} label={recording((r) => (r ? "rec" : "shot"))} />
+      </box>
+      <popover cssClasses={["pop"]}>
+        <Panel title={"\u{f030}  CAPTURE"} cssClasses={["card", "card-capture"]}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+            <Row glyph={"\u{f065}"} label="shot region" on={() => screenshot("region")} />
+            <Row glyph={"\u{f108}"} label="shot monitor" on={() => screenshot("monitor")} />
+            <Row glyph={"\u{f2d0}"} label="shot window" on={() => screenshot("window")} />
+            <Row glyph={"\u{f040}"} label="shot region → edit" on={() => screenshot("region", true)} />
+            <RuleH />
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={recording((r) => !r)}>
+              <Row glyph={"\u{f03d}"} label="record region" on={() => startRecording("region")} />
+              <Row glyph={"\u{f03d}"} label="record monitor" on={() => startRecording("monitor")} />
+            </box>
+            <button cssClasses={["row", "cap-row", "stop"]} visible={recording((r) => !!r)} onClicked={() => { stopRecording(); pop?.close() }}>
+              <box spacing={8}><label cssClasses={["cap-glyph", "red"]} label="■" widthChars={2} /><label label={recording((r) => `stop recording (${r ?? ""})`)} xalign={0} hexpand /></box>
+            </button>
+            <label cssClasses={["dim", "sm"]} label="shots → ~/Pictures/Screenshots + clipboard · recordings → ~/Videos/Recordings" xalign={0} wrap maxWidthChars={40} />
+          </box>
+        </Panel>
+      </popover>
+    </menubutton>
+  )
+}
+
 export default function TrayPane() {
   return (
     <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={2}>
       <Sni />
+      <CaptureItem />
       <ClipItem />
       <Net />
       <Bt />
