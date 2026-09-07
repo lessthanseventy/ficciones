@@ -206,7 +206,7 @@ export async function pinSidecar(c: Hyprland.Client) {
   const a = addr(c)
   // a fullscreen or maximised window (hyprscroller's maximise counts) cannot float, and a tiled
   // one cannot pin — Hyprland refused both silently until the batch reported them
-  await batch([L.fullscreenState(a, 0, 0), L.float(a, "set"), ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [L.pin(a)])])
+  await batch([L.fullscreenState(a, 0, 0), L.float(a, "on"), ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [L.pin(a)])])
   mark(a, true)
   settleUntil = Date.now() + 1200
   timeout(80, relayout)
@@ -229,7 +229,7 @@ export async function unpinSidecar(c: Hyprland.Client) {
   const a = addr(c)
   const s = sidecars.get(name)
   if (s && s.address === c.address) drop(name)
-  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "unset")])
+  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "off")])
   timeout(80, relayout)
 }
 

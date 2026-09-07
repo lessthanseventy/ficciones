@@ -19,7 +19,12 @@ STYLE="${QUAKE_STYLE:-slide}"  # slide | fade — the compositor never animates 
 # every correction slid or unrolled). The fade is done here instead: a short opacity ramp,
 # in place, through the window's own opacity props.
 STEPS=8; STEP_S=0.018
-prop() { hyprctl dispatch setprop "address:$addr" "$1" "$2" >/dev/null; }
+# Hyprland on a .lua config takes lua on the socket (2026-09-07): every dispatch is an hl.dsp
+# expression; the window is always this one
+d() { hyprctl dispatch "$1" >/dev/null; }
+W() { printf 'window = "address:%s"' "$addr"; }
+prop() { d "hl.dsp.window.set_prop({ prop = \"$1\", value = \"$2\", $(W) })"; }
+place() { d "hl.dsp.window.move({ x = $1, y = $2, relative = false, $(W) })"; }
 fade() { # fade in|out — the window stays opaque while shown (a terminal over the sidecar)
   local i a
   for i in $(seq 1 $STEPS); do
@@ -37,7 +42,7 @@ slide() { # slide in|out between y0 (above the screen) and y1, ease-out
     f=$(( 1000 - (1000 - t) * (1000 - t) / 1000 ))   # ease-out quad, per mille
     [ "$1" = out ] && f=$(( 1000 - f ))
     yy=$(( y0 + (y1 - y0) * f / 1000 ))
-    hyprctl dispatch movewindowpixel "exact $x $yy,address:$addr" >/dev/null
+    place "$x" "$yy"
     sleep $SLIDE_S
   done
 }
@@ -46,7 +51,7 @@ client() { hyprctl -j clients | jq -c --arg c "$CLASS" '.[]|select(.class==$c)' 
 
 # Spawn on first use, then wait for it to map.
 if [ -z "$(client)" ]; then
-  hyprctl dispatch exec "[workspace special:quake silent] ghostty --class=$CLASS"
+  d "hl.dsp.exec_cmd(\"[workspace special:quake silent] ghostty --class=$CLASS\")"
   for _ in $(seq 1 30); do [ -n "$(client)" ] && break; sleep 0.1; done
 fi
 
@@ -65,11 +70,11 @@ if [ "$ws" != "special:quake" ]; then
   if [ "$STYLE" = slide ]; then
     read -r x y1 wh < <(jq -r '"\(.at[0]) \(.at[1]) \(.size[1])"' <<<"$c"); y0=$(( y1 - wh - 60 )); slide out
   else fade out; fi
-  [ "$pinned" = true ] && hyprctl dispatch pin "address:$addr" >/dev/null
-  hyprctl dispatch movetoworkspacesilent "special:quake,address:$addr" >/dev/null
+  [ "$pinned" = true ] && d "hl.dsp.window.pin({ $(W) })"
+  d "hl.dsp.window.move({ workspace = \"special:quake\", follow = false, $(W) })"
   prop opacity unset; prop opacity_override unset
   # focus goes back to the window that had it (Hyprland leaves it nowhere otherwise)
-  prev=$(cat "$PREV" 2>/dev/null); [ -n "$prev" ] && hyprctl dispatch focuswindow "address:$prev" >/dev/null
+  prev=$(cat "$PREV" 2>/dev/null); [ -n "$prev" ] && d "hl.dsp.focus({ window = \"address:$prev\" })"
   ring on
   exit 0
 fi
@@ -87,8 +92,12 @@ ring off
 h=$(( mh * HEIGHT_PCT / 100 ))
 y0=$(( y - h - 60 )); y1=$y
 if [ "$STYLE" = slide ]; then start=$y0; prop opacity_override 1; prop opacity 1; else start=$y; prop opacity_override 1; prop opacity 0; fi
-hyprctl --batch "dispatch setfloating address:$addr; dispatch resizewindowpixel exact $w $HEIGHT_PCT%,address:$addr; dispatch movewindowpixel exact $x $start,address:$addr" >/dev/null
-hyprctl --batch "dispatch movetoworkspace $wsid,address:$addr; dispatch movewindowpixel exact $x $start,address:$addr" >/dev/null
-[ "$pinned" = true ] || hyprctl dispatch pin "address:$addr" >/dev/null
-hyprctl --batch "dispatch focuswindow address:$addr; dispatch alterzorder top,address:$addr" >/dev/null
+d "hl.dsp.window.float({ action = \"on\", $(W) })"
+d "hl.dsp.window.resize({ x = $w, y = $h, relative = false, $(W) })"
+place "$x" "$start"
+d "hl.dsp.window.move({ workspace = \"$wsid\", follow = true, $(W) })"
+place "$x" "$start"
+[ "$pinned" = true ] || d "hl.dsp.window.pin({ $(W) })"
+d "hl.dsp.focus({ $(W) })"
+d "hl.dsp.window.alter_zorder({ mode = \"top\", $(W) })"
 if [ "$STYLE" = slide ]; then slide in; else fade in; fi

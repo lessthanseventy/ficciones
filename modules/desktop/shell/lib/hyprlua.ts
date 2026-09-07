@@ -15,7 +15,8 @@ export const L = {
   workspace: (ws: string) => `hl.dsp.focus({ workspace = ${q(ws)} })`,
   layout: (msg: string) => `hl.dsp.layout(${q(msg)})`,
   setProp: (w: string, prop: string, value: string) => `hl.dsp.window.set_prop({ prop = ${q(prop)}, value = ${q(value)}, window = ${q(w)} })`,
-  float: (w: string, action: "set" | "unset" | "toggle" = "toggle") => `hl.dsp.window.float({ action = ${q(action)}, window = ${q(w)} })`,
+  // toggle actions are "on" / "off" / "toggle" (parseToggleStr; anything else is a toggle)
+  float: (w: string, action: "on" | "off" | "toggle" = "toggle") => `hl.dsp.window.float({ action = ${q(action)}, window = ${q(w)} })`,
   pin: (w: string) => `hl.dsp.window.pin({ window = ${q(w)} })`,
   fullscreen: (w: string, mode: "fullscreen" | "maximize") => `hl.dsp.window.fullscreen({ mode = ${q(mode)}, window = ${q(w)} })`,
   fullscreenState: (w: string, internal: number, client: number) => `hl.dsp.window.fullscreen_state({ internal = ${internal}, client = ${client}, window = ${q(w)} })`,
