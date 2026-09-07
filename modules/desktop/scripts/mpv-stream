@@ -14,7 +14,8 @@ if [ -z "$url" ]; then
     read -r url ref <<<"$clip"
 fi
 case "$url" in http://*|https://*) ;; *) notify-send -a mpv-stream -u critical "mpv-stream" "no URL: ${url:-empty clipboard}"; exit 1 ;; esac
-args=(--force-window=yes --title="mpv · ${url##*/}")
+# the log is for the next "no audio": which tracks the manifest carried, what the host refused
+args=(--force-window=yes --title="mpv · ${url##*/}" --log-file="${XDG_CACHE_HOME:-$HOME/.cache}/mpv-stream.log")
 [ -n "$ref" ] && args+=("--referrer=$ref" "--http-header-fields=Origin: ${ref%%/}")
 notify-send -a mpv-stream "mpv" "${url:0:80}"
 exec mpv "${args[@]}" "$url"
