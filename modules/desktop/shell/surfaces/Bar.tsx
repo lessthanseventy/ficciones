@@ -1,4 +1,5 @@
 import { L, dispatch } from "../lib/hyprlua"
+import { screencasts } from "../lib/hypr"
 import app from "ags/gtk4/app"
 import { closeOnPress } from "./Clickaway"
 import Astal from "gi://Astal?version=4.0"
@@ -192,9 +193,20 @@ function BatteryCell() {
   )
 }
 
+/** Something is capturing the screen (a share, a recording): red, present only while it is. */
+function RecCell() {
+  return (
+    <box cssClasses={["cell", "rec"]} spacing={6} visible={screencasts((n) => n > 0)} tooltipText="the screen is being captured">
+      <label cssClasses={["rec-dot"]} label="●" />
+      <label cssClasses={["rec-text"]} label={screencasts((n) => (n > 1 ? `REC ×${n}` : "REC"))} />
+    </box>
+  )
+}
+
 function Status() {
   return (
     <box cssClasses={["status"]} halign={Gtk.Align.END}>
+      <RecCell />
       <RuleV />
       <BatteryCell />
     </box>

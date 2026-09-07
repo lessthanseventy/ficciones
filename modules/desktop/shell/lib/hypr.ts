@@ -31,3 +31,14 @@ export const [fullscreenMonitors, setFullscreenMonitors] = createState<Set<strin
 const refresh = () => setFullscreenMonitors(fullscreenOf())
 hypr.connect("event", (_, ev: string) => { if (ev === "fullscreen" || ev === "workspace" || ev === "focusedmon" || ev === "closewindow") refresh() })
 export const isFullscreen = (monitor: string | undefined) => !!monitor && fullscreenMonitors.peek().has(monitor)
+
+/**
+ * Screen sharing / recording: Hyprland's `screencast` event — `STATE,OWNER` (1 starting /
+ * 0 stopping; owner 0 = a monitor, 1 = a window). Counted, since two shares can overlap.
+ */
+export const [screencasts, setScreencasts] = createState(0)
+hypr.connect("event", (_, ev: string, args: string) => {
+  if (ev !== "screencast") return
+  const [state] = args.split(",")
+  setScreencasts((n) => Math.max(0, n + (state === "1" ? 1 : -1)))
+})

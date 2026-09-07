@@ -225,3 +225,5 @@ popover.pop {
 .card-window    { border-color: $amber; .panel-title { color: $amber; } }
 .card-timer     { border-color: $cyan;  .panel-title { color: $cyan; } }
 .card-log       { border-color: $amber; .panel-title { color: $amber; } }
+// the screen is being captured: red field, black ink — the one thing that must not be missed
+.cell.rec { background: $red; padding: 0 $sp-3; .rec-dot, .rec-text { color: $ink; } }

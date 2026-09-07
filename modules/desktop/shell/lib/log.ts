@@ -53,6 +53,7 @@ hypr.connect("event", (_, ev: string, args: string) => {
     case "monitoradded": logEvent("hypr", `monitor ${args} plugged`); break
     case "monitorremoved": logEvent("hypr", `monitor ${args} gone`, "warn"); break
     case "configreloaded": logEvent("hypr", "config reloaded"); break
+    case "screencast": { const [st, owner] = args.split(","); logEvent("hypr", `screen capture ${st === "1" ? "started" : "stopped"} (${owner === "1" ? "a window" : "a monitor"})`, st === "1" ? "warn" : "dim"); break }
   }
 })
 
