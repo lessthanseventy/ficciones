@@ -263,50 +263,39 @@ hl.window_rule({
     center = true,
 })
 
--- Zoom (XWayland, v7.x). Canonical fixes: github.com/hyprwm/Hyprland/issues/4809
--- All Zoom windows are class=zoom; we distinguish by title. Community consensus:
---   - float everything, tile only the main app + meeting window
---   - use `no_initial_focus` (NOT the aggressive `stay_focused`) so transient popups/toolbars
---     don't steal focus or vanish when the mouse moves
---   - `move = onscreen cursor` so dropdowns open at the pointer, not center-screen
--- Captured titles (zoom 7.0.5, all class=zoom, xwayland): Meeting, Zoom Workplace*,
---   *Zoom Meeting, menu window, Toolbar Menu, Meeting security, Meeting info,
---   confirm window, annotate_toolbar (re-spawns continuously), share picker.
-
--- 1. Float every Zoom window by default (popups/dropdowns/toolbars need this)...
-hl.window_rule({ name = "zoom-float-default", match = { class = "^(zoom)$" }, float = true })
--- 2. ...but TILE only the meeting window. NB: do NOT tile "Zoom Workplace" — the chat panel
---    shares that exact title with the home window, so tiling it wedges the chat into the
---    layout. Home + chat just float; only the meeting tiles.
-hl.window_rule({ name = "zoom-tile-meeting", match = { class = "^(zoom)$", title = ".*Zoom Meeting$" }, tile = true })
-hl.window_rule({ name = "zoom-tile-meeting-bare", match = { class = "^(zoom)$", title = "^Meeting$" }, tile = true })
--- 3. Dropdowns / menus / panels: don't grab focus (stops vanish-on-mouse-move and focus
---    yank), and open them at the cursor instead of dumped center-screen.
+-- Zoom (XWayland, v7.x; every window is class=zoom, told apart by title). A NORMAL app
+-- (Andrew, 2026-09-07): the home window, the meeting, the chat, the settings — all TILE like
+-- anything else. Only the genuine transients float: menus and dropdowns (at the cursor, no
+-- focus), the share toolbar / annotation bar / share preview strip (no focus, no chrome, NOT
+-- pinned — they stay on the meeting's workspace instead of following you around), the
+-- mini video ("zoom_linux_float_video_window"), and the share picker (a centred dialog).
+-- Reference: github.com/hyprwm/Hyprland/issues/4809.
 hl.window_rule({
-    name = "zoom-popups-noinitialfocus",
+    name = "zoom-popups",
     match = { class = "^(zoom)$", title = "^(menu window|Toolbar Menu|Meeting security|Meeting info|confirm window)$" },
+    float = true,
     no_initial_focus = true,
-})
-hl.window_rule({
-    name = "zoom-popups-atcursor",
-    match = { class = "^(zoom)$", title = "^(menu window|Toolbar Menu)$" },
     move = "onscreen cursor",
 })
--- 4. Annotation / screen-share toolbar: Zoom re-spawns it many times a second, so it must
---    never grab focus; float + pin so it stays put across the meeting.
 hl.window_rule({
     name = "zoom-toolbars",
-    match = { class = "^(zoom)$", title = "^(annotate_toolbar|as_toolbar)$" },
+    match = { class = "^(zoom)$", title = "^(annotate_toolbar|as_toolbar|as_preview)$" },
+    float = true,
     no_initial_focus = true,
-    pin = true,
     border_size = 0,
     rounding = 0,
     no_shadow = true,
 })
--- 5. Screen-share source picker: center it.
 hl.window_rule({
-    name = "zoom-share-picker-center",
+    name = "zoom-mini-video",
+    match = { class = "^(zoom)$", title = "^zoom_linux_float_video_window$" },
+    float = true,
+    no_initial_focus = true,
+})
+hl.window_rule({
+    name = "zoom-share-picker",
     match = { class = "^(zoom)$", title = "^Select a window or an application.*" },
+    float = true,
     center = true,
 })
 
