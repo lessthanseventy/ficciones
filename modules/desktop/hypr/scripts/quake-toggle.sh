@@ -101,3 +101,5 @@ place "$x" "$start"
 d "hl.dsp.focus({ $(W) })"
 d "hl.dsp.window.alter_zorder({ mode = \"top\", $(W) })"
 if [ "$STYLE" = slide ]; then slide in; else fade in; fi
+# focus again once it has landed — asked while it hung above the screen, focus did not stick
+d "hl.dsp.focus({ $(W) })"
