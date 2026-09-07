@@ -1,4 +1,5 @@
 import { L, dispatch } from "../lib/hyprlua"
+import { iconFor } from "../lib/icons"
 import app from "ags/gtk4/app"
 import { closeOnPress } from "./Clickaway"
 import Astal from "gi://Astal?version=4.0"
@@ -8,7 +9,7 @@ import GLib from "gi://GLib?version=2.0"
 import { For, onCleanup, createComputed, type Accessor } from "ags"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
-import { hypr, workspaces, focusedWorkspace } from "../lib/hypr"
+import { hypr, workspaces, focusedWorkspace, focusedClient, clients, superHeld, lastClientOn } from "../lib/hypr"
 import { RuleH, Panel } from "../lib/tui"
 import { WeatherCard } from "../panes/Weather"
 import { CalendarCard } from "../panes/Calendar"
@@ -60,7 +61,16 @@ function Workspaces({ connector }: { connector: string }) {
               // a long dwell (Andrew: "only on hover for a while"); the showing workspace's thumbs refresh first
               $={(self) => { watchThumbs(self.popover as Gtk.Popover); wsPops.set(ws.id, hoverPopover(self, "rail", () => dispatch(L.workspace(String(ws.id))), { hover: true, dwell: 900, onShow: () => captureShowing() })) }}
             >
-              <label label={String(ws.id)} />
+              {/* the last active window's icon; the number when empty, or while Super is held */}
+              {(() => {
+                const last = createComputed([clients, focusedClient, superHeld], () => (superHeld.peek() ? null : lastClientOn(ws)))
+                return (
+                  <box halign={Gtk.Align.CENTER}>
+                    <image iconName={last((c) => (c ? iconFor(c) : "application-x-executable"))} pixelSize={18} visible={last((c) => !!c)} />
+                    <label label={String(ws.id)} visible={last((c) => !c)} />
+                  </box>
+                )
+              })()}
               <popover cssClasses={["pop"]}>
                 <Panel title={createComputed([focusedWorkspace], () => `\u{f0e18}  WS ${ws.id} · ${ws.monitor?.name ?? ""}`)} cssClasses={["card", "card-workspaces"]}><WorkspacePop ws={ws} /></Panel>
               </popover>

@@ -1,7 +1,7 @@
 import Hyprland from "gi://AstalHyprland"
 import { createBinding, createState, type Accessor } from "ags"
 import { execAsync } from "ags/process"
-import { timeout } from "ags/time"
+import { timeout, interval, type Timer } from "ags/time"
 
 export const hypr = Hyprland.get_default()
 
@@ -70,3 +70,33 @@ hypr.connect("event", (_, ev: string, args: string) => {
     setCapture(count ? { ...cur, count } : { count: 0, since: 0, who: "" })
   }
 })
+
+/**
+ * Super is held: the rail's workspace cells show their numbers (hyprland.lua pings down/up).
+ * A missed release (the shell restarting under it) would stick, so while held the key is
+ * re-checked every half second through the compositor's own hl.is_key_down.
+ */
+export const [superHeld, setSuperHeldRaw] = createState(false)
+let superCheck: Timer | null = null
+export function setSuperHeld(on: boolean) {
+  setSuperHeldRaw(on)
+  superCheck?.cancel(); superCheck = null
+  if (on) superCheck = interval(500, () => {
+    execAsync(["hyprctl", "repl", 'return tostring(hl.is_key_down("Super_L"))']).then((out) => {
+      if (!out.includes("true")) { setSuperHeldRaw(false); superCheck?.cancel(); superCheck = null }
+    }).catch(() => {})
+  })
+}
+
+/** The window last focused on each workspace, for the rail's cells; falls back to any window. */
+const lastOn = new Map<number, string>()
+hypr.connect("notify::focused-client", () => {
+  const c = hypr.focusedClient
+  if (c?.workspace) lastOn.set(c.workspace.id, c.address)
+})
+export const clients = createBinding(hypr, "clients")
+export function lastClientOn(ws: Hyprland.Workspace): Hyprland.Client | null {
+  const cs = hypr.get_clients().filter((c) => c.workspace?.id === ws.id && c.mapped)
+  const a = lastOn.get(ws.id)
+  return cs.find((c) => c.address === a) ?? cs[0] ?? null
+}

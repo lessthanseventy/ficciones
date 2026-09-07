@@ -7,6 +7,7 @@ import Notifications from "./surfaces/Notifications"
 import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Deck, { DeckRow, toggleDeck } from "./surfaces/Deck"
 import { logEvent } from "./lib/log"
+import { setSuperHeld } from "./lib/hypr"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
@@ -29,7 +30,8 @@ app.start({
   requestHandler(argv, res) {
     const [verb, what, tab] = argv
     // the command log: what you asked for (focus/colresize are keys, not events)
-    if (verb && !["focus", "colresize"].includes(verb)) logEvent("shell", argv.join(" "))
+    if (verb && !["focus", "colresize", "super"].includes(verb)) logEvent("shell", argv.join(" "))
+    if (verb === "super") { setSuperHeld(what === "down"); return res("ok") }
     if (verb === "toggle" && what === "deck") {
       toggleDeck()
       return res("ok")

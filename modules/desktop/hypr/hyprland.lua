@@ -351,7 +351,11 @@ bind(M .. " + Space", exec("astal-shell toggle launcher"))
 bind(M .. " + I", exec("astal-shell toggle drawer"))
 bind(M .. " + SHIFT + I", exec("astal-shell toggle drawer"))
 bind(M .. " + N", exec("astal-shell toggle hub"))
-bind(M .. " + C", exec(shell .. "/shell-req.sh toggle deck"))   -- the bottom deck: log, media, agents, timer
+bind(M .. " + C", exec(shell .. "/shell-req.sh toggle deck"))
+-- Super alone, down and up: the rail's workspace cells show numbers while it is held (the
+-- shell). non_consuming: every Super+key bind still fires
+hl.bind("SUPER_L", function() hl.exec_cmd(shell .. "/shell-req.sh super down") end, { non_consuming = true })
+hl.bind("SUPER_L", function() hl.exec_cmd(shell .. "/shell-req.sh super up") end, { non_consuming = true, release = true })   -- the bottom deck: log, media, agents, timer
 bind(M .. " + U", exec("astal-shell show drawer agents"))
 bind(M .. " + B", exec("astal-shell show drawer calendar"))
 bind("ALT + Space", exec("astal-shell toggle launcher"))
