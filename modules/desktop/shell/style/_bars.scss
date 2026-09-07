@@ -247,7 +247,9 @@ popover.pop {
 
 // the bar's centre and its state glyphs
 .cell.nextup { padding: 0 $sp-3; .nextup-glyph { color: $cyan; } .nextup-text { color: $amber; } &.soon .nextup-glyph, &.soon .nextup-text { color: $accent; } }
-.states .state { padding: 0 $sp-2; font-size: $size-sm; &.red { color: $red; } &.cyan { color: $cyan; } &.dim { color: $meta; } &.amber { color: $amber; } }
+// state glyphs: the gauges' icon size, one framed cell for the group
+.statecell { padding: 0 $sp-2; }
+.states .state { font-size: $size; &.red { color: $red; } &.cyan { color: $cyan; } &.dim { color: $meta; } &.amber { color: $amber; } }
 // measured: the tunnel glyph inked 5 left, its label 2 wide of the gap
 .sys .item.vpn { margin-top: 1px; margin-bottom: -3px; .icon { margin-right: 6px; margin-left: 0; margin-bottom: -4px; } .sm { font-size: 9px; } &.live .icon, &.live .sm { color: $green; } }
 .card-vpn { border-color: $green; .panel-title { color: $green; } }

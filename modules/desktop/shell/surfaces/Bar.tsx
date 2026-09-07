@@ -239,12 +239,18 @@ function NextUpCell() {
 function StateCells() {
   const notifd = Notifd.get_default()
   const dnd = createBinding(notifd, "dontDisturb")
+  const caps = kbd((k) => k.caps)
+  const layout = kbd((k) => !!k.layout && layoutShort(k.layout) !== "us")
+  const any = createComputed([caps, layout, dnd, awake], (a, b, c, d) => a || b || c || d)
   return (
     <box cssClasses={["states"]} spacing={0}>
-      <label cssClasses={["cell", "state", "red"]} label={"\u{f0a9b}  CAPS"} visible={kbd((k) => k.caps)} tooltipText="caps lock is on" />
-      <label cssClasses={["cell", "state", "cyan"]} label={kbd((k) => layoutShort(k.layout))} visible={kbd((k) => !!k.layout && layoutShort(k.layout) !== "us")} tooltipText={kbd((k) => k.layout)} />
-      <label cssClasses={["cell", "state", "dim"]} label={"\u{f009b}"} visible={dnd} tooltipText="do not disturb" />
-      <label cssClasses={["cell", "state", "amber"]} label={"\u{f0cf3}"} visible={awake} tooltipText="awake: idle inhibited" />
+      <RuleV visible={any} />
+      <box cssClasses={["cell", "statecell"]} spacing={10} visible={any}>
+        <label cssClasses={["state", "red"]} label={"\u{f0a9b} CAPS"} visible={caps} tooltipText="caps lock is on" />
+        <label cssClasses={["state", "cyan"]} label={kbd((k) => layoutShort(k.layout))} visible={layout} tooltipText={kbd((k) => k.layout)} />
+        <label cssClasses={["state", "dim"]} label={"\u{f009b}"} visible={dnd} tooltipText="do not disturb" />
+        <label cssClasses={["state", "amber"]} label={"\u{f0208}"} visible={awake} tooltipText="awake: idle inhibited" />
+      </box>
     </box>
   )
 }
