@@ -75,7 +75,10 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         hl.exec_cmd("test -e /etc/NIXOS || hyprpm reload -n")
         hl.exec_cmd("bash -c 'wl-paste --type text  --watch cliphist store'")
         hl.exec_cmd("bash -c 'wl-paste --type image --watch cliphist store'")
-        hl.exec_cmd("systemctl --user start hyprpolkitagent")
+        -- A Hyprland restart takes the socket away: the agent exits, Restart=on-failure respawns
+        -- it against no display ~5 times in 2 s, and the unit trips its start limit — a plain
+        -- `start` within the next 10 s is refused ("repeated too quickly", 2026-09-07).
+        hl.exec_cmd("systemctl --user reset-failed hyprpolkitagent; systemctl --user start hyprpolkitagent")
         hl.exec_cmd("wgtray")
     end)
 end
