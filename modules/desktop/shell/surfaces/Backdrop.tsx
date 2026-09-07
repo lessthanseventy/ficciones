@@ -16,7 +16,7 @@ import Cairo from "cairo"
 import { showText } from "./Osd"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
-const TICK_MS = 120
+const TICK_MS = 200 // 5 fps: the ambient does not need more, and each frame is a full-surface paint per monitor
 const SWITCH_TICKS = Math.round(90_000 / TICK_MS)
 
 export const [zen, setZen] = createState(false)
@@ -59,28 +59,31 @@ class Canvas {
       for (let r = 0; r < ROWS; r++) this.rows[r][1](ls[r] ?? "")
     } else this.area?.queue_draw()
   }
-  /** the dot field: every lit dot a small rect in its cell's hue, cell size from the widget */
+  /** the dot field: every lit dot a small rect in its cell's hue. One fill per hue (≤5), not
+   * one per cell — 13k fills a frame was most of the cost; no antialiasing on the dots. */
   draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number, h: number) => {
     const g = this.grid
     const cw = w / COLS, ch = h / ROWS, dw = cw / 2, dh = ch / 4
-    const rw = dw * 0.7, rh = dh * 0.7
-    const rgb = new Map<number, [number, number, number]>()
-    const colour = (hue: number) => {
-      let c = rgb.get(hue)
-      if (!c) { const x = g.colour(hue).replace("#", ""); c = [parseInt(x.slice(0, 2), 16) / 255, parseInt(x.slice(2, 4), 16) / 255, parseInt(x.slice(4, 6), 16) / 255]; rgb.set(hue, c) }
-      return c
-    }
+    const rw = Math.max(1, Math.round(dw * 0.7)), rh = Math.max(1, Math.round(dh * 0.7))
+    const ox = (dw - rw) / 2, oy = (dh - rh) / 2
+    cr.setAntialias(Cairo.Antialias.NONE)
     // braille bit layout: left column bits 0,1,2,6 ; right column bits 3,4,5,7
     const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 2], [0x40, 0, 3], [0x08, 1, 0], [0x10, 1, 1], [0x20, 1, 2], [0x80, 1, 3]]
-    let last = -1
-    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-      const i = r * COLS + c
-      const d = g.dots[i]
-      if (!d) continue
-      const hue = g.hue[i]
-      if (hue !== last) { const [cr_, cg, cb] = colour(hue); cr.setSourceRGB(cr_, cg, cb); last = hue }
-      const x0 = c * cw, y0 = r * ch
-      for (const [bit, dx, dy] of BITS) if (d & bit) cr.rectangle(x0 + dx * dw + (dw - rw) / 2, y0 + dy * dh + (dh - rh) / 2, rw, rh)
+    const hues = new Set<number>()
+    for (let i = 0; i < g.dots.length; i++) if (g.dots[i]) hues.add(g.hue[i])
+    for (const hue of hues) {
+      const x = g.colour(hue).replace("#", "")
+      cr.setSourceRGB(parseInt(x.slice(0, 2), 16) / 255, parseInt(x.slice(2, 4), 16) / 255, parseInt(x.slice(4, 6), 16) / 255)
+      for (let r = 0; r < ROWS; r++) {
+        const y0 = r * ch
+        for (let c = 0; c < COLS; c++) {
+          const i = r * COLS + c
+          const d = g.dots[i]
+          if (!d || g.hue[i] !== hue) continue
+          const x0 = c * cw
+          for (const [bit, dx, dy] of BITS) if (d & bit) cr.rectangle(Math.round(x0 + dx * dw + ox), Math.round(y0 + dy * dh + oy), rw, rh)
+        }
+      }
       cr.fill()
     }
   }
