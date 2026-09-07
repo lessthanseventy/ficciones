@@ -244,6 +244,9 @@ popover.pop {
 .sys .item.cap { .icon { color: $amber; margin-right: 8px; margin-bottom: 1px; } &.live .icon, &.live .sm { color: $red; } &:hover .icon { color: $chip; } }
 .card-capture { border-color: $amber; .panel-title { color: $amber; } }
 .cap-row { padding: 0 $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } .cap-glyph { color: $green; } &.stop label { color: $red; } }
+// a shot row is a box, not a button: the hover lives on its two sinks
+.cap-shot { &:hover { background: none; } .act { padding: 0 $sp-2; min-height: $cell-h - 8px; } }
+.cap-wins { margin-left: $sp-4; label { color: $meta; } }
 
 // the bar's centre and its state glyphs
 .cell.nextup { padding: 0 $sp-3; .nextup-glyph { color: $cyan; } .nextup-text { color: $amber; } &.soon .nextup-glyph, &.soon .nextup-text { color: $accent; } }

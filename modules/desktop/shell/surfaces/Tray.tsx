@@ -13,7 +13,9 @@ import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 import { hoverPopover, type HoverPop } from "../lib/hover"
-import { volumeGlyph } from "../lib/icons"
+import { volumeGlyph, iconFor } from "../lib/icons"
+import { hypr, focusedWorkspace } from "../lib/hypr"
+import Pango from "gi://Pango?version=1.0"
 import { vpn, mullvad, mullvadToggle, wgConfigs, wgToggle } from "../lib/vpn"
 import { createPoll, timeout } from "ags/time"
 import { toggleLauncher } from "./Launcher"
@@ -296,6 +298,41 @@ function CaptureItem() {
       <box spacing={8}><label cssClasses={["cap-glyph"]} label={glyph} widthChars={2} /><label label={label} xalign={0} hexpand /></box>
     </button>
   )
+  // a shot row: the target, then where it goes — disk or clipboard (Andrew, 2026-09-07)
+  const Shot = ({ glyph, label, what }: { glyph: string; label: string; what: "region" | "monitor" | "window" }) => (
+    <box cssClasses={["cap-row", "cap-shot"]} spacing={8}>
+      <label cssClasses={["cap-glyph"]} label={glyph} widthChars={2} />
+      <label label={label} xalign={0} hexpand />
+      <button cssClasses={["act"]} tooltipText="save to ~/Pictures/Screenshots" onClicked={() => go(() => screenshot(what, "file"))}><label label={"\u{f0193}  disk"} /></button>
+      <button cssClasses={["act"]} tooltipText="copy to the clipboard" onClicked={() => go(() => screenshot(what, "clip"))}><label label={"\u{f018f}  copy"} /></button>
+    </box>
+  )
+  // any window, not just the focused one: a fold-out list of the workspace's windows, each with
+  // the two sinks (Andrew, 2026-09-07: "screenshot a window easily")
+  const [listOpen, setListOpen] = createState(false)
+  const wins = createComputed([focusedWorkspace, createBinding(hypr, "clients")], (ws, cs) =>
+    cs.filter((c) => c.mapped && c.workspace?.id === ws?.id).sort((a, b) => a.x - b.x))
+  const Windows = () => (
+    <box orientation={Gtk.Orientation.VERTICAL}>
+      <button cssClasses={["row", "cap-row"]} onClicked={() => setListOpen(!listOpen.get())}>
+        <box spacing={8}><label cssClasses={["cap-glyph"]} label={listOpen((o) => (o ? "\u{f0d7}" : "\u{f0da}"))} widthChars={2} /><label label="a window…" xalign={0} hexpand /></box>
+      </button>
+      <revealer revealChild={listOpen} transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}>
+        <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["cap-wins"]}>
+          <For each={wins}>
+            {(c) => (
+              <box cssClasses={["cap-row", "cap-shot"]} spacing={8}>
+                <image iconName={iconFor(c)} pixelSize={16} />
+                <label label={createBinding(c, "title")} xalign={0} hexpand ellipsize={Pango.EllipsizeMode.END} maxWidthChars={26} />
+                <button cssClasses={["act"]} tooltipText="save to ~/Pictures/Screenshots" onClicked={() => go(() => screenshot("window", "file", c.address))}><label label={"\u{f0193}"} /></button>
+                <button cssClasses={["act"]} tooltipText="copy to the clipboard" onClicked={() => go(() => screenshot("window", "clip", c.address))}><label label={"\u{f018f}"} /></button>
+              </box>
+            )}
+          </For>
+        </box>
+      </revealer>
+    </box>
+  )
   return (
     <menubutton cssClasses={recording((r) => ["item", "cap", ...(r ? ["live"] : [])])} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail") }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
@@ -305,10 +342,10 @@ function CaptureItem() {
       <popover cssClasses={["pop"]}>
         <Panel title={"\u{f030}  CAPTURE"} cssClasses={["card", "card-capture"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-            <Row glyph={"\u{f065}"} label="shot region" on={() => screenshot("region")} />
-            <Row glyph={"\u{f108}"} label="shot monitor" on={() => screenshot("monitor")} />
-            <Row glyph={"\u{f2d0}"} label="shot window" on={() => screenshot("window")} />
-            <Row glyph={"\u{f040}"} label="shot region → edit" on={() => screenshot("region", true)} />
+            <Shot glyph={"\u{f065}"} label="region" what="region" />
+            <Shot glyph={"\u{f108}"} label="monitor" what="monitor" />
+            <Shot glyph={"\u{f2d0}"} label="window" what="window" />
+            <Windows />
             <RuleH />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={recording((r) => !r)}>
               <Row glyph={"\u{f03d}"} label="record region" on={() => startRecording("region")} />
@@ -317,7 +354,7 @@ function CaptureItem() {
             <button cssClasses={["row", "cap-row", "stop"]} visible={recording((r) => !!r)} onClicked={() => { stopRecording(); pop?.close() }}>
               <box spacing={8}><label cssClasses={["cap-glyph", "red"]} label="■" widthChars={2} /><label label={recording((r) => `stop recording (${r ?? ""})`)} xalign={0} hexpand /></box>
             </button>
-            <label cssClasses={["dim", "sm"]} label="shots → ~/Pictures/Screenshots + clipboard · recordings → ~/Videos/Recordings" xalign={0} wrap maxWidthChars={40} />
+            <label cssClasses={["dim", "sm"]} label="shots are flameshot's (region/window: its selector) · recordings → ~/Videos/Recordings" xalign={0} wrap maxWidthChars={40} />
           </box>
         </Panel>
       </popover>
