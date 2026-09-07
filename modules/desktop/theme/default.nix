@@ -38,6 +38,7 @@ let
     "hypr-theme.lua" = r.hyprlandThemeLua + envLua;
     "hyprlock.conf" = r.hyprlockConf;
     "lazygit.yml" = r.lazygitConfig (tpl "lazygit.yml");
+    "starship.toml" = r.starshipConfig (tpl "starship.toml");
     "bat-config" = r.batConfig;
     "fzf.zsh" = r.fzfTheme;
     "cava.conf" = r.cavaConfig (tpl "cava.conf");
@@ -125,6 +126,9 @@ in
         # GTK 3/4: libadwaita's named colours + the font, over whichever theme draws the widgets.
         "gtk-3.0/gtk.css" = via "gtk.css";
         "gtk-4.0/gtk.css" = via "gtk.css";
+
+        # starship reads it at every prompt: the switch lands on the next line
+        "starship.toml" = via "starship.toml";
         "gtk-3.0/settings.ini".text = render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
         # libadwaita refuses gtk-application-prefer-dark-theme (a warning at every shell start); GTK 4
         # takes the scheme from the portal's color-scheme, which the theme switch sets

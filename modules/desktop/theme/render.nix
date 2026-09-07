@@ -530,6 +530,11 @@ rec {
   '';
 
   # ---- lazygit / bat / fzf / cava / tmux --------------------------------------------------
+  # starship: the prompt's chips are inverse video like the shell's (field = highlight, text = ink).
+  # Read at every prompt, so the theme switch reaches the next line with no restart.
+  starshipConfig = template:
+    fill (lib.replaceStrings [ "@GEN@" ] [ gen ] template) { inherit (h) ink cyan green amber violet red; };
+
   lazygitConfig = template:
     let
       # Built line by line: an indented '' string would strip the YAML indentation.
