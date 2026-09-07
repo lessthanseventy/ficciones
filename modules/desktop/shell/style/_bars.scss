@@ -117,8 +117,8 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
 
 .item {
   min-height: 0;
-  padding: 3px 0 1px;
-  .sm { margin-top: -3px; margin-bottom: -2px; }
+  padding: 2px 0;
+  .sm { margin-top: 1px; }
   background: none; border: none; box-shadow: none; border-radius: 0;
   // nerd glyphs ink right of their box: every icon nudged left so the column lines up
   .icon { font-size: $size-lg; margin-right: 4px; }
@@ -133,7 +133,9 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
 
   &:hover { background: $hover; }
 }
-menubutton.item > button { background: none; border: none; box-shadow: none; padding: 0; }
+// GTK gives a menubutton's inner button a 34px minimum: that, not padding, spread the strip
+menubutton.item > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; }
+menubutton.item > button > * { min-height: 0; }
 menubutton.item > button:hover { background: $hover; }
 
 .sys .item.sni { .icon { color: $meta; } &:hover .icon { color: $chip; } }
