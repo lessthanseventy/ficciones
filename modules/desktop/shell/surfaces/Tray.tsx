@@ -211,9 +211,9 @@ function Sni() {
   }
   return (
     <menubutton cssClasses={["item", "sni"]} direction={Gtk.ArrowType.RIGHT} visible={items((l) => l.length > 0)} $={(self) => hoverPopover(self, "rail")}>
-      <box orientation={Gtk.Orientation.VERTICAL}>
-        <label cssClasses={["icon"]} label={"\u{f00a}"} />
-        <label cssClasses={["sm"]} label={items((l) => String(l.length))} />
+      <box orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.CENTER}>
+        <label cssClasses={["icon"]} label={"\u{f00a}"} halign={Gtk.Align.CENTER} xalign={0.5} />
+        <label cssClasses={["sm"]} label={items((l) => String(l.length))} halign={Gtk.Align.CENTER} xalign={0.5} />
       </box>
       <popover cssClasses={["pop"]}>
         <Panel title={"\u{f00a}  TRAY"} cssClasses={["card", "card-tray"]}>
@@ -322,10 +322,12 @@ function CaptureItem() {
   )
 }
 
+const items = createBinding(Tray.get_default(), "items")
 export default function TrayPane() {
   return (
     <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={2}>
       <Sni />
+      <RuleH visible={items((l) => l.length > 0)} />
       <CaptureItem />
       <ClipItem />
       <Net />

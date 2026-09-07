@@ -61,4 +61,4 @@ export function Stat({ k, v, cssClasses = [] }: { k: string; v: Text; cssClasses
 
 /** 1px separators for the cell grid. */
 export const RuleV = ({ visible }: { visible?: Accessor<boolean> } = {}) => <box cssClasses={["rule-v"]} visible={visible ?? true} />
-export const RuleH = () => <box cssClasses={["rule-h"]} />
+export const RuleH = ({ visible }: { visible?: Accessor<boolean> } = {}) => <box cssClasses={["rule-h"]} visible={visible ?? true} />
