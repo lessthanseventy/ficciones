@@ -124,13 +124,16 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
   .icon { font-size: $size-lg; margin-right: 4px; }
   &.dim  * { color: $meta; }
   &.live * { color: $green; }
-  &.net .icon { color: $cyan; margin-right: 6px; }   // the glyph inks right of its box: 3px left
+  &.net { margin-top: -1px; }
+  &.net .icon { color: $cyan; margin-right: 6px; margin-bottom: -3px; }   // the glyph inks right of its box: 3px left
   &.net .sm { font-size: 9px; letter-spacing: -1px; }   // block glyphs are wide; the meter must fit 48px
-  &.bt .icon { margin-right: 0; margin-left: 2px; }
+  &.bt { margin-top: 3px; }
+  &.bt .icon { margin-right: 0; margin-left: 2px; margin-bottom: -4px; }
   &.bt.live .icon { color: $arch-assistant; }
   &.agents .icon { color: $accent; margin-right: 8px; }   // pink always; the glyph inks right of its box, so 4px left
   &.agents.await * { color: $accent; }        // someone awaits you: the number too
-  &.vol .icon { font-size: 22px; color: $amber; margin-right: 0; margin-left: 1px; }   // measured: inked 3.5 left with the 6px nudge
+  &.vol { margin-top: -5px; }
+  &.vol .icon { font-size: 22px; color: $amber; margin-right: 0; margin-left: 1px; margin-bottom: -4px; }   // measured: inked 3.5 left with the 6px nudge
 
   &:hover { background: $hover; }
 }
@@ -141,7 +144,7 @@ menubutton.item > button:hover { background: $hover; }
 
 // per-glyph nudges, MEASURED (ink centre vs the rail's centre x=23, 2026-09-07): grid +3.5,
 // camera +2, clipboard +1.5, bluetooth −3 — each glyph inks its own way
-.sys .item.sni { .icon { color: $meta; margin-right: 7px; } &:hover .icon { color: $chip; } }
+.sys .item.sni { .icon { color: $meta; margin-right: 7px; margin-bottom: -1px; } margin-bottom: -3px; &:hover .icon { color: $chip; } }
 .card-tray { border-color: $meta; .panel-title { color: $meta; } }
 .tray-row { padding: 0 0 0 $sp-2; min-height: $cell-h; }
 .tray-hit { padding: 0; min-height: 0; &:hover { background: $hover; } }
@@ -222,7 +225,7 @@ popover.pop {
   &:hover .shot { border-color: $chip; }
   .cap { background: $bg; padding: 1px 6px; margin: 0 0 $rule $rule; label { color: $meta; } }
 }
-.sys .item.clip { .icon { color: $amber; margin-right: 7px; } .sm { color: $meta; } &:hover .icon { color: $chip; } }
+.sys .item.clip { .icon { color: $amber; margin-right: 7px; margin-bottom: 1px; } .sm { color: $meta; } &:hover .icon { color: $chip; } }
 .card-clip .panel-title { color: $amber; }
 .clip-row { padding: 2px $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } }
 
@@ -236,6 +239,6 @@ popover.pop {
 .card-log       { border-color: $amber; .panel-title { color: $amber; } }
 // the screen is being captured: red field, black ink — the one thing that must not be missed
 .cell.rec { background: $red; padding: 0 $sp-3; margin-right: $sp-2; .rec-dot, .rec-text, .rec-who { color: $ink; } .rec-who { font-size: $size-sm; } }
-.sys .item.cap { .icon { color: $amber; margin-right: 8px; } &.live .icon, &.live .sm { color: $red; } &:hover .icon { color: $chip; } }
+.sys .item.cap { .icon { color: $amber; margin-right: 8px; margin-bottom: 1px; } &.live .icon, &.live .sm { color: $red; } &:hover .icon { color: $chip; } }
 .card-capture { border-color: $amber; .panel-title { color: $amber; } }
 .cap-row { padding: 0 $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } .cap-glyph { color: $green; } &.stop label { color: $red; } }
