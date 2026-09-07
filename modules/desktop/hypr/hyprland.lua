@@ -539,7 +539,7 @@ bind(M .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 -- ----- Screenshots -----
 bind(M .. " + SHIFT + S", exec(shell .. "/shot-region.sh"))
 bind("CTRL + " .. M .. " + S", exec(shell .. "/shot-region.sh repeat"))
-bind(M .. " + SHIFT + CTRL + S", exec([[bash -c 'grim -o "$(hyprctl monitors -j | jq -r ".[] | select(.focused) | .name")" - | swappy -f -']]))
+bind(M .. " + SHIFT + CTRL + S", exec(shell .. "/shell-req.sh capture shot monitor"))
 -- the shell's capture (the rail's camera item): file + clipboard + a notice, one path for all
 bind("ALT + Print", exec(shell .. "/shell-req.sh capture shot window"))
 bind("Print", exec(shell .. "/shell-req.sh capture shot monitor"))
