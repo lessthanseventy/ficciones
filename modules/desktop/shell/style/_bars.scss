@@ -117,8 +117,8 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
 
 .item {
   min-height: 0;
-  padding: 0;
-  .sm { margin-top: -3px; }
+  padding: 3px 0 1px;
+  .sm { margin-top: -3px; margin-bottom: -2px; }
   background: none; border: none; box-shadow: none; border-radius: 0;
   // nerd glyphs ink right of their box: every icon nudged left so the column lines up
   .icon { font-size: $size-lg; margin-right: 4px; }
