@@ -1,6 +1,6 @@
 // The right-hand hub: a column of cards beside the right edge — notification history grouped
 // by app. Opens when the pointer parks on the right edge (a 2px hot
-// strip), on Super+N, or `astal-shell toggle hub`; closes when the pointer leaves it, or Esc.
+// strip), on Super+N, or `astal-shell toggle hub`; closes on Esc / q or a click outside.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -11,7 +11,7 @@ import Bluetooth from "gi://AstalBluetooth"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import Hyprland from "gi://AstalHyprland"
 import { createBinding, createComputed, createState } from "ags"
-import { timeout, interval, type Timer } from "ags/time"
+import { interval } from "ags/time"
 import { query } from "../lib/hyprsock"
 import { subprocess, execAsync, type Process } from "ags/process"
 import GLib from "gi://GLib?version=2.0"
@@ -19,7 +19,7 @@ import { Panel, RuleH } from "../lib/tui"
 import { NoticeCard, groups } from "./Notifications"
 import { VList } from "../lib/vlist"
 import { isFullscreen } from "../lib/hypr"
-import { showDeck, hideDeck, deckVisible, deckMonitor } from "./Deck"
+import { showDeck, deckVisible } from "./Deck"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
 import { zen, setBackdrop } from "./Backdrop"
@@ -84,33 +84,12 @@ export function toggleHub() {
 export function startHotEdge() {
   let since = 0
   let armedFor: string | null = null
-  let away = 0
   interval(200, () => {
     let x = 0, y = 0
     try { [x, y] = query("cursorpos").split(",").map((v) => Number(v.trim())) } catch { return }
-    if (hubWin?.visible) {
-      // open: close once the pointer has been off the hub's monitor-right column for a second
-      since = 0
-      const name = hubWin.gdkmonitor?.connector
-      const m = Hyprland.get_default().get_monitors().find((mm) => mm.name === name)
-      const inside = m ? x >= m.x + m.width - 440 && x < m.x + m.width && y >= m.y && y < m.y + m.height : true
-      if (inside) away = 0
-      else if (!away) away = Date.now()
-      else if (Date.now() - away > 1000) { away = 0; hideHub() }
-      return
-    }
-    if (deckVisible()) {
-      // the deck's drawer closes the same way: a second off its monitor
-      since = 0
-      const name = deckMonitor()
-      const m = Hyprland.get_default().get_monitors().find((mm) => mm.name === name)
-      const inside = m ? x >= m.x && x < m.x + m.width && y >= m.y + m.height - 480 && y < m.y + m.height : true
-      if (inside) away = 0
-      else if (!away) away = Date.now()
-      else if (Date.now() - away > 1000) { away = 0; hideDeck() }
-      return
-    }
-    away = 0
+    // open: nothing here — the hub and the deck close on Esc or a click outside, not on the
+    // pointer leaving (Andrew, 2026-09-07)
+    if (hubWin?.visible || deckVisible()) { since = 0; return }
     const mons = Hyprland.get_default().get_monitors()
     const right = mons.find((m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y && y < m.y + m.height)
     const bottom = mons.find((m) => y >= m.y + m.height - 2 && y < m.y + m.height && x >= m.x && x < m.x + m.width)
@@ -129,14 +108,6 @@ export function startHotEdge() {
 }
 
 export default function Hub() {
-  let leave: Timer | null = null
-  const motion = new Gtk.EventControllerMotion()
-  motion.connect("enter", () => { leave?.cancel(); leave = null })
-  // a button press inside emits a synthetic leave (implicit grab), so the grace timer re-checks
-  motion.connect("leave", () => {
-    leave?.cancel()
-    leave = timeout(600, () => { if (hubWin && !motion.containsPointer) hideHub() })
-  })
   const keys = new Gtk.EventControllerKey()
   keys.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape || kv === Gdk.KEY_q ? (hideHub(), true) : false))
   return (
@@ -170,7 +141,7 @@ export default function Hub() {
           self.add_controller(g)
         }}
       />
-      <box cssClasses={["sheet", "right"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.END} $={(self) => self.add_controller(motion)}>
+      <box cssClasses={["sheet", "right"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.END}>
         <Panel title={"\u{f009a}  NOTIFICATIONS"} cssClasses={["card", "card-notices"]}><History /></Panel>
       </box>
       </box>

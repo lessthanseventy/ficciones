@@ -10,7 +10,6 @@ import Gdk from "gi://Gdk?version=4.0"
 import Mpris from "gi://AstalMpris"
 import Hyprland from "gi://AstalHyprland"
 import { For, createBinding, createComputed, createState, type Accessor } from "ags"
-import { timeout, type Timer as T } from "ags/time"
 import { Panel } from "../lib/tui"
 import { VList } from "../lib/vlist"
 import { log, hhmm, type Entry, type Src } from "../lib/log"
@@ -24,7 +23,7 @@ import { armClickaway, disarmClickaway } from "./Clickaway"
 import { hoverPopover } from "../lib/hover"
 
 const TAIL = 6
-const SRCS: Src[] = ["shell", "notice", "agent", "hypr", "journal"]
+const SRCS: Src[] = ["shell", "notice", "agent", "hypr", "journal", "sys"]
 
 // ── shared derived state ──────────────────────────────────────────────────────────────────
 // lazily: Notifications imports Hub imports Deck, so `groups` is not bound at our load time
@@ -57,7 +56,8 @@ function Line({ e, wide = false }: { e: Entry; wide?: boolean }) {
     <box spacing={6} cssClasses={["logline", e.level]}>
       <label cssClasses={["dim", "sm"]} label={hhmm(e.t)} />
       <label cssClasses={["src", `src-${e.src}`]} label={e.src} widthChars={wide ? 7 : 0} xalign={0} />
-      <label cssClasses={["text"]} label={e.text} ellipsize={3} maxWidthChars={wide ? 120 : 44} xalign={0} hexpand={wide} />
+      <label cssClasses={["text"]} label={e.text} ellipsize={3} maxWidthChars={wide ? 120 : 56} xalign={0} hexpand={wide} />
+      <label cssClasses={["dim", "sm"]} label={`×${e.count}`} visible={e.count > 1} />
     </box>
   )
 }
@@ -156,20 +156,25 @@ export const deckVisible = () => !!deckWin?.visible
 export const deckMonitor = () => deckWin?.gdkmonitor?.connector
 
 function LogPane() {
-  const [off, setOff] = createState<Set<Src>>(new Set())
-  const shown = createComputed([log, off], (l, o) => [...l].reverse().filter((e) => !o.has(e.src)))
+  // "all", or the sources picked — picking filters IN (Andrew, 2026-09-07); empty = all
+  const [sel, setSel] = createState<Set<Src>>(new Set())
+  const shown = createComputed([log, sel], (l, o) => [...l].reverse().filter((e) => o.size === 0 || o.has(e.src)))
+  const toggle = (src: Src) => setSel((o) => { const n = new Set(o); n.has(src) ? n.delete(src) : n.add(src); return n })
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
       <box spacing={6} cssClasses={["deck-filters"]}>
+        <button cssClasses={sel((o) => ["filter", "src-all", ...(o.size === 0 ? ["chip"] : ["off"])])} onClicked={() => setSel(new Set())}>
+          <label label="all" />
+        </button>
         {SRCS.map((s) => (
-          <button cssClasses={off((o) => ["filter", `src-${s}`, ...(o.has(s) ? ["off"] : ["chip"])])} onClicked={() => setOff((o) => { const n = new Set(o); n.has(s) ? n.delete(s) : n.add(s); return n })}>
+          <button cssClasses={sel((o) => ["filter", `src-${s}`, ...(o.has(s) ? ["chip"] : ["off"])])} onClicked={() => toggle(s)}>
             <label label={s} />
           </button>
         ))}
         <label cssClasses={["dim", "sm"]} label={shown((l) => `${l.length}`)} hexpand xalign={1} />
       </box>
       <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
-        <VList items={shown} id={(e) => String(e.id)} render={(e) => (<Line e={e} wide />) as Gtk.Widget} />
+        <VList items={shown} id={(e) => String(e.id)} equal={(a, b) => a.count === b.count} render={(e) => (<Line e={e} wide />) as Gtk.Widget} />
       </scrolledwindow>
     </box>
   )
@@ -205,15 +210,9 @@ function TimerPane() {
 }
 
 export default function Deck() {
-  let leave: T | null = null
-  const motion = new Gtk.EventControllerMotion()
-  motion.connect("enter", () => { leave?.cancel(); leave = null })
-  motion.connect("leave", () => {
-    leave?.cancel()
-    leave = timeout(600, () => { if (deckWin && !motion.containsPointer) hideDeck() })
-  })
+  // closes on Esc / q or a click outside — not on the pointer leaving
   const keys = new Gtk.EventControllerKey()
-  keys.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape ? (hideDeck(), true) : false))
+  keys.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape || kv === Gdk.KEY_q ? (hideDeck(), true) : false))
   return (
     <window
       $={(self) => {
@@ -241,7 +240,7 @@ export default function Deck() {
           vexpand
           $={(self) => { const g = new Gtk.GestureClick({ button: 0 }); g.connect("pressed", () => hideDeck()); self.add_controller(g) }}
         />
-        <box cssClasses={["sheet", "bottom"]} spacing={12} heightRequest={400} vexpand={false} valign={Gtk.Align.END} $={(self) => self.add_controller(motion)}>
+        <box cssClasses={["sheet", "bottom"]} spacing={12} heightRequest={400} vexpand={false} valign={Gtk.Align.END}>
           <Panel title={"\u{f0a0d}  LOG"} cssClasses={["card", "card-log"]} hexpand><LogPane /></Panel>
           <Panel title={"\u{f075a}  MEDIA"} cssClasses={["card", "card-media"]}><MediaCard /></Panel>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
