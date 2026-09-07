@@ -1,4 +1,6 @@
 export const pct = (p: number) => `${Math.round(p * 100)}%`
+/** For a gauge cell: two digits always ("03%"), so the unit never moves. */
+export const pct2 = (p: number) => `${String(Math.max(0, Math.min(999, Math.round(p * 100)))).padStart(2, "0")}%`
 
 /** 4-cell text meter: `▮▮▯▯` — the rail is too narrow for words like "medium". */
 export function meter(frac: number, cells = 4): string {

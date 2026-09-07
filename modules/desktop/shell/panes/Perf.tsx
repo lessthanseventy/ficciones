@@ -1,8 +1,8 @@
 // The perf metrics: one definition each, shared by the bar cells and their dropdowns.
 import Gtk from "gi://Gtk?version=4.0"
 import type { Accessor } from "ags"
-import { pct, spark } from "../lib/format"
-import { perf, tier, rate, stats, NET_HOT, CORE_HIST } from "../lib/perf"
+import { pct, pct2, spark } from "../lib/format"
+import { perf, tier, rate, rate4, stats, NET_HOT, CORE_HIST } from "../lib/perf"
 import { topCpu, topMem, addrs, kill, ROWS, type Proc } from "../lib/top"
 import { RuleH } from "../lib/tui"
 import { createComputed, createState } from "ags"
@@ -20,10 +20,10 @@ export type Metric = {
 }
 
 export const METRICS: Metric[] = [
-  { key: "CPU", frac: perf((p) => p.cpu), num: perf((p) => pct(p.cpu)), hist: perf((p) => p.cpuHist), detail: perf((p) => `load ${p.load1.toFixed(2)}`), fmt: pct },
-  { key: "RAM", frac: perf((p) => p.mem), num: perf((p) => pct(p.mem)), hist: perf((p) => p.memHist), detail: perf((p) => `${p.memUsedGb.toFixed(1)} of ${p.memTotalGb.toFixed(0)} GB`), fmt: pct },
-  { key: "GPU", frac: gpu((g) => g.util), num: gpu((g) => (g.ok ? pct(g.util) : "off")), hist: gpu((g) => g.hist.flatMap((x) => [x, x, x, x, x])), detail: gpu((g) => (g.ok ? `${g.temp}°C   ${g.watts.toFixed(0)} W` : "nvidia is off")), fmt: pct, ok: gpu((g) => g.ok) },
-  { key: "NET", frac: perf((p) => Math.min(1, p.netHist.at(-1) ?? 0)), num: perf((p) => rate(p.rx + p.tx)), hist: perf((p) => p.netHist), detail: perf((p) => `↓ ${rate(p.rx)}/s   ↑ ${rate(p.tx)}/s`), fmt: (x) => rate(x * NET_HOT) + "/s" },
+  { key: "CPU", frac: perf((p) => p.cpu), num: perf((p) => pct2(p.cpu)), hist: perf((p) => p.cpuHist), detail: perf((p) => `load ${p.load1.toFixed(2)}`), fmt: pct },
+  { key: "RAM", frac: perf((p) => p.mem), num: perf((p) => pct2(p.mem)), hist: perf((p) => p.memHist), detail: perf((p) => `${p.memUsedGb.toFixed(1)} of ${p.memTotalGb.toFixed(0)} GB`), fmt: pct },
+  { key: "GPU", frac: gpu((g) => g.util), num: gpu((g) => (g.ok ? pct2(g.util) : " off")), hist: gpu((g) => g.hist.flatMap((x) => [x, x, x, x, x])), detail: gpu((g) => (g.ok ? `${g.temp}°C   ${g.watts.toFixed(0)} W` : "nvidia is off")), fmt: pct, ok: gpu((g) => g.ok) },
+  { key: "NET", frac: perf((p) => Math.min(1, p.netHist.at(-1) ?? 0)), num: perf((p) => rate4(p.rx + p.tx)), hist: perf((p) => p.netHist), detail: perf((p) => `↓ ${rate(p.rx)}/s   ↑ ${rate(p.tx)}/s`), fmt: (x) => rate(x * NET_HOT) + "/s" },
 ]
 
 /** A dim key with a body value, inline. */
