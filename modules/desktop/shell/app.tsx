@@ -1,3 +1,5 @@
+import GObject from "gi://GObject?version=2.0"
+import Gdk from "gi://Gdk?version=4.0"
 import app from "ags/gtk4/app"
 import { createBinding, For, This } from "ags"
 import style from "./style/main.scss"
@@ -121,7 +123,10 @@ app.start({
     res("usage: astal-shell capture … | toggle drawer|hub|deck|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
-    const monitors = createBinding(app, "monitors")
+    // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;
+    // a stock `ags init` project fails the same way), so it is seen through gnim's here
+    const gapp = app as unknown as GObject.Object & { monitors: Gdk.Monitor[] }
+    const monitors = createBinding(gapp, "monitors")
     // gnim cannot nest a <For> inside a fragment, so the drawer is created outright and the
     // per-monitor bars come back as the tree.
     Notifications()
@@ -140,8 +145,8 @@ app.start({
     Osd()
     return (
       <For each={monitors}>
-        {(monitor) => (
-          <This this={app}>
+        {(monitor: Gdk.Monitor) => (
+          <This this={gapp}>
             {/* in this order: layer-shell arranges by mapping order, so the rail keeps the full
                 height and the bar and the deck's row both start after it */}
             <Rail gdkmonitor={monitor} />
