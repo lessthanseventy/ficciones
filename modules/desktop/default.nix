@@ -59,9 +59,17 @@ in
     home.file.".local/bin/ficciones-recolor" = { source = ./scripts/ficciones-recolor; executable = true; };
     home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
 
-    # terminal file managers on trial as THE picker (a termfilechooser portal wraps one of them);
-    # yazi was pacman's before, lf/vifm are new (2026-09-07)
-    home.packages = [ pkgs.yazi pkgs.lf pkgs.vifm ];
+    home.packages = with pkgs; [
+      # terminal file managers on trial as THE picker (a termfilechooser portal wraps one of them);
+      # yazi was pacman's before, lf/vifm are new (2026-09-07)
+      yazi lf vifm
+      # user-level tools moved off pacman (2026-09-07 survey): the flake owns what the next box
+      # needs; pacman keeps the kernel, drivers, Hyprland and its ecosystem until NixOS
+      fastfetch fd lazygit jujutsu gh rclone tokei zenith lnav flyctl mise
+      # pandoc from the binary cache — pacman's built it locally through ~190 haskell-* packages
+      pandoc
+      signal-desktop slack discord podman-desktop audacity strawberry
+    ];
 
     xdg.configFile = {
       # portals: hyprland for screencast/screenshot, gtk for the rest — including the file

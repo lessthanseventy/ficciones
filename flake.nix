@@ -36,7 +36,8 @@
     let
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      # imported, not legacyPackages: slack is unfree (the NixOS module allows it on its own side)
+      pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
 
       # Hardcoded, not `self`: consumers load the REAL files so a dev edit is picked up,
       # not a stale store snapshot. Single-user machine, fixed home dir.
