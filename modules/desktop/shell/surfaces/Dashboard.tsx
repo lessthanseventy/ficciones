@@ -142,9 +142,10 @@ export default function Dashboard() {
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.ON_DEMAND}
       exclusivity={Astal.Exclusivity.IGNORE}
+      // the whole monitor, rail and bar included: a click ANYWHERE outside the board closes —
+      // the rail's corner too, which stopped taking a second click once this window held
+      // the keyboard (its pointer crossing state went with it; Andrew, 2026-09-07)
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.RIGHT}
-      marginTop={36}
-      marginLeft={54}
       application={app}
       visible={false}
     >
@@ -160,7 +161,7 @@ export default function Dashboard() {
             self.add_controller(g)
           }}
         />
-        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={4} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={16} marginBottom={24} marginStart={16} marginEnd={16}>
+        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={4} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={36 + 16} marginBottom={24} marginStart={54 + 16} marginEnd={16}>
           {/* three rows, packed to fit 1920×1080 with the rail and bar: the tall weather card sets
               row one's height and the columns beside it stack two cards each */}
           <box spacing={16}>
