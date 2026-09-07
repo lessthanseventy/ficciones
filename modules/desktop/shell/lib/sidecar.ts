@@ -8,8 +8,9 @@
 // input region is empty, so clicks fall through to the pinned window under it. Widening the
 // rail's own zone instead squeezed the bar and did not shrink back on unpin. Unpin reverses
 // all of it. One sidecar per monitor. It should not feel like a special
-// window (Andrew, 2026-09-05): the normal resize keybinds size it and the column follows; what
-// marks it is a thicker border in the accent (per-window setprop — no plugin).
+// window (Andrew, 2026-09-05): the normal resize keybinds size it and the column follows. It is
+// a regular window with a thicker border (3px, per-window setprop) whose OUTER edge sits where a
+// tiled window's border edge does, and one extra ring around it (Andrew, 2026-09-07).
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Hyprland from "gi://AstalHyprland"
@@ -23,11 +24,19 @@ import { L, dispatch, evalLua } from "./hyprlua"
 import { timeout, interval, type Timer } from "ags/time"
 import { query } from "./hyprsock"
 import { hypr, addr } from "./hypr"
-import { PALETTE } from "./palette"
+import { createState } from "ags"
 
 const WIDTH = 0.34 // of the monitor, until resized
 const GAP = 12 // general:gaps_out
 const MIN = 0.18, MAX = 0.65
+// the sidecar's border: thicker than general:border_size (2), set per window; the surface sits
+// inside the gap by this much, so the border's outer edge lines up with the tiled windows'
+const border = 3
+const setBorder = (a: string, on: boolean) => L.setProp(a, "border_size", on ? String(border) : "unset")
+/** The sidecar's address per monitor name — the bar's pin/unpin label reads this, not Hyprland's
+ * `pinned` (the quake terminal and PiP are pinned too, and are not sidecars). */
+export const [sidecarAddrs, setSidecarAddrs] = createState<Record<string, string>>({})
+const publish = () => setSidecarAddrs(Object.fromEntries([...sidecars].map(([n, s]) => [n, s.address])))
 
 type MonitorJson = { name: string; x: number; y: number; width: number; height: number; reserved: [number, number, number, number] }
 type Sidecar = { address: string; zone: Astal.Window; frame: Astal.Window; col: number; m: MonitorJson; width: number }
@@ -83,10 +92,11 @@ function makeZone(name: string, col: number): Astal.Window {
 // the column, always pink: "this is the sidecar" — and Hyprland's own border inside it carrying
 // focus as every window does, amber focused / dim not (Andrew, 2026-09-06). No plugin: borders-plus-plus rings every window and its only per-window
 // switch (`decorate`) would take the shadows off everything else.
-const RING = 2, RING_GAP = 3, BORDER = 3
+const RING = 2, RING_GAP = 3
+const inset = () => border + RING_GAP + RING
 function makeFrame(name: string, m: MonitorJson, col: number, address: string): Astal.Window {
   const [rl, rt, , rb] = m.reserved
-  const inset = BORDER + RING_GAP + RING
+  const inset = border + RING_GAP + RING
   const w = new Astal.Window({
     application: app,
     namespace: "astal-shell-sidecar-frame",
@@ -95,13 +105,13 @@ function makeFrame(name: string, m: MonitorJson, col: number, address: string): 
     layer: Astal.Layer.TOP,
     exclusivity: Astal.Exclusivity.IGNORE,
     anchor: Astal.WindowAnchor.LEFT | Astal.WindowAnchor.TOP,
-    marginLeft: rl + GAP - inset,
-    marginTop: rt + GAP - inset,
+    marginLeft: rl + GAP + border - inset,
+    marginTop: rt + GAP + border - inset,
     cssClasses: ["sidecar-frame-win"],
   })
   const ring = new Gtk.Box({ cssClasses: ["sidecar-frame"], hexpand: true, vexpand: true, canTarget: false })
   w.set_child(ring)
-  frameSize(w, col - GAP + 2 * inset, m.height - rt - rb - 2 * GAP + 2 * inset)
+  frameSize(w, surfW(col) + 2 * inset, m.height - rt - rb - 2 * GAP - 2 * border + 2 * inset)
   w.visible = true
   w.get_surface()?.set_input_region(new Cairo.Region())
   return w
@@ -116,10 +126,14 @@ function frameSize(w: Astal.Window, width: number, height: number) {
 
 const batch = (cmds: string[]) => dispatch(...cmds)
 
+// the column is `col` wide from the monitor's left edge; the window's box (border included)
+// fills it past the gap, as a tiled column's would: surface = box less the border on each side
+const surfW = (col: number) => col - GAP - 2 * border
+const colOf = (surfaceWidth: number) => surfaceWidth + GAP + 2 * border
 const placeCmds = (address: string, m: MonitorJson, col: number) => {
   const [rl, rt, , rb] = m.reserved
   const a = `address:0x${address.replace(/^0x/, "")}`
-  return [L.resizeExact(a, col - GAP, m.height - rt - rb - 2 * GAP), L.moveExact(a, m.x + rl + GAP, m.y + rt + GAP)]
+  return [L.resizeExact(a, surfW(col), m.height - rt - rb - 2 * GAP - 2 * border), L.moveExact(a, m.x + rl + GAP + border, m.y + rt + GAP + border)]
 }
 /** Place the pinned window in a column `col` px wide on monitor `m`. */
 const place = (address: string, m: MonitorJson, col: number) => batch(placeCmds(address, m, col))
@@ -150,12 +164,12 @@ function startFollowing() {
 function follow(name: string, width: number) {
   const s = sidecars.get(name)
   if (!s) return
-  const col = Math.max(Math.round(s.m.width * MIN), Math.min(Math.round(s.m.width * MAX), width + GAP))
-  s.width = col - GAP
+  const col = Math.max(Math.round(s.m.width * MIN), Math.min(Math.round(s.m.width * MAX), colOf(width)))
+  s.width = surfW(col)
   if (col !== s.col) {
     s.col = col
     LayerShell.set_exclusive_zone(s.zone, col)
-    frameSize(s.frame, col - GAP + 2 * (BORDER + RING_GAP + RING), s.frame.get_height())
+    frameSize(s.frame, surfW(col) + 2 * inset(), s.frame.get_height())
     widths.set(name, col / s.m.width); saveWidths()
     // the tiled columns re-fit on a relayout, which also shoves floating windows about: place
     // again after it and keep the poll quiet until things settle
@@ -187,25 +201,6 @@ async function relayout() {
   if (f && f.mapped && !f.floating) await dispatch(L.layout("fit visible"))
 }
 
-const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
-/** The mark of a sidecar: a thicker border in the accent, dim when unfocused. `unset` restores. */
-// setprop is a dispatcher in Hyprland 0.56 (snake_case props). `unset` restores border_size but
-// leaves the colour props as an EMPTY gradient (no border at all), so unmarking writes the
-// global gradients back explicitly.
-async function mark(a: string, on: boolean) {
-  if (on) return batch([L.setProp(a, "border_size", "3"), L.setProp(a, "active_border_color", rgb(PALETTE.amber)), L.setProp(a, "inactive_border_color", rgb(PALETTE.dim))])
-  // getoption gives "aarrggbb aarrggbb 45deg" (as `gradient` under the .lua config, `custom`
-  // before it); setprop only renders rgba()/rgb() stops
-  const opt = async (k: string) => {
-    const o = JSON.parse(await execAsync(["hyprctl", "getoption", k, "-j"]))
-    const raw = ((o.gradient ?? o.custom) as string | undefined ?? "").trim()
-    if (!raw) { console.warn(`sidecar: no gradient in ${k}`); return `rgb(${PALETTE.amber.replace("#", "")})` }
-    return raw.split(/\s+/).map((t) => (/^[0-9a-f]{8}$/i.test(t) ? `rgba(${t.slice(2)}${t.slice(0, 2)})` : t)).join(" ")
-  }
-  const [act, ina] = await Promise.all([opt("general:col.active_border"), opt("general:col.inactive_border")])
-  return batch([L.setProp(a, "border_size", "unset"), L.setProp(a, "active_border_color", act), L.setProp(a, "inactive_border_color", ina)])
-}
-
 export const isSidecar = (c: Hyprland.Client) => [...sidecars.values()].some((s) => s.address === c.address)
 
 export async function pinSidecar(c: Hyprland.Client) {
@@ -223,12 +218,12 @@ export async function pinSidecar(c: Hyprland.Client) {
   const a = addr(c)
   // a fullscreen or maximised window (hyprscroller's maximise counts) cannot float, and a tiled
   // one cannot pin — Hyprland refused both silently until the batch reported them
-  await batch([L.fullscreenState(a, 0, 0), L.float(a, "on"), ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [L.pin(a)])])
-  mark(a, true)
+  await batch([L.fullscreenState(a, 0, 0), L.float(a, "on"), setBorder(a, true), ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [L.pin(a)])])
   settleUntil = Date.now() + 1200
   timeout(80, relayout)
   timeout(400, () => place(c.address, m, col))
-  sidecars.set(name, { address: c.address, zone: makeZone(name, col), frame: makeFrame(name, m, col, c.address), col, m, width: col - GAP })
+  sidecars.set(name, { address: c.address, zone: makeZone(name, col), frame: makeFrame(name, m, col, c.address), col, m, width: surfW(col) })
+  publish()
   startFollowing()
 }
 
@@ -236,9 +231,10 @@ function drop(name: string) {
   const s = sidecars.get(name)
   if (!s) return
   const c = hypr.get_client(s.address)
-  if (c) mark(addr(c), false)
+  if (c) batch([setBorder(addr(c), false)])
   s.zone.destroy(); s.frame.destroy()
   sidecars.delete(name)
+  publish()
 }
 
 export async function unpinSidecar(c: Hyprland.Client) {

@@ -16,7 +16,7 @@ import { For, createBinding, createComputed, createState, onCleanup, type Access
 import { createPoll, interval, type Timer } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, focusedClient, focusedWorkspace, addr } from "../lib/hypr"
-import { toggleSidecar } from "../lib/sidecar"
+import { toggleSidecar, sidecarAddrs } from "../lib/sidecar"
 import { hoverPopover } from "../lib/hover"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import { external, brightness, setBrightness, stepBrightness } from "../lib/brightness"
@@ -79,7 +79,7 @@ function Windows({ connector }: { connector: string }) {
                   <RuleH />
                   <box spacing={6} cssClasses={["winacts"]}>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.float(w))}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
-                    <button cssClasses={["act"]} onClicked={() => toggleSidecar(c)}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
+                    <button cssClasses={["act"]} onClicked={() => toggleSidecar(c)}><label label={sidecarAddrs((m) => (Object.values(m).includes(c.address) ? "unpin" : "pin"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.fullscreen(w, "fullscreen"))}><label label="fullscreen" /></button>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.moveToWorkspace(w, "special:magic", true))}><label label="to special" /></button>
                     <box hexpand />

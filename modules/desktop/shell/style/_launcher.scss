@@ -40,10 +40,10 @@ window.backdrop { background: $bg; }
 // the sidecar zone: invisible (its exclusive zone is explicit, so the 200px surface GTK gives an
 // invisible content-less window does not matter)
 window.sidecar-zone { background: transparent; }
-// the sidecar's outer ring: 2px, always pink; the radius follows Hyprland's rounding (8) plus
-// the gap to it. Focus is on the inner border, as on every window.
+// the sidecar's outer ring: 2px, always pink; outer radius = rounding (8) + border (3) + the 3px
+// gap + the ring (2), so it stays concentric with the window's own border, which carries focus.
 window.sidecar-frame-win { background: transparent; }
-.sidecar-frame { border: 2px solid $accent; border-radius: 13px; background: transparent; }
+.sidecar-frame { border: 2px solid $accent; border-radius: 16px; background: transparent; }
 .backdrop .grid .gl { color: $amber; font-size: 14px; letter-spacing: 0; min-height: 0; }
 .backdrop .grid.green .gl { color: $green; }
 .backdrop .grid.pink  .gl { color: $accent; }
