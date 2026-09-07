@@ -194,9 +194,12 @@ const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
 // global gradients back explicitly.
 async function mark(a: string, on: boolean) {
   if (on) return batch([L.setProp(a, "border_size", "3"), L.setProp(a, "active_border_color", rgb(PALETTE.amber)), L.setProp(a, "inactive_border_color", rgb(PALETTE.dim))])
-  // getoption gives "aarrggbb aarrggbb 45deg"; setprop only renders rgba()/rgb() stops
+  // getoption gives "aarrggbb aarrggbb 45deg" (as `gradient` under the .lua config, `custom`
+  // before it); setprop only renders rgba()/rgb() stops
   const opt = async (k: string) => {
-    const raw = ((JSON.parse(await execAsync(["hyprctl", "getoption", k, "-j"])).custom as string) || "ffffffff").trim()
+    const o = JSON.parse(await execAsync(["hyprctl", "getoption", k, "-j"]))
+    const raw = ((o.gradient ?? o.custom) as string | undefined ?? "").trim()
+    if (!raw) { console.warn(`sidecar: no gradient in ${k}`); return `rgb(${PALETTE.amber.replace("#", "")})` }
     return raw.split(/\s+/).map((t) => (/^[0-9a-f]{8}$/i.test(t) ? `rgba(${t.slice(2)}${t.slice(0, 2)})` : t)).join(" ")
   }
   const [act, ina] = await Promise.all([opt("general:col.active_border"), opt("general:col.inactive_border")])
@@ -243,21 +246,14 @@ export async function unpinSidecar(c: Hyprland.Client) {
   const a = addr(c)
   const s = sidecars.get(name)
   if (s && s.address === c.address) drop(name)
-  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "off")])
-  // the layout tiles it after the last active column; a former sidecar goes back to the FRONT
-  // of the workspace (Andrew, 2026-09-07): hop it left over every column before it
-  timeout(80, () => { toFront(c.address); timeout(60, relayout) })
-}
-
-function toFront(address: string) {
-  let clients: { address: string; at: [number, number]; floating: boolean; mapped: boolean; workspace: { id: number } }[] = []
-  try { clients = JSON.parse(query("j/clients")) } catch { return }
-  const me = clients.find((x) => x.address === `0x${address.replace(/^0x/, "")}`)
-  if (!me || me.floating) return
-  const cols = new Set(clients.filter((x) => x.mapped && !x.floating && x.workspace.id === me.workspace.id && x.at[0] < me.at[0]).map((x) => x.at[0]))
-  // (`move -col` only scrolls and movewindow l merges into the neighbour's column; swapcol
-  // reorders — measured 2026-09-07)
-  if (cols.size) batch(Array.from(cols, () => L.layout("swapcol l")))
+  // the layout tiles it after the last column; a former sidecar goes back to the FRONT of the
+  // workspace (Andrew, 2026-09-07): one swap left per column, in the SAME batch as the
+  // float-off so the window makes one move, not a hop to the end and back (`move -col` only
+  // scrolls and movewindow l merges into the neighbour's column; swapcol reorders)
+  const ws = c.workspace?.id
+  const cols = new Set(hypr.get_clients().filter((x) => x.workspace?.id === ws && x.mapped && !x.floating && x.address !== c.address).map((x) => x.x))
+  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "off"), ...Array.from(cols, () => L.layout("swapcol l"))])
+  timeout(80, relayout)
 }
 
 export const toggleSidecar = (c: Hyprland.Client) => (isSidecar(c) ? unpinSidecar(c) : pinSidecar(c))

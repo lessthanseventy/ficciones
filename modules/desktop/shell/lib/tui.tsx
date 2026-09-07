@@ -6,6 +6,9 @@ import type { Accessor } from "ags"
 type Text = string | Accessor<string>
 type Classes = string[] | Accessor<string[]>
 
+// a mapped array among sibling children is an array inside the children array; gnim flattens
+type Children = JSX.Element | Children[]
+
 /** fieldset/legend: a 1px border with the title inset into the top edge. */
 export function Panel({
   title,
@@ -17,7 +20,7 @@ export function Panel({
   hexpand = false,
 }: {
   title: Text
-  children?: JSX.Element | JSX.Element[]
+  children?: Children
   cssClasses?: Classes
   vertical?: boolean
   spacing?: number
@@ -36,7 +39,7 @@ export function Panel({
         orientation={vertical ? Gtk.Orientation.VERTICAL : Gtk.Orientation.HORIZONTAL}
         spacing={spacing}
       >
-        {children}
+        {children as JSX.Element | JSX.Element[]}
       </box>
     </overlay>
   )

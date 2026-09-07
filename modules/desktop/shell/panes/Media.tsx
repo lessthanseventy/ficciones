@@ -1,7 +1,7 @@
 // MEDIA: the selected player large with transport; other players as rows below (j/k, click).
 import Gtk from "gi://Gtk?version=4.0"
 import Mpris from "gi://AstalMpris"
-import { For, createBinding, createComputed } from "ags"
+import { For, createBinding, createComputed, type Accessor } from "ags"
 import { meter } from "../lib/format"
 import { createState } from "ags"
 import Gdk from "gi://Gdk?version=4.0"
@@ -60,7 +60,7 @@ function Art({ p }: { p: Mpris.Player }) {
   })
   return (
     <box cssClasses={["art"]} heightRequest={ART_H} widthRequest={tex((t) => (t ? t.get_width() : 0))} visible={tex((t) => !!t)}>
-      <Gtk.Picture paintable={tex} canShrink={false} contentFit={Gtk.ContentFit.CONTAIN} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} />
+      <Gtk.Picture paintable={tex as unknown as Accessor<Gdk.Paintable>} canShrink={false} contentFit={Gtk.ContentFit.CONTAIN} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} />
     </box>
   )
 }

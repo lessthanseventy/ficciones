@@ -1,9 +1,10 @@
 // WORKSPACES: every workspace on every monitor, its windows as icons. Click a number to go
 // there, click an icon to focus that window. The bar shows one workspace; this is all of them.
 import { L, dispatch, sel } from "../lib/hyprlua"
+import Gdk from "gi://Gdk?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
-import { For, createBinding, createComputed } from "ags"
+import { For, createBinding, createComputed, type Accessor } from "ags"
 import { hypr, workspaces, focusedWorkspace, focusedClient } from "../lib/hypr"
 import { iconFor } from "../lib/icons"
 import { stamp, texture } from "../lib/thumbs"
@@ -59,7 +60,7 @@ export function WorkspacePop({ ws }: { ws: Hyprland.Workspace }) {
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
                   <overlay>
                     <box cssClasses={["shot"]} heightRequest={THUMB_H} widthRequest={tex((t) => (t ? t.get_width() : 120))}>
-                      <Gtk.Picture paintable={tex} canShrink={false} contentFit={Gtk.ContentFit.CONTAIN} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} visible={tex((t) => !!t)} />
+                      <Gtk.Picture paintable={tex as unknown as Accessor<Gdk.Paintable>} canShrink={false} contentFit={Gtk.ContentFit.CONTAIN} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} visible={tex((t) => !!t)} />
                       <image iconName={iconFor(c)} pixelSize={48} hexpand vexpand halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} visible={tex((t) => !t)} />
                     </box>
                     <box $type="overlay" halign={Gtk.Align.START} valign={Gtk.Align.END} spacing={4} cssClasses={["cap"]} canTarget={false}>

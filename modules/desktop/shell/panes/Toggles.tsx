@@ -6,7 +6,7 @@ import Notifd from "gi://AstalNotifd"
 import Network from "gi://AstalNetwork"
 import Bluetooth from "gi://AstalBluetooth"
 import PowerProfiles from "gi://AstalPowerProfiles"
-import { createBinding, createState } from "ags"
+import { createBinding, createState, type Accessor } from "ags"
 import { subprocess, type Process } from "ags/process"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
@@ -18,7 +18,7 @@ import { glass, toggleGlass } from "../lib/glass"
 const notifd = Notifd.get_default()
 
 /** A toggle: icon + label, chip when on. */
-function Toggle({ icon, label, on, onToggle }: { icon: string; label: any; on: any; onToggle: () => void }) {
+function Toggle({ icon, label, on, onToggle }: { icon: string | Accessor<string>; label: any; on: any; onToggle: () => void }) {
   return (
     <button cssClasses={on((o: boolean) => ["toggle", ...(o ? ["chip"] : [])])} onClicked={onToggle}>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>

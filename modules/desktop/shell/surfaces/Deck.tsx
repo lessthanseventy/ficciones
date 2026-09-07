@@ -98,7 +98,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   click.connect("pressed", () => { if (deckVisible()) hideDeck(); else { closeAny(); showDeck(gdkmonitor) } })
   return (
     <window
-      visible={fullscreenMonitors((fs) => !fs.has(gdkmonitor.connector))}
+      visible={fullscreenMonitors((fs) => !fs.has(gdkmonitor.connector ?? ""))}
       cssClasses={["deck"]}
       namespace="astal-shell-deck"
       name={`deck-${gdkmonitor.connector}`}

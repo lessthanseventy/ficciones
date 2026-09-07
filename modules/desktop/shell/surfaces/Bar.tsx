@@ -283,7 +283,7 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       application={app}
     >
       <box>
-        <Windows connector={gdkmonitor.connector} />
+        <Windows connector={gdkmonitor.connector ?? ""} />
         <box hexpand />
         <NextUpCell />
         <box hexpand />

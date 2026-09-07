@@ -1,13 +1,13 @@
 // JOURNAL: warnings amber, errors red, the unit cyan. Newest first.
 import Gtk from "gi://Gtk?version=4.0"
 import { For } from "ags"
-import { journal } from "../lib/journal"
+import { journal, type Entry } from "../lib/journal"
 
 export function JournalCard() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={1} cssClasses={["journal"]}>
       <For each={journal((j) => j.lines)}>
-        {(e) => (
+        {(e: Entry) => (
           <box spacing={8} tooltipText={e.msg}>
             <label cssClasses={["faint", "sm"]} label={e.t} />
             <label cssClasses={["cyan", "sm"]} label={e.unit} widthChars={14} xalign={0} ellipsize={3} />

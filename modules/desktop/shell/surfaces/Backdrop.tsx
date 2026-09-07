@@ -5,7 +5,7 @@
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
-import { createState, onCleanup } from "ags"
+import { createState, onCleanup, type Accessor } from "ags"
 import Gdk from "gi://Gdk?version=4.0"
 import { interval, type Timer } from "ags/time"
 import { CharGrid } from "../lib/chargrid"
@@ -116,7 +116,7 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <overlay>
         <Gtk.Picture
           contentFit={Gtk.ContentFit.COVER}
-          file={file((f) => (f ? Gio.File.new_for_path(f) : null))}
+          file={file((f) => (f ? Gio.File.new_for_path(f) : null)) as unknown as Accessor<Gio.File>}
           visible={zen((z) => !z)}
         />
         <box

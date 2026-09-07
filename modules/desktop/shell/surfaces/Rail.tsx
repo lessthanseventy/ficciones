@@ -148,6 +148,7 @@ function Weather({ connector }: { connector: string }) {
 }
 
 export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
+  const connector = gdkmonitor.connector ?? ""
   let win: Astal.Window
   const { TOP, LEFT, BOTTOM } = Astal.WindowAnchor
 
@@ -160,7 +161,7 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       defaultWidth={1} // shrink to content; a GtkWindow otherwise pads its default size
       cssClasses={["rail"]}
       namespace="astal-shell-rail"
-      name={`rail-${gdkmonitor.connector}`}
+      name={`rail-${connector}`}
       gdkmonitor={gdkmonitor}
       exclusivity={Astal.Exclusivity.EXCLUSIVE}
       anchor={TOP | LEFT | BOTTOM}
@@ -169,13 +170,13 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <centerbox orientation={Gtk.Orientation.VERTICAL}>
         <box $type="start" orientation={Gtk.Orientation.VERTICAL}>
           <Corner />
-          <Workspaces connector={gdkmonitor.connector} />
+          <Workspaces connector={connector} />
           <RuleH />
         </box>
         <box $type="center" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER}>
           <Channel side="left" />
-          <Clock connector={gdkmonitor.connector} />
-          <Weather connector={gdkmonitor.connector} />
+          <Clock connector={connector} />
+          <Weather connector={connector} />
           <Channel side="right" />
         </box>
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>

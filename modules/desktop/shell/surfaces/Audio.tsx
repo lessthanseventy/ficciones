@@ -76,8 +76,8 @@ export default function Audio() {
   const audio = wp.audio
   // sorted by (cleaned) name with numeric collation, so HDMI 1/2/3 sit in order
   const byName = (a: Wp.Endpoint, b: Wp.Endpoint) => clean(a.description ?? "").localeCompare(clean(b.description ?? ""), undefined, { numeric: true })
-  const speakers = createBinding(audio, "speakers")((s) => [...s].sort(byName))
-  const mics = createBinding(audio, "microphones")((s) => [...s].sort(byName))
+  const speakers = createBinding(audio, "speakers")((s) => [...(s ?? [])].sort(byName))
+  const mics = createBinding(audio, "microphones")((s) => [...(s ?? [])].sort(byName))
   const streams = createBinding(audio, "streams")
   // The default-speaker endpoint object is stable across default changes in AstalWp (it is
   // the "default" pseudo-node), so bind its fields rather than the object.
@@ -107,10 +107,10 @@ export default function Audio() {
         <label cssClasses={["dim"]} label="no input" visible={mics((m) => m.length === 0)} xalign={0} />
       </Panel>
       <Panel title="APPS" spacing={6}>
-        <For each={streams((ss) => ss.filter((st) => !HIDDEN.test(st.get_pw_property("application.name") || st.name || "")))}>
-          {(st) => <Stream st={st} speakers={() => audio.get_speakers()} />}
+        <For each={streams((ss) => (ss ?? []).filter((st) => !HIDDEN.test(st.get_pw_property("application.name") || st.name || "")))}>
+          {(st: Wp.Stream) => <Stream st={st} speakers={() => audio.get_speakers() ?? []} />}
         </For>
-        <label cssClasses={["dim"]} label="nothing playing" visible={streams((ss) => ss.filter((st) => !HIDDEN.test(st.get_pw_property("application.name") || st.name || "")).length === 0)} xalign={0} />
+        <label cssClasses={["dim"]} label="nothing playing" visible={streams((ss) => (ss ?? []).filter((st) => !HIDDEN.test(st.get_pw_property("application.name") || st.name || "")).length === 0)} xalign={0} />
       </Panel>
     </box>
   )

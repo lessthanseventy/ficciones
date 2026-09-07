@@ -24,7 +24,7 @@ function Agenda() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={1} cssClasses={["agenda"]}>
       <For each={agenda((a) => a.lines)}>
-        {(l) => <label cssClasses={l.startsWith("·") ? ["k", "sm", "agenda-day"] : ["sm"]} label={l.replace(/^· /, "")} xalign={0} ellipsize={3} maxWidthChars={44} />}
+        {(l: string) => <label cssClasses={l.startsWith("·") ? ["k", "sm", "agenda-day"] : ["sm"]} label={l.replace(/^· /, "")} xalign={0} ellipsize={3} maxWidthChars={44} />}
       </For>
       <label cssClasses={["dim", "sm"]} label="no calendars yet — vdirsyncer + khal" xalign={0} visible={agenda((a) => !a.ok)} />
       <label cssClasses={["dim", "sm"]} label="nothing in the next three days" xalign={0} visible={agenda((a) => a.ok && a.lines.length === 0)} />
