@@ -351,6 +351,7 @@ bind(M .. " + Space", exec("astal-shell toggle launcher"))
 bind(M .. " + I", exec("astal-shell toggle drawer"))
 bind(M .. " + SHIFT + I", exec("astal-shell toggle drawer"))
 bind(M .. " + N", exec("astal-shell toggle hub"))
+bind(M .. " + C", exec(shell .. "/shell-req.sh toggle deck"))   -- the bottom deck: log, media, agents, timer
 bind(M .. " + U", exec("astal-shell show drawer agents"))
 bind(M .. " + B", exec("astal-shell show drawer calendar"))
 bind("ALT + Space", exec("astal-shell toggle launcher"))

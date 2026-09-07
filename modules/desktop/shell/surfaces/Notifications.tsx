@@ -16,6 +16,7 @@ import { hubOpen } from "./Hub"
 import { timeout, type Timer } from "ags/time"
 import { Panel } from "../lib/tui"
 import { isFullscreen, fullscreenMonitors } from "../lib/hypr"
+import { logEvent } from "../lib/log"
 
 const DEFAULT_MS = 6000
 const MAX_TOASTS = 5
@@ -120,7 +121,11 @@ export default function Notifications() {
 
   notifd.connect("notified", (_, id) => {
     const n = notifd.get_notification(id)
-    if (!n || notifd.dontDisturb) return
+    if (!n) return
+    const u = urgencyOf(n)
+    logEvent("notice", `${n.appName || "notice"}: ${n.summary}`, u === "critical" ? "crit" : u === "low" ? "dim" : "normal")
+    // critical notices pin to the deck's row instead of a sticky toast
+    if (notifd.dontDisturb || u === "critical") return
     // toasts follow the pointer's monitor — unless a film is on it: then the other monitor,
     // or none at all (the notice still lands in the hub's history)
     const focused = Hyprland.get_default().focusedMonitor?.name

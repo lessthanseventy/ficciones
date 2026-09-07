@@ -16,8 +16,6 @@ import { Toggles } from "../panes/Toggles"
 import { toggleCheatsheet } from "./Cheatsheet"
 import { CalendarCard } from "../panes/Calendar"
 import { WeatherCard } from "../panes/Weather"
-import { AgentsCard } from "../panes/Agents"
-import { MediaCard } from "../panes/Media"
 import { METRICS, CoreGrid, Procs, type Metric } from "../panes/Perf"
 import { DiskCard } from "../panes/Disk"
 import { NetCard } from "../panes/Net"
@@ -182,10 +180,6 @@ export default function Dashboard() {
           </box>
           <box spacing={16}>
             <Panel title={"\u{f0e4a}  PERF"} cssClasses={["card", "card-perf"]} hexpand><PerfCard /></Panel>
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-              <Panel title={"\u{f06a9}  AGENTS"} cssClasses={["card", "card-agents"]}><AgentsCard /></Panel>
-              <Panel title={"\u{f075a}  MEDIA"} cssClasses={["card", "card-media"]}><MediaCard /></Panel>
-            </box>
             <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
               <Panel title={"\u{f02ca}  DISK"} cssClasses={["card", "card-disk"]}><DiskCard /></Panel>
               <Panel title={"\u{f05a9}  NET"} cssClasses={["card", "card-net"]}><NetCard /></Panel>

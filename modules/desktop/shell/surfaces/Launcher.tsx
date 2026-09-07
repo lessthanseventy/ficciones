@@ -2,6 +2,7 @@
 // list widget, two sources. A centred pane with a `>` prompt and a block cursor, results
 // below, the selection in inverse video. Prefixes switch mode: apps by default, `=` calc
 // (qalc), `/` files (fd from ~), `:` run a shell line. Up/Down or Ctrl+j/k, Enter, Escape.
+import { parseSpec } from "../lib/timer"
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -53,6 +54,8 @@ async function search(q: string) {
   let out: Item[] = []
   try {
     if (m === "apps") {
+      // "25m", "14:30", "pomo", "stop": the deck's timer, first, ahead of any app match
+      const tm = body ? parseSpec(body) : null
       if (!body) {
         // the empty prompt: what Funes remembers, across modes, then the apps by frecency
         const seen = new Set<string>()
@@ -74,6 +77,7 @@ async function search(q: string) {
           }))
         // a shell line typed before that starts the same way rides along
         for (const r of recent(3, ["shell"]).filter((r) => r.key.startsWith(body))) { const it = recall(r); if (it) out.push(it) }
+        if (tm) out.unshift({ glyph: "\u{f051b}", title: tm.title, sub: "timer", key: `timer:${body}`, run: () => { tm.start() } })
       }
     } else if (m === "calc") {
       if (body) {

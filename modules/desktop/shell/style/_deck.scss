@@ -1,0 +1,64 @@
+@use "tokens" as *;
+
+// ── the deck: the bottom row ───────────────────────────────────────────────
+// one line, bar-height, a rule on top; attention on the left in inverse video, the command
+// log through the middle, the ambient cells on the right
+window.deck { background: $bg; }
+.deck-row {
+  min-height: $bar-height - $rule;
+  border-top: $rule solid $sep;
+  padding: 0 $sp-2;
+}
+.seg {
+  padding: 0 $sp-3;
+  margin-right: $sp-2;
+  min-height: 0;
+  border-radius: 0;
+  label { color: $ink; }
+  &.crit { background: $red; &:hover { background: $chip; } }
+  &.pink { background: $accent; &:hover { background: $chip; } }
+  .seg-app { font-size: $size-sm; opacity: 0.8; }
+}
+.deck-log { padding: 0 $sp-2; }
+.logline {
+  .src { font-size: $size-sm; }
+  .text { color: $amber; }
+  &.dim .text { color: $meta; }
+  &.warn .text { color: $chip; }
+  &.crit .text { color: $red; }
+}
+// sources wear their hue, on the row and on the drawer's filter chips
+.src-shell   { color: $amber; }
+.src-notice  { color: $green; }
+.src-agent   { color: $accent; }
+.src-hypr    { color: $cyan; }
+.src-journal { color: $red; }
+.deck-row .cell { padding: 0 $sp-3; border-left: $rule solid $sep; min-height: $cell-h; }
+.deck-track { color: $amber; }
+
+// ── the drawer ─────────────────────────────────────────────────────────────
+window.deck-drawer { background: transparent; }
+.sheet.bottom { border-right: none; border-top: $rule solid $sep; padding: 0 $sp-3 $sp-3; }
+.card-log   .panel-title { color: $amber; }
+.card-timer .panel-title { color: $cyan; }
+.card-timer .big { font-size: 26px; }
+.deck-filters {
+  min-height: $cell-h;
+  .filter {
+    padding: 0 $sp-2; min-height: 0; border: $rule solid $sep; border-radius: 0; background: none;
+    &.off label { color: $dim; }
+    &.chip label { color: $ink; }
+    &.chip.src-shell   { background: $amber; }
+    &.chip.src-notice  { background: $green; }
+    &.chip.src-agent   { background: $accent; }
+    &.chip.src-hypr    { background: $cyan; }
+    &.chip.src-journal { background: $red; }
+  }
+}
+.deck-entry {
+  background: none; border: none; border-bottom: $rule solid $sep; box-shadow: none; outline: none; border-radius: 0;
+  padding: 0; min-height: $cell-h; color: $amber; caret-color: $chip;
+  selection { background: $sel; color: $white; }
+}
+.card-media .art { border: $rule solid $sep; }
+.seg .seg-x { opacity: 0.7; margin-left: $sp-1; }

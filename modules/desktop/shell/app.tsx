@@ -5,6 +5,8 @@ import Rail, { toggleCalendarPop, toggleWeatherPop, popWorkspace } from "./surfa
 import Bar from "./surfaces/Bar"
 import Notifications from "./surfaces/Notifications"
 import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
+import Deck, { DeckRow, toggleDeck } from "./surfaces/Deck"
+import { logEvent } from "./lib/log"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
@@ -26,6 +28,12 @@ app.start({
   gtkTheme: "Adwaita",
   requestHandler(argv, res) {
     const [verb, what, tab] = argv
+    // the command log: what you asked for (focus/colresize are keys, not events)
+    if (verb && !["focus", "colresize"].includes(verb)) logEvent("shell", argv.join(" "))
+    if (verb === "toggle" && what === "deck") {
+      toggleDeck()
+      return res("ok")
+    }
     // the drawer and the weather surface are popovers off the rail now (2026-09-05); the
     // verbs still land
     if (verb === "toggle" && (what === "drawer" || what === "calendar")) {
@@ -97,7 +105,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell toggle drawer|hub|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
+    res("usage: astal-shell toggle drawer|hub|deck|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
     const monitors = createBinding(app, "monitors")
@@ -105,6 +113,7 @@ app.start({
     // per-monitor bars come back as the tree.
     Notifications()
     Hub()
+    Deck()
     startHotEdge()
     // the live theme's stylesheet over the bundled default (the same css when they agree)
     applyShellTheme()
@@ -119,6 +128,8 @@ app.start({
       <For each={monitors}>
         {(monitor) => (
           <This this={app}>
+            {/* first: layer-shell arranges in mapping order, so the rail and bar stop above the deck */}
+            <DeckRow gdkmonitor={monitor} />
             <Rail gdkmonitor={monitor} />
             <Bar gdkmonitor={monitor} />
             <Backdrop gdkmonitor={monitor} />

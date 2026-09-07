@@ -19,6 +19,7 @@ import { Panel, RuleH } from "../lib/tui"
 import { NoticeCard, groups } from "./Notifications"
 import { VList } from "../lib/vlist"
 import { isFullscreen } from "../lib/hypr"
+import { showDeck, hideDeck, deckVisible, deckMonitor } from "./Deck"
 import { night, toggleNight } from "../lib/night"
 import { crt, cycleCrt } from "../lib/crt"
 import { zen, setBackdrop } from "./Backdrop"
@@ -76,8 +77,8 @@ export function toggleHub() {
 }
 
 /**
- * The hot edge: the pointer parked within 2px of a monitor's right edge for 400 ms opens the
- * hub on that monitor. Polled from Hyprland's socket at 5 Hz — a layer surface for the strip
+ * The hot edges: the pointer parked within 2px of a monitor's right edge for 400 ms opens the
+ * hub on that monitor; its bottom edge, the deck's drawer. Polled from Hyprland's socket at 5 Hz — a layer surface for the strip
  * would not shrink below 200px and swallowed clicks.
  */
 export function startHotEdge() {
@@ -98,15 +99,31 @@ export function startHotEdge() {
       else if (Date.now() - away > 1000) { away = 0; hideHub() }
       return
     }
+    if (deckVisible()) {
+      // the deck's drawer closes the same way: a second off its monitor
+      since = 0
+      const name = deckMonitor()
+      const m = Hyprland.get_default().get_monitors().find((mm) => mm.name === name)
+      const inside = m ? x >= m.x && x < m.x + m.width && y >= m.y + m.height - 480 && y < m.y + m.height : true
+      if (inside) away = 0
+      else if (!away) away = Date.now()
+      else if (Date.now() - away > 1000) { away = 0; hideDeck() }
+      return
+    }
     away = 0
-    const mon = Hyprland.get_default().get_monitors().find((m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y && y < m.y + m.height)
+    const mons = Hyprland.get_default().get_monitors()
+    const right = mons.find((m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y && y < m.y + m.height)
+    const bottom = mons.find((m) => y >= m.y + m.height - 2 && y < m.y + m.height && x >= m.x && x < m.x + m.width)
+    const mon = right ?? bottom
     // no hot edge on a monitor showing a film
     if (!mon || isFullscreen(mon.name)) { since = 0; armedFor = null; return }
-    if (armedFor !== mon.name) { armedFor = mon.name; since = Date.now(); return }
+    const key = `${right ? "r" : "b"}:${mon.name}`
+    if (armedFor !== key) { armedFor = key; since = Date.now(); return }
     if (Date.now() - since >= 400) {
       since = Date.now() + 1e9   // once per visit
       const g = app.get_monitors().find((m) => m.connector === mon.name)
-      showHub(g)
+      if (right) showHub(g)
+      else showDeck(g)
     }
   })
 }
@@ -138,6 +155,7 @@ export default function Hub() {
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT}
       marginTop={36}
+      marginBottom={36} // the deck row
       marginLeft={48}
       application={app}
     >
