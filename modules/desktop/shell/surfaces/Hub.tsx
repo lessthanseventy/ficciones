@@ -18,6 +18,7 @@ import GLib from "gi://GLib?version=2.0"
 import { Panel, RuleH } from "../lib/tui"
 import { NoticeCard, groups } from "./Notifications"
 import { VList } from "../lib/vlist"
+import { Toggles } from "../panes/Toggles"
 import { isFullscreen } from "../lib/hypr"
 import { showDeck, deckVisible } from "./Deck"
 import { night, toggleNight } from "../lib/night"
@@ -142,6 +143,9 @@ export default function Hub() {
       />
       <box cssClasses={["sheet", "right"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.END}>
         <Panel title={"\u{f009a}  NOTIFICATIONS"} cssClasses={["card", "card-notices"]}><History /></Panel>
+        <box vexpand />
+        {/* the quick five, pinned to the bottom; the full set is the dashboard's */}
+        <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles perRow={5} only={["wifi", "bt", "dnd", "awake", "night"]} /></Panel>
       </box>
       </box>
     </window>

@@ -28,7 +28,8 @@ function Toggle({ icon, label, on, onToggle }: { icon: string; label: any; on: a
   )
 }
 
-export function Toggles({ perRow = 4 }: { perRow?: number }) {
+/** `only`: a subset by key (the hub pins wifi/bt/dnd/awake/night; the dashboard shows the lot). */
+export function Toggles({ perRow = 4, only }: { perRow?: number; only?: string[] }) {
   const net = Network.get_default()
   const bt = Bluetooth.get_default()
   const pp = PowerProfiles.get_default()
@@ -47,20 +48,21 @@ export function Toggles({ perRow = 4 }: { perRow?: number }) {
     const ps = pp.get_profiles().map((p) => p.profile)
     pp.set_active_profile(ps[(ps.indexOf(pp.activeProfile) + 1) % ps.length])
   }
-  const all = [
-    <Toggle icon={"\u{f05a9}"} label="wifi" on={wifiOn} onToggle={() => { if (net.wifi) net.wifi.enabled = !net.wifi.enabled }} />,
-    <Toggle icon={"\u{f00af}"} label="bt" on={btOn} onToggle={() => bt.toggle()} />,
-    <Toggle icon={"\u{f009b}"} label="dnd" on={dnd} onToggle={() => (notifd.dontDisturb = !notifd.dontDisturb)} />,
-    <Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />,
-    <Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />,
-    <Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />,
-    <Toggle icon={"\u{f0e2a}"} label={backdropMode((m) => (m === "photo" ? "zen" : m))} on={zen} onToggle={() => setBackdrop("cycle")} />,
+  const entries = [
+    { key: "wifi", el: (<Toggle icon={"\u{f05a9}"} label="wifi" on={wifiOn} onToggle={() => { if (net.wifi) net.wifi.enabled = !net.wifi.enabled }} />) },
+    { key: "bt", el: (<Toggle icon={"\u{f00af}"} label="bt" on={btOn} onToggle={() => bt.toggle()} />) },
+    { key: "dnd", el: (<Toggle icon={"\u{f009b}"} label="dnd" on={dnd} onToggle={() => (notifd.dontDisturb = !notifd.dontDisturb)} />) },
+    { key: "awake", el: (<Toggle icon={"\u{f0cf3}"} label="awake" on={inhibit} onToggle={toggleInhibit} />) },
+    { key: "night", el: (<Toggle icon={"\u{f0594}"} label="night" on={night} onToggle={toggleNight} />) },
+    { key: "crt", el: (<Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />) },
+    { key: "zen", el: (<Toggle icon={"\u{f0e2a}"} label={backdropMode((m) => (m === "photo" ? "zen" : m))} on={zen} onToggle={() => setBackdrop("cycle")} />) },
     // light/dark = zahir/aleph, live
-    <Toggle icon={theme((t) => (t === "zahir" ? "\u{f0599}" : "\u{f0594}"))} label={createComputed([theme, switching], (t, s) => (s ? "…" : t))} on={theme((t) => t === "zahir")} onToggle={() => setTheme("toggle")} />,
-    <Toggle icon={"◐"} label="glass" on={glass} onToggle={toggleGlass} />,
-    <Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={nextWallpaper} />,
-    <Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />,
+    { key: "theme", el: (<Toggle icon={theme((t) => (t === "zahir" ? "\u{f0599}" : "\u{f0594}"))} label={createComputed([theme, switching], (t, s) => (s ? "…" : t))} on={theme((t) => t === "zahir")} onToggle={() => setTheme("toggle")} />) },
+    { key: "glass", el: (<Toggle icon={"◐"} label="glass" on={glass} onToggle={toggleGlass} />) },
+    { key: "next wp", el: (<Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={nextWallpaper} />) },
+    { key: "profile", el: (<Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />) },
   ]
+  const all = (only ? entries.filter((e) => only.includes(e.key)) : entries).map((e) => e.el)
   const rows: JSX.Element[][] = []
   for (let i = 0; i < all.length; i += perRow) rows.push(all.slice(i, i + perRow))
   return (
