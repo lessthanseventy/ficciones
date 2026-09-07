@@ -4,8 +4,8 @@
 // the browser also needs a video-ish title, or every window of it would go opaque), a player
 // class, or fullscreen. `setprop opaque` per window; `unset` when it stops.
 import Wp from "gi://AstalWp"
+import { L, dispatch } from "./hyprlua"
 import { interval } from "ags/time"
-import { execAsync } from "ags/process"
 import { query } from "./hyprsock"
 
 type Client = { address: string; pid: number; class: string; title: string; mapped: boolean; inhibitingIdle?: boolean; fullscreen: number }
@@ -40,12 +40,12 @@ function tick() {
     if (c.inhibitingIdle || c.fullscreen > 0 || PLAYERS.test(c.class) || sound) want.add(c.address)
   }
   const cmds: string[] = []
-  for (const a of want) if (!opaque.has(a)) { opaque.add(a); cmds.push(`dispatch setprop address:${a} opaque 1`) }
+  for (const a of want) if (!opaque.has(a)) { opaque.add(a); cmds.push(L.setProp(`address:${a}`, "opaque", "1")) }
   for (const a of [...opaque]) if (!want.has(a)) {
     opaque.delete(a)
-    if (clients.some((c) => c.address === a)) cmds.push(`dispatch setprop address:${a} opaque unset`)
+    if (clients.some((c) => c.address === a)) cmds.push(L.setProp(`address:${a}`, "opaque", "unset"))
   }
-  if (cmds.length) execAsync(["hyprctl", "--batch", cmds.join("; ")]).catch(console.error)
+  if (cmds.length) dispatch(...cmds)
 }
 
 interval(2000, tick)

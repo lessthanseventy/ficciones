@@ -1,3 +1,4 @@
+import { L, dispatch } from "../lib/hyprlua"
 import app from "ags/gtk4/app"
 import { closeOnPress } from "./Clickaway"
 import Astal from "gi://Astal?version=4.0"
@@ -50,12 +51,12 @@ function Windows({ connector }: { connector: string }) {
         {(c) => {
           const focused = createComputed([focusedClient], (f) => f?.address === c.address)
           const title = createBinding(c, "title")
-          const d = (cmd: string, arg = "") => hypr.dispatch(cmd, `${arg} ${addr(c)}`.trim())
+          const w = addr(c)
           return (
             <menubutton
               cssClasses={focused((f) => ["win", ...(f ? ["focused"] : [])])}
               direction={Gtk.ArrowType.DOWN}
-              $={(self) => hoverPopover(self, "bar", () => c.focus())}
+              $={(self) => hoverPopover(self, "bar", () => dispatch(L.focusWindow(w)))}
             >
               <box spacing={8}>
                 <image iconName={iconFor(c)} pixelSize={18} />
@@ -74,12 +75,12 @@ function Windows({ connector }: { connector: string }) {
                   </box>
                   <RuleH />
                   <box spacing={6} cssClasses={["winacts"]}>
-                    <button cssClasses={["act"]} onClicked={() => d("togglefloating")}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
+                    <button cssClasses={["act"]} onClicked={() => dispatch(L.float(w))}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => toggleSidecar(c)}><label label={createBinding(c, "pinned")((p) => (p ? "unpin" : "pin"))} /></button>
-                    <button cssClasses={["act"]} onClicked={() => { c.focus(); hypr.dispatch("fullscreen", "1") }}><label label="fullscreen" /></button>
-                    <button cssClasses={["act"]} onClicked={() => d("movetoworkspace", "special:magic,")}><label label="to special" /></button>
+                    <button cssClasses={["act"]} onClicked={() => dispatch(L.fullscreen(w, "fullscreen"))}><label label="fullscreen" /></button>
+                    <button cssClasses={["act"]} onClicked={() => dispatch(L.moveToWorkspace(w, "special:magic", true))}><label label="to special" /></button>
                     <box hexpand />
-                    <button cssClasses={["act", "red"]} onClicked={() => d("closewindow")}><label label="close" /></button>
+                    <button cssClasses={["act", "red"]} onClicked={() => dispatch(L.close(w))}><label label="close" /></button>
                   </box>
                 </Panel>
               </popover>

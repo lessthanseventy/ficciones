@@ -445,7 +445,9 @@ bind("ALT + Tab", hl.dsp.focus({ last = true }))
 --   hyprpm update && hyprpm add https://github.com/sandwichfarm/hyprexpo && hyprpm enable hyprexpo
 -- (hyprpm installs matching headers under /usr, so it asks for sudo). Until it is loaded the
 -- dispatcher is unknown and the bind does nothing.
-bind(M .. " + O", exec("hyprctl dispatch hyprexpo:expo toggle"))
+-- the plugin's own lua action, not a dispatcher: `hyprctl dispatch hyprexpo:expo` is legacy
+-- syntax and a lua config no longer parses it (2026-09-07)
+bind(M .. " + O", function() hl.plugin.hyprexpo.expo("toggle") end)
 
 -- ----- Window state -----
 bind(M .. " + Q", hl.dsp.window.close())

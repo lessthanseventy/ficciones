@@ -67,9 +67,14 @@ export function NoticeCard({ g }: { g: Group | Accessor<Group> }) {
   const body = clean(n.body)
   const title = (x: Group) => `${x.head.appName || "notice"} · ${timeOf(x.head)}${x.count > 1 ? `  ×${x.count}` : ""}`
   const dismiss = () => dismissGroup(live ? live.peek() : first)
+  // freedesktop's "default" action is the click on the notice itself, and a label-less action
+  // (Claude Code sends one) has no button to be — the empty outlined box (2026-09-07)
+  const actions = n.get_actions().filter((a) => a.id !== "default" && a.label.trim())
+  const dflt = n.get_actions().find((a) => a.id === "default")
+  const hit = () => { if (dflt) n.invoke(dflt.id); dismiss() }
   return (
     <Panel title={live ? live(title) : title(first)} cssClasses={["toast", urgency]} spacing={4}>
-      <button cssClasses={["toast-hit"]} onClicked={dismiss}>
+      <button cssClasses={["toast-hit"]} onClicked={hit}>
         <box spacing={10}>
           <image visible={!!n.appIcon} iconName={n.appIcon || "dialog-information"} pixelSize={24} valign={Gtk.Align.START} />
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
@@ -78,8 +83,8 @@ export function NoticeCard({ g }: { g: Group | Accessor<Group> }) {
           </box>
         </box>
       </button>
-      <box cssClasses={["actions"]} spacing={8} visible={n.get_actions().length > 0}>
-        {n.get_actions().map((a) => (
+      <box cssClasses={["actions"]} spacing={8} visible={actions.length > 0}>
+        {actions.map((a) => (
           <button cssClasses={["act"]} onClicked={() => n.invoke(a.id)}><label label={a.label} /></button>
         ))}
       </box>

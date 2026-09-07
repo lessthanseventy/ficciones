@@ -2,6 +2,7 @@
 // dashboard`). Everything that is about the machine rather than a window: the toggles (from
 // the hub), power (from the rail), the shell's own knobs, and a keys hint. Esc or a click on
 // the field closes it.
+import { L, dispatch } from "../lib/hyprlua"
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -58,7 +59,7 @@ function Power() {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
       <Action icon={"\u{f033e}"} label="lock" onClick={() => run(["hyprlock"])} />
       <Action icon={"\u{f04b2}"} label="suspend" onClick={() => run(["systemctl", "suspend"])} />
-      <Action icon={"\u{f0343}"} label="logout" cls={["red"]} onClick={() => run(["hyprctl", "dispatch", "exit"])} />
+      <Action icon={"\u{f0343}"} label="logout" cls={["red"]} onClick={() => dispatch(L.exit())} />
       <Action icon={"\u{f0709}"} label="reboot" cls={["red"]} onClick={() => run(["systemctl", "reboot"])} />
       <Action icon={"\u{f0425}"} label="shutdown" cls={["red"]} onClick={() => run(["systemctl", "poweroff"])} />
     </box>

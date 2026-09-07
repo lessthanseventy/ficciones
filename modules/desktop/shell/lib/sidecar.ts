@@ -19,6 +19,7 @@ import Gdk from "gi://Gdk?version=4.0"
 import LayerShell from "gi://Gtk4LayerShell?version=1.0"
 import Cairo from "cairo"
 import { execAsync } from "ags/process"
+import { L, dispatch, keyword } from "./hyprlua"
 import { timeout, interval, type Timer } from "ags/time"
 import { query } from "./hyprsock"
 import { hypr, addr } from "./hypr"
@@ -106,19 +107,12 @@ function makeFrame(name: string, m: MonitorJson, col: number, address: string): 
   return w
 }
 
-/** Dispatches in order, as one batch, with Hyprland's answers logged (hypr.dispatch is fire-and-forget). */
-async function batch(cmds: string[]) {
-  try {
-    const out = await execAsync(["hyprctl", "--batch", cmds.map((c) => `dispatch ${c}`).join("; ")])
-    const bad = out.split("\n").filter((l) => l.trim() && l.trim() !== "ok")
-    if (bad.length) console.error("sidecar:", bad.join(" | "))
-  } catch (e) { console.error("sidecar:", String(e)) }
-}
+const batch = (cmds: string[]) => dispatch(...cmds)
 
 const placeCmds = (address: string, m: MonitorJson, col: number) => {
   const [rl, rt, , rb] = m.reserved
   const a = `address:0x${address.replace(/^0x/, "")}`
-  return [`resizewindowpixel exact ${col - GAP} ${m.height - rt - rb - 2 * GAP},${a}`, `movewindowpixel exact ${m.x + rl + GAP} ${m.y + rt + GAP},${a}`]
+  return [L.resizeExact(a, col - GAP, m.height - rt - rb - 2 * GAP), L.moveExact(a, m.x + rl + GAP, m.y + rt + GAP)]
 }
 /** Place the pinned window in a column `col` px wide on monitor `m`. */
 const place = (address: string, m: MonitorJson, col: number) => batch(placeCmds(address, m, col))
@@ -172,10 +166,10 @@ function follow(name: string, width: number) {
 async function relayout() {
   try {
     const g = JSON.parse(await execAsync(["hyprctl", "getoption", "general:gaps_out", "-j"])).custom as string
-    await execAsync(["hyprctl", "keyword", "general:gaps_out", g])
+    await keyword("general:gaps_out", g)
     // and the visible columns of the active workspace re-fit beside the column, so the first
     // tiled one does not hang under it (other workspaces re-fit when you next `fit` there)
-    await execAsync(["hyprctl", "dispatch", "layoutmsg", "fit visible"])
+    await dispatch(L.layout("fit visible"))
   } catch (e) { console.error("sidecar relayout:", String(e)) }
 }
 
@@ -185,14 +179,14 @@ const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
 // leaves the colour props as an EMPTY gradient (no border at all), so unmarking writes the
 // global gradients back explicitly.
 async function mark(a: string, on: boolean) {
-  if (on) return batch([`setprop ${a} border_size 3`, `setprop ${a} active_border_color ${rgb(PALETTE.amber)}`, `setprop ${a} inactive_border_color ${rgb(PALETTE.dim)}`])
+  if (on) return batch([L.setProp(a, "border_size", "3"), L.setProp(a, "active_border_color", rgb(PALETTE.amber)), L.setProp(a, "inactive_border_color", rgb(PALETTE.dim))])
   // getoption gives "aarrggbb aarrggbb 45deg"; setprop only renders rgba()/rgb() stops
   const opt = async (k: string) => {
     const raw = ((JSON.parse(await execAsync(["hyprctl", "getoption", k, "-j"])).custom as string) || "ffffffff").trim()
     return raw.split(/\s+/).map((t) => (/^[0-9a-f]{8}$/i.test(t) ? `rgba(${t.slice(2)}${t.slice(0, 2)})` : t)).join(" ")
   }
   const [act, ina] = await Promise.all([opt("general:col.active_border"), opt("general:col.inactive_border")])
-  return batch([`setprop ${a} border_size unset`, `setprop ${a} active_border_color ${act}`, `setprop ${a} inactive_border_color ${ina}`])
+  return batch([L.setProp(a, "border_size", "unset"), L.setProp(a, "active_border_color", act), L.setProp(a, "inactive_border_color", ina)])
 }
 
 export const isSidecar = (c: Hyprland.Client) => [...sidecars.values()].some((s) => s.address === c.address)
@@ -212,7 +206,7 @@ export async function pinSidecar(c: Hyprland.Client) {
   const a = addr(c)
   // a fullscreen or maximised window (hyprscroller's maximise counts) cannot float, and a tiled
   // one cannot pin — Hyprland refused both silently until the batch reported them
-  await batch([`fullscreenstate 0 0,${a}`, `setfloating ${a}`, ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [`pin ${a}`])])
+  await batch([L.fullscreenState(a, 0, 0), L.float(a, "set"), ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [L.pin(a)])])
   mark(a, true)
   settleUntil = Date.now() + 1200
   timeout(80, relayout)
@@ -235,7 +229,7 @@ export async function unpinSidecar(c: Hyprland.Client) {
   const a = addr(c)
   const s = sidecars.get(name)
   if (s && s.address === c.address) drop(name)
-  await batch([...(c.pinned ? [`pin ${a}`] : []), `settiled ${a}`])
+  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "unset")])
   timeout(80, relayout)
 }
 
@@ -249,7 +243,7 @@ export function colresize(arg: string) {
   const d = arg === "narrower" ? -0.05 : arg === "wider" ? 0.05 : Number(arg) || 0
   const c = hypr.focusedClient
   const s = c && [...sidecars.entries()].find(([, x]) => x.address === c.address)
-  if (!c || !s) return batch([`layoutmsg colresize ${d > 0 ? "+" : ""}${d}`])
+  if (!c || !s) return batch([L.layout(`colresize ${d > 0 ? "+" : ""}${d}`)])
   const [name, side] = s
   follow(name, side.width + Math.round(side.m.width * d))
 }
@@ -263,18 +257,18 @@ export function focusDir(dir: "l" | "r") {
   const c = hypr.focusedClient
   const mon = c?.get_monitor()
   const s = mon && sidecars.get(mon.name)
-  if (!c || !s) return batch([`layoutmsg focus ${dir}`])
+  if (!c || !s) return batch([L.layout(`focus ${dir}`)])
   const ws = mon.activeWorkspace
   const tiled = hypr.get_clients()
     .filter((x) => x.workspace?.id === ws?.id && x.mapped && !x.floating && x.x < mon.x + mon.width)
     .sort((a, b) => a.x - b.x)
   const leftmost = tiled.find((x) => x.x + x.width > mon.x + s.col) ?? tiled[0]
   if (c.address === s.address) {
-    if (dir === "r" && leftmost) return batch([`focuswindow ${addr(leftmost)}`])
+    if (dir === "r" && leftmost) return batch([L.focusWindow(addr(leftmost))])
     return
   }
-  if (dir === "l" && leftmost && c.address === leftmost.address) return batch([`focuswindow address:0x${s.address.replace(/^0x/, "")}`])
-  return batch([`layoutmsg focus ${dir}`])
+  if (dir === "l" && leftmost && c.address === leftmost.address) return batch([L.focusWindow(`address:0x${s.address.replace(/^0x/, "")}`)])
+  return batch([L.layout(`focus ${dir}`)])
 }
 
 /** `astal-shell sidecar [toggle|pin|unpin]` on the focused window — for a keybind. */

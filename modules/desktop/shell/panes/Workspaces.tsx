@@ -1,5 +1,6 @@
 // WORKSPACES: every workspace on every monitor, its windows as icons. Click a number to go
 // there, click an icon to focus that window. The bar shows one workspace; this is all of them.
+import { L, dispatch, sel } from "../lib/hyprlua"
 import Gtk from "gi://Gtk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import { For, createBinding, createComputed } from "ags"
@@ -14,7 +15,7 @@ export function WindowStrip({ ws, size = 22 }: { ws: Hyprland.Workspace; size?: 
     <box spacing={2} cssClasses={["strip"]}>
       <For each={clients}>
         {(c) => (
-          <button cssClasses={focusedClient((f) => ["strip-win", ...(f?.address === c.address ? ["focused"] : [])])} onClicked={() => c.focus()} tooltipText={createBinding(c, "title")}>
+          <button cssClasses={focusedClient((f) => ["strip-win", ...(f?.address === c.address ? ["focused"] : [])])} onClicked={() => dispatch(L.focusWindow(sel(c)))} tooltipText={createBinding(c, "title")}>
             <image iconName={iconFor(c)} pixelSize={size} />
           </button>
         )}
@@ -27,7 +28,7 @@ export function WindowStrip({ ws, size = 22 }: { ws: Hyprland.Workspace; size?: 
 function Row({ ws }: { ws: Hyprland.Workspace }) {
   return (
     <box spacing={6} cssClasses={["ws-row"]}>
-      <button cssClasses={focusedWorkspace((f) => ["ws-num", ...(f?.id === ws.id ? ["chip"] : [])])} onClicked={() => ws.focus()}>
+      <button cssClasses={focusedWorkspace((f) => ["ws-num", ...(f?.id === ws.id ? ["chip"] : [])])} onClicked={() => dispatch(L.workspace(String(ws.id)))}>
         <label label={String(ws.id)} widthChars={2} />
       </button>
       <label cssClasses={["faint", "sm"]} label={createBinding(ws, "monitor")((m) => (m?.name ?? "").replace(/^e?DP-/, "D"))} widthChars={2} xalign={0} />
@@ -54,7 +55,7 @@ export function WorkspacePop({ ws }: { ws: Hyprland.Workspace }) {
             // the texture is scaled at load, so the picture's natural size is the thumbnail's
             const tex = stamp(() => texture(c.address, THUMB_H))
             return (
-              <button cssClasses={focusedClient((f) => ["thumb", ...(f?.address === c.address ? ["focused"] : [])])} onClicked={() => c.focus()} tooltipText={createBinding(c, "title")}>
+              <button cssClasses={focusedClient((f) => ["thumb", ...(f?.address === c.address ? ["focused"] : [])])} onClicked={() => dispatch(L.focusWindow(sel(c)))} tooltipText={createBinding(c, "title")}>
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
                   <overlay>
                     <box cssClasses={["shot"]} heightRequest={THUMB_H} widthRequest={tex((t) => (t ? t.get_width() : 120))}>
