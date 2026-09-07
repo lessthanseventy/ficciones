@@ -4,6 +4,7 @@
 // its drawer the lot with source filters.
 import { createState } from "ags"
 import { execAsync } from "ags/process"
+import GLib from "gi://GLib?version=2.0"
 import Notifd from "gi://AstalNotifd"
 import Battery from "gi://AstalBattery"
 import Network from "gi://AstalNetwork"
@@ -106,3 +107,19 @@ const bt = Bluetooth.get_default()
 const btHook = (d: Bluetooth.Device) => d.connect("notify::connected", () => logEvent("sys", `${d.alias || d.name} ${d.connected ? "connected" : "disconnected"}`, "dim"))
 for (const d of bt.get_devices()) btHook(d)
 bt.connect("device-added", (_, d: Bluetooth.Device) => btHook(d))
+
+// ── the shell's own errors: console.error/warn (and GTK's warnings) go through GLib's
+// structured log; console's methods are not writable in GJS, so the writer is replaced — it
+// prints as before AND puts every warning and critical in the log, where a failing dispatch
+// was invisible from the desktop (Andrew, 2026-09-07)
+const bytes = (v: unknown) => (v instanceof Uint8Array ? new TextDecoder().decode(v) : String(v ?? ""))
+// the runtime hands GJS a plain object of byte arrays, not the LogField[] the typings say
+GLib.log_set_writer_func(((level: number, fields: Record<string, unknown>) => {
+  const msg = bytes(fields.MESSAGE), dom = bytes(fields.GLIB_DOMAIN)
+  const crit = (level & GLib.LogLevelFlags.LEVEL_CRITICAL) !== 0, warn = (level & GLib.LogLevelFlags.LEVEL_WARNING) !== 0
+  if (crit || warn || (level & GLib.LogLevelFlags.LEVEL_ERROR)) {
+    printerr(`${dom}-${crit ? "CRITICAL" : warn ? "WARNING" : "ERROR"}: ${msg}`)
+    logEvent("shell", msg.split("\n")[0], crit ? "crit" : "warn")
+  } else if (level & GLib.LogLevelFlags.LEVEL_MESSAGE) print(msg)
+  return GLib.LogWriterOutput.HANDLED
+}) as unknown as GLib.LogWriterFunc)

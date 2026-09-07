@@ -19,7 +19,7 @@ import Gdk from "gi://Gdk?version=4.0"
 import LayerShell from "gi://Gtk4LayerShell?version=1.0"
 import Cairo from "cairo"
 import { execAsync } from "ags/process"
-import { L, dispatch, keyword } from "./hyprlua"
+import { L, dispatch, evalLua } from "./hyprlua"
 import { timeout, interval, type Timer } from "ags/time"
 import { query } from "./hyprsock"
 import { hypr, addr } from "./hypr"
@@ -172,14 +172,19 @@ function follow(name: string, width: number) {
  */
 async function relayout() {
   try {
-    // under the .lua config getoption reports the gaps as `css` ("12 12 12 12"), not `custom`
-    const o = JSON.parse(await execAsync(["hyprctl", "getoption", "general:gaps_out", "-j"]))
-    const g = (o.custom ?? o.css ?? o.int) as string | number | undefined
-    if (g !== undefined) await keyword("general:gaps_out", g)
+    // under the .lua config getoption reports the gaps as `css` ("12 12 12 12", top right
+    // bottom left) and hl.config wants them back as a table
+    const css = JSON.parse(await execAsync(["hyprctl", "getoption", "general:gaps_out", "-j"])).css as string
+    const [t, r, b, l] = css.trim().split(/\s+/).map(Number)
+    await evalLua(`hl.config({ general = { gaps_out = { top = ${t}, right = ${r}, bottom = ${b}, left = ${l} } } })`)
   } catch (e) { console.error("sidecar relayout:", String(e)) }
   // and the visible columns of the active workspace re-fit beside the column, so the first
-  // tiled one does not hang under it (other workspaces re-fit when you next `fit` there)
-  await dispatch(L.layout("fit visible"))
+  // tiled one does not hang under it (other workspaces re-fit when you next `fit` there);
+  // nothing to fit when that workspace has no tiled window ("can't fit" otherwise); fit works
+  // from the focused window, so a focused sidecar cannot fit — the layout re-fits its columns
+  // to the reserved area on its own anyway
+  const f = hypr.focusedClient
+  if (f && f.mapped && !f.floating) await dispatch(L.layout("fit visible"))
 }
 
 const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
@@ -239,7 +244,20 @@ export async function unpinSidecar(c: Hyprland.Client) {
   const s = sidecars.get(name)
   if (s && s.address === c.address) drop(name)
   await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "off")])
-  timeout(80, relayout)
+  // the layout tiles it after the last active column; a former sidecar goes back to the FRONT
+  // of the workspace (Andrew, 2026-09-07): hop it left over every column before it
+  timeout(80, () => { toFront(c.address); timeout(60, relayout) })
+}
+
+function toFront(address: string) {
+  let clients: { address: string; at: [number, number]; floating: boolean; mapped: boolean; workspace: { id: number } }[] = []
+  try { clients = JSON.parse(query("j/clients")) } catch { return }
+  const me = clients.find((x) => x.address === `0x${address.replace(/^0x/, "")}`)
+  if (!me || me.floating) return
+  const cols = new Set(clients.filter((x) => x.mapped && !x.floating && x.workspace.id === me.workspace.id && x.at[0] < me.at[0]).map((x) => x.at[0]))
+  // (`move -col` only scrolls and movewindow l merges into the neighbour's column; swapcol
+  // reorders — measured 2026-09-07)
+  if (cols.size) batch(Array.from(cols, () => L.layout("swapcol l")))
 }
 
 export const toggleSidecar = (c: Hyprland.Client) => (isSidecar(c) ? unpinSidecar(c) : pinSidecar(c))

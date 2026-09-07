@@ -33,7 +33,7 @@ export async function dispatch(...exprs: string[]) {
   try {
     const out = await execAsync(["hyprctl", "--batch", exprs.map((e) => `dispatch ${e}`).join("; ")])
     const bad = out.split("\n").filter((l) => l.trim() && l.trim() !== "ok")
-    if (bad.length) console.error("hypr dispatch:", bad.join(" | "))
+    if (bad.length) (bad.every((l) => l.trim().startsWith("warning:")) ? console.warn : console.error)("hypr dispatch:", bad.join(" | "))
   } catch (e) { console.error("hypr dispatch:", String(e)) }
 }
 
