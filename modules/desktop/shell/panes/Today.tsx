@@ -14,7 +14,7 @@ export function TodayCard() {
     const out: Row[] = []
     if (a.awaiting > 0)
       out.push({ key: "agents", glyph: "\u{f06a9}", cls: "pink", text: `${a.awaiting} ${a.awaiting === 1 ? "agent awaits" : "agents await"} you`, onClick: popAgents })
-    for (const g of ns.slice(0, 6)) {
+    for (const g of ns.slice(0, 40)) {
       const n = g.head
       const u = urgencyOf(n)
       out.push({
@@ -22,15 +22,17 @@ export function TodayCard() {
         text: g.count > 1 ? `${n.summary}  ×${g.count}` : n.summary, sub: n.appName, onClick: () => dismissGroup(g),
       })
     }
-    if (ns.length > 6) out.push({ key: "more", glyph: "…", cls: "dim", text: `${ns.length - 6} more notices in the hub` })
+    if (ns.length > 40) out.push({ key: "more", glyph: "…", cls: "dim", text: `${ns.length - 40} more notices in the hub` })
     let day = ""
-    for (const l of ag.lines.slice(0, 8)) {
+    for (const l of ag.lines.slice(0, 40)) {
       if (l.startsWith("·")) { day = l.replace(/^· /, ""); continue }
       out.push({ key: `a${day}${l}`, glyph: "\u{f00ed}", cls: "cyan", text: l, sub: day })
     }
     return out
   })
   return (
+    // scrolls: the card takes the row's height on the board and the list can be long
+    <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand propagateNaturalHeight>
     <box orientation={Gtk.Orientation.VERTICAL} spacing={1} cssClasses={["today"]}>
       <For each={rows} id={(r) => r.key}>
         {(r) => (
@@ -45,5 +47,6 @@ export function TodayCard() {
       </For>
       <label cssClasses={["green"]} label="nothing needs you" visible={rows((r) => r.length === 0)} xalign={0} />
     </box>
+    </scrolledwindow>
   )
 }

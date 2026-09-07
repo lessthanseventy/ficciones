@@ -92,8 +92,8 @@ window.dashboard { background: transparent; }
 // the board is the one surface that shows everything at once, so its type steps down a notch
 // (Andrew, 2026-09-05: "shrink the text a notch or two if that lets me see it all")
 .board {
-  * { font-size: 13px; }
-  .sm { font-size: 11px; } .lg { font-size: 16px; } .panel-title { font-size: 13px; }
+  * { font-size: 12px; }
+  .sm { font-size: 10px; } .lg { font-size: 15px; } .panel-title { font-size: 12px; }
   .bigtime { font-size: 52px; } .wx-glyph { font-size: 40px; } .hours .sky { font-size: 15px; } .action .icon { font-size: 16px; }
 }
 // the popover look on the board too: an outer frame outside each card's hued border — "card on
@@ -101,7 +101,7 @@ window.dashboard { background: transparent; }
 // cyan↔amber, green↔pink, pink↔cyan, violet↔green, red↔amber), not one colour for all. GTK
 // paints an outline AFTER the children, so it sits 10px out to clear the title tag's 8px
 // overhang; the margins make room for it.
-.board .card { margin: 20px 12px 12px; outline: $rule solid $sep; outline-offset: 10px; }
+.board .card { margin: 14px 12px 12px; outline: $rule solid $sep; outline-offset: 10px; }
 .board .card .panel-body { padding: $sp-3 $sp-3 $sp-3; }
 .board .card .panel-title { font-size: $size; padding: 0 $sp-2; }
 // the card's hue on its frame and title tag — the board is fun that way (Andrew, 2026-09-07:
@@ -121,7 +121,7 @@ window.dashboard { background: transparent; }
 .card-today    { @include hue($accent, $cyan); }
 .card-disk     { @include hue($amber, $violet); }
 .card-net      { @include hue($cyan, $amber); }
-.card-journal  { @include hue($red, $amber); }
+.card-log      { @include hue($amber, $violet); }
 .card-workspaces { @include hue($arch-assistant, $green); }
 .card-today { min-width: 380px; }
 .card-disk, .card-net { min-width: 380px; }
@@ -149,6 +149,7 @@ window.dashboard { background: transparent; }
   &.busy { .num, .bar, .spark { color: $chip; } }
   &.hot  { .num, .bar, .spark { color: $red; } }
 }
+.action.tile { min-width: 64px; min-height: 48px; padding: $sp-1 $sp-2; border: $rule solid $sep; &:hover { border-color: $amber; } .icon { font-size: $size-lg; } }
 .action {
   min-height: 30px; min-width: 150px; padding: 0 $sp-2;
   background: none; border: none; border-radius: 0; box-shadow: none;

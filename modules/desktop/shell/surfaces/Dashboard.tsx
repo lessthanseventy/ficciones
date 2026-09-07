@@ -19,8 +19,7 @@ import { WeatherCard } from "../panes/Weather"
 import { METRICS, CoreGrid, Procs, type Metric } from "../panes/Perf"
 import { DiskCard } from "../panes/Disk"
 import { NetCard } from "../panes/Net"
-import { TodayCard } from "../panes/Today"
-import { JournalCard } from "../panes/Journal"
+import { LogPane } from "./Deck"
 import { WorkspacesCard } from "../panes/Workspaces"
 import { RuleV } from "../lib/tui"
 import { tier } from "../lib/perf"
@@ -41,7 +40,16 @@ export const toggleDashboard = () => (dashboardOpen() ? hideDashboard() : showDa
 const run = (cmd: string[]) => { hideDashboard(); execAsync(cmd).catch(console.error) }
 
 /** An action as a row: icon, then the word. The POWER and SHELL cards are lists of these. */
-function Action({ icon, label, cls = [], onClick }: { icon: string; label: string; cls?: string[]; onClick: () => void }) {
+function Action({ icon, label, cls = [], onClick, tile = false }: { icon: string; label: string; cls?: string[]; onClick: () => void; tile?: boolean }) {
+  // a tile: the icon over the word, the toggles' shape — for the rows that must stay narrow
+  if (tile) return (
+    <button cssClasses={["action", "tile", ...cls]} onClicked={onClick}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+        <label cssClasses={["icon"]} label={icon} />
+        <label cssClasses={["sm"]} label={label} />
+      </box>
+    </button>
+  )
   return (
     <button cssClasses={["action", ...cls]} onClicked={onClick}>
       <box spacing={10}>
@@ -54,22 +62,22 @@ function Action({ icon, label, cls = [], onClick }: { icon: string; label: strin
 
 function Power() {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-      <Action icon={"\u{f033e}"} label="lock" onClick={() => run(["hyprlock"])} />
-      <Action icon={"\u{f04b2}"} label="suspend" onClick={() => run(["systemctl", "suspend"])} />
-      <Action icon={"\u{f0343}"} label="logout" cls={["red"]} onClick={() => dispatch(L.exit())} />
-      <Action icon={"\u{f0709}"} label="reboot" cls={["red"]} onClick={() => run(["systemctl", "reboot"])} />
-      <Action icon={"\u{f0425}"} label="shutdown" cls={["red"]} onClick={() => run(["systemctl", "poweroff"])} />
+    <box spacing={4}>
+      <Action icon={"\u{f033e}"} label="lock" tile onClick={() => run(["hyprlock"])} />
+      <Action icon={"\u{f04b2}"} label="suspend" tile onClick={() => run(["systemctl", "suspend"])} />
+      <Action icon={"\u{f0343}"} label="logout" tile cls={["red"]} onClick={() => dispatch(L.exit())} />
+      <Action icon={"\u{f0709}"} label="reboot" tile cls={["red"]} onClick={() => run(["systemctl", "reboot"])} />
+      <Action icon={"\u{f0425}"} label="shutdown" tile cls={["red"]} onClick={() => run(["systemctl", "poweroff"])} />
     </box>
   )
 }
 
 function Shell() {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-      <Action icon={"\u{f030c}"} label="keys" onClick={() => { hideDashboard(); toggleCheatsheet() }} />
-      <Action icon={"\u{f0450}"} label="restart shell" onClick={() => run(["bash", "-c", "sleep 0.2; pkill -x gjs; sleep 0.3; astal-shell"])} />
-      <Action icon={"\u{f0453}"} label="reload hypr" onClick={() => run(["hyprctl", "reload"])} />
+    <box spacing={4}>
+      <Action icon={"\u{f030c}"} label="keys" tile onClick={() => { hideDashboard(); toggleCheatsheet() }} />
+      <Action icon={"\u{f0450}"} label="restart shell" tile onClick={() => run(["bash", "-c", "sleep 0.2; pkill -x gjs; sleep 0.3; astal-shell"])} />
+      <Action icon={"\u{f0453}"} label="reload hypr" tile onClick={() => run(["hyprctl", "reload"])} />
     </box>
   )
 }
@@ -168,15 +176,13 @@ export default function Dashboard() {
             <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
               <Panel title={"\u{f0954}  NOW"} cssClasses={["card", "card-now"]}><ClockCard /></Panel>
               <Panel title={"\u{f0771}  WORKSPACES"} cssClasses={["card", "card-workspaces"]}><WorkspacesCard /></Panel>
-              <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
             </box>
             {/* weather is short (the week as columns) so the calendar column sets row one's height
                 and TODAY, the agenda, takes what is left of it (Andrew, 2026-09-07) */}
             <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]} hexpand><WeatherCard compact /></Panel>
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-              <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><CalendarCard /></Panel>
-              <Panel title={"\u{f0e7e}  TODAY"} cssClasses={["card", "card-today"]} vexpand><TodayCard /></Panel>
-            </box>
+            {/* the calendar has the column — the agenda goes in it once there are calendars;
+                TODAY was the notices again (Andrew, 2026-09-07) */}
+            <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]} vexpand><CalendarCard /></Panel>
           </box>
           <box spacing={16}>
             <Panel title={"\u{f0e4a}  PERF"} cssClasses={["card", "card-perf"]} hexpand><PerfCard /></Panel>
@@ -186,9 +192,13 @@ export default function Dashboard() {
             </box>
           </box>
           <box spacing={16} vexpand>
-            <Panel title={"\u{f0a0d}  JOURNAL"} cssClasses={["card", "card-journal"]} hexpand><JournalCard /></Panel>
-            <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles perRow={5} /></Panel>
-            <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
+            {/* the deck's log, filters and all — not the journal alone (Andrew, 2026-09-07) */}
+            <Panel title={"\u{f0a0d}  LOG"} cssClasses={["card", "card-log"]} hexpand vexpand><LogPane /></Panel>
+            <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles perRow={5} omit={["profile"]} /></Panel>
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+              <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
+              <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
+            </box>
           </box>
           <box cssClasses={["keys"]} spacing={12}>
             <label label="Esc close" /><label label="Super+D toggle" />

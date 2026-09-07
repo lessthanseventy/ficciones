@@ -30,7 +30,7 @@ function Toggle({ icon, label, on, onToggle }: { icon: string | Accessor<string>
 }
 
 /** `only`: a subset by key (the hub pins wifi/bt/dnd/awake/night; the dashboard shows the lot). */
-export function Toggles({ perRow = 4, only }: { perRow?: number; only?: string[] }) {
+export function Toggles({ perRow = 4, only, omit = [] }: { perRow?: number; only?: string[]; omit?: string[] }) {
   const net = Network.get_default()
   const bt = Bluetooth.get_default()
   const pp = PowerProfiles.get_default()
@@ -59,7 +59,7 @@ export function Toggles({ perRow = 4, only }: { perRow?: number; only?: string[]
     { key: "next wp", el: (<Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={nextWallpaper} />) },
     { key: "profile", el: (<Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />) },
   ]
-  const all = (only ? entries.filter((e) => only.includes(e.key)) : entries).map((e) => e.el)
+  const all = (only ? entries.filter((e) => only.includes(e.key)) : entries).filter((e) => !omit.includes(e.key)).map((e) => e.el)
   const rows: JSX.Element[][] = []
   for (let i = 0; i < all.length; i += perRow) rows.push(all.slice(i, i + perRow))
   return (

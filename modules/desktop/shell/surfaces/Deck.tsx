@@ -206,7 +206,7 @@ export function toggleDeck(on?: Gdk.Monitor) {
 export const deckVisible = () => !!deckWin?.visible
 export const deckMonitor = () => deckWin?.gdkmonitor?.connector
 
-function LogPane() {
+export function LogPane() {
   // "all", or the sources picked — picking filters IN (Andrew, 2026-09-07); empty = all
   const [sel, setSel] = createState<Set<Src>>(new Set())
   const shown = createComputed([log, sel], (l, o) => [...l].reverse().filter((e) => o.size === 0 || o.has(e.src)))
