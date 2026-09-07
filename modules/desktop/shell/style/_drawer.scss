@@ -141,7 +141,15 @@ window.dashboard { background: transparent; }
 .card-agents, .card-media { min-width: 320px; }
 .bigtime { color: $amber; font-size: 56px; }
 // the mark above the time: the corner's doubled aleph (amber over a pink echo), the name in cyan
-.wordmark { .aleph { color: $amber; font-size: 22px; } .hron { color: $accent; opacity: 0.55; margin-left: 5px; margin-top: 2px; font-size: 22px; } .name { color: $cyan; font-size: $size-lg; letter-spacing: 2px; } }
+.wordmark {
+  padding: $sp-1 $sp-2;
+  .aleph { color: $amber; font-size: 34px; }
+  .name { color: $cyan; font-size: 20px; letter-spacing: 3px; }
+  // the echo: the same glyphs in pink, dimmer, up and to the RIGHT (Andrew, 2026-09-07)
+  .hron { color: $accent; opacity: 0.55; margin-left: 5px; margin-bottom: 4px; font-size: 34px; }
+  .name.hron { color: $accent; font-size: 20px; margin-left: 3px; margin-bottom: 3px; }
+}
+.card-mark { @include hue($accent, $cyan); }
 .lg { font-size: $size-lg; }
 .gauge {
   min-width: 220px;
@@ -151,7 +159,10 @@ window.dashboard { background: transparent; }
   &.busy { .num, .bar, .spark { color: $chip; } }
   &.hot  { .num, .bar, .spark { color: $red; } }
 }
-.action.tile { min-width: 64px; min-height: 48px; padding: $sp-1 $sp-2; border: $rule solid $sep; &:hover { border-color: $amber; } .icon { font-size: $size-lg; } }
+// POWER and SHELL are toggle tiles (the design language: a tile is a thing you press); the red
+// ones say so at rest, and every one lights like a toggle on hover
+.card-power .toggle, .card-shell .toggle { min-height: 56px; min-width: 84px; }
+.toggle.tile.red { border-color: rgba($red, 0.6); * { color: $red; } &:hover { border-color: $red; * { color: $red; } } }
 .action {
   min-height: 30px; min-width: 150px; padding: 0 $sp-2;
   background: none; border: none; border-radius: 0; box-shadow: none;

@@ -43,7 +43,7 @@ const run = (cmd: string[]) => { hideDashboard(); execAsync(cmd).catch(console.e
 function Action({ icon, label, cls = [], onClick, tile = false }: { icon: string; label: string; cls?: string[]; onClick: () => void; tile?: boolean }) {
   // a tile: the icon over the word, the toggles' shape — for the rows that must stay narrow
   if (tile) return (
-    <button cssClasses={["action", "tile", ...cls]} onClicked={onClick}>
+    <button cssClasses={["toggle", "tile", ...cls]} onClicked={onClick}>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
         <label cssClasses={["icon"]} label={icon} />
         <label cssClasses={["sm"]} label={label} />
@@ -62,27 +62,58 @@ function Action({ icon, label, cls = [], onClick, tile = false }: { icon: string
 
 function Power() {
   return (
-    <box spacing={4}>
-      <Action icon={"\u{f033e}"} label="lock" tile onClick={() => run(["hyprlock"])} />
-      <Action icon={"\u{f04b2}"} label="suspend" tile onClick={() => run(["systemctl", "suspend"])} />
-      <Action icon={"\u{f0343}"} label="logout" tile cls={["red"]} onClick={() => dispatch(L.exit())} />
-      <Action icon={"\u{f0709}"} label="reboot" tile cls={["red"]} onClick={() => run(["systemctl", "reboot"])} />
-      <Action icon={"\u{f0425}"} label="shutdown" tile cls={["red"]} onClick={() => run(["systemctl", "poweroff"])} />
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["tiles"]}>
+      <box spacing={4} homogeneous>
+        <Action icon={"\u{f033e}"} label="lock" tile onClick={() => run(["hyprlock"])} />
+        <Action icon={"\u{f04b2}"} label="suspend" tile onClick={() => run(["systemctl", "suspend"])} />
+        <Action icon={"\u{f0343}"} label="logout" tile cls={["red"]} onClick={() => dispatch(L.exit())} />
+      </box>
+      <box spacing={4} homogeneous>
+        <Action icon={"\u{f0709}"} label="reboot" tile cls={["red"]} onClick={() => run(["systemctl", "reboot"])} />
+        <Action icon={"\u{f0425}"} label="shutdown" tile cls={["red"]} onClick={() => run(["systemctl", "poweroff"])} />
+        <box />
+      </box>
     </box>
   )
 }
 
 function Shell() {
   return (
-    <box spacing={4}>
-      <Action icon={"\u{f030c}"} label="keys" tile onClick={() => { hideDashboard(); toggleCheatsheet() }} />
-      <Action icon={"\u{f0450}"} label="restart shell" tile onClick={() => run(["bash", "-c", "sleep 0.2; pkill -x gjs; sleep 0.3; astal-shell"])} />
-      <Action icon={"\u{f0453}"} label="reload hypr" tile onClick={() => run(["hyprctl", "reload"])} />
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["tiles"]}>
+      <box spacing={4} homogeneous>
+        <Action icon={"\u{f030c}"} label="keys" tile onClick={() => { hideDashboard(); toggleCheatsheet() }} />
+        <Action icon={"\u{f0450}"} label="restart" tile onClick={() => run(["bash", "-c", "sleep 0.2; pkill -x gjs; sleep 0.3; astal-shell"])} />
+      </box>
+      <box spacing={4} homogeneous>
+        <Action icon={"\u{f0453}"} label="reload hypr" tile onClick={() => run(["hyprctl", "reload"])} />
+        <box />
+      </box>
     </box>
   )
 }
 
 /** The big clock: time, date, how long the box has been up. */
+/** The mark: the corner's doubled aleph and the name, the machine under it — its own little
+ * card above NOW, so the left column fills to the weather card (Andrew, 2026-09-07). */
+function MarkCard() {
+  return (
+    <box cssClasses={["wordmark"]} spacing={12} valign={Gtk.Align.CENTER}>
+      {/* the glyph inks low in its box: a nudge up centres it on the two lines of text */}
+      <overlay valign={Gtk.Align.CENTER} marginBottom={6}>
+        <label cssClasses={["aleph"]} label={"\u2135"} />
+        <label $type="overlay" cssClasses={["hron"]} label={"\u2135"} canTarget={false} />
+      </overlay>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={0} valign={Gtk.Align.CENTER}>
+        <overlay>
+          <label cssClasses={["name"]} label="ficciones" xalign={0} />
+          <label $type="overlay" cssClasses={["name", "hron"]} label="ficciones" xalign={0} canTarget={false} />
+        </overlay>
+        <label cssClasses={["dim", "sm"]} label={GLib.get_host_name()} xalign={0} />
+      </box>
+    </box>
+  )
+}
+
 function ClockCard() {
   const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
   const up = createPoll("", 30_000, () => {
@@ -95,19 +126,10 @@ function ClockCard() {
   })
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2} valign={Gtk.Align.CENTER}>
-      {/* the mark: the corner's doubled aleph and the name, above the time (Andrew, 2026-09-07) */}
-      <box cssClasses={["wordmark"]} spacing={10}>
-        <overlay>
-          <label cssClasses={["aleph"]} label={"\u2135"} />
-          <label $type="overlay" cssClasses={["hron"]} label={"\u2135"} canTarget={false} />
-        </overlay>
-        <label cssClasses={["name"]} label="ficciones" xalign={0} />
-      </box>
       <label cssClasses={["bigtime"]} label={now((d) => d.format("%H:%M")!)} xalign={0} />
       <label cssClasses={["amber", "lg"]} label={now((d) => d.format("%A")!)} xalign={0} />
       <label cssClasses={["dim"]} label={now((d) => d.format("%-d %B %Y")!)} xalign={0} />
       <label cssClasses={["dim", "sm"]} label={up} xalign={0} />
-      <label cssClasses={["faint", "sm"]} label={GLib.get_host_name()} xalign={0} />
     </box>
   )
 }
@@ -184,6 +206,7 @@ export default function Dashboard() {
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand>
           <box spacing={16}>
             <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+              <Panel title={"\u2135  FICCIONES"} cssClasses={["card", "card-mark"]}><MarkCard /></Panel>
               <Panel title={"\u{f0954}  NOW"} cssClasses={["card", "card-now"]}><ClockCard /></Panel>
               <Panel title={"\u{f0771}  WORKSPACES"} cssClasses={["card", "card-workspaces"]}><WorkspacesCard /></Panel>
             </box>
@@ -207,10 +230,8 @@ export default function Dashboard() {
             {/* the deck's log, filters and all — not the journal alone (Andrew, 2026-09-07) */}
             <Panel title={"\u{f0a0d}  LOG"} cssClasses={["card", "card-log"]} hexpand vexpand><LogPane /></Panel>
             <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles perRow={5} omit={["profile"]} /></Panel>
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-              <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
-              <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
-            </box>
+            <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
+            <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
           </box>
           <box cssClasses={["keys"]} spacing={12}>
             <label label="Esc close" /><label label="Super+D toggle" />
