@@ -95,6 +95,14 @@ function ClockCard() {
   })
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2} valign={Gtk.Align.CENTER}>
+      {/* the mark: the corner's doubled aleph and the name, above the time (Andrew, 2026-09-07) */}
+      <box cssClasses={["wordmark"]} spacing={10}>
+        <overlay>
+          <label cssClasses={["aleph"]} label={"\u2135"} />
+          <label $type="overlay" cssClasses={["hron"]} label={"\u2135"} canTarget={false} />
+        </overlay>
+        <label cssClasses={["name"]} label="ficciones" xalign={0} />
+      </box>
       <label cssClasses={["bigtime"]} label={now((d) => d.format("%H:%M")!)} xalign={0} />
       <label cssClasses={["amber", "lg"]} label={now((d) => d.format("%A")!)} xalign={0} />
       <label cssClasses={["dim"]} label={now((d) => d.format("%-d %B %Y")!)} xalign={0} />
@@ -173,6 +181,8 @@ export default function Dashboard() {
           {/* three rows, packed to fit 1920×1080 with the rail and bar: the tall weather card sets
               row one's height and the columns beside it stack two cards each */}
           <box spacing={16}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand>
+          <box spacing={16}>
             <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
               <Panel title={"\u{f0954}  NOW"} cssClasses={["card", "card-now"]}><ClockCard /></Panel>
               <Panel title={"\u{f0771}  WORKSPACES"} cssClasses={["card", "card-workspaces"]}><WorkspacesCard /></Panel>
@@ -180,16 +190,18 @@ export default function Dashboard() {
             {/* weather is short (the week as columns) so the calendar column sets row one's height
                 and TODAY, the agenda, takes what is left of it (Andrew, 2026-09-07) */}
             <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]} hexpand><WeatherCard compact /></Panel>
-            {/* the calendar has the column — the agenda goes in it once there are calendars;
-                TODAY was the notices again (Andrew, 2026-09-07) */}
-            <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]} vexpand><CalendarCard /></Panel>
           </box>
           <box spacing={16}>
             <Panel title={"\u{f0e4a}  PERF"} cssClasses={["card", "card-perf"]} hexpand><PerfCard /></Panel>
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-              <Panel title={"\u{f02ca}  DISK"} cssClasses={["card", "card-disk"]}><DiskCard /></Panel>
-              <Panel title={"\u{f05a9}  NET"} cssClasses={["card", "card-net"]}><NetCard /></Panel>
-            </box>
+          </box>
+          </box>
+          {/* the right column spans both rows: the calendar fills down (the agenda goes in it once
+              there are calendars), DISK and NET sit level with PERF's bottom (Andrew, 2026-09-07) */}
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+            <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]} vexpand><CalendarCard /></Panel>
+            <Panel title={"\u{f02ca}  DISK"} cssClasses={["card", "card-disk"]}><DiskCard /></Panel>
+            <Panel title={"\u{f05a9}  NET"} cssClasses={["card", "card-net"]}><NetCard /></Panel>
+          </box>
           </box>
           <box spacing={16} vexpand>
             {/* the deck's log, filters and all — not the journal alone (Andrew, 2026-09-07) */}

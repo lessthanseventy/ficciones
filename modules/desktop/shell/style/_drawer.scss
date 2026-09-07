@@ -140,6 +140,8 @@ window.dashboard { background: transparent; }
 .card-calendar { min-width: 380px; }
 .card-agents, .card-media { min-width: 320px; }
 .bigtime { color: $amber; font-size: 56px; }
+// the mark above the time: the corner's doubled aleph (amber over a pink echo), the name in cyan
+.wordmark { .aleph { color: $amber; font-size: 22px; } .hron { color: $accent; opacity: 0.55; margin-left: 5px; margin-top: 2px; font-size: 22px; } .name { color: $cyan; font-size: $size-lg; letter-spacing: 2px; } }
 .lg { font-size: $size-lg; }
 .gauge {
   min-width: 220px;
