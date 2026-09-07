@@ -92,7 +92,20 @@ in
   };
 
   config = {
-    home.packages = [ pkgs.nerd-fonts.comic-shanns-mono ];
+    # the one font, plus coverage for what it has no glyphs for: non-Latin text and emoji
+    home.packages = [ pkgs.nerd-fonts.comic-shanns-mono pkgs.noto-fonts pkgs.noto-fonts-cjk-sans pkgs.noto-fonts-color-emoji ];
+    # fontconfig reads ~/.nix-profile/share/fonts only through this (it writes the conf.d entry).
+    # Every generic family resolves to THE font — mono for sans and serif too (Andrew, 2026-09-07:
+    # easier on his eyes than any proportional face); Noto only fills the glyphs it lacks.
+    fonts.fontconfig = {
+      enable = true;
+      defaultFonts = rec {
+        monospace = [ palette.font.family palette.font.mono "Noto Sans Mono" "Noto Sans CJK SC" "Noto Color Emoji" ];
+        sansSerif = [ palette.font.family "Noto Sans" "Noto Sans CJK SC" "Noto Color Emoji" ];
+        serif = sansSerif;
+        emoji = [ "Noto Color Emoji" ];
+      };
+    };
 
     # GTK reads org.gnome.desktop.interface AHEAD of settings.ini on Wayland, and a D-Bus-activated
     # app (gcr-prompter, the portal dialogs) never sees Hyprland's GTK_THEME — a stale

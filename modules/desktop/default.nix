@@ -69,6 +69,13 @@ in
       # pandoc from the binary cache — pacman's built it locally through ~190 haskell-* packages
       pandoc
       signal-desktop slack discord podman-desktop audacity strawberry
+      # the theme module renders configs for these; the binaries were pacman's (survey 2026-09-07)
+      starship bat cava btop kitty wezterm delta
+      # decided in modules/os/ivysaur.nix, applied to today's profile too
+      libreoffice-fresh qbittorrent pavucontrol eza imv hyprpicker brightnessctl diff-so-fancy
+      # dev / cli
+      direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wev pamixer bluetui
+      lazydocker lazysql lazyjj lazyjournal lazyssh
     ];
 
     xdg.configFile = {
