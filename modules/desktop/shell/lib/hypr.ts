@@ -1,5 +1,7 @@
 import Hyprland from "gi://AstalHyprland"
 import { createBinding, createState, type Accessor } from "ags"
+import { execAsync } from "ags/process"
+import { timeout } from "ags/time"
 
 export const hypr = Hyprland.get_default()
 
@@ -35,10 +37,36 @@ export const isFullscreen = (monitor: string | undefined) => !!monitor && fullsc
 /**
  * Screen sharing / recording: Hyprland's `screencast` event — `STATE,OWNER` (1 starting /
  * 0 stopping; owner 0 = a monitor, 1 = a window). Counted, since two shares can overlap.
+ * `since` is the first start; `who` is the portal consumer when there is one (a browser, OBS:
+ * a PipeWire video stream carries its application.name), else what is being captured — a
+ * direct screencopy client (wf-recorder) is anonymous to the compositor.
  */
-export const [screencasts, setScreencasts] = createState(0)
+export type Capture = { count: number; since: number; who: string }
+export const [capture, setCapture] = createState<Capture>({ count: 0, since: 0, who: "" })
+async function whoCaptures(owner: string): Promise<string> {
+  try {
+    const out = await execAsync(["pw-dump"])
+    const names = new Set<string>()
+    for (const n of JSON.parse(out) as any[]) {
+      const p = n?.info?.props
+      if (!p || n.type !== "PipeWire:Interface:Node") continue
+      if (String(p["media.class"] ?? "").startsWith("Stream/Input/Video") && p["application.name"]) names.add(String(p["application.name"]))
+    }
+    if (names.size) return [...names].join(", ")
+  } catch { /* no pipewire tools */ }
+  return owner === "1" ? "a window" : "a monitor"
+}
 hypr.connect("event", (_, ev: string, args: string) => {
   if (ev !== "screencast") return
-  const [state] = args.split(",")
-  setScreencasts((n) => Math.max(0, n + (state === "1" ? 1 : -1)))
+  const [state, owner] = args.split(",")
+  const cur = capture.peek()
+  if (state === "1") {
+    const next = { count: cur.count + 1, since: cur.count ? cur.since : Date.now(), who: cur.who }
+    setCapture(next)
+    // the consumer's stream is up a moment after the event
+    timeout(600, () => whoCaptures(owner).then((w) => setCapture((c) => (c.count ? { ...c, who: w } : c))))
+  } else {
+    const count = Math.max(0, cur.count - 1)
+    setCapture(count ? { ...cur, count } : { count: 0, since: 0, who: "" })
+  }
 })

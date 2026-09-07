@@ -1,5 +1,5 @@
 import { L, dispatch } from "../lib/hyprlua"
-import { screencasts } from "../lib/hypr"
+import { capture } from "../lib/hypr"
 import app from "ags/gtk4/app"
 import { closeOnPress } from "./Clickaway"
 import Astal from "gi://Astal?version=4.0"
@@ -8,8 +8,8 @@ import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import Pango from "gi://Pango?version=1.0"
 import Battery from "gi://AstalBattery"
-import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
-import { createPoll } from "ags/time"
+import { For, createBinding, createComputed, createState, onCleanup, type Accessor } from "ags"
+import { createPoll, interval, type Timer } from "ags/time"
 import { execAsync } from "ags/process"
 import { hypr, focusedClient, focusedWorkspace, addr } from "../lib/hypr"
 import { toggleSidecar } from "../lib/sidecar"
@@ -195,10 +195,24 @@ function BatteryCell() {
 
 /** Something is capturing the screen (a share, a recording): red, present only while it is. */
 function RecCell() {
+  // a clock for the elapsed time, ticking only while a capture runs
+  const [now, setNow] = createState(Date.now())
+  let t: Timer | null = null
+  capture.subscribe(() => {
+    if (capture.peek().count && !t) t = interval(1000, () => setNow(Date.now()))
+    if (!capture.peek().count && t) { t.cancel(); t = null }
+  })
+  const elapsed = createComputed([capture, now], (c, n) => {
+    if (!c.since) return ""
+    const s = Math.floor((n - c.since) / 1000)
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
+  })
   return (
-    <box cssClasses={["cell", "rec"]} spacing={6} visible={screencasts((n) => n > 0)} tooltipText="the screen is being captured">
+    <box cssClasses={["cell", "rec"]} spacing={6} visible={capture((c) => c.count > 0)} tooltipText={capture((c) => (c.who ? `the screen is being captured by ${c.who}` : "the screen is being captured"))}>
       <label cssClasses={["rec-dot"]} label="●" />
-      <label cssClasses={["rec-text"]} label={screencasts((n) => (n > 1 ? `REC ×${n}` : "REC"))} />
+      <label cssClasses={["rec-text"]} label={capture((c) => (c.count > 1 ? `REC ×${c.count}` : "REC"))} />
+      <label cssClasses={["rec-text"]} label={elapsed} />
+      <label cssClasses={["rec-who"]} label={capture((c) => c.who)} visible={capture((c) => !!c.who)} ellipsize={3} maxWidthChars={18} />
     </box>
   )
 }
@@ -206,7 +220,6 @@ function RecCell() {
 function Status() {
   return (
     <box cssClasses={["status"]} halign={Gtk.Align.END}>
-      <RecCell />
       <RuleV />
       <BatteryCell />
     </box>
@@ -234,6 +247,7 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <box>
         <Windows connector={gdkmonitor.connector} />
         <box hexpand />
+        <RecCell />
         <PerfCells />
         <Status />
       </box>
