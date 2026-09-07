@@ -40,8 +40,8 @@ window.drawer { background: transparent; }
 .huge { font-size: 34px; }
 .spark { color: $amber; }
 .spark.wide { font-size: $size-lg; letter-spacing: 0; }
-.metric.idle { .huge, .spark { color: $green; } }
-.metric.busy { .huge, .spark { color: $amber; } }
+.metric.idle { .huge, .spark { color: $amber; } }
+.metric.busy { .huge, .spark { color: $chip; } }
 .metric.hot  { .huge, .spark { color: $red; } }
 .act { padding: 0 $sp-2; color: $amber; min-width: 28px; &:hover { background: $hover; } }
 .act.play { color: $green; font-size: $size-lg; }
@@ -103,6 +103,10 @@ window.dashboard { background: transparent; }
 .board .card { margin-top: $sp-3; }
 .board .card .panel-body { padding: $sp-3 $sp-3 $sp-3; }
 .board .card .panel-title { font-size: $size; padding: 0 $sp-2; }
+// the card's hue on its frame and title tag — the board is fun that way (Andrew, 2026-09-07:
+// uniform frames were "way less fun") — but the BODY follows role (amber / cyan keys / lilac
+// meta) and a quiet gauge is amber, not green: green frame + green title + green body was the
+// green-on-green he did not like
 @mixin hue($c) { border-color: $c; .panel-title { color: $c; } }
 .card-now      { @include hue($amber); }
 .card-weather  { @include hue($cyan); }
@@ -122,8 +126,8 @@ window.dashboard { background: transparent; }
 .card-disk, .card-net { min-width: 380px; }
 .mount {
   .bar { letter-spacing: 0; }
-  &.idle { .bar, .num { color: $green; } }
-  &.busy { .bar, .num { color: $amber; } }
+  &.idle { .bar, .num { color: $amber; } }
+  &.busy { .bar, .num { color: $chip; } }
   &.hot  { .bar, .num { color: $red; } }
 }
 .today-row { min-height: 24px; padding: 0 $sp-1; &:disabled { opacity: 1; } }
@@ -140,8 +144,8 @@ window.dashboard { background: transparent; }
   min-width: 220px;
   .bar { font-size: $size-sm; letter-spacing: 0; }
   .spark { letter-spacing: 0; }
-  &.idle { .num, .bar, .spark { color: $green; } }
-  &.busy { .num, .bar, .spark { color: $amber; } }
+  &.idle { .num, .bar, .spark { color: $amber; } }
+  &.busy { .num, .bar, .spark { color: $chip; } }
   &.hot  { .num, .bar, .spark { color: $red; } }
 }
 .action {
@@ -157,8 +161,8 @@ window.dashboard { background: transparent; }
 // perf card: the core grid and the process table
 .core {
   .spark { letter-spacing: 0; }
-  &.idle { .spark, .num { color: $green; } }
-  &.busy { .spark, .num { color: $amber; } }
+  &.idle { .spark, .num { color: $amber; } }
+  &.busy { .spark, .num { color: $chip; } }
   &.hot  { .spark, .num { color: $red; } }
 }
 .procs .sort { padding: 0 $sp-1; min-width: 34px; label { color: $meta; } &.chip label { color: $ink; } }
