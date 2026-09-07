@@ -217,11 +217,9 @@ function Sni() {
     item.connect("notify::action-group", () => btn.insert_action_group("dbusmenu", item.actionGroup))
   }
   return (
-    <menubutton cssClasses={["item", "sni"]} direction={Gtk.ArrowType.RIGHT} visible={items((l) => l.length > 0)} $={(self) => hoverPopover(self, "rail")}>
-      <box orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.CENTER}>
-        <label cssClasses={["icon"]} label={"\u{f00a}"} halign={Gtk.Align.CENTER} xalign={0.5} />
-        <label cssClasses={["sm"]} label={items((l) => String(l.length))} halign={Gtk.Align.CENTER} xalign={0.5} />
-      </box>
+    <menubutton cssClasses={items((l) => ["item", "sni", ...(l.length ? ["live"] : [])])} direction={Gtk.ArrowType.RIGHT} hexpand $={(self) => hoverPopover(self, "rail")}>
+      {/* no count: the glyph is dim with nothing in the tray, amber with something (Andrew, 2026-09-07) */}
+      <label cssClasses={["icon"]} label={"\u{f00a}"} halign={Gtk.Align.CENTER} xalign={0.5} />
       <popover cssClasses={["pop", "pop-tray"]}>
         <Panel title={"\u{f00a}  TRAY"} cssClasses={["card", "card-tray"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
@@ -417,14 +415,14 @@ function VpnItem() {
 export default function TrayPane() {
   return (
     <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={2}>
-      <Sni />
-      <RuleH visible={items((l) => l.length > 0)} />
       <CaptureItem />
       <ClipItem />
       <Net />
       <VpnItem />
       <Bt />
       <Vol />
+      {/* the foot: the tray in a square that mirrors the corner at the top (Andrew, 2026-09-07) */}
+      <box cssClasses={["foot"]} halign={Gtk.Align.FILL}><Sni /></box>
     </box>
   )
 }
