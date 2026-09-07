@@ -110,5 +110,17 @@ in
     # hyprland.lua goes down home-manager's slow path, which is `mv` to the backup and THEN
     # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
     home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
+
+    # The keyring the PAM stack unlocks at login is `login`; with no default pointer, the first
+    # libsecret client asks for the default collection, gets a "create a keyring" prompt, and
+    # gnome-keyring 50 falls over after it (2026-09-07: Default_keyring appeared, then a
+    # segfault). The pointer is gnome-keyring's own file, so it is only ever filled in, never
+    # overwritten.
+    home.activation.keyringDefault = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      d="${config.xdg.dataHome}/keyrings"
+      if [ -f "$d/login.keyring" ] && [ ! -s "$d/default" ]; then
+        run sh -c 'printf login > "$1"' _ "$d/default"
+      fi
+    '';
   };
 }
