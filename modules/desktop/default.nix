@@ -59,6 +59,13 @@ in
     home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
 
     xdg.configFile = {
+      # no BLE MIDI: wireplumber's bluez5 monitor registers a GATT MIDI application every
+      # start and bluez refuses it (journal noise at every login, 2026-09-07)
+      "wireplumber/wireplumber.conf.d/50-no-bluez-midi.conf".text = ''
+        monitor.bluez.properties = {
+          bluez5.midi = false
+        }
+      '';
       "hypr/hyprland.lua" = linkTo "hyprland.lua";
       "hypr/hypridle.conf" = linkTo "hypridle.conf";
       "hypr/host.lua" = linkTo "hosts/${cfg.host}.lua";
