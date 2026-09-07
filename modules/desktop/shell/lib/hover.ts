@@ -1,11 +1,12 @@
-// Hover-to-open, for every popover and panel the rail and bar hang off a cell (Andrew,
-// 2026-09-05: "like the window ones"). A short dwell opens; leaving both the trigger and the
-// surface starts a grace timer that closes. Within a GROUP only one surface is open at a time,
-// and sliding from one trigger to the next swaps at once (menu-bar feel, no double fade).
+// Popovers off the cells of the rail, bar and deck. A CLICK opens (Andrew, 2026-09-07: no
+// hover-and-show to get there); once one is open in a GROUP, sliding to the next trigger swaps
+// at once (menu-bar feel: click the cpu, move over to the ram); leaving both the trigger and
+// the surface starts a grace timer that closes. `hover: true` keeps the old dwell-to-open —
+// the rail's workspace strips only.
 import Gtk from "gi://Gtk?version=4.0"
 import { timeout, type Timer } from "ags/time"
 
-const DWELL_MS = 500 // a glance across a cell should not open it (Andrew, 2026-09-06: "a slight delay everywhere")
+const DWELL_MS = 500
 const GRACE_MS = 350
 
 type Entry = { close: () => void }
@@ -30,10 +31,11 @@ function watch(w: Gtk.Widget, onEnter: () => void, onLeave: () => void) {
 }
 
 /**
- * A menubutton whose popover opens on hover. `onClick` replaces the click-to-toggle (the
- * window cells use it to focus); without it a click still toggles as before.
+ * A menubutton whose popover opens on click (or on hover, with `hover`). `onClick` runs on
+ * the click as well — the window cells focus, the workspace numbers switch — and then the
+ * popover opens too unless the cell is hover-driven (there a click means "do it and close").
  */
-export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => void, opts: { dwell?: number; onShow?: () => void } = {}) {
+export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => void, opts: { dwell?: number; hover?: boolean; onShow?: () => void } = {}) {
   const pop = mb.popover as Gtk.Popover
   const dwellMs = opts.dwell ?? DWELL_MS
   pop.autohide = false // a grab would send the trigger a synthetic leave the moment it opened
@@ -50,18 +52,22 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   inTrigger = watch(mb, () => {
     grace?.cancel(); dwell?.cancel()
     const cur = open.get(group)
-    // sliding along the bar swaps at once — unless this one asked for a long dwell (the
-    // workspace strips: a glance at the numbers should not throw thumbnails up)
-    if (cur && cur !== me && !opts.dwell) show()
-    else dwell = timeout(dwellMs, () => { if (inTrigger()) show() })
+    // one is open in this group: sliding to the next swaps at once — unless this one is
+    // hover-driven with its own long dwell (the workspace strips)
+    if (cur && cur !== me && !opts.hover) show()
+    else if (opts.hover) dwell = timeout(dwellMs, () => { if (inTrigger()) show() })
   }, () => { dwell?.cancel(); armClose() })
   inPop = watch(pop, () => grace?.cancel(), armClose)
-  if (onClick) {
-    // CAPTURE + claimed: the menubutton never sees the press, so it does not toggle.
-    const click = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
-    click.connect("pressed", () => { click.set_state(Gtk.EventSequenceState.CLAIMED); onClick(); me.close() })
-    mb.add_controller(click)
-  }
+  // CAPTURE + claimed: the menubutton never sees the press, so this is the one click path
+  const click = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
+  click.connect("pressed", () => {
+    click.set_state(Gtk.EventSequenceState.CLAIMED)
+    onClick?.()
+    if (opts.hover && onClick) me.close()
+    else if (mb.popover?.visible) me.close()
+    else show()
+  })
+  mb.add_controller(click)
   // a keybind opens without the pointer: it closes on the next toggle, or once the pointer
   // has visited and left
   return {
