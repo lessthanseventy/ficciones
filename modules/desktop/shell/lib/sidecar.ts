@@ -101,10 +101,17 @@ function makeFrame(name: string, m: MonitorJson, col: number, address: string): 
   })
   const ring = new Gtk.Box({ cssClasses: ["sidecar-frame"], hexpand: true, vexpand: true, canTarget: false })
   w.set_child(ring)
-  w.set_size_request(col - GAP + 2 * inset, m.height - rt - rb - 2 * GAP + 2 * inset)
+  frameSize(w, col - GAP + 2 * inset, m.height - rt - rb - 2 * GAP + 2 * inset)
   w.visible = true
   w.get_surface()?.set_input_region(new Cairo.Region())
   return w
+}
+
+// set_size_request alone is a MINIMUM: GTK grows the surface to meet a larger one and never
+// shrinks it back, so the ring stayed at its widest after a narrower resize (2026-09-07).
+function frameSize(w: Astal.Window, width: number, height: number) {
+  w.set_size_request(width, height)
+  w.set_default_size(width, height)
 }
 
 const batch = (cmds: string[]) => dispatch(...cmds)
@@ -148,7 +155,7 @@ function follow(name: string, width: number) {
   if (col !== s.col) {
     s.col = col
     LayerShell.set_exclusive_zone(s.zone, col)
-    s.frame.set_size_request(col - GAP + 2 * (BORDER + RING_GAP + RING), s.frame.get_height())
+    frameSize(s.frame, col - GAP + 2 * (BORDER + RING_GAP + RING), s.frame.get_height())
     widths.set(name, col / s.m.width); saveWidths()
     // the tiled columns re-fit on a relayout, which also shoves floating windows about: place
     // again after it and keep the poll quiet until things settle
@@ -165,12 +172,14 @@ function follow(name: string, width: number) {
  */
 async function relayout() {
   try {
-    const g = JSON.parse(await execAsync(["hyprctl", "getoption", "general:gaps_out", "-j"])).custom as string
-    await keyword("general:gaps_out", g)
-    // and the visible columns of the active workspace re-fit beside the column, so the first
-    // tiled one does not hang under it (other workspaces re-fit when you next `fit` there)
-    await dispatch(L.layout("fit visible"))
+    // under the .lua config getoption reports the gaps as `css` ("12 12 12 12"), not `custom`
+    const o = JSON.parse(await execAsync(["hyprctl", "getoption", "general:gaps_out", "-j"]))
+    const g = (o.custom ?? o.css ?? o.int) as string | number | undefined
+    if (g !== undefined) await keyword("general:gaps_out", g)
   } catch (e) { console.error("sidecar relayout:", String(e)) }
+  // and the visible columns of the active workspace re-fit beside the column, so the first
+  // tiled one does not hang under it (other workspaces re-fit when you next `fit` there)
+  await dispatch(L.layout("fit visible"))
 }
 
 const rgb = (hex: string) => `rgb(${hex.replace("#", "")})`
