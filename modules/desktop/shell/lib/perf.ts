@@ -105,7 +105,7 @@ function sample(): Perf {
   const [load1, load5, load15] = readFile("/proc/loadavg").split(" ").slice(0, 3).map(Number)
   push(cpuHist, cpu); push(memHist, m.mem); push(netHist, Math.min(1, (n.rx + n.tx) / NET_HOT))
   const d = diskRate(); push(diskHist, Math.min(1, d / DISK_HOT))
-  const temp = pkgTemp(); push(tempHist, Math.min(1, temp / 100))
+  const temp = pkgTemp(); push(tempHist, Math.min(1, temp / 100))   // the spark stays 0..100°
   cores.forEach((c, i) => { coreHist[i] ??= []; push(coreHist[i], c, CORE_HIST) })
   return { cpu, ...m, ...n, load1: load1 || 0, load5: load5 || 0, load15: load15 || 0, cpuHist, memHist, netHist, cores, coreHist, disk: d, diskHist, temp, tempHist }
 }

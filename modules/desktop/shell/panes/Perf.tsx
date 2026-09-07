@@ -25,8 +25,9 @@ export const METRICS: Metric[] = [
   { key: "GPU", frac: gpu((g) => g.util), num: gpu((g) => (g.ok ? pct(g.util) : "off")), hist: gpu((g) => g.hist.flatMap((x) => [x, x, x, x, x])), detail: gpu((g) => (g.ok ? `${g.temp}°C   ${g.watts.toFixed(0)} W` : "nvidia is off")), fmt: pct, ok: gpu((g) => g.ok) },
   { key: "NET", frac: perf((p) => Math.min(1, p.netHist.at(-1) ?? 0)), num: perf((p) => rate(p.rx + p.tx)), hist: perf((p) => p.netHist), detail: perf((p) => `↓ ${rate(p.rx)}/s   ↑ ${rate(p.tx)}/s`), fmt: (x) => rate(x * NET_HOT) + "/s" },
   { key: "DISK", frac: perf((p) => Math.min(1, p.diskHist.at(-1) ?? 0)), num: perf((p) => rate(p.disk)), hist: perf((p) => p.diskHist), detail: perf(() => "read + write on the root disk"), fmt: (x) => rate(x * DISK_HOT) + "/s" },
-  // the colour bands: green under 60°, amber to 80°, red past — 50..90 maps to 0..1 through tier()
-  { key: "TEMP", frac: perf((p) => Math.max(0, Math.min(1, (p.temp - 50) / 40))), num: perf((p) => `${Math.round(p.temp)}°`), hist: perf((p) => p.tempHist), detail: perf(() => "cpu package · green <60° · red >80°"), fmt: (x) => `${Math.round(x * 100)}°`, ok: perf((p) => p.temp > 0) },
+  // the colour bands for a 13th-gen mobile part (Tjmax 100°, boosts into the 90s by design):
+  // green under 75°, amber to 95°, red from 95° — 65..105 maps to 0..1 through tier()'s 0.25/0.75
+  { key: "TEMP", frac: perf((p) => Math.max(0, Math.min(1, (p.temp - 65) / 40))), num: perf((p) => `${Math.round(p.temp)}°`), hist: perf((p) => p.tempHist), detail: perf(() => "cpu package · green <75° · red ≥95° (Tjmax 100°)"), fmt: (x) => `${Math.round(x * 100)}°`, ok: perf((p) => p.temp > 0) },
 ]
 
 /** A dim key with a body value, inline. */
