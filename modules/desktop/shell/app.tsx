@@ -128,10 +128,11 @@ app.start({
       <For each={monitors}>
         {(monitor) => (
           <This this={app}>
-            {/* first: layer-shell arranges in mapping order, so the rail and bar stop above the deck */}
-            <DeckRow gdkmonitor={monitor} />
+            {/* in this order: layer-shell arranges by mapping order, so the rail keeps the full
+                height and the bar and the deck's row both start after it */}
             <Rail gdkmonitor={monitor} />
             <Bar gdkmonitor={monitor} />
+            <DeckRow gdkmonitor={monitor} />
             <Backdrop gdkmonitor={monitor} />
           </This>
         )}
