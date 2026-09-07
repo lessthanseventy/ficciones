@@ -14,7 +14,7 @@ import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 import { hoverPopover, type HoverPop } from "../lib/hover"
 import { volumeGlyph } from "../lib/icons"
-import { vpn } from "../lib/vpn"
+import { vpn, mullvad, mullvadToggle, wgConfigs, wgToggle } from "../lib/vpn"
 import { createPoll, timeout } from "ags/time"
 import { toggleLauncher } from "./Launcher"
 import { screenshot, startRecording, stopRecording, recording } from "../lib/capture"
@@ -326,15 +326,47 @@ function CaptureItem() {
 }
 
 const items = createBinding(Tray.get_default(), "items")
-/** A VPN tunnel up: its interface name under the glyph; absent otherwise. */
+/**
+ * VPN: on/off under the glyph, always there; the card is Mullvad (connect/disconnect, the
+ * relay, the account's expiry) and a row per wg-quick config, up/down through polkit.
+ */
 function VpnItem() {
+  let pop: HoverPop | null = null
+  const cls = vpn((v) => ["item", "vpn", ...(v.length ? ["live"] : ["dim"])])
+  const configs = wgConfigs()
   return (
-    <box cssClasses={["item", "vpn"]} halign={Gtk.Align.CENTER} visible={vpn((v) => v.length > 0)} tooltipText={vpn((v) => (v.length ? `vpn up: ${v.join(", ")}` : ""))}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} tooltipText={vpn((v) => (v.length ? `vpn up: ${v.join(", ")}` : "no tunnel up"))} $={(self) => { pop = hoverPopover(self, "rail") }}>
       <box orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.CENTER}>
         <label cssClasses={["icon"]} label={"\u{f0582}"} />
-        <label cssClasses={["sm"]} label="on" />
+        <label cssClasses={["sm"]} label={vpn((v) => (v.length ? "on" : "off"))} />
       </box>
-    </box>
+      <popover cssClasses={["pop"]}>
+        <Panel title={"\u{f0582}  VPN"} cssClasses={["card", "card-vpn"]} spacing={2}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={mullvad((m) => m.present)}>
+            <button cssClasses={mullvad((m) => ["row", ...(m.connected ? ["chip"] : [])])} onClicked={() => { mullvadToggle(); pop?.close() }}>
+              <box spacing={8}>
+                <label cssClasses={mullvad((m) => (m.connected ? ["st-working"] : ["dim"]))} label={mullvad((m) => (m.connected ? "●" : "○"))} />
+                <label label="mullvad" widthChars={10} xalign={0} />
+                <label cssClasses={["dim", "sm"]} label={mullvad((m) => (m.connected ? m.location || m.state : `off · ${m.relay}`))} hexpand xalign={0} ellipsize={3} maxWidthChars={26} />
+                <label cssClasses={["act"]} label={mullvad((m) => (m.connected ? "disconnect" : "connect"))} />
+              </box>
+            </button>
+            <label cssClasses={["dim", "sm"]} label={mullvad((m) => (m.expires ? `account to ${m.expires}` : ""))} xalign={0} />
+          </box>
+          <RuleH visible={mullvad((m) => m.present && configs.length > 0)} />
+          {configs.map((name) => (
+            <button cssClasses={vpn((v) => ["row", ...(v.includes(name) ? ["chip"] : [])])} onClicked={() => { wgToggle(name, !vpn.peek().includes(name)); pop?.close() }}>
+              <box spacing={8}>
+                <label cssClasses={vpn((v) => (v.includes(name) ? ["st-working"] : ["dim"]))} label={vpn((v) => (v.includes(name) ? "●" : "○"))} />
+                <label label={name} hexpand xalign={0} />
+                <label cssClasses={["dim", "sm"]} label="wg-quick" />
+              </box>
+            </button>
+          ))}
+          <label cssClasses={["dim", "sm"]} label="no tunnels configured — mullvad, or a .conf in /etc/wireguard" xalign={0} visible={mullvad((m) => !m.present && configs.length === 0)} />
+        </Panel>
+      </popover>
+    </menubutton>
   )
 }
 
