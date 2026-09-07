@@ -4,9 +4,8 @@
 import Cava from "gi://AstalCava"
 import Gtk from "gi://Gtk?version=4.0"
 import Pango from "gi://Pango?version=1.0"
-import Wp from "gi://AstalWp"
+import Mpris from "gi://AstalMpris"
 import { createBinding } from "ags"
-import { interval } from "ags/time"
 
 const V = "▁▂▃▄▅▆▇█"
 const H = "▏▎▍▌▋▊▉█"
@@ -20,14 +19,15 @@ function cava() {
     if (inst) {
       inst.bars = BARS * 2; inst.set_stereo(true); inst.framerate = 30
       // silence is not free: libcava resamples and FFTs it at 30 fps regardless (~3% of a core
-      // at idle, measured). Run only while a playback stream is RUNNING; the bars read empty
-      // the same either way. Polled, like lib/opaque — Wp's stream signals are not enough.
+      // at idle, measured). Run only while a player says it is PLAYING. (AstalWp's stream
+      // state never leaves CREATING here, so it cannot be the signal — 2026-09-07.)
       const c = inst
-      let on = true
-      interval(2000, () => {
-        const want = !!Wp.get_default()?.audio?.get_streams().some((st) => st.state === Wp.NodeState.RUNNING)
-        if (want !== on) { on = want; c.active = want }
-      })
+      const mpris = Mpris.get_default()
+      const sync = () => { const want = mpris.get_players().some((p) => p.playbackStatus === Mpris.PlaybackStatus.PLAYING); if (c.active !== want) c.active = want }
+      const hooked = new WeakSet<Mpris.Player>()
+      const hook = () => { for (const p of mpris.get_players()) if (!hooked.has(p)) { hooked.add(p); p.connect("notify::playback-status", sync) }; sync() }
+      mpris.connect("notify::players", hook)
+      hook()
     }
   }
   return inst
