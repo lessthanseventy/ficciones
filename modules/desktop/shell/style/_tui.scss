@@ -92,3 +92,13 @@ button {
 .st-open    { color: $st-open; }
 .st-done    { color: $st-done; }
 .st-idle    { color: $st-idle; }
+
+// tooltips in the palette, not Adwaita's grey pill
+tooltip {
+  background: $bg;
+  border: $rule solid $amber;
+  border-radius: 0;
+  padding: $sp-2 $sp-3;
+  > * { color: $amber; }
+  label { color: $amber; }
+}

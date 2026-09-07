@@ -52,8 +52,10 @@ hook()
 
 // ── the log line, shared by row and drawer ────────────────────────────────────────────────
 function Line({ e, wide = false }: { e: Entry; wide?: boolean }) {
+  // the whole line on hover — the row and the drawer both ellipsize
+  const full = `${hhmm(e.t)}  ${e.src}  ${e.text}${e.count > 1 ? `  ×${e.count}` : ""}`
   return (
-    <box spacing={6} cssClasses={["logline", e.level]}>
+    <box spacing={6} cssClasses={["logline", e.level]} tooltipText={full} hasTooltip>
       <label cssClasses={["dim", "sm"]} label={hhmm(e.t)} />
       <label cssClasses={["src", `src-${e.src}`]} label={e.src} widthChars={wide ? 7 : 0} xalign={0} />
       <label cssClasses={["text"]} label={e.text} ellipsize={3} maxWidthChars={wide ? 120 : 56} xalign={0} hexpand={wide} />
