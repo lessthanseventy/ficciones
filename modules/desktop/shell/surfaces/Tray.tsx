@@ -185,10 +185,11 @@ function Vol() {
     return true
   })
   return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => { hoverPopover(self, "rail"); self.add_controller(scroll) }}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} tooltipText={createComputed([vol, mute], (v, m) => (m ? "muted" : pct(v)))} $={(self) => { hoverPopover(self, "rail"); self.add_controller(scroll) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={icon} />
-        <label cssClasses={["sm"]} label={createComputed([vol, mute], (v, m) => (m ? "mute" : pct(v)))} />
+        {/* a five-block meter like the wifi item's; the percentage is the tooltip and the OSD */}
+        <label cssClasses={["sm"]} label={createComputed([vol, mute], (v, m) => (m ? "mute" : meter(v, 5)))} />
       </box>
       <popover cssClasses={["pop"]}><Audio /></popover>
     </menubutton>

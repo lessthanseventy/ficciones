@@ -126,7 +126,7 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
   &.live * { color: $green; }
   &.net { margin-top: -1px; }
   &.net .icon { color: $cyan; margin-right: 6px; margin-bottom: -3px; }   // the glyph inks right of its box: 3px left
-  &.net .sm { font-size: 9px; letter-spacing: -1px; }   // block glyphs are wide; the meter must fit 48px
+  &.net .sm, &.vol .sm { font-size: 9px; letter-spacing: -1px; }   // block glyphs are wide; the meter must fit 48px
   &.bt { margin-top: 3px; }
   &.bt .icon { margin-right: 0; margin-left: 2px; margin-bottom: -4px; }
   &.bt.live .icon { color: $arch-assistant; }
