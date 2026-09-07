@@ -33,6 +33,14 @@ export function applyShellTheme() {
     const [ok, css] = GLib.file_get_contents(`${LINK}/shell.css`)
     if (ok) app.apply_css(new TextDecoder().decode(css), true)
   } catch (e) { console.error("theme css:", String(e)) }
+  // GTK read ~/.config/gtk-4.0/gtk.css once, at start: its named colours (card_bg_color,
+  // popover_bg_color — every field the shell's own css leaves to GTK) stayed on the login
+  // theme after a switch (2026-09-07: light shell, black cards and popovers). The theme's
+  // copy goes on as a second provider; the reset above drops both on the next switch.
+  try {
+    const [ok, css] = GLib.file_get_contents(`${LINK}/gtk.css`)
+    if (ok) app.apply_css(new TextDecoder().decode(css), false)
+  } catch (e) { console.error("theme gtk.css:", String(e)) }
   try {
     const [ok, json] = GLib.file_get_contents(`${LINK}/shell-palette.json`)
     if (ok) Object.assign(PALETTE as Record<string, string>, JSON.parse(new TextDecoder().decode(json)))
