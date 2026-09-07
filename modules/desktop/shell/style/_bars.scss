@@ -210,3 +210,5 @@ popover.pop {
   .cap { background: $bg; padding: 1px 6px; margin: 0 0 $rule $rule; label { color: $meta; } }
 }
 .sys .item.clip { .icon { color: $amber; } .sm { color: $meta; } &:hover .icon { color: $chip; } }
+.card-clip .panel-title { color: $amber; }
+.clip-row { padding: 2px $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } }

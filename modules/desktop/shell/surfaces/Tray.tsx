@@ -8,11 +8,11 @@ import Gio from "gi://Gio?version=2.0"
 import Tray from "gi://AstalTray"
 import Wp from "gi://AstalWp"
 import Audio from "./Audio"
-import { For, With, createBinding, createComputed } from "ags"
+import { For, With, createBinding, createComputed, createState } from "ags"
 import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
-import { hoverPopover } from "../lib/hover"
+import { hoverPopover, type HoverPop } from "../lib/hover"
 import { createPoll } from "ags/time"
 import { toggleLauncher } from "./Launcher"
 
@@ -214,18 +214,49 @@ function Sni() {
   )
 }
 
-/** The clipboard: how many clips cliphist holds; a click opens the picker (the launcher in clip mode). */
-const clips = createPoll(0, 15_000, async () => {
+/**
+ * The clipboard: how many clips cliphist holds; a click pops the last few — click one to copy
+ * it back to the top — with a line to the full picker (the launcher in clip mode).
+ */
+type Clip = { id: string; text: string }
+const [recentClips, setRecentClips] = createState<Clip[]>([])
+const clipCount = createPoll("0", 15_000, async () => {
   try { return (await execAsync(["sh", "-c", "cliphist list | wc -l"])).trim() } catch { return "0" }
 })
-function Clip() {
+async function refreshClips() {
+  try {
+    const out = await execAsync(["sh", "-c", "cliphist list | head -n 5"])
+    setRecentClips(out.split("\n").filter(Boolean).map((l) => { const [id, ...rest] = l.split("\t"); return { id, text: rest.join("\t").replace(/\s+/g, " ").trim() } }))
+  } catch { setRecentClips([]) }
+}
+const copyClip = (c: Clip) => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${c.id}\t' | cliphist decode | wl-copy`]).then(refreshClips).catch(console.error)
+function ClipItem() {
+  let pop: HoverPop | null = null
   return (
-    <button cssClasses={["item", "clip"]} onClicked={() => toggleLauncher("clip")} tooltipText="clipboard">
+    <menubutton cssClasses={["item", "clip"]} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail", undefined, { onShow: refreshClips }) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={"\u{f0cea}"} />
-        <label cssClasses={["sm"]} label={clips((n) => String(n))} />
+        <label cssClasses={["sm"]} label={clipCount} />
       </box>
-    </button>
+      <popover cssClasses={["pop"]}>
+        <Panel title={"\u{f0cea}  CLIPBOARD"} cssClasses={["card", "card-clip"]}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+            <For each={recentClips} id={(c) => c.id}>
+              {(c, i) => (
+                <button cssClasses={["row", "clip-row"]} onClicked={() => { copyClip(c); pop?.close() }} tooltipText={c.text.slice(0, 400)}>
+                  <box spacing={8}>
+                    <label cssClasses={i((n) => (n === 0 ? ["amber"] : ["dim"]))} label={i((n) => (n === 0 ? "\u{f012c}" : " "))} widthChars={2} />
+                    <label label={c.text} xalign={0} hexpand ellipsize={3} maxWidthChars={44} />
+                  </box>
+                </button>
+              )}
+            </For>
+            <label cssClasses={["dim"]} label="empty" visible={recentClips((l) => l.length === 0)} xalign={0} />
+            <button cssClasses={["act"]} onClicked={() => { pop?.close(); toggleLauncher("clip") }}><label label={clipCount((n) => `all ${n} …`)} /></button>
+          </box>
+        </Panel>
+      </popover>
+    </menubutton>
   )
 }
 
@@ -233,7 +264,7 @@ export default function TrayPane() {
   return (
     <box cssClasses={["sys"]} orientation={Gtk.Orientation.VERTICAL} spacing={4}>
       <Sni />
-      <Clip />
+      <ClipItem />
       <Net />
       <Bt />
       <Vol />
