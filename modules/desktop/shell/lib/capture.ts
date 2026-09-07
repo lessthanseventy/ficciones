@@ -27,23 +27,31 @@ async function geometry(what: "region" | "monitor" | "window"): Promise<string |
   return m ? `${m.x},${m.y} ${m.width}x${m.height}` : null
 }
 
-export async function screenshot(what: "region" | "monitor" | "window", edit = false) {
-  const g = await geometry(what)
-  if (!g) return
+// Every shot is flameshot's (Andrew, 2026-09-07: "I like flameshot"): it saves into the
+// screenshots dir and copies. `monitor` is its `screen -n` on the focused monitor's index (Qt
+// orders screens as Hyprland lists them), no UI. `region` is its gui — which asks for the
+// monitor first on a two-monitor Wayland session (flameshot's own doing: "capture the monitor
+// where the cursor is … is not supported on Wayland"); `window` is the gui with the window
+// preselected. `edit` is what the gui already is.
+export async function screenshot(what: "region" | "monitor" | "window", _edit = false) {
   GLib.mkdir_with_parents(shotsDir(), 0o755)
-  const file = `${shotsDir()}/${stamp()}_${what}.png`
   try {
-    if (edit) {
-      // flameshot over the geometry (its --region is WxH+X+Y; ours is `x,y wxh`); it copies/saves itself
-      const [xy, wh] = g.split(" ")
-      await execAsync(["flameshot", "gui", "--region", `${wh}+${xy.replace(",", "+")}`])
-      logEvent("shell", `screenshot (${what}) → flameshot`)
+    if (what === "monitor") {
+      const m = hypr.focusedMonitor
+      if (!m) return
+      await execAsync(["flameshot", "screen", "-n", String(m.id), "-c", "-p", shotsDir()])
+      logEvent("shell", `screenshot (monitor ${m.name}) → ${shotsDir().replace(GLib.get_home_dir(), "~")}`)
       return
     }
-    await execAsync(["grim", "-g", g, file])
-    await execAsync(["sh", "-c", `wl-copy < '${file}'`])
-    logEvent("shell", `screenshot (${what}) → ${file.replace(GLib.get_home_dir(), "~")}`)
-    notify("screenshot", `${what} · copied · ${file.replace(GLib.get_home_dir(), "~")}`)
+    const args = ["flameshot", "gui", "-p", shotsDir()]
+    if (what === "window") {
+      const g = await geometry("window")
+      if (!g) return
+      const [xy, wh] = g.split(" ") // ours is `x,y wxh`, flameshot's --region is WxH+X+Y
+      args.push("--region", `${wh}+${xy.replace(",", "+")}`)
+    }
+    await execAsync(args)
+    logEvent("shell", `screenshot (${what}) → flameshot`)
   } catch (e) { notify("screenshot failed", String(e), "dialog-error-symbolic") }
 }
 
