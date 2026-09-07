@@ -5,7 +5,7 @@ where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
 
 ## Loop
 
-- `mise shell:dev` — run from source on the live desktop (alongside caelestia on Arch). Edit,
+- `mise shell:dev` — run from source on the live desktop (it replaces the running shell). Edit,
   Ctrl+C, rerun. Screenshot with `grim -o eDP-1 x.png` to see what the user sees.
 - `mise shell:check` — `ags bundle` is the gate; tsc is advisory (see below).
 - `nix build .#astal-shell` — the store package the VM and home-manager install.
