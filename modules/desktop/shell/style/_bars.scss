@@ -139,17 +139,21 @@ menubutton.item > button:hover { background: $hover; }
 .sni-item > button:hover { background: $hover; }
 
 // ── popovers: a pane floating off the rail ─────────────────────────────────
+// the popover itself has no frame: the card inside is the frame, title inset and hued like
+// every other card (the hub, the deck, the dashboard) — one system, no double border
 popover.pop {
   > contents {
-    background: $bg;
-    border: $rule solid $amber;
+    background: transparent;
+    border: none;
     border-radius: 0;
-    padding: $sp-1;
+    padding: 0;
     box-shadow: none;
     min-width: 280px;
   }
-  > arrow { background: $bg; border: $rule solid $amber; }
-  .panel { margin-top: $sp-2; }
+  > arrow { background: $bg; border: $rule solid $sep; }
+  .panel { margin-top: $sp-2; background: $bg; }
+  .card .panel-body { padding: $sp-3; }
+  .card + .card { margin-top: $sp-3; }
   .row { min-height: $cell-h; padding: 0 $sp-2; }
   .row.head label { color: $amber; }
   .row.chip { background: $chip; * { color: $ink; } }
@@ -212,3 +216,12 @@ popover.pop {
 .sys .item.clip { .icon { color: $amber; } .sm { color: $meta; } &:hover .icon { color: $chip; } }
 .card-clip .panel-title { color: $amber; }
 .clip-row { padding: 2px $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } }
+
+// hues for the popover cards that had none
+.card-net       { border-color: $cyan;  .panel-title { color: $cyan; } }
+.card-bt        { border-color: $lilac; .panel-title { color: $lilac; } }
+.card-audio     { border-color: $green; .panel-title { color: $green; } }
+.card-clip      { border-color: $amber; .panel-title { color: $amber; } }
+.card-window    { border-color: $amber; .panel-title { color: $amber; } }
+.card-timer     { border-color: $cyan;  .panel-title { color: $cyan; } }
+.card-log       { border-color: $amber; .panel-title { color: $amber; } }

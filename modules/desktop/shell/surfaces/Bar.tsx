@@ -62,7 +62,7 @@ function Windows({ connector }: { connector: string }) {
                 <label cssClasses={["title"]} label={title} visible={focused} ellipsize={Pango.EllipsizeMode.END} maxWidthChars={40} xalign={0} />
               </box>
               <popover cssClasses={["pop"]}>
-                <Panel title={c.class || "window"} spacing={4}>
+                <Panel title={`\u{f05af}  ${(c.class || "window").toUpperCase()}`} cssClasses={["card", "card-window"]} spacing={4}>
                   <label cssClasses={["amber"]} label={title} xalign={0} wrap maxWidthChars={44} />
                   <box cssClasses={["kv"]} spacing={16}>
                     <label cssClasses={["dim", "sm"]} label={`pid ${c.pid}`} />
@@ -104,7 +104,7 @@ function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
         <label cssClasses={["spark"]} label={m.hist((h) => spark(h, SPARK_CELLS))} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
       </box>
       <popover cssClasses={["pop"]}>
-        <Panel title={m.key}><MetricDetail m={m} /></Panel>
+        <Panel title={`\u{f0e4a}  ${m.key.toUpperCase()}`} cssClasses={["card", "card-perf"]}><MetricDetail m={m} /></Panel>
       </popover>
     </menubutton>
   )
@@ -170,7 +170,7 @@ function BatteryCell() {
         <label cssClasses={["num"]} label={pctA(pct)} widthChars={4} xalign={1} />
       </box>
       <popover cssClasses={["pop"]}>
-        <Panel title="POWER" spacing={4}>
+        <Panel title={"\u{f0079}  POWER"} cssClasses={["card", "card-power"]} spacing={4}>
           <box cssClasses={["row"]} spacing={12}>
             <label label={createBinding(bat, "energyRate")((r) => `${r.toFixed(1)} W`)} />
             <label cssClasses={["dim"]} label={eta} hexpand xalign={0} />

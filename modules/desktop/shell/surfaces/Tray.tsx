@@ -50,7 +50,7 @@ function Net() {
         <With value={wifi}>
           {(w) =>
             w ? (
-              <Panel title="WIFI" spacing={2}>
+              <Panel title={"\u{f05a9}  WIFI"} cssClasses={["card", "card-net"]} spacing={2}>
                 <box cssClasses={["row", "head"]} spacing={8}>
                   <label label={createBinding(w, "ssid")((s) => s || "not connected")} hexpand xalign={0} />
                   <button cssClasses={["act"]} onClicked={() => w.scan()}><label label="scan" /></button>
@@ -77,7 +77,7 @@ function Net() {
                 </For>
               </Panel>
             ) : (
-              <Panel title="NET"><label label="no wifi device" /></Panel>
+              <Panel title={"\u{f05a9}  NET"} cssClasses={["card", "card-net"]}><label label="no wifi device" /></Panel>
             )
           }
         </With>
@@ -123,7 +123,7 @@ function Bt() {
         <label cssClasses={["sm"]} label={label} />
       </box>
       <popover cssClasses={["pop"]}>
-        <Panel title="BLUETOOTH" spacing={2}>
+        <Panel title={"\u{f00af}  BLUETOOTH"} cssClasses={["card", "card-bt"]} spacing={2}>
           <box cssClasses={["row", "head"]} spacing={8}>
             <label label={powered((p) => (p ? "powered" : "off"))} hexpand xalign={0} />
             <button cssClasses={discovering((d) => ["act", ...(d ? ["green"] : [])])} onClicked={scan} visible={powered}>

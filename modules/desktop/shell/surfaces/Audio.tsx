@@ -88,7 +88,7 @@ export default function Audio() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} widthRequest={420}>
-      <Panel title="OUTPUT" spacing={2}>
+      <Panel title={"\u{f057e}  OUTPUT"} cssClasses={["card", "card-audio"]} spacing={2}>
         <box cssClasses={["row"]} spacing={8}>
           <label label={sDesc((d) => short(d ?? "no output"))} hexpand xalign={0} ellipsize={Pango.EllipsizeMode.END} />
           <button cssClasses={sMute((m) => ["act", ...(m ? ["red"] : [])])} onClicked={() => { quietOsd(); speaker.mute = !speaker.mute }}>
@@ -102,7 +102,7 @@ export default function Audio() {
         <RuleH />
         <For each={speakers}>{(ep) => <Device ep={ep} />}</For>
       </Panel>
-      <Panel title="INPUT" spacing={2}>
+      <Panel title={"\u{f036c}  INPUT"} cssClasses={["card", "card-audio"]} spacing={2}>
         <For each={mics}>{(ep) => <Device ep={ep} />}</For>
         <label cssClasses={["dim"]} label="no input" visible={mics((m) => m.length === 0)} xalign={0} />
       </Panel>

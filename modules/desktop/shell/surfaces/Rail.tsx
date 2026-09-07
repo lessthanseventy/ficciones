@@ -62,7 +62,7 @@ function Workspaces({ connector }: { connector: string }) {
             >
               <label label={String(ws.id)} />
               <popover cssClasses={["pop"]}>
-                <Panel title={createComputed([focusedWorkspace], () => `WS ${ws.id} · ${ws.monitor?.name ?? ""}`)}><WorkspacePop ws={ws} /></Panel>
+                <Panel title={createComputed([focusedWorkspace], () => `\u{f0e18}  WS ${ws.id} · ${ws.monitor?.name ?? ""}`)} cssClasses={["card", "card-workspaces"]}><WorkspacePop ws={ws} /></Panel>
               </popover>
             </menubutton>
           )
