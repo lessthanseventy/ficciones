@@ -16,7 +16,6 @@ import { hoverPopover } from "../lib/hover"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import { external, brightness, setBrightness, stepBrightness } from "../lib/brightness"
 import { METRICS, MetricDetail } from "../panes/Perf"
-import { Visualiser } from "../lib/cava"
 import { Panel } from "../lib/tui"
 import { iconFor } from "../lib/icons"
 import { Stat, RuleV, RuleH } from "../lib/tui"
@@ -223,8 +222,6 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <box>
         <Windows connector={gdkmonitor.connector} />
         <box hexpand />
-        {/* media lives on the deck (2026-09-07); the bar keeps the visualiser as ambient */}
-        <box cssClasses={["cell", "cavacell"]}><Visualiser /></box>
         <PerfCells />
         <Status />
       </box>
