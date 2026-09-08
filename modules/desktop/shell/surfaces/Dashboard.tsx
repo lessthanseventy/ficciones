@@ -1,6 +1,6 @@
 // The dashboard: most of the screen, off the Aleph in the corner (Super+D, `astal-shell toggle
 // dashboard`). Everything that is about the machine rather than a window: the toggles (from
-// the hub), power (from the rail), the shell's own knobs, and a keys hint. Esc or a click on
+// the hub), power (from the rail), the shell's own knobs. Esc or a click on
 // the field closes it.
 import { L, dispatch } from "../lib/hyprlua"
 import app from "ags/gtk4/app"
@@ -199,13 +199,15 @@ export default function Dashboard() {
             self.add_controller(g)
           }}
         />
-        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={4} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={36 + 16} marginBottom={24} marginStart={54 + 16} marginEnd={16}>
-          {/* three rows, packed to fit 1920×1080 with the rail and bar: the tall weather card sets
-              row one's height and the columns beside it stack two cards each */}
+        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={16} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={36 + 16} marginBottom={24} marginStart={54 + 16} marginEnd={16}>
+          {/* three rows, packed to fit 1920×1080 with the rail and bar; one 16px gap between every
+              pair of outer frames and from the board's edge (the card margin equals its outline
+              offset, so the box spacing IS the gap). No key hints under the cards: the even
+              gaps cost the height they took; Esc / Super+D are in the cheatsheet */}
           <box spacing={16}>
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={16} hexpand>
           <box spacing={16}>
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={16}>
               <Panel title={"\u2135  FICCIONES"} cssClasses={["card", "card-mark"]}><MarkCard /></Panel>
               <Panel title={"\u{f0954}  NOW"} cssClasses={["card", "card-now"]}><ClockCard /></Panel>
               <Panel title={"\u{f0771}  WORKSPACES"} cssClasses={["card", "card-workspaces"]}><WorkspacesCard /></Panel>
@@ -220,7 +222,7 @@ export default function Dashboard() {
           </box>
           {/* the right column spans both rows: the calendar fills down (the agenda goes in it once
               there are calendars), DISK and NET sit level with PERF's bottom (Andrew, 2026-09-07) */}
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={16}>
             <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]} vexpand><CalendarCard /></Panel>
             <Panel title={"\u{f02ca}  DISK"} cssClasses={["card", "card-disk"]}><DiskCard /></Panel>
             <Panel title={"\u{f05a9}  NET"} cssClasses={["card", "card-net"]}><NetCard /></Panel>
@@ -232,9 +234,6 @@ export default function Dashboard() {
             <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles perRow={5} omit={["profile"]} /></Panel>
             <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
             <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
-          </box>
-          <box cssClasses={["keys"]} spacing={12}>
-            <label label="Esc close" /><label label="Super+D toggle" />
           </box>
         </box>
       </overlay>
