@@ -262,7 +262,8 @@ $card-hues: (
 .cell.rec { background: $red; padding: 0 $sp-3; margin-right: $sp-2; .rec-dot, .rec-text, .rec-who { color: $ink; } .rec-who { font-size: $size-sm; } }
 .sys .item.cap { .icon { color: $amber; margin-right: 8px; margin-bottom: 1px; } &.live .icon, &.live .sm { color: $red; } &:hover .icon { color: $chip; } }
 .cap-row { padding: 0 $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } .cap-glyph { color: $green; } &.stop label { color: $red; } }
-.cap-help { padding: $sp-1 $sp-2 0; > box { min-height: 22px; } label { margin: 0; } }
+.cap-help { padding: 2px $sp-2; > box { min-height: 20px; } label { margin: 0; } }
+.cap-head { color: $meta; font-size: $size-sm; letter-spacing: 1px; padding: 2px $sp-2 0; }
 // a shot row is a box, not a button: the hover lives on its two sinks
 .cap-shot { &:hover { background: none; } .act { padding: 0 $sp-2; min-height: $cell-h - 8px; } }
 .cap-wins { margin-left: $sp-4; label { color: $meta; } }

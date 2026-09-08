@@ -295,6 +295,8 @@ function ClipItem() {
       <popover cssClasses={["pop", "pop-clip"]}>
         <Panel title={"\u{f0ea}  CLIPBOARD"} cssClasses={["card", "card-clip"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+            {/* the list in its own box: For appends as clips arrive, and the history button must stay last */}
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <For each={recentClips} id={(c) => c.id}>
               {(c, i) => (
                 <button cssClasses={i((n) => ["row", "clip-row", ...(n === 0 ? ["top"] : [])])} onClicked={() => { copyClip(c); pop?.close() }} tooltipText={c.kind === "text" ? c.text.slice(0, 400) : c.meta}>
@@ -308,6 +310,7 @@ function ClipItem() {
                 </button>
               )}
             </For>
+            </box>
             <label cssClasses={["dim"]} label="empty" visible={recentClips((l) => l.length === 0)} xalign={0} />
             <button cssClasses={["act"]} onClicked={() => { pop?.close(); toggleLauncher("clip") }}><label label={"\u{f0349}  history …"} /></button>
           </box>
@@ -325,6 +328,15 @@ function CaptureItem() {
     <button cssClasses={["row", "cap-row"]} onClicked={() => go(on)}>
       <box spacing={8}><label cssClasses={["cap-glyph"]} label={glyph} widthChars={2} /><label label={label} xalign={0} hexpand /></box>
     </button>
+  )
+  const Head = ({ label }: { label: string }) => <label cssClasses={["cap-head"]} label={label} xalign={0} />
+  // help lines sit with their section (Andrew, 2026-09-08): a key column, then the value
+  const Help = ({ rows }: { rows: string[][] }) => (
+    <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["cap-help"]}>
+      {rows.map(([k, v]) => (
+        <box spacing={8}><label cssClasses={["dim", "sm"]} label={k} widthChars={9} xalign={0} /><label cssClasses={["sm"]} label={v} xalign={0} hexpand /></box>
+      ))}
+    </box>
   )
   // a shot row: the target, then where it goes — disk or clipboard (Andrew, 2026-09-07)
   const Shot = ({ glyph, label, what, visible }: { glyph: string; label: string; what: Target; visible?: Accessor<boolean> }) => (
@@ -376,11 +388,14 @@ function CaptureItem() {
       <popover cssClasses={["pop", "pop-capture"]} onClosed={() => setListOpen(false)}>
         <Panel title={"\u{f030}  CAPTURE"} cssClasses={["card", "card-capture"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+            <Head label="SCREENSHOT" />
             <Shot glyph={"\u{f065}"} label="region" what="region" />
             <Shot glyph={"\u{f0e2}"} label="last region" what="last" visible={lastRegion((r) => r !== null)} />
             <Shot glyph={"\u{f108}"} label="monitor" what="monitor" />
             <Windows />
+            <Help rows={[["saved to", "~/Pictures/Screenshots"], ["region", "slurp picks it"]]} />
             <RuleH />
+            <Head label="RECORD" />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={recording((r) => !r)}>
               <Row glyph={"\u{f03d}"} label="record region" on={() => startRecording("region")} />
               <Row glyph={"\u{f03d}"} label="record monitor" on={() => startRecording("monitor")} />
@@ -388,12 +403,9 @@ function CaptureItem() {
             <button cssClasses={["row", "cap-row", "stop"]} visible={recording((r) => !!r)} onClicked={() => { stopRecording(); pop?.close() }}>
               <box spacing={8}><label cssClasses={["cap-glyph", "red"]} label="■" widthChars={2} /><label label={recording((r) => `stop recording (${r ?? ""})`)} xalign={0} hexpand /></box>
             </button>
+            <Help rows={[["saved to", "~/Videos/Recordings"]]} />
             <RuleH />
-            <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["cap-help"]}>
-              {[["shots", "grim · slurp picks a region"], ["saved to", "~/Pictures/Screenshots"], ["flameshot", "Super+Shift+S"], ["recordings", "~/Videos/Recordings"]].map(([k, v]) => (
-                <box spacing={8}><label cssClasses={["dim", "sm"]} label={k} widthChars={11} xalign={0} /><label cssClasses={["sm"]} label={v} xalign={0} hexpand /></box>
-              ))}
-            </box>
+            <Help rows={[["flameshot", "Super+Shift+S · its own selector + editor"]]} />
           </box>
         </Panel>
       </popover>
