@@ -668,6 +668,11 @@
               # Ctrl+P/N from model-cycling for history + selector nav; see piKeybindingsJson.
               home.file.".pi/agent/keybindings.json".text = piKeybindingsJson;
 
+              # The four working rules, global for every harness (modules/agents/how-to-work.md):
+              # Claude Code's global CLAUDE.md and pi's global AGENTS.md are the SAME file.
+              home.file.".claude/CLAUDE.md".source = ./modules/agents/how-to-work.md;
+              home.file.".pi/agent/AGENTS.md".source = ./modules/agents/how-to-work.md;
+
               # adapters into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in
               # idempotently, seeding {} if absent.
