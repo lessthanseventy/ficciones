@@ -83,7 +83,11 @@ focus-local.
   JSON (options), `resolved_at`, `resolution`. The reply box answers a prompt inline; the
   switchboard routes the answer back to the session.
 - **Sessions**: `harness` (pi/claude/codex), `state` (`spawning | warm | cold | ended`) stored,
-  `exit_reason`. The rail's warmth dot reads these.
+  `exit_reason`, and `attention` (`working | idle | waiting`) derived the way claude-tmux and
+  herdr do it — by pattern-matching the pane text for the harness's input prompt, its permission
+  prompt and its interrupt line (per-harness patterns in one module), polled while the session is
+  warm. The rail's warmth dot and the "waiting on you" badge read these; a `waiting` transition is
+  what rolls a `prompt` message into the thread (principle 3).
 - **Workspaces + permissions**: promote out of JSON what the UI shows and edits —
   `workspace_agent(workspace_id, agent_id, role)` (the roster), `workspace_repo(workspace_id,
   path, remote, default_branch)` (paths/repos), and a `policy` table keyed by workspace × agent:
