@@ -311,11 +311,12 @@ function CaptureItem() {
   // the two sinks (Andrew, 2026-09-07: "screenshot a window easily")
   const [listOpen, setListOpen] = createState(false)
   // every window on every workspace, this workspace's first (Andrew, 2026-09-07: "like all
-  // windows"); a background window is shot on its own workspace — flameshot's --region is in
+  // windows"); a background window is shot on its own workspace — grim's -g is in
   // screen coordinates, so the workspace is switched to first (capture.ts)
-  const wins = createComputed([focusedWorkspace, createBinding(hypr, "clients")], (ws, cs) =>
+  // the focused window first (Andrew, 2026-09-08: the "window" row went; pick it from the list)
+  const wins = createComputed([focusedWorkspace, createBinding(hypr, "clients"), createBinding(hypr, "focusedClient")], (ws, cs, fc) =>
     cs.filter((c) => c.mapped && (c.workspace?.id ?? 0) > 0)
-      .sort((a, b) => ((a.workspace?.id === ws?.id ? 0 : 1) - (b.workspace?.id === ws?.id ? 0 : 1)) || (a.workspace?.id ?? 0) - (b.workspace?.id ?? 0) || a.x - b.x))
+      .sort((a, b) => ((a === fc ? 0 : 1) - (b === fc ? 0 : 1)) || ((a.workspace?.id === ws?.id ? 0 : 1) - (b.workspace?.id === ws?.id ? 0 : 1)) || (a.workspace?.id ?? 0) - (b.workspace?.id ?? 0) || a.x - b.x))
   const Windows = () => (
     <box orientation={Gtk.Orientation.VERTICAL}>
       <button cssClasses={["row", "cap-row"]} onClicked={() => setListOpen(!listOpen.get())}>
@@ -349,7 +350,6 @@ function CaptureItem() {
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <Shot glyph={"\u{f065}"} label="region" what="region" />
             <Shot glyph={"\u{f108}"} label="monitor" what="monitor" />
-            <Shot glyph={"\u{f2d0}"} label="window" what="window" />
             <Windows />
             <RuleH />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={recording((r) => !r)}>
@@ -359,7 +359,7 @@ function CaptureItem() {
             <button cssClasses={["row", "cap-row", "stop"]} visible={recording((r) => !!r)} onClicked={() => { stopRecording(); pop?.close() }}>
               <box spacing={8}><label cssClasses={["cap-glyph", "red"]} label="■" widthChars={2} /><label label={recording((r) => `stop recording (${r ?? ""})`)} xalign={0} hexpand /></box>
             </button>
-            <label cssClasses={["dim", "sm"]} label="shots are flameshot's (region/window: its selector) · recordings → ~/Videos/Recordings" xalign={0} wrap maxWidthChars={40} />
+            <label cssClasses={["dim", "sm"]} label="shots: grim (region: slurp) · Super+Shift+S is flameshot · recordings → ~/Videos/Recordings" xalign={0} wrap maxWidthChars={40} />
           </box>
         </Panel>
       </popover>

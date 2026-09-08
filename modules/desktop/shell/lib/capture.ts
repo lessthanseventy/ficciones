@@ -28,46 +28,38 @@ async function geometry(what: "region" | "monitor" | "window"): Promise<string |
   return m ? `${m.x},${m.y} ${m.width}x${m.height}` : null
 }
 
-// Every shot is flameshot's (Andrew, 2026-09-07: "I like flameshot"): it saves into the
-// screenshots dir and copies. `monitor` is its `screen -n` on the focused monitor's index (Qt
-// orders screens as Hyprland lists them), no UI. `region` is its gui — which asks for the
-// monitor first on a two-monitor Wayland session (flameshot's own doing: "capture the monitor
-// where the cursor is … is not supported on Wayland"); `window` is the gui with the window
-// preselected. `edit` is what the gui already is.
+// The card's shots are grim's (Andrew, 2026-09-08): flameshot's gui is Super+Shift+S (the UI he
+// likes, hypr/scripts/shot-region.sh), but every card button went through it and its Wayland
+// two-monitor picker got in the way of each click. slurp picks a region; a window is its
+// geometry; a monitor is its whole box. The clipboard is wl-copy's — it forks and holds the
+// selection, where a capture tool that exits on copy loses it (Qt6 flameshot did).
 export type Sink = "file" | "clip" | "both"
-/** A window's geometry as flameshot's --region wants it (WxH+X+Y); the focused one by default. */
-const windowRegion = (address?: string) => {
-  const c = address ? hypr.get_client(address.replace(/^0x/, "")) ?? hypr.get_client(address) : hypr.focusedClient
-  return c ? `${c.width}x${c.height}+${c.x}+${c.y}` : null
-}
+const clientOf = (address?: string) =>
+  address ? hypr.get_client(address.replace(/^0x/, "")) ?? hypr.get_client(address) : hypr.focusedClient
 export async function screenshot(what: "region" | "monitor" | "window", sink: Sink = "both", address?: string) {
   GLib.mkdir_with_parents(shotsDir(), 0o755)
-  // where it lands: -p saves into the dir, -c copies; the gui applies them on accept
-  const out = [...(sink !== "clip" ? ["-p", shotsDir()] : []), ...(sink !== "file" ? ["-c"] : [])]
   const where = sink === "both" ? "file + clipboard" : sink === "file" ? shotsDir().replace(GLib.get_home_dir(), "~") : "clipboard"
   try {
-    if (what === "monitor") {
-      const m = hypr.focusedMonitor
-      if (!m) return
-      await execAsync(["flameshot", "screen", "-n", String(m.id), ...out])
-      logEvent("shell", `screenshot (monitor ${m.name}) → ${where}`)
-      return
-    }
-    const args = ["flameshot", "gui", ...out]
+    let g: string | null
     if (what === "window") {
-      // a window on another workspace: go there first (the region is in screen coordinates)
-      const c = address ? hypr.get_client(address.replace(/^0x/, "")) ?? hypr.get_client(address) : hypr.focusedClient
+      // a window on another workspace: go there first (grim's -g is in screen coordinates)
+      const c = clientOf(address)
       const ws = c?.workspace
       if (c && ws && ws.id !== hypr.focusedMonitor?.activeWorkspace?.id && ws.id > 0) {
         await dispatch(L.workspace(String(ws.id)))
         await new Promise((r) => setTimeout(r, 400))
       }
-      const r = windowRegion(address)
-      if (!r) return
-      args.push("--region", r)
+      g = c ? `${c.x},${c.y} ${c.width}x${c.height}` : null
+    } else {
+      g = await geometry(what)
     }
-    await execAsync(args)
+    if (!g) return
+    // one grim to a file (a temp one when only the clipboard wants it), wl-copy from that
+    const file = sink === "clip" ? `${GLib.get_tmp_dir()}/shot-${stamp()}.png` : `${shotsDir()}/${stamp()}.png`
+    await execAsync(["grim", "-g", g, file])
+    if (sink !== "file") await execAsync(["sh", "-c", `wl-copy --type image/png < "$1"${sink === "clip" ? ' && rm -f "$1"' : ""}`, "_", file])
     logEvent("shell", `screenshot (${what}) → ${where}`)
+    notify("screenshot", where)
   } catch (e) { notify("screenshot failed", String(e), "dialog-error-symbolic") }
 }
 
