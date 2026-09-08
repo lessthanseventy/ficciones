@@ -360,7 +360,12 @@ function CaptureItem() {
             <button cssClasses={["row", "cap-row", "stop"]} visible={recording((r) => !!r)} onClicked={() => { stopRecording(); pop?.close() }}>
               <box spacing={8}><label cssClasses={["cap-glyph", "red"]} label="■" widthChars={2} /><label label={recording((r) => `stop recording (${r ?? ""})`)} xalign={0} hexpand /></box>
             </button>
-            <label cssClasses={["dim", "sm"]} label="shots: grim (region: slurp) · Super+Shift+S is flameshot · recordings → ~/Videos/Recordings" xalign={0} wrap maxWidthChars={40} />
+            <RuleH />
+            <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["cap-help"]}>
+              {[["shots", "grim · slurp for a region"], ["flameshot", "Super+Shift+S"], ["recordings", "~/Videos/Recordings"]].map(([k, v]) => (
+                <box spacing={8}><label cssClasses={["dim", "sm"]} label={k} widthChars={10} xalign={1} /><label cssClasses={["sm"]} label={v} xalign={0} hexpand /></box>
+              ))}
+            </box>
           </box>
         </Panel>
       </popover>
