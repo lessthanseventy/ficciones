@@ -25,7 +25,7 @@ import { soundPids, playerSounding } from "../lib/sound"
 import { AgentsCard } from "../panes/Agents"
 import { armClickaway, disarmClickaway, closeOnPress, closeAny } from "./Clickaway"
 import { focus, focused, cursor, cursorOf, cycleFocus, move, jump, select } from "../lib/nav"
-import { roster } from "../panes/Agents"
+import { threads } from "../panes/Agents"
 import { hoverPopover } from "../lib/hover"
 
 const TAIL = 2 // the activity segment: the last couple of events; the drawer has the rest
@@ -276,7 +276,7 @@ export default function Deck() {
   const keys = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
   const K = Gdk
   // FILTERS is the chip row (all + the sources): h/l along it, Enter toggles the chip
-  const count = () => { const f = focus.get(); return f === "FILTERS" ? SRCS.length + 1 : f === "LOG" ? logShown.peek().length : roster.peek().length }
+  const count = () => { const f = focus.get(); return f === "FILTERS" ? SRCS.length + 1 : f === "LOG" ? logShown.peek().length : threads.peek().length }
   const horizontal = () => focus.get() === "FILTERS"
   keys.connect("key-pressed", (_, kv, __, mods) => {
     const shift = !!(mods & Gdk.ModifierType.SHIFT_MASK)

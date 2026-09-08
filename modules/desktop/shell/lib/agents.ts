@@ -4,12 +4,32 @@ import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { logEvent } from "./log"
 
+export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null }
 export type Agents = {
   ok: boolean
   roster: { agent: string; thread_id: number; title: string; warm: boolean }[]
+  /** every open thread, newest first — the pane's rows; a staffed one carries its roster entry */
+  threads: Thread[]
   counts: Record<string, number>
   awaiting: number
   note?: string
+}
+/** a thread's brief, the scope get_dossier hands an agent (scripts/tlon-cli.sh shell-dossier) */
+export type Dossier = {
+  thread_id: number
+  goal: string | null
+  lead: string | null
+  next: string | null
+  recent: { at: string; author: string; body: string }[]
+  blockers: { shown: { text?: string; title?: string }[]; more: number }
+  todos?: { shown: { text?: string; title?: string }[]; more: number }
+  done: { shown: unknown[]; more: number }
+}
+export async function dossier(id: number): Promise<Dossier | null> {
+  try {
+    const out = await execAsync([CLI, "shell-dossier", String(id)])
+    return JSON.parse(out.trim().split("\n").pop() ?? "null")
+  } catch { return null }
 }
 
 // Single-user machine, fixed checkout — the same assumption flake.nix makes.
@@ -32,18 +52,18 @@ function diff(next: Agents) {
 }
 
 export const agents = createPoll<Agents>(
-  { ok: false, roster: [], counts: {}, awaiting: 0, note: "…" },
+  { ok: false, roster: [], threads: [], counts: {}, awaiting: 0, note: "…" },
   30_000,
   async () => {
     try {
       const out = await execAsync([CLI, "shell-status"])
       const j = JSON.parse(out.trim().split("\n").pop() ?? "{}")
-      const next: Agents = { ok: true, roster: j.roster ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0 }
+      const next: Agents = { ok: true, roster: j.roster ?? [], threads: j.threads ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0 }
       diff(next)
       return next
     } catch (e) {
       if (last?.ok) logEvent("agent", "channel down", "warn")
-      last = { ok: false, roster: [], counts: {}, awaiting: 0, note: "channel down" }
+      last = { ok: false, roster: [], threads: [], counts: {}, awaiting: 0, note: "channel down" }
       return last
     }
   },

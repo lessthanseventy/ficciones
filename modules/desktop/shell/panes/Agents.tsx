@@ -1,13 +1,34 @@
-// AGENTS: thread counts, then the roster as rows (j/k, click) — the pane no other shell draws.
+// AGENTS: thread counts, then every open thread as a row — its agent and warmth when staffed,
+// who it awaits — and, under them, the selected thread's brief: goal, lead, next, blockers,
+// the last messages (Andrew, 2026-09-07: "agents → dossier"). j/k, Enter, click.
 import Gtk from "gi://Gtk?version=4.0"
-import { For, createComputed } from "ags"
-import { agents } from "../lib/agents"
+import { For, createComputed, createState } from "ags"
+import { agents, dossier, type Dossier, type Thread } from "../lib/agents"
 import { cursorOf, select } from "../lib/nav"
+import { RuleH } from "../lib/tui"
 
 export const roster = agents((a) => a.roster)
+export const threads = agents((a) => a.threads)
+
+const [brief, setBrief] = createState<Dossier | null>(null)
+let loading = 0
+/** load the brief of the thread under the cursor (called on select) */
+export async function loadBrief(i: number) {
+  const t = threads.peek()[i]
+  if (!t) { setBrief(null); return }
+  const my = ++loading
+  const d = await dossier(t.id)
+  if (my === loading) setBrief(d)
+}
+// the cursor's row is the brief shown: any move re-fetches (cheap: one rpc)
+cursorOf("AGENTS").subscribe(() => { loadBrief(cursorOf("AGENTS").peek()) })
+
+const hhmm = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }
+const line = (x: { text?: string; title?: string }) => x.text ?? x.title ?? ""
 
 export function AgentsCard() {
   const cur = cursorOf("AGENTS")
+  const staffed = (t: Thread) => roster.peek().find((r) => r.thread_id === t.id)
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <box spacing={14} cssClasses={["counts"]}>
@@ -15,19 +36,57 @@ export function AgentsCard() {
         <box spacing={6}><label cssClasses={["k"]} label="done" /><label cssClasses={["st-done"]} label={agents((a) => String(a.counts.closed ?? a.counts.done ?? 0))} /></box>
         <box spacing={6}><label cssClasses={["k"]} label="awaiting you" /><label cssClasses={agents((a) => (a.awaiting > 0 ? ["pink"] : ["dim"]))} label={agents((a) => String(a.awaiting))} /></box>
       </box>
-      <For each={roster}>
-        {(r, i) => (
-          <button cssClasses={createComputed([cur, i], (c, idx) => ["row", ...(c === idx ? ["chip"] : [])])} onClicked={() => select("AGENTS", i.get())}>
-            <box spacing={8}>
-              <label cssClasses={[r.warm ? "st-working" : "st-idle"]} label={r.warm ? "●" : "○"} />
-              <label cssClasses={["pink"]} label={r.agent} widthChars={12} xalign={0} />
-              <label cssClasses={["dim"]} label={`#${r.thread_id}`} />
-              <label label={r.title} hexpand xalign={0} ellipsize={3} maxWidthChars={18} />
-            </box>
-          </button>
-        )}
+      <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} propagateNaturalHeight maxContentHeight={190}>
+      <box orientation={Gtk.Orientation.VERTICAL}>
+      <For each={threads}>
+        {(t, i) => {
+          const r = staffed(t)
+          return (
+            <button cssClasses={createComputed([cur, i], (c, idx) => ["row", "thread-row", ...(c === idx ? ["chip"] : [])])} onClicked={() => select("AGENTS", i.get())}>
+              <box spacing={8}>
+                <label cssClasses={[r ? (r.warm ? "st-working" : "st-idle") : "dim"]} label={r ? (r.warm ? "●" : "○") : "·"} />
+                <label cssClasses={["dim", "sm"]} label={`#${t.id}`} widthChars={3} xalign={1} />
+                <label label={t.title} hexpand xalign={0} ellipsize={3} maxWidthChars={22} />
+                <label cssClasses={["pink", "sm"]} label={r ? r.agent : ""} visible={!!r} />
+                <label cssClasses={["cyan", "sm"]} label={t.stage ?? ""} visible={!!t.stage} />
+                <label cssClasses={["pink", "sm"]} label={t.awaiting ? `\u{f0e7e} ${t.awaiting}` : ""} visible={!!t.awaiting} />
+              </box>
+            </button>
+          )
+        }}
       </For>
-      <label cssClasses={agents((a) => (a.ok ? ["dim"] : ["red"]))} label={agents((a) => (a.ok ? "no one on the clock" : a.note ?? ""))} visible={agents((a) => !a.ok || a.roster.length === 0)} xalign={0} />
+      </box>
+      </scrolledwindow>
+      <label cssClasses={agents((a) => (a.ok ? ["dim"] : ["red"]))} label={agents((a) => (a.ok ? "no open threads" : a.note ?? ""))} visible={agents((a) => !a.ok || a.threads.length === 0)} xalign={0} />
+      <RuleH />
+      {/* the brief of the thread under the cursor */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={["brief"]} visible={brief((b) => !!b)}>
+        <box spacing={8}>
+          <label cssClasses={["k", "sm"]} label="goal" widthChars={5} xalign={0} />
+          <label cssClasses={["amber"]} label={brief((b) => b?.goal ?? "—")} xalign={0} hexpand wrap maxWidthChars={40} />
+        </box>
+        <box spacing={8}>
+          <label cssClasses={["k", "sm"]} label="lead" widthChars={5} xalign={0} />
+          <label cssClasses={["pink"]} label={brief((b) => b?.lead ?? "—")} xalign={0} hexpand />
+        </box>
+        <box spacing={8} visible={brief((b) => !!b?.next)}>
+          <label cssClasses={["k", "sm"]} label="next" widthChars={5} xalign={0} />
+          <label label={brief((b) => b?.next ?? "")} xalign={0} hexpand wrap maxWidthChars={40} />
+        </box>
+        <box spacing={8} visible={brief((b) => (b?.blockers?.shown?.length ?? 0) > 0)}>
+          <label cssClasses={["red", "sm"]} label="block" widthChars={5} xalign={0} />
+          <label cssClasses={["red"]} label={brief((b) => (b?.blockers?.shown ?? []).map(line).join(" · "))} xalign={0} hexpand wrap maxWidthChars={40} />
+        </box>
+        <For each={brief((b): Dossier["recent"] => (b?.recent ?? []).slice(-3))}>
+          {(m: Dossier["recent"][number]) => (
+            <box spacing={8} cssClasses={["msg"]}>
+              <label cssClasses={["dim", "sm"]} label={hhmm(m.at)} />
+              <label cssClasses={["cyan", "sm"]} label={m.author} widthChars={8} xalign={0} ellipsize={3} />
+              <label cssClasses={["sm"]} label={m.body} xalign={0} hexpand ellipsize={3} maxWidthChars={40} />
+            </box>
+          )}
+        </For>
+      </box>
     </box>
   )
 }
