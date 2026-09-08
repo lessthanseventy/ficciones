@@ -298,7 +298,9 @@ hl.window_rule({
     match = { class = "^(zoom|Zoom)$", title = "^(menu window|Toolbar Menu|Meeting security|Meeting info|confirm window)$" },
     float = true,
     no_initial_focus = true,
-    move = "onscreen cursor",
+    -- at the cursor, clamped to the monitor (the old "onscreen cursor" keywords are not a
+    -- muparser expression and the rule silently fell back to work-area centre)
+    move = "min(max(cursor_x,0),monitor_w-window_w) min(max(cursor_y,0),monitor_h-window_h)",
 })
 -- the share toolbar ("You are screen sharing · Stop share") and the annotation bar: pinned
 -- after all — Zoom re-creates them constantly and an unpinned one sank under the tiled
@@ -314,8 +316,9 @@ hl.window_rule({
     rounding = 0,
     no_shadow = true,
     -- native Wayland Zoom (xwayland=false in zoomus.conf, 2026-09-07): its toolbar is a plain
-    -- toplevel that asks for no position, so it goes top-centre under the bar
-    move = "50%-50% 40",
+    -- toplevel that asks for no position, so it goes top-centre under the bar (an expression:
+    -- move has no % operator; monitor-absolute, so 40 clears the 37px reserved bar)
+    move = "monitor_w/2-window_w/2 40",
 })
 -- the share preview strip (a 1px green frame): float, no focus, no chrome, not pinned
 hl.window_rule({
