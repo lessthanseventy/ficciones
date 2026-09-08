@@ -84,6 +84,9 @@ in
       # dev / cli
       direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wev pamixer bluetui
       lazydocker lazysql lazyjj lazyjournal lazyssh
+      # the agent CLIs and their tooling, off pacman (survey 2026-09-07); ollama stays pacman's
+      # ollama-cuda (the GPU build), plocate pacman's (its updatedb timer is a system unit)
+      claude-code codex uv libation piper-tts
       # screenshots: Super+Shift+S and the rail's edit path (hypr/scripts/shot-region.sh, shell/lib/capture.ts)
       flameshot
       # the clipboard history behind the rail's clipboard card and Super+V (hyprland.lua's
