@@ -61,6 +61,15 @@ Console.Backend.call/3       — the one entry point every call site uses; impl 
   coworker spawner itself moving into the server (so rotation happens with the cockpit closed)
   is phase 5 — it needs `Console.Sessions`' tmux lifecycle to move, which is the web-UI era.
 
+## Status (2026-09-08)
+
+Phases 0–4 landed on main the same day (dc89cd6, 96513a8, ae7fa15, 28a7afd, ed28d16), gates
+green (console 871/0, server 469/0), verified live: a console node reads the service over erpc,
+a Bus broadcast on the service arrives on the console node, the service finds the cockpit and
+calls its Crew. What remains for A is Andrew's eye-pass of `mise run console:run` (a TUI needs a
+tty) — and the "server down" banner in the cockpit, which is only the Doctor/boot message so far.
+Phase 5 is umbrella piece B.
+
 ## Phases (each shippable, gates green, small commits)
 
 **0. Node plumbing.** Cookie file + `RELEASE_COOKIE` in tlon.service; console starts distributed

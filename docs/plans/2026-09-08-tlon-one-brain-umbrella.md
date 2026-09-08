@@ -76,4 +76,4 @@ DB with one client is the cheap moment.
 
 Each piece: survey the code first (the console keeps running ahead of its docs), write the
 detailed plan, build in small commits with gates green, verify live in the cockpit, update this
-table's status. Statuses: **A** planned (detailed plan written 2026-09-08) · B–E not started.
+table's status. Statuses: **A** BUILT 2026-09-08 (phases 0–4 on main; eye-pass + a cockpit banner left) · B–E not started.
