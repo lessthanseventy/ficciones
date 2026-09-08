@@ -50,6 +50,10 @@ slide() { # slide in|out between y0 (above the screen) and y1, ease-out
 # jq is the flake's (modules/desktop home.packages); without it the lookup below is empty and
 # every press spawns another terminal onto the hidden workspace (16 of them, 2026-09-08)
 command -v jq >/dev/null || { notify-send -u critical "quake" "jq missing — not spawning"; exit 1; }
+# one toggle at a time: the slide is 18 hyprctl calls, seconds under load (a build in the
+# terminal itself, 2026-09-08), and a second press mid-slide ran a second copy against the
+# same window — shown and not hideable until the two settled
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/quake-toggle.lock"; flock -n 9 || exit 0
 client() { hyprctl -j clients | jq -c --arg c "$CLASS" '.[]|select(.class==$c)' | head -1; }
 
 # Spawn on first use, then wait for it to map.
