@@ -795,6 +795,17 @@
                 seed ${unipiNotifySeed} "$HOME/.unipi/config/notify/config.json"
               '';
 
+              # The node cookie the service and the cockpit share (rel/env.sh.eex reads it into
+              # RELEASE_COOKIE; Console.Backend.Link reads it too): written once, 0600, never
+              # rotated by a switch — a rotation would cut a running cockpit off its server.
+              home.activation.tlonCookie = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                f="$HOME/.local/share/tlon/cookie"
+                if [ ! -s "$f" ]; then
+                  run mkdir -p "$(dirname "$f")"
+                  run sh -c "umask 077; head -c 32 /dev/urandom | base64 | tr -d '/+=\n' > \"$f\""
+                fi
+              '';
+
               # The always-up sovereign channel as a headless systemd --user service. A
               # self-contained release (`mise run server:release`) means ExecStart is one
               # absolute path with no toolchain on PATH. ExecStartPre migrates first —
