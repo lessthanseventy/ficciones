@@ -21,7 +21,7 @@ import { popAgents } from "./surfaces/Deck"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, applyShellTheme, type Theme } from "./lib/theme"
-import { sidecarVerb, colresize, focusDir } from "./lib/sidecar"
+import { sidecarVerb, colresize, focusDir, adoptSidecars } from "./lib/sidecar"
 import { setGlass, toggleGlass } from "./lib/glass"
 import "./lib/night"
 import "./lib/opaque"
@@ -139,6 +139,7 @@ app.start({
     setGlass(true)
     setBackdrop("zen")
     initAwake()
+    adoptSidecars()
     Launcher()
     Cheatsheet()
     Dashboard()

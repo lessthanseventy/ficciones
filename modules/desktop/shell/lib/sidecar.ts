@@ -36,7 +36,7 @@ const setBorder = (a: string, on: boolean) => L.setProp(a, "border_size", on ? S
 /** The sidecar's address per monitor name — the bar's pin/unpin label reads this, not Hyprland's
  * `pinned` (the quake terminal and PiP are pinned too, and are not sidecars). */
 export const [sidecarAddrs, setSidecarAddrs] = createState<Record<string, string>>({})
-const publish = () => setSidecarAddrs(Object.fromEntries([...sidecars].map(([n, s]) => [n, s.address])))
+const publish = () => { setSidecarAddrs(Object.fromEntries([...sidecars].map(([n, s]) => [n, s.address]))); savePins() }
 
 type MonitorJson = { name: string; x: number; y: number; width: number; height: number; reserved: [number, number, number, number] }
 type Sidecar = { address: string; zone: Astal.Window; frame: Astal.Window; col: number; m: MonitorJson; width: number }
@@ -56,6 +56,31 @@ function saveWidths() {
 }
 
 const sidecars = new Map<string, Sidecar>() // monitor name → sidecar
+
+// Which window is the sidecar outlives the shell too: Hyprland keeps it pinned and floating in
+// its column across a shell restart, but the zone and the ring died with the process, so the
+// tiled columns slid under it and Andrew had to pin it again by hand (2026-09-07). One line per
+// monitor, `name address`; a window address is good for the life of the Hyprland session.
+const PINS = `${GLib.get_user_state_dir()}/astal-shell/sidecar-pinned`
+function savePins() {
+  try {
+    GLib.mkdir_with_parents(GLib.path_get_dirname(PINS), 0o755)
+    GLib.file_set_contents(PINS, [...sidecars].map(([n, s]) => `${n} ${s.address}`).join("\n"))
+  } catch (e) { console.error("sidecar pins:", String(e)) }
+}
+/** At start: pin again whatever the saved lines name, if it is still there, pinned and floating on
+ * that monitor. AstalHyprland fills its client list asynchronously, so this waits for it. */
+export function adoptSidecars(tries = 20) {
+  let lines: string[] = []
+  try { const [ok, bytes] = GLib.file_get_contents(PINS); if (ok) lines = new TextDecoder().decode(bytes).split("\n").filter(Boolean) } catch { return }
+  if (!lines.length) return
+  if (!hypr.get_clients().length && tries > 0) { timeout(250, () => adoptSidecars(tries - 1)); return }
+  for (const l of lines) {
+    const [name, address] = l.split(" ")
+    const c = hypr.get_client(address)
+    if (c && c.pinned && c.floating && c.get_monitor()?.name === name) pinSidecar(c)
+  }
+}
 
 async function monitorJson(name: string): Promise<MonitorJson | undefined> {
   const list = JSON.parse(await execAsync(["hyprctl", "monitors", "-j"])) as MonitorJson[]
@@ -198,7 +223,12 @@ async function relayout() {
   // from the focused window, so a focused sidecar cannot fit — the layout re-fits its columns
   // to the reserved area on its own anyway
   const f = hypr.focusedClient
-  if (f && f.mapped && !f.floating) await dispatch(L.layout("fit visible"))
+  if (f && f.mapped && !f.floating) { await dispatch(L.layout("fit visible")); return }
+  // a focused sidecar (a pin from the bar, the adoption at start): fit from a tiled window on
+  // the shown workspace and come back — the click-floorp-and-back Andrew did by hand (2026-09-07)
+  const ws = (f?.get_monitor() ?? hypr.focusedMonitor)?.activeWorkspace?.id
+  const t = hypr.get_clients().find((x) => x.workspace?.id === ws && x.mapped && !x.floating)
+  if (t) await batch([L.focusWindow(addr(t)), L.layout("fit visible"), ...(f ? [L.focusWindow(addr(f))] : [])])
 }
 
 export const isSidecar = (c: Hyprland.Client) => [...sidecars.values()].some((s) => s.address === c.address)

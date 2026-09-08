@@ -58,7 +58,7 @@ window.hub, window.clickaway { background: transparent; }
 // toggles: outlined, not filled — amber when on, dim when off, both brighten on hover
 
 .toggle {
-  min-height: 44px;
+  min-height: 48px;
   min-width: 56px;
   padding: $sp-1 0;
   border: $rule solid $sep;
@@ -107,7 +107,9 @@ window.dashboard { background: transparent; }
 // every gap between frames is the box spacing alone — one $sp-4 everywhere, measured (Andrew,
 // 2026-09-07: the stacked columns had 4px between frames against 18px across).
 .board .card { margin: 11px; outline: $rule solid $sep; outline-offset: 10px; }   // 11: the 1px outline draws just outside the offset
-.board .card .panel-body { padding: $sp-2 $sp-3; }   // 8, not 12: the even 16px gaps + the bottom margin cost ~40px down the tallest column (2026-09-07)
+// 14 over the content: the title tag hangs 9px into the body (12px type, −8px margin), and the
+// first row cleared it by nothing at 8 (Andrew, 2026-09-07: "overlaps its label")
+.board .card .panel-body { padding: 14px $sp-3 $sp-2; }
 .board .card .panel-title { font-size: $size; padding: 0 $sp-2; }
 // the card's hue on its frame and title tag — the board is fun that way (Andrew, 2026-09-07:
 // uniform frames were "way less fun") — but the BODY follows role (amber / cyan keys / lilac
@@ -166,7 +168,9 @@ window.dashboard { background: transparent; }
 }
 // POWER and SHELL are toggle tiles (the design language: a tile is a thing you press); the red
 // ones say so at rest, and every one lights like a toggle on hover
-.card-power .toggle, .card-shell .toggle { min-height: 56px; min-width: 84px; }
+// 42: these two-row grids set the third row's height, and the board fits 1080 with the card
+// titles cleared only at 42 (2026-09-07; was 56)
+.card-power .toggle, .card-shell .toggle { min-height: 42px; min-width: 84px; }
 .toggle.tile.red { border-color: rgba($red, 0.6); * { color: $red; } &:hover { border-color: $red; * { color: $red; } } }
 .action {
   min-height: 30px; min-width: 150px; padding: 0 $sp-2;
@@ -176,7 +180,7 @@ window.dashboard { background: transparent; }
   &.red .icon { color: $red; }
   &:hover { background: $chip; .icon, .sm { color: $ink; } }
 }
-.card-toggles .toggle { min-height: 56px; min-width: 84px; }
+.card-toggles .toggle { min-height: 42px; min-width: 84px; }
 
 // perf card: the core grid and the process table
 .core {
