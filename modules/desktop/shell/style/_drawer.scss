@@ -97,7 +97,7 @@ window.dashboard { background: transparent; }
 .board {
   * { font-size: 12px; }
   .sm { font-size: 10px; } .lg { font-size: 15px; } .panel-title { font-size: 12px; }
-  .bigtime { font-size: 52px; } .wx-glyph { font-size: 40px; } .hours .sky { font-size: 15px; } .action .icon { font-size: 16px; }
+  .bigtime { font-size: 52px; } .wx-glyph { font-size: 40px; margin-top: 4px; }   // the cloud inks to the top of its box; 4px more under the title .hours .sky { font-size: 15px; } .action .icon { font-size: 16px; }
 }
 // the popover look on the board too: an outer frame outside each card's hued border — "card on
 // a panel" (Andrew, 2026-09-07) — in a palette partner of the inner hue (amber↔violet,
