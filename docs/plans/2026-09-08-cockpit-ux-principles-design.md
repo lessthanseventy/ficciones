@@ -72,6 +72,21 @@ focus-local.
 
 ## 4. The data underneath (schema gaps, read against the principles)
 
+**The missing organising unit — channels (Andrew, 2026-09-08).** Three levels, Slack's exactly:
+
+- a **workspace** is tied to one or more repos and owns the coworkers (roster) and the policies;
+- a **channel** organises the threads inside a workspace — `#general` in every workspace (what
+  the "root machine thread" has been standing in for: the crew's home when there is no specific
+  work), plus topic channels (`#reviews`, `#infra`, one per workline stage if wanted);
+- a **thread** lives in exactly one channel and is where a piece of work or a conversation happens.
+
+Schema: `channel(id, workspace_id, name, kind: general | topic, created_at)`; `thread.channel_id`
+(not null; the migration puts every existing thread in its workspace's `#general` and turns the
+root machine thread INTO that channel's identity rather than a hidden special thread). The rail
+lists workspaces → the active workspace's channels → the open channel's threads; the switcher's
+`#` prefix searches channels and tickets. Coworkers' MCP `open_thread` takes a channel (default
+`#general`). "Root" stops being a concept anyone sees.
+
 - **Tickets** (today: title/body/status/priority/labels/assignee/external mirror/one
   `promoted_thread` link). Add: `ticket_link(from_id, to_id, kind)` with `blocks | relates |
   duplicates | parent` (blocked-by = the inverse read of `blocks`); `ticket_thread(ticket_id,
@@ -102,7 +117,9 @@ boards as spaces (into the drawer); every second door to posting or creating.
 **Slices**, each its own plan, biggest confusion-remover first:
 
 1. **The frame** — rails, two-pane center, drawer; today's lazygit panes move into the drawer
-   unchanged. Removes most of the muddiness on its own.
+   unchanged. Removes most of the muddiness on its own. The rail is workspaces → channels →
+   threads from day one, with every thread in `#general` until the channel migration (slice 1b:
+   the `channel` table + `thread.channel_id`, small, right after the frame).
 2. **Keys and focus** — the three layers, bottom-bar hints, the switcher; retire the mode switch.
 3. **Messages with kinds** — migration; prompts and questions appear in the thread with inline
    answers. Depends on one-brain piece B (sessions in the server) to route answers back.
