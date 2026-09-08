@@ -167,6 +167,7 @@ hl.config({
         repeat_rate = 35,
         numlock_by_default = true,
         follow_mouse = 0,
+        float_switch_override_focus = 0,
         sensitivity = 0,
         touchpad = {
             natural_scroll = false,
