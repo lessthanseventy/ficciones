@@ -18,8 +18,12 @@ export const addr = (c: { address: string }) => `address:0x${c.address.replace(/
 
 /**
  * Monitors showing a fullscreen window right now, by connector name. A film on a monitor
- * turns its toasts and hot edge off (Andrew, 2026-09-06); maximised does not count. Refreshed
- * on the raw `fullscreen` event, which is how Hyprland announces both ways of the toggle.
+ * turns its toasts, hot edge and deck row off (Andrew, 2026-09-06); maximised does not count.
+ * Refreshed on the raw `fullscreen` event (both ways of the toggle) and on whatever moves a
+ * fullscreen window on or off a monitor's shown workspace. `workspacev2`, not `workspace`:
+ * AstalHyprland re-reads its monitors on the v2 event and emits the v1 one first, so a refresh
+ * on v1 saw the OLD active workspace — leave a film's workspace and the deck row stayed hidden
+ * (2026-09-07). The second, delayed refresh covers the library's async handlers interleaving.
  */
 const fullscreenOf = () => {
   const out = new Set<string>()
@@ -31,7 +35,8 @@ const fullscreenOf = () => {
 }
 export const [fullscreenMonitors, setFullscreenMonitors] = createState<Set<string>>(fullscreenOf())
 const refresh = () => setFullscreenMonitors(fullscreenOf())
-hypr.connect("event", (_, ev: string) => { if (ev === "fullscreen" || ev === "workspace" || ev === "focusedmon" || ev === "closewindow") refresh() })
+const FS_EVENTS = new Set(["fullscreen", "workspacev2", "focusedmon", "closewindow", "movewindowv2", "moveworkspacev2"])
+hypr.connect("event", (_, ev: string) => { if (FS_EVENTS.has(ev)) { refresh(); timeout(300, refresh) } })
 export const isFullscreen = (monitor: string | undefined) => !!monitor && fullscreenMonitors.peek().has(monitor)
 
 /**
