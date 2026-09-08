@@ -15,11 +15,19 @@ const recsDir = () => `${GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_
 const notify = (summary: string, body: string, icon = "camera-photo-symbolic") =>
   execAsync(["notify-send", "-a", "capture", "-i", icon, summary, body]).catch(() => {})
 
-/** `x,y wxh` for a region (slurp), the focused monitor, or the active window; null if cancelled */
-async function geometry(what: "region" | "monitor" | "window"): Promise<string | null> {
+/** The last slurp pick (`x,y wxh`), for a repeat shot of the same region; null until one lands. */
+export const [lastRegion, setLastRegion] = createState<string | null>(null)
+
+/** `x,y wxh` for a region (slurp), the last one, the focused monitor, or the active window; null if cancelled */
+async function geometry(what: Target): Promise<string | null> {
   if (what === "region") {
-    try { return (await execAsync(["slurp"])).trim() || null } catch { return null }
+    try {
+      const g = (await execAsync(["slurp"])).trim() || null
+      if (g) setLastRegion(g)
+      return g
+    } catch { return null }
   }
+  if (what === "last") return lastRegion.peek()
   if (what === "window") {
     const c = hypr.focusedClient
     return c ? `${c.x},${c.y} ${c.width}x${c.height}` : null
@@ -34,9 +42,10 @@ async function geometry(what: "region" | "monitor" | "window"): Promise<string |
 // geometry; a monitor is its whole box. The clipboard is wl-copy's — it forks and holds the
 // selection, where a capture tool that exits on copy loses it (Qt6 flameshot did).
 export type Sink = "file" | "clip" | "both"
+export type Target = "region" | "last" | "monitor" | "window"
 const clientOf = (address?: string) =>
   address ? hypr.get_client(address.replace(/^0x/, "")) ?? hypr.get_client(address) : hypr.focusedClient
-export async function screenshot(what: "region" | "monitor" | "window", sink: Sink = "both", address?: string) {
+export async function screenshot(what: Target, sink: Sink = "both", address?: string) {
   GLib.mkdir_with_parents(shotsDir(), 0o755)
   const where = sink === "both" ? "file + clipboard" : sink === "file" ? shotsDir().replace(GLib.get_home_dir(), "~") : "clipboard"
   try {

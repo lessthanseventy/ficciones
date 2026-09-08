@@ -37,9 +37,9 @@ app.start({
     // the command log: what you asked for (focus/colresize are keys, not events)
     if (verb && !["focus", "colresize", "super"].includes(verb)) logEvent("shell", argv.join(" "))
     if (verb === "super") { setSuperHeld(what === "down"); return res("ok") }
-    // `astal-shell capture shot region|monitor|window [file|clip] [address]` / `capture rec region|monitor` / `capture stop`
+    // `astal-shell capture shot region|last|monitor|window [file|clip] [address]` / `capture rec region|monitor` / `capture stop`
     if (verb === "capture") {
-      if (what === "shot" && (tab === "region" || tab === "monitor" || tab === "window")) screenshot(tab, argv[3] === "file" || argv[3] === "clip" ? argv[3] : "both", argv[4])
+      if (what === "shot" && (tab === "region" || tab === "last" || tab === "monitor" || tab === "window")) screenshot(tab, argv[3] === "file" || argv[3] === "clip" ? argv[3] : "both", argv[4])
       else if (what === "rec" && (tab === "region" || tab === "monitor")) startRecording(tab)
       else if (what === "stop") stopRecording()
       else return res("usage: astal-shell capture shot region|monitor|window [file|clip] [address] | rec region|monitor | stop")

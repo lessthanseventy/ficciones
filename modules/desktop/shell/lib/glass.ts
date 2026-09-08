@@ -1,9 +1,15 @@
 // Global transparency: Hyprland's active/inactive window opacity, toggled as a pair.
 import { createState } from "ags"
+import { execAsync } from "ags/process"
 import { keyword } from "./hyprlua"
 
 export const [glass, setGlassState] = createState(false)
 const ON = ["0.88", "0.78"], OFF = ["1.0", "1.0"]
+// the toggle outlives the shell (Hyprland keeps the opacity across a shell restart): seed it
+// from the live value or the Hub says off while the windows are glass (2026-09-08)
+execAsync(["hyprctl", "getoption", "decoration:active_opacity", "-j"])
+  .then((out) => setGlassState(Number(JSON.parse(out).float) < 1))
+  .catch(() => {})
 
 export function setGlass(on: boolean) {
   const [a, i] = on ? ON : OFF

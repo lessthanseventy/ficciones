@@ -8,7 +8,7 @@ import Gio from "gi://Gio?version=2.0"
 import Tray from "gi://AstalTray"
 import Wp from "gi://AstalWp"
 import Audio from "./Audio"
-import { For, With, createBinding, createComputed, createState } from "ags"
+import { For, With, createBinding, createComputed, createState, type Accessor } from "ags"
 import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
@@ -19,7 +19,7 @@ import Pango from "gi://Pango?version=1.0"
 import { vpn, mullvad, mullvadToggle, wgConfigs, wgToggle } from "../lib/vpn"
 import { createPoll, timeout } from "ags/time"
 import { toggleLauncher } from "./Launcher"
-import { screenshot, startRecording, stopRecording, recording } from "../lib/capture"
+import { screenshot, startRecording, stopRecording, recording, lastRegion, type Target } from "../lib/capture"
 
 function Net() {
   const net = Network.get_default()
@@ -299,8 +299,8 @@ function CaptureItem() {
     </button>
   )
   // a shot row: the target, then where it goes — disk or clipboard (Andrew, 2026-09-07)
-  const Shot = ({ glyph, label, what }: { glyph: string; label: string; what: "region" | "monitor" | "window" }) => (
-    <box cssClasses={["cap-row", "cap-shot"]} spacing={8}>
+  const Shot = ({ glyph, label, what, visible }: { glyph: string; label: string; what: Target; visible?: Accessor<boolean> }) => (
+    <box cssClasses={["cap-row", "cap-shot"]} spacing={8} visible={visible ?? true}>
       <label cssClasses={["cap-glyph"]} label={glyph} widthChars={2} />
       <label label={label} xalign={0} hexpand />
       <button cssClasses={["act"]} tooltipText="save to ~/Pictures/Screenshots" onClicked={() => go(() => screenshot(what, "file"))}><label label={"\u{f0193}  disk"} /></button>
@@ -345,10 +345,11 @@ function CaptureItem() {
         <label cssClasses={["icon"]} label={recording((r) => (r ? "\u{f03d}" : "\u{f030}"))} />
         <label cssClasses={["sm"]} label={recording((r) => (r ? "rec" : "shot"))} />
       </box>
-      <popover cssClasses={["pop", "pop-capture"]}>
+      <popover cssClasses={["pop", "pop-capture"]} onClosed={() => setListOpen(false)}>
         <Panel title={"\u{f030}  CAPTURE"} cssClasses={["card", "card-capture"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <Shot glyph={"\u{f065}"} label="region" what="region" />
+            <Shot glyph={"\u{f0e2}"} label="last region" what="last" visible={lastRegion((r) => r !== null)} />
             <Shot glyph={"\u{f108}"} label="monitor" what="monitor" />
             <Windows />
             <RuleH />
