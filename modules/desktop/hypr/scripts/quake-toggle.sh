@@ -47,6 +47,9 @@ slide() { # slide in|out between y0 (above the screen) and y1, ease-out
   done
 }
 
+# jq is the flake's (modules/desktop home.packages); without it the lookup below is empty and
+# every press spawns another terminal onto the hidden workspace (16 of them, 2026-09-08)
+command -v jq >/dev/null || { notify-send -u critical "quake" "jq missing — not spawning"; exit 1; }
 client() { hyprctl -j clients | jq -c --arg c "$CLASS" '.[]|select(.class==$c)' | head -1; }
 
 # Spawn on first use, then wait for it to map.

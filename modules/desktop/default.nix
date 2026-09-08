@@ -110,6 +110,9 @@ in
       # the clipboard history behind the rail's clipboard card and Super+V (hyprland.lua's
       # wl-paste --watch at start); pacman's went in the 2026-09-07 sweep as a dependency
       cliphist wl-clipboard
+      # hypr/scripts/quake-toggle.sh reads hyprctl's json through jq: pacman's went as an orphan
+      # in the 2026-09-08 sweep and F12 spawned a terminal per press (2026-09-08)
+      jq
     ];
 
     xdg.configFile = {
