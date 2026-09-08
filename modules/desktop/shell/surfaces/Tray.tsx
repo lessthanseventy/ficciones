@@ -1,3 +1,4 @@
+import GLib from "gi://GLib?version=2.0"
 // The rail's foot: network and bluetooth as text items with detail popovers, then the
 // StatusNotifier tray (Steam, Slack, wgtray…) as an icon grid. Popovers are the "detail on
 // demand" surface — click opens, Escape or click-away closes.
@@ -244,18 +245,35 @@ function Sni() {
 }
 
 /**
- * The clipboard: how many clips cliphist holds; a click pops the last few — click one to copy
- * it back to the top — with a line to the full picker (the launcher in clip mode).
+ * The clipboard: the last few clips cliphist holds — an image clip is a thumbnail (decoded once
+ * into the cache), a text clip its first line with its length — click one to copy it back to
+ * the top, with a line to the full picker (the launcher in clip mode). The bar cell names the
+ * newest clip's kind: cliphist's count sits at its cap and says nothing (Andrew, 2026-09-08).
  */
-type Clip = { id: string; text: string }
+type Clip = { id: string; kind: "text" | "image"; text: string; meta: string; file?: string }
+const CLIP_DIR = `${GLib.get_user_cache_dir()}/astal-shell/clips`
+const parseClip = (line: string): Clip | null => {
+  const [id, ...rest] = line.split("\t")
+  if (!id) return null
+  const raw = rest.join("\t")
+  const img = raw.match(/^\[\[ binary data (\S+ \S+) (\w+) (\d+x\d+) \]\]$/)
+  if (img) return { id, kind: "image", text: img[2], meta: `${img[3]} · ${img[1]}`, file: `${CLIP_DIR}/${id}.${img[2]}` }
+  const text = raw.replace(/\s+/g, " ").trim()
+  return { id, kind: "text", text, meta: `${raw.length}c` }
+}
 const [recentClips, setRecentClips] = createState<Clip[]>([])
-const clipCount = createPoll("0", 15_000, async () => {
-  try { return (await execAsync(["sh", "-c", "cliphist list | wc -l"])).trim() } catch { return "0" }
+const newestKind = createPoll("—", 15_000, async () => {
+  try { const c = parseClip((await execAsync(["sh", "-c", "cliphist list | head -n 1"])).trim()); return c ? (c.kind === "image" ? "img" : "txt") : "—" } catch { return "—" }
 })
 async function refreshClips() {
   try {
-    const out = await execAsync(["sh", "-c", "cliphist list | head -n 5"])
-    setRecentClips(out.split("\n").filter(Boolean).map((l) => { const [id, ...rest] = l.split("\t"); return { id, text: rest.join("\t").replace(/\s+/g, " ").trim() } }))
+    const out = await execAsync(["sh", "-c", "cliphist list | head -n 6"])
+    const clips = out.split("\n").filter(Boolean).map(parseClip).filter((c): c is Clip => !!c)
+    GLib.mkdir_with_parents(CLIP_DIR, 0o755)
+    // decode each image once; the id is stable for the clip's life
+    await Promise.all(clips.filter((c) => c.file && !GLib.file_test(c.file, GLib.FileTest.EXISTS))
+      .map((c) => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${c.id}\t' | cliphist decode > "$1"`, "_", c.file!]).catch(() => {})))
+    setRecentClips(clips)
   } catch { setRecentClips([]) }
 }
 const copyClip = (c: Clip) => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${c.id}\t' | cliphist decode | wl-copy`]).then(refreshClips).catch(console.error)
@@ -265,23 +283,26 @@ function ClipItem() {
     <menubutton cssClasses={["item", "clip"]} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail", undefined, { onShow: refreshClips }) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={"\u{f0ea}"} />
-        <label cssClasses={["sm"]} label={clipCount} />
+        <label cssClasses={["sm"]} label={newestKind} />
       </box>
       <popover cssClasses={["pop", "pop-clip"]}>
         <Panel title={"\u{f0ea}  CLIPBOARD"} cssClasses={["card", "card-clip"]}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
             <For each={recentClips} id={(c) => c.id}>
               {(c, i) => (
-                <button cssClasses={["row", "clip-row"]} onClicked={() => { copyClip(c); pop?.close() }} tooltipText={c.text.slice(0, 400)}>
+                <button cssClasses={i((n) => ["row", "clip-row", ...(n === 0 ? ["top"] : [])])} onClicked={() => { copyClip(c); pop?.close() }} tooltipText={c.kind === "text" ? c.text.slice(0, 400) : c.meta}>
                   <box spacing={8}>
-                    <label cssClasses={i((n) => (n === 0 ? ["amber"] : ["dim"]))} label={i((n) => (n === 0 ? "\u{f012c}" : " "))} widthChars={2} />
-                    <label label={c.text} xalign={0} hexpand ellipsize={3} maxWidthChars={44} />
+                    <label cssClasses={["clip-kind", c.kind === "image" ? "green" : "amber"]} label={c.kind === "image" ? "\u{f02e9}" : "\u{f09a8}"} widthChars={2} />
+                    {c.kind === "image"
+                      ? <Gtk.Picture cssClasses={["clip-thumb"]} file={Gio.File.new_for_path(c.file!)} contentFit={Gtk.ContentFit.CONTAIN} canShrink halign={Gtk.Align.START} hexpand />
+                      : <label label={c.text} xalign={0} hexpand ellipsize={3} maxWidthChars={40} />}
+                    <label cssClasses={["dim", "sm", "clip-meta"]} label={c.meta} xalign={1} />
                   </box>
                 </button>
               )}
             </For>
             <label cssClasses={["dim"]} label="empty" visible={recentClips((l) => l.length === 0)} xalign={0} />
-            <button cssClasses={["act"]} onClicked={() => { pop?.close(); toggleLauncher("clip") }}><label label={clipCount((n) => `all ${n} …`)} /></button>
+            <button cssClasses={["act"]} onClicked={() => { pop?.close(); toggleLauncher("clip") }}><label label={"\u{f0349}  history …"} /></button>
           </box>
         </Panel>
       </popover>
@@ -362,8 +383,8 @@ function CaptureItem() {
             </button>
             <RuleH />
             <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["cap-help"]}>
-              {[["shots", "grim · slurp for a region"], ["flameshot", "Super+Shift+S"], ["recordings", "~/Videos/Recordings"]].map(([k, v]) => (
-                <box spacing={8}><label cssClasses={["dim", "sm"]} label={k} widthChars={10} xalign={1} /><label cssClasses={["sm"]} label={v} xalign={0} hexpand /></box>
+              {[["shots", "grim · slurp picks a region"], ["saved to", "~/Pictures/Screenshots"], ["flameshot", "Super+Shift+S"], ["recordings", "~/Videos/Recordings"]].map(([k, v]) => (
+                <box spacing={8}><label cssClasses={["dim", "sm"]} label={k} widthChars={11} xalign={0} /><label cssClasses={["sm"]} label={v} xalign={0} hexpand /></box>
               ))}
             </box>
           </box>

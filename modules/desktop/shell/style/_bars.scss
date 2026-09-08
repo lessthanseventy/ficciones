@@ -237,7 +237,11 @@ popover.pop {
   .cap { background: $bg; padding: 1px 6px; margin: 0 0 $rule $rule; label { color: $meta; } }
 }
 .sys .item.clip { .icon { color: $amber; margin-right: 7px; margin-bottom: 1px; } .sm { color: $meta; } &:hover .icon { color: $chip; } }
-.clip-row { padding: 2px $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } }
+.clip-row { padding: 2px $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; }
+  &.top { border-left: 2px solid $green; }
+  .clip-thumb { min-height: 48px; max-height: 64px; margin: 2px 0; border: 1px solid $dim; }
+  .clip-meta { min-width: 72px; }
+}
 
 // Every popover card: its hue on border + title, and the popover's own frame in a palette
 // partner of that hue — the board's card-on-a-panel look (Andrew, 2026-09-07: "same but
