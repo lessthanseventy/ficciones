@@ -102,7 +102,7 @@ in
       # the theme module renders configs for these; the binaries were pacman's (survey 2026-09-07)
       starship bat cava btop kitty wezterm delta
       # decided in modules/os/ivysaur.nix, applied to today's profile too
-      libreoffice-fresh qbittorrent pavucontrol eza imv hyprpicker brightnessctl diff-so-fancy
+      libreoffice-stable qbittorrent pavucontrol eza imv hyprpicker brightnessctl diff-so-fancy
       # dev / cli
       direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wev pamixer bluetui
       lazydocker lazysql lazyjj lazyjournal lazyssh

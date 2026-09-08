@@ -224,11 +224,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1788787101,
-        "narHash": "sha256-o0nQgzmKbReKLV84U2zZuNKshTlD+X3AsHX/dFHBqUI=",
+        "lastModified": 1788861874,
+        "narHash": "sha256-ntd6RnMZ2M0KHxJIAxp2Tp+nXK/bzYkwijv1hUKr6FU=",
         "owner": "sandwichfarm",
         "repo": "hyprexpo",
-        "rev": "32a5cb74074eef319f920f68c755a7792193fff3",
+        "rev": "8895e4641b3205262ff9afe6ce1bba6e1f97353f",
         "type": "github"
       },
       "original": {

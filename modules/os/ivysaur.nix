@@ -118,7 +118,7 @@ in
     kdePackages.qt6ct libsForQt5.qt5ct kdePackages.qtstyleplugin-kvantum
     # daily apps (the Arch profile; see the runbook §"what has no twin")
     # rustdesk builds from source (a full Rust compile) — runbook §5 TODO, not worth the build
-    zoom-us vesktop signal-desktop slack obsidian libreoffice-fresh mpv imv
+    zoom-us vesktop signal-desktop slack obsidian libreoffice-stable mpv imv
     bitwarden-desktop rbw qbittorrent telegram-desktop
     ripgrep eza zoxide atuin tmuxinator
     podman-compose

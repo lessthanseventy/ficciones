@@ -100,11 +100,11 @@
       # patching would break the embedded runtime). It's a bare binary, not an archive → dontUnpack.
       expert = pkgs.stdenv.mkDerivation rec {
         pname = "expert";
-        version = "0.1.9";
+        version = "0.1.10";
 
         src = pkgs.fetchurl {
           url = "https://github.com/expert-lsp/expert/releases/download/v${version}/expert_linux_amd64";
-          hash = "sha256-99WQW8PwmxKNSUHHdpYz8tEIvmN/Io7kMentE30sVWM=";
+          hash = "sha256-rynVJwUDJjE58Q/MtZdDD+sMUQ2kg4aCGxdvv9/jP40=";
         };
 
         dontUnpack = true;

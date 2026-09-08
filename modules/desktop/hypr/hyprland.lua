@@ -33,7 +33,9 @@ hl.env("BROWSER", "floorp")
 hl.env("ZDOTDIR", home)
 hl.env("GHOSTTY_ZSH_ZDOTDIR", home)
 
-hl.env("XDG_DATA_DIRS", home .. "/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share")
+-- the nix profile first: the flake owns the GUI apps, and without it the launcher (GIO app
+-- info, via the shell's env) saw only /usr/share — no LibreOffice, no nix app at all (2026-09-08)
+hl.env("XDG_DATA_DIRS", home .. "/.nix-profile/share:" .. home .. "/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share")
 
 -- Cursor
 hl.env("XCURSOR_THEME", "Bibata-Modern-Classic")
