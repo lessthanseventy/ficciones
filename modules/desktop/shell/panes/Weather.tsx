@@ -150,16 +150,16 @@ function Days({ wide = false }: { wide?: boolean } = {}) {
           glyph come from other fonts than the digits, so widthChars alone sat 18px off (measured) */}
       {wide && (
         <box cssClasses={["day", "day-head"]} spacing={8}>
-          <label cssClasses={["dim", "sm"]} label="day" widthChars={5} xalign={0} />
+          <label cssClasses={["dim"]} label="day" widthChars={5} xalign={0} />
           <label cssClasses={["sky"]} label={glyph(0)} opacity={0} />
-          <label cssClasses={["dim", "sm"]} label="sky" widthChars={13} xalign={0} />
-          <label cssClasses={["dim", "sm"]} label="lo" widthChars={4} xalign={1} />
+          <label cssClasses={["desc"]} label="sky" widthChars={13} xalign={0} />
+          <label cssClasses={["dim"]} label="lo" widthChars={4} xalign={1} />
           <box cssClasses={["range"]}><label cssClasses={["track"]} label={"─".repeat(W)} opacity={0} /></box>
-          <label cssClasses={["dim", "sm"]} label="hi" widthChars={4} xalign={0} />
+          <label cssClasses={["dim"]} label="hi" widthChars={4} xalign={0} />
           <box cssClasses={["skies"]} homogeneous>
             {HOURS.map((h) => <label cssClasses={["dim", "sm"]} label={h} />)}
           </box>
-          <label cssClasses={["dim", "sm"]} label="wind      rain       uv" widthChars={30} xalign={0} />
+          <label cssClasses={["dim", "sm"]} label="wind        rain       uv" widthChars={30} xalign={0} />
           <label cssClasses={["dim", "sm"]} label="rise       set" widthChars={22} xalign={0} />
           <label cssClasses={["dim", "sm"]} label="chance" hexpand xalign={1} />
         </box>
