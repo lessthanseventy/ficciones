@@ -1,0 +1,25 @@
+From: ficciones
+Subject: aquamarine's log connection honours debug:disable_logs
+
+Hyprland 0.56.2 gates its own lines on debug:disable_logs (CLogger::log) but hands
+aquamarine a CLoggerConnection straight into the hyprutils logger at DEBUG, and aquamarine
+sets libinput to LOG_PRIORITY_DEBUG — so with logs "disabled" every click still writes six
+button-debounce lines to hyprland.log (1.4 MB in 9 h). With logs disabled the connection
+carries warnings and errors only. Read once at init: the level does not follow a live reload.
+
+--- a/src/Compositor.cpp
++++ b/src/Compositor.cpp
+@@ -300,9 +300,12 @@
+     // set the buffer size to 1MB to avoid disconnects due to an app hanging for a short while
+     wl_display_set_default_max_buffer_size(m_wlDisplay, 1_MB);
+ 
++    // aquamarine's lines bypass CLogger::log, so the gate is the connection's own level
++    static auto PDISABLELOGS = CConfigValue<Config::INTEGER>("debug:disable_logs");
++
+     Aquamarine::SBackendOptions           options{};
+     SP<Hyprutils::CLI::CLoggerConnection> conn = makeShared<Hyprutils::CLI::CLoggerConnection>(Log::logger->hu());
+-    conn->setLogLevel(Log::DEBUG);
++    conn->setLogLevel(*PDISABLELOGS ? Log::WARN : Log::DEBUG);
+     conn->setName("aquamarine");
+     options.logConnection = std::move(conn);
+ 

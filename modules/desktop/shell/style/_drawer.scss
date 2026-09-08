@@ -88,9 +88,10 @@ window.hub, window.clickaway { background: transparent; }
 // the dashboard: the board is a black sheet with a margin of desktop showing round it; every
 // card wears its own hue on title AND border, so the sections read as sections, not text
 window.dashboard { background: transparent; }
-// a heavy amber frame, 16px of desktop to the bar, rail, deck row and screen edge on every side
-// (the margins in Dashboard.tsx; it sat on the deck row before — Andrew, 2026-09-07)
-.board { background: $bg; border: 2px solid $amber; padding: $sp-4; }
+// a heavy rounded frame in the accent, not amber — the board reads as its own object over
+// the desktop, not more of the same chrome (Andrew, 2026-09-07); 8px of desktop to the bar,
+// rail, deck row and screen edge on every side (the margins in Dashboard.tsx)
+.board { background: $bg; border: 3px solid $accent; border-radius: 12px; padding: $sp-4; }
 // the board is the one surface that shows everything at once, so its type steps down a notch
 // (Andrew, 2026-09-05: "shrink the text a notch or two if that lets me see it all")
 .board {

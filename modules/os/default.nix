@@ -27,6 +27,11 @@ let
       hyprland.overlays.hyprland-packages
       hyprexpo.overlays.default
       (final: prev: {
+        # aquamarine's log connection honours debug:disable_logs (patches/…; upstream 0.56.2 writes
+        # every libinput debounce line to hyprland.log regardless — 2026-09-07)
+        hyprland = prev.hyprland.overrideAttrs (o: {
+          patches = (o.patches or [ ]) ++ [ ./patches/hyprland-aquamarine-honours-disable_logs.patch ];
+        });
         glaze-hyprland = (prev.glaze.override { enableSSL = false; enableInterop = false; }).overrideAttrs (_: rec {
           version = "7.2.0";
           src = prev.fetchFromGitHub {
