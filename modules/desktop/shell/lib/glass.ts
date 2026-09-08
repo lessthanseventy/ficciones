@@ -5,7 +5,7 @@ import { keyword } from "./hyprlua"
 
 export const [glass, setGlassState] = createState(false)
 // one value for both: background windows are not dimmer than the foreground (Andrew, 2026-09-08)
-const ON = ["0.93", "0.93"], OFF = ["1.0", "1.0"]
+const ON = ["0.85", "0.85"], OFF = ["1.0", "1.0"]
 // the toggle outlives the shell (Hyprland keeps the opacity across a shell restart): seed it
 // from the live value or the Hub says off while the windows are glass (2026-09-08)
 execAsync(["hyprctl", "getoption", "decoration:active_opacity", "-j"])

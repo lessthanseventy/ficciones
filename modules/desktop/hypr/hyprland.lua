@@ -229,6 +229,9 @@ hl.window_rule({
 
 -- Default opacity (every window starts at 1.0)
 hl.window_rule({ name = "default-opacity", match = { class = ".*" }, opacity = "1" })
+-- pinned windows skip glass (Andrew, 2026-09-08): a PiP or share toolbar over other windows is
+-- the one thing that should never be see-through
+hl.window_rule({ name = "pinned-opaque", match = { pin = true }, opaque = true })
 
 -- Floating utilities
 hl.window_rule({
