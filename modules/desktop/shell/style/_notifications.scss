@@ -38,5 +38,7 @@ window.osd { background: transparent; }
 // the rows are the cards; the listview's own row chrome (hover, selection, padding) goes
 .vlist, .vlist > row { background: none; padding: 0; margin: 0; border: none; outline: none; }
 .vlist > row:hover, .vlist > row:active { background: none; box-shadow: none; }
-// the keyboard cursor (lib/nav): the drawer's chip look — a lit field with the accent edge
-.vlist > row:selected { background: rgba($amber, 0.14); box-shadow: inset 3px 0 0 $amber; }
+// the keyboard cursor (lib/nav): inverse video, the palette's "active" — an amber field, black
+// ink on every label in the row (a tinted field left amber text on amber: Andrew, 2026-09-07)
+.vlist > row:selected { background: $amber; box-shadow: none; }
+.vlist > row:selected .logline label, .vlist > row:selected .thread-row label, .vlist > row:selected label { color: $ink; }
