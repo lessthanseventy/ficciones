@@ -3,7 +3,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import GLib from "gi://GLib?version=2.0"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
-import { For } from "ags"
+import { For, With, createState } from "ags"
 import { RuleH } from "../lib/tui"
 
 /**
@@ -32,34 +32,63 @@ function Agenda() {
   )
 }
 
-export function CalendarCard() {
-  const now = GLib.DateTime.new_now_local()
-  const first = GLib.DateTime.new_local(now.get_year(), now.get_month(), 1, 0, 0, 0)!
-  const lead = (first.get_day_of_week() + 6) % 7 // Monday = 0
+/** A month as rows of seven, Sunday first (Andrew, 2026-09-08); null pads the edges. */
+function monthRows(year: number, month: number): (number | null)[][] {
+  const first = GLib.DateTime.new_local(year, month, 1, 0, 0, 0)!
+  const lead = first.get_day_of_week() % 7 // GLib: Mon=1 … Sun=7 → Sunday = 0
   const days = first.add_months(1)!.add_days(-1)!.get_day_of_month()
-  const today = now.get_day_of_month()
   const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)]
   while (cells.length % 7) cells.push(null)
   const rows: (number | null)[][] = []
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7))
+  return rows
+}
+
+export function CalendarCard() {
+  const now = GLib.DateTime.new_now_local()
+  // the month on show; ‹ › walk it, the title snaps back to today
+  const [view, setView] = createState({ year: now.get_year(), month: now.get_month() })
+  const step = (n: number) => {
+    const v = view.get()
+    const d = GLib.DateTime.new_local(v.year, v.month, 1, 0, 0, 0)!.add_months(n)!
+    setView({ year: d.get_year(), month: d.get_month() })
+  }
+  const home = () => { const t = GLib.DateTime.new_now_local(); setView({ year: t.get_year(), month: t.get_month() }) }
   const clock = createPoll("", 1000, () => GLib.DateTime.new_now_local().format("%A %d %B · %H:%M:%S")!)
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <label cssClasses={["headline-lg"]} label={clock} xalign={0} />
-      <box cssClasses={["cal-head"]} homogeneous hexpand>
-        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => <label label={d} hexpand />)}
+      <box cssClasses={["cal-nav"]} spacing={4}>
+        <button cssClasses={["act"]} onClicked={() => step(-1)} tooltipText="previous month"><label label={"\u{f0141}"} /></button>
+        <button cssClasses={["cal-title"]} hexpand onClicked={home} tooltipText="back to this month">
+          <label label={view((v) => GLib.DateTime.new_local(v.year, v.month, 1, 0, 0, 0)!.format("%B %Y")!)} />
+        </button>
+        <button cssClasses={["act"]} onClicked={() => step(1)} tooltipText="next month"><label label={"\u{f0142}"} /></button>
       </box>
-      {rows.map((r) => (
-        <box homogeneous hexpand>
-          {r.map((d) => (
-            <label
-              cssClasses={["cal-day", ...(d === today ? ["chip"] : []), ...(d === null ? ["dim"] : [])]}
-              label={d === null ? "" : String(d)}
-              hexpand
-            />
-          ))}
-        </box>
-      ))}
+      <box cssClasses={["cal-head"]} homogeneous hexpand>
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => <label label={d} hexpand />)}
+      </box>
+      <With value={view}>
+        {(v) => {
+          const t = GLib.DateTime.new_now_local()
+          const today = v.year === t.get_year() && v.month === t.get_month() ? t.get_day_of_month() : -1
+          return (
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+              {monthRows(v.year, v.month).map((r) => (
+                <box homogeneous hexpand>
+                  {r.map((d) => (
+                    <label
+                      cssClasses={["cal-day", ...(d === today ? ["chip"] : []), ...(d === null ? ["dim"] : [])]}
+                      label={d === null ? "" : String(d)}
+                      hexpand
+                    />
+                  ))}
+                </box>
+              ))}
+            </box>
+          )
+        }}
+      </With>
       <RuleH />
       <Agenda />
     </box>

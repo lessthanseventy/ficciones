@@ -20,7 +20,8 @@ window.drawer { background: transparent; }
 .card .panel-title { font-size: $size; }
 // splashes: each card's title wears its own hue; focus turns the border amber, not the title
 .card.focused .panel-title { color: inherit; }
-.cal-head label:nth-child(n+6) { color: $accent; }
+.cal-head label:nth-child(1), .cal-head label:nth-child(7) { color: $accent; }  // the weekend, Sunday-first
+.cal-nav .cal-title { background: none; border: none; padding: 0; label { color: $amber; } &:hover label { color: $chip; } }
 
 .sheet.right { border-right: none; border-left: $rule solid $sep; padding: 0 $sp-2 $sp-2 $sp-3; }
 
