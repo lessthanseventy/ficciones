@@ -253,7 +253,7 @@ hl.window_rule({
 -- flameshot's capture overlay arrives with an EMPTY class and a "flameshot" title; tiled, it is
 -- a shrunken desktop in a column (2026-09-07). It sizes itself to its --region (the focused
 -- monitor, shot-region.sh), so: float, pin, no chrome, and no animation into place.
--- move "0 0" is monitor-absolute (floats otherwise land inside the shell's reserved area, offset
+-- move is monitor-absolute (floats otherwise land inside the shell's reserved area, offset
 -- from the shot); stay_focused lifts it above other pinned windows (PiP), which stack by focus.
 hl.window_rule({
     name = "flameshot-overlay",
@@ -261,7 +261,7 @@ hl.window_rule({
     float = true,
     pin = true,
     stay_focused = true,
-    move = "0 0",
+    move = "50%-50% 50%-50%",
     no_anim = true,
     border_size = 0,
     rounding = 0,
