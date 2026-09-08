@@ -1,3 +1,5 @@
+import Gdk from "gi://Gdk?version=4.0"
+import GdkPixbuf from "gi://GdkPixbuf?version=2.0"
 import GLib from "gi://GLib?version=2.0"
 // The rail's foot: network and bluetooth as text items with detail popovers, then the
 // StatusNotifier tray (Steam, Slack, wgtray…) as an icon grid. Popovers are the "detail on
@@ -13,7 +15,7 @@ import { For, With, createBinding, createComputed, createState, type Accessor } 
 import { execAsync } from "ags/process"
 import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
-import { hoverPopover, type HoverPop } from "../lib/hover"
+import { hoverPopover, cards, type HoverPop } from "../lib/hover"
 import { volumeGlyph, iconFor } from "../lib/icons"
 import { hypr, focusedWorkspace } from "../lib/hypr"
 import Pango from "gi://Pango?version=1.0"
@@ -262,6 +264,11 @@ const parseClip = (line: string): Clip | null => {
   return { id, kind: "text", text, meta: `${raw.length}c` }
 }
 const [recentClips, setRecentClips] = createState<Clip[]>([])
+const THUMB_H = 48
+// scaled at load: a Gtk.Picture grows to the row's width otherwise (GTK4 CSS has no max-height)
+const thumb = (file: string): Gdk.Texture | null => {
+  try { return Gdk.Texture.new_for_pixbuf(GdkPixbuf.Pixbuf.new_from_file_at_scale(file, 160, THUMB_H, true)) } catch { return null }
+}
 const newestKind = createPoll("—", 15_000, async () => {
   try { const c = parseClip((await execAsync(["sh", "-c", "cliphist list | head -n 1"])).trim()); return c ? (c.kind === "image" ? "img" : "txt") : "—" } catch { return "—" }
 })
@@ -280,7 +287,7 @@ const copyClip = (c: Clip) => execAsync(["sh", "-c", `cliphist list | grep -m1 '
 function ClipItem() {
   let pop: HoverPop | null = null
   return (
-    <menubutton cssClasses={["item", "clip"]} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail", undefined, { onShow: refreshClips }) }}>
+    <menubutton cssClasses={["item", "clip"]} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail", undefined, { onShow: refreshClips }); cards.set("clipboard", pop) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={"\u{f0ea}"} />
         <label cssClasses={["sm"]} label={newestKind} />
@@ -294,7 +301,7 @@ function ClipItem() {
                   <box spacing={8}>
                     <label cssClasses={["clip-kind", c.kind === "image" ? "green" : "amber"]} label={c.kind === "image" ? "\u{f02e9}" : "\u{f09a8}"} widthChars={2} />
                     {c.kind === "image"
-                      ? <Gtk.Picture cssClasses={["clip-thumb"]} file={Gio.File.new_for_path(c.file!)} contentFit={Gtk.ContentFit.CONTAIN} canShrink halign={Gtk.Align.START} hexpand />
+                      ? <box hexpand spacing={0}><Gtk.Picture cssClasses={["clip-thumb"]} paintable={thumb(c.file!)} halign={Gtk.Align.START} valign={Gtk.Align.CENTER} canShrink={false} /><box hexpand /></box>
                       : <label label={c.text} xalign={0} hexpand ellipsize={3} maxWidthChars={40} />}
                     <label cssClasses={["dim", "sm", "clip-meta"]} label={c.meta} xalign={1} />
                   </box>
@@ -361,7 +368,7 @@ function CaptureItem() {
     </box>
   )
   return (
-    <menubutton cssClasses={recording((r) => ["item", "cap", ...(r ? ["live"] : [])])} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail") }}>
+    <menubutton cssClasses={recording((r) => ["item", "cap", ...(r ? ["live"] : [])])} direction={Gtk.ArrowType.RIGHT} $={(self) => { pop = hoverPopover(self, "rail"); cards.set("capture", pop) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={recording((r) => (r ? "\u{f03d}" : "\u{f030}"))} />
         <label cssClasses={["sm"]} label={recording((r) => (r ? "rec" : "shot"))} />

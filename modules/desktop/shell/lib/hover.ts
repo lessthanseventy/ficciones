@@ -94,3 +94,6 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   }
 }
 export type HoverPop = ReturnType<typeof hoverPopover>
+
+/** Cards by name, for `astal-shell pop card <name>` (a driven pass screenshots a card it cannot hover). */
+export const cards = new Map<string, HoverPop>()

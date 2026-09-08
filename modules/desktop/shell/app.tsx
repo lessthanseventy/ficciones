@@ -23,6 +23,7 @@ import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, applyShellTheme, type Theme } from "./lib/theme"
 import { sidecarVerb, colresize, focusDir, adoptSidecars } from "./lib/sidecar"
 import { setGlass, toggleGlass } from "./lib/glass"
+import { cards } from "./lib/hover"
 import "./lib/night"
 import "./lib/opaque"
 
@@ -92,6 +93,12 @@ app.start({
     }
     if (verb === "pop" && what === "ws") {
       popWorkspace(Number(tab))
+      return res("ok")
+    }
+    if (verb === "pop" && what === "card") {
+      const c = cards.get(tab)
+      if (!c) return res(`no card ${tab}: ${[...cards.keys()].join(" ")}`)
+      c.toggle()
       return res("ok")
     }
     if (verb === "focus" && (what === "l" || what === "r")) {
