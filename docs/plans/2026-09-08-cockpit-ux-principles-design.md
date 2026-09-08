@@ -120,6 +120,15 @@ boards as spaces (into the drawer); every second door to posting or creating.
    unchanged. Removes most of the muddiness on its own. The rail is workspaces → channels →
    threads from day one, with every thread in `#general` until the channel migration (slice 1b:
    the `channel` table + `thread.channel_id`, small, right after the frame).
+   **1.5 — tmux-hosted cockpit.** The cockpit draws icons with the kitty graphics protocol and
+   tmux drops those sequences (blank WS tiles and icons under `console:run:tmux`, 2026-09-08).
+   Fix in `Console.Graphics`: when `$TMUX` is set, wrap image transmission in tmux's passthrough
+   DCS (`\ePtmux;` … `\e\\`, `allow-passthrough on` in the flake's tmux.conf) and place images
+   with the protocol's Unicode placeholders (U+10EEEE cells carrying the image id) instead of
+   absolute cell coordinates, so tmux scrolls and moves them as text. Keys already pass (tmux
+   3.5 `extended-keys on`, csi-u); audit the decoder against tmux's flavour. Payoff: a cockpit
+   that survives a closed terminal and that Claude can drive (drive-cockpit skill) with nothing
+   degraded. After the frame, because the frame decides where the images sit.
 2. **Keys and focus** — the three layers, bottom-bar hints, the switcher; retire the mode switch.
 3. **Messages with kinds** — migration; prompts and questions appear in the thread with inline
    answers. Depends on one-brain piece B (sessions in the server) to route answers back.
