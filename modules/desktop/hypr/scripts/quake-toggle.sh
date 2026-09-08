@@ -98,7 +98,11 @@ ring off
 # floating window, so it is placed again after the move; then it fades in where it is
 h=$(( mh * HEIGHT_PCT / 100 ))
 y0=$(( y - h - 60 )); y1=$y
-if [ "$STYLE" = slide ]; then start=$y0; prop opacity_override 1; prop opacity 1; else start=$y; prop opacity_override 1; prop opacity 0; fi
+# transparent across the workspace move for both styles: Hyprland clamps a floating window
+# onto the monitor when it changes workspace, so the one parked above the screen showed for a
+# frame before the place below put it back (Andrew, 2026-09-08: "glitches visible then slides")
+if [ "$STYLE" = slide ]; then start=$y0; else start=$y; fi
+prop opacity_override 1; prop opacity 0
 d "hl.dsp.window.float({ action = \"on\", $(W) })"
 d "hl.dsp.window.resize({ x = $w, y = $h, relative = false, $(W) })"
 place "$x" "$start"
@@ -107,6 +111,6 @@ place "$x" "$start"
 [ "$pinned" = true ] || d "hl.dsp.window.pin({ $(W) })"
 d "hl.dsp.focus({ $(W) })"
 d "hl.dsp.window.alter_zorder({ mode = \"top\", $(W) })"
-if [ "$STYLE" = slide ]; then slide in; else fade in; fi
+if [ "$STYLE" = slide ]; then prop opacity 1; slide in; else fade in; fi
 # focus again once it has landed — asked while it hung above the screen, focus did not stick
 d "hl.dsp.focus({ $(W) })"
