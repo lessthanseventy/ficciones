@@ -117,6 +117,8 @@ in
       # shell's thumbnails, capture card and `mise shot:*` are grim); zoxide/sesh/cliamp were
       # tmux's dependents; aplay/amixer for the terminal
       grim slurp zoxide sesh cliamp alsa-utils
+      # the last pacman-only user tools (survey 2026-09-08); yq-go is what pacman called go-yq
+      ripgrep fzf atuin yq-go sqlite
     ];
 
     xdg.configFile = {

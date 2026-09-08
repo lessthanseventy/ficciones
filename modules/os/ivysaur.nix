@@ -122,6 +122,9 @@ in
     bitwarden-desktop rbw qbittorrent telegram-desktop
     ripgrep eza zoxide atuin tmuxinator
     podman-compose
+    # browsers: pacman's on Arch (their nixpkgs builds lose VA-API against the host mesa); a
+    # migrated box had none declared at all (survey 2026-09-08). theme/floorp-sites.nix styles floorp
+    firefox floorp-bin
   ];
 
   # ---- games ------------------------------------------------------------------------------
