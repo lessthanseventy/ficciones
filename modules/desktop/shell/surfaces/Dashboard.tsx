@@ -199,7 +199,7 @@ export default function Dashboard() {
             self.add_controller(g)
           }}
         />
-        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={16} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={36 + 16} marginBottom={24} marginStart={54 + 16} marginEnd={16}>
+        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={16} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={36 + 16} marginBottom={24 + 16} marginStart={54 + 16} marginEnd={16}>
           {/* three rows, packed to fit 1920×1080 with the rail and bar; one 16px gap between every
               pair of outer frames and from the board's edge (the card margin equals its outline
               offset, so the box spacing IS the gap). No key hints under the cards: the even

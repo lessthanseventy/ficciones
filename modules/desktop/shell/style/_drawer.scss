@@ -88,7 +88,9 @@ window.hub, window.clickaway { background: transparent; }
 // the dashboard: the board is a black sheet with a margin of desktop showing round it; every
 // card wears its own hue on title AND border, so the sections read as sections, not text
 window.dashboard { background: transparent; }
-.board { background: $bg; border: $rule solid $sep; padding: $sp-4; }
+// a heavy amber frame, 16px of desktop to the bar, rail, deck row and screen edge on every side
+// (the margins in Dashboard.tsx; it sat on the deck row before — Andrew, 2026-09-07)
+.board { background: $bg; border: 2px solid $amber; padding: $sp-4; }
 // the board is the one surface that shows everything at once, so its type steps down a notch
 // (Andrew, 2026-09-05: "shrink the text a notch or two if that lets me see it all")
 .board {
@@ -104,7 +106,7 @@ window.dashboard { background: transparent; }
 // every gap between frames is the box spacing alone — one $sp-4 everywhere, measured (Andrew,
 // 2026-09-07: the stacked columns had 4px between frames against 18px across).
 .board .card { margin: 11px; outline: $rule solid $sep; outline-offset: 10px; }   // 11: the 1px outline draws just outside the offset
-.board .card .panel-body { padding: 10px $sp-3; }   // 10, not 12: the even 16px gaps cost 20px down the tallest column (2026-09-07)
+.board .card .panel-body { padding: $sp-2 $sp-3; }   // 8, not 12: the even 16px gaps + the bottom margin cost ~40px down the tallest column (2026-09-07)
 .board .card .panel-title { font-size: $size; padding: 0 $sp-2; }
 // the card's hue on its frame and title tag — the board is fun that way (Andrew, 2026-09-07:
 // uniform frames were "way less fun") — but the BODY follows role (amber / cyan keys / lilac
