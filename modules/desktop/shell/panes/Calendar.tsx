@@ -32,13 +32,15 @@ function Agenda() {
   )
 }
 
-/** A month as rows of seven, Sunday first (Andrew, 2026-09-08); null pads the edges. */
+/** A month as six rows of seven, Sunday first (Andrew, 2026-09-08); null pads the edges. */
 function monthRows(year: number, month: number): (number | null)[][] {
   const first = GLib.DateTime.new_local(year, month, 1, 0, 0, 0)!
   const lead = first.get_day_of_week() % 7 // GLib: Mon=1 … Sun=7 → Sunday = 0
   const days = first.add_months(1)!.add_days(-1)!.get_day_of_month()
   const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)]
-  while (cells.length % 7) cells.push(null)
+  // always six rows: the grid keeps one height across months, so the agenda under it never
+  // jumps (Andrew, 2026-09-08)
+  while (cells.length < 42) cells.push(null)
   const rows: (number | null)[][] = []
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7))
   return rows
