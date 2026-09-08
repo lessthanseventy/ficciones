@@ -113,6 +113,10 @@ in
       # hypr/scripts/quake-toggle.sh reads hyprctl's json through jq: pacman's went as an orphan
       # in the 2026-09-08 sweep and F12 spawned a terminal per press (2026-09-08)
       jq
+      # more of the 2026-09-08 sweep's collateral: grim + slurp came off as hyprshot's deps (the
+      # shell's thumbnails, capture card and `mise shot:*` are grim); zoxide/sesh/cliamp were
+      # tmux's dependents; aplay/amixer for the terminal
+      grim slurp zoxide sesh cliamp alsa-utils
     ];
 
     xdg.configFile = {
