@@ -121,6 +121,7 @@ in
     zoom-us vesktop signal-desktop slack obsidian libreoffice-fresh mpv imv
     bitwarden-desktop rbw qbittorrent telegram-desktop
     ripgrep eza zoxide atuin tmuxinator
+    podman-compose
   ];
 
   # ---- games ------------------------------------------------------------------------------
@@ -137,7 +138,8 @@ in
     127.0.0.1 appcount.appr admin.appcount.appr application.appcount.appr residents.appcount.appr management.appcount.appr maintenance.appcount.appr
   '';
   services.tailscale.enable = true;
-  services.mullvad-vpn.enable = false; # was installed on Arch; enable if still in use
+  # the rail's VPN card drives the mullvad CLI (shell/lib/vpn.ts); it is in daily use on Arch
+  services.mullvad-vpn = { enable = true; package = pkgs.mullvad-vpn; };
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
   services.openssh.enable = true;
   services.printing.enable = true;
@@ -145,6 +147,24 @@ in
   services.fwupd.enable = true;
   services.thermald.enable = true;
   services.power-profiles-daemon.enable = true; # the shell's BAT popover drives it
+
+  # ---- dev services the Arch box runs from pacman (survey 2026-09-07) ---------------------------
+  # podman with the docker CLI shim (pacman: podman + podman-docker + podman-compose; oxker,
+  # lazydocker and podman-desktop in modules/desktop sit on top)
+  virtualisation.podman = {
+    enable = true;
+    dockerCompat = true;
+    dockerSocket.enable = true;
+    defaultNetwork.settings.dns_enabled = true;
+  };
+  # postgres 18 with the two extensions the Arch box carries (pgvector, timescaledb); the data
+  # dir is fresh on a new box — dump/restore from Arch is a runbook step, not a nix one
+  services.postgresql = {
+    enable = true;
+    package = pkgs.postgresql_18;
+    extensions = ps: with ps; [ pgvector timescaledb ];
+    settings.shared_preload_libraries = [ "timescaledb" ];
+  };
 
   # ---- login: greetd → uwsm → Hyprland (the VM autologs in; the laptop asks) ----------------
   services.greetd = {
