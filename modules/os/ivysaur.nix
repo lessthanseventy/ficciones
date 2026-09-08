@@ -139,7 +139,7 @@ in
   '';
   services.tailscale.enable = true;
   # the rail's VPN card drives the mullvad CLI (shell/lib/vpn.ts); it is in daily use on Arch
-  services.mullvad-vpn = { enable = true; package = pkgs.mullvad-vpn; };
+  services.mullvad-vpn.enable = true;   # the daemon + CLI; no GUI (the card is the GUI)
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
   services.openssh.enable = true;
   services.printing.enable = true;
