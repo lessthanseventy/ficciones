@@ -76,6 +76,7 @@ window.hub, window.clickaway { background: transparent; }
 .hours .sky { font-size: $size; min-height: 34px; }
 .day {
   .skies { min-width: 240px; margin: 0 $sp-2; .sky { min-width: 0; } }   // eight skies, 00 → 21, in equal cells
+  &.day-head { border-bottom: $rule solid $sep; padding-bottom: 2px; margin-bottom: 2px; }
   min-height: 24px;
   .sky { font-size: $size; min-width: 30px; }
   .desc { color: $meta; font-size: $size-sm; }

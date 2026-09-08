@@ -126,7 +126,7 @@ function Days({ wide = false }: { wide?: boolean } = {}) {
   // the board's card is wide: its rows carry the day at a glance after the range — the sky
   // every three hours, the day's wind, rain total, sunrise and sunset (Andrew, 2026-09-07:
   // "something else instead of a super wide bar")
-  const W = 8
+  const W = wide ? 20 : 8
   const days = weather((w) => (w.days ?? []).slice(0, 6))
   const range = days((d) => ({ lo: Math.min(...d.map((x) => x.low), 999), hi: Math.max(...d.map((x) => x.high), -999) }))
   // the week's range is the track (dim); the day's span sits on it (amber)
@@ -142,8 +142,28 @@ function Days({ wide = false }: { wide?: boolean } = {}) {
       const [a, b] = seg(d[i], range.get())
       return which === 0 ? "─".repeat(a) : which === 1 ? "━".repeat(b - a) : "─".repeat(W - b)
     })
+  const HOURS = ["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"]
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+      {/* the wide rows' header: a label over every column, the hour under each sky cell. The
+          bar and the sky placeholders are a row's own text, unseen: box-drawing and the sky
+          glyph come from other fonts than the digits, so widthChars alone sat 18px off (measured) */}
+      {wide && (
+        <box cssClasses={["day", "day-head"]} spacing={8}>
+          <label cssClasses={["dim", "sm"]} label="day" widthChars={5} xalign={0} />
+          <label cssClasses={["sky"]} label={glyph(0)} opacity={0} />
+          <label cssClasses={["dim", "sm"]} label="sky" widthChars={13} xalign={0} />
+          <label cssClasses={["dim", "sm"]} label="lo" widthChars={4} xalign={1} />
+          <box cssClasses={["range"]}><label cssClasses={["track"]} label={"─".repeat(W)} opacity={0} /></box>
+          <label cssClasses={["dim", "sm"]} label="hi" widthChars={4} xalign={0} />
+          <box cssClasses={["skies"]} homogeneous>
+            {HOURS.map((h) => <label cssClasses={["dim", "sm"]} label={h} />)}
+          </box>
+          <label cssClasses={["dim", "sm"]} label="wind      rain       uv" widthChars={30} xalign={0} />
+          <label cssClasses={["dim", "sm"]} label="rise       set" widthChars={22} xalign={0} />
+          <label cssClasses={["dim", "sm"]} label="chance" hexpand xalign={1} />
+        </box>
+      )}
       {Array.from({ length: 6 }, (_, i) => (
         <box cssClasses={["day"]} spacing={8} visible={days((d) => i < d.length)}>
           <label cssClasses={["dim"]} label={days((d) => (d[i] ? dow(d[i].t, i) : ""))} widthChars={5} xalign={0} />
