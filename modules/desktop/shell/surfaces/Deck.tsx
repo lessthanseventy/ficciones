@@ -14,7 +14,8 @@ import { For, createBinding, createComputed, createState, type Accessor } from "
 import { interval, type Timer as T } from "ags/time"
 import { Panel } from "../lib/tui"
 import { VList } from "../lib/vlist"
-import { log, hhmm, type Entry, type Src } from "../lib/log"
+import { log, hhmm, logEvent, type Entry, type Src } from "../lib/log"
+import { execAsync } from "ags/process"
 import { timer, left, fmtLeft, stopTimer, startCountdown, startPomodoro, parseSpec } from "../lib/timer"
 import { agents } from "../lib/agents"
 import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
@@ -23,6 +24,8 @@ import { MediaCard } from "../panes/Media"
 import { soundPids, playerSounding } from "../lib/sound"
 import { AgentsCard } from "../panes/Agents"
 import { armClickaway, disarmClickaway, closeOnPress, closeAny } from "./Clickaway"
+import { focus, focused, cursor, cursorOf, cycleFocus, move, jump, select } from "../lib/nav"
+import { roster } from "../panes/Agents"
 import { hoverPopover } from "../lib/hover"
 
 const TAIL = 2 // the activity segment: the last couple of events; the drawer has the rest
@@ -206,19 +209,22 @@ export function toggleDeck(on?: Gdk.Monitor) {
 export const deckVisible = () => !!deckWin?.visible
 export const deckMonitor = () => deckWin?.gdkmonitor?.connector
 
+// the log's filter state and shown rows live at module level so the drawer's keys reach them:
+// digits 1–6 toggle a source, 0 or a = all; Enter copies the line under the cursor
+const [logSel, setLogSel] = createState<Set<Src>>(new Set())
+const logShown = createComputed([log, logSel], (l, o) => [...l].reverse().filter((e) => o.size === 0 || o.has(e.src)))
+const toggleSrc = (src: Src) => setLogSel((o) => { const n = new Set(o); n.has(src) ? n.delete(src) : n.add(src); return n })
 export function LogPane() {
   // "all", or the sources picked — picking filters IN (Andrew, 2026-09-07); empty = all
-  const [sel, setSel] = createState<Set<Src>>(new Set())
-  const shown = createComputed([log, sel], (l, o) => [...l].reverse().filter((e) => o.size === 0 || o.has(e.src)))
-  const toggle = (src: Src) => setSel((o) => { const n = new Set(o); n.has(src) ? n.delete(src) : n.add(src); return n })
+  const sel = logSel, setSel = setLogSel, shown = logShown, toggle = toggleSrc
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-      <box spacing={6} cssClasses={["deck-filters"]}>
-        <button cssClasses={sel((o) => ["filter", "src-all", ...(o.size === 0 ? ["chip"] : ["off"])])} onClicked={() => setSel(new Set())}>
+      <box spacing={6} cssClasses={focused("FILTERS")((f) => ["deck-filters", ...(f ? ["focused"] : [])])}>
+        <button cssClasses={createComputed([sel, focused("FILTERS"), cursorOf("FILTERS")], (o, f, c) => ["filter", "src-all", ...(o.size === 0 ? ["chip"] : ["off"]), ...(f && c === 0 ? ["cursor"] : [])])} onClicked={() => setSel(new Set())}>
           <label label="all" />
         </button>
-        {SRCS.map((s) => (
-          <button cssClasses={sel((o) => ["filter", `src-${s}`, ...(o.has(s) ? ["chip"] : ["off"])])} onClicked={() => toggle(s)}>
+        {SRCS.map((s, i) => (
+          <button cssClasses={createComputed([sel, focused("FILTERS"), cursorOf("FILTERS")], (o, f, c) => ["filter", `src-${s}`, ...(o.has(s) ? ["chip"] : ["off"]), ...(f && c === i + 1 ? ["cursor"] : [])])} onClicked={() => toggle(s)}>
             <label label={s} />
           </button>
         ))}
@@ -226,7 +232,7 @@ export function LogPane() {
       </box>
       {/* a real scrollbar with its own column, not the overlay one that fades in over the counts */}
       <scrolledwindow cssClasses={["history"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.ALWAYS} overlayScrolling={false} vexpand>
-        <VList items={shown} id={(e) => String(e.id)} equal={(a, b) => a.count === b.count} render={(e) => (<Line e={e} wide />) as Gtk.Widget} />
+        <VList items={shown} id={(e) => String(e.id)} equal={(a, b) => a.count === b.count} render={(e) => (<Line e={e} wide />) as Gtk.Widget} cursor={cursorOf("LOG")} />
       </scrolledwindow>
     </box>
   )
@@ -262,9 +268,39 @@ function TimerPane() {
 }
 
 export default function Deck() {
-  // closes on Esc / q or a click outside — not on the pointer leaving
-  const keys = new Gtk.EventControllerKey()
-  keys.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape || kv === Gdk.KEY_q ? (hideDeck(), true) : false))
+  // closes on Esc / q or a click outside — not on the pointer leaving. The rest is lazygit:
+  // Tab / Shift+Tab cycle the pane, j/k or the arrows move its cursor, g/G jump, Enter acts
+  // (LOG: copy the line; AGENTS: pick the row), 1–6 toggle the log's sources, 0 or a = all.
+  // CAPTURE: the list widget under the pointer owns GTK focus and would swallow Tab, the
+  // arrows and Enter before a bubble-phase handler on the window ever saw them
+  const keys = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
+  const K = Gdk
+  // FILTERS is the chip row (all + the sources): h/l along it, Enter toggles the chip
+  const count = () => { const f = focus.get(); return f === "FILTERS" ? SRCS.length + 1 : f === "LOG" ? logShown.peek().length : roster.peek().length }
+  const horizontal = () => focus.get() === "FILTERS"
+  keys.connect("key-pressed", (_, kv, __, mods) => {
+    const shift = !!(mods & Gdk.ModifierType.SHIFT_MASK)
+    if (kv === K.KEY_Escape || kv === K.KEY_q) { hideDeck(); return true }
+    if (kv === K.KEY_Tab || kv === K.KEY_ISO_Left_Tab) { cycleFocus(kv === K.KEY_ISO_Left_Tab || shift ? -1 : 1); return true }
+    const fwd = horizontal() ? [K.KEY_l, K.KEY_Right] : [K.KEY_j, K.KEY_Down]
+    const back = horizontal() ? [K.KEY_h, K.KEY_Left] : [K.KEY_k, K.KEY_Up]
+    if (fwd.includes(kv)) { move(1, count()); return true }
+    if (back.includes(kv)) { move(-1, count()); return true }
+    if (kv === K.KEY_g) { jump(0, count()); return true }
+    if (kv === K.KEY_G) { jump(count() - 1, count()); return true }
+    if (kv === K.KEY_Page_Down) { move(10, count()); return true }
+    if (kv === K.KEY_Page_Up) { move(-10, count()); return true }
+    if (kv === K.KEY_Return || kv === K.KEY_KP_Enter || kv === K.KEY_space) {
+      const f = focus.get()
+      if (f === "FILTERS") { const i = cursor.peek().FILTERS; i === 0 ? setLogSel(new Set()) : toggleSrc(SRCS[i - 1]) }
+      else if (f === "LOG") {
+        const e = logShown.peek()[cursor.peek().LOG]
+        if (e) { execAsync(["wl-copy", `${hhmm(e.t)}  ${e.src}  ${e.text}`]).catch(() => {}); logEvent("shell", "log line copied", "dim") }
+      } else select("AGENTS", cursor.peek().AGENTS)
+      return true
+    }
+    return false
+  })
   return (
     <window
       $={(self) => {
@@ -295,8 +331,11 @@ export default function Deck() {
           $={(self) => { const g = new Gtk.GestureClick({ button: 0 }); g.connect("pressed", () => hideDeck()); self.add_controller(g) }}
         />
         <box cssClasses={["sheet", "bottom"]} spacing={12} heightRequest={400} vexpand={false} valign={Gtk.Align.END}>
-          <Panel title={"\u{f0a0d}  LOG"} cssClasses={["card", "card-log"]} hexpand><LogPane /></Panel>
-          <Panel title={"\u{f06a9}  AGENTS"} cssClasses={["card", "card-agents"]}><AgentsCard /></Panel>
+          <Panel title={"\u{f0a0d}  LOG"} cssClasses={focused("LOG")((f) => ["card", "card-log", ...(f ? ["focused"] : [])])} hexpand><LogPane /></Panel>
+          <Panel title={"\u{f06a9}  AGENTS"} cssClasses={focused("AGENTS")((f) => ["card", "card-agents", ...(f ? ["focused"] : [])])}><AgentsCard /></Panel>
+        </box>
+        <box cssClasses={["keys", "deck-keys"]} spacing={12}>
+          <label label="Tab pane" /><label label="j/k move · h/l along the chips" /><label label="Enter act" /><label label="Esc close" />
         </box>
         <box cssClasses={["clickaway-field", "deck-rowfield"]} heightRequest={36} $={(self) => { const g = new Gtk.GestureClick({ button: 0 }); g.connect("pressed", () => hideDeck()); self.add_controller(g) }} />
       </box>

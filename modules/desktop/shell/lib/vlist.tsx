@@ -25,6 +25,7 @@ export function VList<T>({
   render,
   equal = Object.is,
   cssClasses = [],
+  cursor,
 }: {
   items: Accessor<T[]>
   id: (item: T) => string
@@ -32,6 +33,8 @@ export function VList<T>({
   /** same id but a changed item: when this says they differ, the row's widget is rebuilt */
   equal?: (a: T, b: T) => boolean
   cssClasses?: string[]
+  /** a keyboard cursor: the row at this index is selected (row:selected) and scrolled to */
+  cursor?: Accessor<number>
 }) {
   const store = new Gio.ListStore({ item_type: Item.$gtype })
   const byKey = new Map<string, ItemT>()
@@ -67,7 +70,7 @@ export function VList<T>({
   onCleanup(unsub)
 
   const factory = new Gtk.SignalListItemFactory()
-  factory.connect("setup", (_, li: Gtk.ListItem) => { li.child = new Gtk.Box({ hexpand: true }); li.activatable = false; li.selectable = false })
+  factory.connect("setup", (_, li: Gtk.ListItem) => { li.child = new Gtk.Box({ hexpand: true }); li.activatable = false; li.selectable = !!cursor })
   factory.connect("bind", (_, li: Gtk.ListItem) => {
     const it = li.item as ItemT
     if (!it.widget) build(it, it.value as T)
@@ -79,12 +82,25 @@ export function VList<T>({
     if (it.widget?.parent === li.child) (li.child as Gtk.Box).remove(it.widget)
   })
 
+  const selection = cursor ? new Gtk.SingleSelection({ model: store, autoselect: false, canUnselect: true }) : new Gtk.NoSelection({ model: store })
+  let view: Gtk.ListView | null = null
+  if (cursor && selection instanceof Gtk.SingleSelection) {
+    const apply = () => {
+      const i = cursor.peek()
+      if (i < 0 || i >= store.get_n_items()) { selection.unselect_all(); return }
+      selection.selected = i
+      view?.scroll_to(i, Gtk.ListScrollFlags.NONE, null)
+    }
+    onCleanup(cursor.subscribe(apply))
+    onCleanup(items.subscribe(apply))
+  }
   return (
     <Gtk.ListView
       cssClasses={["vlist", ...cssClasses]}
-      model={new Gtk.NoSelection({ model: store })}
+      model={selection}
       factory={factory}
       singleClickActivate={false}
+      $={(self) => { view = self; if (cursor) setTimeout(() => { const i = cursor.peek(); if (i >= 0 && i < store.get_n_items() && selection instanceof Gtk.SingleSelection) selection.selected = i }, 0) }}
     />
   )
 }
