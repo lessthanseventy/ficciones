@@ -210,21 +210,21 @@ export const deckVisible = () => !!deckWin?.visible
 export const deckMonitor = () => deckWin?.gdkmonitor?.connector
 
 // the log's filter state and shown rows live at module level so the drawer's keys reach them:
-// digits 1–6 toggle a source, 0 or a = all; Enter copies the line under the cursor
-const [logSel, setLogSel] = createState<Set<Src>>(new Set())
-const logShown = createComputed([log, logSel], (l, o) => [...l].reverse().filter((e) => o.size === 0 || o.has(e.src)))
-const toggleSrc = (src: Src) => setLogSel((o) => { const n = new Set(o); n.has(src) ? n.delete(src) : n.add(src); return n })
+// digits 1–6 pick a source, 0 or a = all; Enter copies the line under the cursor
+// the chips are tabs — one source at a time, or all (Andrew, 2026-09-07: not opt-in filters)
+const [logSel, setLogSel] = createState<Src | null>(null)
+const logShown = createComputed([log, logSel], (l, o) => [...l].reverse().filter((e) => o === null || e.src === o))
+const pickSrc = (src: Src | null) => setLogSel(src)
 export function LogPane() {
-  // "all", or the sources picked — picking filters IN (Andrew, 2026-09-07); empty = all
-  const sel = logSel, setSel = setLogSel, shown = logShown, toggle = toggleSrc
+  const sel = logSel, shown = logShown
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
       <box spacing={6} cssClasses={focused("FILTERS")((f) => ["deck-filters", ...(f ? ["focused"] : [])])}>
-        <button cssClasses={createComputed([sel, focused("FILTERS"), cursorOf("FILTERS")], (o, f, c) => ["filter", "src-all", ...(o.size === 0 ? ["chip"] : ["off"]), ...(f && c === 0 ? ["cursor"] : [])])} onClicked={() => setSel(new Set())}>
+        <button cssClasses={createComputed([sel, focused("FILTERS"), cursorOf("FILTERS")], (o, f, c) => ["filter", "src-all", ...(o === null ? ["chip"] : ["off"]), ...(f && c === 0 ? ["cursor"] : [])])} onClicked={() => pickSrc(null)}>
           <label label="all" />
         </button>
         {SRCS.map((s, i) => (
-          <button cssClasses={createComputed([sel, focused("FILTERS"), cursorOf("FILTERS")], (o, f, c) => ["filter", `src-${s}`, ...(o.has(s) ? ["chip"] : ["off"]), ...(f && c === i + 1 ? ["cursor"] : [])])} onClicked={() => toggle(s)}>
+          <button cssClasses={createComputed([sel, focused("FILTERS"), cursorOf("FILTERS")], (o, f, c) => ["filter", `src-${s}`, ...(o === s ? ["chip"] : ["off"]), ...(f && c === i + 1 ? ["cursor"] : [])])} onClicked={() => pickSrc(s)}>
             <label label={s} />
           </button>
         ))}
@@ -270,12 +270,12 @@ function TimerPane() {
 export default function Deck() {
   // closes on Esc / q or a click outside — not on the pointer leaving. The rest is lazygit:
   // Tab / Shift+Tab cycle the pane, j/k or the arrows move its cursor, g/G jump, Enter acts
-  // (LOG: copy the line; AGENTS: pick the row), 1–6 toggle the log's sources, 0 or a = all.
+  // (LOG: copy the line; AGENTS: pick the row), 1–6 pick a log source, 0 or a = all.
   // CAPTURE: the list widget under the pointer owns GTK focus and would swallow Tab, the
   // arrows and Enter before a bubble-phase handler on the window ever saw them
   const keys = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
   const K = Gdk
-  // FILTERS is the chip row (all + the sources): h/l along it, Enter toggles the chip
+  // FILTERS is the chip row (all + the sources): h/l along it, Enter picks the chip
   const count = () => { const f = focus.get(); return f === "FILTERS" ? SRCS.length + 1 : f === "LOG" ? logShown.peek().length : threads.peek().length }
   const horizontal = () => focus.get() === "FILTERS"
   keys.connect("key-pressed", (_, kv, __, mods) => {
@@ -290,9 +290,11 @@ export default function Deck() {
     if (kv === K.KEY_G) { jump(count() - 1, count()); return true }
     if (kv === K.KEY_Page_Down) { move(10, count()); return true }
     if (kv === K.KEY_Page_Up) { move(-10, count()); return true }
+    if (kv === K.KEY_0 || kv === K.KEY_a) { pickSrc(null); return true }
+    if (kv >= K.KEY_1 && kv <= K.KEY_6) { pickSrc(SRCS[kv - K.KEY_1]); return true }
     if (kv === K.KEY_Return || kv === K.KEY_KP_Enter || kv === K.KEY_space) {
       const f = focus.get()
-      if (f === "FILTERS") { const i = cursor.peek().FILTERS; i === 0 ? setLogSel(new Set()) : toggleSrc(SRCS[i - 1]) }
+      if (f === "FILTERS") { const i = cursor.peek().FILTERS; pickSrc(i === 0 ? null : SRCS[i - 1]) }
       else if (f === "LOG") {
         const e = logShown.peek()[cursor.peek().LOG]
         if (e) { execAsync(["wl-copy", `${hhmm(e.t)}  ${e.src}  ${e.text}`]).catch(() => {}); logEvent("shell", "log line copied", "dim") }
