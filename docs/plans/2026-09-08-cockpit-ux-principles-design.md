@@ -1,5 +1,9 @@
 # Cockpit UX — the principles and the shape (design)
 
+> **Status 2026-09-08 (evening):** slice 1 (the frame) is BUILT on main — tasks 1–5 of
+> `2026-09-08-cockpit-frame-slice-1-plan.md` landed with reviews (top bar, rail, two-pane centre, drawer,
+> Orbis retired), plus every coworker in a worktree. Task 6 (Andrew's eye pass) is next; then 1b channels.
+
 Brainstormed with Andrew 2026-09-08 after the one-brain client split (plan A). His diagnosis:
 "the overall UX is muddied — I circled twenty-five approaches to organizing chats, getting in
 and out, what displays where. It needs generalized principles: differentiate where it matters,
