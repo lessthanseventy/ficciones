@@ -67,6 +67,24 @@ in
     };
     home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
 
+    # piper voices (the nix piper-tts ships none; pacman's piper-voices-en-* was 1.8 GB of every
+    # voice, none in use — `say` is kokoro via litellm). Two general ones, pinned from the
+    # rhasspy/piper-voices release; add a voice = its two files + hashes (nix-prefetch-url):
+    #   piper -m ~/.local/share/piper-voices/en_US-lessac-medium.onnx --output-raw < text | aplay
+    home.file.".local/share/piper-voices" = {
+      recursive = true;
+      source = let
+        base = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0";
+        voice = path: name: hashes: [
+          { name = "${name}.onnx"; path = pkgs.fetchurl { url = "${base}/${path}/${name}.onnx"; hash = builtins.elemAt hashes 0; }; }
+          { name = "${name}.onnx.json"; path = pkgs.fetchurl { url = "${base}/${path}/${name}.onnx.json"; hash = builtins.elemAt hashes 1; }; }
+        ];
+      in pkgs.linkFarm "piper-voices" (
+        voice "en/en_US/lessac/medium" "en_US-lessac-medium" [ "sha256-Xv4J5pkCGHgnr2RuGm6dJp3udp+Yd9F7FrG0buqvAZ8=" "sha256-7+GcQXvtBV8taZCCSMa6ZQ+hNbyGiw5quz2hgdq2kKA=" ]
+        ++ voice "en/en_GB/alan/medium" "en_GB-alan-medium" [ "sha256-CjCWaJMiBedigB8e/Cc2zUsBIDKWIq32K+CeVjOdMzA=" "sha256-wPDRJOWJXADnwDs13MgofzGaaZijZbGC3rXI51LujB4=" ]
+      );
+    };
+
     home.packages = with pkgs; [
       # terminal file managers on trial as THE picker (a termfilechooser portal wraps one of them);
       # yazi was pacman's before, lf/vifm are new (2026-09-07)
