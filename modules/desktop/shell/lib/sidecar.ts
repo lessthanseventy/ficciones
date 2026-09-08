@@ -70,15 +70,22 @@ function savePins() {
 }
 /** At start: pin again whatever the saved lines name, if it is still there, pinned and floating on
  * that monitor. AstalHyprland fills its client list asynchronously, so this waits for it. */
-export function adoptSidecars(tries = 20) {
+export async function adoptSidecars(tries = 40) {
   let lines: string[] = []
   try { const [ok, bytes] = GLib.file_get_contents(PINS); if (ok) lines = new TextDecoder().decode(bytes).split("\n").filter(Boolean) } catch { return }
   if (!lines.length) return
-  if (!hypr.get_clients().length && tries > 0) { timeout(250, () => adoptSidecars(tries - 1)); return }
+  const again = () => { if (tries > 0) timeout(250, () => adoptSidecars(tries - 1)) }
+  if (!hypr.get_clients().length) return again()
   for (const l of lines) {
     const [name, address] = l.split(" ")
     const c = hypr.get_client(address)
-    if (c && c.pinned && c.floating && c.get_monitor()?.name === name) pinSidecar(c)
+    if (!(c && c.pinned && c.floating && c.get_monitor()?.name === name)) continue
+    // the column and ring are placed inside the monitor's reserved area — the rail and bar's
+    // exclusive zones — which is empty until this shell's own layers have mapped: adopted too
+    // early, the ring ran under the rail (Andrew, 2026-09-07)
+    const m = await monitorJson(name)
+    if (!m || (m.reserved[0] === 0 && m.reserved[1] === 0)) return again()
+    pinSidecar(c)
   }
 }
 
