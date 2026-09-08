@@ -75,6 +75,7 @@ window.hub, window.clickaway { background: transparent; }
 .hours-key { min-width: 22px; margin-right: $sp-1; .sky { font-size: $size; } }
 .hours .sky { font-size: $size; min-height: 34px; }
 .day {
+  .skies { min-width: 240px; margin: 0 $sp-2; .sky { min-width: 0; } }   // eight skies, 00 → 21, in equal cells
   min-height: 24px;
   .sky { font-size: $size; min-width: 30px; }
   .desc { color: $meta; font-size: $size-sm; }
@@ -97,7 +98,8 @@ window.dashboard { background: transparent; }
 .board {
   * { font-size: 12px; }
   .sm { font-size: 10px; } .lg { font-size: 15px; } .panel-title { font-size: 12px; }
-  .bigtime { font-size: 52px; } .wx-glyph { font-size: 40px; margin-top: 4px; }   // the cloud inks to the top of its box; 4px more under the title .hours .sky { font-size: 15px; } .action .icon { font-size: 16px; }
+  .bigtime { font-size: 52px; } .wx-glyph { font-size: 40px; margin-top: 4px; }   // the cloud inks to the top of its box; 4px more under the title
+  .hours .sky { font-size: 15px; } .action .icon { font-size: 16px; }
 }
 // the popover look on the board too: an outer frame outside each card's hued border — "card on
 // a panel" (Andrew, 2026-09-07) — in a palette partner of the inner hue (amber↔violet,

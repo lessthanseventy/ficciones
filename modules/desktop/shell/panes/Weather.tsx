@@ -122,12 +122,15 @@ function Chart() {
   return <Gtk.DrawingArea heightRequest={130} hexpand $={(self) => { area = self; self.set_draw_func(draw) }} />
 }
 
-function Days() {
+function Days({ wide = false }: { wide?: boolean } = {}) {
+  // the board's card is wide: its rows carry the day at a glance after the range — the sky
+  // every three hours, the day's wind, rain total, sunrise and sunset (Andrew, 2026-09-07:
+  // "something else instead of a super wide bar")
+  const W = 8
   const days = weather((w) => (w.days ?? []).slice(0, 6))
   const range = days((d) => ({ lo: Math.min(...d.map((x) => x.low), 999), hi: Math.max(...d.map((x) => x.high), -999) }))
   // the week's range is the track (dim); the day's span sits on it (amber)
   const seg = (d: Day, r: { lo: number; hi: number }): [number, number] => {
-    const W = 8
     const span = Math.max(1, r.hi - r.lo)
     const a = Math.round(((d.low - r.lo) / span) * W)
     const b = Math.max(a + 1, Math.round(((d.high - r.lo) / span) * W))
@@ -137,7 +140,7 @@ function Days() {
     days((d) => {
       if (!d[i]) return ""
       const [a, b] = seg(d[i], range.get())
-      return which === 0 ? "─".repeat(a) : which === 1 ? "━".repeat(b - a) : "─".repeat(8 - b)
+      return which === 0 ? "─".repeat(a) : which === 1 ? "━".repeat(b - a) : "─".repeat(W - b)
     })
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
@@ -153,6 +156,14 @@ function Days() {
             <label cssClasses={["track"]} label={part(i, 2)} />
           </box>
           <label cssClasses={["amber"]} label={days((d) => (d[i] ? `${Math.round(d[i].high)}°` : ""))} widthChars={4} xalign={0} />
+          {wide && (
+            <box cssClasses={["skies"]} homogeneous>
+              {/* eight equal cells: the glyphs ink at different widths, so a joined string wandered the columns after it */}
+              {Array.from({ length: 8 }, (_, k) => <label cssClasses={["sky"]} label={days((d) => { const c = d[i]?.skies?.[k]; return typeof c === "number" ? glyph(c) : "" })} />)}
+            </box>
+          )}
+          {wide && <label cssClasses={["dim", "sm"]} label={days((d) => (d[i] ? `\u{f059d} ${Math.round(d[i].windMax ?? 0)} mph   \u{f0597} ${(d[i].precip ?? 0).toFixed(2)} in   uv ${Math.round(d[i].uv)}` : ""))} widthChars={30} xalign={0} />}
+          {wide && <label cssClasses={["dim", "sm"]} label={days((d) => (d[i] ? `\u{f059c} ${clock(d[i].sunrise)}   \u{f059b} ${clock(d[i].sunset)}` : ""))} widthChars={22} xalign={0} />}
           <label cssClasses={days((d) => ["sm", (d[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={days((d) => (d[i] && d[i].rain > 0 ? `\u{f0597} ${d[i].rain}%` : ""))} hexpand xalign={1} />
         </box>
       ))}
@@ -168,7 +179,7 @@ export function WeatherCard({ compact = false }: { compact?: boolean } = {}) {
       <RuleH />
       {compact ? <Chart /> : <Hours />}
       <RuleH />
-      <Days />
+      <Days wide={compact} />
       <label cssClasses={["red", "sm"]} label={stale} xalign={0} visible={stale((n) => !!n)} />
     </box>
   )

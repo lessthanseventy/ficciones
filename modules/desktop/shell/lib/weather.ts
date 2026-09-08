@@ -6,7 +6,12 @@ import { readFileAsync, writeFileAsync } from "ags/file"
 import { fetch } from "ags/fetch"
 
 export type Hour = { t: number; temp: number; code: number; rain: number }        // t = epoch ms
-export type Day = { t: number; code: number; high: number; low: number; rain: number; sunrise: string; sunset: string; uv: number }
+export type Day = {
+  t: number; code: number; high: number; low: number; rain: number; sunrise: string; sunset: string; uv: number
+  skies?: number[]   // weather codes at 00, 03 … 21 — the day at a glance on the board's wide rows
+  windMax?: number   // mph
+  precip?: number    // inches, the day's sum
+}
 
 export type Weather = {
   ok: boolean
@@ -73,8 +78,8 @@ async function fetchWeather(): Promise<Weather> {
       `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}` +
       `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m` +
       `&hourly=temperature_2m,weather_code,precipitation_probability` +
-      `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max` +
-      `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=6`
+      `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max,wind_speed_10m_max,precipitation_sum` +
+      `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=6`
     const res = await fetch(url)
     const j: any = await res.json()
     const now = Date.now()
@@ -85,6 +90,9 @@ async function fetchWeather(): Promise<Weather> {
     const days: Day[] = j.daily.time.map((t: string, i: number) => ({
       t: Date.parse(t), code: j.daily.weather_code[i], high: j.daily.temperature_2m_max[i], low: j.daily.temperature_2m_min[i],
       rain: j.daily.precipitation_probability_max[i] ?? 0, sunrise: j.daily.sunrise[i], sunset: j.daily.sunset[i], uv: j.daily.uv_index_max[i] ?? 0,
+      // hourly comes as 24 rows per day in the query's order, day i at i*24
+      skies: Array.from({ length: 8 }, (_, k) => j.hourly.weather_code[i * 24 + k * 3]).filter((c: unknown) => typeof c === "number"),
+      windMax: j.daily.wind_speed_10m_max?.[i], precip: j.daily.precipitation_sum?.[i],
     }))
     const w: Weather = {
       ok: true,
