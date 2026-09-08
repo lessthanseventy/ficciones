@@ -184,7 +184,11 @@ function Days({ wide = false }: { wide?: boolean } = {}) {
           )}
           {wide && <label cssClasses={["dim", "sm"]} label={days((d) => (d[i] ? `\u{f059d} ${Math.round(d[i].windMax ?? 0)} mph   \u{f0597} ${(d[i].precip ?? 0).toFixed(2)} in   uv ${Math.round(d[i].uv)}` : ""))} widthChars={30} xalign={0} />}
           {wide && <label cssClasses={["dim", "sm"]} label={days((d) => (d[i] ? `\u{f059c} ${clock(d[i].sunrise)}   \u{f059b} ${clock(d[i].sunset)}` : ""))} widthChars={22} xalign={0} />}
-          <label cssClasses={days((d) => ["sm", (d[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={days((d) => (d[i] && d[i].rain > 0 ? `\u{f0597} ${d[i].rain}%` : ""))} hexpand xalign={1} />
+          {/* icon and number apart, the number in a fixed cell: one label slid the icon by digit count */}
+          <box hexpand halign={Gtk.Align.END} spacing={4}>
+            <label cssClasses={days((d) => ["sm", (d[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={days((d) => (d[i] && d[i].rain > 0 ? "\u{f0597}" : ""))} />
+            <label cssClasses={days((d) => ["sm", (d[i]?.rain ?? 0) >= 30 ? "cyan" : "dim"])} label={days((d) => (d[i] && d[i].rain > 0 ? `${d[i].rain}%` : ""))} widthChars={4} xalign={1} />
+          </box>
         </box>
       ))}
     </box>
