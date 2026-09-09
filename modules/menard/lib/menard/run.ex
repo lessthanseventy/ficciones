@@ -44,7 +44,14 @@ defmodule Menard.Run do
   end
 
   # the TARGET project's mix, in its own directory and env — never this project's
-  defp mix(dir, args), do: System.cmd("mix", args, cd: dir, stderr_to_stdout: true, env: [{"MIX_ENV", "dev"}])
+  defp mix(dir, args),
+    do: System.cmd("mix", args, cd: dir, stderr_to_stdout: true, env: [{"MIX_ENV", env_for(args)}])
+
+  # `mix test` picks MIX_ENV=test itself; forcing dev over it drops `elixirc_paths(:test)`, so
+  # test/support never compiles and every test importing a support module fails to LOAD — a green
+  # suite reported as "module not loaded and could not be found".
+  defp env_for(["test" | _]), do: "test"
+  defp env_for(_args), do: "dev"
 
   defp tail(out), do: out |> String.split("\n") |> Enum.take(-12) |> Enum.join("\n")
 
@@ -85,7 +92,8 @@ defmodule Menard.Run do
       body =
         Enum.take_while(
           rest,
-          &(String.trim(&1) != "end" or String.length(&1) - String.length(String.trim_leading(&1)) != indent)
+          &(String.trim(&1) != "end" or
+              String.length(&1) - String.length(String.trim_leading(&1)) != indent)
         )
 
       closer = Enum.at(rest, length(body))
