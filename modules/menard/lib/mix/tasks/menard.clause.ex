@@ -40,6 +40,12 @@ defmodule Mix.Tasks.Menard.Clause do
       ["insert_at", file, module, where, code] when where in ["top", "bottom"] ->
         write(file, &Clause.insert_at(&1, module(module), where, code))
 
+      ["comment", file, na, head, text] ->
+        write(file, &Clause.comment(&1, na, head, text, flags))
+
+      ["comment", file, na, head] ->
+        write(file, &Clause.comment(&1, na, head, nil, flags))
+
       ["doc", file, na, head, text] ->
         write(file, &Clause.doc(&1, na, head, text, flags))
 
@@ -54,7 +60,8 @@ defmodule Mix.Tasks.Menard.Clause do
         Mix.raise(
           "usage: mix menard.clause (replace|rewrite|delete|insert-after|insert-before) FILE name/arity HEAD [CODE] [--nth N]\n" <>
             "       mix menard.clause insert-at FILE (Mod.Name|-) [top|bottom] CODE\n" <>
-            "       mix menard.clause doc FILE name/arity HEAD [TEXT]   (no TEXT deletes it)\n" <>
+            "       mix menard.clause doc FILE name/arity HEAD [TEXT]       (no TEXT deletes it)\n" <>
+            "       mix menard.clause comment FILE name/arity HEAD [TEXT]   (no TEXT deletes it)\n" <>
             "       mix menard.clause visibility FILE name/arity (public|private)"
         )
     end

@@ -696,4 +696,61 @@ defmodule Menard.Clause do
         put_in(range.start, line: line - above, column: 1)
     end
   end
+
+  @doc """
+  Set, replace or delete the comment block glued above a clause — the load-bearing `why` that sits
+  over a `def`. `text` is prose, one line per line; `#` is added (and an existing one tolerated, so
+  pasting a block back is idempotent). A blank line becomes a bare `#`. `nil` deletes the block.
+
+  `rewrite` can carry a comment too, but only by restating the whole clause; this changes the
+  comment and nothing else.
+  """
+  @spec comment(String.t(), String.t(), String.t(), String.t() | nil, keyword()) ::
+          String.t() | {:error, String.t()}
+  def comment(source, name_arity, head, text, opts \\ []) do
+    with {:ok, ast} <- parse(source),
+         {:ok, clause} <- find(source, name_arity, head, opts) do
+      lines = String.split(source, "\n")
+      # The comment sits above the clause's ATTACHED attributes, not above the `def` — a `@doc`
+      # written between them would otherwise orphan the comment from what it explains.
+      anchor = attrs_start(ast, clause.range)
+      above = comment_lines_above(lines, anchor - 1)
+
+      case {above, text} do
+        {0, nil} -> source
+        {0, _} -> insert_at_line(source, anchor, comment_text(text, clause.indent))
+        {n, nil} -> delete_line_range(source, anchor - n, anchor - 1)
+        {n, _} -> replace_line_range(source, anchor - n, anchor - 1, comment_text(text, clause.indent))
+      end
+    end
+  end
+
+  defp comment_text(text, indent) do
+    pad = if is_integer(indent), do: String.duplicate(" ", indent), else: indent
+
+    text
+    |> String.trim_trailing()
+    |> String.split("\n")
+    |> Enum.map_join("\n", fn line ->
+      case line |> String.trim() |> String.replace_prefix("#", "") |> String.trim_leading() do
+        "" -> pad <> "#"
+        body -> pad <> "# " <> body
+      end
+    end)
+  end
+
+  defp delete_line_range(source, a, b) do
+    source
+    |> String.split("\n")
+    |> Enum.with_index(1)
+    |> Enum.reject(fn {_text, i} -> i >= a and i <= b end)
+    |> Enum.map_join("\n", &elem(&1, 0))
+  end
+
+  defp replace_line_range(source, a, b, text) do
+    lines = String.split(source, "\n")
+
+    (Enum.take(lines, a - 1) ++ [text] ++ Enum.drop(lines, b))
+    |> Enum.join("\n")
+  end
 end
