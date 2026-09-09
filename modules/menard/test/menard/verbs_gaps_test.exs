@@ -105,6 +105,42 @@ defmodule Menard.ClauseDocTest do
     assert out =~ "def bare(y), do: y"
   end
 
+  test "replaces a HEREDOC @doc without eating the newline after its closing quotes" do
+    src = """
+    defmodule Hd do
+      @doc \"\"\"
+      old line one
+      old line two
+      \"\"\"
+      @spec go(any()) :: any()
+      def go(x), do: x
+    end
+    """
+
+    out = Clause.doc(src, "go/1", "x", "new doc.\nsecond line.")
+
+    assert out =~ "  @doc \"\"\"\n  new doc.\n  second line.\n  \"\"\"\n  @spec go"
+    refute out =~ "old line one"
+    refute out =~ ~s(\"\"\"  @spec)
+  end
+
+  test "deletes a HEREDOC @doc whole, leaving the @spec" do
+    src = """
+    defmodule Hd do
+      @doc \"\"\"
+      old
+      \"\"\"
+      @spec go(any()) :: any()
+      def go(x), do: x
+    end
+    """
+
+    out = Clause.doc(src, "go/1", "x", nil)
+
+    refute out =~ "old"
+    assert out =~ "  @spec go(any()) :: any()\n  def go(x), do: x"
+  end
+
   test "deleting a @doc that isn't there is a no-op, not an error" do
     assert Clause.doc(@src, "bare/1", "y", nil) == @src
   end

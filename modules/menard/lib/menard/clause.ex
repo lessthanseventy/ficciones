@@ -608,45 +608,16 @@ defmodule Menard.Clause do
   def doc(source, name_arity, head, text, opts \\ []) do
     with {:ok, ast} <- parse(source),
          {:ok, clause} <- find(source, name_arity, head, opts) do
-      existing = attached_doc(ast, clause.range)
-      change = if is_nil(text), do: "", else: doc_text(text, clause.indent)
+      existing = attached_doc_lines(ast, clause.range)
+      rendered = if is_nil(text), do: nil, else: clause.indent <> doc_text(text, clause.indent)
 
       case {existing, text} do
-        {nil, nil} ->
-          source
-
-        {nil, _} ->
-          insert_at_line(source, doc_start(ast, clause.range), clause.indent <> change)
-
-        {range, nil} ->
-          delete_lines(source, range)
-
-        {range, _} ->
-          Sourceror.patch_string(source, [%{range: range, change: change, preserve_indentation: false}])
+        {nil, nil} -> source
+        {nil, _} -> insert_at_line(source, doc_start(ast, clause.range), rendered)
+        {{a, b}, nil} -> delete_line_range(source, a, b)
+        {{a, b}, _} -> replace_line_range(source, a, b, rendered)
       end
     end
-  end
-
-  # The range of the clause's own `@doc`, or nil. Only an attribute in the ATTACHED run above the
-  # clause counts — a `@doc` further up belongs to a different function.
-  defp attached_doc(ast, %{start: [line: line, column: _]}) do
-    Enum.reduce(module_bodies(ast), nil, fn statements, acc ->
-      case Enum.find_index(statements, &(start_line(&1) == line)) do
-        nil ->
-          acc
-
-        i ->
-          statements
-          |> Enum.take(i)
-          |> Enum.reverse()
-          |> Enum.take_while(&attached_attr?/1)
-          |> Enum.find(&doc_attr?/1)
-          |> case do
-            nil -> acc
-            node -> Sourceror.get_range(node)
-          end
-      end
-    end)
   end
 
   # Where a NEW @doc goes: above the clause's attached attributes, so it lands over @impl/@spec
@@ -670,14 +641,6 @@ defmodule Menard.Clause do
     {before, rest} = Enum.split(lines, line - 1)
 
     Enum.join(before ++ [text] ++ rest, "\n")
-  end
-
-  defp delete_lines(source, %{start: [line: a, column: _], end: [line: b, column: _]}) do
-    source
-    |> String.split("\n")
-    |> Enum.with_index(1)
-    |> Enum.reject(fn {_text, i} -> i >= a and i <= b end)
-    |> Enum.map_join("\n", &elem(&1, 0))
   end
 
   # When the replacement carries its own leading comment, the range grows upward to swallow the
@@ -752,5 +715,33 @@ defmodule Menard.Clause do
 
     (Enum.take(lines, a - 1) ++ [text] ++ Enum.drop(lines, b))
     |> Enum.join("\n")
+  end
+
+  defp attached_doc_lines(ast, %{start: [line: line, column: _]}) do
+    Enum.reduce(module_bodies(ast), nil, fn statements, acc ->
+      case Enum.find_index(statements, &(start_line(&1) == line)) do
+        nil ->
+          acc
+
+        i ->
+          statements
+          |> Enum.take(i)
+          |> Enum.reverse()
+          |> Enum.take_while(&attached_attr?/1)
+          |> Enum.find(&doc_attr?/1)
+          |> case do
+            nil -> acc
+            node -> line_span(node)
+          end
+      end
+    end)
+  end
+
+  # LINE numbers, not the node range: a heredoc `@doc` ends at a column Sourceror places past the
+  # closing quotes, and patching that range swallowed the newline after it (`"""  @spec`). An
+  # attribute owns whole lines, so whole lines are what gets replaced.
+  defp line_span(node) do
+    %{start: [line: a, column: _], end: [line: b, column: _]} = Sourceror.get_range(node)
+    {a, b}
   end
 end

@@ -33,7 +33,7 @@ defmodule Menard.MCP.Rename do
           source = File.read!(file)
 
           case Menard.Rename.run(source, params.old, params.new, opts) do
-            out when is_binary(out) and out != source -> File.write!(file, out) == :ok
+            out when is_binary(out) and out != source -> Menard.checked_write(file, out) == :ok
             _ -> false
           end
         end)
@@ -62,6 +62,13 @@ defmodule Menard.MCP.Clause do
   function does not compile; going private also drops an attached `@doc`, which Elixir discards
   with a warning. Give it `name_arity` and `visibility`.
 
+  `doc` and `comment` set the `@doc` or the `#` comment above a clause — prose in `text`, no
+  `text` deletes it. They are the only door to either: both are string literals, so the clause
+  verbs cannot reach them.
+
+  Two clauses CAN share a head (an insert beside its twin). That is refused with both line
+  numbers rather than guessed at; `nth` says which one.
+
   `insert_at` is the one verb that takes no clause: it adds a function that has NO sibling to
   anchor to. Give it `module` ("Mod.Name", or omit it in a single-module file) and `code`;
   placement follows the code — a `defp` lands with the other private functions, a `def` with the
@@ -73,7 +80,17 @@ defmodule Menard.MCP.Clause do
 
   schema do
     field(:verb, :enum,
-      values: ["replace", "rewrite", "delete", "insert_after", "insert_before", "insert_at", "visibility"],
+      values: [
+        "replace",
+        "rewrite",
+        "delete",
+        "insert_after",
+        "insert_before",
+        "insert_at",
+        "visibility",
+        "doc",
+        "comment"
+      ],
       required: true
     )
 
@@ -84,17 +101,16 @@ defmodule Menard.MCP.Clause do
     field(:module, :string)
     field(:at, :enum, values: ["top", "bottom"])
     field(:visibility, :enum, values: ["public", "private"])
+    field(:text, :string)
+    field(:nth, :integer)
   end
 
   @impl true
   def execute(params, frame) do
     with {:ok, file} <- Menard.MCP.resolve(params.file),
          source <- File.read!(file),
-         out when is_binary(out) <- edit(params, source) do
-      File.write!(file, out)
-      # The CLI formatted after an edit and this door did not — same verb, differently shaped code.
-      Menard.format(file)
-
+         out when is_binary(out) <- edit(params, source),
+         :ok <- Menard.checked_write(file, out) do
       # the one line a transcript shows: what happened, to which clause, where
       ok(frame, %{
         "did" =>
@@ -112,13 +128,20 @@ defmodule Menard.MCP.Clause do
   defp edit(%{verb: verb} = p, source) do
     code = p[:code] || ""
 
+    # `nth` disambiguates a head two clauses share; without it that is refused, not guessed.
+    opts = if n = p[:nth], do: [nth: n], else: []
+
     case verb do
-      "replace" -> Clause.replace_body(source, p.name_arity, p.head, code)
-      "rewrite" -> Clause.rewrite(source, p.name_arity, p.head, code)
-      "delete" -> Clause.delete(source, p.name_arity, p.head)
-      "insert_after" -> Clause.insert_after(source, p.name_arity, p.head, code)
-      "insert_before" -> Clause.insert_before(source, p.name_arity, p.head, code)
+      "replace" -> Clause.replace_body(source, p.name_arity, p.head, code, opts)
+      "rewrite" -> Clause.rewrite(source, p.name_arity, p.head, code, opts)
+      "delete" -> Clause.delete(source, p.name_arity, p.head, opts)
+      "insert_after" -> Clause.insert_after(source, p.name_arity, p.head, code, opts)
+      "insert_before" -> Clause.insert_before(source, p.name_arity, p.head, code, opts)
       "insert_at" -> Clause.insert_at(source, p[:module], p[:at], code)
+      # `text` absent means DELETE for both — the prose is the whole payload, so nothing to give
+      # is the only way to say "remove it".
+      "doc" -> Clause.doc(source, p.name_arity, p.head, p[:text], opts)
+      "comment" -> Clause.comment(source, p.name_arity, p.head, p[:text], opts)
       # every clause of the function at once — a half-flipped one does not compile
       "visibility" -> Clause.visibility(source, p.name_arity, want(p[:visibility]))
     end
@@ -275,9 +298,8 @@ defmodule Menard.MCP.Directive do
     with {:ok, file} <- Menard.MCP.resolve(params.file),
          {:ok, kind} <- kind(params[:kind]),
          {:ok, target} <- target(params[:target]),
-         out when is_binary(out) <- edit(params.verb, File.read!(file), kind, target, params) do
-      File.write!(file, out)
-      Menard.format(file)
+         out when is_binary(out) <- edit(params.verb, File.read!(file), kind, target, params),
+         :ok <- Menard.checked_write(file, out) do
       ok(frame, %{"did" => "#{params.verb} #{kind} #{target} in #{Path.basename(file)}", "file" => file})
     else
       {:error, message} -> fail(frame, message)
@@ -343,9 +365,8 @@ defmodule Menard.MCP.Attr do
 
   def execute(params, frame) do
     with {:ok, file} <- Menard.MCP.resolve(params.file),
-         out when is_binary(out) <- write(params.verb, File.read!(file), params) do
-      File.write!(file, out)
-      Menard.format(file)
+         out when is_binary(out) <- write(params.verb, File.read!(file), params),
+         :ok <- Menard.checked_write(file, out) do
       ok(frame, %{"did" => "#{params.verb} @#{params[:name]} in #{Path.basename(file)}", "file" => file})
     else
       {:error, :missing} -> fail(frame, "no @#{params[:name]} in this module")
@@ -405,9 +426,8 @@ defmodule Menard.MCP.Block do
 
   def execute(params, frame) do
     with {:ok, file} <- Menard.MCP.resolve(params.file),
-         out when is_binary(out) <- edit(params, File.read!(file)) do
-      File.write!(file, out)
-      Menard.format(file)
+         out when is_binary(out) <- edit(params, File.read!(file)),
+         :ok <- Menard.checked_write(file, out) do
       ok(frame, %{"did" => "#{params.verb} #{params[:name]} in #{Path.basename(file)}", "file" => file})
     else
       {:error, message} -> fail(frame, message)
@@ -479,9 +499,8 @@ defmodule Menard.MCP.Module do
 
   def execute(params, frame) do
     with {:ok, file} <- Menard.MCP.resolve(params.file),
-         out when is_binary(out) <- Menard.Module.add(File.read!(file), params[:code] || "") do
-      File.write!(file, out)
-      Menard.format(file)
+         out when is_binary(out) <- Menard.Module.add(File.read!(file), params[:code] || ""),
+         :ok <- Menard.checked_write(file, out) do
       ok(frame, %{"did" => "add a module to #{Path.basename(file)}", "file" => file})
     else
       {:error, message} -> fail(frame, message)
