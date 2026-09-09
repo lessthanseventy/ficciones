@@ -26,29 +26,34 @@ Three engines, each for what it is good at:
 
 Edit (Sourceror; `mix ast.*` today, `edit_*` MCP verbs):
 
-| verb | does |
-|---|---|
-| `rename OLD NEW [--atoms] [--comments] FILES` | LANDED — identifier everywhere; atoms/keys and whole-word comment mentions on request |
-| `rename-refs OLD NEW` | rename via Expert's references (cross-file, module-qualified calls) |
-| `delete-clause Mod.fun/arity HEAD` | remove one clause matching a head pattern |
-| `insert-clause Mod.fun/arity after HEAD CODE` | add a clause at the right place in the group |
-| `replace-body Mod.fun/arity HEAD CODE` | swap a clause's body |
-| `add-alias Mod Alias` / `add-import` | at the top of the invoking module, once |
-| `move-def Mod.fun/arity to Mod2` | a def and its clauses across modules (Expert fixes callers) |
+| verb | does | status |
+|---|---|---|
+| `ast.rename OLD NEW [--atoms] [--comments] FILES` | identifier everywhere; atoms/keys and whole-word comment mentions on request | LANDED · MCP `rename_identifier` |
+| `ast.clause replace FILE name/arity HEAD CODE` | swap a clause's body | LANDED · MCP `edit_clause` |
+| `ast.clause delete FILE name/arity HEAD` | remove one clause (+ its glued comment) | LANDED · MCP `edit_clause` |
+| `ast.clause insert-after FILE name/arity HEAD CODE` | add a clause after that one | LANDED · MCP `edit_clause` |
+| `rename-refs OLD NEW` | rename via Expert's references (cross-file, module-qualified calls) | needs the Expert client |
+| `add-alias Mod Alias` / `add-import` | at the top of the invoking module, once | next |
+| `move-def Mod.fun/arity to Mod2` | a def and its clauses across modules (Expert fixes callers) | needs the Expert client |
 
-Introspect (read-only; `mix ast.outline` etc., `inspect_*` MCP verbs):
+Introspect (read-only):
 
-| verb | returns |
-|---|---|
-| `outline FILE` | modules → defs with arity, spec, doc first line, line ranges |
-| `refs Mod.fun/arity` | every call site (Expert) |
-| `callers`/`callees` | the graph one hop out (Mix xref) |
-| `exports` | the `:boundary` surface — what a consumer may call |
-| `diagnostics [FILE]` | compiler + credo, as data |
-| `deps` | what's outdated, what has an advisory (`mix hex.outdated`, `mix hex.audit`) |
+| verb | returns | status |
+|---|---|---|
+| `ast.outline FILE [--json]` | modules → defs with arity, spec, doc first line, line ranges | LANDED · MCP `outline_file` |
+| `ast.diagnostics [--json]` | a forced compile's warnings as data | LANDED |
+| `ast.inspect callers MOD[.fun/arity]` | files calling into it (mix xref) | LANDED |
+| `ast.inspect exports` | the `:boundary` surface — what a consumer may call | LANDED |
+| `ast.inspect deps` | outdated packages + advisories | LANDED |
+| `refs Mod.fun/arity` | every call site, precisely (Expert) | needs the Expert client |
 
-Run and update (Mix behind mise; already tasks — exposed as verbs with structured output):
-`check`, `test FILE[:LINE]`, `format FILES`, `deps.get`, `deps.update PKG`, `release`, `restart`.
+Run and update (`mix ast.run VERB`, one JSON line, exit 1 when not ok — LANDED · MCP `run_verb`):
+`check`, `test [FILE[:LINE]]`, `format [FILES]`, `compile`. Still plain mise tasks: `deps.get`,
+`deps.update PKG`, `release`, `restart`.
+
+Scoping (LANDED): every MCP verb resolves paths under the calling thread's worktree
+(`Server.Source.Tools`) and refuses a path outside it; the reviewer archetype's profile excludes
+the edit verbs (`rename_identifier`, `edit_clause`) and keeps introspection + run.
 
 ## Shape
 
@@ -63,10 +68,12 @@ Run and update (Mix behind mise; already tasks — exposed as verbs with structu
 
 ## Order
 
-1. `ast.rename --comments`, `ast.outline`, `ast.diagnostics` (all single-engine, small).
-2. Clause verbs (`Server.Source.Clause`).
-3. Expert client (`refs`, `rename-refs`) — depends on the adapters' lspd being stable.
-4. MCP exposure per archetype; the tlon-shaped `/implement` runs on these.
+1. DONE 2026-09-08: `ast.rename --comments`, `ast.outline`, `ast.diagnostics`, `ast.inspect`.
+2. DONE 2026-09-08: clause verbs (`Server.Source.Clause`), `ast.run`, MCP exposure with the
+   reviewer cut.
+3. Expert client (`refs`, `rename-refs`, `move-def`) — depends on the adapters' lspd being stable.
+4. `add-alias`/`add-import`; the console's OUTLINE drawer pane; the tlon-shaped `/implement` runs
+   on these.
 
 Ties to `2026-09-08-tlon-shaped-flows.md` (the implement skill's toolbox) and the value-loop plan
 (review coworkers read `refs`/`diagnostics`, not raw diffs).
