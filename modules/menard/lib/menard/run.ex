@@ -44,14 +44,12 @@ defmodule Menard.Run do
   end
 
   # the TARGET project's mix, in its own directory and env — never this project's
-  defp mix(dir, args),
-    do: System.cmd("mix", args, cd: dir, stderr_to_stdout: true, env: [{"MIX_ENV", env_for(args)}])
-
-  # `mix test` picks MIX_ENV=test itself; forcing dev over it drops `elixirc_paths(:test)`, so
-  # test/support never compiles and every test importing a support module fails to LOAD — a green
-  # suite reported as "module not loaded and could not be found".
-  defp env_for(["test" | _]), do: "test"
-  defp env_for(_args), do: "dev"
+  # UNSET, not pinned. `mix test` picks :test itself and `mix precommit` picks per task inside the
+  # alias; anything forced here overrides both, which is how elixirc_paths(:test) got dropped and
+  # every test/support module read as "not loaded" — first under `run test`, then again under
+  # `run check`. nil unsets, so menard's own MIX_ENV cannot leak into the target either, which is
+  # what the pin was for.
+  defp mix(dir, args), do: System.cmd("mix", args, cd: dir, stderr_to_stdout: true, env: [{"MIX_ENV", nil}])
 
   defp tail(out), do: out |> String.split("\n") |> Enum.take(-12) |> Enum.join("\n")
 
