@@ -52,8 +52,10 @@ fi
 # that streams.
 err=$(mktemp)
 trap 'rm -f "$err"' EXIT
-mix "menard.$verb" "$@" 2>"$err"
-status=$?
+# `&& status=0 || status=$?` puts the call in a condition, so `set -e` does not abort the script
+# the instant mix fails — which it did, before the line below could print the error, so every
+# failure read as a bare "ERROR task failed" with the message that says what to fix thrown away.
+mix "menard.$verb" "$@" 2>"$err" && status=0 || status=$?
 cat "$err" >&2
 if ((status != 0)) && grep -qE "cannot compile module|CompileError" "$err"; then
   echo "menard: that is a compile error in menard ITSELF (a half-applied edit) — retry with: menard --frozen $verb …" >&2

@@ -258,7 +258,7 @@ defmodule Menard.Clause do
   end
 
   # Every `defmodule` in the file as `{"Full.Name", node}` (nested modules by their written name).
-  defp modules(ast) do
+  def modules(ast) do
     ast
     |> Zipper.zip()
     |> Zipper.traverse([], fn z, acc ->

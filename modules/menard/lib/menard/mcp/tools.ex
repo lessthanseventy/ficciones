@@ -296,3 +296,188 @@ defmodule Menard.MCP.Directive do
   defp target(t) when is_binary(t) and t != "", do: {:ok, t}
   defp target(_t), do: {:error, "target is required — the module the directive names"}
 end
+
+defmodule Menard.MCP.Attr do
+  @moduledoc """
+  Module attributes — the tables a module keeps at the top (`@hints`, `@colors`, `@panes`), which
+  no clause verb reaches because an attribute is not a clause. `verb` is `get`, `set` (replaces the
+  value, or adds the attribute above the first definition when missing), `delete` or `list`.
+  Addressed by `name`; a name several attributes share (`@doc`/`@impl`/`@spec` repeat per clause)
+  is refused with their lines — those belong to the clause verbs.
+  """
+  use Anubis.Server.Component, type: :tool
+  import Menard.MCP.Reply
+
+  alias Menard.Attr
+
+  schema do
+    field(:verb, :enum, values: ["get", "set", "delete", "list"], required: true)
+    field(:file, :string, required: true)
+    field(:name, :string)
+    field(:value, :string)
+    field(:module, :string)
+  end
+
+  @impl true
+  def execute(%{verb: verb} = params, frame) when verb in ["get", "list"] do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         source <- File.read!(file),
+         result <- read(verb, source, params) do
+      case result do
+        {:error, :missing} ->
+          fail(frame, "no @#{params[:name]} in this module")
+
+        {:error, message} ->
+          fail(frame, message)
+
+        found when is_list(found) ->
+          ok(frame, %{"attributes" => Enum.map(found, fn {n, l} -> "@#{n} (line #{l})" end)})
+
+        text ->
+          ok(frame, %{"value" => text})
+      end
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  def execute(params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         out when is_binary(out) <- write(params.verb, File.read!(file), params) do
+      File.write!(file, out)
+      Menard.format(file)
+      ok(frame, %{"did" => "#{params.verb} @#{params[:name]} in #{Path.basename(file)}", "file" => file})
+    else
+      {:error, :missing} -> fail(frame, "no @#{params[:name]} in this module")
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  defp read("get", source, p), do: Attr.get(source, p[:name] || "", module: p[:module])
+  defp read("list", source, p), do: Attr.list(source, module: p[:module])
+
+  defp write("set", source, p), do: Attr.set(source, p[:name] || "", p[:value] || "", module: p[:module])
+  defp write("delete", source, p), do: Attr.delete(source, p[:name] || "", module: p[:module])
+end
+
+defmodule Menard.MCP.Block do
+  @moduledoc """
+  The body of a macro's `do` block — `schema do`, `describe "…" do`, `test "…" do`. Not a clause,
+  so no clause verb reaches one. `verb` is `get`, `replace` (body := `code`) or `list`. `label` is
+  the macro's first string argument, which is what makes `describe`/`test` addressable; several
+  blocks of one name with no label is refused, listing them.
+  """
+  use Anubis.Server.Component, type: :tool
+  import Menard.MCP.Reply
+
+  alias Menard.Block
+
+  schema do
+    field(:verb, :enum, values: ["get", "replace", "list"], required: true)
+    field(:file, :string, required: true)
+    field(:name, :string)
+    field(:code, :string)
+    field(:label, :string)
+    field(:module, :string)
+  end
+
+  @impl true
+  def execute(%{verb: "list"} = params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         found when is_list(found) <- Block.list(File.read!(file), module: params[:module]) do
+      ok(frame, %{"blocks" => Enum.map(found, fn {n, l, line} -> "#{n} #{inspect(l)} (line #{line})" end)})
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  def execute(%{verb: "get"} = params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         text when is_binary(text) <- Block.get(File.read!(file), params[:name] || "", where(params)) do
+      ok(frame, %{"body" => text})
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  def execute(params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         out when is_binary(out) <-
+           Block.replace(File.read!(file), params[:name] || "", params[:code] || "", where(params)) do
+      File.write!(file, out)
+      Menard.format(file)
+      ok(frame, %{"did" => "replace #{params[:name]} in #{Path.basename(file)}", "file" => file})
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  defp where(params), do: [module: params[:module], label: params[:label]]
+end
+
+defmodule Menard.MCP.Deps do
+  @moduledoc """
+  What one function references — the read that answers "can this move, and what comes with it?".
+  Returns the local calls it makes (each with `shared_with`: the OTHER functions here that also
+  call it, so a helper with an empty list can travel and one with entries cannot), the remote
+  calls, the modules whose aliases must travel, and the attributes it reads — which do not.
+
+  There is no `move` verb on purpose: a move is this report plus `clause insert-at`,
+  `directive add`, `clause delete`, `find calls` and `run compile`.
+  """
+  use Anubis.Server.Component, type: :tool
+  import Menard.MCP.Reply
+
+  schema do
+    field(:file, :string, required: true)
+    field(:name_arity, :string, required: true)
+    field(:module, :string)
+  end
+
+  @impl true
+  def execute(params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         %{} = report <- Menard.Deps.of(File.read!(file), params.name_arity, module: params[:module]) do
+      ok(frame, report)
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+end
+
+defmodule Menard.MCP.Module do
+  @moduledoc """
+  Whole modules inside a file. `add` appends a complete `defmodule` after the last one (a name the
+  file already defines is refused); `list` names them. `clause insert_at` puts a function INTO a
+  module and `write` replaces a whole file — neither adds a second module to a file that has one.
+  """
+  use Anubis.Server.Component, type: :tool
+  import Menard.MCP.Reply
+
+  schema do
+    field(:verb, :enum, values: ["add", "list"], required: true)
+    field(:file, :string, required: true)
+    field(:code, :string)
+  end
+
+  @impl true
+  def execute(%{verb: "list"} = params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         names when is_list(names) <- Menard.Module.list(File.read!(file)) do
+      ok(frame, %{"modules" => names})
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  def execute(params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         out when is_binary(out) <- Menard.Module.add(File.read!(file), params[:code] || "") do
+      File.write!(file, out)
+      Menard.format(file)
+      ok(frame, %{"did" => "add a module to #{Path.basename(file)}", "file" => file})
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+end
