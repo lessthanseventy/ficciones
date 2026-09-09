@@ -38,10 +38,15 @@ defmodule Mix.Tasks.Menard.Clause do
       ["insert_at", file, module, where, code] when where in ["top", "bottom"] ->
         write(file, &Clause.insert_at(&1, module(module), where, code))
 
+      # every clause at once — a half-flipped function does not compile
+      ["visibility", file, na, want] ->
+        write(file, &Clause.visibility(&1, na, visibility(want)))
+
       _ ->
         Mix.raise(
           "usage: mix menard.clause (replace|rewrite|delete|insert-after|insert-before) FILE name/arity HEAD [CODE]\n" <>
-            "       mix menard.clause insert-at FILE (Mod.Name|-) [top|bottom] CODE"
+            "       mix menard.clause insert-at FILE (Mod.Name|-) [top|bottom] CODE\n" <>
+            "       mix menard.clause visibility FILE name/arity (public|private)"
         )
     end
   end
@@ -54,6 +59,10 @@ defmodule Mix.Tasks.Menard.Clause do
   # `-` (or an empty string) means "the file's one module" — there is nothing to name.
   defp module(m) when m in ["-", ""], do: nil
   defp module(m), do: m
+
+  defp visibility("public"), do: :public
+  defp visibility("private"), do: :private
+  defp visibility(other), do: Mix.raise("visibility must be public or private, got #{other}")
 
   defp write(file, edit) do
     file = Menard.resolve(file)

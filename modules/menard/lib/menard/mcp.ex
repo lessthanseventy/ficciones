@@ -12,6 +12,7 @@ defmodule Menard.MCP do
   component(Menard.MCP.Write, name: "write")
   component(Menard.MCP.Rename, name: "rename")
   component(Menard.MCP.Clause, name: "clause")
+  component(Menard.MCP.Directive, name: "directive")
   component(Menard.MCP.Outline, name: "outline")
   component(Menard.MCP.Find, name: "find")
   component(Menard.MCP.Run, name: "run")

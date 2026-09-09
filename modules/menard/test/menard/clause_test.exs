@@ -272,4 +272,64 @@ defmodule Menard.ClauseTest do
       refute out =~ "go(:a)"
     end
   end
+
+  describe "visibility — every clause at once" do
+    @multi """
+    defmodule A do
+      @doc "what it does"
+      @spec go(atom()) :: integer()
+      def go(:a), do: 1
+      def go(:b), do: 2
+      def go(_other), do: 0
+
+      def other, do: :ok
+    end
+    """
+
+    test "privatize flips EVERY clause — a half-flipped function does not compile" do
+      out = Clause.visibility(@multi, "go/1", :private)
+
+      assert length(String.split(out, "defp go(")) - 1 == 3
+      refute out =~ "\n  def go("
+      # the untouched neighbour keeps its visibility
+      assert out =~ "def other, do: :ok"
+    end
+
+    test "privatize drops the @doc, which Elixir would discard with a warning" do
+      out = Clause.visibility(@multi, "go/1", :private)
+
+      refute out =~ "@doc"
+      # @spec is legal on a defp and stays
+      assert out =~ "@spec go(atom()) :: integer()"
+    end
+
+    test "publicize flips them back" do
+      private = Clause.visibility(@multi, "go/1", :private)
+      out = Clause.visibility(private, "go/1", :public)
+
+      assert length(String.split(out, "\n  def go(")) - 1 == 3
+      refute out =~ "defp go("
+    end
+
+    test "keeps the family — a defmacrop becomes a defmacro, not a def" do
+      src = "defmodule A do\n  defmacrop m(x), do: x\nend\n"
+      assert Clause.visibility(src, "m/1", :public) =~ "defmacro m(x), do: x"
+    end
+
+    test "already at the wanted visibility is a no-op, byte for byte" do
+      assert Clause.visibility(@multi, "go/1", :public) == @multi
+    end
+
+    test "a function that isn't there is an error, not a silent no-op" do
+      assert {:error, message} = Clause.visibility(@multi, "nope/9", :private)
+      assert message =~ "nope/9"
+    end
+
+    test "only the named function moves" do
+      out = Clause.visibility(@multi, "other/0", :private)
+
+      assert out =~ "defp other, do: :ok"
+      assert out =~ "def go(:a), do: 1"
+    end
+  end
 end

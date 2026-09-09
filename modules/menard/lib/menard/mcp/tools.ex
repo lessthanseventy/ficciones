@@ -58,6 +58,10 @@ defmodule Menard.MCP.Clause do
   `head` — its args as written plus any guard, parens optional. A miss lists the heads that exist.
   Only the clause's bytes change.
 
+  `visibility` flips a function public/private — EVERY clause of it, since a half-flipped
+  function does not compile; going private also drops an attached `@doc`, which Elixir discards
+  with a warning. Give it `name_arity` and `visibility`.
+
   `insert_at` is the one verb that takes no clause: it adds a function that has NO sibling to
   anchor to. Give it `module` ("Mod.Name", or omit it in a single-module file) and `code`;
   placement follows the code — a `defp` lands with the other private functions, a `def` with the
@@ -69,7 +73,7 @@ defmodule Menard.MCP.Clause do
 
   schema do
     field(:verb, :enum,
-      values: ["replace", "rewrite", "delete", "insert_after", "insert_before", "insert_at"],
+      values: ["replace", "rewrite", "delete", "insert_after", "insert_before", "insert_at", "visibility"],
       required: true
     )
 
@@ -79,6 +83,7 @@ defmodule Menard.MCP.Clause do
     field(:code, :string)
     field(:module, :string)
     field(:at, :enum, values: ["top", "bottom"])
+    field(:visibility, :enum, values: ["public", "private"])
   end
 
   @impl true
@@ -101,6 +106,9 @@ defmodule Menard.MCP.Clause do
     end
   end
 
+  defp want("public"), do: :public
+  defp want(_private), do: :private
+
   defp edit(%{verb: verb} = p, source) do
     code = p[:code] || ""
 
@@ -111,6 +119,8 @@ defmodule Menard.MCP.Clause do
       "insert_after" -> Clause.insert_after(source, p.name_arity, p.head, code)
       "insert_before" -> Clause.insert_before(source, p.name_arity, p.head, code)
       "insert_at" -> Clause.insert_at(source, p[:module], p[:at], code)
+      # every clause of the function at once — a half-flipped one does not compile
+      "visibility" -> Clause.visibility(source, p.name_arity, want(p[:visibility]))
     end
   end
 end
@@ -226,4 +236,63 @@ defmodule Menard.MCP.Write do
       {:error, message} -> fail(frame, message)
     end
   end
+end
+
+defmodule Menard.MCP.Directive do
+  @moduledoc """
+  `alias` / `import` / `require` / `use`, placed where they belong. `verb` is `add` (in sorted
+  position inside its own block, opening the block in Elixir's conventional order — use, import,
+  alias, require — when there isn't one), `remove`, or `list` (what the module already pulls in).
+  `kind` is which directive; `target` the module; `args` the rest as written ("only: [pad: 3]",
+  "as: Thing"). Adding one that is already there is a no-op, never a duplicate line. `module` names
+  which module in a file that has several.
+  """
+  use Anubis.Server.Component, type: :tool
+  import Menard.MCP.Reply
+
+  alias Menard.Directive
+
+  schema do
+    field(:verb, :enum, values: ["add", "remove", "list"], required: true)
+    field(:file, :string, required: true)
+    field(:kind, :enum, values: ["alias", "import", "require", "use"])
+    field(:target, :string)
+    field(:args, :string)
+    field(:module, :string)
+  end
+
+  @impl true
+  def execute(%{verb: "list"} = params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         found when is_list(found) <- Directive.list(File.read!(file), module: params[:module]) do
+      ok(frame, %{"directives" => Enum.map(found, fn {kind, target} -> "#{kind} #{target}" end)})
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  def execute(params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         {:ok, kind} <- kind(params[:kind]),
+         {:ok, target} <- target(params[:target]),
+         out when is_binary(out) <- edit(params.verb, File.read!(file), kind, target, params) do
+      File.write!(file, out)
+      Menard.format(file)
+      ok(frame, %{"did" => "#{params.verb} #{kind} #{target} in #{Path.basename(file)}", "file" => file})
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  defp edit("add", source, kind, target, params),
+    do: Directive.add(source, kind, target, module: params[:module], args: params[:args])
+
+  defp edit("remove", source, kind, target, params),
+    do: Directive.remove(source, kind, target, module: params[:module])
+
+  defp kind(k) when k in ["alias", "import", "require", "use"], do: {:ok, String.to_existing_atom(k)}
+  defp kind(_k), do: {:error, "kind is required: alias, import, require or use"}
+
+  defp target(t) when is_binary(t) and t != "", do: {:ok, t}
+  defp target(_t), do: {:error, "target is required — the module the directive names"}
 end

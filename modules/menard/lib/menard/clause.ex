@@ -110,6 +110,28 @@ defmodule Menard.Clause do
     end
   end
 
+  @doc """
+  Flip a function's visibility — EVERY clause of it, in one patch. `def`↔`defp`, keeping the family
+  (`defmacro`↔`defmacrop`, `defguard`↔`defguardp`).
+
+  One verb rather than a rewrite per clause because a half-flipped function does not compile: the
+  clauses of one name/arity must agree, so doing them one at a time leaves the module broken in
+  between and unrecoverable if you stop. Going private also drops an attached `@doc` — Elixir
+  discards docs on a private function and warns, which is a failed build under
+  --warnings-as-errors.
+  """
+  @spec visibility(String.t(), String.t(), :public | :private) :: String.t() | {:error, String.t()}
+  def visibility(source, name_arity, want) when want in [:public, :private] do
+    with {:ok, {mod, name, arity}} <- parse_name_arity(name_arity),
+         {:ok, ast} <- parse(source),
+         {:ok, scope} <- scope(ast, mod, name, arity) do
+      case clauses(scope, name, arity) do
+        [] -> {:error, "no #{name}/#{arity} in this file"}
+        found -> source |> flip(found, want) |> drop_docs(name_arity, want)
+      end
+    end
+  end
+
   # Where a new function goes. `:top`/`:bottom` are the module first/last definition, asked for
   # explicitly; with neither, the CODE says — a `defp` belongs after the last private function, a
   # `def` after the last public one, which is where a reader goes looking for it. Nothing to anchor
@@ -250,7 +272,8 @@ defmodule Menard.Clause do
 
   # The module to act in: named, or — unnamed — the file's one module. Several unnamed is refused,
   # the same discipline as an unqualified name/arity two modules define.
-  defp module_scope(ast, nil) do
+  @doc false
+  def module_scope(ast, nil) do
     case modules(ast) do
       [{_name, node}] -> {:ok, node}
       [] -> {:error, "no module in this file"}
@@ -258,7 +281,7 @@ defmodule Menard.Clause do
     end
   end
 
-  defp module_scope(ast, module) do
+  def module_scope(ast, module) do
     case List.keyfind(modules(ast), module, 0) do
       {^module, node} ->
         {:ok, node}
@@ -274,9 +297,10 @@ defmodule Menard.Clause do
     node |> module_body() |> Enum.filter(&match?({kind, _meta, _args} when kind in @kinds, &1))
   end
 
-  defp module_body({:defmodule, _, [_alias, [{_do, {:__block__, _, statements}}]]}), do: statements
-  defp module_body({:defmodule, _, [_alias, [{_do, statement}]]}), do: [statement]
-  defp module_body(_node), do: []
+  @doc false
+  def module_body({:defmodule, _, [_alias, [{_do, {:__block__, _, statements}}]]}), do: statements
+  def module_body({:defmodule, _, [_alias, [{_do, statement}]]}), do: [statement]
+  def module_body(_node), do: []
 
   defp parse_name_arity(spec) do
     with [path, arity] <- String.split(spec, "/"),
@@ -436,4 +460,91 @@ defmodule Menard.Clause do
 
   defp attached_attr?({:@, _meta, [{name, _inner, _args}]}) when is_atom(name), do: name in @attached
   defp attached_attr?(_node), do: false
+
+  # The `def` keyword is the first token of the clause's own range, so each flip is a patch of
+  # exactly that word — every other byte of every clause is untouched.
+  defp flip(source, clauses, want) do
+    patches =
+      Enum.flat_map(clauses, fn clause ->
+        new = kind_for(clause.kind, want)
+        %{start: [line: line, column: col]} = clause.range
+
+        if new == clause.kind do
+          []
+        else
+          [
+            %{
+              range: %{
+                start: [line: line, column: col],
+                end: [line: line, column: col + String.length(Atom.to_string(clause.kind))]
+              },
+              change: Atom.to_string(new),
+              preserve_indentation: false
+            }
+          ]
+        end
+      end)
+
+    if patches == [], do: source, else: Sourceror.patch_string(source, patches)
+  end
+
+  defp kind_for(:def, :private), do: :defp
+  defp kind_for(:defmacro, :private), do: :defmacrop
+  defp kind_for(:defguard, :private), do: :defguardp
+  defp kind_for(:defp, :public), do: :def
+  defp kind_for(:defmacrop, :public), do: :defmacro
+  defp kind_for(:defguardp, :public), do: :defguard
+  defp kind_for(kind, _want), do: kind
+
+  # A `@doc` above a now-private clause is discarded by Elixir with a warning, so it goes with the
+  # flip. `@spec` and `@impl` stay — both are legal on a defp.
+  defp drop_docs(source, _name_arity, :public), do: source
+
+  defp drop_docs(source, name_arity, :private) do
+    with {:ok, {mod, name, arity}} <- parse_name_arity(name_arity),
+         {:ok, ast} <- parse(source),
+         {:ok, scope} <- scope(ast, mod, name, arity) do
+      doomed =
+        scope
+        |> clauses(name, arity)
+        |> Enum.flat_map(&doc_lines(ast, &1.range))
+        |> MapSet.new()
+
+      if Enum.empty?(doomed) do
+        source
+      else
+        source
+        |> String.split("\n")
+        |> Enum.with_index(1)
+        |> Enum.reject(fn {_text, line} -> MapSet.member?(doomed, line) end)
+        |> Enum.map_join("\n", &elem(&1, 0))
+      end
+    else
+      _ -> source
+    end
+  end
+
+  # Every line of the `@doc` attached above this clause (a heredoc doc spans several).
+  defp doc_lines(ast, %{start: [line: line, column: _]}) do
+    Enum.flat_map(module_bodies(ast), fn statements ->
+      case Enum.find_index(statements, &(start_line(&1) == line)) do
+        nil ->
+          []
+
+        i ->
+          statements
+          |> Enum.take(i)
+          |> Enum.reverse()
+          |> Enum.take_while(&attached_attr?/1)
+          |> Enum.filter(&doc_attr?/1)
+          |> Enum.flat_map(fn node ->
+            %{start: [line: a, column: _], end: [line: b, column: _]} = Sourceror.get_range(node)
+            Enum.to_list(a..b)
+          end)
+      end
+    end)
+  end
+
+  defp doc_attr?({:@, _meta, [{:doc, _inner, _args}]}), do: true
+  defp doc_attr?(_node), do: false
 end
