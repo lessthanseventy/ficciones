@@ -224,18 +224,11 @@ async function relayout() {
     const [t, r, b, l] = css.trim().split(/\s+/).map(Number)
     await evalLua(`hl.config({ general = { gaps_out = { top = ${t}, right = ${r}, bottom = ${b}, left = ${l} } } })`)
   } catch (e) { console.error("sidecar relayout:", String(e)) }
-  // and the visible columns of the active workspace re-fit beside the column, so the first
-  // tiled one does not hang under it (other workspaces re-fit when you next `fit` there);
-  // nothing to fit when that workspace has no tiled window ("can't fit" otherwise); fit works
-  // from the focused window, so a focused sidecar cannot fit — the layout re-fits its columns
-  // to the reserved area on its own anyway
-  const f = hypr.focusedClient
-  if (f && f.mapped && !f.floating) { await dispatch(L.layout("fit visible")); return }
-  // a focused sidecar (a pin from the bar, the adoption at start): fit from a tiled window on
-  // the shown workspace and come back — the click-floorp-and-back Andrew did by hand (2026-09-07)
-  const ws = (f?.get_monitor() ?? hypr.focusedMonitor)?.activeWorkspace?.id
-  const t = hypr.get_clients().find((x) => x.workspace?.id === ws && x.mapped && !x.floating)
-  if (t) await batch([L.focusWindow(addr(t)), L.layout("fit visible"), ...(f ? [L.focusWindow(addr(f))] : [])])
+  // The columns keep their own widths: the fit method (1 while a sidecar is up, fitMethod/0)
+  // scrolls the row so the focused column sits flush against the sidecar and the neighbour
+  // peeks on the right. Pin-time used to `fit visible` here (2026-09-07: the first tiled column
+  // hung under the sidecar under the centred method) — that squeezed every column to an equal
+  // share and cost the cockpit its wide layout (Andrew, 2026-09-08).
 }
 
 export const isSidecar = (c: Hyprland.Client) => [...sidecars.values()].some((s) => s.address === c.address)
