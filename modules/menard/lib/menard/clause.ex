@@ -15,6 +15,11 @@ defmodule Menard.Clause do
 
   @kinds [:def, :defp, :defmacro, :defmacrop, :defguard, :defguardp]
 
+  # Attributes written directly above a clause belong TO that clause, not to the file: delete the
+  # clause and leave them behind and they re-attach to whatever follows — "redefining @impl
+  # attribute previously set at line N", or a @spec describing a head that no longer exists.
+  @attached [:doc, :impl, :spec, :deprecated, :dialyzer]
+
   @doc "Replace the clause's body with `code` (one line → `, do:` form; more → a `do … end` block)."
   @spec replace_body(String.t(), String.t(), String.t(), String.t()) :: String.t() | {:error, String.t()}
   def replace_body(source, name_arity, head, code) do
@@ -43,9 +48,11 @@ defmodule Menard.Clause do
   @doc "Delete the clause, the comment lines glued above it, and one blank line left behind."
   @spec delete(String.t(), String.t(), String.t(), keyword()) :: String.t() | {:error, String.t()}
   def delete(source, name_arity, head, _opts \\ []) do
-    with {:ok, %{range: %{start: [line: a, column: _], end: [line: b, column: _]}}} <-
-           find(source, name_arity, head) do
+    with {:ok, ast} <- parse(source),
+         {:ok, %{range: %{end: [line: b, column: _]}} = clause} <- find(source, name_arity, head) do
       lines = String.split(source, "\n")
+      # The clause starts at its first ATTACHED ATTRIBUTE, not at its `def` — see @attached.
+      a = attrs_start(ast, clause.range)
       first = a - 1 - comment_lines_above(lines, a - 1)
       last = b - 1
 
@@ -395,4 +402,38 @@ defmodule Menard.Clause do
     |> Enum.take_while(&String.starts_with?(String.trim_leading(&1), "#"))
     |> length()
   end
+
+  # The line a clause really starts on: its first ATTACHED attribute, walking back over the
+  # contiguous `@doc`/`@impl`/`@spec` siblings written above it, else the `def` line itself. Only
+  # CONTIGUOUS ones count, so deleting the middle clause of a function takes the `@impl` written
+  # above THAT clause and leaves the `@doc` written above the first one alone.
+  defp attrs_start(ast, %{start: [line: line, column: _]}) do
+    Enum.reduce(module_bodies(ast), line, fn statements, acc ->
+      case Enum.find_index(statements, &(start_line(&1) == line)) do
+        nil ->
+          acc
+
+        i ->
+          statements
+          |> Enum.take(i)
+          |> Enum.reverse()
+          |> Enum.take_while(&attached_attr?/1)
+          |> Enum.map(&start_line/1)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.min(fn -> acc end)
+      end
+    end)
+  end
+
+  defp module_bodies(ast), do: Enum.map(modules(ast), fn {_name, node} -> module_body(node) end)
+
+  defp start_line(node) do
+    case Sourceror.get_range(node) do
+      %{start: [line: line, column: _]} -> line
+      _ -> nil
+    end
+  end
+
+  defp attached_attr?({:@, _meta, [{name, _inner, _args}]}) when is_atom(name), do: name in @attached
+  defp attached_attr?(_node), do: false
 end

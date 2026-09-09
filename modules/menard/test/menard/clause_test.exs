@@ -182,4 +182,94 @@ defmodule Menard.ClauseTest do
       assert message =~ "M"
     end
   end
+
+  describe "delete takes the attributes attached to the clause" do
+    @attrs """
+    defmodule A do
+      @impl Panel
+      def go(:a), do: 1
+
+      @impl Panel
+      def go(:b), do: 2
+
+      @impl Panel
+      def go(:c), do: 3
+    end
+    """
+
+    test "an @impl above a MIDDLE clause goes with it, or it re-attaches to the next one" do
+      out = Clause.delete(@attrs, "go/1", ":b")
+
+      refute out =~ "go(:b)"
+      # exactly two @impl left, one per surviving clause — three would be the redefining warning
+      assert length(String.split(out, "@impl")) - 1 == 2
+    end
+
+    test "a @doc and @spec above the clause go with it" do
+      src = """
+      defmodule A do
+        @doc "the one"
+        @spec go(atom()) :: integer()
+        def go(:a), do: 1
+
+        def other, do: 2
+      end
+      """
+
+      out = Clause.delete(src, "go/1", ":a")
+
+      refute out =~ "@doc"
+      refute out =~ "@spec"
+      assert out =~ "def other, do: 2"
+    end
+
+    test "a comment written ABOVE the attribute goes too — the whole block is the clause" do
+      src = """
+      defmodule A do
+        # why this exists
+        @impl true
+        def go(:a), do: 1
+
+        def other, do: 2
+      end
+      """
+
+      out = Clause.delete(src, "go/1", ":a")
+
+      refute out =~ "why this exists"
+      refute out =~ "@impl"
+    end
+
+    test "only CONTIGUOUS attributes count — a @doc on the FIRST clause survives deleting a later one" do
+      src = """
+      defmodule A do
+        @doc "documents go/1"
+        def go(:a), do: 1
+        def go(:b), do: 2
+      end
+      """
+
+      out = Clause.delete(src, "go/1", ":b")
+
+      assert out =~ ~s(@doc "documents go/1")
+      assert out =~ "def go(:a), do: 1"
+      refute out =~ "go(:b)"
+    end
+
+    test "an attribute that is NOT clause-attached is left where it is" do
+      src = """
+      defmodule A do
+        @timeout 5_000
+        def go(:a), do: 1
+
+        def other, do: @timeout
+      end
+      """
+
+      out = Clause.delete(src, "go/1", ":a")
+
+      assert out =~ "@timeout 5_000"
+      refute out =~ "go(:a)"
+    end
+  end
 end
