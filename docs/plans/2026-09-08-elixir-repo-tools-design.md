@@ -1,14 +1,14 @@
 # Elixir repo tools — how an agent reads, edits, runs and updates an Elixir repo (design)
 
-Andrew, 2026-09-08: "there has to be a bunch more mix ast.thing tasks we can beef up the editing
+Andrew, 2026-09-08: "there has to be a bunch more mix menard.thing tasks we can beef up the editing
 capabilities with — introspection too — a whole interface for how agents work with and edit and
 run and update inside an Elixir repo, Expert-aware and the whole deal." Prompted by a night of
-text edits dying to `mix format` reflows and the first `mix ast.rename` (Sourceror patches)
+text edits dying to `mix format` reflows and the first `mix menard.rename` (Sourceror patches)
 landing clean.
 
 ## Principle
 
-One library, three doors. Every verb is a pure function in `Server.Source.*` (edits) or
+One library, three doors. Every verb is a pure function in `Menard.*` (edits — modules/menard, its own project so the tasks run while the app being edited does not compile) or
 `Server.Repo.*`-style introspection modules, taking source or a path and returning data or a
 patched string; the doors are a `mix` task (the operator, and Claude in a shell), an MCP verb
 (a coworker), and the console (the drawer, later). Edits are PATCHES computed from AST ranges,
@@ -24,14 +24,14 @@ Three engines, each for what it is good at:
 
 ## The verbs
 
-Edit (Sourceror; `mix ast.*` today, `edit_*` MCP verbs):
+Edit (Sourceror; `mix menard.*` today, `edit_*` MCP verbs):
 
 | verb | does | status |
 |---|---|---|
-| `ast.rename OLD NEW [--atoms] [--comments] FILES` | identifier everywhere; atoms/keys and whole-word comment mentions on request | LANDED · MCP `rename_identifier` |
-| `ast.clause replace FILE name/arity HEAD CODE` | swap a clause's body | LANDED · MCP `edit_clause` |
-| `ast.clause delete FILE name/arity HEAD` | remove one clause (+ its glued comment) | LANDED · MCP `edit_clause` |
-| `ast.clause insert-after FILE name/arity HEAD CODE` | add a clause after that one | LANDED · MCP `edit_clause` |
+| `menard.rename OLD NEW [--atoms] [--comments] FILES` | identifier everywhere; atoms/keys and whole-word comment mentions on request | LANDED · MCP `rename_identifier` |
+| `menard.clause replace FILE name/arity HEAD CODE` | swap a clause's body | LANDED · MCP `edit_clause` |
+| `menard.clause delete FILE name/arity HEAD` | remove one clause (+ its glued comment) | LANDED · MCP `edit_clause` |
+| `menard.clause insert-after FILE name/arity HEAD CODE` | add a clause after that one | LANDED · MCP `edit_clause` |
 | `rename-refs OLD NEW` | rename via Expert's references (cross-file, module-qualified calls) | needs the Expert client |
 | `add-alias Mod Alias` / `add-import` | at the top of the invoking module, once | next |
 | `move-def Mod.fun/arity to Mod2` | a def and its clauses across modules (Expert fixes callers) | needs the Expert client |
@@ -40,14 +40,14 @@ Introspect (read-only):
 
 | verb | returns | status |
 |---|---|---|
-| `ast.outline FILE [--json]` | modules → defs with arity, spec, doc first line, line ranges | LANDED · MCP `outline_file` |
-| `ast.diagnostics [--json]` | a forced compile's warnings as data | LANDED |
-| `ast.inspect callers MOD[.fun/arity]` | files calling into it (mix xref) | LANDED |
-| `ast.inspect exports` | the `:boundary` surface — what a consumer may call | LANDED |
-| `ast.inspect deps` | outdated packages + advisories | LANDED |
+| `menard.outline FILE [--json]` | modules → defs with arity, spec, doc first line, line ranges | LANDED · MCP `outline_file` |
+| `menard.diagnostics [--json]` | a forced compile's warnings as data | LANDED |
+| `menard.inspect callers MOD[.fun/arity]` | files calling into it (mix xref) | LANDED |
+| `menard.inspect exports` | the `:boundary` surface — what a consumer may call | LANDED |
+| `menard.inspect deps` | outdated packages + advisories | LANDED |
 | `refs Mod.fun/arity` | every call site, precisely (Expert) | needs the Expert client |
 
-Run and update (`mix ast.run VERB`, one JSON line, exit 1 when not ok — LANDED · MCP `run_verb`):
+Run and update (`mix menard.run VERB`, one JSON line, exit 1 when not ok — LANDED · MCP `run_verb`):
 `check`, `test [FILE[:LINE]]`, `format [FILES]`, `compile`. Still plain mise tasks: `deps.get`,
 `deps.update PKG`, `release`, `restart`.
 
@@ -57,8 +57,8 @@ the edit verbs (`rename_identifier`, `edit_clause`) and keeps introspection + ru
 
 ## Shape
 
-- `Server.Source.Rename` exists. Next modules: `Server.Source.Clause` (delete/insert/replace),
-  `Server.Source.Outline`, `Server.Source.Refs` (Expert client), all `@spec`'d, all tested on
+- `Menard.Rename` exists. Next modules: `Menard.Clause` (delete/insert/replace),
+  `Menard.Outline`, `Menard.Refs` (Expert client), all `@spec`'d, all tested on
   source strings (no files) plus one file-level test per mix task.
 - The MCP verbs ride the existing machine-scope tool surface (`Console.Profiles` cuts them per
   archetype: a reviewer gets introspection only; a builder gets edits; the gates run for everyone).
@@ -68,8 +68,8 @@ the edit verbs (`rename_identifier`, `edit_clause`) and keeps introspection + ru
 
 ## Order
 
-1. DONE 2026-09-08: `ast.rename --comments`, `ast.outline`, `ast.diagnostics`, `ast.inspect`.
-2. DONE 2026-09-08: clause verbs (`Server.Source.Clause`), `ast.run`, MCP exposure with the
+1. DONE 2026-09-08: `menard.rename --comments`, `menard.outline`, `menard.diagnostics`, `menard.inspect`.
+2. DONE 2026-09-08: clause verbs (`Menard.Clause`), `menard.run`, MCP exposure with the
    reviewer cut.
 3. Expert client (`refs`, `rename-refs`, `move-def`) — depends on the adapters' lspd being stable.
 4. `add-alias`/`add-import`; the console's OUTLINE drawer pane; the tlon-shaped `/implement` runs

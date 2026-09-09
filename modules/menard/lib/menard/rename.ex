@@ -1,4 +1,4 @@
-defmodule Server.Source.Rename do
+defmodule Menard.Rename do
   @moduledoc """
   Rename an identifier in Elixir source by walking its AST (Sourceror), so a rename lands on
   every def/defp head, call, capture and variable and never on a string or a comment. The file is
@@ -6,7 +6,7 @@ defmodule Server.Source.Rename do
   byte — comments, blank lines, the project's own formatting — is untouched. `atoms: true` also
   renames the bare atom `:old` and the keyword/map key `old:`; `comments: true` the whole-word
   mentions inside `#` comments. The operator's door is
-  `mix ast.rename`; a coworker's is the same function behind an MCP verb.
+  `mix menard.rename`; a coworker's is the same function behind an MCP verb.
   """
 
   alias Sourceror.Zipper

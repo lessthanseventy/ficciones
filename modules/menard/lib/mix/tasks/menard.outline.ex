@@ -1,21 +1,20 @@
-defmodule Mix.Tasks.Ast.Outline do
-  @shortdoc "Outline a file's modules and defs: mix ast.outline [--json] FILE..."
+defmodule Mix.Tasks.Menard.Outline do
+  @shortdoc "Outline a file's modules and defs: mix menard.outline [--json] FILE..."
   @moduledoc """
-  `mix ast.outline [--json] lib/a.ex …` — each module with its moduledoc line and line span, then
+  `mix menard.outline [--json] lib/a.ex …` — each module with its moduledoc line and line span, then
   its defs (`kind name/arity  L<from>-<to>  — doc`); `--json` prints the data instead
-  (`Server.Source.Outline.run/1`'s shape) for a tool to read.
+  (`Menard.Outline.run/1`'s shape) for a tool to read.
   """
   use Mix.Task
-  use Boundary, classify_to: Server
 
-  alias Server.Source.Outline
+  alias Menard.Outline
 
   @impl true
   def run(argv) do
     {opts, files, _} = OptionParser.parse(argv, strict: [json: :boolean])
-    if files == [], do: Mix.raise("usage: mix ast.outline [--json] FILE...")
+    if files == [], do: Mix.raise("usage: mix menard.outline [--json] FILE...")
 
-    for file <- files do
+    for file <- Enum.map(files, &Menard.resolve/1) do
       case Outline.run(File.read!(file)) do
         {:ok, modules} -> print(file, modules, opts[:json] == true)
         {:error, reason} -> Mix.shell().error("#{file}: not parseable — #{inspect(reason)}")

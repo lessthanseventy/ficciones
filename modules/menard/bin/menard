@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# `menard VERB ARGS…` → `mix menard.VERB ARGS…` from menard's own project. mise's `menard` task
+# runs this with dir = modules/menard; MISE_ORIGINAL_CWD tells the tasks where the caller stood.
+set -euo pipefail
+verb="${1:-}"
+[[ -n "$verb" ]] || { echo "usage: menard VERB ARGS… (rename|clause|outline|diagnostics|inspect|run)" >&2; exit 2; }
+shift
+exec mix "menard.$verb" "$@"

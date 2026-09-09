@@ -1,9 +1,9 @@
-defmodule Server.Source.Outline do
+defmodule Menard.Outline do
   @moduledoc """
   A source file as data: every module (nested ones under `modules`) with its moduledoc's first
   line, the lines it spans, and its defs — name, arity, kind (`def`/`defp`/`defmacro`/…), the
   `@doc` first line and `@spec` text that precede it, and the lines the clause spans. What an
-  agent reads before it edits; the outline door is `mix ast.outline FILE`.
+  agent reads before it edits; the outline door is `mix menard.outline FILE`.
   """
 
   @kinds [:def, :defp, :defmacro, :defmacrop, :defguard, :defguardp, :defdelegate]
@@ -20,7 +20,10 @@ defmodule Server.Source.Outline do
   # the full name Elixir gives it (`Parent.Inner`).
   defp modules(ast, parent \\ nil)
   defp modules({:__block__, _, forms}, parent), do: Enum.flat_map(forms, &modules(&1, parent))
-  defp modules({:defmodule, _, [name, [{_do, body}]]} = node, parent), do: [module(full_name(name, parent), body, node)]
+
+  defp modules({:defmodule, _, [name, [{_do, body}]]} = node, parent),
+    do: [module(full_name(name, parent), body, node)]
+
   defp modules(_other, _parent), do: []
 
   defp full_name(name, nil), do: Macro.to_string(name)
@@ -46,10 +49,17 @@ defmodule Server.Source.Outline do
     forms
     |> Enum.reduce({[], nil, nil}, fn form, {acc, doc, spec} ->
       case form do
-        {:@, _, [{:doc, _, [text]}]} -> {acc, string_first_line(text), spec}
-        {:@, _, [{:spec, _, [expr]}]} -> {acc, doc, Sourceror.to_string(expr)}
-        {kind, _, [head | _]} = node when kind in @kinds -> {[def_entry(kind, head, doc, spec, node) | acc], nil, nil}
-        _ -> {acc, doc, spec}
+        {:@, _, [{:doc, _, [text]}]} ->
+          {acc, string_first_line(text), spec}
+
+        {:@, _, [{:spec, _, [expr]}]} ->
+          {acc, doc, Sourceror.to_string(expr)}
+
+        {kind, _, [head | _]} = node when kind in @kinds ->
+          {[def_entry(kind, head, doc, spec, node) | acc], nil, nil}
+
+        _ ->
+          {acc, doc, spec}
       end
     end)
     |> elem(0)

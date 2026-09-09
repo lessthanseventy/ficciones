@@ -1,4 +1,4 @@
-defmodule Server.Source.Clause do
+defmodule Menard.Clause do
   @moduledoc """
   The clause verbs: address one clause of `name/arity` by its head as written — the args, and the
   guard if any (`":b"`, `"x when is_integer(x)"`) — then replace its body, delete it, or insert a
@@ -24,7 +24,8 @@ defmodule Server.Source.Clause do
   @doc "Delete the clause, the comment lines glued above it, and one blank line left behind."
   @spec delete(String.t(), String.t(), String.t(), keyword()) :: String.t() | {:error, String.t()}
   def delete(source, name_arity, head, _opts \\ []) do
-    with {:ok, %{range: %{start: [line: a, column: _], end: [line: b, column: _]}}} <- find(source, name_arity, head) do
+    with {:ok, %{range: %{start: [line: a, column: _], end: [line: b, column: _]}}} <-
+           find(source, name_arity, head) do
       lines = String.split(source, "\n")
       first = a - 1 - comment_lines_above(lines, a - 1)
       last = b - 1
@@ -124,7 +125,10 @@ defmodule Server.Source.Clause do
 
   # The head as written: `{args_text, guard_text | nil}`.
   defp split_head({:when, _, [call, guard]}), do: {elem(split_head(call), 0), Sourceror.to_string(guard)}
-  defp split_head({_name, _, args}) when is_list(args), do: {Enum.map_join(args, ", ", &Sourceror.to_string/1), nil}
+
+  defp split_head({_name, _, args}) when is_list(args),
+    do: {Enum.map_join(args, ", ", &Sourceror.to_string/1), nil}
+
   defp split_head(_head), do: {"", nil}
 
   defp squash(text), do: String.replace(text, ~r/\s+/, "")

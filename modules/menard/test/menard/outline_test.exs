@@ -1,9 +1,9 @@
-defmodule Server.Source.OutlineTest do
+defmodule Menard.OutlineTest do
   # The outline is what an agent reads before it edits: every module's defs with arity, kind,
   # the spec/doc it carries, and the lines it spans — as data, from the source alone.
   use ExUnit.Case, async: true
 
-  alias Server.Source.Outline
+  alias Menard.Outline
 
   @src """
   defmodule Demo.A do
@@ -32,7 +32,14 @@ defmodule Server.Source.OutlineTest do
     assert a.lines == {1, 17}
 
     assert [
-             %{name: :inc, arity: 1, kind: :def, doc: "adds one", spec: "inc(integer()) :: integer()", lines: {6, 6}},
+             %{
+               name: :inc,
+               arity: 1,
+               kind: :def,
+               doc: "adds one",
+               spec: "inc(integer()) :: integer()",
+               lines: {6, 6}
+             },
              %{name: :inc, arity: 2, kind: :def, doc: nil, spec: nil, lines: {8, 10}},
              %{name: :hidden, arity: 1, kind: :defp, lines: {12, 12}}
            ] = Enum.map(a.defs, &Map.take(&1, [:name, :arity, :kind, :doc, :spec, :lines]))

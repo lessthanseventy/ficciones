@@ -1,11 +1,11 @@
-defmodule Server.Source.RenameTest do
+defmodule Menard.RenameTest do
   # AST-aware renames (Sourceror): the identifier changes wherever it is an identifier — def/defp
   # heads, calls, captures, variables — and, on request, the atom and keyword key too; a string or
   # a comment mentioning the name is left alone. Comments and layout survive (2026-09-08: text
   # edits kept dying to a `mix format` reflow).
   use ExUnit.Case, async: true
 
-  alias Server.Source.Rename
+  alias Menard.Rename
 
   @src """
   defmodule Demo do

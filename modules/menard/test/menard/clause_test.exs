@@ -1,10 +1,10 @@
-defmodule Server.Source.ClauseTest do
+defmodule Menard.ClauseTest do
   # The clause verbs — what replaces the grep/sed dance: address a clause by `name/arity` and a
   # head pattern (its args, as written), then replace its body, delete it, or insert a new clause
   # after it. Patches, not reprints: everything else in the file is byte-identical.
   use ExUnit.Case, async: true
 
-  alias Server.Source.Clause
+  alias Menard.Clause
 
   @src """
   defmodule Demo do
@@ -54,7 +54,10 @@ defmodule Server.Source.ClauseTest do
 
   test "a guard is part of the head" do
     src = "defmodule G do\n  def f(x) when is_integer(x), do: x\n  def f(x), do: 0\nend\n"
-    assert Clause.replace_body(src, "f/1", "x when is_integer(x)", "x * 2") =~ "def f(x) when is_integer(x), do: x * 2"
+
+    assert Clause.replace_body(src, "f/1", "x when is_integer(x)", "x * 2") =~
+             "def f(x) when is_integer(x), do: x * 2"
+
     assert Clause.delete(src, "f/1", "x") == "defmodule G do\n  def f(x) when is_integer(x), do: x\nend\n"
   end
 end
