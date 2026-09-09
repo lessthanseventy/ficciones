@@ -248,7 +248,10 @@ export async function pinSidecar(c: Hyprland.Client) {
   const a = addr(c)
   // a fullscreen or maximised window (hyprscroller's maximise counts) cannot float, and a tiled
   // one cannot pin — Hyprland refused both silently until the batch reported them
-  await batch([L.fullscreenState(a, 0, 0), L.float(a, "on"), setBorder(a, true), ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [L.pin(a)])])
+  // to the BEGINNING of the row first (a tiled window; a re-pin of a float skips it), so the row
+  // the sidecar leaves behind starts at what was the second window (Andrew, 2026-09-08)
+  const tobeg = c.floating ? [] : [L.focusWindow(a), L.layout("move tobeg")]
+  await batch([...tobeg, L.fullscreenState(a, 0, 0), L.float(a, "on"), setBorder(a, true), ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [L.pin(a)])])
   settleUntil = Date.now() + 1200
   timeout(80, relayout)
   timeout(400, () => place(c.address, m, col))
@@ -275,16 +278,18 @@ export async function unpinSidecar(c: Hyprland.Client) {
   const s = sidecars.get(name)
   if (s && s.address === c.address) drop(name)
   // the layout tiles it after the last column; a former sidecar goes back to the FRONT of the
-  // workspace (Andrew, 2026-09-07): one swap left per column, in the SAME batch as the
-  // float-off so the window makes one move, not a hop to the end and back (`move -col` only
-  // scrolls and movewindow l merges into the neighbour's column; swapcol reorders)
-  const ws = c.workspace?.id
-  const cols = new Set(hypr.get_clients().filter((x) => x.workspace?.id === ws && x.mapped && !x.floating && x.address !== c.address).map((x) => x.x))
-  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "off"), ...Array.from(cols, () => L.layout("swapcol l"))])
+  // row (Andrew, 2026-09-07/08: "when I unpin it it's already at the start of the row — anything
+  // other than the double border turning off is weird"): `move tobeg` is the layout's own exact
+  // verb, in the SAME batch as the float-off so the window makes one move (a swap per column,
+  // counted from x positions, guessed wrong and left it at the end)
+  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "off"), L.focusWindow(a), L.layout("move tobeg")])
   timeout(80, relayout)
 }
 
-export const toggleSidecar = (c: Hyprland.Client) => (isSidecar(c) ? unpinSidecar(c) : pinSidecar(c))
+// A pin Hyprland knows but the shell does not (a stale one after a restart) is still an unpin —
+// the label and the verb read the same predicate, so they cannot disagree.
+export const pinned = (c: Hyprland.Client) => isSidecar(c) || (c.pinned && c.floating)
+export const toggleSidecar = (c: Hyprland.Client) => (pinned(c) ? unpinSidecar(c) : pinSidecar(c))
 /**
  * `astal-shell colresize ±0.05`: the Super+;/' keys. A focused sidecar changes width by that
  * fraction of the monitor (the column follows); anything else is the layout's own colresize.

@@ -81,7 +81,7 @@ function Windows({ connector }: { connector: string }) {
                   <RuleH />
                   <box spacing={6} cssClasses={["winacts"]}>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.float(w))}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
-                    <button cssClasses={["act"]} onClicked={() => toggleSidecar(c)}><label label={sidecarAddrs((m) => (Object.values(m).includes(c.address) ? "unpin" : "pin"))} /></button>
+                    <button cssClasses={["act"]} onClicked={() => toggleSidecar(c)}><label label={createComputed([sidecarAddrs, createBinding(c, "pinned")], (m, p) => (Object.values(m).includes(c.address) || p ? "unpin" : "pin"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.fullscreen(w, "fullscreen"))}><label label="fullscreen" /></button>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.moveToWorkspace(w, "special:magic", true))}><label label="to special" /></button>
                     <box hexpand />
