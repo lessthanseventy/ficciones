@@ -15,25 +15,45 @@ defmodule Mix.Tasks.Menard.Clause do
 
   @impl true
   def run(argv) do
-    case argv do
+    case normalize(argv) do
       ["replace", file, na, head, code] ->
         write(file, &Clause.replace_body(&1, na, head, code))
+
+      ["rewrite", file, na, head, code] ->
+        write(file, &Clause.rewrite(&1, na, head, code))
 
       ["delete", file, na, head] ->
         write(file, &Clause.delete(&1, na, head))
 
-      ["insert-after", file, na, head, code] ->
+      ["insert_after", file, na, head, code] ->
         write(file, &Clause.insert_after(&1, na, head, code))
 
-      ["insert-before", file, na, head, code] ->
+      ["insert_before", file, na, head, code] ->
         write(file, &Clause.insert_before(&1, na, head, code))
+
+      # placement follows the code (a defp with the defps, a def with the defs) unless named
+      ["insert_at", file, module, code] ->
+        write(file, &Clause.insert_at(&1, module(module), nil, code))
+
+      ["insert_at", file, module, where, code] when where in ["top", "bottom"] ->
+        write(file, &Clause.insert_at(&1, module(module), where, code))
 
       _ ->
         Mix.raise(
-          "usage: mix menard.clause (replace|delete|insert-after|insert-before) FILE name/arity HEAD [CODE]"
+          "usage: mix menard.clause (replace|rewrite|delete|insert-after|insert-before) FILE name/arity HEAD [CODE]\n" <>
+            "       mix menard.clause insert-at FILE (Mod.Name|-) [top|bottom] CODE"
         )
     end
   end
+
+  # The two doors spelled these differently — the CLI with dashes, the MCP with underscores — so a
+  # verb learned at one door failed at the other. Both spellings work everywhere now.
+  defp normalize([verb | rest]) when is_binary(verb), do: [String.replace(verb, "-", "_") | rest]
+  defp normalize(argv), do: argv
+
+  # `-` (or an empty string) means "the file's one module" — there is nothing to name.
+  defp module(m) when m in ["-", ""], do: nil
+  defp module(m), do: m
 
   defp write(file, edit) do
     file = Menard.resolve(file)

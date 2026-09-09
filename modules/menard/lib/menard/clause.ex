@@ -1,10 +1,14 @@
 defmodule Menard.Clause do
   @moduledoc """
   The clause verbs: address one clause of `name/arity` by its head as written — the args, and the
-  guard if any (`":b"`, `"x when is_integer(x)"`) — then replace its body, delete it, or insert a
-  new clause right after it. Patches from the clause's own source range (Sourceror), so the rest
-  of the file is byte-identical. A miss names the clauses that exist. Whitespace in the head
-  pattern is ignored.
+  guard if any (`":b"`, `"x when is_integer(x)"`, parens optional) — then `replace_body/4`,
+  `rewrite/4` (the whole clause, head included), `delete/4`, `insert_after/4` or `insert_before/4`.
+  Patches from the clause's own source range (Sourceror), so the rest of the file is
+  byte-identical. A miss names the clauses that exist. Whitespace in the head pattern is ignored.
+
+  `insert_at/4` is the odd one out: it adds a whole new FUNCTION, which by definition has no
+  sibling clause to address. (A new clause of an existing function is `insert_after/4` — name the
+  sibling.)
   """
 
   alias Sourceror.Zipper
@@ -17,6 +21,21 @@ defmodule Menard.Clause do
     with {:ok, clause} <- find(source, name_arity, head) do
       Sourceror.patch_string(source, [
         %{range: clause.range, change: clause_text(clause, code), preserve_indentation: false}
+      ])
+    end
+  end
+
+  @doc """
+  Replace the WHOLE clause — head included — with `code`, a complete `def …`. The verb for the
+  edits `replace_body/4` structurally cannot make: changing the args, adding a guard,
+  destructuring a parameter.
+  """
+  @spec rewrite(String.t(), String.t(), String.t(), String.t()) :: String.t() | {:error, String.t()}
+  def rewrite(source, name_arity, head, code) do
+    with {:ok, clause} <- find(source, name_arity, head),
+         {:ok, _node} <- parse_clause(code) do
+      Sourceror.patch_string(source, [
+        %{range: clause.range, change: reindent(code, clause.indent), preserve_indentation: false}
       ])
     end
   end
@@ -62,6 +81,91 @@ defmodule Menard.Clause do
     end
   end
 
+  @doc """
+  Insert `code` where there is NO sibling clause to anchor to — a whole new function, which
+  `insert_after/4` cannot address because it takes an existing head. (A new *clause* of a function
+  that already exists is still `insert_after/4`: name its sibling.)
+
+  `where` is usually nil, and then the code decides: a `defp` lands after the module's last
+  private function, a `def` after its last public one — where a reader goes looking for each.
+  `:top`/`:bottom` override that with the module's first/last definition; an empty module takes
+  the code just inside. `module` is `"Mod.Name"`, or nil in a file with exactly one module.
+  """
+  @spec insert_at(String.t(), String.t() | nil, :top | :bottom | String.t() | nil, String.t()) ::
+          String.t() | {:error, String.t()}
+  def insert_at(source, module, where, code) do
+    with {:ok, ast} <- parse(source),
+         {:ok, node} <- module_scope(ast, module) do
+      case anchor(definitions(node), normalize_where(where), code) do
+        nil -> insert_inside_empty(source, node, code)
+        {sibling, side} -> anchor_insert(source, sibling, side, code)
+      end
+    end
+  end
+
+  # Where a new function goes. `:top`/`:bottom` are the module first/last definition, asked for
+  # explicitly; with neither, the CODE says — a `defp` belongs after the last private function, a
+  # `def` after the last public one, which is where a reader goes looking for it. Nothing to anchor
+  # to at all is nil, and the caller puts it inside the bare module.
+  defp anchor([], _where, _code), do: nil
+  defp anchor(defs, :top, _code), do: {hd(defs), :top}
+  defp anchor(defs, :bottom, _code), do: {List.last(defs), :bottom}
+
+  defp anchor(defs, nil, code) do
+    private? = private_kind?(kind_of(code))
+    same_kind = Enum.filter(defs, &(private_kind?(node_kind(&1)) == private?))
+    {List.last(same_kind) || List.last(defs), :bottom}
+  end
+
+  defp normalize_where(where) when where in [:top, :bottom], do: where
+  defp normalize_where("top"), do: :top
+  defp normalize_where("bottom"), do: :bottom
+  defp normalize_where(_none), do: nil
+
+  defp private_kind?(kind), do: kind in [:defp, :defmacrop, :defguardp]
+
+  # The kind the code DEFINES — the last node, so a `@doc`/`@spec` written above the def is not
+  # mistaken for the thing being inserted.
+  defp kind_of(code) do
+    case Sourceror.parse_string(code) do
+      {:ok, {:__block__, _meta, nodes}} -> nodes |> List.last() |> node_kind()
+      {:ok, node} -> node_kind(node)
+      _ -> nil
+    end
+  end
+
+  defp node_kind({kind, _meta, _args}) when is_atom(kind), do: kind
+  defp node_kind(_node), do: nil
+
+  # A new FUNCTION, unlike a new clause of an existing one, is separated from its neighbour by a
+  # blank line — clauses of one function are glued, functions are not.
+  defp anchor_insert(source, node, :top, code) do
+    %{start: [line: line, column: col]} = Sourceror.get_range(node)
+    at = %{start: [line: line, column: 1], end: [line: line, column: 1]}
+    patch(source, at, indented(code, col) <> "\n\n")
+  end
+
+  defp anchor_insert(source, node, :bottom, code) do
+    %{start: [line: _, column: col], end: [line: line, column: last_col]} = Sourceror.get_range(node)
+    at = %{start: [line: line, column: last_col], end: [line: line, column: last_col]}
+    patch(source, at, "\n\n" <> indented(code, col))
+  end
+
+  # Nothing to anchor to at all: just inside the module's own `end`, one level in from it.
+  defp insert_inside_empty(source, node, code) do
+    %{start: [line: _, column: col], end: [line: line, column: _]} = Sourceror.get_range(node)
+    at = %{start: [line: line, column: 1], end: [line: line, column: 1]}
+    patch(source, at, indented(code, col + 2) <> "\n")
+  end
+
+  defp indented(code, col) do
+    indent = String.duplicate(" ", col - 1)
+    code |> String.trim() |> String.split("\n") |> Enum.map_join("\n", &(indent <> &1))
+  end
+
+  defp patch(source, range, change),
+    do: Sourceror.patch_string(source, [%{range: range, change: change, preserve_indentation: false}])
+
   # -- locating a clause ----------------------------------------------------
 
   defp find(source, name_arity, head) do
@@ -82,6 +186,21 @@ defmodule Menard.Clause do
     case Sourceror.parse_string(source) do
       {:ok, ast} -> {:ok, ast}
       {:error, reason} -> {:error, "not parseable — #{inspect(reason)}"}
+    end
+  end
+
+  # `code` must BE a clause: a bare expression would silently replace a def with an expression and
+  # leave the module a compile error, which is the one thing these verbs must never do.
+  defp parse_clause(code) do
+    case Sourceror.parse_string(code) do
+      {:ok, {kind, _meta, _args} = node} when kind in @kinds ->
+        {:ok, node}
+
+      {:ok, _other} ->
+        {:error, "rewrite needs a whole clause (`def …`), got: #{String.slice(String.trim(code), 0, 40)}"}
+
+      {:error, reason} ->
+        {:error, "not parseable — #{inspect(reason)}"}
     end
   end
 
@@ -121,6 +240,36 @@ defmodule Menard.Clause do
     end)
     |> elem(1)
   end
+
+  # The module to act in: named, or — unnamed — the file's one module. Several unnamed is refused,
+  # the same discipline as an unqualified name/arity two modules define.
+  defp module_scope(ast, nil) do
+    case modules(ast) do
+      [{_name, node}] -> {:ok, node}
+      [] -> {:error, "no module in this file"}
+      many -> {:error, "several modules here — name one: #{Enum.map_join(many, ", ", &elem(&1, 0))}"}
+    end
+  end
+
+  defp module_scope(ast, module) do
+    case List.keyfind(modules(ast), module, 0) do
+      {^module, node} ->
+        {:ok, node}
+
+      nil ->
+        {:error,
+         "no module #{module} in this file — have: #{Enum.map_join(modules(ast), ", ", &elem(&1, 0))}"}
+    end
+  end
+
+  # The module's own top-level definitions, in source order — a def nested inside another is not one.
+  defp definitions(node) do
+    node |> module_body() |> Enum.filter(&match?({kind, _meta, _args} when kind in @kinds, &1))
+  end
+
+  defp module_body({:defmodule, _, [_alias, [{_do, {:__block__, _, statements}}]]}), do: statements
+  defp module_body({:defmodule, _, [_alias, [{_do, statement}]]}), do: [statement]
+  defp module_body(_node), do: []
 
   defp parse_name_arity(spec) do
     with [path, arity] <- String.split(spec, "/"),
@@ -173,7 +322,49 @@ defmodule Menard.Clause do
 
   defp split_head(_head), do: {"", nil}
 
-  defp squash(text), do: String.replace(text, ~r/\s+/, "")
+  defp squash(text), do: text |> String.trim() |> unwrap_parens() |> String.replace(~r/\s+/, "")
+  # `(dir, args)` IS how a head is written, so accept the parens people copy off the def line —
+  # strip one pair when it actually wraps the whole head (`(a), (b)` is two args, not a wrapper,
+  # and stays as it is).
+  defp unwrap_parens("(" <> _rest = text) do
+    case matching_close(text) do
+      {:close, i} ->
+        inner = text |> String.slice(1, i - 1) |> String.trim()
+        rest = text |> String.slice((i + 1)..-1//1) |> String.trim()
+
+        cond do
+          # `(dir, args)` — the parens wrap the whole head
+          rest == "" -> inner
+          # `(x) when is_integer(x)` — they wrap the args, and the guard follows
+          String.starts_with?(rest, "when ") -> inner <> " " <> rest
+          # `(a), (b)` — not a wrapper at all; leave it exactly as given
+          true -> text
+        end
+
+      :unclosed ->
+        text
+    end
+  end
+
+  defp unwrap_parens(text), do: text
+
+  # The index of the `)` closing the `(` at position 0 — how far the leading paren actually reaches.
+  defp matching_close(text) do
+    text
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.reduce_while(0, fn
+      {"(", _i}, depth -> {:cont, depth + 1}
+      {")", i}, 1 -> {:halt, {:close, i}}
+      {")", _i}, depth -> {:cont, depth - 1}
+      {_char, _i}, depth -> {:cont, depth}
+    end)
+    |> case do
+      {:close, i} -> {:close, i}
+      _depth -> :unclosed
+    end
+  end
+
   defp heads([]), do: "none"
   defp heads(clauses), do: Enum.map_join(clauses, " · ", &"`#{&1.head_text}`")
 
@@ -185,6 +376,15 @@ defmodule Menard.Clause do
     case String.split(String.trim(code), "\n") do
       [one] -> head <> ", do: " <> one
       many -> head <> " do\n" <> Enum.map_join(many, "\n", &(indent <> "  " <> &1)) <> "\n" <> indent <> "end"
+    end
+  end
+
+  # A rewrite patches AT the clause's own column, so the first line carries no indent of its own and
+  # every later line is shifted out to it.
+  defp reindent(code, indent) do
+    case code |> String.trim() |> String.split("\n") do
+      [one] -> one
+      [first | rest] -> Enum.join([first | Enum.map(rest, &(indent <> &1))], "\n")
     end
   end
 

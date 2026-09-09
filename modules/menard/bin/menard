@@ -2,7 +2,46 @@
 # `menard VERB ARGS…` → `mix menard.VERB ARGS…` from menard's own project. mise's `menard` task
 # runs this with dir = modules/menard; MISE_ORIGINAL_CWD tells the tasks where the caller stood.
 set -euo pipefail
+
+verbs="write|rename|clause|outline|find|diagnostics|inspect|run|mcp"
+frozen=0
+[[ "${1:-}" == "--frozen" ]] && { frozen=1; shift; }
+
 verb="${1:-}"
-[[ -n "$verb" ]] || { echo "usage: menard VERB ARGS… (rename|clause|outline|diagnostics|inspect|run)" >&2; exit 2; }
+[[ -n "$verb" ]] || { echo "usage: menard [--frozen] VERB ARGS… ($verbs)" >&2; exit 2; }
 shift
-exec mix "menard.$verb" "$@"
+
+# --frozen runs the LAST BUILT menard straight off _build, with no compile step. The escape hatch
+# for editing menard WITH menard: a half-applied edit (a clause calling a helper the next call is
+# about to add) stops the project compiling, and every normal invocation compiles first — so the
+# tool locks itself out of finishing its own edit. Args ride System.argv, so multi-line CODE with
+# quotes in it survives.
+if ((frozen)); then
+  pa=()
+  for ebin in _build/*/lib/*/ebin; do pa+=(-pa "$PWD/$ebin"); done
+  [[ ${#pa[@]} -gt 0 ]] || { echo "menard --frozen: nothing built yet — run a plain verb once" >&2; exit 2; }
+  # Mix.raise is how every task reports a miss ("no clause go/1 with head … — have: …"), and only
+  # the `mix` CLI turns that into a message; raised here it would print as a bare stack trace and
+  # lose the one line that tells you what to fix.
+  exec elixir "${pa[@]}" -e '
+    Mix.start()
+    [v | rest] = System.argv()
+    try do
+      Mix.Task.run("menard." <> v, rest)
+    rescue
+      e in Mix.Error ->
+        IO.puts(:stderr, "** (Mix) " <> Exception.message(e))
+        System.halt(1)
+    end' -- "$verb" "$@"
+fi
+
+# A compile error here is usually menard's OWN source mid-edit, not the caller's target — say so,
+# because the fix (--frozen) is not guessable from mix's message. Only for a compile failure: an
+# ordinary miss ("no clause go/1 with head …") already says exactly what to do.
+out=$(mix "menard.$verb" "$@" 2>&1) && { printf '%s\n' "$out"; exit 0; }
+status=$?
+printf '%s\n' "$out" >&2
+if [[ "$out" == *"cannot compile module"* || "$out" == *"CompileError"* ]]; then
+  echo "menard: that is a compile error in menard ITSELF (a half-applied edit) — retry with: menard --frozen $verb …" >&2
+fi
+exit $status

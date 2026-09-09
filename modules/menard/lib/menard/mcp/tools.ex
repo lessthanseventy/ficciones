@@ -38,6 +38,10 @@ defmodule Menard.MCP.Rename do
           end
         end)
 
+      # The CLI formatted after an edit and this door did not, so the same verb left differently
+      # shaped code depending on which door ran it.
+      Enum.each(changed, &Menard.format/1)
+
       ok(frame, %{"changed" => changed, "unchanged" => unchanged})
     else
       {:error, message} -> fail(frame, message)
@@ -47,11 +51,17 @@ end
 
 defmodule Menard.MCP.Clause do
   @moduledoc """
-  Edit ONE clause: `verb` is `replace` (body := `code`), `delete`, `insert_after` or
+  Edit ONE clause. `verb` is `replace` (its body := `code`), `rewrite` (the WHOLE clause, head
+  included — the verb for changing args or adding a guard), `delete`, `insert_after` or
   `insert_before` (`code` is the new clause). Address it by `name_arity` ("go/1", or "Mod.go/1" in
   a file with several modules — an unqualified name that several modules define is refused) and
-  `head` — its args as written plus any guard. A miss lists the heads that exist. Only the
-  clause's bytes change.
+  `head` — its args as written plus any guard, parens optional. A miss lists the heads that exist.
+  Only the clause's bytes change.
+
+  `insert_at` is the one verb that takes no clause: it adds a function that has NO sibling to
+  anchor to. Give it `module` ("Mod.Name", or omit it in a single-module file) and `code`;
+  placement follows the code — a `defp` lands with the other private functions, a `def` with the
+  public ones — unless `at` ("top"/"bottom") overrides it.
   """
   use Anubis.Server.Component, type: :tool
   import Menard.MCP.Reply
@@ -59,26 +69,31 @@ defmodule Menard.MCP.Clause do
 
   schema do
     field(:verb, :enum,
-      values: ["replace", "delete", "insert_after", "insert_before"],
+      values: ["replace", "rewrite", "delete", "insert_after", "insert_before", "insert_at"],
       required: true
     )
 
     field(:file, :string, required: true)
-    field(:name_arity, :string, required: true)
-    field(:head, :string, required: true)
+    field(:name_arity, :string)
+    field(:head, :string)
     field(:code, :string)
+    field(:module, :string)
+    field(:at, :enum, values: ["top", "bottom"])
   end
 
   @impl true
   def execute(params, frame) do
     with {:ok, file} <- Menard.MCP.resolve(params.file),
          source <- File.read!(file),
-         out when is_binary(out) <-
-           edit(params.verb, source, params.name_arity, params.head, params[:code]) do
+         out when is_binary(out) <- edit(params, source) do
       File.write!(file, out)
+      # The CLI formatted after an edit and this door did not — same verb, differently shaped code.
+      Menard.format(file)
+
       # the one line a transcript shows: what happened, to which clause, where
       ok(frame, %{
-        "did" => "#{params.verb} #{params.name_arity} `#{params.head}` in #{Path.basename(file)}",
+        "did" =>
+          "#{params.verb} #{params[:name_arity] || params[:module] || "-"} `#{params[:head] || params[:at]}` in #{Path.basename(file)}",
         "file" => file
       })
     else
@@ -86,10 +101,18 @@ defmodule Menard.MCP.Clause do
     end
   end
 
-  defp edit("replace", s, na, head, code), do: Clause.replace_body(s, na, head, code || "")
-  defp edit("delete", s, na, head, _code), do: Clause.delete(s, na, head)
-  defp edit("insert_after", s, na, head, code), do: Clause.insert_after(s, na, head, code || "")
-  defp edit("insert_before", s, na, head, code), do: Clause.insert_before(s, na, head, code || "")
+  defp edit(%{verb: verb} = p, source) do
+    code = p[:code] || ""
+
+    case verb do
+      "replace" -> Clause.replace_body(source, p.name_arity, p.head, code)
+      "rewrite" -> Clause.rewrite(source, p.name_arity, p.head, code)
+      "delete" -> Clause.delete(source, p.name_arity, p.head)
+      "insert_after" -> Clause.insert_after(source, p.name_arity, p.head, code)
+      "insert_before" -> Clause.insert_before(source, p.name_arity, p.head, code)
+      "insert_at" -> Clause.insert_at(source, p[:module], p[:at], code)
+    end
+  end
 end
 
 defmodule Menard.MCP.Outline do
@@ -171,6 +194,34 @@ defmodule Menard.MCP.Run do
   def execute(params, frame) do
     with {:ok, dir} <- Menard.MCP.resolve(params[:dir] || ".") do
       ok(frame, Menard.Run.result(dir, params.verb, params[:args] || []))
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+end
+
+defmodule Menard.MCP.Write do
+  @moduledoc """
+  Write a WHOLE file: `code` becomes the entire content of `file`. The verb for what the clause
+  verbs structurally cannot do — a NEW module has no clause to address and no file to patch — and
+  for a rewrite so total that patching is the wrong tool (a fixture, a generated table). Elixir
+  that does not parse is refused before it reaches disk; the file is then formatted with the
+  target project's own formatter.
+  """
+  use Anubis.Server.Component, type: :tool
+  import Menard.MCP.Reply
+
+  schema do
+    field(:file, :string, required: true)
+    field(:code, :string, required: true)
+  end
+
+  @impl true
+  def execute(%{file: file, code: code}, frame) do
+    with {:ok, abs} <- Menard.MCP.resolve(file),
+         {:ok, what} <- Menard.Write.run(abs, code) do
+      if what != :unchanged, do: Menard.format(abs)
+      ok(frame, %{"did" => "#{what} #{Path.basename(abs)}", "file" => abs})
     else
       {:error, message} -> fail(frame, message)
     end

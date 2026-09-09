@@ -72,4 +72,114 @@ defmodule Menard.ClauseTest do
 
     assert Clause.delete(src, "f/1", "x") == "defmodule G do\n  def f(x) when is_integer(x), do: x\nend\n"
   end
+
+  describe "rewrite — the whole clause, head included" do
+    test "changes the head, which replace_body structurally cannot" do
+      out = Clause.rewrite(@src, "go/1", ":a", "def go(:a, extra), do: extra")
+      assert out =~ "def go(:a, extra), do: extra"
+      assert out =~ "# first"
+      assert out =~ "def go(other), do: other"
+    end
+
+    test "adds a guard, keeping the rest of the file" do
+      out = Clause.rewrite(@src, "go/1", "other", "def go(other) when is_integer(other), do: other")
+      assert out =~ "def go(other) when is_integer(other), do: other"
+      assert out =~ "def go(:a), do: 1"
+    end
+
+    test "a multi-line clause is shifted out to the clause's own column" do
+      out = Clause.rewrite(@src, "go/1", ":a", "def go(:a) do\n  1 + 1\nend")
+      assert out =~ "  def go(:a) do\n    1 + 1\n  end"
+    end
+
+    test "refuses a bare expression — that would leave a def replaced by an expression" do
+      assert {:error, message} = Clause.rewrite(@src, "go/1", ":a", "1 + 1")
+      assert message =~ "needs a whole clause"
+    end
+
+    test "refuses code that does not parse" do
+      assert {:error, message} = Clause.rewrite(@src, "go/1", ":a", "def go(:a) do")
+      assert message =~ "not parseable"
+    end
+  end
+
+  describe "head matching tolerates the parens people copy off the def line" do
+    test "`(:b)` finds the clause whose head is `:b`" do
+      assert Clause.replace_body(@src, "go/1", "(:b)", "20") =~ "def go(:b), do: 20"
+    end
+
+    test "the parens may wrap the args of a GUARDED head, with the guard left outside" do
+      src = "defmodule D do\n  def only(x) when is_integer(x), do: x\nend\n"
+      out = Clause.replace_body(src, "only/1", "(x) when is_integer(x)", ":int")
+      assert out =~ "def only(x) when is_integer(x), do: :int"
+    end
+
+    test "parens that are not a wrapper stay put — and the miss names the real head" do
+      src = "defmodule D do\n  def pair(a, b), do: {a, b}\nend\n"
+      assert {:error, message} = Clause.replace_body(src, "pair/2", "(a), (b)", ":ok")
+      assert message =~ "have: `a, b`"
+    end
+  end
+
+  describe "insert_at — a new function, with no sibling clause to anchor to" do
+    @mixed """
+    defmodule M do
+      def one, do: 1
+
+      def two, do: 2
+
+      defp helper, do: :h
+    end
+    """
+
+    test "a defp lands after the last private function" do
+      out = Clause.insert_at(@mixed, nil, nil, "defp fresh, do: :f")
+      assert out =~ "defp helper, do: :h\n\n  defp fresh, do: :f"
+    end
+
+    test "a def lands after the last PUBLIC function, above the privates" do
+      out = Clause.insert_at(@mixed, nil, nil, "def three, do: 3")
+      assert out =~ "def two, do: 2\n\n  def three, do: 3"
+      assert out =~ "def three, do: 3\n\n  defp helper"
+    end
+
+    test ":top puts it before the module's first definition" do
+      out = Clause.insert_at(@mixed, nil, :top, "def zero, do: 0")
+      assert out =~ "def zero, do: 0\n\n  def one, do: 1"
+    end
+
+    test ":bottom puts it after the module's last definition" do
+      out = Clause.insert_at(@mixed, nil, :bottom, "def last, do: :l")
+      assert out =~ "defp helper, do: :h\n\n  def last, do: :l"
+    end
+
+    test "an empty module takes the code just inside it" do
+      out = Clause.insert_at("defmodule E do\nend\n", nil, nil, "def only, do: 1")
+      assert out =~ "defmodule E do\n  def only, do: 1\nend"
+    end
+
+    test "a @doc above the code doesn't get mistaken for the thing being inserted" do
+      out = Clause.insert_at(@mixed, nil, nil, "@doc \"h\"\ndefp documented, do: :d")
+      assert out =~ "defp helper, do: :h\n\n  @doc \"h\"\n  defp documented, do: :d"
+    end
+
+    test "names the module in a file that has several" do
+      src = "defmodule A do\n  def a, do: 1\nend\n\ndefmodule B do\n  def b, do: 2\nend\n"
+      out = Clause.insert_at(src, "B", nil, "def added, do: 3")
+      assert out =~ "def b, do: 2\n\n  def added, do: 3"
+      refute out =~ "def a, do: 1\n\n  def added"
+    end
+
+    test "refuses an unnamed module when the file has several" do
+      src = "defmodule A do\n  def a, do: 1\nend\n\ndefmodule B do\n  def b, do: 2\nend\n"
+      assert {:error, message} = Clause.insert_at(src, nil, nil, "def added, do: 3")
+      assert message =~ "several modules"
+    end
+
+    test "names the modules that exist when the one asked for does not" do
+      assert {:error, message} = Clause.insert_at(@mixed, "Nope", nil, "def x, do: 1")
+      assert message =~ "no module Nope"
+      assert message =~ "M"
+    end
+  end
 end
