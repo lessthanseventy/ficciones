@@ -365,7 +365,9 @@ defmodule Menard.MCP.Block do
   The body of a macro's `do` block — `schema do`, `describe "…" do`, `test "…" do`. Not a clause,
   so no clause verb reaches one. `verb` is `get`, `replace` (body := `code`) or `list`. `label` is
   the macro's first string argument, which is what makes `describe`/`test` addressable; several
-  blocks of one name with no label is refused, listing them.
+  blocks of one name with no label is refused, listing them. `add` writes a NEW block — at the end
+  of the block named by `in` (a describe, by its label), else after the last sibling of that name,
+  else at the end of the module.
   """
   use Anubis.Server.Component, type: :tool
   import Menard.MCP.Reply
@@ -373,11 +375,12 @@ defmodule Menard.MCP.Block do
   alias Menard.Block
 
   schema do
-    field(:verb, :enum, values: ["get", "replace", "list"], required: true)
+    field(:verb, :enum, values: ["get", "replace", "add", "list"], required: true)
     field(:file, :string, required: true)
     field(:name, :string)
     field(:code, :string)
     field(:label, :string)
+    field(:in, :string)
     field(:module, :string)
   end
 
@@ -402,15 +405,19 @@ defmodule Menard.MCP.Block do
 
   def execute(params, frame) do
     with {:ok, file} <- Menard.MCP.resolve(params.file),
-         out when is_binary(out) <-
-           Block.replace(File.read!(file), params[:name] || "", params[:code] || "", where(params)) do
+         out when is_binary(out) <- edit(params, File.read!(file)) do
       File.write!(file, out)
       Menard.format(file)
-      ok(frame, %{"did" => "replace #{params[:name]} in #{Path.basename(file)}", "file" => file})
+      ok(frame, %{"did" => "#{params.verb} #{params[:name]} in #{Path.basename(file)}", "file" => file})
     else
       {:error, message} -> fail(frame, message)
     end
   end
+
+  defp edit(%{verb: "add"} = p, source),
+    do: Block.add(source, p[:name] || "", p[:label], p[:code] || "", in: p[:in], module: p[:module])
+
+  defp edit(p, source), do: Block.replace(source, p[:name] || "", p[:code] || "", where(p))
 
   defp where(params), do: [module: params[:module], label: params[:label]]
 end

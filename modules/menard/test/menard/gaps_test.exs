@@ -158,6 +158,35 @@ defmodule Menard.BlockTest do
     refute :defmodule in names
     refute :def in names
   end
+
+  test "add writes a new block after the last sibling of its name" do
+    out = Block.add(@src, "describe", "three", "test \"c\" do\n  assert 3 == 3\nend")
+
+    assert out =~ ~s(describe "three" do)
+    assert out =~ ~s(describe "two" do)
+    # the new one lands AFTER the last sibling, not before the first
+    assert String.slice(out, 0, :binary.match(out, "describe \"three\"") |> elem(0)) =~ "describe \"two\""
+  end
+
+  test "add --in appends inside the named parent block" do
+    out = Block.add(@src, "test", "c", "assert 3 == 3", in: "two")
+
+    # inside the named describe, at its end — where a new test goes
+    assert out =~ ~s(test "b" do\n      assert 2 == 2\n    end\n\n    test "c" do)
+    # and not inside the other one
+    refute out =~ ~s(test "a" do\n      assert 1 == 1\n    end\n\n    test "c")
+  end
+
+  test "a label-less macro (setup do) is added without one" do
+    out = Block.add(@src, "setup", nil, ":ok")
+
+    assert out =~ "setup do\n    :ok\n  end"
+  end
+
+  test "an --in parent that isn't there is refused, not guessed at" do
+    assert {:error, message} = Block.add(@src, "test", "x", "assert true", in: "nope")
+    assert message =~ "no block labelled"
+  end
 end
 
 defmodule Menard.ModuleTest do

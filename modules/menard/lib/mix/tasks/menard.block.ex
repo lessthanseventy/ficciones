@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Menard.Block do
   @shortdoc "A macro's do-block: mix menard.block get|replace|list FILE NAME [CODE] [--label X]"
   @moduledoc """
   `mix menard.block replace lib/a.ex schema 'field(:x, :string)'` — swap a `schema do … end` body.
+  `mix menard.block add test/a_test.exs test 'assert 1 == 1' --label "it works" --in "the leader"`
   `mix menard.block get test/a_test.exs describe --label 'the leader'` · `mix menard.block list FILE`
 
   A macro call's body is not a clause, so no clause verb reaches one. `--label` is the macro's
@@ -14,7 +15,7 @@ defmodule Mix.Tasks.Menard.Block do
 
   @impl true
   def run(argv) do
-    {opts, args, _} = OptionParser.parse(argv, strict: [module: :string, label: :string])
+    {opts, args, _} = OptionParser.parse(argv, strict: [module: :string, label: :string, in: :string])
     where = [module: opts[:module], label: opts[:label]]
 
     case args do
@@ -27,9 +28,14 @@ defmodule Mix.Tasks.Menard.Block do
       ["replace", file, name, code] ->
         edit(file, &Block.replace(&1, name, code, where))
 
+      ["add", file, name, code] ->
+        edit(file, &Block.add(&1, name, opts[:label], code, in: opts[:in], module: opts[:module]))
+
       _ ->
         Mix.raise(
-          "usage: mix menard.block (get|replace) FILE NAME [CODE] | list FILE [--label X] [--module Mod]"
+          "usage: mix menard.block (get|replace) FILE NAME [CODE] [--label X]\n" <>
+            "       mix menard.block add FILE NAME CODE [--label X] [--in PARENT_LABEL]\n" <>
+            "       mix menard.block list FILE [--module Mod]"
         )
     end
   end
