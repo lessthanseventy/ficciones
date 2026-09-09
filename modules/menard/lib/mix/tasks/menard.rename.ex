@@ -19,9 +19,7 @@ defmodule Mix.Tasks.Menard.Rename do
     case args do
       [old, new | files] when files != [] ->
         written = files |> Enum.map(&Menard.resolve/1) |> Enum.filter(&rewrite(&1, old, new, opts))
-
-        for file <- written,
-            do: System.cmd("mix", ["format", file], cd: Path.dirname(file), stderr_to_stdout: true)
+        Enum.each(written, &Menard.format/1)
 
         Mix.shell().info("menard.rename: #{old} → #{new} in #{length(written)} of #{length(files)} file(s)")
 

@@ -15,4 +15,26 @@ defmodule Menard do
 
   @doc "A path as the caller meant it: absolute stays, relative joins the caller's directory."
   def resolve(path), do: Path.expand(path, caller_dir())
+
+  @doc """
+  Format `file` with the TARGET project's formatter: `mix format` from the nearest ancestor holding a
+  `.formatter.exs` (else a `mix.exs`, else the file's own directory). Run from the file's own directory
+  — `lib/menard/` has no config — mix falls back to the DEFAULT line length and reflows the whole
+  file: a one-clause edit came back as a 39-line diff, the opposite of what these verbs promise.
+  """
+  def format(file) do
+    System.cmd("mix", ["format", file], cd: formatter_root(file), stderr_to_stdout: true)
+    :ok
+  end
+
+  defp formatter_root(file) do
+    dir = file |> Path.expand() |> Path.dirname()
+    find_up(dir, ".formatter.exs") || find_up(dir, "mix.exs") || dir
+  end
+
+  defp find_up("/", _name), do: nil
+
+  defp find_up(dir, name) do
+    if File.exists?(Path.join(dir, name)), do: dir, else: find_up(Path.dirname(dir), name)
+  end
 end

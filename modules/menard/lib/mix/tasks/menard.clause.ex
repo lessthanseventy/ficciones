@@ -43,10 +43,7 @@ defmodule Mix.Tasks.Menard.Clause do
       out -> File.write!(file, out)
     end
 
-    format(file)
+    Menard.format(file)
     Mix.shell().info("menard.clause: #{file} written")
   end
-
-  # the target project's formatter, not this one's
-  defp format(file), do: System.cmd("mix", ["format", file], cd: Path.dirname(file), stderr_to_stdout: true)
 end
