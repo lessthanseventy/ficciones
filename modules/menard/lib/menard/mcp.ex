@@ -12,6 +12,7 @@ defmodule Menard.MCP do
   component(Menard.MCP.Write, name: "write")
   component(Menard.MCP.Rename, name: "rename")
   component(Menard.MCP.Clause, name: "clause")
+  component(Menard.MCP.Stmt, name: "stmt")
   component(Menard.MCP.Directive, name: "directive")
   component(Menard.MCP.Attr, name: "attr")
   component(Menard.MCP.Block, name: "block")

@@ -148,6 +148,71 @@ defmodule Menard.MCP.Clause do
   end
 end
 
+defmodule Menard.MCP.Stmt do
+  @moduledoc """
+  ONE statement inside a clause body — a line in a `do` block, a step in a `with`, a `case` arm.
+  Name the clause (`name_arity` + `head`), then the statement by what is WRITTEN (`match`),
+  whitespace-insensitive. `verb` is `insert_after`, `insert_before`, `replace`, `delete` or
+  `list`; `code` is the new statement.
+
+  A miss lists the statements that are there. An ambiguous match is refused with line numbers
+  rather than guessed at; `nth` says which one.
+  """
+  use Anubis.Server.Component, type: :tool
+  import Menard.MCP.Reply
+  alias Menard.Stmt
+
+  schema do
+    field(:verb, :enum,
+      values: ["insert_after", "insert_before", "replace", "delete", "list"],
+      required: true
+    )
+
+    field(:file, :string, required: true)
+    field(:name_arity, :string, required: true)
+    field(:head, :string, required: true)
+    field(:match, :string)
+    field(:code, :string)
+    field(:nth, :integer)
+  end
+
+  @impl true
+  def execute(%{verb: "list"} = params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         statements when is_list(statements) <- Stmt.list(File.read!(file), params.name_arity, params.head) do
+      ok(frame, %{"statements" => statements, "file" => file})
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  def execute(params, frame) do
+    with {:ok, file} <- Menard.MCP.resolve(params.file),
+         out when is_binary(out) <- edit(params, File.read!(file)),
+         :ok <- Menard.checked_write(file, out) do
+      ok(frame, %{
+        "did" => "#{params.verb} `#{params[:match]}` in #{params.name_arity} of #{Path.basename(file)}",
+        "file" => file
+      })
+    else
+      {:error, message} -> fail(frame, message)
+    end
+  end
+
+  defp edit(%{verb: verb} = p, source) do
+    opts = if n = p[:nth], do: [nth: n], else: []
+    code = p[:code] || ""
+    args = [source, p.name_arity, p.head, p[:match] || ""]
+
+    case verb do
+      "insert_after" -> apply(Stmt, :insert_after, args ++ [code, opts])
+      "insert_before" -> apply(Stmt, :insert_before, args ++ [code, opts])
+      "replace" -> apply(Stmt, :replace, args ++ [code, opts])
+      "delete" -> apply(Stmt, :delete, args ++ [opts])
+    end
+  end
+end
+
 defmodule Menard.MCP.Outline do
   @moduledoc "A file as an outline: modules, defs with arity/kind/spec/doc, line spans. Read before editing."
   use Anubis.Server.Component, type: :tool

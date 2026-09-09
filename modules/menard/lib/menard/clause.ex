@@ -206,7 +206,12 @@ defmodule Menard.Clause do
 
   # -- locating a clause ----------------------------------------------------
 
-  defp find(source, name_arity, head, opts) do
+  @doc """
+  Locate one clause: `%{kind, name, args, guard, head_text, range, indent}`, or an error naming the
+  heads that exist. Public so `Menard.Stmt` addresses a statement the same way — inside the clause
+  you named, by what is written.
+  """
+  def find(source, name_arity, head, opts) do
     with {:ok, {mod, name, arity}} <- parse_name_arity(name_arity),
          {:ok, ast} <- parse(source),
          {:ok, scope} <- scope(ast, mod, name, arity) do
@@ -403,7 +408,7 @@ defmodule Menard.Clause do
 
   defp split_head(_head), do: {"", nil}
 
-  defp squash(text), do: text |> String.trim() |> unwrap_parens() |> String.replace(~r/\s+/, "")
+  def squash(text), do: text |> String.trim() |> unwrap_parens() |> String.replace(~r/\s+/, "")
   # `(dir, args)` IS how a head is written, so accept the parens people copy off the def line —
   # strip one pair when it actually wraps the whole head (`(a), (b)` is two args, not a wrapper,
   # and stays as it is).
