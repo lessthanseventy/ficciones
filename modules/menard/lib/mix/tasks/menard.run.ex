@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Menard.Run do
   The run-and-update verbs an agent calls instead of a shell chain with greps on the end:
 
       mix menard.run check                # this app's gate (mix precommit): {ok, exit, tail}
-      mix menard.run test [FILE[:LINE]]   # one file / one test, or the suite: {ok, passed, failed, failures: [...]}
+      mix menard.run test [FILE[:LINE]]   # one file / one test, or the suite: {ok, tests, failed, failures: [{name, module, at, code, left, right | error, source}], tail}
       mix menard.run format [FILES]       # format; reports the files it changed
       mix menard.run compile              # compile --warnings-as-errors: {ok, diagnostics}
 
@@ -29,29 +29,7 @@ defmodule Mix.Tasks.Menard.Run do
 
   defp test(dir, args) do
     {out, status} = mix(dir, ["test" | args])
-    failures = ~r/^\s+\d+\) (test .+)$/m |> Regex.scan(out) |> Enum.map(fn [_, t] -> t end)
-
-    # ExUnit 1.20 prints `Result: 5 passed` / `Result: 3/5 passed`; older prints `5 tests, 2 failures`.
-    counts =
-      case {Regex.run(~r/Result: (\d+)(?:\/(\d+))? passed/, out),
-            Regex.run(~r/(\d+) tests?, (\d+) failures?/, out)} do
-        {[_, passed, ""], _} ->
-          %{tests: String.to_integer(passed), failed: 0}
-
-        {[_, passed, total], _} ->
-          %{tests: String.to_integer(total), failed: String.to_integer(total) - String.to_integer(passed)}
-
-        {[_, passed], _} ->
-          %{tests: String.to_integer(passed), failed: 0}
-
-        {_, [_, tests, failed]} ->
-          %{tests: String.to_integer(tests), failed: String.to_integer(failed)}
-
-        _ ->
-          %{tests: nil, failed: nil}
-      end
-
-    Map.merge(%{ok: status == 0, exit: status, failures: failures, tail: tail(out)}, counts)
+    out |> Menard.Run.parse_test(status) |> Menard.Run.with_sources(dir)
   end
 
   defp format(dir, files) do

@@ -45,10 +45,13 @@ Introspect (read-only):
 | `menard.inspect callers MOD[.fun/arity]` | files calling into it (mix xref) | LANDED |
 | `menard.inspect exports` | the `:boundary` surface — what a consumer may call | LANDED |
 | `menard.inspect deps` | outdated packages + advisories | LANDED |
+| `menard.find calls TARGET \| defs NAME[/ARITY] \| aliases MOD FILES` | grep that knows the code: alias-aware calls, defs, aliases; strings/comments never match | LANDED |
 | `refs Mod.fun/arity` | every call site, precisely (Expert) | needs the Expert client |
 
 Run and update (`mix menard.run VERB`, one JSON line, exit 1 when not ok — LANDED · MCP `run_verb`):
-`check`, `test [FILE[:LINE]]`, `format [FILES]`, `compile`. Still plain mise tasks: `deps.get`,
+`check`, `test [FILE[:LINE]]` (each failure as data: name, module, at, code/left/right or error,
+and the test's own `source`; the tail is ExUnit's summary, not the logs), `format [FILES]`,
+`compile`. Still plain mise tasks: `deps.get`,
 `deps.update PKG`, `release`, `restart`.
 
 Scoping (LANDED): every MCP verb resolves paths under the calling thread's worktree
