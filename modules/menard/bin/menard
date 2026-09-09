@@ -35,13 +35,27 @@ if ((frozen)); then
     end' -- "$verb" "$@"
 fi
 
+# `mcp` is a long-running stdio SERVER: its stdout IS the JSON-RPC channel. Two rules follow.
+# One: nothing may buffer it, so no capture and no wrapper — exec. Two: nothing else may write
+# there, and mix's own "Compiling N files" goes to stdout, which on a cold start is dozens of
+# lines straight into the protocol. Compile first with that output on stderr, so the server starts
+# with a clean channel.
+if [[ "$verb" == "mcp" ]]; then
+  mix compile >&2 || exit $?
+  exec mix "menard.$verb" "$@"
+fi
+
 # A compile error here is usually menard's OWN source mid-edit, not the caller's target — say so,
 # because the fix (--frozen) is not guessable from mix's message. Only for a compile failure: an
-# ordinary miss ("no clause go/1 with head …") already says exactly what to do.
-out=$(mix "menard.$verb" "$@" 2>&1) && { printf '%s\n' "$out"; exit 0; }
+# ordinary miss ("no clause go/1 with head …") already says exactly what to do. Only STDERR is
+# captured to test for it: capturing stdout would buffer it until exit, which is fatal to anything
+# that streams.
+err=$(mktemp)
+trap 'rm -f "$err"' EXIT
+mix "menard.$verb" "$@" 2>"$err"
 status=$?
-printf '%s\n' "$out" >&2
-if [[ "$out" == *"cannot compile module"* || "$out" == *"CompileError"* ]]; then
+cat "$err" >&2
+if ((status != 0)) && grep -qE "cannot compile module|CompileError" "$err"; then
   echo "menard: that is a compile error in menard ITSELF (a half-applied edit) — retry with: menard --frozen $verb …" >&2
 fi
 exit $status
