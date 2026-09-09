@@ -272,17 +272,35 @@ function drop(name: string) {
   fitMethod()
 }
 
+// Swap `address` along its row until it sits immediately LEFT of `anchor`: right of it → swap
+// left; left but not adjacent → swap right. Positions re-read each step; bounded by the row.
+async function settleLeftOf(address: string, anchor: string) {
+  const col = (x: string) => hypr.get_client(x)?.x ?? null
+  const ws = () => hypr.get_client(address)?.workspace?.id
+  const columns = () => new Set(hypr.get_clients().filter((w) => w.mapped && !w.floating && w.workspace?.id === ws()).map((w) => w.x))
+  for (let i = 0; i < 16; i++) {
+    const me = col(address), at = col(anchor)
+    if (me === null || at === null) return
+    if (me > at) { await batch([L.focusWindow(addr({ address })), L.layout("swapcol l")]); continue }
+    if (![...columns()].some((x) => x > me && x < at)) return
+    await batch([L.focusWindow(addr({ address })), L.layout("swapcol r")])
+  }
+}
+
 export async function unpinSidecar(c: Hyprland.Client) {
   const name = c.get_monitor().name
   const a = addr(c)
   const s = sidecars.get(name)
   if (s && s.address === c.address) drop(name)
-  // the layout tiles it after the last column; a former sidecar goes back to the FRONT of the
-  // row (Andrew, 2026-09-07/08: "when I unpin it it's already at the start of the row — anything
-  // other than the double border turning off is weird"): `move tobeg` is the layout's own exact
-  // verb, in the SAME batch as the float-off so the window makes one move (a swap per column,
-  // counted from x positions, guessed wrong and left it at the end)
-  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "off"), L.focusWindow(a), L.layout("move tobeg")])
+  // an unpinned sidecar lands immediately to the LEFT of the column you are on (Andrew,
+  // 2026-09-08: "3 windows, 1 pinned; with 3 selected, unpin → it falls at 2"). Explicit: note
+  // the focused tiled column, unfloat, then swap the window along the row until it is that
+  // column's left neighbour — never a guess about where the layout drops it. No tiled column
+  // focused (the sidecar itself was) → the layout's own placement stands.
+  const f = hypr.focusedClient
+  const anchor = f && f.mapped && !f.floating && f.address !== c.address ? f.address : null
+  await batch([...(c.pinned ? [L.pin(a)] : []), L.float(a, "off")])
+  if (anchor) await settleLeftOf(c.address, anchor)
   timeout(80, relayout)
 }
 
