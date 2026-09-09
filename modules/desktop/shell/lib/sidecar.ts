@@ -347,4 +347,26 @@ export function sidecarVerb(what = "toggle", arg?: string) {
 // A sidecar that closes must give its column back.
 hypr.connect("client-removed", (_, address: string) => {
   for (const [name, s] of sidecars) if (s.address === address) { drop(name); timeout(80, relayout) }
+  refitSoon()
 })
+
+// The columns beside a sidecar re-fit when their number changes: a second tiled window opened
+// later takes column_width and the layout CENTRES the focused column in the narrowed usable
+// area — a dead band against the sidecar, the neighbour hanging off-screen (Andrew, 2026-09-08:
+// "1 other window is fine, 2 makes a weird gap"). `fit visible` is what pin-time already runs.
+hypr.connect("client-added", (_, c) => { if (!c.floating && sidecars.has(c.get_monitor()?.name ?? "")) refitSoon() })
+// … and when a window moves between workspaces or the shown workspace changes (Andrew: "move one
+// to a different workspace, scroll, move it back, scroll back") — the same refit, debounced.
+const REFIT_EVENTS = new Set(["movewindow", "movewindowv2", "workspace", "workspacev2", "closewindow"])
+hypr.connect("event", (_, ev: string) => { if (REFIT_EVENTS.has(ev)) refitSoon() })
+
+let refitTimer: Timer | null = null
+function refitSoon() {
+  if (sidecars.size === 0) return
+  refitTimer?.cancel()
+  refitTimer = timeout(250, () => {
+    refitTimer = null
+    const f = hypr.focusedClient
+    if (f && f.mapped && !f.floating && sidecars.has(f.get_monitor()?.name ?? "")) dispatch(L.layout("fit visible")).catch(console.error)
+  })
+}

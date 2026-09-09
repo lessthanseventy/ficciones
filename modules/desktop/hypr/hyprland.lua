@@ -375,8 +375,18 @@ local function bind(keys, d, opts) hl.bind(keys, d, opts) end
 local function exec(cmd) return hl.dsp.exec_cmd(cmd) end
 local function layout(msg) return hl.dsp.layout(msg) end
 local function ws(w) return hl.dsp.focus({ workspace = w }) end
-local function to_ws(w) return hl.dsp.window.move({ workspace = w, follow = false }) end -- movetoworkspacesilent
-local function follow_ws(w) return hl.dsp.window.move({ workspace = w, follow = true }) end -- movetoworkspace
+-- A pinned window is on every workspace already: the move keys are a no-op on it, never a drag
+-- of the sidecar across the row (Andrew, 2026-09-08). A bind takes a function; the guard reads the
+-- active window at press time.
+local function unless_pinned(d)
+    return function()
+        local w = hl.get_active_window()
+        if w and w.pinned then return end
+        hl.dispatch(d)
+    end
+end
+local function to_ws(w) return unless_pinned(hl.dsp.window.move({ workspace = w, follow = false })) end -- movetoworkspacesilent
+local function follow_ws(w) return unless_pinned(hl.dsp.window.move({ workspace = w, follow = true })) end -- movetoworkspace
 local function move(dir) return hl.dsp.window.move({ direction = dir }) end
 local function move_mon(dir) return hl.dsp.window.move({ monitor = dir }) end
 local function resize(x, y) return hl.dsp.window.resize({ x = x, y = y, relative = true }) end
