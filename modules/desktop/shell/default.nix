@@ -1,6 +1,5 @@
-# home-manager: install the shell and, where asked, run it as a user unit for the session.
-# Off by default: on the Arch box caelestia still owns the session and the shell is run by
-# hand (shell:dev) until cutover; the VM turns autostart on.
+# home-manager: install the shell and run it as a user unit for the session.
+# `shell:dev` runs it from source instead.
 {
   config,
   lib,
@@ -45,11 +44,17 @@ in
       { wallpapers = cfg.wallpapers; } // (if cfg.location != null then cfg.location else { })
     );
 
+    # A unit, so a crash restarts and lands in the journal — the shell's own log is in-memory only.
+    # `on-failure`, not `always`: a gjs exception exits non-zero, an intentional quit stays quit.
+    # The start limit is looser than systemd's 5-in-10s because a Hyprland restart yanks the
+    # socket and the shell dies a few times before the display settles.
     systemd.user.services.astal-shell = lib.mkIf cfg.autostart {
       Unit = {
         Description = "astal shell";
         PartOf = [ "graphical-session.target" ];
         After = [ "graphical-session.target" ];
+        StartLimitIntervalSec = 60;
+        StartLimitBurst = 10;
       };
       Service = {
         ExecStart = "${lib.getExe cfg.package}";

@@ -52,6 +52,9 @@ in
     # Home. The weather pane's open-meteo query.
     ficciones.desktop.shell.location = { lat = 38.7977014100912; lon = -104.80787634502575; };
 
+    # mkDefault so modules/os can still state it outright for NixOS without a conflict.
+    ficciones.desktop.shell.autostart = lib.mkDefault true;
+
     # sudo's askpass (scripts/sudo-askpass): random glyphs per keystroke; a tty or a dialog
     # when stdin is not a terminal (hyprpm and friends used to hang on it).
     # Claude Code skills for THIS repo, tracked under modules/adapters/skills (the project .claude/

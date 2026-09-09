@@ -61,11 +61,11 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         -- Under uwsm (NixOS) this exports the env and activates graphical-session.target,
         -- which is what the shell's user unit waits on. On Arch there is no uwsm: a no-op.
         hl.exec_cmd("command -v uwsm >/dev/null && uwsm finalize")
-        -- The astal shell (modules/desktop/shell). On NixOS the user unit owns it (this line
-        -- would win the race and leave the unit a dead client); on Arch there is no uwsm
-        -- session, so this does. `astal-shell` is a client when one is running, so a reload
-        -- never doubles it.
-        hl.exec_cmd("test -e /etc/NIXOS || astal-shell")
+        -- The astal shell (modules/desktop/shell), via its user unit so a crash restarts and is
+        -- logged. On NixOS `uwsm finalize` above activates graphical-session.target and the unit
+        -- starts itself; on Arch the target stays inactive, so start it here — same reset-failed
+        -- dance as hyprpolkitagent below, for the same start-limit reason.
+        hl.exec_cmd("test -e /etc/NIXOS || sh -c 'systemctl --user reset-failed astal-shell; systemctl --user start astal-shell'")
         -- night light daemon; the shell's hub toggles it (hyprctl hyprsunset temperature / identity)
         hl.exec_cmd("hyprsunset")
         hl.exec_cmd("easyeffects --hide-window --service-mode")
