@@ -83,4 +83,28 @@ defmodule Menard.RunTest do
     assert r.ok and r.tests == 4 and r.failed == 0 and r.failures == []
     assert r.tail == "Finished in 0.1 seconds (0.1s async, 0.0s sync)\nResult: 4 passed"
   end
+
+  test "a test file that does not compile: the tail is the compiler's errors, not the stack trace" do
+    out = """
+    Compiling 1 file (.ex)
+        error: undefined function thread/1 (expected Console.Panel.RailTest to define such a function)
+        │
+     79 │       rows = rows(thread(%{title: "build"}))
+        │                   ^
+        │
+        └─ test/console/panel/rail_test.exs:79:19: Console.Panel.RailTest."test x"/1
+
+
+    == Compilation error in file test/console/panel/rail_test.exs ==
+    ** (CompileError) test/console/panel/rail_test.exs: cannot compile module Console.Panel.RailTest (errors have been logged)
+        (elixir 1.20.4) lib/kernel/parallel_compiler.ex:667: Kernel.ParallelCompiler.require_file/2
+        (elixir 1.20.4) lib/kernel/parallel_compiler.ex:550: anonymous fn/5 in Kernel.ParallelCompiler.spawn_workers/8
+    """
+
+    r = Run.parse_test(out, 1)
+    refute r.ok
+    assert r.tail =~ "error: undefined function thread/1"
+    assert r.tail =~ "rail_test.exs:79:19"
+    refute r.tail =~ "parallel_compiler"
+  end
 end

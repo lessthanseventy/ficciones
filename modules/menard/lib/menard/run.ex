@@ -144,8 +144,21 @@ defmodule Menard.Run do
   # From ExUnit's `Finished in` line to the end — the summary lines only.
   defp summary(out) do
     case Regex.run(~r/(Finished in .*)\z/s, out) do
-      [_, tail] -> tail |> String.trim() |> String.split("\n") |> Enum.map_join("\n", &String.trim/1)
-      _ -> out |> String.split("\n") |> Enum.take(-5) |> Enum.join("\n")
+      [_, tail] ->
+        tail |> String.trim() |> String.split("\n") |> Enum.map_join("\n", &String.trim/1)
+
+      # no run at all: a compile error in a test file — the errors are what matters, not the
+      # last five lines (the stack trace under "cannot compile module")
+      _ ->
+        case Regex.scan(~r/^\s*error: .*(?:\n(?!\s*error:).*)*?\n\s*└─ .*$/m, out) do
+          [] ->
+            out |> String.split("\n") |> Enum.take(-5) |> Enum.join("\n")
+
+          errors ->
+            Enum.map_join(errors, "\n", fn [e] ->
+              e |> String.split("\n") |> Enum.map_join("\n", &String.trim/1)
+            end)
+        end
     end
   end
 end
