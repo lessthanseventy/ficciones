@@ -103,6 +103,50 @@ defmodule Menard.StmtTest do
     assert out =~ "other(x)\n    tock()"
   end
 
+  test "reaches inside an anonymous fn — a call in Enum.each(fn -> end) had no verb" do
+    src = """
+    defmodule Fnx do
+      def go(entries, id) do
+        Enum.each(entries, fn %{name: name} ->
+          spawn_window(id, instantiate(name))
+        end)
+      end
+    end
+    """
+
+    assert "spawn_window(id, instantiate(name))" in Stmt.list(src, "go/2", "entries, id")
+
+    out =
+      Stmt.replace(
+        src,
+        "go/2",
+        "entries, id",
+        "spawn_window(id, instantiate(name))",
+        "spawn_window(id, instantiate(name, id))"
+      )
+
+    assert out =~ "spawn_window(id, instantiate(name, id))"
+    assert out =~ "Enum.each(entries, fn %{name: name} ->"
+  end
+
+  test "a multi-statement fn body lists each of its statements" do
+    src = """
+    defmodule Fnx do
+      def go(list) do
+        Enum.map(list, fn x ->
+          first(x)
+          second(x)
+        end)
+      end
+    end
+    """
+
+    statements = Stmt.list(src, "go/1", "list")
+
+    assert "first(x)" in statements
+    assert "second(x)" in statements
+  end
+
   test "an unknown clause is refused before any statement is looked for" do
     assert {:error, message} = Stmt.list(@src, "nope/9", "x")
     assert message =~ "no clause nope/9"

@@ -187,6 +187,11 @@ defmodule Menard.Stmt do
   # one-child block is one of those (`{:ok, :up}`) — a body holding a single statement is reached
   # through its do-block instead.
   defp statement_nodes({:__block__, _meta, children}) when length(children) > 1, do: children
+  # An anonymous fn is a list of `->` arms, not a do-block, so its body was unreachable — a call
+  # inside `Enum.each(fn … -> … end)` had no verb. Its arms are statements, and so are theirs.
+  defp statement_nodes({:fn, _meta, arms}) when is_list(arms), do: arms
+
+  defp statement_nodes({:->, _meta, [_pattern, body]}), do: body_statements(body)
 
   defp statement_nodes({_call, _meta, args}) when is_list(args) do
     args
