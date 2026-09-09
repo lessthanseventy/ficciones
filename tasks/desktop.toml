@@ -1,0 +1,111 @@
+# tasks/desktop.toml — the desktop: shell, screenshots, theme, VM, home-manager, flake. Included by mise.toml ([task_config] includes);
+# each top-level table is a task. `mise tasks` lists them all.
+
+# The one palette (modules/desktop/theme/palette.nix → palettes/<current>.nix) → the checked-in shell scss/ts + Console.Palette.
+["theme:gen"]
+description = "theme: rewrite the palette-generated files in the repo from palette.nix (checks.palette-sync fails the flake when they drift)"
+run = "scripts/theme-gen.sh"
+
+["flake:bump"]
+description = "machine: nix flake update (inputs) + nix-update over the hand-pinned packages (pi, expert: version + hash from upstream releases)"
+run = [
+  "nix flake update",
+  "nix run nixpkgs#nix-update -- --flake pi",
+  "nix run nixpkgs#nix-update -- --flake expert",
+]
+
+["flake:check"]
+description = "machine: nix flake check + build the activation script — the machine-level gate"
+# `nix flake check` only EVALUATES homeConfigurations; it never builds the activation script, so a
+# bash syntax error in a home.activation block sails through it and only explodes at home:switch.
+# Building activationPackage runs home-manager's syntax check, which is what actually catches it.
+run = [
+  "nix flake check",
+  "nix build --no-link .#homeConfigurations.personalbox.activationPackage",
+]
+
+# The NixOS VM — the laptop's configuration booted under QEMU with this working tree shared in
+# at its real path (modules/os/vm.nix). KVM + virtio-gpu GL; the window is a Hyprland session
+# logged in as andrew. Ctrl+Alt+G releases the pointer.
+["vm:build"]
+description = "machine: build the NixOS VM runner from nixosConfigurations.vm"
+run = "nix build .#nixosConfigurations.vm.config.system.build.vm -o .dev/vm"
+
+["vm:run"]
+description = "machine: boot the VM (vm:build first); disk state lives in .dev/vm.qcow2"
+depends = ["vm:build"]
+run = "cd .dev && NIX_DISK_IMAGE=vm.qcow2 ./vm/bin/run-vm-vm"
+
+["vm:ssh"]
+description = "machine: ssh into the running VM as andrew (password andrew); pass a command to run it"
+run = "ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null andrew@localhost"
+
+# The desktop shell (modules/desktop/shell). `ags` on PATH comes from home:switch (the same
+# build the package used), so the dev loop and the store package see one Astal.
+["shell:dev"]
+description = "shell: run the shell from source (Ctrl+C stops it); pkill -x gjs first — the dbus name is taken while the installed shell runs"
+dir = "modules/desktop/shell"
+run = "ags run app.tsx"
+
+# Silent screenshots for an agent's eyes (no flameshot UI): a PNG under ~/Pictures/Screenshots,
+# its path on stdout — Read it. `shot:window` matches class or title (regex, case-insensitive)
+# and takes the first mapped hit; no arg = the focused window. Andrew's own captures are the
+# rail's card / Print keys (flameshot).
+["shot:monitor"]
+description = "desktop: grim the focused monitor to ~/Pictures/Screenshots, print the path"
+run = '''
+set -euo pipefail
+d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
+m=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name')
+f="$d/$(date +%Y-%m-%d_%H.%M.%S)_monitor-$m.png"
+grim -o "$m" "$f" && echo "$f"
+'''
+
+["shot:window"]
+description = "desktop: grim one window (arg: class/title regex; none = focused) to ~/Pictures/Screenshots, print the path"
+run = '''
+set -euo pipefail
+d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
+re='{{arg(name="match", default="")}}'
+if [ -n "$re" ]; then
+  c=$(hyprctl clients -j | jq -c --arg re "$re" '[.[] | select(.mapped and ((.class|test($re;"i")) or (.title|test($re;"i"))))][0]')
+else
+  c=$(hyprctl activewindow -j)
+fi
+[ "$c" != "null" ] && [ -n "$c" ] || { echo "no window matches ${re:-<focused>}" >&2; exit 1; }
+g=$(jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"' <<<"$c")
+n=$(jq -r '.class' <<<"$c" | tr -c 'A-Za-z0-9.' '_')
+f="$d/$(date +%Y-%m-%d_%H.%M.%S)_window-$n.png"
+grim -g "$g" "$f" && echo "$f"
+'''
+
+["shell:check"]
+description = "shell: the gate — ags bundle (syntax + imports + scss), then tsc over our files; both hard-fail"
+dir = "modules/desktop/shell"
+# ags 3.1's own lib does not typecheck under TS 5.9 (decorator signatures, two GObject
+# identities — a stock `ags init` project fails the same way), so errors inside /nix/store are
+# filtered; every error in OUR files fails the gate (zero as of 2026-09-07).
+run = [
+  "ags bundle app.tsx \"$(mktemp -d)/astal-shell\" >/dev/null && echo 'shell:check — bundle ok'",
+  "ags types -d . -u --ignore Gtk3 --ignore Astal3 >/dev/null",
+  "out=$(npx --yes -p typescript@5 tsc --noEmit -p . 2>&1 | grep -v '^ ' | grep -v '/nix/store' || true); if [ -n \"$out\" ]; then echo \"$out\"; exit 1; fi; echo 'shell:check — tsc ok'",
+]
+
+["shell:restart"]
+description = "shell: restart the astal-shell user unit (VM / post-cutover)"
+run = "systemctl --user restart astal-shell.service"
+
+["shell:logs"]
+description = "shell: follow the astal-shell unit's journal"
+run = "journalctl --user -u astal-shell.service -f"
+
+["home:switch"]
+description = "machine: apply the home-manager profile"
+run = "nix run github:nix-community/home-manager -- switch --flake .#personalbox -b backup"
+
+# pi the agent — model launchers, pinned to a model + thinking level. NOT the adapters/pi
+# renderer (that's adapters:pi:test/check/watch above) — distinct namespace. All draw on
+# the flat $20 ollama.com plan (kimi-k3 excluded: bills as EXTRA usage on top). Bare
+# `pi` already starts on ollama-cloud/deepseek-v4-flash (the flake default); these are one-command alternates —
+# in-session Ctrl+P still cycles the same ring. Args pass through:
+# `mise run pi:deep -- -p "one-shot prompt"`. Full when-to-reach-for-each: AGENTS.md.
