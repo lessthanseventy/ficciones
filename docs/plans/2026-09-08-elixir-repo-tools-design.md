@@ -47,6 +47,7 @@ Introspect (read-only):
 | `menard.inspect deps` | outdated packages + advisories | LANDED |
 | `menard.find calls TARGET \| defs NAME[/ARITY] \| aliases MOD FILES` | grep that knows the code: alias-aware calls, defs, aliases; strings/comments never match | LANDED |
 | `refs Mod.fun/arity` | every call site, precisely (Expert) | needs the Expert client |
+| `menard.snapshot ROUTE\|COMPONENT` | what the code RENDERS: the HTML snapshot + axe + LiveView-rule findings, via excessibility (Andrew's package) — an agent reads the output of the UI code it just edited, no browser | waits for a Phoenix app in the repo (the web UI) |
 
 Run and update (`mix menard.run VERB`, one JSON line, exit 1 when not ok — LANDED · MCP `run_verb`):
 `check`, `test [FILE[:LINE]]` (each failure as data: name, module, at, code/left/right or error,
