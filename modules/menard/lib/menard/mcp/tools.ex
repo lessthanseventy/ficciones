@@ -48,15 +48,21 @@ end
 defmodule Menard.MCP.Clause do
   @moduledoc """
   Edit ONE clause: `verb` is `replace` (body := `code`), `delete`, `insert_after` or
-  `insert_before` (`code` is the new clause). Address it by `name_arity` ("go/1") and `head` —
-  its args as written plus any guard. A miss lists the heads that exist. Only the clause's bytes change.
+  `insert_before` (`code` is the new clause). Address it by `name_arity` ("go/1", or "Mod.go/1" in
+  a file with several modules — an unqualified name that several modules define is refused) and
+  `head` — its args as written plus any guard. A miss lists the heads that exist. Only the
+  clause's bytes change.
   """
   use Anubis.Server.Component, type: :tool
   import Menard.MCP.Reply
   alias Menard.Clause
 
   schema do
-    field(:verb, :enum, values: ["replace", "delete", "insert_after", "insert_before"], required: true)
+    field(:verb, :enum,
+      values: ["replace", "delete", "insert_after", "insert_before"],
+      required: true
+    )
+
     field(:file, :string, required: true)
     field(:name_arity, :string, required: true)
     field(:head, :string, required: true)
@@ -67,9 +73,14 @@ defmodule Menard.MCP.Clause do
   def execute(params, frame) do
     with {:ok, file} <- Menard.MCP.resolve(params.file),
          source <- File.read!(file),
-         out when is_binary(out) <- edit(params.verb, source, params.name_arity, params.head, params[:code]) do
+         out when is_binary(out) <-
+           edit(params.verb, source, params.name_arity, params.head, params[:code]) do
       File.write!(file, out)
-      ok(frame, %{"file" => file})
+      # the one line a transcript shows: what happened, to which clause, where
+      ok(frame, %{
+        "did" => "#{params.verb} #{params.name_arity} `#{params.head}` in #{Path.basename(file)}",
+        "file" => file
+      })
     else
       {:error, message} -> fail(frame, message)
     end

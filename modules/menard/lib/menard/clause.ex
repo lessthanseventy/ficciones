@@ -65,9 +65,10 @@ defmodule Menard.Clause do
   # -- locating a clause ----------------------------------------------------
 
   defp find(source, name_arity, head) do
-    with {:ok, {name, arity}} <- parse_name_arity(name_arity),
-         {:ok, ast} <- parse(source) do
-      clauses = clauses(ast, name, arity)
+    with {:ok, {mod, name, arity}} <- parse_name_arity(name_arity),
+         {:ok, ast} <- parse(source),
+         {:ok, scope} <- scope(ast, mod, name, arity) do
+      clauses = clauses(scope, name, arity)
       want = squash(head)
 
       case Enum.find(clauses, &(squash(&1.head_text) == want)) do
@@ -84,10 +85,51 @@ defmodule Menard.Clause do
     end
   end
 
+  # The subtree to search: the named module's `defmodule`, or — unqualified — the whole file,
+  # refused when more than one module in it defines name/arity (an edit must never land in the
+  # wrong module silently).
+  defp scope(ast, nil, name, arity) do
+    case Enum.filter(modules(ast), fn {_mod, node} -> clauses(node, name, arity) != [] end) do
+      [_, _ | _] = many ->
+        {:error,
+         "#{name}/#{arity} is defined in #{Enum.map_join(many, ", ", &elem(&1, 0))} — qualify it as Mod.#{name}/#{arity}"}
+
+      _ ->
+        {:ok, ast}
+    end
+  end
+
+  defp scope(ast, mod, _name, _arity) do
+    case List.keyfind(modules(ast), mod, 0) do
+      {^mod, node} ->
+        {:ok, node}
+
+      nil ->
+        {:error, "no module #{mod} in this file — have: #{Enum.map_join(modules(ast), ", ", &elem(&1, 0))}"}
+    end
+  end
+
+  # Every `defmodule` in the file as `{"Full.Name", node}` (nested modules by their written name).
+  defp modules(ast) do
+    ast
+    |> Zipper.zip()
+    |> Zipper.traverse([], fn z, acc ->
+      case Zipper.node(z) do
+        {:defmodule, _, [{:__aliases__, _, parts} | _]} = node -> {z, acc ++ [{Enum.join(parts, "."), node}]}
+        _ -> {z, acc}
+      end
+    end)
+    |> elem(1)
+  end
+
   defp parse_name_arity(spec) do
-    case String.split(spec, "/") do
-      [name, arity] -> {:ok, {String.to_atom(name), String.to_integer(arity)}}
-      _ -> {:error, "expected name/arity, got #{inspect(spec)}"}
+    with [path, arity] <- String.split(spec, "/"),
+         {arity, ""} <- Integer.parse(arity) do
+      # `Mod.Sub.fun/2` scopes the search to that module; `fun/2` searches the whole file
+      {mod, [name]} = path |> String.split(".") |> Enum.split(-1)
+      {:ok, {if(mod == [], do: nil, else: Enum.join(mod, ".")), String.to_atom(name), arity}}
+    else
+      _ -> {:error, "expected [Mod.]name/arity, got #{inspect(spec)}"}
     end
   end
 
