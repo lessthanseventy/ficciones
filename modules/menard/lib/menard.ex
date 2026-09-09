@@ -37,4 +37,22 @@ defmodule Menard do
   defp find_up(dir, name) do
     if File.exists?(Path.join(dir, name)), do: dir, else: find_up(Path.dirname(dir), name)
   end
+
+  @doc """
+  Write `content` to `file`, but only if it still parses as Elixir, then format it. Every edit verb
+  goes through here: an AST patch that lands unparseable bytes locks the file out of every other
+  verb, and text editing is then the only door back.
+  """
+  @spec checked_write(String.t(), String.t()) :: :ok | {:error, String.t()}
+  def checked_write(file, content) do
+    case Menard.Write.checked(file, content) do
+      {:ok, checked} ->
+        File.write!(file, checked)
+        format(file)
+        :ok
+
+      {:error, reason} ->
+        {:error, "refusing to write #{Path.relative_to_cwd(file)} — #{reason}"}
+    end
+  end
 end

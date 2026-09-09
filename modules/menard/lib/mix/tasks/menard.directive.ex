@@ -49,11 +49,16 @@ defmodule Mix.Tasks.Menard.Directive do
     file = Menard.resolve(file)
 
     case change.(File.read!(file)) do
-      {:error, message} -> Mix.raise(message)
-      out -> File.write!(file, out)
+      {:error, message} ->
+        Mix.raise(message)
+
+      out ->
+        case Menard.checked_write(file, out) do
+          :ok -> :ok
+          {:error, message} -> Mix.raise(message)
+        end
     end
 
-    Menard.format(file)
     Mix.shell().info("menard.directive: #{file} written")
   end
 end

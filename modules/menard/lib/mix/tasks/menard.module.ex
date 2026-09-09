@@ -23,11 +23,16 @@ defmodule Mix.Tasks.Menard.Module do
         code = if code == "-", do: IO.read(:stdio, :eof), else: code
 
         case Menard.Module.add(File.read!(file), to_string(code)) do
-          {:error, message} -> Mix.raise(message)
-          out -> File.write!(file, out)
+          {:error, message} ->
+            Mix.raise(message)
+
+          out ->
+            case Menard.checked_write(file, out) do
+              :ok -> :ok
+              {:error, message} -> Mix.raise(message)
+            end
         end
 
-        Menard.format(file)
         Mix.shell().info("menard.module: #{file} written")
 
       _ ->

@@ -22,6 +22,9 @@ defmodule Mix.Tasks.Menard.Block do
       ["get", file, name] ->
         report(Block.get(File.read!(Menard.resolve(file)), name, where))
 
+      ["relabel", file, name, label, new_label] ->
+        edit(file, &Block.relabel(&1, name, label, new_label, module: opts[:module]))
+
       ["list", file] ->
         report(list(Block.list(File.read!(Menard.resolve(file)), where)))
 
@@ -35,6 +38,7 @@ defmodule Mix.Tasks.Menard.Block do
         Mix.raise(
           "usage: mix menard.block (get|replace) FILE NAME [CODE] [--label X]\n" <>
             "       mix menard.block add FILE NAME CODE [--label X] [--in PARENT_LABEL]\n" <>
+            "       mix menard.block relabel FILE NAME OLD_LABEL NEW_LABEL\n" <>
             "       mix menard.block list FILE [--module Mod]"
         )
     end
@@ -56,11 +60,16 @@ defmodule Mix.Tasks.Menard.Block do
     file = Menard.resolve(file)
 
     case change.(File.read!(file)) do
-      {:error, message} -> Mix.raise(message)
-      out -> File.write!(file, out)
+      {:error, message} ->
+        Mix.raise(message)
+
+      out ->
+        case Menard.checked_write(file, out) do
+          :ok -> :ok
+          {:error, message} -> Mix.raise(message)
+        end
     end
 
-    Menard.format(file)
     Mix.shell().info("menard.block: #{file} written")
   end
 end

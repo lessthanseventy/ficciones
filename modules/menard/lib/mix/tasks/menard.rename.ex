@@ -19,7 +19,6 @@ defmodule Mix.Tasks.Menard.Rename do
     case args do
       [old, new | files] when files != [] ->
         written = files |> Enum.map(&Menard.resolve/1) |> Enum.filter(&rewrite(&1, old, new, opts))
-        Enum.each(written, &Menard.format/1)
 
         Mix.shell().info("menard.rename: #{old} → #{new} in #{length(written)} of #{length(files)} file(s)")
 
@@ -40,8 +39,14 @@ defmodule Mix.Tasks.Menard.Rename do
         false
 
       out ->
-        File.write!(file, out)
-        true
+        case Menard.checked_write(file, out) do
+          :ok ->
+            true
+
+          {:error, message} ->
+            Mix.shell().error(message)
+            false
+        end
     end
   end
 end

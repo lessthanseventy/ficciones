@@ -41,12 +41,19 @@ defmodule Mix.Tasks.Menard.Attr do
     file = Menard.resolve(file)
 
     case change.(File.read!(file)) do
-      {:error, :missing} -> Mix.raise("no such attribute")
-      {:error, message} -> Mix.raise(message)
-      out -> File.write!(file, out)
+      {:error, :missing} ->
+        Mix.raise("no such attribute")
+
+      {:error, message} ->
+        Mix.raise(message)
+
+      out ->
+        case Menard.checked_write(file, out) do
+          :ok -> :ok
+          {:error, message} -> Mix.raise(message)
+        end
     end
 
-    Menard.format(file)
     Mix.shell().info("menard.attr: #{file} written")
   end
 end

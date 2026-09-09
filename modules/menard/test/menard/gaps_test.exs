@@ -185,7 +185,7 @@ defmodule Menard.BlockTest do
 
   test "an --in parent that isn't there is refused, not guessed at" do
     assert {:error, message} = Block.add(@src, "test", "x", "assert true", in: "nope")
-    assert message =~ "no block labelled"
+    assert message =~ "no block or module"
   end
 end
 

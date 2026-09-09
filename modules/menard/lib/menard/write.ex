@@ -36,7 +36,7 @@ defmodule Menard.Write do
 
   # Only .ex/.exs are parsed — Menard writes Elixir, but a fixture next to it may be anything, and
   # refusing to write a .json because it isn't Elixir would be nonsense.
-  defp checked(path, code) do
+  def checked(path, code) do
     content = if String.ends_with?(code, "\n"), do: code, else: code <> "\n"
 
     if Path.extname(path) in [".ex", ".exs"] do

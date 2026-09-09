@@ -15,21 +15,23 @@ defmodule Mix.Tasks.Menard.Clause do
 
   @impl true
   def run(argv) do
+    {flags, argv, _} = OptionParser.parse(argv, strict: [nth: :integer])
+
     case normalize(argv) do
       ["replace", file, na, head, code] ->
-        write(file, &Clause.replace_body(&1, na, head, code))
+        write(file, &Clause.replace_body(&1, na, head, code, flags))
 
       ["rewrite", file, na, head, code] ->
-        write(file, &Clause.rewrite(&1, na, head, code))
+        write(file, &Clause.rewrite(&1, na, head, code, flags))
 
       ["delete", file, na, head] ->
-        write(file, &Clause.delete(&1, na, head))
+        write(file, &Clause.delete(&1, na, head, flags))
 
       ["insert_after", file, na, head, code] ->
-        write(file, &Clause.insert_after(&1, na, head, code))
+        write(file, &Clause.insert_after(&1, na, head, code, flags))
 
       ["insert_before", file, na, head, code] ->
-        write(file, &Clause.insert_before(&1, na, head, code))
+        write(file, &Clause.insert_before(&1, na, head, code, flags))
 
       # placement follows the code (a defp with the defps, a def with the defs) unless named
       ["insert_at", file, module, code] ->
@@ -38,14 +40,21 @@ defmodule Mix.Tasks.Menard.Clause do
       ["insert_at", file, module, where, code] when where in ["top", "bottom"] ->
         write(file, &Clause.insert_at(&1, module(module), where, code))
 
+      ["doc", file, na, head, text] ->
+        write(file, &Clause.doc(&1, na, head, text, flags))
+
+      ["doc", file, na, head] ->
+        write(file, &Clause.doc(&1, na, head, nil, flags))
+
       # every clause at once — a half-flipped function does not compile
       ["visibility", file, na, want] ->
         write(file, &Clause.visibility(&1, na, visibility(want)))
 
       _ ->
         Mix.raise(
-          "usage: mix menard.clause (replace|rewrite|delete|insert-after|insert-before) FILE name/arity HEAD [CODE]\n" <>
+          "usage: mix menard.clause (replace|rewrite|delete|insert-after|insert-before) FILE name/arity HEAD [CODE] [--nth N]\n" <>
             "       mix menard.clause insert-at FILE (Mod.Name|-) [top|bottom] CODE\n" <>
+            "       mix menard.clause doc FILE name/arity HEAD [TEXT]   (no TEXT deletes it)\n" <>
             "       mix menard.clause visibility FILE name/arity (public|private)"
         )
     end
@@ -68,11 +77,16 @@ defmodule Mix.Tasks.Menard.Clause do
     file = Menard.resolve(file)
 
     case edit.(File.read!(file)) do
-      {:error, message} -> Mix.raise(message)
-      out -> File.write!(file, out)
+      {:error, message} ->
+        Mix.raise(message)
+
+      out ->
+        case Menard.checked_write(file, out) do
+          :ok -> :ok
+          {:error, message} -> Mix.raise(message)
+        end
     end
 
-    Menard.format(file)
     Mix.shell().info("menard.clause: #{file} written")
   end
 end

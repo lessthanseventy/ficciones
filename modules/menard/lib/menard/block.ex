@@ -40,29 +40,19 @@ defmodule Menard.Block do
   """
   @spec add(String.t(), String.t() | atom(), String.t() | nil, String.t(), keyword()) ::
           String.t() | {:error, String.t()}
+  # `defmodule` is not a block to add — a module with a `--label` renders `defmodule "Name"`, which
+  # parses and then dies at compile with "invalid module name". `module add` is the verb for that.
   def add(source, name, label, body, opts \\ []) do
-    with {:ok, ast} <- parse(source),
-         {:ok, module} <- Clause.module_scope(ast, opts[:module]),
-         {:ok, all} <- blocks(source, opts),
-         {:ok, where, anchor} <- placement(all, module, to_atom(name), opts[:in]) do
-      place(source, where, anchor, render(to_atom(name), label, body))
-    end
-  end
-
-  # `in:` names a parent to append inside; without it a sibling of the same name is the anchor, and
-  # with neither the module itself is.
-  defp placement(all, _module, _name, parent) when is_binary(parent) do
-    case Enum.filter(all, &(label(&1) == parent)) do
-      [node] -> {:ok, :inside, node}
-      [] -> {:error, "no block labelled #{inspect(parent)} here"}
-      many -> {:error, "#{length(many)} blocks labelled #{inspect(parent)} — cannot tell which"}
-    end
-  end
-
-  defp placement(all, module, name, _none) do
-    case Enum.filter(all, &(call_name(&1) == name)) do
-      [] -> {:ok, :inside, module}
-      siblings -> {:ok, :after, List.last(siblings)}
+    if to_atom(name) == :defmodule do
+      {:error,
+       "add a module with `menard.module add`, not `block add defmodule` (a --label would become a string module name)"}
+    else
+      with {:ok, ast} <- parse(source),
+           {:ok, module} <- Clause.module_scope(ast, opts[:module]),
+           {:ok, all} <- blocks(source, opts),
+           {:ok, where, anchor} <- placement(all, ast, module, to_atom(name), opts[:in]) do
+        place(source, where, anchor, render(to_atom(name), label, body))
+      end
     end
   end
 
@@ -205,6 +195,61 @@ defmodule Menard.Block do
     case Sourceror.parse_string(source) do
       {:ok, ast} -> {:ok, ast}
       {:error, reason} -> {:error, "not parseable — #{inspect(reason)}"}
+    end
+  end
+
+  @doc """
+  Rename a block's label — `test "old"` to `test "new"`, or a `describe`. The label is a string
+  literal, so no other verb reaches it: renaming a test used to mean editing the file as text.
+  Only the label moves; the body is untouched.
+  """
+  @spec relabel(String.t(), String.t(), String.t(), String.t(), keyword()) ::
+          String.t() | {:error, String.t()}
+  def relabel(source, name, label, new_label, opts \\ []) do
+    with {:ok, node} <- one(source, name, Keyword.put(opts, :label, label)),
+         {:ok, range} <- label_range(node) do
+      Sourceror.patch_string(source, [
+        %{range: range, change: inspect(new_label), preserve_indentation: false}
+      ])
+    end
+  end
+
+  # The range of the label STRING itself, quotes included — patching a wider range would reflow the
+  # `do` and the first body line with it.
+  defp label_range({_name, _meta, args}) do
+    args
+    |> Enum.find_value(fn
+      {:__block__, _meta, [text]} = node when is_binary(text) -> Sourceror.get_range(node)
+      _other -> nil
+    end)
+    |> case do
+      nil -> {:error, "that block has no string label to rename"}
+      range -> {:ok, range}
+    end
+  end
+
+  defp placement(all, ast, _module, _name, parent) when is_binary(parent) do
+    case Enum.filter(all, &(label(&1) == parent)) do
+      [node] ->
+        {:ok, :inside, node}
+
+      many when many != [] ->
+        {:error, "#{length(many)} blocks labelled #{inspect(parent)} — cannot tell which"}
+
+      [] ->
+        # A parent can be a MODULE as well as a labelled block — appending into a defmodule is the
+        # obvious reading of `--in Console.KeymapTest`, and it used to just say "no block labelled".
+        case Clause.module_scope(ast, parent) do
+          {:ok, node} -> {:ok, :inside, node}
+          _error -> {:error, "no block or module #{inspect(parent)} here"}
+        end
+    end
+  end
+
+  defp placement(all, _ast, module, name, _none) do
+    case Enum.filter(all, &(call_name(&1) == name)) do
+      [] -> {:ok, :inside, module}
+      siblings -> {:ok, :after, List.last(siblings)}
     end
   end
 end

@@ -21,9 +21,10 @@ defmodule Menard.Clause do
   @attached [:doc, :impl, :spec, :deprecated, :dialyzer]
 
   @doc "Replace the clause's body with `code` (one line → `, do:` form; more → a `do … end` block)."
-  @spec replace_body(String.t(), String.t(), String.t(), String.t()) :: String.t() | {:error, String.t()}
-  def replace_body(source, name_arity, head, code) do
-    with {:ok, clause} <- find(source, name_arity, head) do
+  @spec replace_body(String.t(), String.t(), String.t(), String.t(), keyword()) ::
+          String.t() | {:error, String.t()}
+  def replace_body(source, name_arity, head, code, opts \\ []) do
+    with {:ok, clause} <- find(source, name_arity, head, opts) do
       Sourceror.patch_string(source, [
         %{range: clause.range, change: clause_text(clause, code), preserve_indentation: false}
       ])
@@ -35,21 +36,26 @@ defmodule Menard.Clause do
   edits `replace_body/4` structurally cannot make: changing the args, adding a guard,
   destructuring a parameter.
   """
-  @spec rewrite(String.t(), String.t(), String.t(), String.t()) :: String.t() | {:error, String.t()}
-  def rewrite(source, name_arity, head, code) do
-    with {:ok, clause} <- find(source, name_arity, head),
+  @spec rewrite(String.t(), String.t(), String.t(), String.t(), keyword()) ::
+          String.t() | {:error, String.t()}
+  def rewrite(source, name_arity, head, code, opts \\ []) do
+    with {:ok, clause} <- find(source, name_arity, head, opts),
          {:ok, _node} <- parse_clause(code) do
       Sourceror.patch_string(source, [
-        %{range: clause.range, change: reindent(code, clause.indent), preserve_indentation: false}
+        %{
+          range: with_comments_above(source, clause.range, code),
+          change: reindent(code, clause.indent),
+          preserve_indentation: false
+        }
       ])
     end
   end
 
   @doc "Delete the clause, the comment lines glued above it, and one blank line left behind."
   @spec delete(String.t(), String.t(), String.t(), keyword()) :: String.t() | {:error, String.t()}
-  def delete(source, name_arity, head, _opts \\ []) do
+  def delete(source, name_arity, head, opts \\ []) do
     with {:ok, ast} <- parse(source),
-         {:ok, %{range: %{end: [line: b, column: _]}} = clause} <- find(source, name_arity, head) do
+         {:ok, %{range: %{end: [line: b, column: _]}} = clause} <- find(source, name_arity, head, opts) do
       lines = String.split(source, "\n")
       # The clause starts at its first ATTACHED ATTRIBUTE, not at its `def` — see @attached.
       a = attrs_start(ast, clause.range)
@@ -69,9 +75,10 @@ defmodule Menard.Clause do
   end
 
   @doc "Insert `code` as a new clause on the line after the addressed one, at its indent."
-  @spec insert_after(String.t(), String.t(), String.t(), String.t()) :: String.t() | {:error, String.t()}
-  def insert_after(source, name_arity, head, code) do
-    with {:ok, %{range: %{end: [line: b, column: c]}, indent: indent}} <- find(source, name_arity, head) do
+  @spec insert_after(String.t(), String.t(), String.t(), String.t(), keyword()) ::
+          String.t() | {:error, String.t()}
+  def insert_after(source, name_arity, head, code, opts \\ []) do
+    with {:ok, %{range: %{end: [line: b, column: c]}, indent: indent}} <- find(source, name_arity, head, opts) do
       body = code |> String.split("\n") |> Enum.map_join("\n", &(indent <> &1))
       at = %{start: [line: b, column: c], end: [line: b, column: c]}
       Sourceror.patch_string(source, [%{range: at, change: "\n" <> body, preserve_indentation: false}])
@@ -79,9 +86,11 @@ defmodule Menard.Clause do
   end
 
   @doc "Insert `code` as a new clause on the line before the addressed one, at its indent."
-  @spec insert_before(String.t(), String.t(), String.t(), String.t()) :: String.t() | {:error, String.t()}
-  def insert_before(source, name_arity, head, code) do
-    with {:ok, %{range: %{start: [line: a, column: _]}, indent: indent}} <- find(source, name_arity, head) do
+  @spec insert_before(String.t(), String.t(), String.t(), String.t(), keyword()) ::
+          String.t() | {:error, String.t()}
+  def insert_before(source, name_arity, head, code, opts \\ []) do
+    with {:ok, %{range: %{start: [line: a, column: _]}, indent: indent}} <-
+           find(source, name_arity, head, opts) do
       body = code |> String.split("\n") |> Enum.map_join("\n", &(indent <> &1))
       at = %{start: [line: a, column: 1], end: [line: a, column: 1]}
       Sourceror.patch_string(source, [%{range: at, change: body <> "\n", preserve_indentation: false}])
@@ -197,19 +206,43 @@ defmodule Menard.Clause do
 
   # -- locating a clause ----------------------------------------------------
 
-  defp find(source, name_arity, head) do
+  defp find(source, name_arity, head, opts) do
     with {:ok, {mod, name, arity}} <- parse_name_arity(name_arity),
          {:ok, ast} <- parse(source),
          {:ok, scope} <- scope(ast, mod, name, arity) do
       clauses = clauses(scope, name, arity)
       want = squash(head)
 
-      case Enum.find(clauses, &(squash(&1.head_text) == want)) do
-        nil -> {:error, "no clause #{name}/#{arity} with head `#{head}` — have: #{heads(clauses)}"}
-        clause -> {:ok, clause}
+      case Enum.filter(clauses, &(squash(&1.head_text) == want)) do
+        [] -> {:error, "no clause #{name}/#{arity} with head `#{head}` — have: #{heads(clauses)}"}
+        [one] -> {:ok, one}
+        many -> pick_nth(many, name, arity, head, opts[:nth])
       end
     end
   end
+
+  # Acting on "the first" silently is how a delete eats the clause that was just written, so an
+  # ambiguous head is refused and `--nth` is the way to mean one of them.
+  defp pick_nth(many, name, arity, head, nil) do
+    lines = Enum.map_join(many, ", ", fn c -> "line #{start_line_of(c)}" end)
+
+    {:error,
+     "#{length(many)} clauses of #{name}/#{arity} share the head `#{head}` (#{lines}) — " <>
+       "say which with --nth 1..#{length(many)}"}
+  end
+
+  defp pick_nth(many, name, arity, head, nth) do
+    case Enum.at(many, nth - 1) do
+      nil ->
+        {:error, "--nth #{nth} is past the #{length(many)} clauses of #{name}/#{arity} with head `#{head}`"}
+
+      clause ->
+        {:ok, clause}
+    end
+  end
+
+  defp start_line_of(%{range: %{start: [line: line, column: _]}}), do: line
+  defp start_line_of(_clause), do: "?"
 
   defp parse(source) do
     case Sourceror.parse_string(source) do
@@ -220,17 +253,34 @@ defmodule Menard.Clause do
 
   # `code` must BE a clause: a bare expression would silently replace a def with an expression and
   # leave the module a compile error, which is the one thing these verbs must never do.
+  # A clause and the comment glued above it are one unit to a reader, so `rewrite` takes both: the
+  # comment lines split off for the parse check and patch back in with the clause.
   defp parse_clause(code) do
-    case Sourceror.parse_string(code) do
+    {_comments, body} = split_leading_comments(code)
+
+    case Sourceror.parse_string(body) do
       {:ok, {kind, _meta, _args} = node} when kind in @kinds ->
         {:ok, node}
 
       {:ok, _other} ->
-        {:error, "rewrite needs a whole clause (`def …`), got: #{String.slice(String.trim(code), 0, 40)}"}
+        {:error, "rewrite needs a whole clause (`def …`), got: #{String.slice(String.trim(body), 0, 40)}"}
 
       {:error, reason} ->
         {:error, "not parseable — #{inspect(reason)}"}
     end
+  end
+
+  # Only a leading run that ENDS at the first real line counts, so a comment inside a body stays put.
+  defp split_leading_comments(code) do
+    lines = String.split(code, "\n")
+    {lead, rest} = Enum.split_while(lines, &comment_or_blank?/1)
+
+    {Enum.join(lead, "\n"), Enum.join(rest, "\n")}
+  end
+
+  defp comment_or_blank?(line) do
+    trimmed = String.trim(line)
+    trimmed == "" or String.starts_with?(trimmed, "#")
   end
 
   # The subtree to search: the named module's `defmodule`, or — unqualified — the whole file,
@@ -547,4 +597,103 @@ defmodule Menard.Clause do
 
   defp doc_attr?({:@, _meta, [{:doc, _inner, _args}]}), do: true
   defp doc_attr?(_node), do: false
+
+  @doc """
+  Set (or replace) the `@doc` attached to a clause. A docstring is a string literal on an
+  attribute, so no other verb reaches it — editing one meant editing the file as text. `text` is
+  the prose, not the `@doc` line: it is wrapped in a heredoc here. `nil` deletes the attribute.
+  """
+  @spec doc(String.t(), String.t(), String.t(), String.t() | nil, keyword()) ::
+          String.t() | {:error, String.t()}
+  def doc(source, name_arity, head, text, opts \\ []) do
+    with {:ok, ast} <- parse(source),
+         {:ok, clause} <- find(source, name_arity, head, opts) do
+      existing = attached_doc(ast, clause.range)
+      change = if is_nil(text), do: "", else: doc_text(text, clause.indent)
+
+      case {existing, text} do
+        {nil, nil} ->
+          source
+
+        {nil, _} ->
+          insert_at_line(source, doc_start(ast, clause.range), clause.indent <> change)
+
+        {range, nil} ->
+          delete_lines(source, range)
+
+        {range, _} ->
+          Sourceror.patch_string(source, [%{range: range, change: change, preserve_indentation: false}])
+      end
+    end
+  end
+
+  # The range of the clause's own `@doc`, or nil. Only an attribute in the ATTACHED run above the
+  # clause counts — a `@doc` further up belongs to a different function.
+  defp attached_doc(ast, %{start: [line: line, column: _]}) do
+    Enum.reduce(module_bodies(ast), nil, fn statements, acc ->
+      case Enum.find_index(statements, &(start_line(&1) == line)) do
+        nil ->
+          acc
+
+        i ->
+          statements
+          |> Enum.take(i)
+          |> Enum.reverse()
+          |> Enum.take_while(&attached_attr?/1)
+          |> Enum.find(&doc_attr?/1)
+          |> case do
+            nil -> acc
+            node -> Sourceror.get_range(node)
+          end
+      end
+    end)
+  end
+
+  # Where a NEW @doc goes: above the clause's attached attributes, so it lands over @impl/@spec
+  # rather than between them and the def.
+  defp doc_start(ast, range), do: attrs_start(ast, range)
+
+  defp doc_text(text, indent) do
+    pad = if is_integer(indent), do: String.duplicate(" ", indent), else: indent
+
+    body =
+      text
+      |> String.trim_trailing()
+      |> String.split("\n")
+      |> Enum.map_join("\n", &if(&1 == "", do: "", else: pad <> &1))
+
+    "@doc \"\"\"\n" <> body <> "\n" <> pad <> "\"\"\""
+  end
+
+  defp insert_at_line(source, line, text) do
+    lines = String.split(source, "\n")
+    {before, rest} = Enum.split(lines, line - 1)
+
+    Enum.join(before ++ [text] ++ rest, "\n")
+  end
+
+  defp delete_lines(source, %{start: [line: a, column: _], end: [line: b, column: _]}) do
+    source
+    |> String.split("\n")
+    |> Enum.with_index(1)
+    |> Enum.reject(fn {_text, i} -> i >= a and i <= b end)
+    |> Enum.map_join("\n", &elem(&1, 0))
+  end
+
+  # When the replacement carries its own leading comment, the range grows upward to swallow the
+  # comment already glued above the clause — otherwise the old why and the new one both survive,
+  # which is worse than the two-step edit this was meant to replace.
+  defp with_comments_above(source, range, code) do
+    case split_leading_comments(code) do
+      {"", _body} ->
+        range
+
+      {_lead, _body} ->
+        %{start: [line: line, column: _]} = range
+        lines = String.split(source, "\n")
+        above = comment_lines_above(lines, line - 1)
+
+        put_in(range.start, line: line - above, column: 1)
+    end
+  end
 end
