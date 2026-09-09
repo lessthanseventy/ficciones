@@ -77,6 +77,10 @@ the edit verbs (`rename_identifier`, `edit_clause`) and keeps introspection + ru
 3. Expert client (`refs`, `rename-refs`, `move-def`) — depends on the adapters' lspd being stable.
 4. `add-alias`/`add-import`; the console's OUTLINE drawer pane; the tlon-shaped `/implement` runs
    on these.
+5. A standalone Menard MCP (stdio, Anubis, cwd-scoped, no identity) for harnesses outside tlon —
+   Claude Code and a bare pi — exposing the SAME `Menard.*` functions and nothing else. Menard the
+   library stays a library; tlon's MCP stays the coworkers' scoped door (Andrew, 2026-09-08:
+   "is/should menard be an mcp?").
 
 Ties to `2026-09-08-tlon-shaped-flows.md` (the implement skill's toolbox) and the value-loop plan
 (review coworkers read `refs`/`diagnostics`, not raw diffs).
