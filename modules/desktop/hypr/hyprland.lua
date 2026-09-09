@@ -132,8 +132,11 @@ hl.config({
         -- colresize +conf/-conf (Super+R / Super+Shift+R) steps this ladder; it must contain
         -- column_width or the first press jumps straight to the smallest entry.
         explicit_column_widths = "0.33333,0.5,0.66667,0.8,1.0",
-        -- 0 centres the focused column. 1 scrolls the minimum needed to reveal it, which parks
-        -- a newly-revealed column flush against the screen edge as a sliver.
+        -- 0 centres the focused column — the look with nothing pinned. The shell flips this to 1
+        -- (scroll the minimum: the focused column flush against the sidecar, the neighbour
+        -- peeking on the right, enough to read and click) while a sidecar is pinned, and back
+        -- (lib/sidecar.ts fitMethod). Centring beside a sidecar left a dead band on the left
+        -- and the neighbour off-screen (Andrew, 2026-09-08).
         focus_fit_method = 0,
         follow_focus = true,
         wrap_focus = false,

@@ -260,6 +260,7 @@ export async function pinSidecar(c: Hyprland.Client) {
   timeout(80, relayout)
   timeout(400, () => place(c.address, m, col))
   sidecars.set(name, { address: c.address, zone: makeZone(name, col), frame: makeFrame(name, m, col, c.address), col, m, width: surfW(col) })
+  fitMethod()
   publish()
   startFollowing()
 }
@@ -272,6 +273,7 @@ function drop(name: string) {
   s.zone.destroy(); s.frame.destroy()
   sidecars.delete(name)
   publish()
+  fitMethod()
 }
 
 export async function unpinSidecar(c: Hyprland.Client) {
@@ -347,26 +349,16 @@ export function sidecarVerb(what = "toggle", arg?: string) {
 // A sidecar that closes must give its column back.
 hypr.connect("client-removed", (_, address: string) => {
   for (const [name, s] of sidecars) if (s.address === address) { drop(name); timeout(80, relayout) }
-  refitSoon()
 })
 
-// The columns beside a sidecar re-fit when their number changes: a second tiled window opened
-// later takes column_width and the layout CENTRES the focused column in the narrowed usable
-// area — a dead band against the sidecar, the neighbour hanging off-screen (Andrew, 2026-09-08:
-// "1 other window is fine, 2 makes a weird gap"). `fit visible` is what pin-time already runs.
-hypr.connect("client-added", (_, c) => { if (!c.floating && sidecars.has(c.get_monitor()?.name ?? "")) refitSoon() })
-// … and when a window moves between workspaces or the shown workspace changes (Andrew: "move one
-// to a different workspace, scroll, move it back, scroll back") — the same refit, debounced.
-const REFIT_EVENTS = new Set(["movewindow", "movewindowv2", "workspace", "workspacev2", "closewindow"])
-hypr.connect("event", (_, ev: string) => { if (REFIT_EVENTS.has(ev)) refitSoon() })
+// The layout's fit method follows the pins (hyprland.lua scrolling.focus_fit_method): 1 while
+// any sidecar is up — the focused column flush against it, the neighbour peeking on the right —
+// and 0, centred, when nothing is pinned (Andrew, 2026-09-08). Global, so it is the union
+// over monitors. Also what keeps a resize gap-free: flush-left or centred, never a stray band.
+// a `hyprctl reload` re-applies the config's 0 under a live sidecar: put it back
+hypr.connect("event", (_, ev: string) => { if (ev === "configreloaded") timeout(200, fitMethod) })
 
-let refitTimer: Timer | null = null
-function refitSoon() {
-  if (sidecars.size === 0) return
-  refitTimer?.cancel()
-  refitTimer = timeout(250, () => {
-    refitTimer = null
-    const f = hypr.focusedClient
-    if (f && f.mapped && !f.floating && sidecars.has(f.get_monitor()?.name ?? "")) dispatch(L.layout("fit visible")).catch(console.error)
-  })
+async function fitMethod() {
+  const method = sidecars.size > 0 ? 1 : 0
+  try { await evalLua(`hl.config({ scrolling = { focus_fit_method = ${method} } })`) } catch (e) { console.error("sidecar fit method:", String(e)) }
 }
