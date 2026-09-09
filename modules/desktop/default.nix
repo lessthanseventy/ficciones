@@ -121,6 +121,9 @@ in
       # shell's thumbnails, capture card and `mise shot:*` are grim); zoxide/sesh/cliamp were
       # tmux's dependents; aplay/amixer for the terminal
       grim slurp zoxide sesh cliamp alsa-utils
+      # pi-sandbox's Linux deps (bubblewrap + socat): socat went in the same sweep and pi
+      # "glitched like crazy" without it (2026-09-08 evening); bwrap is pacman's today, owned here too
+      socat bubblewrap
       # the last pacman-only user tools (survey 2026-09-08); yq-go is what pacman called go-yq
       ripgrep fzf atuin yq-go sqlite
     ];
