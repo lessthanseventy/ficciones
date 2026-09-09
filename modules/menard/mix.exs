@@ -10,9 +10,13 @@ defmodule Menard.MixProject do
       version: "0.1.0",
       elixir: "~> 1.18",
       start_permanent: false,
-      deps: [{:sourceror, "~> 1.12"}]
+      deps: [
+        {:sourceror, "~> 1.12"},
+        # the stdio MCP door (`mix menard.mcp`): the same functions for a harness outside tlon
+        {:anubis_mcp, "~> 2.0"}
+      ]
     ]
   end
 
-  def application, do: [extra_applications: [:logger]]
+  def application, do: [extra_applications: [:logger], mod: {Menard.Application, []}]
 end

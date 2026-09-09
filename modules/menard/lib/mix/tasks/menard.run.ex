@@ -19,49 +19,10 @@ defmodule Mix.Tasks.Menard.Run do
     dir = Menard.resolve(opts[:in] || ".")
 
     case args do
-      ["check"] -> finish(shell(dir, ["precommit"]))
-      ["test" | rest] -> finish(test(dir, rest))
-      ["format" | files] -> finish(format(dir, files))
-      ["compile"] -> finish(compile(dir))
+      [verb | rest] when verb in ~w(check test format compile) -> finish(Menard.Run.result(dir, verb, rest))
       _ -> Mix.raise("usage: mix menard.run [--in DIR] (check|test [FILE[:LINE]]|format [FILES]|compile)")
     end
   end
-
-  defp test(dir, args) do
-    {out, status} = mix(dir, ["test" | args])
-    out |> Menard.Run.parse_test(status) |> Menard.Run.with_sources(dir)
-  end
-
-  defp format(dir, files) do
-    files = Enum.map(files, &Path.expand(&1, dir))
-    before = Map.new(files, &{&1, File.read!(&1)})
-    {out, status} = mix(dir, ["format" | files])
-    changed = Enum.filter(files, &(File.read!(&1) != before[&1]))
-    %{ok: status == 0, exit: status, changed: changed, tail: tail(out)}
-  end
-
-  defp compile(dir) do
-    {out, status} = mix(dir, ["compile", "--force", "--warnings-as-errors"])
-
-    diagnostics =
-      ~r/(warning|error): (.+)\n(?:.*\n)*?\s*└─ ([^\s:]+):(\d+)/
-      |> Regex.scan(out)
-      |> Enum.map(fn [_, sev, msg, file, line] ->
-        %{severity: sev, message: msg, file: file, line: String.to_integer(line)}
-      end)
-
-    %{ok: status == 0, exit: status, diagnostics: diagnostics, tail: tail(out)}
-  end
-
-  defp shell(dir, args) do
-    {out, status} = mix(dir, args)
-    %{ok: status == 0, exit: status, tail: tail(out)}
-  end
-
-  # the TARGET project's mix, in its own directory and env — never this project's
-  defp mix(dir, args), do: System.cmd("mix", args, cd: dir, stderr_to_stdout: true, env: [{"MIX_ENV", "dev"}])
-
-  defp tail(out), do: out |> String.split("\n") |> Enum.take(-12) |> Enum.join("\n")
 
   defp finish(%{ok: ok} = result) do
     Mix.shell().info(JSON.encode!(result))

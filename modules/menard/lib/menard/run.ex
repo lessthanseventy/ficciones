@@ -5,6 +5,49 @@ defmodule Menard.Run do
   logs a suite prints on its way. `mix menard.run` prints what these return, as one JSON line.
   """
 
+  @doc """
+  A run verb in the mix project at `dir` — `"check"` (its `mix precommit`), `"test"` (args: files,
+  file:line), `"format"` (args: files; reports what changed), `"compile"` (warnings as
+  diagnostics) — as one map with `ok`. Both doors (`mix menard.run`, the MCP `run` tool) call this.
+  """
+  def result(dir, "check", _args), do: shell(dir, ["precommit"])
+
+  def result(dir, "test", args) do
+    {out, status} = mix(dir, ["test" | args])
+    out |> parse_test(status) |> with_sources(dir)
+  end
+
+  def result(dir, "format", files) do
+    files = Enum.map(files, &Path.expand(&1, dir))
+    before = Map.new(files, &{&1, File.read!(&1)})
+    {out, status} = mix(dir, ["format" | files])
+    changed = Enum.filter(files, &(File.read!(&1) != before[&1]))
+    %{ok: status == 0, exit: status, changed: changed, tail: tail(out)}
+  end
+
+  def result(dir, "compile", _args) do
+    {out, status} = mix(dir, ["compile", "--force", "--warnings-as-errors"])
+
+    diagnostics =
+      ~r/(warning|error): (.+)\n(?:.*\n)*?\s*└─ ([^\s:]+):(\d+)/
+      |> Regex.scan(out)
+      |> Enum.map(fn [_, sev, msg, file, line] ->
+        %{severity: sev, message: msg, file: file, line: String.to_integer(line)}
+      end)
+
+    %{ok: status == 0, exit: status, diagnostics: diagnostics, tail: tail(out)}
+  end
+
+  defp shell(dir, args) do
+    {out, status} = mix(dir, args)
+    %{ok: status == 0, exit: status, tail: tail(out)}
+  end
+
+  # the TARGET project's mix, in its own directory and env — never this project's
+  defp mix(dir, args), do: System.cmd("mix", args, cd: dir, stderr_to_stdout: true, env: [{"MIX_ENV", "dev"}])
+
+  defp tail(out), do: out |> String.split("\n") |> Enum.take(-12) |> Enum.join("\n")
+
   @doc "Parse `mix test` output (+ its exit status) into `%{ok, exit, tests, failed, failures, tail}`."
   def parse_test(out, status) do
     {tests, failed} = counts(out)
