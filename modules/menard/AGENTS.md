@@ -71,9 +71,13 @@ What the verbs guarantee, where it is not obvious from the name:
 
 ## Before you are done
 
-`run [--in DIR] check` — format, warnings-as-errors, tests. Menard's verbs format after every
-edit, so the formatter's output is what your next read shows; a `--check-formatted` failure at the
-gate should never be the first you hear of it.
+`run [--in DIR] check` — format, warnings-as-errors, tests, in one call. `run test` and
+`run compile` answer the same way: one line, `{"ok":…,"tests":…,"failures":[…]}`, each failure
+carrying its source, rather than output to grep. A bare `mix test` gets a nudge toward this from a
+`PostToolUse` hook — advisory, since the command has already run.
+
+Menard's verbs format after every edit, so the formatter's output is what your next read shows; a
+`--check-formatted` failure at the gate should never be the first you hear of it.
 
 A parse-checked write catches **malformed** output, not **wrong** output. It is a floor, not a
 proof: run the check.

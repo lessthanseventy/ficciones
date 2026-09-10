@@ -1,5 +1,5 @@
 {
-  "description": "Elixir modules are edited with menard's verbs, not with text substitution \u2014 and whatever is written is formatted with its own project's formatter before anyone reads it back.",
+  "description": "Elixir modules are edited with menard's verbs, not with text substitution; whatever is written is formatted with its own project's formatter before anyone reads it back; and a bare `mix test` is pointed at the structured door.",
   "hooks": {
     "PreToolUse": [
       {
@@ -21,6 +21,16 @@
             "type": "command",
             "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/format-elixir.sh\"",
             "statusMessage": "mix format"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/prefer-menard-run.sh\"",
+            "statusMessage": "menard run"
           }
         ]
       }

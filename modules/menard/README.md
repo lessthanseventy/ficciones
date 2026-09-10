@@ -51,6 +51,9 @@ finishing its own change.
   commands gets switched off.
 - **`format-elixir.sh`** (`PostToolUse`) formats whatever was written with the file's *own*
   project formatter, plugins included, so the formatter's output is what the next read shows.
+- **`prefer-menard-run.sh`** (`PostToolUse`) points a bare `mix test`/`compile`/`format` at
+  `menard run`, which answers in one structured line. Advisory — the command has already run, and
+  that is what lets the match stay loose.
 
 The guard exists because the rule "use menard for Elixir" was written down and then broken inside
 the hour. A rule an agent has to remember is a rule it breaks.
