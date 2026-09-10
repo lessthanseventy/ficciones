@@ -84,6 +84,31 @@ f="$d/$(date +%Y-%m-%d_%H.%M.%S)_window-$n.png"
 grim -g "$g" "$f" && echo "$f"
 '''
 
+["shot:layer"]
+description = "desktop: grim ONE of the shell's layer surfaces on the focused monitor (arg: rail|bar|deck|backdrop, or any namespace substring; default bar). The shell draws in LAYERS, not windows, so shot:window cannot see it and shot:monitor makes you crop by hand."
+run = '''
+set -euo pipefail
+d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
+q='{{arg(name="layer", default="bar")}}'
+m=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name')
+# layer x/y are already global compositor coords, which is what grim -g wants
+g=$(hyprctl layers -j | jq -r --arg m "$m" --arg q "$q" '.[$m].levels | to_entries[].value[] | select(.namespace | test($q;"i")) | "\(.x),\(.y) \(.w)x\(.h)"' | head -1)
+[ -n "$g" ] || { echo "no layer matching '$q' on $m — try: $(hyprctl layers -j | jq -r --arg m "$m" '[.[$m].levels | to_entries[].value[].namespace] | join(\", \")')" >&2; exit 1; }
+f="$d/$(date +%Y-%m-%d_%H.%M.%S)_layer-$q.png"
+grim -g "$g" "$f" && echo "$f"
+'''
+
+["shot:region"]
+description = "desktop: grim an arbitrary rectangle in global compositor coords (arg: 'X,Y WxH', e.g. '1920,40 48x280') — the escape hatch when the thing you want is not a window or a layer"
+run = '''
+set -euo pipefail
+g='{{arg(name="geometry")}}'
+[ -n "$g" ] || { echo "usage: mise run shot:region -- 'X,Y WxH'" >&2; exit 2; }
+d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
+f="$d/$(date +%Y-%m-%d_%H.%M.%S)_region.png"
+grim -g "$g" "$f" && echo "$f"
+'''
+
 ["shell:check"]
 description = "shell: the gate — ags bundle (syntax + imports + scss), then tsc over our files; both hard-fail"
 dir = "modules/desktop/shell"

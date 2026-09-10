@@ -1,0 +1,29 @@
+{
+  "description": "Elixir modules are edited with menard's verbs, not with text substitution \u2014 and whatever is written is formatted with its own project's formatter before anyone reads it back.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/menard-only.sh\"",
+            "statusMessage": "menard guard"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/format-elixir.sh\"",
+            "statusMessage": "mix format"
+          }
+        ]
+      }
+    ]
+  }
+}
