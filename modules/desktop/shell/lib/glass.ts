@@ -19,4 +19,4 @@ export function setGlass(on: boolean) {
     keyword("decoration:inactive_opacity", i),
   ]).then(() => setGlassState(on)).catch(console.error)
 }
-export const toggleGlass = () => setGlass(!glass.get())
+export const toggleGlass = () => setGlass(!glass.peek())
