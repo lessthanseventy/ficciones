@@ -35,7 +35,6 @@
     ]
   },
   "hooks": {
-    "_comment": "Menard owns both of these \u2014 modules/menard/hooks/hooks.json is the plugin manifest. Wired here by path so the repo works without an install step; when menard ships as a plugin, enabling it replaces this block verbatim.",
     "PreToolUse": [
       {
         "matcher": "Edit|MultiEdit|Write|NotebookEdit",
