@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
-# `menard VERB ARGS…` → `mix menard.VERB ARGS…` from menard's own project. mise's `menard` task
-# runs this with dir = modules/menard; MISE_ORIGINAL_CWD tells the tasks where the caller stood.
+# `menard VERB ARGS…` → `mix menard.VERB ARGS…` from menard's own project.
 set -euo pipefail
+
+# Run from menard's own project WHEREVER this was invoked from. mise's `menard` task supplies that
+# with `dir = modules/menard`, but the plugin has no mise — its hook hands out this script's path
+# directly, and mix run from anywhere else finds no mix.exs. The caller's directory rides
+# MISE_ORIGINAL_CWD, which is what every verb resolves a relative path against (Menard.caller_dir/0),
+# and mise sets it already, so this is a no-op under the task.
+export MISE_ORIGINAL_CWD="${MISE_ORIGINAL_CWD:-$PWD}"
+cd -- "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 verbs="write|rename|clause|outline|find|diagnostics|inspect|run|mcp"
 frozen=0
