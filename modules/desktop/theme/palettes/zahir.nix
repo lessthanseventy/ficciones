@@ -72,8 +72,14 @@ rec {
     borderInactive2 = emberDim;
   };
 
-  # The 16 ANSI slots for terminals, on paper: every colour its deep version; yellow IS the
-  # body ink so `yellow` in a TUI reads as ordinary text; brightWhite is the darkest ink.
+  # The 16 ANSI slots for terminals, on paper: every colour its deep version; yellow IS the body
+  # ink so `yellow` in a TUI reads as ordinary text. These are a CONTRACT with terminal programs,
+  # not roles: `black` is the darkest thing available and `white`/`brightWhite` the lightest, so a
+  # program writing `fg=black bg=white` (or the reverse) is legible. That is why they do NOT
+  # follow the `white` HUE, which on paper means "max contrast on the ground" and so is dark —
+  # binding brightWhite to it made black and brightWhite the SAME colour and any program pairing
+  # them invisible. A program writing bare light-on-default is unreadable on any light theme;
+  # ghostty's minimum-contrast catches that at render time.
   ansi = with hue; {
     black = "1A1A1A";
     red = red;
@@ -82,7 +88,7 @@ rec {
     blue = violet;
     magenta = pink;
     cyan = cyan;
-    white = grey;
+    white = "E8E2D4"; # the paper, not the ink
     brightBlack = dim;
     brightRed = "912923";
     brightGreen = "1A5B1A";
@@ -90,7 +96,7 @@ rec {
     brightBlue = lilac;
     brightMagenta = "91225F";
     brightCyan = "19566A";
-    brightWhite = white;
+    brightWhite = "FFFBF0"; # the lightest thing available
   };
   ansiList = with ansi; [
     black red green yellow blue magenta cyan white

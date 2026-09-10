@@ -77,7 +77,10 @@ rec {
   };
 
   # The 16 ANSI slots for terminals. Yellow IS the body amber so `yellow` in a TUI reads as
-  # ordinary text; blue is violet (a true blue on black is unreadable at this contrast).
+  # ordinary text; blue is violet (a true blue on black is unreadable at this contrast). These are
+  # a CONTRACT with terminal programs, not roles: `black` is the darkest thing available and
+  # `white`/`brightWhite` the lightest, so a program writing `fg=black bg=white` is legible either
+  # way round. zahir has to say that out loud; here it falls out of the ground being black.
   ansi = with hue; {
     black = "1A1A1A";
     red = red;

@@ -189,6 +189,12 @@ rec {
     theme = ficciones
     font-family = ${f.family}
     font-size = ${toString f.size}
+    # The floor for colour we do NOT own. Our own pairs clear AAA by construction and
+    # checks.palette-contrast proves it; this catches what a program picks for itself — a 256-colour
+    # index, a vendored theme, bare `fg=white` on a light ground — and lifts it to WCAG AA rather
+    # than letting it render unreadable. Higher than this starts flattening third-party colour
+    # toward black and white, which costs more than it buys.
+    minimum-contrast = 4.5
     ${template}
   '';
 
@@ -586,8 +592,8 @@ rec {
     export FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS \
       --color=fg:${hex h.amber},bg:${hex h.bg},hl:${hex h.cyan} \
       --color=fg+:${hex h.ink},bg+:${hex h.chip},hl+:${hex h.ink} \
-      --color=info:${hex h.lilac},prompt:${hex h.cyan},pointer:${hex h.pink} \
-      --color=marker:${hex h.green},spinner:${hex h.pink},header:${hex h.lilac} \
+      --color=info:${hex h.lilac},prompt:${hex h.cyan},pointer:${hex h.amber} \
+      --color=marker:${hex h.sel},spinner:${hex h.pink},header:${hex h.lilac} \
       --color=border:${hex h.sep},label:${hex h.cyan},query:${hex h.amber}"
   '';
 
@@ -610,6 +616,8 @@ rec {
     set -g status-style "bg=default,fg=${hex h.amber}"
     set -g window-status-current-style "fg=${hex h.ink},bg=${hex h.amber},bold"
     set -g window-status-style "fg=${hex h.dim}"
+    set -g window-status-activity-style "fg=${hex h.green}"
+    set -g window-status-bell-style "fg=${hex h.red},bold"
     set -g message-style "fg=${hex h.cyan},bg=default"
     set -g mode-style "fg=${hex h.selInk},bg=${hex h.sel}"
     set -g pane-border-style "fg=${hex h.amberDim}"

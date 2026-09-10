@@ -18,6 +18,8 @@ let
   # inverse video: a filled field and the ink that sits in it
   field = fg: bg: { label = "${fg} on the ${bg} field"; inherit fg bg; min = AAA; };
   band = n: { label = "${n} vs the ground"; fg = n; bg = "bg"; min = BAND; };
+  # ANSI names resolve through the same lookup, prefixed
+  ansiPair = fg: bg: { label = "ANSI ${fg} on ${bg}"; fg = "ansi:${fg}"; bg = "ansi:${bg}"; min = AAA; };
 in
 {
   # every hue that carries body-weight text
@@ -64,6 +66,22 @@ in
       why = "Claude Code exposes selectionBg with no paired foreground; see the comment in contrast.nix";
     }) [ "amber" "cyan" "lilac" "green" "dim" "pink" ];
 
-  # resolved hexes, so the checker needs nothing but this file
-  inherit (palette) hue;
+  # The ANSI 16 are a contract, not roles: whichever way round a program pairs the ends of the
+  # ramp, it has to be legible. zahir bound brightWhite to the `white` HUE (which on paper is
+  # dark, being "max contrast on the ground") and so made black and brightWhite the same colour.
+  # Everything a program builds out of the OTHER twelve slots is caught at render time instead,
+  # by ghostty's minimum-contrast.
+  # Only the black<->white ends: `brightBlack` is defined by its job on the GROUND (uqbar's is a
+  # dim amber, which is the point) and a program pairing it against brightWhite is joining two
+  # ends that were never meant to meet — 2.73:1, and not fixable without giving up the amber.
+  ansi = [
+    (ansiPair "black" "white")
+    (ansiPair "black" "brightWhite")
+  ];
+
+  # resolved hexes, so the checker needs nothing but this file: the hues, plus the ANSI slots
+  # under an `ansi:` prefix so both resolve through one map
+  hue = palette.hue // (builtins.listToAttrs
+    (map (n: { name = "ansi:${n}"; value = palette.ansi.${n}; })
+      (builtins.attrNames palette.ansi)));
 }

@@ -40,7 +40,10 @@ window.rail .rule-h { margin: $sp-2 $sp-1; }
     label { font-size: $size-lg; }
     // amber is "here", green is "there, and something is in it" — the palette has always said
     // green means live/occupied; the rail used to say amber for both and so said only here/not-here
-    &.occupied { color: $green; }
+    // and a green rule under the pill, because an occupied workspace shows its app ICON, not a
+    // number — without this the state is only visible while Super is held and the numbers return
+    &.occupied { color: $green; box-shadow: inset 0 -2px 0 0 $green; }
+    &.occupied.focused { box-shadow: none; }
     &.focused  { background: $chip; color: $ink; label { color: $ink; } }
     &.focused:hover { background: $chip; }
   }
