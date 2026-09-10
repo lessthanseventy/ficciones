@@ -718,18 +718,26 @@ defmodule Menard.Clause do
   def comment(source, name_arity, head, text, opts \\ []) do
     with {:ok, ast} <- parse(source),
          {:ok, clause} <- find(source, name_arity, head, opts) do
-      lines = String.split(source, "\n")
-      # The comment sits above the clause's ATTACHED attributes, not above the `def` — a `@doc`
-      # written between them would otherwise orphan the comment from what it explains.
-      anchor = attrs_start(ast, clause.range)
-      above = comment_lines_above(lines, anchor - 1)
+      # Above the clause's ATTACHED attributes, not above the `def` — a `@doc` written between them
+      # would orphan the comment from what it explains.
+      comment_at(source, attrs_start(ast, clause.range), clause.indent, text)
+    end
+  end
 
-      case {above, text} do
-        {0, nil} -> source
-        {0, _} -> insert_at_line(source, anchor, comment_text(text, clause.indent))
-        {n, nil} -> delete_line_range(source, anchor - n, anchor - 1)
-        {n, _} -> replace_line_range(source, anchor - n, anchor - 1, comment_text(text, clause.indent))
-      end
+  @doc """
+  The `#` comment block immediately above line `anchor`: written, replaced, or — with `text` nil —
+  removed. Shared with `Menard.Attr.comment/4`, since an attribute's comment is the same edit at a
+  different anchor.
+  """
+  @spec comment_at(String.t(), pos_integer(), non_neg_integer() | String.t(), String.t() | nil) :: String.t()
+  def comment_at(source, anchor, indent, text) do
+    above = source |> String.split("\n") |> comment_lines_above(anchor - 1)
+
+    case {above, text} do
+      {0, nil} -> source
+      {0, _} -> insert_at_line(source, anchor, comment_text(text, indent))
+      {n, nil} -> delete_line_range(source, anchor - n, anchor - 1)
+      {n, _} -> replace_line_range(source, anchor - n, anchor - 1, comment_text(text, indent))
     end
   end
 

@@ -20,11 +20,28 @@ defmodule Mix.Tasks.Menard.Attr do
     where = [module: opts[:module]]
 
     case args do
-      ["get", file, name] -> report(Attr.get(File.read!(Menard.resolve(file)), name, where))
-      ["list", file] -> report(list(Attr.list(File.read!(Menard.resolve(file)), where)))
-      ["set", file, name, value] -> edit(file, &Attr.set(&1, name, value, where))
-      ["delete", file, name] -> edit(file, &Attr.delete(&1, name, where))
-      _ -> Mix.raise("usage: mix menard.attr (get|set|delete) FILE NAME [VALUE] | list FILE [--module Mod]")
+      ["get", file, name] ->
+        report(Attr.get(File.read!(Menard.resolve(file)), name, where))
+
+      ["list", file] ->
+        report(list(Attr.list(File.read!(Menard.resolve(file)), where)))
+
+      ["set", file, name, value] ->
+        edit(file, &Attr.set(&1, name, value, where))
+
+      ["delete", file, name] ->
+        edit(file, &Attr.delete(&1, name, where))
+
+      ["comment", file, name] ->
+        edit(file, &Attr.comment(&1, name, nil, where))
+
+      ["comment", file, name, text] ->
+        edit(file, &Attr.comment(&1, name, text, where))
+
+      _ ->
+        Mix.raise(
+          "usage: mix menard.attr (get|set|delete|comment) FILE NAME [VALUE|TEXT] | list FILE [--module Mod]"
+        )
     end
   end
 

@@ -43,6 +43,20 @@ defmodule Menard.Attr do
     end
   end
 
+  @doc """
+  The `#` comment above `@name`: prose in, `#` added; no `text` removes it. The attribute twin of
+  `Menard.Clause.comment/5` — a comment above a table had no verb, so explaining one meant editing
+  the file as text, which is the thing these verbs exist to replace.
+  """
+  @spec comment(String.t(), String.t() | atom(), String.t() | nil, keyword()) ::
+          String.t() | {:error, String.t()}
+  def comment(source, name, text, opts \\ []) do
+    with {:ok, node} <- one(source, name, opts) do
+      %{start: [line: line, column: col]} = Sourceror.get_range(node)
+      Clause.comment_at(source, line, col - 1, text)
+    end
+  end
+
   @doc "Every attribute the module sets, as `{name, line}` in source order — the read half."
   @spec list(String.t(), keyword()) :: [{atom(), pos_integer()}] | {:error, String.t()}
   def list(source, opts \\ []) do

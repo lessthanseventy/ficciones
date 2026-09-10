@@ -17,6 +17,7 @@ outline FILE                                   what is in the file
 find PATTERN FILES                             where a thing is
 deps FILE name/arity                           what a function calls
 attr    get|set|delete|list  FILE NAME [VALUE]
+attr    comment FILE NAME [TEXT]                the # comment above a table
 clause  replace|rewrite|delete|insert-after|insert-before  FILE name/arity HEAD [CODE] [--nth N]
 clause  insert-at FILE (Mod|-) top|bottom CODE
 clause  doc|comment FILE name/arity HEAD [TEXT]

@@ -130,6 +130,29 @@ defmodule Menard.AttrTest do
     assert at.("@moduledoc") < at.("@body P.body()")
     assert at.("@body P.body()") < at.("@ground")
   end
+
+  test "comment writes, replaces and removes the # block above an attribute" do
+    src = """
+    defmodule A do
+      # stale
+      @colors %{a: 1}
+
+      @plain 2
+    end
+    """
+
+    written = Menard.Attr.comment(src, "colors", "what the panels resolve through")
+    assert written =~ "# what the panels resolve through\n  @colors"
+    refute written =~ "# stale"
+
+    # an attribute with no comment yet gets one at its own column
+    assert Menard.Attr.comment(src, "plain", "why 2") =~ "  # why 2\n  @plain 2"
+
+    # no text removes it, and takes the whole block
+    removed = Menard.Attr.comment(src, "colors", nil)
+    refute removed =~ "# stale"
+    assert removed =~ "@colors %{a: 1}"
+  end
 end
 
 defmodule Menard.BlockTest do

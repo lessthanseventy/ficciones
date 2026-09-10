@@ -20,6 +20,7 @@ SHAPE of what you are changing, not the size of the change:
 | one expression inside it | `stmt replace FILE name/arity HEAD MATCH CODE` |
 | a whole clause's existence | `clause insert-after` / `insert-before` / `delete` |
 | a module attribute (`@colors`, `@hints`) | `attr get\|set\|delete\|list FILE @name` |
+| the comment above one | `attr comment FILE @name [TEXT]` — no TEXT removes it |
 | a `do` block by its label — an ExUnit `test`, a `describe` | `block get\|replace\|add\|relabel FILE test --label "…"` |
 | an alias/import/require/use | `directive add\|remove\|list FILE KIND MOD` |
 | a name, everywhere | `rename OLD NEW [--atoms] [--comments] FILES` |
