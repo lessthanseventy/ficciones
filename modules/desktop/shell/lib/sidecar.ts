@@ -102,6 +102,8 @@ function gdkMonitor(name: string): Gdk.Monitor | undefined {
     const m = mons.get_item(i) as Gdk.Monitor
     if (m.connector === name) return m
   }
+
+  return undefined
 }
 
 function makeZone(name: string, col: number): Astal.Window {
@@ -317,7 +319,13 @@ export function colresize(arg: string) {
   const d = arg === "narrower" ? -0.05 : arg === "wider" ? 0.05 : Number(arg) || 0
   const c = hypr.focusedClient
   const s = c && [...sidecars.entries()].find(([, x]) => x.address === c.address)
-  if (!c || !s) return batch([L.layout(`colresize ${d > 0 ? "+" : ""}${d}`)])
+  // not on a sidecar: hand the resize to the layout and stop. A `return batch(…)` here made one
+  // path value-returning and the other void, for a value the only caller discards.
+  if (!c || !s) {
+    batch([L.layout(`colresize ${d > 0 ? "+" : ""}${d}`)])
+    return
+  }
+
   const [name, side] = s
   follow(name, side.width + Math.round(side.m.width * d))
 }

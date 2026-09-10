@@ -1,6 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "jsx": "react-jsx",
     "jsxImportSource": "ags/gtk4",
     "lib": [
@@ -9,6 +11,9 @@
     "module": "ES2022",
     "moduleResolution": "Bundler",
     "noEmit": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "paths": {
@@ -27,7 +32,8 @@
     },
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2020"
+    "target": "ES2020",
+    "verbatimModuleSyntax": true
   },
   "exclude": [
     "node_modules"
