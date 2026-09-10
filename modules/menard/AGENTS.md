@@ -19,6 +19,7 @@ SHAPE of what you are changing, not the size of the change:
 | its head, args or guard | `clause rewrite FILE name/arity HEAD 'def …'` |
 | one expression inside it | `stmt replace FILE name/arity HEAD MATCH CODE` |
 | a whole clause's existence | `clause insert-after` / `insert-before` / `delete` |
+| which FILE a function lives in | `clause move FILE name/arity --to DEST [--as Mod.Name]` |
 | a module attribute (`@colors`, `@hints`) | `attr get\|set\|delete\|list FILE @name` |
 | the comment above one | `attr comment FILE @name [TEXT]` — no TEXT removes it |
 | a `do` block by its label — an ExUnit `test`, a `describe` | `block get\|replace\|add\|relabel FILE test --label "…"` |
@@ -45,10 +46,13 @@ What the verbs guarantee, where it is not obvious from the name:
 - `find calls|defs|aliases` is grep that knows the code: strings and comments never match.
 - `write FILE CODE` (`-` reads stdin) refuses Elixir that does not parse, before it reaches disk.
   For a NEW module, or a rewrite so total that patching is the wrong tool.
+- `clause move` carries the function's `@doc`, `@spec` and the comment above it, and takes EVERY
+  clause — half a function in each file is the mistake `visibility` refuses. It creates a missing
+  destination, naming the module after the path the way a generator would (`--as` overrides). It
+  does NOT touch aliases or call sites: that is the judgement, and `deps` is how you make it.
 - `deps FILE name/arity` reports what a function references: local calls and who else calls them,
   remote calls, the aliases that must travel, the attributes that will not. **The read before
-  moving code — there is no `move` verb on purpose**, because a move is this report plus a
-  judgement, then insert-at, directive add, delete, find calls, run compile.
+  moving code.**
 
 ## What no error can tell you
 

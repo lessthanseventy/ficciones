@@ -20,6 +20,7 @@ attr    get|set|delete|list  FILE NAME [VALUE]
 attr    comment FILE NAME [TEXT]                the # comment above a table
 clause  replace|rewrite|delete|insert-after|insert-before  FILE name/arity HEAD [CODE] [--nth N]
 clause  insert-at FILE (Mod|-) top|bottom CODE
+clause  move FILE name/arity --to DEST [--as Mod.Name]   with its doc, spec and comment
 clause  doc|comment FILE name/arity HEAD [TEXT]
 clause  visibility FILE name/arity public|private
 stmt    insert-after|insert-before|replace|delete|list  FILE name/arity HEAD MATCH [CODE]

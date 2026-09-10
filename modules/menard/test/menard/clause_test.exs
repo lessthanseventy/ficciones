@@ -364,4 +364,63 @@ defmodule Menard.ClauseTest do
       assert message =~ "rewrite"
     end
   end
+
+  test "move takes EVERY clause, with the doc, spec and comment above them" do
+    src = """
+    defmodule A do
+      def stays, do: :here
+
+      # why this one is special
+      @doc "entry"
+      @spec go(integer()) :: integer()
+      def go(0), do: :zero
+      def go(n), do: n + 1
+    end
+    """
+
+    dest = """
+    defmodule B do
+      def existing, do: 1
+    end
+    """
+
+    {:ok, out_src, out_dest} = Clause.move(src, dest, "go/1")
+
+    # a @doc or @spec left behind re-attaches to whatever definition follows it
+    refute out_src =~ "go("
+    refute out_src =~ "@doc"
+    refute out_src =~ "@spec"
+    refute out_src =~ "# why this one"
+    assert out_src =~ "def stays"
+
+    assert out_dest =~ "# why this one is special"
+    assert out_dest =~ ~s(@doc "entry")
+    assert out_dest =~ "@spec go(integer())"
+    assert out_dest =~ "def go(0), do: :zero"
+    assert out_dest =~ "def go(n), do: n + 1"
+    assert out_dest =~ "def existing"
+  end
+
+  test "move closes the gap it leaves, and lands at the destination's own indent" do
+    src = """
+    defmodule A do
+      def one, do: 1
+
+      def go, do: :moved
+
+      def two, do: 2
+    end
+    """
+
+    {:ok, out_src, out_dest} = Clause.move(src, "defmodule B do\nend\n", "go/0")
+
+    refute out_src =~ "\n\n\n"
+    assert out_src =~ "def one, do: 1\n\n  def two, do: 2"
+    assert out_dest =~ "\n  def go, do: :moved\n"
+  end
+
+  test "move refuses a function that is not there, naming it" do
+    assert {:error, message} = Clause.move("defmodule A do\nend\n", "defmodule B do\nend\n", "nope/1")
+    assert message =~ "nope/1"
+  end
 end

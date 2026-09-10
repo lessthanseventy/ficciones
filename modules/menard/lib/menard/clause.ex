@@ -52,26 +52,61 @@ defmodule Menard.Clause do
     end
   end
 
+  # The lines a clause OWNS: its `def`, the @doc/@spec/@impl written above it, and the comment above
+  # those. Zero-based and inclusive. Shared by `delete/4` and `move/4`, which must agree exactly —
+  # a doc left behind by one re-attaches to whatever definition follows it.
+  defp attached_span(ast, lines, %{range: %{end: [line: b, column: _]}} = clause) do
+    a = attrs_start(ast, clause.range)
+    {a - 1 - comment_lines_above(lines, a - 1), b - 1}
+  end
+
+  defp drop_spans(lines, spans) do
+    lines
+    |> Enum.with_index()
+    |> Enum.reject(fn {_l, i} -> Enum.any?(spans, fn {a, b} -> i >= a and i <= b end) end)
+    |> Enum.map_join("\n", &elem(&1, 0))
+  end
+
+  # Take the blank line after the span too, but only when the span was blank-separated above as
+  # well — otherwise removing the last clause of a run closes a gap that was never there.
+  defp with_trailing_blank(lines, {first, last}) do
+    if Enum.at(lines, last + 1) == "" and (first == 0 or Enum.at(lines, first - 1) == ""),
+      do: {first, last + 1},
+      else: {first, last}
+  end
+
+  # A function's clauses sit together, so their spans are one block to a reader and to the
+  # blank-line rule — applied per clause it never fires, and the gap the function left stays open.
+  # Non-adjacent spans stay separate: merging them would take whatever sits between.
+  defp merge_spans(spans) do
+    spans
+    |> Enum.sort()
+    |> Enum.reduce([], fn
+      {a, b}, [{pa, pb} | rest] when a <= pb + 1 -> [{pa, max(pb, b)} | rest]
+      span, acc -> [span | acc]
+    end)
+    |> Enum.reverse()
+  end
+
+  defp dedent(text) do
+    pad =
+      text
+      |> String.split("\n")
+      |> Enum.reject(&(String.trim(&1) == ""))
+      |> Enum.map(&(String.length(&1) - String.length(String.trim_leading(&1))))
+      |> Enum.min(fn -> 0 end)
+
+    text |> String.split("\n") |> Enum.map_join("\n", &String.slice(&1, pad..-1//1))
+  end
+
   @doc "Delete the clause, the comment lines glued above it, and one blank line left behind."
   @spec delete(String.t(), String.t(), String.t(), keyword()) :: String.t() | {:error, String.t()}
   def delete(source, name_arity, head, opts \\ []) do
     with {:ok, ast} <- parse(source),
-         {:ok, %{range: %{end: [line: b, column: _]}} = clause} <- find(source, name_arity, head, opts) do
+         {:ok, clause} <- find(source, name_arity, head, opts) do
       lines = String.split(source, "\n")
-      # The clause starts at its first ATTACHED ATTRIBUTE, not at its `def` — see @attached.
-      a = attrs_start(ast, clause.range)
-      first = a - 1 - comment_lines_above(lines, a - 1)
-      last = b - 1
-
-      last =
-        if Enum.at(lines, last + 1) == "" and (first == 0 or Enum.at(lines, first - 1) == ""),
-          do: last + 1,
-          else: last
-
-      lines
-      |> Enum.with_index()
-      |> Enum.reject(fn {_l, i} -> i >= first and i <= last end)
-      |> Enum.map_join("\n", &elem(&1, 0))
+      span = attached_span(ast, lines, clause)
+      drop_spans(lines, [with_trailing_blank(lines, span)])
     end
   end
 
@@ -121,6 +156,50 @@ defmodule Menard.Clause do
       case anchor(definitions(node), normalize_where(where), code) do
         nil -> insert_inside_empty(source, node, code)
         {sibling, side} -> anchor_insert(source, sibling, side, code)
+      end
+    end
+  end
+
+  @doc """
+  Move EVERY clause of `name/arity` out of `source` and into `dest`, carrying the `@doc`, `@spec`
+  and `@impl` written above it and the comment above those.
+
+  The whole function, never one clause — half of it in each file is the same mistake
+  `visibility/3` refuses. Attachments travel because that is the half of a move that fails
+  SILENTLY: a `@doc` left behind re-attaches to whatever definition follows it, and a `@spec`
+  left behind describes a head that is gone.
+
+  Returns `{:ok, source_without_it, dest_with_it}`. Aliases and call sites are deliberately NOT
+  touched — `deps FILE name/arity` names them, and which of them should travel is a judgement.
+  """
+  @spec move(String.t(), String.t(), String.t(), keyword()) ::
+          {:ok, String.t(), String.t()} | {:error, String.t()}
+  def move(source, dest, name_arity, opts \\ []) do
+    with {:ok, {mod, name, arity}} <- parse_name_arity(name_arity),
+         {:ok, ast} <- parse(source),
+         {:ok, scope} <- scope(ast, mod, name, arity),
+         {:ok, dest_ast} <- parse(dest),
+         {:ok, dest_module} <- module_scope(dest_ast, opts[:module]) do
+      case clauses(scope, name, arity) do
+        [] ->
+          {:error, "no #{name}/#{arity} in this file"}
+
+        found ->
+          lines = String.split(source, "\n")
+          spans = Enum.map(found, &attached_span(ast, lines, &1))
+
+          code =
+            spans
+            |> Enum.map_join("\n", fn {a, b} -> lines |> Enum.slice(a..b) |> Enum.join("\n") end)
+            |> dedent()
+
+          moved =
+            case anchor(definitions(dest_module), normalize_where(nil), code) do
+              nil -> insert_inside_empty(dest, dest_module, code)
+              {sibling, side} -> anchor_insert(dest, sibling, side, code)
+            end
+
+          {:ok, drop_spans(lines, spans |> merge_spans() |> Enum.map(&with_trailing_blank(lines, &1))), moved}
       end
     end
   end
