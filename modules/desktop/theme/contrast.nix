@@ -42,6 +42,8 @@ in
     (field "ink" "red")
     (field "ink" "pink")
     (field "ink" "cyan")
+    (field "fieldInk" "warnField")
+    (field "fieldInk" "accentField")
   ];
 
   # things you must be able to find without reading them
@@ -79,9 +81,10 @@ in
     (ansiPair "black" "brightWhite")
   ];
 
-  # resolved hexes, so the checker needs nothing but this file: the hues, plus the ANSI slots
-  # under an `ansi:` prefix so both resolve through one map
-  hue = palette.hue // (builtins.listToAttrs
+  # resolved hexes, so the checker needs nothing but this file: hues, ROLES (a pair is often
+  # easier to state in the vocabulary the surfaces use), and the ANSI slots under an `ansi:`
+  # prefix — all through one map
+  hue = palette.hue // palette.role // (builtins.listToAttrs
     (map (n: { name = "ansi:${n}"; value = palette.ansi.${n}; })
       (builtins.attrNames palette.ansi)));
 }

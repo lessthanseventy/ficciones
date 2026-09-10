@@ -137,7 +137,7 @@ function ClockCard() {
 /** One gauge: KEY, number, a meter, a sparkline, the detail line — coloured by load. */
 function Gauge({ m }: { m: Metric }) {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} cssClasses={m.frac((f) => ["gauge", tier(f)])} spacing={2} hexpand visible={m.ok ?? true}>
+    <box orientation={Gtk.Orientation.VERTICAL} cssClasses={m.frac((f) => ["gauge", tier(f, m.breaks)])} spacing={2} hexpand visible={m.ok ?? true}>
       <box spacing={10}>
         <label cssClasses={["k", "lg"]} label={m.key} xalign={0} />
         <label cssClasses={["num", "lg"]} label={m.num} xalign={1} hexpand />

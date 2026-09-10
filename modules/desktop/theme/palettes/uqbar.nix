@@ -24,7 +24,7 @@ rec {
     amber = "FFB000"; # body text AND chrome
     chip = "FFB000"; # the inverse-video field: the active/current thing. IS the body amber —
     # a separate brighter yellow read as "not my amber", and black on this is already 10.7:1
-    ember = "FF6305"; # active border gradient partner
+    ember = "FF6E06"; # the hotter phosphor: active border partner AND the warning field
     amberDim = "7A5500"; # half-bright amber: inactive border, structure at low emphasis
     emberDim = "9E3B00";
     green = "33FF00"; # live / ok / occupied / charging
@@ -43,7 +43,7 @@ rec {
     grey = "C7C7C7"; # italic / muted prose
     white = "FFFFFF";
     # Elevations for toolkit chrome (GTK/Qt/floorp): black stays the ground, panels lift.
-    surface0 = "0A0A0A";
+    surface0 = "0D0D0D";
     surface1 = "0E0E0E";
     surface2 = "141414";
     surface3 = "1A1A1A";
@@ -89,7 +89,9 @@ rec {
     attentionDim = pinkDim; # the same, receded
     alarm = red;
     assistant = violet;
-    warn = amber;
+    # a warning that is the same colour as body text says nothing: ember is the step between the
+    # body amber and the alarm red, and was doing nothing but partnering the active border
+    warn = ember;
     # who is speaking. Claude Code is the surface that needs this; the cockpit answers the same
     # question differently (its :operator is pink), which is a disagreement worth settling.
     userVoice = green;
@@ -101,7 +103,12 @@ rec {
     selField = sel;
     selInk = selInk;
     selSoft = selSoft;
-    accentField = amber; # the toolkit "accent" fill
+    # The toolkit accent — GTK's accent_bg_color, floorp's --retro-accent: checkboxes, switches,
+    # focus rings, the button you would press. It is a thing you ACT ON, not a thing you read or a
+    # place you are, so it belongs to the neon tier with the rest of the interactive vocabulary
+    # (keys, labels, links) rather than being a fifth job for the body amber.
+    accentField = cyan;
+    warnField = ember;
     liveField = green;
     alarmField = red;
     attentionField = pink;

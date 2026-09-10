@@ -20,7 +20,7 @@ rec {
     ink = "FFF7DD"; # chip text — cream on the dark field
     amber = "573900"; # body text AND chrome — amber gone to ink
     chip = "573900"; # the inverse-video field: the body amber, cream ink on top
-    ember = "843A00"; # active border gradient partner
+    ember = "843A00"; # the hotter phosphor: active border partner AND the warning field
     amberDim = "A48343"; # half-bright amber: inactive border, structure at low emphasis
     emberDim = "C27645";
     green = "175917"; # live / ok / occupied / charging
@@ -85,7 +85,9 @@ rec {
     attentionDim = pinkDim; # the same, receded
     alarm = red;
     assistant = violet;
-    warn = amber;
+    # a warning that is the same colour as body text says nothing: ember is the step between the
+    # body amber and the alarm red, and was doing nothing but partnering the active border
+    warn = ember;
     # who is speaking. Claude Code is the surface that needs this; the cockpit answers the same
     # question differently (its :operator is pink), which is a disagreement worth settling.
     userVoice = green;
@@ -97,7 +99,12 @@ rec {
     selField = sel;
     selInk = selInk;
     selSoft = selSoft;
-    accentField = amber; # the toolkit "accent" fill
+    # The toolkit accent — GTK's accent_bg_color, floorp's --retro-accent: checkboxes, switches,
+    # focus rings, the button you would press. It is a thing you ACT ON, not a thing you read or a
+    # place you are, so it belongs to the neon tier with the rest of the interactive vocabulary
+    # (keys, labels, links) rather than being a fifth job for the body amber.
+    accentField = cyan;
+    warnField = ember;
     liveField = green;
     alarmField = red;
     attentionField = pink;

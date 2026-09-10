@@ -266,7 +266,7 @@ rec {
   # is text and only text in a toolkit this shape, is the violet field.
   gtkCss = ''
     /* ${gen} */
-    @define-color accent_color ${hex r.body};
+    @define-color accent_color ${hex r.accentField};
     @define-color accent_bg_color ${hex r.accentField};
     @define-color accent_fg_color ${hex r.fieldInk};
     @define-color destructive_color ${hex r.alarm};
@@ -276,7 +276,7 @@ rec {
     @define-color success_bg_color ${hex r.liveField};
     @define-color success_fg_color ${hex r.fieldInk};
     @define-color warning_color ${hex r.warn};
-    @define-color warning_bg_color ${hex r.warn};
+    @define-color warning_bg_color ${hex r.warnField};
     @define-color warning_fg_color ${hex r.fieldInk};
     @define-color error_color ${hex r.alarm};
     @define-color error_bg_color ${hex r.alarmField};

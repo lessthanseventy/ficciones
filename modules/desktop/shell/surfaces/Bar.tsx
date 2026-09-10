@@ -101,7 +101,7 @@ function Windows({ connector }: { connector: string }) {
 // 16 seconds; click drops the metric's detail pane straight off the cell.
 const SPARK_CELLS = 10
 function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
-  const cls = m.frac((f) => ["cell", "perf", tier(f)])
+  const cls = m.frac((f) => ["cell", "perf", tier(f, m.breaks)])
   return (
     <menubutton cssClasses={cls} direction={Gtk.ArrowType.DOWN} visible={m.ok ?? true} $={(self) => hoverPopover(self, "bar")}>
       {/* icon + spark only; the number is the tooltip and the popover (Andrew, 2026-09-07) */}

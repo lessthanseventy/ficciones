@@ -34,7 +34,7 @@ window.osd { background: transparent; }
 
 // the hub's history scrolls once it outgrows the sheet; the bar is a thin amber rule
 .history { min-height: 0; }
-.history scrollbar { background: transparent; margin-left: $sp-2; slider { background: $dim; min-width: 6px; min-height: 24px; border-radius: 0; &:hover { background: $amber; } } trough { background: $sep; border-radius: 0; } }
+.history scrollbar { background: transparent; margin-left: $sp-2; slider { background: $dim; min-width: 6px; min-height: 24px; border-radius: 0; &:hover { background: $key; } } trough { background: $sep; border-radius: 0; } }
 // the rows are the cards; the listview's own row chrome (hover, selection, padding) goes
 .vlist, .vlist > row { background: none; padding: 0; margin: 0; border: none; outline: none; }
 .vlist > row:hover, .vlist > row:active { background: none; box-shadow: none; }

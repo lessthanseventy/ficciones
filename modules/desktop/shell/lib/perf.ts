@@ -162,9 +162,23 @@ export const perf = createPoll<Perf>(
   sample,
 )
 
-/** Load tiers drive colour: body amber → green when idle-ish? No: idle dim, busy amber, hot red. */
-export function tier(frac: number): "idle" | "busy" | "hot" {
-  return frac < 0.25 ? "idle" : frac < 0.75 ? "busy" : "hot"
+export type Tier = "idle" | "busy" | "hot"
+/** Where a gauge turns amber and then red is a DIFFERENT question per metric, and one pair of
+ *  breaks for all of them was lying: a CPU at a quarter is genuinely working, a machine with
+ *  64 GB at a quarter has not started, and a disk at three quarters is not yet a problem. Pairs
+ *  are [warm, hot] as fractions; a metric that does not name one gets the CPU's. */
+export const BREAKS = {
+  cpu: [0.25, 0.75],
+  /** RAM you paid for is not a problem until it is nearly gone (Andrew, 2026-09-10). */
+  mem: [0.5, 0.75],
+  /** A throughput gauge is scaled against its own hot mark already, so it reads like a CPU. */
+  rate: [0.25, 0.75],
+  /** 65..105 °C maps to 0..1, so these are 75 ° and 95 ° on a Tjmax-100 part. */
+  temp: [0.25, 0.75],
+} as const satisfies Record<string, readonly [number, number]>
+
+export function tier(frac: number, breaks: readonly [number, number] = BREAKS.cpu): Tier {
+  return frac < breaks[0] ? "idle" : frac < breaks[1] ? "busy" : "hot"
 }
 
 export function rate(bytesPerSec: number): string {

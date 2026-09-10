@@ -38,13 +38,18 @@ window.rail .rule-h { margin: $sp-2 $sp-1; }
     padding: 0 $sp-1;
     color: $meta;
     label { font-size: $size-lg; }
-    // amber is "here", green is "there, and something is in it" — the palette has always said
-    // green means live/occupied; the rail used to say amber for both and so said only here/not-here
-    // and a green rule under the pill, because an occupied workspace shows its app ICON, not a
-    // number — without this the state is only visible while Super is held and the numbers return
-    &.occupied { color: $green; box-shadow: inset 0 -2px 0 0 $green; }
-    &.occupied.focused { box-shadow: none; }
-    &.focused  { background: $chip; color: $ink; label { color: $ink; } }
+    // All ten slots are the SAME rectangle and the colour carries the state — a decoration only
+    // some of them have (the green underline this replaces) breaks the column's rhythm and the
+    // eye starts reading shape instead of colour. Inset shadow, not border, so the frame costs
+    // no height: the rail is already close to cava.
+    //   empty    ghost frame, lilac numeral   — a slot, nothing in it
+    //   occupied green frame, green content   — there, and something is in it
+    //   focused  filled amber, black ink      — here (inverse video, like every cursor)
+    // the empty frame is VIOLET, not the structure orange: an orange frame is in the amber family
+    // and so competes with the focused pill for "here" — ten of them read as ten half-lit slots
+    box-shadow: inset 0 0 0 1px rgba($meta, 0.28);
+    &.occupied { color: $green; box-shadow: inset 0 0 0 1px $green; }
+    &.focused  { background: $chip; color: $ink; box-shadow: none; label { color: $ink; } }
     &.focused:hover { background: $chip; }
   }
   menubutton.ws > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; min-width: 0; }
@@ -76,11 +81,15 @@ menubutton.cell > button:hover { background: none; }
 .perf { &:hover { background: $hover; } }
 .stream .app { color: $amber; }
 .act.red { color: $red; }
+// A slider is a control you ACT ON, which is the interactive tier — cyan, the same colour as
+// keys, labels and links, and as the toolkit accent on every GTK surface. It was $chip, which is
+// the body amber now, so the handle, the fill and the text around it were all one colour.
 .vol {
   min-height: 24px;
   trough { background: $sep; min-height: 4px; border-radius: 0; }
-  highlight { background: $amber; border-radius: 0; }
-  slider { background: $chip; border: none; border-radius: 0; min-width: 8px; min-height: 16px; margin: -6px; box-shadow: none; }
+  highlight { background: $key; border-radius: 0; }
+  slider { background: $key; border: none; border-radius: 0; min-width: 8px; min-height: 16px; margin: -6px; box-shadow: none; }
+  &:hover slider { background: $white; }
 }
 
 .title { color: $amber; }

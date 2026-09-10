@@ -2,7 +2,7 @@
 import Gtk from "gi://Gtk?version=4.0"
 import type { Accessor } from "ags"
 import { pct, spark } from "../lib/format"
-import { perf, tier, rate, stats, NET_HOT, DISK_HOT, CORE_HIST } from "../lib/perf"
+import { perf, tier, rate, stats, BREAKS, NET_HOT, DISK_HOT, CORE_HIST } from "../lib/perf"
 import { topCpu, topMem, addrs, kill, ROWS, type Proc } from "../lib/top"
 import { RuleH } from "../lib/tui"
 import { createComputed, createState } from "ags"
@@ -16,18 +16,19 @@ export type Metric = {
   hist: Accessor<number[]>
   detail: Accessor<string>
   fmt: (x: number) => string   // how a history value reads (percent, or a rate)
+  breaks?: readonly [number, number]  // where this metric turns amber, then red
   ok?: Accessor<boolean>
 }
 
 export const METRICS: Metric[] = [
   { key: "CPU", frac: perf((p) => p.cpu), num: perf((p) => pct(p.cpu)), hist: perf((p) => p.cpuHist), detail: perf((p) => `load ${p.load1.toFixed(2)}`), fmt: pct },
-  { key: "RAM", frac: perf((p) => p.mem), num: perf((p) => pct(p.mem)), hist: perf((p) => p.memHist), detail: perf((p) => `${p.memUsedGb.toFixed(1)} of ${p.memTotalGb.toFixed(0)} GB`), fmt: pct },
+  { key: "RAM", frac: perf((p) => p.mem), num: perf((p) => pct(p.mem)), hist: perf((p) => p.memHist), detail: perf((p) => `${p.memUsedGb.toFixed(1)} of ${p.memTotalGb.toFixed(0)} GB`), fmt: pct, breaks: BREAKS.mem },
   { key: "GPU", frac: gpu((g) => g.util), num: gpu((g) => (g.ok ? pct(g.util) : "off")), hist: gpu((g) => g.hist.flatMap((x) => [x, x, x, x, x])), detail: gpu((g) => (g.ok ? `${g.temp}°C   ${g.watts.toFixed(0)} W` : "nvidia is off")), fmt: pct, ok: gpu((g) => g.ok) },
   { key: "NET", frac: perf((p) => Math.min(1, p.netHist.at(-1) ?? 0)), num: perf((p) => rate(p.rx + p.tx)), hist: perf((p) => p.netHist), detail: perf((p) => `↓ ${rate(p.rx)}/s   ↑ ${rate(p.tx)}/s`), fmt: (x) => rate(x * NET_HOT) + "/s" },
   { key: "DISK", frac: perf((p) => Math.min(1, p.diskHist.at(-1) ?? 0)), num: perf((p) => rate(p.disk)), hist: perf((p) => p.diskHist), detail: perf(() => "read + write on the root disk"), fmt: (x) => rate(x * DISK_HOT) + "/s" },
   // the colour bands for a 13th-gen mobile part (Tjmax 100°, boosts into the 90s by design):
-  // green under 75°, amber to 95°, red from 95° — 65..105 maps to 0..1 through tier()'s 0.25/0.75
-  { key: "TEMP", frac: perf((p) => Math.max(0, Math.min(1, (p.temp - 65) / 40))), num: perf((p) => `${Math.round(p.temp)}°`), hist: perf((p) => p.tempHist), detail: perf(() => "cpu package · green <75° · red ≥95° (Tjmax 100°)"), fmt: (x) => `${Math.round(x * 100)}°`, ok: perf((p) => p.temp > 0) },
+  // green under 75°, amber to 95°, red from 95° — 65..105 maps to 0..1 through BREAKS.temp
+  { key: "TEMP", frac: perf((p) => Math.max(0, Math.min(1, (p.temp - 65) / 40))), num: perf((p) => `${Math.round(p.temp)}°`), hist: perf((p) => p.tempHist), detail: perf(() => "cpu package · green <75° · red ≥95° (Tjmax 100°)"), fmt: (x) => `${Math.round(x * 100)}°`, breaks: BREAKS.temp, ok: perf((p) => p.temp > 0) },
 ]
 
 /** A dim key with a body value, inline. */
@@ -156,7 +157,7 @@ function Header({ m }: { m: Metric }) {
 /** The dropdown off a bar cell: the metric large, two minutes of history, then the depth. */
 export function MetricDetail({ m }: { m: Metric }) {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} cssClasses={m.frac((f) => ["metric", tier(f)])} spacing={8} widthRequest={560}>
+    <box orientation={Gtk.Orientation.VERTICAL} cssClasses={m.frac((f) => ["metric", tier(f, m.breaks)])} spacing={8} widthRequest={560}>
       <Header m={m} />
       <label cssClasses={["spark", "wide"]} label={m.hist((h) => spark(h, 60))} xalign={0} halign={Gtk.Align.START} />
       <RuleH />
