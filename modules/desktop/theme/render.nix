@@ -241,8 +241,9 @@ rec {
 
   # ---- GTK -----------------------------------------------------------------------------
   # libadwaita's named colours, so every GTK4 app and the GTK3 ports pick up the palette
-  # without a full theme. Accent = amber; a SELECTION is the violet field (sel/selInk) —
-  # the amber chip means "the current/active thing", and the two must not read alike.
+  # without a full theme. The law: the thing under your CURSOR — a highlighted menu item, a
+  # list row, the active tab — is the amber field; a SELECTION you made and left behind, which
+  # is text and only text in a toolkit this shape, is the violet field.
   gtkCss = ''
     /* ${gen} */
     @define-color accent_color ${hex h.amber};
@@ -298,8 +299,8 @@ rec {
     @define-color theme_fg_color ${hex h.amber};
     @define-color theme_base_color ${hex h.bg};
     @define-color theme_text_color ${hex h.amber};
-    @define-color theme_selected_bg_color ${hex h.sel};
-    @define-color theme_selected_fg_color ${hex h.selInk};
+    @define-color theme_selected_bg_color ${hex h.chip};
+    @define-color theme_selected_fg_color ${hex h.ink};
     @define-color theme_unfocused_bg_color ${hex h.bg};
     @define-color theme_unfocused_fg_color ${hex h.dim};
     @define-color insensitive_bg_color ${hex h.surface1};
@@ -309,7 +310,8 @@ rec {
     @define-color visited_link_color ${hex h.violet};
 
     * { font-family: ${fontStack}; }
-    selection, *:selected { background-color: ${hex h.sel}; color: ${hex h.selInk}; }
+    selection { background-color: ${hex h.sel}; color: ${hex h.selInk}; }
+    *:selected { background-color: ${hex h.chip}; color: ${hex h.ink}; }
     link, label.link, *:link { color: ${hex h.cyan}; }
     tooltip { background-color: ${hex h.surface1}; color: ${hex h.amber}; border: 1px solid ${hex h.sep}; }
   '';
@@ -331,7 +333,7 @@ rec {
       roles = alpha: with h; [
         "#${alpha}${amber}" "#ff${surface1}" "#ff${surface4}" "#ff${surface3}" "#ff${bg}" "#ff${surface2}"
         "#${alpha}${amber}" "#ff${chip}" "#${alpha}${amber}" "#ff${bg}" "#ff${surface0}" "#ff${bg}"
-        "#ff${sel}" "#ff${selInk}" "#ff${cyan}" "#ff${violet}" "#ff${surface1}" "#ff${surface1}"
+        "#ff${chip}" "#ff${ink}" "#ff${cyan}" "#ff${violet}" "#ff${surface1}" "#ff${surface1}"
         "#ff${amber}" "#ff${dim}" "#ff${amber}"
       ];
       row = alpha: lib.concatStringsSep ", " (map low (roles alpha));
@@ -470,7 +472,7 @@ rec {
                 tile_rounding = 8,
                 border_width = 2,
                 border_color = "rgba(${h.sep}ff)",
-                border_color_current = "rgba(${h.amber}ff)",
+                border_color_current = "rgba(${h.green}ff)",
                 border_color_focus = "rgba(${h.chip}ff)",
                 border_color_hover = "rgba(${h.pink}ff)",
                 label_font_family = "${f.family}",
@@ -479,7 +481,7 @@ rec {
                 label_bg_shape = "square",
                 label_bg_color = "rgba(${h.bg}ff)",
                 label_color_default = "rgba(${h.lilac}ff)",
-                label_color_current = "rgba(${h.amber}ff)",
+                label_color_current = "rgba(${h.green}ff)",
                 label_color_focus = "rgba(${h.chip}ff)",
                 label_color_hover = "rgba(${h.pink}ff)",
                 selection_label_color = "rgba(${h.cyan}ff)",

@@ -194,15 +194,15 @@ toolbar {
 }
 
 .urlbarView-row[selected] {
-  background-color: var(--retro-sel) !important;
-  color: var(--retro-sel-ink) !important;
-  border-bottom: 1px solid var(--retro-sel) !important;
+  background-color: var(--retro-chip) !important;
+  color: var(--retro-ink) !important;
+  border-bottom: 1px solid var(--retro-chip) !important;
 }
 
 .urlbarView-row[selected] .urlbarView-title,
 .urlbarView-row[selected] .urlbarView-url,
 .urlbarView-row[selected] .urlbarView-secondary {
-  color: var(--retro-sel-ink) !important;
+  color: var(--retro-ink) !important;
 }
 
 .urlbarView-row:hover {
@@ -260,10 +260,10 @@ menuitem[_moz-menuactive="true"],
 menu[_moz-menuactive="true"],
 menuitem:hover,
 menu:hover {
-  background-color: var(--retro-sel) !important;
-  color: var(--retro-sel-ink) !important;
+  background-color: var(--retro-chip) !important;
+  color: var(--retro-ink) !important;
   border-radius: 6px !important;
-  border-color: var(--retro-sel) !important;
+  border-color: var(--retro-chip) !important;
 }
 
 /* A menuitem's label and its shortcut are separate boxes and inherit nothing useful */
@@ -271,7 +271,7 @@ menuitem[_moz-menuactive="true"] label,
 menu[_moz-menuactive="true"] label,
 menuitem[_moz-menuactive="true"] .menu-accel,
 menu[_moz-menuactive="true"] .menu-accel {
-  color: var(--retro-sel-ink) !important;
+  color: var(--retro-ink) !important;
 }
 
 /* Dropdowns, panels, and settings */
@@ -293,10 +293,10 @@ menuseparator {
 }
 
 .subviewbutton:hover {
-  background-color: var(--retro-sel) !important;
-  color: var(--retro-sel-ink) !important;
+  background-color: var(--retro-chip) !important;
+  color: var(--retro-ink) !important;
   border-radius: 6px !important;
-  border-color: var(--retro-sel) !important;
+  border-color: var(--retro-chip) !important;
 }
 
 /* Scrollbars */
@@ -401,7 +401,7 @@ thumb:hover {
 }
 
 #sidebar-box treechildren::-moz-tree-row(selected) {
-  background-color: var(--retro-sel) !important;
+  background-color: var(--retro-chip) !important;
 }
 
 #sidebar-box treechildren::-moz-tree-cell-text {
@@ -409,7 +409,7 @@ thumb:hover {
 }
 
 #sidebar-box treechildren::-moz-tree-cell-text(selected) {
-  color: var(--retro-sel-ink) !important;
+  color: var(--retro-ink) !important;
 }
 
 /* Sidebar textboxes (search, notes) */
@@ -816,7 +816,7 @@ textarea:focus {
 
 }
 
-/* Text selection: the machine-wide violet field, so a selection never reads as an active chip */
+/* Text selection: the one thing you pick and leave behind, so it keeps the violet field */
 ::selection {
   background-color: var(--retro-sel) !important;
   color: var(--retro-sel-ink) !important;

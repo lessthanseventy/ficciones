@@ -38,7 +38,9 @@ window.rail .rule-h { margin: $sp-2 $sp-1; }
     padding: 0 $sp-1;
     color: $meta;
     label { font-size: $size-lg; }
-    &.occupied { color: $amber; }
+    // amber is "here", green is "there, and something is in it" — the palette has always said
+    // green means live/occupied; the rail used to say amber for both and so said only here/not-here
+    &.occupied { color: $green; }
     &.focused  { background: $chip; color: $ink; label { color: $ink; } }
     &.focused:hover { background: $chip; }
   }
