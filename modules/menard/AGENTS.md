@@ -1,14 +1,12 @@
 # Working on Elixir with Menard
 
 This plugin installs a `PreToolUse` hook that **blocks `Edit` and `Write` on any `.ex`/`.exs`
-holding a `defmodule`**. That is deliberate: a text substitution on Elixir is a guess that is right
-most of the time, and the times it is wrong are silent. Use the verbs instead — they parse the
-file, change the tree, and parse-check what they write.
+holding a `defmodule`**. Use the verbs instead: they parse the file, change the tree, and
+parse-check what they write, where a text substitution is a guess whose failures are silent.
 
-New files, `_build/`, `deps/`, `config/*.exs` and `.formatter.exs` are exempt: those are creation
-or bare keyword lists, which the verbs have nothing to say about. `Bash` is not watched — a shell
-command has no structured target, and matching command text blocks anything that merely quotes a
-pattern. `sed -i` on a module is still wrong; that rule lives here rather than in a guess.
+Exempt: new files, `_build/`, `deps/`, `config/*.exs`, `.formatter.exs` — creation, or bare keyword
+lists the verbs have nothing to say about. **`Bash` is not watched, and that is not permission** —
+`sed -i` on a module is just as wrong, it is only unenforceable.
 
 ## Which verb
 
