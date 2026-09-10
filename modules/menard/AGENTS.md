@@ -28,6 +28,28 @@ SHAPE of what you are changing, not the size of the change:
 `replace` takes the **body**; `rewrite` takes the **whole clause**. Passing a `def` to `replace` is
 refused, because `def bg, do: def(bg, do: X)` is valid Elixir and only the compiler would object.
 
+What the verbs guarantee, where it is not obvious from the name:
+
+- `stmt` reaches a line in a `do` block, a step in a `with`, and a `case` **arm** alike — address
+  the clause, then the statement by what is WRITTEN. `list` prints what is there, and so does a miss.
+- `clause insert-at` is for a whole new FUNCTION, which has no sibling to anchor to; placement
+  follows the code, a `defp` landing with the private functions. A new *clause* of an existing
+  function is `insert-after`, named against its sibling.
+- `clause visibility` flips EVERY clause at once — a half-flipped function does not compile.
+- `directive add` places in Elixir's conventional order (use → import → alias → require,
+  alphabetised), so the next format pass does not move it.
+- `block --in PARENT` appends inside a labelled block or a MODULE. A schema field lives here
+  (`block replace FILE schema … --label <table>`), not in the clause verbs.
+- `attr` refuses a name that repeats per clause (`@doc`, `@impl`, `@spec`) — the clause verbs
+  already carry those.
+- `find calls|defs|aliases` is grep that knows the code: strings and comments never match.
+- `write FILE CODE` (`-` reads stdin) refuses Elixir that does not parse, before it reaches disk.
+  For a NEW module, or a rewrite so total that patching is the wrong tool.
+- `deps FILE name/arity` reports what a function references: local calls and who else calls them,
+  remote calls, the aliases that must travel, the attributes that will not. **The read before
+  moving code — there is no `move` verb on purpose**, because a move is this report plus a
+  judgement, then insert-at, directive add, delete, find calls, run compile.
+
 ## What no error can tell you
 
 - **ExUnit `test` and `describe` are macros, not definitions.** The clause verbs cannot address
