@@ -41,9 +41,12 @@ defmodule Menard.ClauseTest do
     assert out =~ "def go(:a), do: 1\n  def go(:c), do: 3\n"
   end
 
-  test "insert_before adds a clause right before the addressed one, at its indent" do
+  test "insert_before goes above the clause's comment and docs, not between them and its def" do
     out = Clause.insert_before(@src, "go/1", ":a", "def go(nil), do: 0")
-    assert out =~ "# first\n  def go(nil), do: 0\n  def go(:a), do: 1"
+
+    # ABOVE the comment, not between it and the clause it describes: `# first` labels go(:a), and a
+    # @doc in that position would not merely be mislabelled — it would ATTACH to the new clause.
+    assert out =~ "def go(nil), do: 0\n  # first\n  def go(:a), do: 1"
   end
 
   test "an unknown clause is an error naming the candidates" do
@@ -330,6 +333,35 @@ defmodule Menard.ClauseTest do
 
       assert out =~ "defp other, do: :ok"
       assert out =~ "def go(:a), do: 1"
+    end
+
+    test "a zero-arity clause answers to its own name as a head" do
+      src = """
+      defmodule A do
+        def bg, do: 0
+      end
+      """
+
+      # a zero-arity clause has no head at all, so the name is the head a caller would write
+      for head <- ["", "bg", "bg()", "def bg"] do
+        assert Clause.replace_body(src, "bg/0", head, "1") =~ "def bg, do: 1"
+      end
+
+      # and it stays paren-free: rewriting `def bg` as `def bg()` is a diff nobody asked for
+      refute Clause.replace_body(src, "bg/0", "bg", "1") =~ "def bg()"
+    end
+
+    test "replace_body refuses a whole clause, which would nest a def inside itself" do
+      src = """
+      defmodule A do
+        def bg, do: 0
+      end
+      """
+
+      # `def bg, do: def(bg, do: 1)` is VALID Elixir, so the parse-check passes and only the compiler
+      # objects — the mistake has to be caught here or not at all
+      assert {:error, message} = Clause.replace_body(src, "bg/0", "", "def bg, do: 1")
+      assert message =~ "rewrite"
     end
   end
 end

@@ -24,7 +24,8 @@ defmodule Menard.Clause do
   @spec replace_body(String.t(), String.t(), String.t(), String.t(), keyword()) ::
           String.t() | {:error, String.t()}
   def replace_body(source, name_arity, head, code, opts \\ []) do
-    with {:ok, clause} <- find(source, name_arity, head, opts) do
+    with :ok <- body_only(code),
+         {:ok, clause} <- find(source, name_arity, head, opts) do
       Sourceror.patch_string(source, [
         %{range: clause.range, change: clause_text(clause, code), preserve_indentation: false}
       ])
@@ -89,8 +90,15 @@ defmodule Menard.Clause do
   @spec insert_before(String.t(), String.t(), String.t(), String.t(), keyword()) ::
           String.t() | {:error, String.t()}
   def insert_before(source, name_arity, head, code, opts \\ []) do
-    with {:ok, %{range: %{start: [line: a, column: _]}, indent: indent}} <-
-           find(source, name_arity, head, opts) do
+    with {:ok, ast} <- parse(source),
+         {:ok, %{range: range, indent: indent}} <- find(source, name_arity, head, opts) do
+      lines = String.split(source, "\n")
+      # BEFORE the clause means before its @doc/@spec and the comment above them, the same block
+      # `delete/4` takes. A `@doc` attaches to whatever definition FOLLOWS it, so inserting between
+      # the two hands the doc to the new code — which the compiler then reports as a @doc on a
+      # private function, if it says anything at all.
+      a = attrs_start(ast, range)
+      a = a - comment_lines_above(lines, a - 1)
       body = code |> String.split("\n") |> Enum.map_join("\n", &(indent <> &1))
       at = %{start: [line: a, column: 1], end: [line: a, column: 1]}
       Sourceror.patch_string(source, [%{range: at, change: body <> "\n", preserve_indentation: false}])
@@ -216,7 +224,7 @@ defmodule Menard.Clause do
          {:ok, ast} <- parse(source),
          {:ok, scope} <- scope(ast, mod, name, arity) do
       clauses = clauses(scope, name, arity)
-      want = squash(head)
+      want = wanted_head(head, name, arity)
 
       case Enum.filter(clauses, &(squash(&1.head_text) == want)) do
         [] -> {:error, "no clause #{name}/#{arity} with head `#{head}` — have: #{heads(clauses)}"}
@@ -225,6 +233,19 @@ defmodule Menard.Clause do
       end
     end
   end
+
+  # A zero-arity clause HAS no head — its head text is the empty string — so `bg`, `bg()` and
+  # `def bg` are all the head a caller would reasonably write for it, and all mean the same one
+  # thing. Only arity 0 gets this: at arity 1, `style` is an ARGUMENT, not the function name.
+  defp wanted_head(head, name, 0) do
+    n = to_string(name)
+
+    if squash(head) in ["", squash(n), squash("#{n}()"), squash("def #{n}"), squash("def #{n}()")],
+      do: "",
+      else: squash(head)
+  end
+
+  defp wanted_head(head, _name, _arity), do: squash(head)
 
   # Acting on "the first" silently is how a delete eats the clause that was just written, so an
   # ambiguous head is refused and `--nth` is the way to mean one of them.
@@ -452,16 +473,39 @@ defmodule Menard.Clause do
   end
 
   defp heads([]), do: "none"
-  defp heads(clauses), do: Enum.map_join(clauses, " · ", &"`#{&1.head_text}`")
+
+  defp heads(clauses) do
+    Enum.map_join(clauses, " · ", fn
+      %{head_text: ""} -> "`` (zero-arity — pass an empty head, or the name)"
+      c -> "`#{c.head_text}`"
+    end)
+  end
+
+  # CODE for replace_body is the BODY, and a whole `def` passed as one nests inside itself —
+  # `def bg, do: def(bg, do: X)`, which is valid Elixir, so the parse-check passes and only the
+  # compiler complains. Caught up front instead, pointing at the verb that does take a clause.
+  defp body_only(code) do
+    if Regex.match?(~r/^\s*(def|defp|defmacro|defmacrop)\s/, code) do
+      {:error,
+       "CODE is the clause BODY here, and this looks like a whole clause — use `rewrite`, which replaces the head too"}
+    else
+      :ok
+    end
+  end
 
   # -- text -----------------------------------------------------------------
 
   defp clause_text(%{kind: kind, name: name, args: args, guard: guard, indent: indent}, code) do
-    head = "#{kind} #{name}(#{args})" <> if(guard, do: " when " <> guard, else: "")
+    # zero arity is written WITHOUT parens in Elixir, and rewriting `def bg` as `def bg()` is a
+    # diff on a line the caller did not ask to change
+    head =
+      if String.trim(args) == "", do: "#{kind} #{name}", else: "#{kind} #{name}(#{args})"
+
+    head = head <> if(guard, do: " when " <> guard, else: "")
 
     case String.split(String.trim(code), "\n") do
       [one] -> head <> ", do: " <> one
-      many -> head <> " do\n" <> Enum.map_join(many, "\n", &(indent <> "  " <> &1)) <> "\n" <> indent <> "end"
+      many -> Enum.join([head <> " do" | Enum.map(many, &(indent <> "  " <> &1))] ++ [indent <> "end"], "\n")
     end
   end
 

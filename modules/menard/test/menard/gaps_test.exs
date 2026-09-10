@@ -106,6 +106,30 @@ defmodule Menard.AttrTest do
     assert at.("@extra 9") < at.("@base 1")
     assert at.("@extra 9") < at.("@derived")
   end
+
+  test "a NEW attribute lands below the alias its value depends on, not at the very top" do
+    src = """
+    defmodule A do
+      @moduledoc "prose"
+
+      alias Some.Palette, as: P
+
+      @ground P.ground()
+
+      def go, do: @ground
+    end
+    """
+
+    out = Menard.Attr.set(src, "body", "P.body()")
+    lines = String.split(out, "\n")
+    at = fn text -> Enum.find_index(lines, &String.contains?(&1, text)) end
+
+    # above the first TABLE, because @ground could read it — but below the alias and the
+    # moduledoc, because `P.body()` above `alias ... as: P` is "module P is not available"
+    assert at.("alias Some.Palette") < at.("@body P.body()")
+    assert at.("@moduledoc") < at.("@body P.body()")
+    assert at.("@body P.body()") < at.("@ground")
+  end
 end
 
 defmodule Menard.BlockTest do

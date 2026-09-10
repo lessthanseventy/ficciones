@@ -112,11 +112,7 @@ defmodule Menard.Attr do
          {:ok, module} <- Clause.module_scope(ast, opts[:module]) do
       body = Clause.module_body(module)
 
-      # BEFORE the first attribute-set OR definition, not merely before the first definition: an
-      # attribute that another attribute uses (`@colors %{a: @body}`) has to precede it, and a module
-      # whose attributes sit above its defs would otherwise take the new one BELOW its own consumer,
-      # where Elixir reads it as nil and only warns. First is the one position that is always safe.
-      case Enum.find(body, &(definition?(&1) or attr_name(&1) != nil)) do
+      case Enum.find(body, &anchor?/1) do
         nil -> {:error, "nothing to place @#{to_atom(name)} above — the module has no definitions"}
         first -> insert_before(source, first, name, value)
       end
@@ -155,6 +151,17 @@ defmodule Menard.Attr do
        do: true
 
   defp definition?(_node), do: false
+  defp anchor?(node), do: definition?(node) or table?(node)
+
+  # A TABLE — an attribute holding a value the module reads. Not @moduledoc and friends: those are
+  # prose, and a new attribute placed above them would also sit above the `alias` that its value
+  # very likely depends on, which compiles to "module P is not available".
+  defp table?(node) do
+    case attr_name(node) do
+      nil -> false
+      name -> name not in [:moduledoc, :doc, :shortdoc, :typedoc]
+    end
+  end
 
   defp start_line(node) do
     %{start: [line: line, column: _]} = Sourceror.get_range(node)
