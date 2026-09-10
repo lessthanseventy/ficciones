@@ -200,18 +200,36 @@ rec {
   # ---- Console.Style (modules/console) --------------------------------------------------
   consolePaletteEx =
     let
-      h = p.hue;
-      line = name: c: "  def ${name}, do: 0x${c}";
-      hues = lib.concatStringsSep "\n" (lib.mapAttrsToList line h);
+      # role names are camelCase in the palette; Elixir wants snake_case
+      snake = n: lib.concatStrings (map (c: if c == lib.toUpper c && c != lib.toLower c then "_" + lib.toLower c else c)
+        (lib.stringToCharacters n));
+      line = name: c: "  def ${snake name}, do: 0x${c}";
+      group = title: attrs: "\n  # ${title}\n" + lib.concatStringsSep "\n" (lib.mapAttrsToList line attrs);
+      cats = {
+        cat_amber = r.body; cat_green = r.live; cat_pink = r.attention; cat_cyan = r.key;
+        cat_lilac = r.meta; cat_violet = r.assistant; cat_red = r.alarm;
+      };
     in
     ''
       # ${gen}
       defmodule Console.Palette do
         @moduledoc """
-        The machine palette as 24-bit integers, one function per hue. `Console.Style` maps
-        semantic styles onto these; nothing else in the cockpit names a colour.
+        The machine palette for the cockpit, as 24-bit integers. `Console.Style` maps semantic
+        styles onto these; nothing else in the cockpit names a colour.
+
+        Two vocabularies, and the rule is: use a ROLE. Roles say what a thing MEANS, so two
+        surfaces that mean the same thing cannot drift apart. The hue names (`amber`, `chip`)
+        are deliberately absent — they were the same colour as each other for a while and
+        nothing could tell us, so a stale name is a compile error now.
+
+        The exception is the `cat_*` tier: hues used because they are DISTINGUISHABLE from one
+        another (a diff's add/delete, an archetype's splash), where the point is that they
+        differ, not that they mean anything.
         """
-      ${hues}
+      ${group "roles: what a surface asks for" p.role}
+      ${group "the status tier (card gutters, status dots)" (lib.mapAttrs' (n: v: lib.nameValuePair "st_${n}" v) p.status)}
+      ${group "the identity tier (one hue per coworker archetype)" (lib.mapAttrs' (n: v: lib.nameValuePair "arch_${n}" v) p.identity)}
+      ${group "the categorical tier: hues as categories, not as meanings" cats}
       end
     '';
 
