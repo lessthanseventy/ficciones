@@ -276,7 +276,12 @@ defmodule Menard.FormatTest do
   use ExUnit.Case, async: true
 
   test "returns within its own timeout rather than blocking forever" do
-    {micros, result} = :timer.tc(fn -> Menard.format("/nonexistent/nowhere/none.ex") end)
+    # a REAL directory with no mix project: mix fails fast instead of the spawn erroring on cd
+    file = Path.join(System.tmp_dir!(), "menard_format_probe.ex")
+    File.write!(file, "defmodule P do\nend\n")
+    on_exit(fn -> File.rm_rf!(file) end)
+
+    {micros, result} = :timer.tc(fn -> Menard.format(file) end)
 
     assert result == :ok or match?({:error, _}, result)
     assert micros < 60_000_000, "format/1 must be bounded"
