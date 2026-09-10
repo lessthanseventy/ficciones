@@ -22,7 +22,8 @@ let
   fill = template: subs: lib.replaceStrings (map (k: "@${k}@") (builtins.attrNames subs)) (map hex (builtins.attrValues subs)) template;
   # The substitution map the vendored templates (kvantum, qss, floorp) use.
   templateSubs = {
-    inherit (h) amber green bg amberDim amberSoft surface0 surface1 surface2 surface3 surface4 amberTint0 amberTint1 amberTint2;
+    inherit (h) amber green bg ink chip sel selInk cyan lilac pink red dim sep
+      amberDim amberSoft surface0 surface1 surface2 surface3 surface4 amberTint0 amberTint1 amberTint2;
   };
 in
 rec {
@@ -395,8 +396,10 @@ rec {
       process_start = green; process_mid = amber; process_end = red;
     })) + "\n";
 
-  # ---- floorp: the vendored RetroTerminal CSS with the dark :root block generated ----------
-  floorpRootDark =
+  # ---- floorp: the vendored RetroTerminal CSS with its :root block generated ----------
+  # One :root, not a prefers-color-scheme pair: the flake decides which palette is live, so
+  # floorp must not second-guess it with a hand-written light theme that drifts.
+  floorpRoot =
     lib.concatStringsSep "\n" (map (s: "    " + s) (with h; [
       "--retro-bg: ${hex bg};"
       "--retro-bg-elevated: ${hex surface0};"
@@ -407,17 +410,23 @@ rec {
       "--retro-text: ${hex amber};"
       "--retro-text-secondary: ${hex lilac};"
       "--retro-text-dim: ${hex dim};"
-      "--retro-border: ${hex amberTint2};"
-      "--retro-border-bright: ${hex amberDim};"
+      # borders are `sep` like everywhere else — amberTint2 was 1.5:1 against the ground,
+      # which is why floorp's menus and popups looked like they had no edge at all
+      "--retro-border: ${hex sep};"
+      "--retro-border-bright: ${hex amber};"
       "--retro-font: ${fontStack};"
       "--retro-green: ${hex green};"
+      "--retro-chip: ${hex chip};"
+      "--retro-ink: ${hex ink};"
+      "--retro-sel: ${hex sel};"
+      "--retro-sel-ink: ${hex selInk};"
       "--retro-cyan: ${hex cyan};"
       "--retro-pink: ${hex pink};"
       "--retro-red: ${hex red};"
     ]));
   floorpFile = name:
     "/* ${gen} (the :root block); the body is templates/floorp/${name} in the repo. */\n"
-    + lib.replaceStrings [ "@ROOT_DARK@" "@FONT_STACK@" ] [ floorpRootDark fontStack ]
+    + lib.replaceStrings [ "@ROOT@" "@FONT_STACK@" ] [ floorpRoot fontStack ]
       (fill (builtins.readFile (./templates/floorp + "/${name}")) templateSubs);
   floorpUserChrome = floorpFile "userChrome.css";
   # the sites too, not just the chrome: floorp-sites.nix appends @-moz-document blocks
