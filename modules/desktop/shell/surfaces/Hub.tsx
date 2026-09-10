@@ -81,7 +81,14 @@ export function toggleHub() {
  * The hot edge: the pointer parked within 2px of a monitor's right edge for 400 ms opens the
  * hub on that monitor. Polled from Hyprland's socket at 5 Hz — a layer surface for the strip
  * would not shrink below 200px and swallowed clicks.
+ *
+ * The BARS are excluded: the bar's own right end holds the gauges, battery and agents, whose
+ * popovers you reach by parking the pointer there — exactly the gesture that armed the edge.
+ * The edge is the MAIN area between them.
  */
+// $bar-height in style/_tokens.scss — the top bar and the deck's bottom row are both one bar tall.
+const BAR_H = 36
+
 export function startHotEdge() {
   let since = 0
   let armedFor: string | null = null
@@ -93,7 +100,9 @@ export function startHotEdge() {
     if (hubWin?.visible || deckVisible()) { since = 0; return }
     // the right edge only: the deck opens on a click (Andrew, 2026-09-07: no hover for it)
     const mons = Hyprland.get_default().get_monitors()
-    const mon = mons.find((m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y && y < m.y + m.height)
+    const mon = mons.find(
+      (m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y + BAR_H && y < m.y + m.height - BAR_H,
+    )
     // no hot edge on a monitor showing a film
     if (!mon || isFullscreen(mon.name)) { since = 0; armedFor = null; return }
     if (armedFor !== mon.name) { armedFor = mon.name; since = Date.now(); return }
