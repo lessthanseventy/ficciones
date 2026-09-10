@@ -19,7 +19,7 @@ export function closeAny() { const c = closer; closer = null; c?.() }
  */
 export function closeOnPress(widget: Gtk.Widget) {
   const g = new Gtk.GestureClick({ button: 0, propagationPhase: Gtk.PropagationPhase.CAPTURE })
-  g.connect("pressed", (_, n, x, y) => {
+  g.connect("pressed", (_, _n, x, y) => {
     if (!closer) return
     // the clock toggles on its own; closing here too would close-then-reopen
     for (let t = widget.pick(x, y, Gtk.PickFlags.DEFAULT); t; t = t.get_parent()) if (t.cssClasses.includes("clock") || t.cssClasses.includes("wx") || t.cssClasses.includes("deck-log")) return

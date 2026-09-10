@@ -32,7 +32,6 @@ const mode = createComputed([query], (q): Mode =>
   modeOverride ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : "apps"),
 )
 
-const glyphOf: Record<string, string> = { calc: "=", files: "/", shell: ":", apps: "" }
 /** A remembered thing as an item again: apps relaunch, shell lines rerun, files reopen, sums recopy. */
 function recall(m: Memory): Item | null {
   if (m.mode === "apps") {

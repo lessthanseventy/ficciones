@@ -5,7 +5,6 @@
 import { volumeGlyph } from "../lib/icons"
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
-import Gtk from "gi://Gtk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import Wp from "gi://AstalWp"
 import Brightness from "gi://AstalBrightness"

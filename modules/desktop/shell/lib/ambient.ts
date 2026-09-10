@@ -45,7 +45,7 @@ const life = (): Mode => {
       for (let i = 0; i < a.length; i++) a[i] = Math.random() < 0.18 ? 1 : 0
       age = new Uint8Array(w * h)
     },
-    poke(g, px, py) {
+    poke(_g, px, py) {
       const gx = Math.floor(px), gy = Math.floor(py)
       for (const [dx, dy] of [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]]) a[((gy + dy) % h) * w + ((gx + dx) % w)] = 1
     },
@@ -83,7 +83,7 @@ const boids = (): Mode => {
       flock = Array.from({ length: 70 }, (_, i) => ({ x: Math.random() * W, y: Math.random() * H, vx: Math.random() - 0.5, vy: Math.random() - 0.5, hue: i % 5 }))
       g.clear()
     },
-    poke(g, px, py) {
+    poke(_g, px, py) {
       for (const b of flock) {
         const dx = b.x - px, dy = b.y - py, d = Math.hypot(dx, dy) || 1
         if (d < 120) { b.vx += (dx / d) * 3; b.vy += (dy / d) * 3 }
@@ -122,7 +122,7 @@ const rule30 = (): Mode => {
       rows = []
       g.clear()
     },
-    poke(g, px) { row[Math.floor(px) % row.length] = 1 },
+    poke(_g, px) { row[Math.floor(px) % row.length] = 1 },
     step(g) {
       const w = row.length, next = new Uint8Array(w)
       for (let x = 0; x < w; x++) {

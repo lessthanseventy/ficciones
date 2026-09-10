@@ -3,7 +3,6 @@
 // horizontal blocks. Ambient, but driven by real signal (design §6).
 import Cava from "gi://AstalCava"
 import Gtk from "gi://Gtk?version=4.0"
-import Pango from "gi://Pango?version=1.0"
 import { createBinding } from "ags"
 import { soundRunning } from "./sound"
 

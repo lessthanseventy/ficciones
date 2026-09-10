@@ -104,7 +104,6 @@ function Bt() {
   const bt = Bluetooth.get_default()
   const powered = createBinding(bt, "isPowered")
   const connected = createBinding(bt, "isConnected")
-  const adapter = createBinding(bt, "adapter")
   const discovering = createBinding(bt, "adapter")((a) => !!a?.discovering)
   const all = createBinding(bt, "devices")
   const known = all((ds) => ds.filter((d) => d.paired || d.connected).sort((a, b) => Number(b.connected) - Number(a.connected)))
@@ -413,7 +412,6 @@ function CaptureItem() {
   )
 }
 
-const items = createBinding(Tray.get_default(), "items")
 /**
  * VPN: on/off under the glyph, always there; the card is Mullvad (connect/disconnect, the
  * relay, the account's expiry) and a row per wg-quick config, up/down through polkit.

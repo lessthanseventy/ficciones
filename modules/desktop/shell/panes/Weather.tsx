@@ -1,7 +1,7 @@
 // WEATHER: the card is where the depth lives — now with feels-like, humidity, wind and UV;
 // the next hours as a strip; five days with rain chance; sunrise and sunset. open-meteo.
 import Gtk from "gi://Gtk?version=4.0"
-import { weather, glyph, describe, type Hour, type Day } from "../lib/weather"
+import { weather, glyph, describe, type Day } from "../lib/weather"
 import { RuleH } from "../lib/tui"
 import Cairo from "cairo"
 import { PALETTE } from "../lib/palette"

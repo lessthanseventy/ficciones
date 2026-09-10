@@ -126,7 +126,7 @@ function makeZone(name: string, col: number): Astal.Window {
 // switch (`decorate`) would take the shadows off everything else.
 const RING = 2, RING_GAP = 3
 const inset = () => border + RING_GAP + RING
-function makeFrame(name: string, m: MonitorJson, col: number, address: string): Astal.Window {
+function makeFrame(name: string, m: MonitorJson, col: number, _address: string): Astal.Window {
   const [rl, rt, , rb] = m.reserved
   const inset = border + RING_GAP + RING
   const w = new Astal.Window({

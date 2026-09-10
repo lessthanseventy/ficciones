@@ -9,6 +9,8 @@
     "module": "ES2022",
     "moduleResolution": "Bundler",
     "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "paths": {
       "ags": [
         "./node_modules/ags/lib/index.ts"

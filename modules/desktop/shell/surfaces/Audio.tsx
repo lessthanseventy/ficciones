@@ -4,7 +4,7 @@
 import Gtk from "gi://Gtk?version=4.0"
 import Pango from "gi://Pango?version=1.0"
 import Wp from "gi://AstalWp"
-import { For, createBinding, createComputed } from "ags"
+import { For, createBinding } from "ags"
 import { Panel, RuleH } from "../lib/tui"
 import { pct } from "../lib/format"
 import { quietOsd } from "./Osd"
