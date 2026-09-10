@@ -19,7 +19,7 @@ rec {
     bg = "F5EFE0";
     ink = "FFF7DD"; # chip text — cream on the dark field
     amber = "573900"; # body text AND chrome — amber gone to ink
-    chip = "3B2A00"; # the inverse-video field: a dark ground the cream ink pops from
+    chip = "573900"; # the inverse-video field: the body amber, cream ink on top
     ember = "843A00"; # active border gradient partner
     amberDim = "A48343"; # half-bright amber: inactive border, structure at low emphasis
     emberDim = "C27645";

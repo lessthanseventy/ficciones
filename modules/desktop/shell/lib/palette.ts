@@ -5,7 +5,7 @@ export const PALETTE = {
   pink: "#F06CB4",
   cyan: "#33C7FF",
   lilac: "#B98AFF",
-  chip: "#D9A400",
+  chip: "#FFB000",
   red: "#FF6969",
   dim: "#B8994C",
 } as const

@@ -22,7 +22,8 @@ rec {
     bg = "000000";
     ink = "0A0A0A"; # chip text — dark on a bright field (never pure 0: termbox's default sentinel)
     amber = "FFB000"; # body text AND chrome
-    chip = "D9A400"; # the inverse-video field: the active/current thing, ink on top
+    chip = "FFB000"; # the inverse-video field: the active/current thing. IS the body amber —
+    # a separate brighter yellow read as "not my amber", and black on this is already 10.7:1
     ember = "FF6305"; # active border gradient partner
     amberDim = "7A5500"; # half-bright amber: inactive border, structure at low emphasis
     emberDim = "9E3B00";
