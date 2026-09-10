@@ -93,10 +93,8 @@ defmodule Menard.Clause do
     with {:ok, ast} <- parse(source),
          {:ok, %{range: range, indent: indent}} <- find(source, name_arity, head, opts) do
       lines = String.split(source, "\n")
-      # BEFORE the clause means before its @doc/@spec and the comment above them, the same block
-      # `delete/4` takes. A `@doc` attaches to whatever definition FOLLOWS it, so inserting between
-      # the two hands the doc to the new code — which the compiler then reports as a @doc on a
-      # private function, if it says anything at all.
+      # Above the clause's @doc/@spec too, the block `delete/4` takes: a @doc attaches to whatever
+      # definition FOLLOWS it, so landing between the two hands the doc to the new code.
       a = attrs_start(ast, range)
       a = a - comment_lines_above(lines, a - 1)
       body = code |> String.split("\n") |> Enum.map_join("\n", &(indent <> &1))
@@ -234,9 +232,8 @@ defmodule Menard.Clause do
     end
   end
 
-  # A zero-arity clause HAS no head — its head text is the empty string — so `bg`, `bg()` and
-  # `def bg` are all the head a caller would reasonably write for it, and all mean the same one
-  # thing. Only arity 0 gets this: at arity 1, `style` is an ARGUMENT, not the function name.
+  # A zero-arity clause has no head, so the name is what a caller would write. Arity 0 only: at
+  # arity 1 `style` is an ARGUMENT.
   defp wanted_head(head, name, 0) do
     n = to_string(name)
 
@@ -481,9 +478,8 @@ defmodule Menard.Clause do
     end)
   end
 
-  # CODE for replace_body is the BODY, and a whole `def` passed as one nests inside itself —
-  # `def bg, do: def(bg, do: X)`, which is valid Elixir, so the parse-check passes and only the
-  # compiler complains. Caught up front instead, pointing at the verb that does take a clause.
+  # CODE here is the BODY, and a whole `def` nests inside itself — `def bg, do: def(bg, do: X)`
+  # parses, so only the compiler would object.
   defp body_only(code) do
     if Regex.match?(~r/^\s*(def|defp|defmacro|defmacrop)\s/, code) do
       {:error,

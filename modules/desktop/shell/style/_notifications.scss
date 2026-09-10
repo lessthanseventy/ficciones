@@ -12,9 +12,8 @@ window.notifications { background: transparent; }
   .toast-hit { padding: 0; &:hover { background: $hover; } }
   .summary { color: $body; }
   .body { color: $meta; font-size: $size-sm; }
-  // notifd carries these (Slack's "Reply", a browser's "Open", pi's "Allow"). They are
-  // actions like any other, so they inherit .act from _tui.scss — they used to be outlined
-  // GREEN, which says "running", not "press me".
+  // notifd carries these (Slack's "Reply", a browser's "Open", pi's "Allow") — actions like any
+  // other, so they inherit .act from _tui.scss.
   .actions { margin-top: $sp-2; }
   .act { padding: 2px $sp-3; }
 }

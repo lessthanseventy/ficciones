@@ -40,16 +40,12 @@ rec {
     // ${gen}. _tokens.scss forwards this and adds the metrics.
     //
     // TWO VOCABULARIES, and the rule is: use a ROLE. Roles say what a thing MEANS, so two
-    // surfaces that mean the same thing cannot drift apart, and a palette that calls its body
-    // colour something other than amber still works. The colour-named tokens are gone on
-    // purpose — `$amber` and `$chip` were the same colour for a while and every "hover
-    // brightens" in this file silently did nothing, which is the bug this prevents. A stale
-    // name is now a sass error.
+    // surfaces that mean the same thing cannot drift apart, and a palette whose body colour is
+    // not amber still works. There are no colour-named tokens, so a stale one is a sass error.
     //
     // The exception is the CATEGORICAL tier at the bottom: hues used because they are
     // DISTINGUISHABLE from each other (log sources, the per-card hue map), where the point is
-    // that they differ, not that they mean anything. Those keep hue names, prefixed, so you can
-    // see at a glance which tier a line is in.
+    // that they differ, not that they mean anything.
 
     // grounds, in elevation order
     $ground:        ${hex r.ground};

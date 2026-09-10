@@ -6,7 +6,10 @@ where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
 ## Loop
 
 - `mise shell:dev` — run from source on the live desktop (it replaces the running shell). Edit,
-  Ctrl+C, rerun. Screenshot with `grim -o eDP-1 x.png` to see what the user sees.
+  Ctrl+C, rerun.
+- `mise shot:layer -- rail|bar|deck` — the shell draws in LAYERS, not windows, so `shot:window`
+  cannot see it. **Verify a colour or layout change on a screenshot, not in the source**: a rule
+  can be right in the file and reach nothing on screen (see the `*` selector below).
 - `mise shell:check` — the gate: `ags bundle`, then tsc over our files. Both must pass; zero
   type errors is the bar, no error is "known" or ignorable.
 - `nix build .#astal-shell` — the store package the VM and home-manager install.
@@ -14,8 +17,16 @@ where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
 
 ## Rules
 
-- No hex in components: every colour is a token in `style/_tokens.scss`. Amber body, green and
-  pink highlights, `.chip` inverse video for the active thing. One font (`$font`).
+- **No hex in components, and name a ROLE, not a colour.** `style/_palette.scss` is GENERATED from
+  `modules/desktop/theme` — never edit it; `_tokens.scss` forwards it and adds the metrics. The
+  vocabulary: `$body` text · `$key` for anything you act on (controls, links, keys) · `$live`
+  running or occupied · `$attention` agents and the operator · `$cursor-field` where you are,
+  inverse video · `$sel-field` what you picked · `$max-contrast` what hover lifts to. The `$cat-*`
+  tier is hues used as CATEGORIES (log sources, the per-card hue map) and nothing else. Colour
+  names like `$amber` do not exist, so a stale one is a sass error. One font (`$font`).
+- **`_tui.scss` opens with `* { color: $body }`, so a colour on a parent never reaches its
+  children.** Set it on the `label` too, or the rule is correct in the file and dead on screen —
+  which is how four hover states did nothing for a day.
 - `tsconfig.json` is owned by `ags types -u` (it rewrites the file, comments included). Never
   add `experimentalDecorators`: gnim uses TC39 decorators and the legacy emit dies at startup
   with "meta is undefined" in dbus.ts.

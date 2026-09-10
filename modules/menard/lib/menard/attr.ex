@@ -104,9 +104,8 @@ defmodule Menard.Attr do
     |> Enum.join("\n")
   end
 
-  # A module's tables live above its functions, so a new attribute goes before the first ATTRIBUTE
-  # OR definition — whichever comes first. Not merely before the first definition: an attribute that
-  # another attribute uses has to precede it, and Elixir only warns when it does not.
+  # Above the first TABLE or definition, whichever comes first — not merely above the first def:
+  # an attribute another attribute reads has to precede it, and Elixir only warns when it does not.
   defp add(source, name, value, opts) do
     with {:ok, ast} <- parse(source),
          {:ok, module} <- Clause.module_scope(ast, opts[:module]) do
@@ -153,9 +152,8 @@ defmodule Menard.Attr do
   defp definition?(_node), do: false
   defp anchor?(node), do: definition?(node) or table?(node)
 
-  # A TABLE — an attribute holding a value the module reads. Not @moduledoc and friends: those are
-  # prose, and a new attribute placed above them would also sit above the `alias` that its value
-  # very likely depends on, which compiles to "module P is not available".
+  # An attribute holding a value the module reads. Not @moduledoc and friends: above those is also
+  # above the `alias` the value depends on.
   defp table?(node) do
     case attr_name(node) do
       nil -> false

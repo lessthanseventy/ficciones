@@ -118,9 +118,7 @@ window.dashboard { background: transparent; }
 .board .card .panel-title { font-size: $size; padding: 0 $sp-2; }
 // the card's hue on its frame and title tag — the board is fun that way (Andrew, 2026-09-07:
 // uniform frames were "way less fun") — but the BODY follows role (amber / cyan keys / lilac
-// meta). A quiet gauge is GREEN — it means "fine", which is green's job everywhere else on the
-// machine; the old note here said amber, from when green was also the body colour and a green
-// number read as prose. Body is amber everywhere now, so green reads as a state again. The
+// meta). A quiet gauge is GREEN — "fine" is green's job everywhere else on the machine. The
 // green-on-green he did not like
 @mixin hue($c, $outer: $structure) { border-color: $c; .panel-title { color: $c; } .board & { outline-color: $outer; } }
 .card-now      { @include hue($body, $assistant); }
