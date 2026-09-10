@@ -22,8 +22,8 @@ defmodule Menard.Attr do
 
   @doc """
   Set `@name` to `value` (the value as you would write it). Replaces the existing attribute's
-  value, or adds the attribute above the module's first definition when it isn't there yet —
-  where a module keeps its tables.
+  value, or adds the attribute when it isn't there yet — at the TOP of the module's tables, above
+  the first attribute or definition, since an attribute another attribute reads must precede it.
   """
   @spec set(String.t(), String.t() | atom(), String.t(), keyword()) :: String.t() | {:error, String.t()}
   def set(source, name, value, opts \\ []) do
@@ -104,14 +104,19 @@ defmodule Menard.Attr do
     |> Enum.join("\n")
   end
 
-  # A module's tables live above its functions, so a new attribute goes before the first
-  # definition — not at the end, where a reader would never look for one.
+  # A module's tables live above its functions, so a new attribute goes before the first ATTRIBUTE
+  # OR definition — whichever comes first. Not merely before the first definition: an attribute that
+  # another attribute uses has to precede it, and Elixir only warns when it does not.
   defp add(source, name, value, opts) do
     with {:ok, ast} <- parse(source),
          {:ok, module} <- Clause.module_scope(ast, opts[:module]) do
       body = Clause.module_body(module)
 
-      case Enum.find(body, &definition?/1) do
+      # BEFORE the first attribute-set OR definition, not merely before the first definition: an
+      # attribute that another attribute uses (`@colors %{a: @body}`) has to precede it, and a module
+      # whose attributes sit above its defs would otherwise take the new one BELOW its own consumer,
+      # where Elixir reads it as nil and only warns. First is the one position that is always safe.
+      case Enum.find(body, &(definition?(&1) or attr_name(&1) != nil)) do
         nil -> {:error, "nothing to place @#{to_atom(name)} above — the module has no definitions"}
         first -> insert_before(source, first, name, value)
       end

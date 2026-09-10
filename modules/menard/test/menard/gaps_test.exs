@@ -86,6 +86,26 @@ defmodule Menard.AttrTest do
     assert :kinds in names
     assert :hints in names
   end
+
+  test "a NEW attribute lands above an existing one, because attributes read each other" do
+    src = """
+    defmodule A do
+      @base 1
+      @derived @base + 1
+
+      def go, do: @derived
+    end
+    """
+
+    out = Menard.Attr.set(src, "extra", "9")
+    lines = String.split(out, "\n")
+    at = fn text -> Enum.find_index(lines, &String.contains?(&1, text)) end
+
+    # Elixir reads an attribute defined BELOW its use as nil and only warns, so the one safe
+    # position for a new attribute is above every attribute, not merely above the first def.
+    assert at.("@extra 9") < at.("@base 1")
+    assert at.("@extra 9") < at.("@derived")
+  end
 end
 
 defmodule Menard.BlockTest do
