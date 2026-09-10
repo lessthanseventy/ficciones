@@ -3,7 +3,7 @@
 # (or selectors) that site exposes for its own theme; the values come from palette.nix so the
 # paper variant restyles them too. Add a site = add an entry; keep to variables where a site
 # has them — selector rules rot with every redesign.
-{ hex, h, fontStack }:
+{ hex, r, fontStack }:
 let
   block = domains: css: ''
     @-moz-document ${builtins.concatStringsSep ", " (map (d: "domain(\"${d}\")") domains)} {
@@ -15,96 +15,96 @@ builtins.concatStringsSep "\n" [
   # GitHub — primer's design tokens
   (block [ "github.com" ] ''
       :root, [data-color-mode] {
-        --bgColor-default: ${hex h.bg} !important;
-        --bgColor-muted: ${hex h.surface1} !important;
-        --bgColor-inset: ${hex h.surface0} !important;
-        --fgColor-default: ${hex h.amber} !important;
-        --fgColor-muted: ${hex h.lilac} !important;
-        --fgColor-accent: ${hex h.cyan} !important;
-        --fgColor-success: ${hex h.green} !important;
-        --fgColor-danger: ${hex h.red} !important;
-        --fgColor-attention: ${hex h.chip} !important;
-        --borderColor-default: ${hex h.amberTint2} !important;
-        --borderColor-muted: ${hex h.amberTint1} !important;
+        --bgColor-default: ${hex r.ground} !important;
+        --bgColor-muted: ${hex r.card} !important;
+        --bgColor-inset: ${hex r.panel} !important;
+        --fgColor-default: ${hex r.body} !important;
+        --fgColor-muted: ${hex r.meta} !important;
+        --fgColor-accent: ${hex r.key} !important;
+        --fgColor-success: ${hex r.live} !important;
+        --fgColor-danger: ${hex r.alarm} !important;
+        --fgColor-attention: ${hex r.cursorField} !important;
+        --borderColor-default: ${hex r.menuGround} !important;
+        --borderColor-muted: ${hex r.pressedGround} !important;
         --fontStack-monospace: ${fontStack} !important;
       }
   '')
   # claude.ai — its own tokens
   (block [ "claude.ai" ] ''
       :root, .dark, .light {
-        --bg-000: ${hex h.surface1} !important; --bg-100: ${hex h.surface0} !important;
-        --bg-200: ${hex h.bg} !important; --bg-300: ${hex h.bg} !important;
-        --text-000: ${hex h.amber} !important; --text-100: ${hex h.amber} !important;
-        --text-200: ${hex h.amber} !important; --text-300: ${hex h.lilac} !important;
-        --text-400: ${hex h.dim} !important; --text-500: ${hex h.dim} !important;
-        --accent-main-000: ${hex h.pink} !important; --accent-main-100: ${hex h.pink} !important;
-        --accent-main-200: ${hex h.pink} !important;
-        --accent-secondary-100: ${hex h.cyan} !important;
-        --border-300: ${hex h.amberTint2} !important; --border-400: ${hex h.amberDim} !important;
+        --bg-000: ${hex r.card} !important; --bg-100: ${hex r.panel} !important;
+        --bg-200: ${hex r.ground} !important; --bg-300: ${hex r.ground} !important;
+        --text-000: ${hex r.body} !important; --text-100: ${hex r.body} !important;
+        --text-200: ${hex r.body} !important; --text-300: ${hex r.meta} !important;
+        --text-400: ${hex r.inactive} !important; --text-500: ${hex r.inactive} !important;
+        --accent-main-000: ${hex r.attention} !important; --accent-main-100: ${hex r.attention} !important;
+        --accent-main-200: ${hex r.attention} !important;
+        --accent-secondary-100: ${hex r.key} !important;
+        --border-300: ${hex r.menuGround} !important; --border-400: ${hex r.borderInactive} !important;
         --font-mono: ${fontStack} !important;
       }
   '')
   # Hacker News — tables, no tokens: the few colours it has
   (block [ "news.ycombinator.com" ] ''
-      body, #hnmain, td, .comment, .default { background: ${hex h.bg} !important; color: ${hex h.amber} !important; font-family: ${fontStack} !important; }
-      .pagetop, .pagetop a, td[bgcolor="#ff6600"] { background: ${hex h.chip} !important; color: ${hex h.ink} !important; }
-      .titleline a, a:link { color: ${hex h.amber} !important; }
-      a:visited, .subtext, .comhead, .comhead a, .subtext a, .age a { color: ${hex h.lilac} !important; }
-      .c00, .commtext { color: ${hex h.amber} !important; }
+      body, #hnmain, td, .comment, .default { background: ${hex r.ground} !important; color: ${hex r.body} !important; font-family: ${fontStack} !important; }
+      .pagetop, .pagetop a, td[bgcolor="#ff6600"] { background: ${hex r.cursorField} !important; color: ${hex r.fieldInk} !important; }
+      .titleline a, a:link { color: ${hex r.body} !important; }
+      a:visited, .subtext, .comhead, .comhead a, .subtext a, .age a { color: ${hex r.meta} !important; }
+      .c00, .commtext { color: ${hex r.body} !important; }
       .votearrow { filter: invert(1) sepia(1) saturate(4) hue-rotate(-10deg) !important; }
   '')
   # Reddit (new) — its tokens
   (block [ "reddit.com" "www.reddit.com" "old.reddit.com" ] ''
       :root, .theme-dark, .theme-light, body {
-        --color-neutral-background: ${hex h.bg} !important;
-        --color-neutral-background-weak: ${hex h.surface0} !important;
-        --color-neutral-background-strong: ${hex h.surface1} !important;
-        --color-neutral-content: ${hex h.amber} !important;
-        --color-neutral-content-strong: ${hex h.amber} !important;
-        --color-neutral-content-weak: ${hex h.lilac} !important;
-        --color-neutral-border: ${hex h.amberTint2} !important;
-        --color-neutral-border-weak: ${hex h.amberTint1} !important;
-        --color-primary-background: ${hex h.pink} !important;
-        --color-secondary-plain: ${hex h.cyan} !important;
+        --color-neutral-background: ${hex r.ground} !important;
+        --color-neutral-background-weak: ${hex r.panel} !important;
+        --color-neutral-background-strong: ${hex r.card} !important;
+        --color-neutral-content: ${hex r.body} !important;
+        --color-neutral-content-strong: ${hex r.body} !important;
+        --color-neutral-content-weak: ${hex r.meta} !important;
+        --color-neutral-border: ${hex r.menuGround} !important;
+        --color-neutral-border-weak: ${hex r.pressedGround} !important;
+        --color-primary-background: ${hex r.attention} !important;
+        --color-secondary-plain: ${hex r.key} !important;
       }
-      body { background: ${hex h.bg} !important; color: ${hex h.amber} !important; }
-      .res-nightmode .md, .md, .thing .title, .entry { color: ${hex h.amber} !important; }
+      body { background: ${hex r.ground} !important; color: ${hex r.body} !important; }
+      .res-nightmode .md, .md, .thing .title, .entry { color: ${hex r.body} !important; }
   '')
   # Wikipedia — the vector skin's night tokens
   (block [ "wikipedia.org" ] ''
       :root, html.skin-theme-clientpref-night, html.skin-theme-clientpref-day {
-        --background-color-base: ${hex h.bg} !important;
-        --background-color-neutral: ${hex h.surface1} !important;
-        --background-color-neutral-subtle: ${hex h.surface0} !important;
-        --color-base: ${hex h.amber} !important;
-        --color-subtle: ${hex h.lilac} !important;
-        --color-emphasized: ${hex h.amber} !important;
-        --color-progressive: ${hex h.cyan} !important;
-        --color-visited: ${hex h.violet} !important;
-        --border-color-base: ${hex h.amberTint2} !important;
-        --border-color-subtle: ${hex h.amberTint1} !important;
+        --background-color-base: ${hex r.ground} !important;
+        --background-color-neutral: ${hex r.card} !important;
+        --background-color-neutral-subtle: ${hex r.panel} !important;
+        --color-base: ${hex r.body} !important;
+        --color-subtle: ${hex r.meta} !important;
+        --color-emphasized: ${hex r.body} !important;
+        --color-progressive: ${hex r.key} !important;
+        --color-visited: ${hex r.assistant} !important;
+        --border-color-base: ${hex r.menuGround} !important;
+        --border-color-subtle: ${hex r.pressedGround} !important;
       }
-      body, .mw-body, #content, .vector-header-container, .mw-page-container { background: ${hex h.bg} !important; color: ${hex h.amber} !important; }
+      body, .mw-body, #content, .vector-header-container, .mw-page-container { background: ${hex r.ground} !important; color: ${hex r.body} !important; }
   '')
   # Google search — few stable tokens; the page and the result text
   (block [ "www.google.com" "google.com" ] ''
-      body, #main, #cnt, .sfbg, .minidiv, .RNNXgb, #searchform { background: ${hex h.bg} !important; color: ${hex h.amber} !important; }
-      .RNNXgb, .gLFyf, textarea { background: ${hex h.surface1} !important; color: ${hex h.amber} !important; }
-      h3, .LC20lb { color: ${hex h.cyan} !important; }
-      .VwiC3b, .yXK7lf, span { color: ${hex h.amber}; }
-      cite, .byrV5b, .TbwUpd { color: ${hex h.lilac} !important; }
+      body, #main, #cnt, .sfbg, .minidiv, .RNNXgb, #searchform { background: ${hex r.ground} !important; color: ${hex r.body} !important; }
+      .RNNXgb, .gLFyf, textarea { background: ${hex r.card} !important; color: ${hex r.body} !important; }
+      h3, .LC20lb { color: ${hex r.key} !important; }
+      .VwiC3b, .yXK7lf, span { color: ${hex r.body}; }
+      cite, .byrV5b, .TbwUpd { color: ${hex r.meta} !important; }
   '')
   # YouTube — its tokens (the player stays as it is)
   (block [ "youtube.com" "www.youtube.com" ] ''
       html, html[dark], ytd-app {
-        --yt-spec-base-background: ${hex h.bg} !important;
-        --yt-spec-raised-background: ${hex h.surface1} !important;
-        --yt-spec-menu-background: ${hex h.surface1} !important;
-        --yt-spec-general-background-a: ${hex h.bg} !important;
-        --yt-spec-text-primary: ${hex h.amber} !important;
-        --yt-spec-text-secondary: ${hex h.lilac} !important;
-        --yt-spec-call-to-action: ${hex h.pink} !important;
-        --yt-spec-10-percent-layer: ${hex h.amberTint1} !important;
+        --yt-spec-base-background: ${hex r.ground} !important;
+        --yt-spec-raised-background: ${hex r.card} !important;
+        --yt-spec-menu-background: ${hex r.card} !important;
+        --yt-spec-general-background-a: ${hex r.ground} !important;
+        --yt-spec-text-primary: ${hex r.body} !important;
+        --yt-spec-text-secondary: ${hex r.meta} !important;
+        --yt-spec-call-to-action: ${hex r.attention} !important;
+        --yt-spec-10-percent-layer: ${hex r.pressedGround} !important;
       }
   '')
 ]

@@ -62,25 +62,25 @@ respect_DE=true
 submenu_delay=250
 
 [GeneralColors]
-window.color=@surface0@
-base.color=@surface0@
-alt.base.color=@surface1@
-button.color=@surface1@
-light.color=@surface2@
-mid.light.color=@surface1@
-dark.color=@bg@
-mid.color=@bg@
-highlight.color=@amber@
-inactive.highlight.color=@amberSoft@
-text.color=@amber@
-window.text.color=@amber@dd
-button.text.color=@amber@cc
-disabled.text.color=@amber@50
-tooltip.text.color=@amber@
-highlight.text.color=@surface0@
-link.color=@green@
-link.visited.color=@amberSoft@
-progress.indicator.text.color=@surface0@
+window.color=@panel@
+base.color=@panel@
+alt.base.color=@card@
+button.color=@card@
+light.color=@inputGround@
+mid.light.color=@card@
+dark.color=@ground@
+mid.color=@ground@
+highlight.color=@body@
+inactive.highlight.color=@visited@
+text.color=@body@
+window.text.color=@body@dd
+button.text.color=@body@cc
+disabled.text.color=@body@50
+tooltip.text.color=@body@
+highlight.text.color=@panel@
+link.color=@live@
+link.visited.color=@visited@
+progress.indicator.text.color=@panel@
 
 [Hacks]
 transparent_ktitle_label=true
@@ -110,10 +110,10 @@ frame.right=4
 interior=true
 interior.element=button
 indicator.size=9
-text.normal.color=@amber@cc
-text.focus.color=@amber@
-text.press.color=@surface0@
-text.toggle.color=@surface0@
+text.normal.color=@body@cc
+text.focus.color=@body@
+text.press.color=@panel@
+text.toggle.color=@panel@
 text.shadow=0
 text.margin=1
 text.iconspacing=4
@@ -128,17 +128,17 @@ frame.expansion=14
 
 [PanelButtonTool]
 inherits=PanelButtonCommand
-text.normal.color=@amber@96
+text.normal.color=@body@96
 text.bold=true
 
 [ToolbarButton]
 frame.element=tbutton
 interior.element=tbutton
 indicator.element=tarrow
-text.normal.color=@amber@cc
-text.focus.color=@amber@
-text.press.color=@surface0@
-text.toggle.color=@surface0@
+text.normal.color=@body@cc
+text.focus.color=@body@
+text.press.color=@panel@
+text.toggle.color=@panel@
 text.bold=true
 
 [Dock]
@@ -149,14 +149,14 @@ frame.top=1
 frame.bottom=1
 frame.left=1
 frame.right=1
-text.normal.color=@amber@dd
+text.normal.color=@body@dd
 
 [DockTitle]
 inherits=PanelButtonCommand
 frame=false
 interior=false
-text.normal.color=@amber@96
-text.focus.color=@amber@
+text.normal.color=@body@96
+text.focus.color=@body@
 text.bold=true
 
 [IndicatorSpinBox]
@@ -169,7 +169,7 @@ frame.left=2
 frame.right=2
 indicator.element=spin
 indicator.size=10
-text.normal.color=@amber@dd
+text.normal.color=@body@dd
 text.margin.top=2
 text.margin.bottom=2
 text.margin.left=2
@@ -179,8 +179,8 @@ text.margin.right=2
 inherits=PanelButtonCommand
 frame=false
 interior.element=radio
-text.normal.color=@amber@dd
-text.focus.color=@amber@
+text.normal.color=@body@dd
+text.focus.color=@body@
 min_width=+0.3font
 min_height=+0.3font
 
@@ -188,8 +188,8 @@ min_height=+0.3font
 inherits=PanelButtonCommand
 frame=false
 interior.element=checkbox
-text.normal.color=@amber@dd
-text.focus.color=@amber@
+text.normal.color=@body@dd
+text.focus.color=@body@
 min_width=+0.3font
 min_height=+0.3font
 
@@ -239,9 +239,9 @@ indicator.size=9
 
 [ToolboxTab]
 inherits=PanelButtonCommand
-text.normal.color=@amber@dd
-text.press.color=@amber@96
-text.focus.color=@amber@
+text.normal.color=@body@dd
+text.press.color=@body@96
+text.focus.color=@body@
 
 [Tab]
 inherits=PanelButtonCommand
@@ -256,9 +256,9 @@ frame.top=2
 frame.bottom=2
 frame.left=2
 frame.right=2
-text.normal.color=@amber@7d
-text.focus.color=@amber@cc
-text.toggle.color=@amber@dd
+text.normal.color=@body@7d
+text.focus.color=@body@cc
+text.toggle.color=@body@dd
 frame.expansion=0
 text.bold=true
 
@@ -284,10 +284,10 @@ frame.top=1
 frame.bottom=1
 frame.left=1
 frame.right=1
-text.normal.color=@amber@aa
-text.focus.color=@amber@
-text.press.color=@amber@
-text.toggle.color=@amber@
+text.normal.color=@body@aa
+text.focus.color=@body@
+text.press.color=@body@
+text.toggle.color=@body@
 frame.expansion=0
 
 [SizeGrip]
@@ -300,8 +300,8 @@ indicator.size=5
 text.margin=0
 interior.element=menubar
 frame.element=menubar
-text.normal.color=@amber@a0
-text.focus.color=@amber@
+text.normal.color=@body@a0
+text.focus.color=@body@
 frame.left=0
 frame.right=0
 frame.top=0
@@ -327,10 +327,10 @@ inherits=PanelButtonCommand
 frame.element=progress
 interior.element=progress
 text.margin=0
-text.normal.color=@surface0@
-text.focus.color=@surface0@
-text.press.color=@surface0@
-text.toggle.color=@surface0@
+text.normal.color=@panel@
+text.focus.color=@panel@
+text.press.color=@panel@
+text.toggle.color=@panel@
 text.bold=true
 frame.expansion=8
 
@@ -353,10 +353,10 @@ text.margin.top=2
 text.margin.bottom=2
 text.margin.left=4
 text.margin.right=4
-text.normal.color=@amber@dd
-text.focus.color=@amber@
-text.press.color=@amber@
-text.toggle.color=@amber@
+text.normal.color=@body@dd
+text.focus.color=@body@
+text.press.color=@body@
+text.toggle.color=@body@
 min_width=+0.3font
 min_height=+0.3font
 frame.expansion=0
@@ -389,8 +389,8 @@ frame=true
 frame.element=menuitem
 interior.element=menuitem
 indicator.element=menuitem
-text.normal.color=@amber@dd
-text.focus.color=@surface0@
+text.normal.color=@body@dd
+text.focus.color=@panel@
 text.margin.top=1
 text.margin.bottom=1
 text.margin.left=15
@@ -409,7 +409,7 @@ inherits=PanelButtonCommand
 frame.element=menubar
 interior.element=menubar
 frame.bottom=0
-text.normal.color=@amber@a0
+text.normal.color=@body@a0
 frame.expansion=0
 
 [MenuBarItem]
@@ -425,8 +425,8 @@ text.margin.left=4
 text.margin.right=4
 text.margin.top=0
 text.margin.bottom=0
-text.normal.color=@amber@cc
-text.focus.color=@amber@
+text.normal.color=@body@cc
+text.focus.color=@body@
 text.bold=false
 min_width=+0.3font
 min_height=+0.3font
@@ -442,8 +442,8 @@ text.margin.right=2
 interior.element=titlebar
 indicator.size=12
 indicator.element=mdi
-text.normal.color=@amberDim@
-text.focus.color=@amber@a0
+text.normal.color=@borderInactive@
+text.focus.color=@body@a0
 text.bold=true
 text.italic=true
 frame.expansion=0
@@ -461,9 +461,9 @@ text.margin.top=2
 text.margin.bottom=2
 text.margin.left=2
 text.margin.right=2
-text.focus.color=@amber@
-text.press.color=@amber@cc
-text.toggle.color=@amber@
+text.focus.color=@body@
+text.press.color=@body@cc
+text.toggle.color=@body@
 frame.expansion=0
 
 [Menu]
@@ -474,7 +474,7 @@ frame.left=1
 frame.right=1
 frame.element=menu
 interior.element=menu
-text.normal.color=@amber@dd
+text.normal.color=@body@dd
 text.shadow=false
 frame.expansion=0
 
@@ -483,8 +483,8 @@ inherits=GenericFrame
 frame=false
 text.shadow=0
 text.margin=0
-text.normal.color=@amber@96
-text.focus.color=@amber@
+text.normal.color=@body@96
+text.focus.color=@body@
 text.bold=true
 frame.expansion=0
 

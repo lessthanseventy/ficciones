@@ -55,23 +55,62 @@ rec {
     amberSoft = "CC8D00"; # inactive highlight, visited link
   };
 
-  # Semantic roles: what a surface asks for, so a re-theme is one edit here.
+  # THE MEANING MAP. Surfaces name a role; only this block names a colour. That is what makes two
+  # surfaces that mean the same thing look the same by construction, lets uqbar and zahir be
+  # provably parallel rather than parallel by hand, and is the precondition for a palette that is
+  # generated rather than written — a generated palette cannot have a hue called `amber`, it can
+  # only answer "what is body?". `amber` alone was serving five different jobs across 47 call
+  # sites in render.nix; those are now five names.
   role = with hue; {
-    bg = bg;
-    body = amber;
-    key = cyan;
-    meta = lilac;
-    live = green;
-    attention = pink;
+    # grounds, in elevation order
+    ground = bg;
+    panel = surface0; # headerbar, sidebar, the statusline block
+    card = surface1; # card, dialog, popover, tooltip
+    inputGround = surface2; # text inputs, hovered rows
+    raised = surface3; # an inactive list's selected line, meter grounds
+    edge = surface4; # frame shades, the outermost step
+    hoverGround = amberTint0;
+    pressedGround = amberTint1;
+    menuGround = amberTint2;
+
+    # text
+    body = amber; # body AND ordinary chrome
+    key = cyan; # keys, labels, code, links
+    meta = lilac; # secondary text
+    prose = grey; # italic / muted prose
+    inactive = dim;
+    visited = amberSoft;
+    maxContrast = white; # the one colour that is maximally legible on the ground
+
+    # what a thing IS
+    live = green; # running, ok, occupied, charging
+    done = moss; # finished, and receding
+    attention = pink; # agents, the operator, something wants you
+    attentionDim = pinkDim; # the same, receded
     alarm = red;
-    structure = sep;
-    dim = dim;
-    chipField = chip;
-    chipInk = ink;
+    assistant = violet;
+    warn = amber;
+    # who is speaking. Claude Code is the surface that needs this; the cockpit answers the same
+    # question differently (its :operator is pink), which is a disagreement worth settling.
+    userVoice = green;
+    assistantVoice = amber;
+
+    # inverse video. cursorField is WHERE YOU ARE, selField is WHAT YOU PICKED, and they must
+    # never read alike; selSoft is the selection where the app keeps its own text colour.
+    cursorField = chip;
     selField = sel;
     selInk = selInk;
+    selSoft = selSoft;
+    accentField = amber; # the toolkit "accent" fill
+    liveField = green;
+    alarmField = red;
+    attentionField = pink;
+    fieldInk = ink; # the ink inside any of the bright fields above
+
+    # structure
+    structure = sep; # borders, rules
     borderActive = amber;
-    borderActive2 = ember;
+    borderActive2 = ember; # the active border is a gradient of the two
     borderInactive = amberDim;
     borderInactive2 = emberDim;
   };

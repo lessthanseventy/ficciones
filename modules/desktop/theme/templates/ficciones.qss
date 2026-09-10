@@ -1,23 +1,23 @@
 /* Force all backgrounds dark and text amber */
 QWidget {
-    background-color: @surface0@;
-    color: @amber@;
-    selection-background-color: @amber@;
-    selection-color: @surface0@;
+    background-color: @panel@;
+    color: @body@;
+    selection-background-color: @body@;
+    selection-color: @panel@;
 }
 
 QTabBar::tab {
-    background: @surface0@;
-    color: @amberDim@;
+    background: @panel@;
+    color: @borderInactive@;
     border: none;
     padding: 6px 16px;
     border-bottom: 2px solid transparent;
 }
 
 QTabBar::tab:selected {
-    background: @amber@;
-    color: @surface0@;
-    border-bottom: 2px solid @amber@;
+    background: @body@;
+    color: @panel@;
+    border-bottom: 2px solid @body@;
     margin-left: 4px;
     margin-right: -4px;
 }
@@ -27,100 +27,100 @@ QTabBar::tab:first {
 }
 
 QTabBar::tab:hover:!selected {
-    background: @amberTint1@;
-    color: @amber@;
-    border-bottom: 2px solid @amberSoft@;
+    background: @pressedGround@;
+    color: @body@;
+    border-bottom: 2px solid @visited@;
 }
 
 QTabBar::tab:!selected {
-    background: @surface0@;
-    color: @amberDim@;
+    background: @panel@;
+    color: @borderInactive@;
     margin-right: 4px;
 }
 
 QTabWidget::pane {
-    background: @surface0@;
+    background: @panel@;
     border: none;
 }
 
 QToolBar {
-    background: @surface0@;
+    background: @panel@;
     border: none;
 }
 
 QToolButton {
     background: transparent;
-    color: @green@;
+    color: @live@;
     border: none;
     padding: 4px;
     qproperty-iconSize: 16px;
 }
 
 QToolButton:hover {
-    background: @amberTint0@;
+    background: @hoverGround@;
 }
 
 QToolButton:pressed {
-    background: @amberTint1@;
+    background: @pressedGround@;
 }
 
 QMenuBar {
-    background: @surface0@;
-    color: @amber@;
+    background: @panel@;
+    color: @body@;
 }
 
 QMenuBar::item:selected {
-    background: @amber@;
-    color: @surface0@;
+    background: @body@;
+    color: @panel@;
 }
 
 QMenu {
-    background: @surface0@;
-    color: @amber@;
-    border: 1px solid @amberTint2@;
+    background: @panel@;
+    color: @body@;
+    border: 1px solid @menuGround@;
 }
 
 QMenu::item:selected {
-    background: @amber@;
-    color: @surface0@;
+    background: @body@;
+    color: @panel@;
 }
 
 QTreeView, QListView, QTableView {
-    background: @surface0@;
-    alternate-background-color: @surface1@;
-    color: @amber@;
+    background: @panel@;
+    alternate-background-color: @card@;
+    color: @body@;
     border: none;
 }
 
 QTreeView::item:selected, QListView::item:selected,
 QTreeView::item:selected:active, QListView::item:selected:active,
 QAbstractItemView::item:selected {
-    background: @amber@;
-    color: @surface0@;
+    background: @body@;
+    color: @panel@;
 }
 
 QTreeView::item:selected:!active, QListView::item:selected:!active,
 QAbstractItemView::item:selected:!active {
-    background: @amberSoft@;
-    color: @surface0@;
+    background: @visited@;
+    color: @panel@;
 }
 
 QTreeView::item:hover:!selected, QListView::item:hover:!selected,
 QAbstractItemView::item:hover:!selected {
-    background: @amberTint1@;
-    color: @amber@;
+    background: @pressedGround@;
+    color: @body@;
 }
 
 QHeaderView::section {
-    background: @surface0@;
-    color: @amber@;
+    background: @panel@;
+    color: @body@;
     border: none;
-    border-bottom: 1px solid @amberTint2@;
+    border-bottom: 1px solid @menuGround@;
     padding: 4px;
 }
 
 QScrollBar:vertical, QScrollBar:horizontal {
-    background: @surface0@;
+    background: @panel@;
     border: none;
     width: 10px;
 }
@@ -142,79 +142,79 @@ QScrollBar::add-page, QScrollBar::sub-page {
 }
 
 QStatusBar {
-    background: @surface0@;
-    color: @amber@;
+    background: @panel@;
+    color: @body@;
 }
 
 QLineEdit, QTextEdit, QPlainTextEdit {
-    background: @surface0@;
-    color: @amber@;
-    border: 1px solid @amberTint2@;
-    selection-background-color: @amber@;
-    selection-color: @surface0@;
+    background: @panel@;
+    color: @body@;
+    border: 1px solid @menuGround@;
+    selection-background-color: @body@;
+    selection-color: @panel@;
 }
 
 QLineEdit:focus {
-    border: 1px solid @amber@;
+    border: 1px solid @body@;
 }
 
 QPushButton {
-    background: @surface2@;
-    color: @amber@;
-    border: 1px solid @amberTint2@;
+    background: @inputGround@;
+    color: @body@;
+    border: 1px solid @menuGround@;
     padding: 4px 12px;
     border-radius: 4px;
 }
 
 QPushButton:hover {
-    border-color: @amber@;
+    border-color: @body@;
 }
 
 QPushButton:pressed {
-    background: @amberTint1@;
+    background: @pressedGround@;
 }
 
 QComboBox {
-    background: @surface0@;
-    color: @amber@;
-    border: 1px solid @amberTint2@;
+    background: @panel@;
+    color: @body@;
+    border: 1px solid @menuGround@;
 }
 
 QComboBox:hover {
-    border-color: @amber@;
+    border-color: @body@;
 }
 
 QComboBox QAbstractItemView {
-    background: @surface0@;
-    color: @amber@;
-    selection-background-color: @amber@;
-    selection-color: @surface0@;
+    background: @panel@;
+    color: @body@;
+    selection-background-color: @body@;
+    selection-color: @panel@;
 }
 
 QSplitter::handle {
-    background: @surface2@;
+    background: @inputGround@;
 }
 
 QFrame, QGroupBox {
-    border-color: @amberTint2@;
+    border-color: @menuGround@;
 }
 
 QToolTip {
-    background: @surface0@;
-    color: @amber@;
-    border: 1px solid @amberTint2@;
+    background: @panel@;
+    color: @body@;
+    border: 1px solid @menuGround@;
 }
 
 /* Sidebar / Places panel */
 QDockWidget {
-    background: @surface0@;
-    color: @amber@;
+    background: @panel@;
+    color: @body@;
     titlebar-close-icon: none;
 }
 
 QDockWidget::title {
-    background: @surface0@;
-    color: @amber@;
+    background: @panel@;
+    color: @body@;
 }
 
 /* Dolphin sidebar places panel - force highlight colors */
@@ -222,33 +222,33 @@ QDockWidget QListView::item:selected,
 QDockWidget QTreeView::item:selected,
 QDockWidget QAbstractItemView::item:selected,
 #placesPanel QAbstractItemView::item:selected {
-    background: @amber@ !important;
-    color: @surface0@ !important;
+    background: @body@ !important;
+    color: @panel@ !important;
 }
 
 /* Force all item views including KDE custom ones */
 QAbstractItemView {
-    background: @surface0@;
-    color: @amber@;
+    background: @panel@;
+    color: @body@;
     outline: none;
 }
 
 QAbstractItemView::item {
-    background: @surface0@;
-    color: @amber@;
+    background: @panel@;
+    color: @body@;
 }
 
 QAbstractItemView::item:selected {
-    background: @amber@;
-    color: @surface0@;
+    background: @body@;
+    color: @panel@;
 }
 
 QAbstractItemView::item:selected:!active {
-    background: @amberSoft@;
-    color: @surface0@;
+    background: @visited@;
+    color: @panel@;
 }
 
 QAbstractItemView::item:hover:!selected {
-    background: @amberTint1@;
-    color: @amber@;
+    background: @pressedGround@;
+    color: @body@;
 }

@@ -183,7 +183,7 @@ toolbar {
   background-color: var(--retro-bg-elevated) !important;
   color: var(--retro-text) !important;
   border: none !important;
-  border-bottom: 1px solid @amberDim@ !important;
+  border-bottom: 1px solid @borderInactive@ !important;
   border-radius: 4px !important;
   margin: 0 !important;
   padding: 8px !important;
@@ -208,7 +208,7 @@ toolbar {
 .urlbarView-row:hover {
   background-color: var(--retro-surface) !important;
   color: var(--retro-accent) !important;
-  border-bottom: 1px solid @amberSoft@ !important;
+  border-bottom: 1px solid @visited@ !important;
 }
 
 .urlbarView-row:hover .urlbarView-url {

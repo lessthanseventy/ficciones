@@ -478,91 +478,91 @@ NOTE: You can use the userContent.css file without change preferences (about:con
     body,
     [class*="fui-FluentProvider"] {
         /* Fluent UI tokens */
-        --colorNeutralBackground1: @surface0@ !important;
-        --colorNeutralBackground1Hover: @surface3@ !important;
-        --colorNeutralBackground1Pressed: @surface4@ !important;
-        --colorNeutralBackground1Selected: @surface4@ !important;
-        --colorNeutralBackground2: @surface0@ !important;
-        --colorNeutralBackground2Hover: @surface3@ !important;
-        --colorNeutralBackground3: @surface3@ !important;
-        --colorNeutralBackground4: @surface4@ !important;
-        --colorNeutralBackground5: @amberTint2@ !important;
-        --colorNeutralBackground6: @surface0@ !important;
-        --colorNeutralBackgroundInverted: @amber@ !important;
-        --colorNeutralBackgroundStatic: @surface0@ !important;
+        --colorNeutralBackground1: @panel@ !important;
+        --colorNeutralBackground1Hover: @raised@ !important;
+        --colorNeutralBackground1Pressed: @edge@ !important;
+        --colorNeutralBackground1Selected: @edge@ !important;
+        --colorNeutralBackground2: @panel@ !important;
+        --colorNeutralBackground2Hover: @raised@ !important;
+        --colorNeutralBackground3: @raised@ !important;
+        --colorNeutralBackground4: @edge@ !important;
+        --colorNeutralBackground5: @menuGround@ !important;
+        --colorNeutralBackground6: @panel@ !important;
+        --colorNeutralBackgroundInverted: @body@ !important;
+        --colorNeutralBackgroundStatic: @panel@ !important;
         --colorSubtleBackground: transparent !important;
-        --colorSubtleBackgroundHover: @surface3@ !important;
-        --colorSubtleBackgroundPressed: @surface4@ !important;
-        --colorSubtleBackgroundSelected: @surface3@ !important;
+        --colorSubtleBackgroundHover: @raised@ !important;
+        --colorSubtleBackgroundPressed: @edge@ !important;
+        --colorSubtleBackgroundSelected: @raised@ !important;
         --colorTransparentBackground: transparent !important;
-        --colorTransparentBackgroundHover: @surface3@ !important;
-        --colorTransparentBackgroundPressed: @surface4@ !important;
+        --colorTransparentBackgroundHover: @raised@ !important;
+        --colorTransparentBackgroundPressed: @edge@ !important;
 
-        --colorNeutralForeground1: @amber@ !important;
-        --colorNeutralForeground1Hover: @amber@ !important;
-        --colorNeutralForeground2: @amberSoft@ !important;
-        --colorNeutralForeground2Hover: @amber@ !important;
-        --colorNeutralForeground3: @amberDim@ !important;
-        --colorNeutralForeground4: @amberDim@ !important;
-        --colorNeutralForegroundDisabled: @dim@ !important;
-        --colorNeutralForegroundInverted: @surface0@ !important;
-        --colorNeutralForegroundOnBrand: @surface0@ !important;
+        --colorNeutralForeground1: @body@ !important;
+        --colorNeutralForeground1Hover: @body@ !important;
+        --colorNeutralForeground2: @visited@ !important;
+        --colorNeutralForeground2Hover: @body@ !important;
+        --colorNeutralForeground3: @borderInactive@ !important;
+        --colorNeutralForeground4: @borderInactive@ !important;
+        --colorNeutralForegroundDisabled: @inactive@ !important;
+        --colorNeutralForegroundInverted: @panel@ !important;
+        --colorNeutralForegroundOnBrand: @panel@ !important;
 
-        --colorNeutralStroke1: @surface4@ !important;
-        --colorNeutralStroke1Hover: @amberTint2@ !important;
-        --colorNeutralStroke2: @surface3@ !important;
-        --colorNeutralStroke3: @surface3@ !important;
-        --colorNeutralStrokeAccessible: @amberTint2@ !important;
-        --colorNeutralStrokeDisabled: @surface3@ !important;
+        --colorNeutralStroke1: @edge@ !important;
+        --colorNeutralStroke1Hover: @menuGround@ !important;
+        --colorNeutralStroke2: @raised@ !important;
+        --colorNeutralStroke3: @raised@ !important;
+        --colorNeutralStrokeAccessible: @menuGround@ !important;
+        --colorNeutralStrokeDisabled: @raised@ !important;
 
-        --colorBrandBackground: @amber@ !important;
-        --colorBrandBackgroundHover: @amber@ !important;
-        --colorBrandBackgroundPressed: @amberSoft@ !important;
-        --colorBrandBackgroundSelected: @amber@ !important;
-        --colorBrandForeground1: @amber@ !important;
-        --colorBrandForeground2: @amber@ !important;
-        --colorBrandForegroundLink: @green@ !important;
-        --colorBrandForegroundLinkHover: @amber@ !important;
-        --colorBrandForegroundLinkPressed: @amber@ !important;
-        --colorBrandStroke1: @amber@ !important;
+        --colorBrandBackground: @body@ !important;
+        --colorBrandBackgroundHover: @body@ !important;
+        --colorBrandBackgroundPressed: @visited@ !important;
+        --colorBrandBackgroundSelected: @body@ !important;
+        --colorBrandForeground1: @body@ !important;
+        --colorBrandForeground2: @body@ !important;
+        --colorBrandForegroundLink: @live@ !important;
+        --colorBrandForegroundLinkHover: @body@ !important;
+        --colorBrandForegroundLinkPressed: @body@ !important;
+        --colorBrandStroke1: @body@ !important;
 
-        --colorCompoundBrandBackground: @amber@ !important;
-        --colorCompoundBrandBackgroundHover: @amber@ !important;
-        --colorCompoundBrandStroke: @amber@ !important;
-        --colorCompoundBrandForeground1: @amber@ !important;
+        --colorCompoundBrandBackground: @body@ !important;
+        --colorCompoundBrandBackgroundHover: @body@ !important;
+        --colorCompoundBrandStroke: @body@ !important;
+        --colorCompoundBrandForeground1: @body@ !important;
 
-        --colorPaletteRedForeground1: @red@ !important;
+        --colorPaletteRedForeground1: @alarm@ !important;
         --colorPaletteRedBackground1: rgba(243, 139, 168, 0.1) !important;
-        --colorPaletteGreenForeground1: @green@ !important;
+        --colorPaletteGreenForeground1: @live@ !important;
         --colorPaletteGreenBackground1: rgba(51, 255, 0, 0.1) !important;
-        --colorPaletteYellowForeground1: @amber@ !important;
-        --colorPaletteBlueForeground2: @cyan@ !important;
+        --colorPaletteYellowForeground1: @body@ !important;
+        --colorPaletteBlueForeground2: @key@ !important;
 
-        --colorStatusSuccessForeground1: @green@ !important;
-        --colorStatusWarningForeground1: @amber@ !important;
-        --colorStatusDangerForeground1: @red@ !important;
+        --colorStatusSuccessForeground1: @live@ !important;
+        --colorStatusWarningForeground1: @body@ !important;
+        --colorStatusDangerForeground1: @alarm@ !important;
 
-        --colorScrollbarOverlay: @amberTint2@ !important;
+        --colorScrollbarOverlay: @menuGround@ !important;
 
         color-scheme: dark !important;
     }
 
     html, body {
-        background-color: @surface0@ !important;
-        color: @amber@ !important;
+        background-color: @panel@ !important;
+        color: @body@ !important;
     }
 
     /* App rail */
     [data-app-section="AppBar"],
     nav[role="navigation"] {
-        background-color: @bg@ !important;
+        background-color: @ground@ !important;
     }
 
     /* Folder pane */
     [data-app-section="FolderPane"],
     [class*="folderPane" i],
     [class*="FolderPane"] {
-        background-color: @surface0@ !important;
+        background-color: @panel@ !important;
     }
 
     /* Message list */
@@ -570,71 +570,71 @@ NOTE: You can use the userContent.css file without change preferences (about:con
     [role="listitem"],
     [role="option"],
     [data-convid] {
-        background-color: @surface0@ !important;
+        background-color: @panel@ !important;
     }
 
     [role="listitem"]:hover,
     [role="option"]:hover,
     [data-convid]:hover {
-        background-color: @surface3@ !important;
+        background-color: @raised@ !important;
     }
 
     [aria-selected="true"],
     [data-is-selected="true"] {
-        background-color: @surface3@ !important;
+        background-color: @raised@ !important;
     }
 
     /* Reading pane */
     [data-app-section="ReadingPane"],
     [class*="readingPane" i] {
-        background-color: @surface0@ !important;
+        background-color: @panel@ !important;
     }
 
     /* Ribbon / toolbar */
     [class*="ribbon" i],
     [class*="CommandBar"],
     [role="toolbar"] {
-        background-color: @surface0@ !important;
+        background-color: @panel@ !important;
     }
 
     /* Top header */
     [data-app-section="Header"] {
-        background-color: @bg@ !important;
+        background-color: @ground@ !important;
     }
 
     /* Search */
     [role="search"] input,
     [role="searchbox"] {
-        background-color: @surface3@ !important;
-        color: @amber@ !important;
-        border-color: @surface4@ !important;
+        background-color: @raised@ !important;
+        color: @body@ !important;
+        border-color: @edge@ !important;
     }
 
     /* Tabs (Focused / Other) */
     [role="tab"] {
-        color: @amberSoft@ !important;
+        color: @visited@ !important;
     }
     [role="tab"][aria-selected="true"] {
-        color: @amber@ !important;
-        border-bottom-color: @amber@ !important;
+        color: @body@ !important;
+        border-bottom-color: @body@ !important;
     }
 
     /* Info bars */
     [class*="InfoBar" i],
     [class*="messageBanner" i] {
-        background-color: @surface3@ !important;
-        border-color: @surface4@ !important;
+        background-color: @raised@ !important;
+        border-color: @edge@ !important;
     }
 
     /* Buttons */
     button, [role="button"] {
-        background-color: @surface3@ !important;
-        color: @amber@ !important;
-        border-color: @surface4@ !important;
+        background-color: @raised@ !important;
+        color: @body@ !important;
+        border-color: @edge@ !important;
     }
     button:hover, [role="button"]:hover {
-        background-color: @surface4@ !important;
-        color: @amber@ !important;
+        background-color: @edge@ !important;
+        color: @body@ !important;
     }
 
     /* Menus, flyouts */
@@ -642,8 +642,8 @@ NOTE: You can use the userContent.css file without change preferences (about:con
     [role="dialog"],
     [class*="flyout" i],
     [class*="Callout" i] {
-        background-color: @surface3@ !important;
-        border-color: @surface4@ !important;
+        background-color: @raised@ !important;
+        border-color: @edge@ !important;
     }
 
     /* Generic containers */
@@ -652,17 +652,17 @@ NOTE: You can use the userContent.css file without change preferences (about:con
     }
 
     /* Typography */
-    h1, h2, h3, h4, h5, h6 { color: @amber@ !important; }
-    p, span, li, td, th, label { color: @amber@ !important; }
-    strong, b { color: @amber@ !important; }
-    small, [class*="muted"] { color: @amberSoft@ !important; }
-    a { color: @green@ !important; }
-    a:hover { color: @amber@ !important; }
+    h1, h2, h3, h4, h5, h6 { color: @body@ !important; }
+    p, span, li, td, th, label { color: @body@ !important; }
+    strong, b { color: @body@ !important; }
+    small, [class*="muted"] { color: @visited@ !important; }
+    a { color: @live@ !important; }
+    a:hover { color: @body@ !important; }
 
     /* Scrollbar */
     * {
-        scrollbar-color: @amberTint2@ @surface0@ !important;
-        border-color: @surface4@ !important;
+        scrollbar-color: @menuGround@ @panel@ !important;
+        border-color: @edge@ !important;
     }
 }
 

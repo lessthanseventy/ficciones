@@ -2,164 +2,164 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="790">
   <defs>
     <linearGradient id="amber-glow" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="@amber@" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="@amberSoft@" stop-opacity="0.8"/>
+      <stop offset="0" stop-color="@body@" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="@visited@" stop-opacity="0.8"/>
     </linearGradient>
     <linearGradient id="button-bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="@surface2@"/>
-      <stop offset="1" stop-color="@surface1@"/>
+      <stop offset="0" stop-color="@inputGround@"/>
+      <stop offset="1" stop-color="@card@"/>
     </linearGradient>
     <linearGradient id="button-focus" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="@amberTint1@"/>
-      <stop offset="1" stop-color="@amberTint0@"/>
+      <stop offset="0" stop-color="@pressedGround@"/>
+      <stop offset="1" stop-color="@hoverGround@"/>
     </linearGradient>
     <linearGradient id="button-press" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="@amberTint1@"/>
-      <stop offset="1" stop-color="@amberTint1@"/>
+      <stop offset="0" stop-color="@pressedGround@"/>
+      <stop offset="1" stop-color="@pressedGround@"/>
     </linearGradient>
   </defs>
 
   <!-- Window background -->
-  <rect id="window-normal-interior" x="0" y="0" width="30" height="30" rx="0" fill="@surface0@"/>
+  <rect id="window-normal-interior" x="0" y="0" width="30" height="30" rx="0" fill="@panel@"/>
 
   <!-- Button normal -->
   <rect id="button-normal-interior" x="40" y="0" width="30" height="30" rx="4" fill="url(#button-bg)"/>
-  <rect id="button-normal-frame" x="40" y="0" width="30" height="30" rx="4" fill="none" stroke="@surface3@" stroke-width="1"/>
+  <rect id="button-normal-frame" x="40" y="0" width="30" height="30" rx="4" fill="none" stroke="@raised@" stroke-width="1"/>
 
   <!-- Button focused -->
   <rect id="button-focus-interior" x="80" y="0" width="30" height="30" rx="4" fill="url(#button-focus)"/>
-  <rect id="button-focus-frame" x="80" y="0" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.6"/>
+  <rect id="button-focus-frame" x="80" y="0" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
 
   <!-- Button pressed -->
   <rect id="button-press-interior" x="120" y="0" width="30" height="30" rx="4" fill="url(#button-press)"/>
-  <rect id="button-press-frame" x="120" y="0" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.8"/>
+  <rect id="button-press-frame" x="120" y="0" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.8"/>
 
   <!-- Button toggled -->
-  <rect id="button-toggle-interior" x="160" y="0" width="30" height="30" rx="4" fill="@amberTint0@"/>
-  <rect id="button-toggle-frame" x="160" y="0" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.5"/>
+  <rect id="button-toggle-interior" x="160" y="0" width="30" height="30" rx="4" fill="@hoverGround@"/>
+  <rect id="button-toggle-frame" x="160" y="0" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.5"/>
 
   <!-- Toolbar button -->
   <rect id="tbutton-normal-interior" x="40" y="40" width="30" height="30" rx="4" fill="transparent"/>
   <rect id="tbutton-normal-frame" x="40" y="40" width="30" height="30" rx="4" fill="none" stroke="transparent"/>
   <rect id="tbutton-focus-interior" x="80" y="40" width="30" height="30" rx="4" fill="url(#button-focus)"/>
-  <rect id="tbutton-focus-frame" x="80" y="40" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.4"/>
+  <rect id="tbutton-focus-frame" x="80" y="40" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
   <rect id="tbutton-press-interior" x="120" y="40" width="30" height="30" rx="4" fill="url(#button-press)"/>
-  <rect id="tbutton-press-frame" x="120" y="40" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.6"/>
-  <rect id="tbutton-toggle-interior" x="160" y="40" width="30" height="30" rx="4" fill="@amberTint0@"/>
-  <rect id="tbutton-toggle-frame" x="160" y="40" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.4"/>
+  <rect id="tbutton-press-frame" x="120" y="40" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
+  <rect id="tbutton-toggle-interior" x="160" y="40" width="30" height="30" rx="4" fill="@hoverGround@"/>
+  <rect id="tbutton-toggle-frame" x="160" y="40" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
 
   <!-- Line edit -->
-  <rect id="lineedit-normal-frame" x="0" y="80" width="30" height="30" rx="4" fill="none" stroke="@surface3@" stroke-width="1"/>
-  <rect id="lineedit-normal-interior" x="0" y="80" width="30" height="30" rx="4" fill="@surface0@"/>
-  <rect id="lineedit-focus-frame" x="40" y="80" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.7"/>
-  <rect id="lineedit-focus-interior" x="40" y="80" width="30" height="30" rx="4" fill="@amberTint0@"/>
+  <rect id="lineedit-normal-frame" x="0" y="80" width="30" height="30" rx="4" fill="none" stroke="@raised@" stroke-width="1"/>
+  <rect id="lineedit-normal-interior" x="0" y="80" width="30" height="30" rx="4" fill="@panel@"/>
+  <rect id="lineedit-focus-frame" x="40" y="80" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.7"/>
+  <rect id="lineedit-focus-interior" x="40" y="80" width="30" height="30" rx="4" fill="@hoverGround@"/>
 
   <!-- Combo box -->
-  <rect id="combo-normal-frame" x="0" y="120" width="30" height="30" rx="4" fill="none" stroke="@surface3@" stroke-width="1"/>
-  <rect id="combo-normal-interior" x="0" y="120" width="30" height="30" rx="4" fill="@surface0@"/>
-  <rect id="combo-focus-frame" x="40" y="120" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.6"/>
-  <rect id="combo-focus-interior" x="40" y="120" width="30" height="30" rx="4" fill="@amberTint0@"/>
+  <rect id="combo-normal-frame" x="0" y="120" width="30" height="30" rx="4" fill="none" stroke="@raised@" stroke-width="1"/>
+  <rect id="combo-normal-interior" x="0" y="120" width="30" height="30" rx="4" fill="@panel@"/>
+  <rect id="combo-focus-frame" x="40" y="120" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
+  <rect id="combo-focus-interior" x="40" y="120" width="30" height="30" rx="4" fill="@hoverGround@"/>
 
   <!-- Focus frame -->
-  <rect id="focus-normal-frame" x="0" y="160" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.5"/>
+  <rect id="focus-normal-frame" x="0" y="160" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.5"/>
 
   <!-- Generic frame -->
-  <rect id="common-normal-frame" x="0" y="200" width="30" height="30" rx="4" fill="none" stroke="@surface2@" stroke-width="1"/>
+  <rect id="common-normal-frame" x="0" y="200" width="30" height="30" rx="4" fill="none" stroke="@inputGround@" stroke-width="1"/>
 
   <!-- Tab -->
-  <rect id="tab-normal-interior" x="0" y="240" width="30" height="30" rx="0" fill="@surface0@"/>
+  <rect id="tab-normal-interior" x="0" y="240" width="30" height="30" rx="0" fill="@panel@"/>
   <rect id="tab-normal-frame" x="0" y="240" width="30" height="30" rx="0" fill="none" stroke="transparent"/>
-  <rect id="tab-focus-interior" x="40" y="240" width="30" height="30" rx="0" fill="@surface0@"/>
-  <rect id="tab-focus-frame" x="40" y="240" width="30" height="30" rx="0" fill="none" stroke="@amber@" stroke-width="0" stroke-opacity="0"/>
-  <rect id="tab-toggle-interior" x="80" y="240" width="30" height="30" rx="0" fill="@surface0@"/>
+  <rect id="tab-focus-interior" x="40" y="240" width="30" height="30" rx="0" fill="@panel@"/>
+  <rect id="tab-focus-frame" x="40" y="240" width="30" height="30" rx="0" fill="none" stroke="@body@" stroke-width="0" stroke-opacity="0"/>
+  <rect id="tab-toggle-interior" x="80" y="240" width="30" height="30" rx="0" fill="@panel@"/>
   <rect id="tab-toggle-frame" x="80" y="240" width="30" height="30" rx="0" fill="none"/>
   <rect id="tab-normal-indicator" x="0" y="268" width="30" height="2" fill="transparent"/>
-  <rect id="tab-focus-indicator" x="40" y="268" width="30" height="2" fill="@amber@" fill-opacity="0.6"/>
-  <rect id="tab-toggle-indicator" x="80" y="268" width="30" height="2" fill="@amber@"/>
+  <rect id="tab-focus-indicator" x="40" y="268" width="30" height="2" fill="@body@" fill-opacity="0.6"/>
+  <rect id="tab-toggle-indicator" x="80" y="268" width="30" height="2" fill="@body@"/>
 
   <!-- Tab frame -->
-  <rect id="tabframe-normal-interior" x="0" y="280" width="30" height="30" rx="0" fill="@surface0@"/>
-  <rect id="tabframe-normal-frame" x="0" y="280" width="30" height="30" rx="0" fill="none" stroke="@surface0@" stroke-width="1"/>
+  <rect id="tabframe-normal-interior" x="0" y="280" width="30" height="30" rx="0" fill="@panel@"/>
+  <rect id="tabframe-normal-frame" x="0" y="280" width="30" height="30" rx="0" fill="none" stroke="@panel@" stroke-width="1"/>
 
   <!-- Tab bar frame -->
-  <rect id="tabBarFrame-normal-frame" x="40" y="280" width="30" height="30" rx="0" fill="none" stroke="@surface0@" stroke-width="1"/>
+  <rect id="tabBarFrame-normal-frame" x="40" y="280" width="30" height="30" rx="0" fill="none" stroke="@panel@" stroke-width="1"/>
 
   <!-- Header -->
-  <rect id="header-normal-interior" x="0" y="320" width="30" height="30" rx="0" fill="@surface0@"/>
-  <rect id="header-normal-frame" x="0" y="320" width="30" height="30" rx="0" fill="none" stroke="@surface2@" stroke-width="1"/>
-  <rect id="header-focus-interior" x="40" y="320" width="30" height="30" rx="0" fill="@surface1@"/>
-  <rect id="header-focus-frame" x="40" y="320" width="30" height="30" rx="0" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.3"/>
-  <rect id="header-press-interior" x="80" y="320" width="30" height="30" rx="0" fill="@amberTint0@"/>
-  <rect id="header-press-frame" x="80" y="320" width="30" height="30" rx="0" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.4"/>
+  <rect id="header-normal-interior" x="0" y="320" width="30" height="30" rx="0" fill="@panel@"/>
+  <rect id="header-normal-frame" x="0" y="320" width="30" height="30" rx="0" fill="none" stroke="@inputGround@" stroke-width="1"/>
+  <rect id="header-focus-interior" x="40" y="320" width="30" height="30" rx="0" fill="@card@"/>
+  <rect id="header-focus-frame" x="40" y="320" width="30" height="30" rx="0" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
+  <rect id="header-press-interior" x="80" y="320" width="30" height="30" rx="0" fill="@hoverGround@"/>
+  <rect id="header-press-frame" x="80" y="320" width="30" height="30" rx="0" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
 
   <!-- Item view -->
   <rect id="itemview-normal-interior" x="0" y="360" width="30" height="30" rx="0" fill="transparent"/>
   <rect id="itemview-normal-frame" x="0" y="360" width="30" height="30" rx="0" fill="none"/>
-  <rect id="itemview-focus-interior" x="40" y="360" width="30" height="30" rx="0" fill="@amberTint0@"/>
-  <rect id="itemview-focus-frame" x="40" y="360" width="30" height="30" rx="0" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.3"/>
-  <rect id="itemview-press-interior" x="80" y="360" width="30" height="30" rx="2" fill="@amberTint1@"/>
-  <rect id="itemview-press-frame" x="80" y="360" width="30" height="30" rx="2" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.4"/>
-  <rect id="itemview-toggle-interior" x="120" y="360" width="30" height="30" rx="2" fill="@amberTint0@"/>
-  <rect id="itemview-toggle-frame" x="120" y="360" width="30" height="30" rx="2" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.2"/>
+  <rect id="itemview-focus-interior" x="40" y="360" width="30" height="30" rx="0" fill="@hoverGround@"/>
+  <rect id="itemview-focus-frame" x="40" y="360" width="30" height="30" rx="0" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
+  <rect id="itemview-press-interior" x="80" y="360" width="30" height="30" rx="2" fill="@pressedGround@"/>
+  <rect id="itemview-press-frame" x="80" y="360" width="30" height="30" rx="2" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
+  <rect id="itemview-toggle-interior" x="120" y="360" width="30" height="30" rx="2" fill="@hoverGround@"/>
+  <rect id="itemview-toggle-frame" x="120" y="360" width="30" height="30" rx="2" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.2"/>
 
   <!-- Menubar -->
-  <rect id="menubar-normal-interior" x="0" y="400" width="30" height="30" rx="0" fill="@surface0@"/>
+  <rect id="menubar-normal-interior" x="0" y="400" width="30" height="30" rx="0" fill="@panel@"/>
   <rect id="menubar-normal-frame" x="0" y="400" width="30" height="30" rx="0" fill="none"/>
 
   <!-- Menubar item -->
   <rect id="menubaritem-normal-interior" x="0" y="440" width="30" height="30" rx="4" fill="transparent"/>
   <rect id="menubaritem-normal-frame" x="0" y="440" width="30" height="30" rx="4" fill="none"/>
-  <rect id="menubaritem-focus-interior" x="40" y="440" width="30" height="30" rx="4" fill="@amberTint0@"/>
-  <rect id="menubaritem-focus-frame" x="40" y="440" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.3"/>
+  <rect id="menubaritem-focus-interior" x="40" y="440" width="30" height="30" rx="4" fill="@hoverGround@"/>
+  <rect id="menubaritem-focus-frame" x="40" y="440" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
 
   <!-- Menu (context menu) -->
-  <rect id="menu-normal-interior" x="0" y="480" width="30" height="30" rx="4" fill="@surface0@"/>
-  <rect id="menu-normal-frame" x="0" y="480" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.3"/>
+  <rect id="menu-normal-interior" x="0" y="480" width="30" height="30" rx="4" fill="@panel@"/>
+  <rect id="menu-normal-frame" x="0" y="480" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
 
   <!-- Menu item -->
   <rect id="menuitem-normal-interior" x="0" y="520" width="30" height="30" rx="4" fill="transparent"/>
   <rect id="menuitem-normal-frame" x="0" y="520" width="30" height="30" rx="4" fill="none"/>
-  <rect id="menuitem-focus-interior" x="40" y="520" width="30" height="30" rx="4" fill="@amber@"/>
+  <rect id="menuitem-focus-interior" x="40" y="520" width="30" height="30" rx="4" fill="@body@"/>
   <rect id="menuitem-focus-frame" x="40" y="520" width="30" height="30" rx="4" fill="none"/>
 
   <!-- Dock -->
-  <rect id="dock-normal-interior" x="0" y="560" width="30" height="30" rx="0" fill="@surface0@"/>
-  <rect id="dock-normal-frame" x="0" y="560" width="30" height="30" rx="0" fill="none" stroke="@surface2@" stroke-width="1"/>
+  <rect id="dock-normal-interior" x="0" y="560" width="30" height="30" rx="0" fill="@panel@"/>
+  <rect id="dock-normal-frame" x="0" y="560" width="30" height="30" rx="0" fill="none" stroke="@inputGround@" stroke-width="1"/>
 
   <!-- Progress bar -->
-  <rect id="progress-normal-interior" x="0" y="600" width="30" height="30" rx="4" fill="@surface0@"/>
-  <rect id="progress-normal-frame" x="0" y="600" width="30" height="30" rx="4" fill="none" stroke="@surface3@" stroke-width="1"/>
+  <rect id="progress-normal-interior" x="0" y="600" width="30" height="30" rx="4" fill="@panel@"/>
+  <rect id="progress-normal-frame" x="0" y="600" width="30" height="30" rx="4" fill="none" stroke="@raised@" stroke-width="1"/>
   <rect id="progress-pattern-normal-interior" x="40" y="600" width="30" height="30" rx="4" fill="url(#amber-glow)"/>
   <rect id="progress-pattern-normal-frame" x="40" y="600" width="30" height="30" rx="4" fill="none"/>
 
   <!-- Scrollbar slider -->
-  <rect id="scrollbarslider-normal-interior" x="0" y="640" width="8" height="30" rx="4" fill="@amber@" fill-opacity="0.3"/>
-  <rect id="scrollbarslider-focus-interior" x="16" y="640" width="8" height="30" rx="4" fill="@amber@" fill-opacity="0.5"/>
-  <rect id="scrollbarslider-press-interior" x="32" y="640" width="8" height="30" rx="4" fill="@amber@" fill-opacity="0.7"/>
+  <rect id="scrollbarslider-normal-interior" x="0" y="640" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.3"/>
+  <rect id="scrollbarslider-focus-interior" x="16" y="640" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.5"/>
+  <rect id="scrollbarslider-press-interior" x="32" y="640" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.7"/>
 
   <!-- Slider -->
-  <rect id="slider-normal-interior" x="0" y="680" width="30" height="6" rx="3" fill="@surface2@"/>
-  <rect id="slider-normal-frame" x="0" y="680" width="30" height="6" rx="3" fill="none" stroke="@surface3@" stroke-width="1"/>
-  <rect id="slider-focus-interior" x="40" y="680" width="30" height="6" rx="3" fill="@surface2@"/>
-  <rect id="slider-focus-frame" x="40" y="680" width="30" height="6" rx="3" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.4"/>
-  <circle id="slidercursor-normal-interior" cx="10" cy="700" r="8" fill="@amber@"/>
-  <circle id="slidercursor-focus-interior" cx="30" cy="700" r="8" fill="@amber@"/>
-  <circle id="slidercursor-press-interior" cx="50" cy="700" r="8" fill="@amberSoft@"/>
+  <rect id="slider-normal-interior" x="0" y="680" width="30" height="6" rx="3" fill="@inputGround@"/>
+  <rect id="slider-normal-frame" x="0" y="680" width="30" height="6" rx="3" fill="none" stroke="@raised@" stroke-width="1"/>
+  <rect id="slider-focus-interior" x="40" y="680" width="30" height="6" rx="3" fill="@inputGround@"/>
+  <rect id="slider-focus-frame" x="40" y="680" width="30" height="6" rx="3" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
+  <circle id="slidercursor-normal-interior" cx="10" cy="700" r="8" fill="@body@"/>
+  <circle id="slidercursor-focus-interior" cx="30" cy="700" r="8" fill="@body@"/>
+  <circle id="slidercursor-press-interior" cx="50" cy="700" r="8" fill="@visited@"/>
 
   <!-- Tooltip -->
-  <rect id="tooltip-normal-interior" x="0" y="720" width="30" height="30" rx="4" fill="@surface0@"/>
-  <rect id="tooltip-normal-frame" x="0" y="720" width="30" height="30" rx="4" fill="none" stroke="@amber@" stroke-width="1" stroke-opacity="0.3"/>
+  <rect id="tooltip-normal-interior" x="0" y="720" width="30" height="30" rx="4" fill="@panel@"/>
+  <rect id="tooltip-normal-frame" x="0" y="720" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
 
   <!-- Titlebar -->
-  <rect id="titlebar-normal-interior" x="0" y="760" width="30" height="30" rx="0" fill="@surface0@"/>
-  <rect id="titlebar-focus-interior" x="40" y="760" width="30" height="30" rx="0" fill="@surface0@"/>
+  <rect id="titlebar-normal-interior" x="0" y="760" width="30" height="30" rx="0" fill="@panel@"/>
+  <rect id="titlebar-focus-interior" x="40" y="760" width="30" height="30" rx="0" fill="@panel@"/>
 
   <!-- Checkbox and radio -->
-  <rect id="checkbox-normal-interior" x="200" y="0" width="16" height="16" rx="3" fill="@surface0@" stroke="@surface3@" stroke-width="1"/>
-  <rect id="checkbox-focus-interior" x="220" y="0" width="16" height="16" rx="3" fill="@surface0@" stroke="@amber@" stroke-width="1" stroke-opacity="0.6"/>
-  <rect id="checkbox-toggle-interior" x="240" y="0" width="16" height="16" rx="3" fill="@amber@"/>
-  <circle id="radio-normal-interior" cx="208" cy="30" r="7" fill="@surface0@" stroke="@surface3@" stroke-width="1"/>
-  <circle id="radio-focus-interior" cx="228" cy="30" r="7" fill="@surface0@" stroke="@amber@" stroke-width="1" stroke-opacity="0.6"/>
-  <circle id="radio-toggle-interior" cx="248" cy="30" r="7" fill="@amber@"/>
+  <rect id="checkbox-normal-interior" x="200" y="0" width="16" height="16" rx="3" fill="@panel@" stroke="@raised@" stroke-width="1"/>
+  <rect id="checkbox-focus-interior" x="220" y="0" width="16" height="16" rx="3" fill="@panel@" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
+  <rect id="checkbox-toggle-interior" x="240" y="0" width="16" height="16" rx="3" fill="@body@"/>
+  <circle id="radio-normal-interior" cx="208" cy="30" r="7" fill="@panel@" stroke="@raised@" stroke-width="1"/>
+  <circle id="radio-focus-interior" cx="228" cy="30" r="7" fill="@panel@" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
+  <circle id="radio-toggle-interior" cx="248" cy="30" r="7" fill="@body@"/>
 
 </svg>

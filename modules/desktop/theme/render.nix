@@ -6,9 +6,12 @@
 
 let
   p = palette;
-  h = p.hue;
   r = p.role;
   f = p.font;
+  # `p.hue` is deliberately NOT bound here. A surface names a ROLE; only the palette EXPORTS
+  # below — the tokens we hand to our own code, whose consumers do think in colours — bind the
+  # hues, inside their own `let`. So reaching for a hue from a surface is an undefined variable,
+  # which is a better gate than remembering not to.
   hex = c: "#${c}";
   low = c: lib.toLower c;
   # rgb triple for formats that want decimals
@@ -20,15 +23,20 @@ let
   gen = "generated from modules/desktop/theme/palette.nix — edit THAT, never this file";
   fontStack = ''"${f.family}", "${f.mono}", ${f.fallback}'';
   fill = template: subs: lib.replaceStrings (map (k: "@${k}@") (builtins.attrNames subs)) (map hex (builtins.attrValues subs)) template;
-  # The substitution map the vendored templates (kvantum, qss, floorp) use.
+  # The substitution map the vendored templates (kvantum, qss, floorp) use. Role names, like
+  # everything else here: a template that says @body@ keeps working when a palette calls its body
+  # colour something other than amber.
   templateSubs = {
-    inherit (h) amber green bg ink chip sel selInk cyan lilac pink red dim sep
-      amberDim amberSoft surface0 surface1 surface2 surface3 surface4 amberTint0 amberTint1 amberTint2;
+    inherit (r) ground body key live alarm inactive structure visited
+      panel card inputGround raised edge hoverGround pressedGround menuGround borderInactive;
   };
 in
 rec {
-  # ---- the shell -----------------------------------------------------------------------
-  paletteScss = ''
+  # ---- the palette EXPORTS -------------------------------------------------------------
+  # The one place hues are named. These hand the palette to our own code (the shell's stylesheet,
+  # Console.Palette, scripts that draw), and those consumers name colours, not roles — converting
+  # them means renaming every `$amber` in the shell's SCSS, which is its own pass.
+  paletteScss = let h = p.hue; in ''
     // ${gen}. _tokens.scss forwards this and adds the metrics. Rule: body text amber on black; green/pink highlights; active = inverse video.
     $bg:     ${hex h.bg};
     $ink:    ${hex h.ink};   // chip text — dark on a bright field
@@ -74,12 +82,12 @@ rec {
   '';
 
   # The palette as JSON — the shell loads the theme's copy at runtime for its Pango markup.
-  paletteJson = builtins.toJSON {
+  paletteJson = let h = p.hue; in builtins.toJSON {
     amber = hex h.amber; green = hex h.green; pink = hex h.pink; cyan = hex h.cyan;
     lilac = hex h.violet; chip = hex h.chip; red = hex h.red; dim = hex h.dim;
   };
 
-  paletteTs = ''
+  paletteTs = let h = p.hue; in ''
     // ${gen}. The palette as JS, for the one place CSS cannot reach: Pango markup in a label.
     export const PALETTE = {
       amber: "${hex h.amber}",
@@ -102,34 +110,34 @@ rec {
     let
       t = c: hex (low c);
       # message grounds: a tint of the hue on the ground, one step off it
-      tint = if light then h.surface1 else h.surface0;
-      tint2 = if light then h.surface2 else h.surface1;
+      tint = if light then r.card else r.panel;
+      tint2 = if light then r.inputGround else r.card;
     in
     builtins.toJSON {
       inherit name;
       base = if light then "light" else "dark";
       overrides = {
-        text = t h.green; claude = t h.amber; inverseText = t h.bg; background = t h.bg;
-        subtle = t h.lilac; inactive = t h.dim; suggestion = t h.pink; permission = t h.pink;
-        remember = t h.violet; success = t h.green; error = t h.red; warning = t h.amber;
-        merged = t h.pink; promptBorder = t h.amber; planMode = t h.cyan; autoAccept = t h.chip;
-        fastMode = t h.pink; bashBorder = t h.sep; ide = t h.cyan; thinking = t h.cyan;
-        toolUse = t h.amber; agentsView = t h.green; subagentStatusLine = t h.amber;
+        text = t r.userVoice; claude = t r.assistantVoice; inverseText = t r.ground; background = t r.ground;
+        subtle = t r.meta; inactive = t r.inactive; suggestion = t r.attention; permission = t r.attention;
+        remember = t r.assistant; success = t r.live; error = t r.alarm; warning = t r.warn;
+        merged = t r.attention; promptBorder = t r.borderActive; planMode = t r.key; autoAccept = t r.cursorField;
+        fastMode = t r.attention; bashBorder = t r.structure; ide = t r.key; thinking = t r.key;
+        toolUse = t r.body; agentsView = t r.live; subagentStatusLine = t r.body;
         diffAdded = t (if light then "D6EDD6" else "0C2E0C"); diffAddedWord = t (if light then "A8DCA8" else "1B5E1B");
         diffAddedDimmed = t (if light then "E6F2E6" else "081F08");
         diffRemoved = t (if light then "F2D9D9" else "2E0C0C"); diffRemovedWord = t (if light then "E3AFAF" else "5E1B1B");
         diffRemovedDimmed = t (if light then "F7E8E8" else "1F0808");
         userMessageBackground = t tint; userMessageBackgroundHover = t tint2;
-        bashMessageBackgroundColor = t h.amberTint0; memoryBackgroundColor = t tint;
-        selectionBg = t h.selSoft; composerSidebarBackground = t tint;
-        rate_limit_fill = t h.green; rate_limit_empty = t tint2;
-        briefLabelYou = t h.chip; briefLabelClaude = t h.green;
-        claudeShimmer = t h.chip; warningShimmer = t h.chip; permissionShimmer = t h.pink;
-        promptBorderShimmer = t h.chip; inactiveShimmer = t h.dim; fastModeShimmer = t h.pink;
-        red_FOR_SUBAGENTS_ONLY = t h.red; blue_FOR_SUBAGENTS_ONLY = t h.cyan;
-        green_FOR_SUBAGENTS_ONLY = t h.green; yellow_FOR_SUBAGENTS_ONLY = t h.chip;
-        purple_FOR_SUBAGENTS_ONLY = t h.violet; orange_FOR_SUBAGENTS_ONLY = t h.ember;
-        pink_FOR_SUBAGENTS_ONLY = t h.pink; cyan_FOR_SUBAGENTS_ONLY = t h.cyan;
+        bashMessageBackgroundColor = t r.hoverGround; memoryBackgroundColor = t tint;
+        selectionBg = t r.selSoft; composerSidebarBackground = t tint;
+        rate_limit_fill = t r.live; rate_limit_empty = t tint2;
+        briefLabelYou = t r.cursorField; briefLabelClaude = t r.live;
+        claudeShimmer = t r.cursorField; warningShimmer = t r.cursorField; permissionShimmer = t r.attention;
+        promptBorderShimmer = t r.cursorField; inactiveShimmer = t r.inactive; fastModeShimmer = t r.attention;
+        red_FOR_SUBAGENTS_ONLY = t r.alarm; blue_FOR_SUBAGENTS_ONLY = t r.key;
+        green_FOR_SUBAGENTS_ONLY = t r.live; yellow_FOR_SUBAGENTS_ONLY = t r.cursorField;
+        purple_FOR_SUBAGENTS_ONLY = t r.assistant; orange_FOR_SUBAGENTS_ONLY = t r.borderActive2;
+        pink_FOR_SUBAGENTS_ONLY = t r.attention; cyan_FOR_SUBAGENTS_ONLY = t r.key;
       };
     };
 
@@ -139,12 +147,12 @@ rec {
   claudePowerlineJson =
     let
       colors = builtins.toJSON {
-        directory = { bg = hex h.surface0; fg = hex h.violet; };
-        git = { bg = hex h.surface0; fg = hex h.pink; };
-        model = { bg = hex h.surface0; fg = hex h.pink; };
-        context = { bg = hex h.surface0; fg = hex h.green; };
-        block = { bg = hex h.surface0; fg = hex h.chip; };
-        weekly = { bg = hex h.surface0; fg = hex h.violet; };
+        directory = { bg = hex r.panel; fg = hex r.assistant; };
+        git = { bg = hex r.panel; fg = hex r.attention; };
+        model = { bg = hex r.panel; fg = hex r.attention; };
+        context = { bg = hex r.panel; fg = hex r.live; };
+        block = { bg = hex r.panel; fg = hex r.cursorField; };
+        weekly = { bg = hex r.panel; fg = hex r.assistant; };
       };
     in
     ''{"theme":"custom","display":{"style":"minimal","charset":"unicode","autoWrap":false,"lines":[''
@@ -155,6 +163,7 @@ rec {
   # ---- Console.Style (modules/console) --------------------------------------------------
   consolePaletteEx =
     let
+      h = p.hue;
       line = name: c: "  def ${name}, do: 0x${c}";
       hues = lib.concatStringsSep "\n" (lib.mapAttrsToList line h);
     in
@@ -176,12 +185,12 @@ rec {
     in
     ''
       # ${gen}
-      background = ${hex h.bg}
-      foreground = ${hex h.amber}
-      cursor-color = ${hex h.amber}
-      cursor-text = ${hex h.ink}
-      selection-background = ${hex h.sel}
-      selection-foreground = ${hex h.selInk}
+      background = ${hex r.ground}
+      foreground = ${hex r.body}
+      cursor-color = ${hex r.body}
+      cursor-text = ${hex r.fieldInk}
+      selection-background = ${hex r.selField}
+      selection-foreground = ${hex r.selInk}
       ${pal}
     '';
   ghosttyConfig = template: ''
@@ -212,19 +221,19 @@ rec {
       # ${gen}. kitty.conf: `include theme.conf`
       font_family ${f.family}
       font_size ${toString f.size}
-      background ${hex h.bg}
-      foreground ${hex h.amber}
-      cursor ${hex h.amber}
-      cursor_text_color ${hex h.ink}
-      selection_background ${hex h.sel}
-      selection_foreground ${hex h.selInk}
-      url_color ${hex h.cyan}
-      active_border_color ${hex h.amber}
-      inactive_border_color ${hex h.amberDim}
-      active_tab_background ${hex h.amber}
-      active_tab_foreground ${hex h.ink}
-      inactive_tab_background ${hex h.bg}
-      inactive_tab_foreground ${hex h.dim}
+      background ${hex r.ground}
+      foreground ${hex r.body}
+      cursor ${hex r.body}
+      cursor_text_color ${hex r.fieldInk}
+      selection_background ${hex r.selField}
+      selection_foreground ${hex r.selInk}
+      url_color ${hex r.key}
+      active_border_color ${hex r.borderActive}
+      inactive_border_color ${hex r.borderInactive}
+      active_tab_background ${hex r.cursorField}
+      active_tab_foreground ${hex r.fieldInk}
+      inactive_tab_background ${hex r.ground}
+      inactive_tab_foreground ${hex r.inactive}
       ${pal}
     '';
 
@@ -235,13 +244,13 @@ rec {
     ''
       # ${gen}. ~/.config/wezterm/colors/ficciones.toml — wezterm.lua: config.color_scheme = "ficciones"
       [colors]
-      foreground = "${hex h.amber}"
-      background = "${hex h.bg}"
-      cursor_bg = "${hex h.amber}"
-      cursor_fg = "${hex h.ink}"
-      cursor_border = "${hex h.amber}"
-      selection_bg = "${hex h.sel}"
-      selection_fg = "${hex h.selInk}"
+      foreground = "${hex r.body}"
+      background = "${hex r.ground}"
+      cursor_bg = "${hex r.body}"
+      cursor_fg = "${hex r.fieldInk}"
+      cursor_border = "${hex r.body}"
+      selection_bg = "${hex r.selField}"
+      selection_fg = "${hex r.selInk}"
       ansi = [${lst (lib.take 8 p.ansiList)}]
       brights = [${lst (lib.drop 8 p.ansiList)}]
 
@@ -257,74 +266,74 @@ rec {
   # is text and only text in a toolkit this shape, is the violet field.
   gtkCss = ''
     /* ${gen} */
-    @define-color accent_color ${hex h.amber};
-    @define-color accent_bg_color ${hex h.amber};
-    @define-color accent_fg_color ${hex h.ink};
-    @define-color destructive_color ${hex h.red};
-    @define-color destructive_bg_color ${hex h.red};
-    @define-color destructive_fg_color ${hex h.ink};
-    @define-color success_color ${hex h.green};
-    @define-color success_bg_color ${hex h.green};
-    @define-color success_fg_color ${hex h.ink};
-    @define-color warning_color ${hex h.amber};
-    @define-color warning_bg_color ${hex h.amber};
-    @define-color warning_fg_color ${hex h.ink};
-    @define-color error_color ${hex h.red};
-    @define-color error_bg_color ${hex h.red};
-    @define-color error_fg_color ${hex h.ink};
-    @define-color window_bg_color ${hex h.bg};
-    @define-color window_fg_color ${hex h.amber};
-    @define-color view_bg_color ${hex h.bg};
-    @define-color view_fg_color ${hex h.amber};
-    @define-color headerbar_bg_color ${hex h.surface0};
-    @define-color headerbar_fg_color ${hex h.amber};
-    @define-color headerbar_border_color ${hex h.sep};
-    @define-color headerbar_backdrop_color ${hex h.bg};
+    @define-color accent_color ${hex r.body};
+    @define-color accent_bg_color ${hex r.accentField};
+    @define-color accent_fg_color ${hex r.fieldInk};
+    @define-color destructive_color ${hex r.alarm};
+    @define-color destructive_bg_color ${hex r.alarmField};
+    @define-color destructive_fg_color ${hex r.fieldInk};
+    @define-color success_color ${hex r.live};
+    @define-color success_bg_color ${hex r.liveField};
+    @define-color success_fg_color ${hex r.fieldInk};
+    @define-color warning_color ${hex r.warn};
+    @define-color warning_bg_color ${hex r.warn};
+    @define-color warning_fg_color ${hex r.fieldInk};
+    @define-color error_color ${hex r.alarm};
+    @define-color error_bg_color ${hex r.alarmField};
+    @define-color error_fg_color ${hex r.fieldInk};
+    @define-color window_bg_color ${hex r.ground};
+    @define-color window_fg_color ${hex r.body};
+    @define-color view_bg_color ${hex r.ground};
+    @define-color view_fg_color ${hex r.body};
+    @define-color headerbar_bg_color ${hex r.panel};
+    @define-color headerbar_fg_color ${hex r.body};
+    @define-color headerbar_border_color ${hex r.structure};
+    @define-color headerbar_backdrop_color ${hex r.ground};
     @define-color headerbar_shade_color rgba(0, 0, 0, 0.36);
     @define-color headerbar_darker_shade_color rgba(0, 0, 0, 0.72);
-    @define-color sidebar_bg_color ${hex h.surface0};
-    @define-color sidebar_fg_color ${hex h.amber};
-    @define-color sidebar_backdrop_color ${hex h.bg};
-    @define-color sidebar_border_color ${hex h.sep};
+    @define-color sidebar_bg_color ${hex r.panel};
+    @define-color sidebar_fg_color ${hex r.body};
+    @define-color sidebar_backdrop_color ${hex r.ground};
+    @define-color sidebar_border_color ${hex r.structure};
     @define-color sidebar_shade_color rgba(0, 0, 0, 0.36);
-    @define-color secondary_sidebar_bg_color ${hex h.surface1};
-    @define-color secondary_sidebar_fg_color ${hex h.amber};
-    @define-color secondary_sidebar_backdrop_color ${hex h.bg};
-    @define-color secondary_sidebar_border_color ${hex h.sep};
+    @define-color secondary_sidebar_bg_color ${hex r.card};
+    @define-color secondary_sidebar_fg_color ${hex r.body};
+    @define-color secondary_sidebar_backdrop_color ${hex r.ground};
+    @define-color secondary_sidebar_border_color ${hex r.structure};
     @define-color secondary_sidebar_shade_color rgba(0, 0, 0, 0.36);
-    @define-color card_bg_color ${hex h.surface1};
-    @define-color card_fg_color ${hex h.amber};
+    @define-color card_bg_color ${hex r.card};
+    @define-color card_fg_color ${hex r.body};
     @define-color card_shade_color rgba(0, 0, 0, 0.36);
-    @define-color dialog_bg_color ${hex h.surface1};
-    @define-color dialog_fg_color ${hex h.amber};
-    @define-color popover_bg_color ${hex h.surface1};
-    @define-color popover_fg_color ${hex h.amber};
+    @define-color dialog_bg_color ${hex r.card};
+    @define-color dialog_fg_color ${hex r.body};
+    @define-color popover_bg_color ${hex r.card};
+    @define-color popover_fg_color ${hex r.body};
     @define-color popover_shade_color rgba(0, 0, 0, 0.36);
-    @define-color thumbnail_bg_color ${hex h.surface1};
-    @define-color thumbnail_fg_color ${hex h.amber};
+    @define-color thumbnail_bg_color ${hex r.card};
+    @define-color thumbnail_fg_color ${hex r.body};
     @define-color shade_color rgba(0, 0, 0, 0.36);
-    @define-color scrollbar_outline_color ${hex h.sep};
-    @define-color borders ${hex h.sep};
+    @define-color scrollbar_outline_color ${hex r.structure};
+    @define-color borders ${hex r.structure};
     /* GTK3 legacy names */
-    @define-color theme_bg_color ${hex h.bg};
-    @define-color theme_fg_color ${hex h.amber};
-    @define-color theme_base_color ${hex h.bg};
-    @define-color theme_text_color ${hex h.amber};
-    @define-color theme_selected_bg_color ${hex h.chip};
-    @define-color theme_selected_fg_color ${hex h.ink};
-    @define-color theme_unfocused_bg_color ${hex h.bg};
-    @define-color theme_unfocused_fg_color ${hex h.dim};
-    @define-color insensitive_bg_color ${hex h.surface1};
-    @define-color insensitive_fg_color ${hex h.dim};
-    @define-color unfocused_borders ${hex h.amberDim};
-    @define-color link_color ${hex h.cyan};
-    @define-color visited_link_color ${hex h.violet};
+    @define-color theme_bg_color ${hex r.ground};
+    @define-color theme_fg_color ${hex r.body};
+    @define-color theme_base_color ${hex r.ground};
+    @define-color theme_text_color ${hex r.body};
+    @define-color theme_selected_bg_color ${hex r.cursorField};
+    @define-color theme_selected_fg_color ${hex r.fieldInk};
+    @define-color theme_unfocused_bg_color ${hex r.ground};
+    @define-color theme_unfocused_fg_color ${hex r.inactive};
+    @define-color insensitive_bg_color ${hex r.card};
+    @define-color insensitive_fg_color ${hex r.inactive};
+    @define-color unfocused_borders ${hex r.borderInactive};
+    @define-color link_color ${hex r.key};
+    @define-color visited_link_color ${hex r.assistant};
 
     * { font-family: ${fontStack}; }
-    selection { background-color: ${hex h.sel}; color: ${hex h.selInk}; }
-    *:selected { background-color: ${hex h.chip}; color: ${hex h.ink}; }
-    link, label.link, *:link { color: ${hex h.cyan}; }
-    tooltip { background-color: ${hex h.surface1}; color: ${hex h.amber}; border: 1px solid ${hex h.sep}; }
+    selection { background-color: ${hex r.selField}; color: ${hex r.selInk}; }
+    *:selected { background-color: ${hex r.cursorField}; color: ${hex r.fieldInk}; }
+    link, label.link, *:link { color: ${hex r.key}; }
+    tooltip { background-color: ${hex r.card}; color: ${hex r.body}; border: 1px solid ${hex r.structure}; }
   '';
   gtkSettingsIni = ''
     [Settings]
@@ -341,11 +350,11 @@ rec {
   # AlternateBase ToolTipBase ToolTipText PlaceholderText Accent.
   qt6ctColors =
     let
-      roles = alpha: with h; [
-        "#${alpha}${amber}" "#ff${surface1}" "#ff${surface4}" "#ff${surface3}" "#ff${bg}" "#ff${surface2}"
-        "#${alpha}${amber}" "#ff${chip}" "#${alpha}${amber}" "#ff${bg}" "#ff${surface0}" "#ff${bg}"
-        "#ff${chip}" "#ff${ink}" "#ff${cyan}" "#ff${violet}" "#ff${surface1}" "#ff${surface1}"
-        "#ff${amber}" "#ff${dim}" "#ff${amber}"
+      roles = alpha: with r; [
+        "#${alpha}${body}" "#ff${card}" "#ff${edge}" "#ff${raised}" "#ff${ground}" "#ff${inputGround}"
+        "#${alpha}${body}" "#ff${cursorField}" "#${alpha}${body}" "#ff${ground}" "#ff${panel}" "#ff${ground}"
+        "#ff${cursorField}" "#ff${fieldInk}" "#ff${key}" "#ff${assistant}" "#ff${card}" "#ff${card}"
+        "#ff${body}" "#ff${inactive}" "#ff${body}"
       ];
       row = alpha: lib.concatStringsSep ", " (map low (roles alpha));
     in
@@ -394,48 +403,49 @@ rec {
     let
       kv = lib.mapAttrsToList (k: v: "theme[${k}]=${hex v}");
     in
-    "# ${gen}\n" + lib.concatStringsSep "\n" (kv (with h; {
-      main_bg = bg; main_fg = amber; title = cyan; hi_fg = cyan; selected_bg = chip; selected_fg = ink;
-      inactive_fg = dim; graph_text = lilac; meter_bg = surface3; proc_misc = lilac;
-      cpu_box = sep; mem_box = sep; net_box = sep; proc_box = sep; div_line = amberDim;
-      temp_start = green; temp_mid = amber; temp_end = red;
-      cpu_start = green; cpu_mid = amber; cpu_end = red;
-      free_start = green; free_mid = amber; free_end = red;
-      cached_start = cyan; cached_mid = violet; cached_end = pink;
-      available_start = green; available_mid = amber; available_end = red;
-      used_start = green; used_mid = amber; used_end = red;
-      download_start = cyan; download_mid = violet; download_end = pink;
-      upload_start = green; upload_mid = amber; upload_end = red;
-      process_start = green; process_mid = amber; process_end = red;
+    "# ${gen}\n" + lib.concatStringsSep "\n" (kv (with r; {
+      main_bg = ground; main_fg = body; title = key; hi_fg = key; selected_bg = cursorField; selected_fg = fieldInk;
+      inactive_fg = inactive; graph_text = meta; meter_bg = raised; proc_misc = meta;
+      cpu_box = structure; mem_box = structure; net_box = structure; proc_box = structure; div_line = borderInactive;
+      # every gauge runs the same ramp: fine, then working, then alarming
+      temp_start = live; temp_mid = body; temp_end = alarm;
+      cpu_start = live; cpu_mid = body; cpu_end = alarm;
+      free_start = live; free_mid = body; free_end = alarm;
+      cached_start = key; cached_mid = assistant; cached_end = attention;
+      available_start = live; available_mid = body; available_end = alarm;
+      used_start = live; used_mid = body; used_end = alarm;
+      download_start = key; download_mid = assistant; download_end = attention;
+      upload_start = live; upload_mid = body; upload_end = alarm;
+      process_start = live; process_mid = body; process_end = alarm;
     })) + "\n";
 
   # ---- floorp: the vendored RetroTerminal CSS with its :root block generated ----------
   # One :root, not a prefers-color-scheme pair: the flake decides which palette is live, so
   # floorp must not second-guess it with a hand-written light theme that drifts.
   floorpRoot =
-    lib.concatStringsSep "\n" (map (s: "    " + s) (with h; [
-      "--retro-bg: ${hex bg};"
-      "--retro-bg-elevated: ${hex surface0};"
-      "--retro-surface: ${hex surface2};"
-      "--retro-surface-dim: ${hex surface1};"
-      "--retro-accent: ${hex amber};"
-      "--retro-accent-dim: ${hex amberSoft};"
-      "--retro-text: ${hex amber};"
-      "--retro-text-secondary: ${hex lilac};"
-      "--retro-text-dim: ${hex dim};"
-      # borders are `sep` like everywhere else — amberTint2 was 1.5:1 against the ground,
-      # which is why floorp's menus and popups looked like they had no edge at all
-      "--retro-border: ${hex sep};"
-      "--retro-border-bright: ${hex amber};"
+    lib.concatStringsSep "\n" (map (s: "    " + s) (with r; [
+      "--retro-bg: ${hex ground};"
+      "--retro-bg-elevated: ${hex panel};"
+      "--retro-surface: ${hex inputGround};"
+      "--retro-surface-dim: ${hex card};"
+      "--retro-accent: ${hex accentField};"
+      "--retro-accent-dim: ${hex visited};"
+      "--retro-text: ${hex body};"
+      "--retro-text-secondary: ${hex meta};"
+      "--retro-text-dim: ${hex inactive};"
+      # borders are `structure` like everywhere else — the menu tint was 1.5:1 against the
+      # ground, which is why floorp's menus and popups looked like they had no edge at all
+      "--retro-border: ${hex structure};"
+      "--retro-border-bright: ${hex borderActive};"
       "--retro-font: ${fontStack};"
-      "--retro-green: ${hex green};"
-      "--retro-chip: ${hex chip};"
-      "--retro-ink: ${hex ink};"
-      "--retro-sel: ${hex sel};"
+      "--retro-green: ${hex live};"
+      "--retro-chip: ${hex cursorField};"
+      "--retro-ink: ${hex fieldInk};"
+      "--retro-sel: ${hex selField};"
       "--retro-sel-ink: ${hex selInk};"
-      "--retro-cyan: ${hex cyan};"
-      "--retro-pink: ${hex pink};"
-      "--retro-red: ${hex red};"
+      "--retro-cyan: ${hex key};"
+      "--retro-pink: ${hex attention};"
+      "--retro-red: ${hex alarm};"
     ]));
   floorpFile = name:
     "/* ${gen} (the :root block); the body is templates/floorp/${name} in the repo. */\n"
@@ -444,7 +454,7 @@ rec {
   floorpUserChrome = floorpFile "userChrome.css";
   # the sites too, not just the chrome: floorp-sites.nix appends @-moz-document blocks
   floorpUserContent = floorpFile "userContent.css" + "\n/* ---- sites (floorp-sites.nix) ---- */\n"
-    + import ./floorp-sites.nix { inherit hex h fontStack; };
+    + import ./floorp-sites.nix { inherit hex r fontStack; };
 
   # ---- hyprland / hyprlock -------------------------------------------------------------
   # dofile'd as ~/.config/hypr/theme.lua: only the colours live here. Env lines are appended by
@@ -454,48 +464,48 @@ rec {
     hl.config({
         general = {
             col = {
-                active_border = { colors = { "rgba(${h.amber}ff)", "rgba(${h.ember}ff)" }, angle = 45 },
-                inactive_border = { colors = { "rgba(${h.amberDim}ff)", "rgba(${h.emberDim}ff)" }, angle = 45 },
+                active_border = { colors = { "rgba(${r.body}ff)", "rgba(${r.borderActive2}ff)" }, angle = 45 },
+                inactive_border = { colors = { "rgba(${r.borderInactive}ff)", "rgba(${r.borderInactive2}ff)" }, angle = 45 },
             },
         },
         group = {
             col = {
-                border_active = "rgba(${h.amber}ff)",
-                border_inactive = "rgba(${h.amberDim}ff)",
-                border_locked_active = "rgba(${h.pink}ff)",
-                border_locked_inactive = "rgba(${h.pinkDim}ff)",
+                border_active = "rgba(${r.body}ff)",
+                border_inactive = "rgba(${r.borderInactive}ff)",
+                border_locked_active = "rgba(${r.attention}ff)",
+                border_locked_inactive = "rgba(${r.attentionDim}ff)",
             },
             groupbar = {
                 font_family = "${f.family}",
-                text_color = "rgba(${h.ink}ff)",
-                col = { active = "rgba(${h.chip}ff)", inactive = "rgba(${h.surface3}ff)" },
+                text_color = "rgba(${r.fieldInk}ff)",
+                col = { active = "rgba(${r.cursorField}ff)", inactive = "rgba(${r.raised}ff)" },
             },
         },
         misc = {
-            background_color = "rgba(${h.bg}ff)",
+            background_color = "rgba(${r.ground}ff)",
             font_family = "${f.family}",
         },
         plugin = {
             hyprexpo = {
-                bg_col = "rgba(${h.bg}ff)",
+                bg_col = "rgba(${r.ground}ff)",
                 gaps_in = 12,
                 gaps_out = 24,
                 tile_rounding = 8,
                 border_width = 2,
-                border_color = "rgba(${h.sep}ff)",
-                border_color_current = "rgba(${h.green}ff)",
-                border_color_focus = "rgba(${h.chip}ff)",
-                border_color_hover = "rgba(${h.pink}ff)",
+                border_color = "rgba(${r.structure}ff)",
+                border_color_current = "rgba(${r.live}ff)",
+                border_color_focus = "rgba(${r.cursorField}ff)",
+                border_color_hover = "rgba(${r.attention}ff)",
                 label_font_family = "${f.family}",
                 label_font_size = 18,
                 label_position = "top-left",
                 label_bg_shape = "square",
-                label_bg_color = "rgba(${h.bg}ff)",
-                label_color_default = "rgba(${h.lilac}ff)",
-                label_color_current = "rgba(${h.green}ff)",
-                label_color_focus = "rgba(${h.chip}ff)",
-                label_color_hover = "rgba(${h.pink}ff)",
-                selection_label_color = "rgba(${h.cyan}ff)",
+                label_bg_color = "rgba(${r.ground}ff)",
+                label_color_default = "rgba(${r.meta}ff)",
+                label_color_current = "rgba(${r.live}ff)",
+                label_color_focus = "rgba(${r.cursorField}ff)",
+                label_color_hover = "rgba(${r.attention}ff)",
+                selection_label_color = "rgba(${r.key}ff)",
                 keynav_enable = 1,
             },
         },
@@ -509,12 +519,12 @@ rec {
     }
     background {
         monitor =
-        color = rgba(${h.bg}ff)
+        color = rgba(${r.ground}ff)
     }
     label {
         monitor =
         text = cmd[update:1000] echo "$(date +'%H:%M')"
-        color = rgba(${h.amber}ff)
+        color = rgba(${r.body}ff)
         font_size = 96
         font_family = ${f.family}
         position = 0, 160
@@ -524,7 +534,7 @@ rec {
     label {
         monitor =
         text = $USER @ $HOST
-        color = rgba(${h.lilac}ff)
+        color = rgba(${r.meta}ff)
         font_size = ${toString (f.sizeLg + 3)}
         font_family = ${f.family}
         position = 0, 60
@@ -537,15 +547,15 @@ rec {
         outline_thickness = 2
         dots_size = 0.3
         dots_spacing = 0.3
-        outer_color = rgba(${h.amber}ff)
-        inner_color = rgba(${h.bg}ff)
-        font_color = rgba(${h.amber}ff)
+        outer_color = rgba(${r.body}ff)
+        inner_color = rgba(${r.ground}ff)
+        font_color = rgba(${r.body}ff)
         font_family = ${f.family}
-        check_color = rgba(${h.cyan}ff)
-        fail_color = rgba(${h.red}ff)
+        check_color = rgba(${r.key}ff)
+        fail_color = rgba(${r.alarm}ff)
         fail_text = <i>$FAIL</i>
-        placeholder_text = <span foreground="##${h.dim}">password</span>
-        capslock_color = rgba(${h.pink}ff)
+        placeholder_text = <span foreground="##${r.inactive}">password</span>
+        capslock_color = rgba(${r.attention}ff)
         position = 0, -40
         halign = center
         valign = center
@@ -557,7 +567,7 @@ rec {
   # starship: the prompt's chips are inverse video like the shell's (field = highlight, text = ink).
   # Read at every prompt, so the theme switch reaches the next line with no restart.
   starshipConfig = template:
-    fill (lib.replaceStrings [ "@GEN@" ] [ gen ] template) { inherit (h) ink cyan green amber violet red; };
+    fill (lib.replaceStrings [ "@GEN@" ] [ gen ] template) { inherit (r) fieldInk key live body assistant alarm; };
 
   lazygitConfig = template:
     let
@@ -565,18 +575,18 @@ rec {
       entry = k: vs: [ "    ${k}:" ] ++ map (v: "      - ${v}") vs;
       q = c: "\"${hex c}\"";
       theme = lib.concatStringsSep "\n" (lib.concatLists [
-        (entry "activeBorderColor" [ (q h.amber) "bold" ])
-        (entry "inactiveBorderColor" [ (q h.amberDim) ])
-        (entry "searchingActiveBorderColor" [ (q h.cyan) "bold" ])
-        (entry "optionsTextColor" [ (q h.cyan) ])
-        (entry "selectedLineBgColor" [ (q h.chip) ])
-        (entry "inactiveViewSelectedLineBgColor" [ (q h.surface3) ])
-        (entry "cherryPickedCommitBgColor" [ (q h.sel) ])
-        (entry "cherryPickedCommitFgColor" [ (q h.selInk) ])
-        (entry "markedBaseCommitBgColor" [ (q h.sel) ])
-        (entry "markedBaseCommitFgColor" [ (q h.selInk) ])
-        (entry "unstagedChangesColor" [ (q h.red) ])
-        (entry "defaultFgColor" [ (q h.amber) ])
+        (entry "activeBorderColor" [ (q r.body) "bold" ])
+        (entry "inactiveBorderColor" [ (q r.borderInactive) ])
+        (entry "searchingActiveBorderColor" [ (q r.key) "bold" ])
+        (entry "optionsTextColor" [ (q r.key) ])
+        (entry "selectedLineBgColor" [ (q r.cursorField) ])
+        (entry "inactiveViewSelectedLineBgColor" [ (q r.raised) ])
+        (entry "cherryPickedCommitBgColor" [ (q r.selField) ])
+        (entry "cherryPickedCommitFgColor" [ (q r.selInk) ])
+        (entry "markedBaseCommitBgColor" [ (q r.selField) ])
+        (entry "markedBaseCommitFgColor" [ (q r.selInk) ])
+        (entry "unstagedChangesColor" [ (q r.alarm) ])
+        (entry "defaultFgColor" [ (q r.body) ])
       ]);
     in
     "# ${gen} (gui.theme); the rest is templates/lazygit.yml in the repo.\n"
@@ -595,11 +605,11 @@ rec {
   fzfTheme = ''
     # ${gen}
     export FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS \
-      --color=fg:${hex h.amber},bg:${hex h.bg},hl:${hex h.cyan} \
-      --color=fg+:${hex h.ink},bg+:${hex h.chip},hl+:${hex h.ink} \
-      --color=info:${hex h.lilac},prompt:${hex h.cyan},pointer:${hex h.amber} \
-      --color=marker:${hex h.sel},spinner:${hex h.pink},header:${hex h.lilac} \
-      --color=border:${hex h.sep},label:${hex h.cyan},query:${hex h.amber}"
+      --color=fg:${hex r.body},bg:${hex r.ground},hl:${hex r.key} \
+      --color=fg+:${hex r.fieldInk},bg+:${hex r.cursorField},hl+:${hex r.fieldInk} \
+      --color=info:${hex r.meta},prompt:${hex r.key},pointer:${hex r.body} \
+      --color=marker:${hex r.selField},spinner:${hex r.attention},header:${hex r.meta} \
+      --color=border:${hex r.structure},label:${hex r.key},query:${hex r.body}"
   '';
 
   cavaConfig = template:
@@ -608,27 +618,27 @@ rec {
       [color]
       gradient = 1
       gradient_count = 6
-      gradient_color_1 = '${hex h.green}'
-      gradient_color_2 = '${hex h.chip}'
-      gradient_color_3 = '${hex h.amber}'
-      gradient_color_4 = '${hex h.ember}'
-      gradient_color_5 = '${hex h.pink}'
-      gradient_color_6 = '${hex h.red}'
+      gradient_color_1 = '${hex r.live}'
+      gradient_color_2 = '${hex r.cursorField}'
+      gradient_color_3 = '${hex r.body}'
+      gradient_color_4 = '${hex r.borderActive2}'
+      gradient_color_5 = '${hex r.attention}'
+      gradient_color_6 = '${hex r.alarm}'
     '';
 
   # The status-line lines flake.nix's programs.tmux.extraConfig splices in.
   tmuxStyle = ''
-    set -g status-style "bg=default,fg=${hex h.amber}"
-    set -g window-status-current-style "fg=${hex h.ink},bg=${hex h.amber},bold"
-    set -g window-status-style "fg=${hex h.dim}"
-    set -g window-status-activity-style "fg=${hex h.green}"
-    set -g window-status-bell-style "fg=${hex h.red},bold"
-    set -g message-style "fg=${hex h.cyan},bg=default"
-    set -g mode-style "fg=${hex h.selInk},bg=${hex h.sel}"
-    set -g pane-border-style "fg=${hex h.amberDim}"
-    set -g pane-active-border-style "fg=${hex h.amber}"
+    set -g status-style "bg=default,fg=${hex r.body}"
+    set -g window-status-current-style "fg=${hex r.fieldInk},bg=${hex r.body},bold"
+    set -g window-status-style "fg=${hex r.inactive}"
+    set -g window-status-activity-style "fg=${hex r.live}"
+    set -g window-status-bell-style "fg=${hex r.alarm},bold"
+    set -g message-style "fg=${hex r.key},bg=default"
+    set -g mode-style "fg=${hex r.selInk},bg=${hex r.selField}"
+    set -g pane-border-style "fg=${hex r.borderInactive}"
+    set -g pane-active-border-style "fg=${hex r.body}"
   '';
 
   # Convenience: the palette as shell exports, for scripts that draw.
-  envSh = "# ${gen}\n" + lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "PALETTE_${lib.toUpper k}=${hex v}") h) + "\nPALETTE_FONT=\"${f.family}\"\n";
+  envSh = let h = p.hue; in "# ${gen}\n" + lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "PALETTE_${lib.toUpper k}=${hex v}") h) + "\nPALETTE_FONT=\"${f.family}\"\n";
 }
