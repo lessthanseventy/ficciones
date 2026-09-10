@@ -3,12 +3,13 @@ $bg:     #000000;
 $ink:    #0A0A0A;   // chip text — dark on a bright field
 $green:  #33FF00;   // highlight: live / ok / occupied
 $amber:  #FFB000;   // body text AND chrome
-$chip:   #FFD000;   // the inverse-video field
-$sel:    #5B00AE;   // selection / tab field
-$accent: #EA69B0;   // highlight: agents, the operator, attention
-$dim:    #B09248;
+$chip:   #D9A400;   // the inverse-video field
+$sel:    #C7B6E8;   // the SELECTED thing: inverse video in violet
+$sel-ink: #1A0A2E;  // the ink inside it
+$accent: #F06CB4;   // highlight: agents, the operator, attention
+$dim:    #B8994C;
 $sep:    #B5651D;   // structure: borders, rules
-$red:    #FF5F5F;
+$red:    #FF6969;
 $cyan:   #33C7FF;
 $white:  #FFFFFF;
 $lilac:  #B4A5D6;
@@ -16,11 +17,11 @@ $violet: #B98AFF;
 
 // status tier
 $st-working: #33FF00;
-$st-blocked: #FF5F5F;
-$st-await:   #EA69B0;
+$st-blocked: #FF6969;
+$st-await:   #F06CB4;
 $st-open:    #FFB000;
 $st-done:    #62A562;
-$st-idle:    #B09248;
+$st-idle:    #B8994C;
 
 // text roles beyond the body: keys/labels cyan, secondary text lilac
 $key:  #33C7FF;
@@ -30,7 +31,7 @@ $meta: #B4A5D6;
 $arch-surveyor:  #33C7FF;
 $arch-builder:   #33FF00;
 $arch-reviewer:  #FFB000;
-$arch-planner:   #EA69B0;
+$arch-planner:   #F06CB4;
 $arch-assistant: #B98AFF;
 
 // The one font. Low vision: sizes bias up, never down.

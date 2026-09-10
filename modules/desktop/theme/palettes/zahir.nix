@@ -1,8 +1,9 @@
 # ZAHIR: the daylight palette — the coin you cannot stop seeing; uqbar inverted for a screen
 # read outdoors. Same keys as palettes/uqbar.nix (render.nix knows only the names): the ground is cream paper, body text a
 # dark amber-brown, the highlights their deep ink versions, and the active thing is still
-# inverse video — a dark field with cream ink. `white` is the max-contrast-on-ground colour
-# (dark here); `cream` is the selection ink and so dark too. Super+Shift+P switches to it live.
+# inverse video — a dark field with cream ink. Selection inverts the same way, in violet:
+# `sel` is a deep violet field here (light in uqbar) and `selInk` the cream in it. `white` is
+# the max-contrast-on-ground colour (dark here). Super+Shift+P switches to it live.
 #
 # Hex without '#', uppercase, so each renderer adds the syntax its target wants.
 rec {
@@ -17,7 +18,7 @@ rec {
   hue = {
     bg = "F5EFE0";
     ink = "FFF7DD"; # chip text — cream on the dark field
-    amber = "5C3D00"; # body text AND chrome — amber gone to ink
+    amber = "573900"; # body text AND chrome — amber gone to ink
     chip = "3B2A00"; # the inverse-video field: a dark ground the cream ink pops from
     ember = "843A00"; # active border gradient partner
     amberDim = "A48343"; # half-bright amber: inactive border, structure at low emphasis
@@ -25,20 +26,22 @@ rec {
     green = "175917"; # live / ok / occupied / charging
     moss = "365636"; # done: a green that recedes
     pink = "95145D"; # agents, the operator, attention
+    pinkDim = "C0699B"; # pink receded: a locked-but-unfocused group border
     cyan = "0B556E"; # keys, labels, code
-    lilac = "564A6E"; # secondary text
+    lilac = "483E5D"; # secondary text
     violet = "593E9C"; # assistant identity, terminal blue
-    sel = "D9C7F0"; # selection / tab field (violet)
+    sel = "4B2E7A"; # the SELECTED thing: inverse video too, but violet, so "selected" and "active" never read alike
+    selInk = "FFF7DD"; # the ink inside the violet selection field
+    selSoft = "D5C4EC"; # selection where we cannot set the ink (Claude Code's selectionBg): light, so dark text survives
     red = "99201A"; # alarm
-    dim = "594E3A"; # inactive text
+    dim = "4B4230"; # inactive text
     sep = "A86A2A"; # structure: borders, rules (burnt orange)
-    cream = "1A1030"; # selected text on the violet field
     grey = "505050"; # italic / muted prose
     white = "1A1A1A";
     # Elevations for toolkit chrome (GTK/Qt/floorp): black stays the ground, panels lift.
     surface0 = "EDE5D2";
     surface1 = "E6DCC6";
-    surface2 = "DFD3BA";
+    surface2 = "E1D5BB";
     surface3 = "D6C9AD";
     surface4 = "C9B996";
     # Amber-tinted darks: hover/pressed fields and menu grounds in Qt/kvantum.
@@ -62,7 +65,7 @@ rec {
     chipField = chip;
     chipInk = ink;
     selField = sel;
-    selInk = cream;
+    selInk = selInk;
     borderActive = amber;
     borderActive2 = ember;
     borderInactive = amberDim;
@@ -83,7 +86,7 @@ rec {
     brightBlack = dim;
     brightRed = "912923";
     brightGreen = "1A5B1A";
-    brightYellow = chip;
+    brightYellow = "3B2A00"; # the ANSI contract: its own slot, not the chip field
     brightBlue = lilac;
     brightMagenta = "91225F";
     brightCyan = "19566A";

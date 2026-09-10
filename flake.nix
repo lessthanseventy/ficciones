@@ -139,21 +139,40 @@
       # The checked-in palette outputs (shell scss/ts, Console.Palette) must equal what
       # modules/desktop/theme/palette.nix renders — `mise theme:gen` rewrites them. Without this a
       # palette edit would ship to ghostty and GTK but leave the shell and the cockpit behind.
-      checks.${system}.palette-sync =
-        let
-          generated = import ./modules/desktop/theme/generated.nix { inherit (pkgs) lib; };
-        in
-        pkgs.runCommand "palette-sync" { } (
-          pkgs.lib.concatStrings (
-            pkgs.lib.mapAttrsToList (path: text: ''
-              if ! diff -u ${self}/${path} ${pkgs.writeText (baseNameOf path) text}; then
-                echo "palette-sync: ${path} drifts from palette.nix — run: mise theme:gen" >&2
-                exit 1
-              fi
-            '') generated
-          )
-          + "touch $out\n"
-        );
+      checks.${system} = {
+        palette-sync =
+          let
+            generated = import ./modules/desktop/theme/generated.nix { inherit (pkgs) lib; };
+          in
+          pkgs.runCommand "palette-sync" { } (
+            pkgs.lib.concatStrings (
+              pkgs.lib.mapAttrsToList (path: text: ''
+                if ! diff -u ${self}/${path} ${pkgs.writeText (baseNameOf path) text}; then
+                  echo "palette-sync: ${path} drifts from palette.nix — run: mise theme:gen" >&2
+                  exit 1
+                fi
+              '') generated
+            )
+            + "touch $out\n"
+          );
+
+        # Andrew has low vision: every foreground/background pair the machine paints has a
+        # declared WCAG floor in modules/desktop/theme/contrast.nix, and BOTH palettes must
+        # clear it — not just whichever one `current` names. The gate that refuses the next
+        # washed-out selection.
+        palette-contrast =
+          let
+            spec = name: pkgs.writeText "${name}-contrast.json"
+              (builtins.toJSON (import ./modules/desktop/theme/contrast.nix
+                (import (./modules/desktop/theme/palettes + "/${name}.nix"))));
+            run = name: ''
+              ${pkgs.python3}/bin/python3 ${./modules/desktop/theme/contrast.py} ${name} ${spec name}
+            '';
+          in
+          pkgs.runCommand "palette-contrast" { } (
+            pkgs.lib.concatMapStrings run [ "uqbar" "zahir" ] + "touch $out\n"
+          );
+      };
 
       # mise owns Elixir/OTP (mise.toml pins erlang 28 + elixir 1.19.5-otp-28); this shell
       # is the 2am path — sqlite3 to open the db when nothing else is up.

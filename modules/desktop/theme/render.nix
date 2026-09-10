@@ -34,7 +34,8 @@ rec {
     $green:  ${hex h.green};   // highlight: live / ok / occupied
     $amber:  ${hex h.amber};   // body text AND chrome
     $chip:   ${hex h.chip};   // the inverse-video field
-    $sel:    ${hex h.sel};   // selection / tab field
+    $sel:    ${hex h.sel};   // the SELECTED thing: inverse video in violet
+    $sel-ink: ${hex h.selInk};  // the ink inside it
     $accent: ${hex h.pink};   // highlight: agents, the operator, attention
     $dim:    ${hex h.dim};
     $sep:    ${hex h.sep};   // structure: borders, rules
@@ -119,7 +120,7 @@ rec {
         diffRemovedDimmed = t (if light then "F7E8E8" else "1F0808");
         userMessageBackground = t tint; userMessageBackgroundHover = t tint2;
         bashMessageBackgroundColor = t h.amberTint0; memoryBackgroundColor = t tint;
-        selectionBg = t h.amberTint1; composerSidebarBackground = t tint;
+        selectionBg = t h.selSoft; composerSidebarBackground = t tint;
         rate_limit_fill = t h.green; rate_limit_empty = t tint2;
         briefLabelYou = t h.chip; briefLabelClaude = t h.green;
         claudeShimmer = t h.chip; warningShimmer = t h.chip; permissionShimmer = t h.pink;
@@ -178,8 +179,8 @@ rec {
       foreground = ${hex h.amber}
       cursor-color = ${hex h.amber}
       cursor-text = ${hex h.ink}
-      selection-background = ${hex h.chip}
-      selection-foreground = ${hex h.ink}
+      selection-background = ${hex h.sel}
+      selection-foreground = ${hex h.selInk}
       ${pal}
     '';
   ghosttyConfig = template: ''
@@ -203,8 +204,8 @@ rec {
       foreground ${hex h.amber}
       cursor ${hex h.amber}
       cursor_text_color ${hex h.ink}
-      selection_background ${hex h.chip}
-      selection_foreground ${hex h.ink}
+      selection_background ${hex h.sel}
+      selection_foreground ${hex h.selInk}
       url_color ${hex h.cyan}
       active_border_color ${hex h.amber}
       inactive_border_color ${hex h.amberDim}
@@ -227,8 +228,8 @@ rec {
       cursor_bg = "${hex h.amber}"
       cursor_fg = "${hex h.ink}"
       cursor_border = "${hex h.amber}"
-      selection_bg = "${hex h.chip}"
-      selection_fg = "${hex h.ink}"
+      selection_bg = "${hex h.sel}"
+      selection_fg = "${hex h.selInk}"
       ansi = [${lst (lib.take 8 p.ansiList)}]
       brights = [${lst (lib.drop 8 p.ansiList)}]
 
@@ -239,7 +240,8 @@ rec {
 
   # ---- GTK -----------------------------------------------------------------------------
   # libadwaita's named colours, so every GTK4 app and the GTK3 ports pick up the palette
-  # without a full theme. Selection = the chip (inverse video), accent = amber.
+  # without a full theme. Accent = amber; a SELECTION is the violet field (sel/selInk) —
+  # the amber chip means "the current/active thing", and the two must not read alike.
   gtkCss = ''
     /* ${gen} */
     @define-color accent_color ${hex h.amber};
@@ -251,8 +253,8 @@ rec {
     @define-color success_color ${hex h.green};
     @define-color success_bg_color ${hex h.green};
     @define-color success_fg_color ${hex h.ink};
-    @define-color warning_color ${hex h.chip};
-    @define-color warning_bg_color ${hex h.chip};
+    @define-color warning_color ${hex h.amber};
+    @define-color warning_bg_color ${hex h.amber};
     @define-color warning_fg_color ${hex h.ink};
     @define-color error_color ${hex h.red};
     @define-color error_bg_color ${hex h.red};
@@ -295,8 +297,8 @@ rec {
     @define-color theme_fg_color ${hex h.amber};
     @define-color theme_base_color ${hex h.bg};
     @define-color theme_text_color ${hex h.amber};
-    @define-color theme_selected_bg_color ${hex h.chip};
-    @define-color theme_selected_fg_color ${hex h.ink};
+    @define-color theme_selected_bg_color ${hex h.sel};
+    @define-color theme_selected_fg_color ${hex h.selInk};
     @define-color theme_unfocused_bg_color ${hex h.bg};
     @define-color theme_unfocused_fg_color ${hex h.dim};
     @define-color insensitive_bg_color ${hex h.surface1};
@@ -306,7 +308,7 @@ rec {
     @define-color visited_link_color ${hex h.violet};
 
     * { font-family: ${fontStack}; }
-    selection, *:selected { background-color: ${hex h.chip}; color: ${hex h.ink}; }
+    selection, *:selected { background-color: ${hex h.sel}; color: ${hex h.selInk}; }
     link, label.link, *:link { color: ${hex h.cyan}; }
     tooltip { background-color: ${hex h.surface1}; color: ${hex h.amber}; border: 1px solid ${hex h.sep}; }
   '';
@@ -328,7 +330,7 @@ rec {
       roles = alpha: with h; [
         "#${alpha}${amber}" "#ff${surface1}" "#ff${surface4}" "#ff${surface3}" "#ff${bg}" "#ff${surface2}"
         "#${alpha}${amber}" "#ff${chip}" "#${alpha}${amber}" "#ff${bg}" "#ff${surface0}" "#ff${bg}"
-        "#ff${chip}" "#ff${ink}" "#ff${cyan}" "#ff${violet}" "#ff${surface1}" "#ff${surface1}"
+        "#ff${sel}" "#ff${selInk}" "#ff${cyan}" "#ff${violet}" "#ff${surface1}" "#ff${surface1}"
         "#ff${amber}" "#ff${dim}" "#ff${amber}"
       ];
       row = alpha: lib.concatStringsSep ", " (map low (roles alpha));
@@ -439,7 +441,7 @@ rec {
                 border_active = "rgba(${h.amber}ff)",
                 border_inactive = "rgba(${h.amberDim}ff)",
                 border_locked_active = "rgba(${h.pink}ff)",
-                border_locked_inactive = "rgba(${h.sel}ff)",
+                border_locked_inactive = "rgba(${h.pinkDim}ff)",
             },
             groupbar = {
                 font_family = "${f.family}",
@@ -548,9 +550,9 @@ rec {
         (entry "selectedLineBgColor" [ (q h.chip) ])
         (entry "inactiveViewSelectedLineBgColor" [ (q h.surface3) ])
         (entry "cherryPickedCommitBgColor" [ (q h.sel) ])
-        (entry "cherryPickedCommitFgColor" [ (q h.cream) ])
+        (entry "cherryPickedCommitFgColor" [ (q h.selInk) ])
         (entry "markedBaseCommitBgColor" [ (q h.sel) ])
-        (entry "markedBaseCommitFgColor" [ (q h.cream) ])
+        (entry "markedBaseCommitFgColor" [ (q h.selInk) ])
         (entry "unstagedChangesColor" [ (q h.red) ])
         (entry "defaultFgColor" [ (q h.amber) ])
       ]);
@@ -598,7 +600,7 @@ rec {
     set -g window-status-current-style "fg=${hex h.ink},bg=${hex h.amber},bold"
     set -g window-status-style "fg=${hex h.dim}"
     set -g message-style "fg=${hex h.cyan},bg=default"
-    set -g mode-style "fg=${hex h.ink},bg=${hex h.chip}"
+    set -g mode-style "fg=${hex h.selInk},bg=${hex h.sel}"
     set -g pane-border-style "fg=${hex h.amberDim}"
     set -g pane-active-border-style "fg=${hex h.amber}"
   '';

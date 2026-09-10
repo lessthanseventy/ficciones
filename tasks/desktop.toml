@@ -6,6 +6,11 @@
 description = "theme: rewrite the palette-generated files in the repo from palette.nix (checks.palette-sync fails the flake when they drift)"
 run = "scripts/theme-gen.sh"
 
+# Andrew has low vision: contrast.nix declares the floor for every pair the machine paints.
+["theme:contrast"]
+description = "theme: check BOTH palettes against the WCAG floors in contrast.nix (same check as flake's palette-contrast, with the full table printed)"
+run = "nix build --no-link --print-build-logs .#checks.x86_64-linux.palette-contrast"
+
 ["flake:bump"]
 description = "machine: nix flake update (inputs) + nix-update over the hand-pinned packages (pi, expert: version + hash from upstream releases)"
 run = [

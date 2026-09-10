@@ -4,7 +4,9 @@
 # cava, tmux — is GENERATED from this file (render.nix); nothing else carries a hex value.
 # Plan doc §5b. Rule (Andrew, 2026-09-05): body text amber on black; cyan for keys/labels,
 # lilac for secondary text; green/pink/red are semantic highlights; the active thing is
-# inverse video — amber field, black ink. "Tasteful unicorn vomit", not monochrome.
+# inverse video — amber field, black ink; the SELECTED thing is inverse video too, but violet
+# (sel/selInk), so "where I am" and "what I picked" never read alike. "Tasteful unicorn
+# vomit", not monochrome. Every pair here clears WCAG AAA — `mise theme:contrast` proves it.
 #
 # Hex without '#', uppercase, so each renderer adds the syntax its target wants.
 rec {
@@ -20,21 +22,23 @@ rec {
     bg = "000000";
     ink = "0A0A0A"; # chip text — dark on a bright field (never pure 0: termbox's default sentinel)
     amber = "FFB000"; # body text AND chrome
-    chip = "FFD000"; # the inverse-video field (brighter than body amber so ink pops)
+    chip = "D9A400"; # the inverse-video field: the active/current thing, ink on top
     ember = "FF6305"; # active border gradient partner
     amberDim = "7A5500"; # half-bright amber: inactive border, structure at low emphasis
     emberDim = "9E3B00";
     green = "33FF00"; # live / ok / occupied / charging
     moss = "62A562"; # done: a green that recedes
-    pink = "EA69B0"; # agents, the operator, attention
+    pink = "F06CB4"; # agents, the operator, attention
+    pinkDim = "9C4A76"; # pink receded: a locked-but-unfocused group border
     cyan = "33C7FF"; # keys, labels, code
     lilac = "B4A5D6"; # secondary text
     violet = "B98AFF"; # assistant identity, terminal blue
-    sel = "5B00AE"; # selection / tab field (violet)
-    red = "FF5F5F"; # alarm
-    dim = "B09248"; # inactive text
+    sel = "C7B6E8"; # the SELECTED thing: inverse video too, but violet, so "selected" and "active" never read alike
+    selInk = "1A0A2E"; # the ink inside the violet selection field
+    selSoft = "2E0057"; # selection where we cannot set the ink (Claude Code's selectionBg): dark, so bright text survives
+    red = "FF6969"; # alarm
+    dim = "B8994C"; # inactive text
     sep = "B5651D"; # structure: borders, rules (burnt orange)
-    cream = "FFF4C2"; # selected text on the violet field
     grey = "C7C7C7"; # italic / muted prose
     white = "FFFFFF";
     # Elevations for toolkit chrome (GTK/Qt/floorp): black stays the ground, panels lift.
@@ -64,7 +68,7 @@ rec {
     chipField = chip;
     chipInk = ink;
     selField = sel;
-    selInk = cream;
+    selInk = selInk;
     borderActive = amber;
     borderActive2 = ember;
     borderInactive = amberDim;
@@ -85,7 +89,7 @@ rec {
     brightBlack = dim;
     brightRed = "FF7777";
     brightGreen = "5FFF33";
-    brightYellow = chip;
+    brightYellow = "FFD000"; # the ANSI contract: bright must out-shine yellow, so this is NOT the (calmer) chip field
     brightBlue = lilac;
     brightMagenta = "FF5FA5";
     brightCyan = "7FDFFF";
