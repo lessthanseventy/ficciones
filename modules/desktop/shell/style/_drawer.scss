@@ -21,7 +21,7 @@ window.drawer { background: transparent; }
 // splashes: each card's title wears its own hue; focus turns the border amber, not the title
 .card.focused .panel-title { color: inherit; }
 .cal-head label:nth-child(1), .cal-head label:nth-child(7) { color: $accent; }  // the weekend, Sunday-first
-.cal-nav .cal-title { background: none; border: none; padding: 0; label { color: $amber; } &:hover label { color: $chip; } }
+.cal-nav .cal-title { background: none; border: none; padding: 0; label { color: $amber; } &:hover label { color: $white; } }
 
 .sheet.right { border-right: none; border-left: $rule solid $sep; padding: 0 $sp-2 $sp-2 $sp-3; }
 
@@ -40,8 +40,9 @@ window.drawer { background: transparent; }
 .metric.idle { .huge, .spark { color: $green; } }
 .metric.busy { .huge, .spark { color: $amber; } }
 .metric.hot  { .huge, .spark { color: $red; } }
-.act { padding: 0 $sp-2; color: $amber; min-width: 28px; &:hover { background: $hover; } }
-.act.play { color: $green; font-size: $size-lg; }
+// transport controls, not text: the interactive tier, like the sliders and every toolkit accent
+.act { padding: 0 $sp-2; color: $key; min-width: 28px; &:hover { background: $hover; color: $white; } }
+.act.play { font-size: $size-lg; }
 .wx-glyph { font-size: 44px; color: $amber; }
 .counts label { font-size: $size-sm; }
 
@@ -66,7 +67,7 @@ window.hub, window.clickaway { background: transparent; }
   background: none;
   * { color: $meta; }
   &.chip { background: none; border-color: $amber; * { color: $amber; } }
-  &:hover { background: none; border-color: $chip; * { color: $chip; } }
+  &:hover { background: none; border-color: $key; * { color: $key; } }
   .icon { font-size: $size-lg; }
 }
 

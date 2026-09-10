@@ -48,6 +48,7 @@ rec {
     $accent: ${hex h.pink};   // highlight: agents, the operator, attention
     $dim:    ${hex h.dim};
     $sep:    ${hex h.sep};   // structure: borders, rules
+    $warn:   ${hex r.warn};   // the step between body amber and the alarm red
     $red:    ${hex h.red};
     $cyan:   ${hex h.cyan};
     $white:  ${hex h.white};

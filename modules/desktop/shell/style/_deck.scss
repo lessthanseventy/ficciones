@@ -24,7 +24,7 @@ window.deck { background: $bg; }
   .src { font-size: $size-sm; }
   .text { color: $amber; }
   &.dim .text { color: $meta; }
-  &.warn .text { color: $chip; }
+  &.warn .text { color: $warn; }
   &.crit .text { color: $red; }
 }
 // sources wear their hue, on the row and on the drawer's filter chips
@@ -66,7 +66,7 @@ window.deck-drawer { background: transparent; }
 .src-all { color: $amber; }
 .deck-filters .filter.chip.src-all { background: $amber; }
 .deck-filters .filter.off { border-color: $sep; label { color: $meta; } }
-.deck-media .tp { padding: 0 $sp-1; min-height: 0; min-width: 0; label { color: $amber; } &:hover label { color: $chip; } }
+.deck-media .tp { padding: 0 $sp-1; min-height: 0; min-width: 0; label { color: $key; } &:hover label { color: $white; } }
 .deck-title > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
 .deck-agents.await { background: $accent; label { color: $ink; } }
 .deck-agents > button, .deck-timer > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
