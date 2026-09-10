@@ -36,50 +36,86 @@ rec {
   # The one place hues are named. These hand the palette to our own code (the shell's stylesheet,
   # Console.Palette, scripts that draw), and those consumers name colours, not roles — converting
   # them means renaming every `$amber` in the shell's SCSS, which is its own pass.
-  paletteScss = let h = p.hue; in ''
-    // ${gen}. _tokens.scss forwards this and adds the metrics. Rule: body text amber on black; green/pink highlights; active = inverse video.
-    $bg:     ${hex h.bg};
-    $ink:    ${hex h.ink};   // chip text — dark on a bright field
-    $green:  ${hex h.green};   // highlight: live / ok / occupied
-    $amber:  ${hex h.amber};   // body text AND chrome
-    $chip:   ${hex h.chip};   // the inverse-video field
-    $sel:    ${hex h.sel};   // the SELECTED thing: inverse video in violet
-    $sel-ink: ${hex h.selInk};  // the ink inside it
-    $accent: ${hex h.pink};   // highlight: agents, the operator, attention
-    $dim:    ${hex h.dim};
-    $sep:    ${hex h.sep};   // structure: borders, rules
-    $warn:   ${hex r.warn};   // the step between body amber and the alarm red
-    $red:    ${hex h.red};
-    $cyan:   ${hex h.cyan};
-    $white:  ${hex h.white};
-    $lilac:  ${hex h.lilac};
-    $violet: ${hex h.violet};
+  paletteScss = ''
+    // ${gen}. _tokens.scss forwards this and adds the metrics.
+    //
+    // TWO VOCABULARIES, and the rule is: use a ROLE. Roles say what a thing MEANS, so two
+    // surfaces that mean the same thing cannot drift apart, and a palette that calls its body
+    // colour something other than amber still works. The colour-named tokens are gone on
+    // purpose — `$amber` and `$chip` were the same colour for a while and every "hover
+    // brightens" in this file silently did nothing, which is the bug this prevents. A stale
+    // name is now a sass error.
+    //
+    // The exception is the CATEGORICAL tier at the bottom: hues used because they are
+    // DISTINGUISHABLE from each other (log sources, the per-card hue map), where the point is
+    // that they differ, not that they mean anything. Those keep hue names, prefixed, so you can
+    // see at a glance which tier a line is in.
 
-    // status tier
+    // grounds, in elevation order
+    $ground:        ${hex r.ground};
+    $panel:         ${hex r.panel};
+    $card:          ${hex r.card};
+    $input-ground:  ${hex r.inputGround};
+    $raised:        ${hex r.raised};
+    $edge:          ${hex r.edge};
+
+    // text
+    $body:          ${hex r.body};   // body text AND ordinary chrome
+    $key:           ${hex r.key};    // keys, labels, code, links
+    $meta:          ${hex r.meta};   // secondary text
+    $prose:         ${hex r.prose};
+    $inactive:      ${hex r.inactive};
+    $max-contrast:  ${hex r.maxContrast};  // what hover lifts to; works on any base
+
+    // what a thing IS
+    $live:          ${hex r.live};   // running, ok, occupied
+    $done:          ${hex r.done};
+    $attention:     ${hex r.attention};   // agents, the operator, something wants you
+    $alarm:         ${hex r.alarm};
+    $assistant:     ${hex r.assistant};
+    $warn:          ${hex r.warn};   // the step between the body and the alarm
+
+    // inverse video: cursorField is WHERE YOU ARE, selField is WHAT YOU PICKED
+    $cursor-field:  ${hex r.cursorField};
+    $sel-field:     ${hex r.selField};
+    $sel-ink:       ${hex r.selInk};
+    $field-ink:     ${hex r.fieldInk};   // the ink inside any bright field
+    $accent-field:  ${hex r.accentField}; // a control you act on: slider, switch, focus ring
+
+    // structure
+    $structure:     ${hex r.structure};
+    $border-active:   ${hex r.borderActive};
+    $border-inactive: ${hex r.borderInactive};
+
+    // status tier (cards, cells) and identity tier (coworker archetypes)
     $st-working: ${hex p.status.working};
     $st-blocked: ${hex p.status.blocked};
     $st-await:   ${hex p.status.await};
     $st-open:    ${hex p.status.open};
     $st-done:    ${hex p.status.done};
     $st-idle:    ${hex p.status.idle};
-
-    // text roles beyond the body: keys/labels cyan, secondary text lilac
-    $key:  ${hex r.key};
-    $meta: ${hex r.meta};
-
-    // identity tier
     $arch-surveyor:  ${hex p.identity.surveyor};
     $arch-builder:   ${hex p.identity.builder};
     $arch-reviewer:  ${hex p.identity.reviewer};
     $arch-planner:   ${hex p.identity.planner};
     $arch-assistant: ${hex p.identity.assistant};
 
+    // THE CATEGORICAL TIER — hues as categories, not as meanings. Only the log-source colours
+    // and the per-card hue map may use these; anything else wants a role above.
+    $cat-amber:  ${hex r.body};
+    $cat-green:  ${hex r.live};
+    $cat-pink:   ${hex r.attention};
+    $cat-cyan:   ${hex r.key};
+    $cat-lilac:  ${hex r.meta};
+    $cat-violet: ${hex r.assistant};
+    $cat-red:    ${hex r.alarm};
+
     // The one font. Low vision: sizes bias up, never down.
     $font: ${fontStack};
 
     // Hover/pressed fields: the body colour at low alpha, so hover reads as "lit", not recoloured.
-    $hover: rgba($amber, 0.12);
-    $pressed: rgba($amber, 0.22);
+    $hover: rgba($body, 0.12);
+    $pressed: rgba($body, 0.22);
   '';
 
   # The palette as JSON — the shell loads the theme's copy at runtime for its Pango markup.

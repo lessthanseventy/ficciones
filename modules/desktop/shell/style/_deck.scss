@@ -3,10 +3,10 @@
 // ── the deck: the bottom row ───────────────────────────────────────────────
 // one line, bar-height, a rule on top; attention on the left in inverse video, the command
 // log through the middle, the ambient cells on the right
-window.deck { background: $bg; }
+window.deck { background: $ground; }
 .deck-row {
   min-height: $bar-height - $rule;
-  border-top: $rule solid $sep;
+  border-top: $rule solid $structure;
   padding: 0 $sp-2;
 }
 .seg {
@@ -14,68 +14,68 @@ window.deck { background: $bg; }
   margin-right: $sp-2;
   min-height: 0;
   border-radius: 0;
-  label { color: $ink; }
-  &.crit { background: $red; &:hover { background: $chip; } }
-  &.pink { background: $accent; &:hover { background: $chip; } }
+  label { color: $field-ink; }
+  &.crit { background: $alarm; &:hover { background: $cursor-field; } }
+  &.pink { background: $attention; &:hover { background: $cursor-field; } }
   .seg-app { font-size: $size-sm; opacity: 0.8; }
 }
 .deck-log { padding: 0 $sp-2; }
 .logline {
   .src { font-size: $size-sm; }
-  .text { color: $amber; }
+  .text { color: $body; }
   &.dim .text { color: $meta; }
   &.warn .text { color: $warn; }
-  &.crit .text { color: $red; }
+  &.crit .text { color: $alarm; }
 }
 // sources wear their hue, on the row and on the drawer's filter chips
-.src-shell   { color: $amber; }
-.src-notice  { color: $green; }
-.src-agent   { color: $accent; }
-.src-hypr    { color: $cyan; }
-.src-journal { color: $red; }
-.deck-row .cell { padding: 0 $sp-2; border-left: $rule solid $sep; min-height: $cell-h; }   // the bar's cell padding
-.deck-track { color: $amber; }
+.src-shell   { color: $cat-amber; }
+.src-notice  { color: $cat-green; }
+.src-agent   { color: $cat-pink; }
+.src-hypr    { color: $cat-cyan; }
+.src-journal { color: $cat-red; }
+.deck-row .cell { padding: 0 $sp-2; border-left: $rule solid $structure; min-height: $cell-h; }   // the bar's cell padding
+.deck-track { color: $body; }
 
 // ── the drawer ─────────────────────────────────────────────────────────────
 window.deck-drawer { background: transparent; }
-.sheet.bottom { border-right: none; border-top: $rule solid $sep; padding: 0 $sp-3 $sp-3; }
-.card-log   .panel-title { color: $amber; }
+.sheet.bottom { border-right: none; border-top: $rule solid $structure; padding: 0 $sp-3 $sp-3; }
+.card-log   .panel-title { color: $body; }
 .card-timer .big { font-size: 26px; }
 .deck-filters {
   min-height: $cell-h;
   .filter {
-    padding: 0 $sp-2; min-height: 0; border: $rule solid $sep; border-radius: 0; background: none;
-    &.off label { color: $dim; }
-    &.chip label { color: $ink; }
-    &.chip.src-shell   { background: $amber; }
-    &.chip.src-notice  { background: $green; }
-    &.chip.src-agent   { background: $accent; }
-    &.chip.src-hypr    { background: $cyan; }
-    &.chip.src-journal { background: $red; }
+    padding: 0 $sp-2; min-height: 0; border: $rule solid $structure; border-radius: 0; background: none;
+    &.off label { color: $inactive; }
+    &.chip label { color: $field-ink; }
+    &.chip.src-shell   { background: $cat-amber; }
+    &.chip.src-notice  { background: $cat-green; }
+    &.chip.src-agent   { background: $cat-pink; }
+    &.chip.src-hypr    { background: $cat-cyan; }
+    &.chip.src-journal { background: $cat-red; }
   }
 }
 .deck-entry {
-  background: none; border: none; border-bottom: $rule solid $sep; box-shadow: none; outline: none; border-radius: 0;
-  padding: 0; min-height: $cell-h; color: $amber; caret-color: $chip;
-  selection { background: $sel; color: $sel-ink; }
+  background: none; border: none; border-bottom: $rule solid $structure; box-shadow: none; outline: none; border-radius: 0;
+  padding: 0; min-height: $cell-h; color: $body; caret-color: $cursor-field;
+  selection { background: $sel-field; color: $sel-ink; }
 }
-.card-media .art { border: $rule solid $sep; }
+.card-media .art { border: $rule solid $structure; }
 .seg .seg-x { opacity: 0.7; margin-left: $sp-1; }
-.src-sys { color: $lilac; }
-.deck-filters .filter.chip.src-sys { background: $lilac; }
-.src-all { color: $amber; }
-.deck-filters .filter.chip.src-all { background: $amber; }
-.deck-filters .filter.off { border-color: $sep; label { color: $meta; } }
-.deck-media .tp { padding: 0 $sp-1; min-height: 0; min-width: 0; label { color: $key; } &:hover label { color: $white; } }
+.src-sys { color: $cat-lilac; }
+.deck-filters .filter.chip.src-sys { background: $cat-lilac; }
+.src-all { color: $cat-amber; }
+.deck-filters .filter.chip.src-all { background: $cat-amber; }
+.deck-filters .filter.off { border-color: $structure; label { color: $meta; } }
+.deck-media .tp { padding: 0 $sp-1; min-height: 0; min-width: 0; label { color: $key; } &:hover label { color: $max-contrast; } }
 .deck-title > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
-.deck-agents.await { background: $accent; label { color: $ink; } }
+.deck-agents.await { background: $attention; label { color: $field-ink; } }
 .deck-agents > button, .deck-timer > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
 
 // the drawer's key hints, under the sheet
-.deck-keys { background: $bg; padding: 2px $sp-3 $sp-1; label { color: $meta; font-size: $size-sm; } }
+.deck-keys { background: $ground; padding: 2px $sp-3 $sp-1; label { color: $meta; font-size: $size-sm; } }
 // the chip row under the keyboard: the chip under the cursor wears the accent edge
-.deck-filters .filter.cursor { box-shadow: inset 0 -3px 0 $amber; }
-.deck-filters.focused { border-bottom: $rule solid $amber; }
+.deck-filters .filter.cursor { box-shadow: inset 0 -3px 0 $body; }
+.deck-filters.focused { border-bottom: $rule solid $body; }
 // the agents pane's brief: the selected thread's dossier under the rows
 .card-agents .thread-row { min-height: 24px; padding: 0 $sp-1; }
 .card-agents .brief { padding: $sp-1 0 0; .msg label { min-height: 20px; } }

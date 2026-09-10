@@ -8,7 +8,7 @@
 // min-width is the content box: subtract the padding and the border so the rail IS 64px
 window.rail > box {
   min-width: $rail-width - 4px - $rule;
-  border-right: $rule solid $sep;
+  border-right: $rule solid $structure;
   padding: 0 2px $sp-2;
 }
 
@@ -19,16 +19,16 @@ window.rail .rule-h { margin: $sp-2 $sp-1; }
 .corner {
   min-height: $bar-height;   // its rule then sits on the bar's (row 36)
   padding: 0;
-  border-bottom: $rule solid $sep;
+  border-bottom: $rule solid $structure;
   > button { background: none; border: none; box-shadow: none; border-radius: 0; padding: 0; min-height: 0; min-width: 0; }
   // a 33px glyph's line box is taller than the square: pull the labels in so the corner stays
   // bar-height and its rule meets the bar's
   label { font-size: 33px; margin-top: -6px; margin-bottom: -6px; }
-  .aleph { color: $amber; }
+  .aleph { color: $body; }
   // the echo sits up and to the right, as on the board's mark (Andrew, 2026-09-07)
-  .hron { color: $accent; opacity: 0.55; margin-left: 7px; margin-bottom: 3px; transition: margin 180ms ease-out, opacity 180ms ease-out; }
+  .hron { color: $attention; opacity: 0.55; margin-left: 7px; margin-bottom: 3px; transition: margin 180ms ease-out, opacity 180ms ease-out; }
   &:hover .hron { margin-left: 0; margin-bottom: 0; opacity: 0; }
-  &:hover { background: $chip; .aleph { color: $ink; } }
+  &:hover { background: $cursor-field; .aleph { color: $field-ink; } }
 }
 .workspaces {
   margin-top: $sp-2;
@@ -48,27 +48,27 @@ window.rail .rule-h { margin: $sp-2 $sp-1; }
     // the empty frame is VIOLET, not the structure orange: an orange frame is in the amber family
     // and so competes with the focused pill for "here" — ten of them read as ten half-lit slots
     box-shadow: inset 0 0 0 1px rgba($meta, 0.28);
-    &.occupied { color: $green; box-shadow: inset 0 0 0 1px $green; }
-    &.focused  { background: $chip; color: $ink; box-shadow: none; label { color: $ink; } }
-    &.focused:hover { background: $chip; }
+    &.occupied { color: $live; box-shadow: inset 0 0 0 1px $live; }
+    &.focused  { background: $cursor-field; color: $field-ink; box-shadow: none; label { color: $field-ink; } }
+    &.focused:hover { background: $cursor-field; }
   }
   menubutton.ws > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; min-width: 0; }
   menubutton.ws > button:hover { background: none; }
   .ws:hover { background: $hover; }
-  .ws.focused:hover { background: $chip; }
+  .ws.focused:hover { background: $cursor-field; }
 }
 
 .power {
   min-height: $cell-h;
-  color: $sep;
+  color: $structure;
   label { font-size: $size-lg; }
-  &:hover { color: $red; background: none; }
+  &:hover { color: $alarm; background: none; }
 }
 
 // ── bar ────────────────────────────────────────────────────────────────────
 window.bar > box {
   min-height: $bar-height;
-  border-bottom: $rule solid $sep;
+  border-bottom: $rule solid $structure;
 }
 
 .cell {
@@ -79,39 +79,38 @@ window.bar > box {
 menubutton.cell > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; }
 menubutton.cell > button:hover { background: none; }
 .perf { &:hover { background: $hover; } }
-.stream .app { color: $amber; }
-.act.red { color: $red; }
+.stream .app { color: $body; }
 // A slider is a control you ACT ON, which is the interactive tier — cyan, the same colour as
-// keys, labels and links, and as the toolkit accent on every GTK surface. It was $chip, which is
+// keys, labels and links, and as the toolkit accent on every GTK surface. It was $cursor-field, which is
 // the body amber now, so the handle, the fill and the text around it were all one colour.
 .vol {
   min-height: 24px;
-  trough { background: $sep; min-height: 4px; border-radius: 0; }
+  trough { background: $structure; min-height: 4px; border-radius: 0; }
   highlight { background: $key; border-radius: 0; }
   slider { background: $key; border: none; border-radius: 0; min-width: 8px; min-height: 16px; margin: -6px; box-shadow: none; }
-  &:hover slider { background: $white; }
+  &:hover slider { background: $max-contrast; }
 }
 
-.title { color: $amber; }
-.title.empty { color: $dim; }
+.title { color: $body; }
+.title.empty { color: $inactive; }
 
 .clock {
-  .hm { color: $amber; font-size: $size-lg; }
-  .date { color: $dim; margin-left: $sp-2; }
+  .hm { color: $body; font-size: $size-lg; }
+  .date { color: $inactive; margin-left: $sp-2; }
 }
 
 // ── rail: clock + tray ─────────────────────────────────────────────────────
 .clock {
-  .hm { color: $amber; font-size: $size-lg; }
-  .date { color: $dim; margin-left: $sp-2; }
+  .hm { color: $body; font-size: $size-lg; }
+  .date { color: $inactive; margin-left: $sp-2; }
 }
 
 // ── rail: clock + tray ─────────────────────────────────────────────────────
 .wx {
   padding: $sp-1 0 $sp-2;
   .g { font-size: 26px; color: $key; }
-  .t { font-size: $size-sm; color: $amber; }
-  &.dim * { color: $dim; }
+  .t { font-size: $size-sm; color: $body; }
+  &.dim * { color: $inactive; }
   &:hover { background: $hover; }
 }
 menubutton.clock > button, menubutton.wx > button { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; min-height: 0; min-width: 0; }
@@ -119,14 +118,14 @@ menubutton.clock > button:hover, menubutton.wx > button:hover { background: none
 .clock {
   padding: $sp-2 0;
   label { font-size: $size-sm; color: $meta; }
-  .hh, .mm { font-size: 19px; color: $amber; }
-  .day { font-size: $size; color: $amber; }
+  .hh, .mm { font-size: 19px; color: $body; }
+  .day { font-size: $size; color: $body; }
   &:hover { background: $hover; }
 }
 .item.wx {
   &:hover { background: $hover; }
   .g { font-size: 22px; color: $key; }
-  .t { color: $amber; font-size: $size-sm; }
+  .t { color: $body; font-size: $size-sm; }
   &.dim .g, &.dim .t { color: $meta; }
 }
 popover.mediapop > contents { min-width: 420px; }
@@ -140,17 +139,17 @@ menubutton.cavacell > button { background: none; border: none; box-shadow: none;
   // nerd glyphs ink right of their box: every icon nudged left so the column lines up
   .icon { font-size: $size-lg; margin-right: 4px; }
   &.dim  * { color: $meta; }
-  &.live * { color: $green; }
+  &.live * { color: $live; }
   &.net { margin-top: -1px; }
-  &.net .icon { color: $cyan; margin-right: 6px; margin-bottom: -3px; }   // the glyph inks right of its box: 3px left
+  &.net .icon { color: $key; margin-right: 6px; margin-bottom: -3px; }   // the glyph inks right of its box: 3px left
   &.net .sm, &.vol .sm { font-size: 9px; letter-spacing: -1px; }   // block glyphs are wide; the meter must fit 48px
   &.bt { margin-top: 3px; }
   &.bt .icon { margin-right: 0; margin-left: 2px; margin-bottom: -4px; }
   &.bt.live .icon { color: $arch-assistant; }
-  &.agents .icon { color: $accent; margin-right: 8px; }   // pink always; the glyph inks right of its box, so 4px left
-  &.agents.await * { color: $accent; }        // someone awaits you: the number too
+  &.agents .icon { color: $attention; margin-right: 8px; }   // pink always; the glyph inks right of its box, so 4px left
+  &.agents.await * { color: $attention; }        // someone awaits you: the number too
   &.vol { margin-top: -3px; }
-  &.vol .icon { font-size: 22px; color: $amber; margin-right: 4px; margin-left: 0; margin-bottom: -4px; }   // measured: inked 3.5 left with the 6px nudge
+  &.vol .icon { font-size: 22px; color: $body; margin-right: 4px; margin-left: 0; margin-bottom: -4px; }   // measured: inked 3.5 left with the 6px nudge
 
   &:hover { background: $hover; }
 }
@@ -165,47 +164,45 @@ menubutton.item > button:hover { background: $hover; }
 // one line, the corner's hover
 .foot {
   // flush with the screen's bottom edge (the rail's box pads 8px there), so the rule meets the deck's top line
-  min-height: $bar-height - $rule; border-top: $rule solid $sep; margin-top: $sp-1; margin-bottom: -$sp-2; padding: 0;
+  min-height: $bar-height - $rule; border-top: $rule solid $structure; margin-top: $sp-1; margin-bottom: -$sp-2; padding: 0;
   // the menubutton's inner button carries GTK's 34px minimum: reset it, as the corner does
-  .item.sni { min-height: 0; padding: 0; margin: 0; > button { background: none; border: none; box-shadow: none; border-radius: 0; padding: 0; min-height: 0; min-width: 0; } .icon { color: $dim; font-size: 18px; margin: 0 6px 0 0; /* measured: the glyph inks 3px right of its box */ } &.live .icon { color: $amber; } &:hover { background: $chip; .icon { color: $ink; } } }
+  .item.sni { min-height: 0; padding: 0; margin: 0; > button { background: none; border: none; box-shadow: none; border-radius: 0; padding: 0; min-height: 0; min-width: 0; } .icon { color: $inactive; font-size: 18px; margin: 0 6px 0 0; /* measured: the glyph inks 3px right of its box */ } &.live .icon { color: $body; } &:hover { background: $cursor-field; .icon { color: $field-ink; } } }
 }
 .tray-row { padding: 0 0 0 $sp-2; min-height: $cell-h; }
 .tray-hit { padding: 0; min-height: 0; &:hover { background: $hover; } }
-.tray-menu > button { padding: 0 $sp-2; min-height: 0; min-width: 0; background: none; border: none; box-shadow: none; label { color: $amber; } &:hover label { color: $white; } }
+.tray-menu > button { padding: 0 $sp-2; min-height: 0; min-width: 0; background: none; border: none; box-shadow: none; label { color: $body; } &:hover label { color: $max-contrast; } }
 
 // ── popovers: a pane floating off the rail ─────────────────────────────────
 // the popover's amber frame around a card with its own inset, hued, glyphed title — the
 // double frame is the look (Andrew, 2026-09-07); every popover carries a card now
 popover.pop {
   > contents {
-    background: $bg;
-    border: $rule solid $amber;
+    background: $ground;
+    border: $rule solid $body;
     border-radius: 0;
     padding: $sp-1 $sp-2 $sp-2;
     box-shadow: none;
     min-width: 280px;
   }
-  > arrow { background: $bg; border: $rule solid $amber; }
+  > arrow { background: $ground; border: $rule solid $body; }
   .panel { margin-top: $sp-2; }
   .card .panel-body { padding: $sp-3; }
   .card + .card { margin-top: $sp-3; }
   .row { min-height: $cell-h; padding: 0 $sp-2; }
-  .row.head label { color: $amber; }
+  .row.head label { color: $body; }
   // the current one (connected network, default sink, paired device): a wash and an edge,
   // not the inverse-video field — too harsh in a list (Andrew, 2026-09-07)
-  .row.chip { background: rgba($amber, 0.14); border-left: 3px solid $amber; padding-left: $sp-2 - 3px; * { color: $amber; } }
-  // an action in a popover row is a control: the interactive tier, not the live green it wore
-  .act { padding: 0 $sp-2; color: $key; &:hover { background: $hover; color: $white; } }
+  .row.chip { background: rgba($body, 0.14); border-left: 3px solid $body; padding-left: $sp-2 - 3px; * { color: $body; } }
 }
 
 // ── bar: perf + weather + title ────────────────────────────────────────────
-.cava { color: $green; font-size: $size-lg; letter-spacing: -1px; }
+.cava { color: $live; font-size: $size-lg; letter-spacing: -1px; }
 .cavacell { padding: 0 $sp-1; }
 .volcell .icon { font-size: 19px; }
 .cava-col {
   margin: $sp-1 0 $sp-1 2px;
   background: none;
-  .ch { color: $accent; font-size: 9px; min-height: 0; letter-spacing: 0; }
+  .ch { color: $attention; font-size: 9px; min-height: 0; letter-spacing: 0; }
 }
 
 .status {
@@ -226,7 +223,7 @@ popover.pop {
     &.focused { background: $hover; padding: 0 $sp-2; }
     &:hover { background: $pressed; }
     .klass { color: $key; font-size: $size-sm; }
-    .title { color: $amber; }
+    .title { color: $body; }
   }
   .title.empty { color: $meta; padding: 0 $sp-3; }
 }
@@ -238,23 +235,23 @@ popover.pop {
   .icon { font-size: $size; min-width: 22px; margin-right: 0; }   // the widest glyph (the monitor) inks ~20px
   .k { color: $key; }
   .spark { letter-spacing: 0; }
-  &.idle { .icon, .num, .spark, .v { color: $green; } }
-  &.busy { .icon, .num, .spark, .v { color: $amber; } }
-  &.hot  { .icon, .num, .spark, .v { color: $red; } }
+  &.idle { .icon, .num, .spark, .v { color: $live; } }
+  &.busy { .icon, .num, .spark, .v { color: $body; } }
+  &.hot  { .icon, .num, .spark, .v { color: $alarm; } }
 }
 
 // workspace strips: thumbnails with a caption in the corner; the focused window's frame is amber
 .thumbs .thumb {
   padding: 0;
-  .shot { background: $hover; border: $rule solid $sep; }
-  &.focused .shot { border-color: $amber; }
+  .shot { background: $hover; border: $rule solid $structure; }
+  &.focused .shot { border-color: $body; }
   &:hover .shot { border-color: $key; }
-  .cap { background: $bg; padding: 1px 6px; margin: 0 0 $rule $rule; label { color: $meta; } }
+  .cap { background: $ground; padding: 1px 6px; margin: 0 0 $rule $rule; label { color: $meta; } }
 }
-.sys .item.clip { .icon { color: $amber; margin-right: 7px; margin-bottom: 1px; } .sm { color: $meta; } &:hover .icon { color: $white; } }
+.sys .item.clip { .icon { color: $body; margin-right: 7px; margin-bottom: 1px; } .sm { color: $meta; } &:hover .icon { color: $max-contrast; } }
 .clip-row { padding: 2px $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; }
-  &.top { border-left: 2px solid $green; }
-  .clip-thumb { margin: 2px 0; border: 1px solid $dim; }
+  &.top { border-left: 2px solid $live; }
+  .clip-thumb { margin: 2px 0; border: 1px solid $inactive; }
   .clip-meta { min-width: 72px; }
 }
 
@@ -262,21 +259,21 @@ popover.pop {
 // partner of that hue — the board's card-on-a-panel look (Andrew, 2026-09-07: "same but
 // different, colourful but not Lisa Frank"). One map, so a card and its frame never disagree.
 $card-hues: (
-  net: ($cyan, $amber), bt: ($lilac, $green), audio: ($green, $accent), tray: ($meta, $amber),
-  clip: ($amber, $violet), capture: ($green, $accent), vpn: ($green, $accent), window: ($amber, $violet),
-  perf: ($green, $accent), power: ($red, $amber), workspaces: ($violet, $green), calendar: ($cyan, $amber),
-  weather: ($cyan, $amber), media: ($violet, $green), timer: ($cyan, $amber), agents: ($accent, $cyan), log: ($amber, $violet),
+  net: ($cat-cyan, $cat-amber), bt: ($cat-lilac, $cat-green), audio: ($cat-green, $cat-pink), tray: ($cat-lilac, $cat-amber),
+  clip: ($cat-amber, $cat-violet), capture: ($cat-green, $cat-pink), vpn: ($cat-green, $cat-pink), window: ($cat-amber, $cat-violet),
+  perf: ($cat-green, $cat-pink), power: ($cat-red, $cat-amber), workspaces: ($cat-violet, $cat-green), calendar: ($cat-cyan, $cat-amber),
+  weather: ($cat-cyan, $cat-amber), media: ($cat-violet, $cat-green), timer: ($cat-cyan, $cat-amber), agents: ($cat-pink, $cat-cyan), log: ($cat-amber, $cat-violet),
 );
 // wifi: the signal meter in tiers
-.card-net .sig { &.strong { color: $green; } &.fair { color: $amber; } &.weak { color: $red; } }
+.card-net .sig { &.strong { color: $live; } &.fair { color: $body; } &.weak { color: $alarm; } }
 @each $name, $pair in $card-hues {
   .card-#{$name} { border-color: nth($pair, 1); .panel-title { color: nth($pair, 1); } }
   popover.pop-#{$name} > contents { border-color: nth($pair, 2); }
 }
 // the screen is being captured: red field, black ink — the one thing that must not be missed
-.cell.rec { background: $red; padding: 0 $sp-3; margin-right: $sp-2; .rec-dot, .rec-text, .rec-who { color: $ink; } .rec-who { font-size: $size-sm; } }
-.sys .item.cap { .icon { color: $amber; margin-right: 8px; margin-bottom: 1px; } &.live .icon, &.live .sm { color: $red; } &:hover .icon { color: $white; } }
-.cap-row { padding: 0 $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } .cap-glyph { color: $green; } &.stop label { color: $red; } }
+.cell.rec { background: $alarm; padding: 0 $sp-3; margin-right: $sp-2; .rec-dot, .rec-text, .rec-who { color: $field-ink; } .rec-who { font-size: $size-sm; } }
+.sys .item.cap { .icon { color: $body; margin-right: 8px; margin-bottom: 1px; } &.live .icon, &.live .sm { color: $alarm; } &:hover .icon { color: $max-contrast; } }
+.cap-row { padding: 0 $sp-2; min-height: $cell-h - 4px; &:hover { background: $hover; } .cap-glyph { color: $live; } &.stop label { color: $alarm; } }
 .cap-help { padding: 2px $sp-2; > box { min-height: 20px; } label { margin: 0; } }
 .cap-head { color: $meta; font-size: $size-sm; letter-spacing: 1px; padding: 2px $sp-2 0; }
 // a shot row is a box, not a button: the hover lives on its two sinks
@@ -284,9 +281,9 @@ $card-hues: (
 .cap-wins { margin-left: $sp-4; label { color: $meta; } }
 
 // the bar's centre and its state glyphs
-.cell.nextup { padding: 0 $sp-3; .nextup-glyph { color: $cyan; } .nextup-text { color: $amber; } &.soon .nextup-glyph, &.soon .nextup-text { color: $accent; } }
+.cell.nextup { padding: 0 $sp-3; .nextup-glyph { color: $key; } .nextup-text { color: $body; } &.soon .nextup-glyph, &.soon .nextup-text { color: $attention; } }
 // state glyphs: the gauges' icon size, one framed cell for the group
 .statecell { padding: 0 6px 0 2px; }   // measured: the glyphs ink 1.5px right of their slots
-.states .state { font-size: $size; min-width: 22px; &.red { color: $red; } &.cyan { color: $cyan; } &.dim { color: $meta; } &.amber { color: $amber; } }
+.states .state { font-size: $size; min-width: 22px; &.red { color: $alarm; } &.cyan { color: $key; } &.dim { color: $meta; } &.amber { color: $body; } }
 // measured: the tunnel glyph inked 5 left, its label 2 wide of the gap
-.sys .item.vpn { margin-top: 1px; margin-bottom: -3px; .icon { margin-right: 6px; margin-left: 0; margin-bottom: -4px; } .sm { font-size: 9px; } &.live .icon, &.live .sm { color: $green; } }
+.sys .item.vpn { margin-top: 1px; margin-bottom: -3px; .icon { margin-right: 6px; margin-left: 0; margin-bottom: -4px; } .sm { font-size: 9px; } &.live .icon, &.live .sm { color: $live; } }

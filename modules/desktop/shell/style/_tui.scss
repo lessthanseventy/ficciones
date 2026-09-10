@@ -6,11 +6,11 @@
 * {
   font-family: $font;
   font-size: $size;
-  color: $amber;
+  color: $body;
   -gtk-icon-size: $size;
 }
 
-window { background: $bg; }
+window { background: $ground; }
 
 label { min-height: 0; }
 
@@ -29,61 +29,88 @@ button {
 }
 
 // ── panes ──────────────────────────────────────────────────────────────────
-// <Panel title>: fieldset/legend. 1px $sep border, the label cut into the top edge in dim
+// <Panel title>: fieldset/legend. 1px $structure border, the label cut into the top edge in dim
 // chrome; the focused pane's border and title turn amber. This is the lazygit move.
 .panel {
-  border: $rule solid $sep;
+  border: $rule solid $structure;
   border-radius: 0;
   margin-top: $sp-2;
-  &.focused { border-color: $amber; }
+  &.focused { border-color: $body; }
 }
 // padding lives on the body, not the overlay: GtkOverlay places overlay children against
 // its own box, so padding there would push the title off the border and not the content down.
 .panel-body { padding: $sp-3 $sp-2 $sp-2; }
 .panel-title {
   color: $key;
-  background: $bg;
+  background: $ground;
   font-size: $size-sm;
   padding: 0 $sp-1;
   margin: -$sp-2 0 0 $sp-2;
 }
 
-// rules: 1px $sep lines between cells
-.rule-v { min-width: $rule; background: $sep; }
-.rule-h { min-height: $rule; background: $sep; }
+// rules: 1px $structure lines between cells
+.rule-v { min-width: $rule; background: $structure; }
+.rule-h { min-height: $rule; background: $structure; }
+
+// An ACTION: a control whose colour IS its affordance — the calendar's month arrows, pin and
+// fullscreen, scan, mute, disk and copy, the transport glyphs. The interactive tier, like the
+// sliders and every toolkit accent: a thing you press is not a thing you read. Outlined, so it
+// reads as a button rather than as coloured text, and it fills on hover.
+//
+// Every colour is spelled out on `label` too. The `*` rule at the top of this file sets a colour
+// on EVERY element, so a colour set on the button alone never reaches the text inside it — which
+// is why the previous pass over these buttons looked correct in the source and changed nothing
+// on screen. Anything nested under a coloured parent has to say so.
+.act {
+  padding: 2px $sp-2;
+  min-width: 28px;
+  min-height: $cell-h - 6px;
+  border: $rule solid rgba($key, 0.35);
+  color: $key;
+  label { color: $key; }
+  &:hover {
+    background: rgba($key, 0.14);
+    border-color: $key;
+    color: $max-contrast;
+    label { color: $max-contrast; }
+  }
+  // a destructive or already-engaged action keeps the button shape, in the alarm colour
+  &.red { border-color: rgba($alarm, 0.35); color: $alarm; label { color: $alarm; }
+    &:hover { background: rgba($alarm, 0.14); border-color: $alarm; } }
+}
 
 // ── text roles ─────────────────────────────────────────────────────────────
-.amber { color: $amber; }
-.green { color: $green; }
+.amber { color: $body; }
+.green { color: $live; }
 .dim   { color: $meta; }   // secondary text reads lilac, not dimmer amber
-.faint { color: $dim; }    // truly de-emphasised (empty cells, hints)
+.faint { color: $inactive; }    // truly de-emphasised (empty cells, hints)
 .k     { color: $key; }
-.red   { color: $red; }
-.cyan  { color: $cyan; }
-.pink  { color: $accent; }
-.sep   { color: $sep; }
+.red   { color: $alarm; }
+.cyan  { color: $key; }
+.pink  { color: $attention; }
+.sep   { color: $structure; }
 .sm    { font-size: $size-sm; }
 .lg    { font-size: $size-lg; }
 
 // inverse video: the active thing is the same amber, swapped
 .chip {
-  color: $ink;
-  background: $chip;
+  color: $field-ink;
+  background: $cursor-field;
   padding: 0 $sp-2;
-  * { color: $ink; }
+  * { color: $field-ink; }
 }
 .tab {
-  color: $white;
-  background: $sel;
+  color: $max-contrast;
+  background: $sel-field;
   padding: 0 $sp-2;
-  * { color: $white; }
+  * { color: $max-contrast; }
 }
 
 // key/value stat: dim key, body value, in one cell
 .stat {
   .k { color: $key; margin-right: $sp-1; }
-  &.low  .v { color: $red; }
-  &.live .v { color: $green; }
+  &.low  .v { color: $alarm; }
+  &.live .v { color: $live; }
 }
 
 .st-working { color: $st-working; }
@@ -95,10 +122,10 @@ button {
 
 // tooltips in the palette, not Adwaita's grey pill
 tooltip {
-  background: $bg;
-  border: $rule solid $amber;
+  background: $ground;
+  border: $rule solid $body;
   border-radius: 0;
   padding: $sp-2 $sp-3;
-  > * { color: $amber; }
-  label { color: $amber; }
+  > * { color: $body; }
+  label { color: $body; }
 }

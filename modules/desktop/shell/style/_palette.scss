@@ -1,43 +1,79 @@
-// generated from modules/desktop/theme/palette.nix — edit THAT, never this file. _tokens.scss forwards this and adds the metrics. Rule: body text amber on black; green/pink highlights; active = inverse video.
-$bg:     #000000;
-$ink:    #0A0A0A;   // chip text — dark on a bright field
-$green:  #33FF00;   // highlight: live / ok / occupied
-$amber:  #FFB000;   // body text AND chrome
-$chip:   #FFB000;   // the inverse-video field
-$sel:    #C7B6E8;   // the SELECTED thing: inverse video in violet
-$sel-ink: #1A0A2E;  // the ink inside it
-$accent: #F06CB4;   // highlight: agents, the operator, attention
-$dim:    #B8994C;
-$sep:    #B5651D;   // structure: borders, rules
-$warn:   #FF6E06;   // the step between body amber and the alarm red
-$red:    #FF6969;
-$cyan:   #33C7FF;
-$white:  #FFFFFF;
-$lilac:  #B4A5D6;
-$violet: #B98AFF;
+// generated from modules/desktop/theme/palette.nix — edit THAT, never this file. _tokens.scss forwards this and adds the metrics.
+//
+// TWO VOCABULARIES, and the rule is: use a ROLE. Roles say what a thing MEANS, so two
+// surfaces that mean the same thing cannot drift apart, and a palette that calls its body
+// colour something other than amber still works. The colour-named tokens are gone on
+// purpose — `$amber` and `$chip` were the same colour for a while and every "hover
+// brightens" in this file silently did nothing, which is the bug this prevents. A stale
+// name is now a sass error.
+//
+// The exception is the CATEGORICAL tier at the bottom: hues used because they are
+// DISTINGUISHABLE from each other (log sources, the per-card hue map), where the point is
+// that they differ, not that they mean anything. Those keep hue names, prefixed, so you can
+// see at a glance which tier a line is in.
 
-// status tier
+// grounds, in elevation order
+$ground:        #000000;
+$panel:         #0D0D0D;
+$card:          #0E0E0E;
+$input-ground:  #141414;
+$raised:        #1A1A1A;
+$edge:          #2A2A2A;
+
+// text
+$body:          #FFB000;   // body text AND ordinary chrome
+$key:           #33C7FF;    // keys, labels, code, links
+$meta:          #B4A5D6;   // secondary text
+$prose:         #C7C7C7;
+$inactive:      #B8994C;
+$max-contrast:  #FFFFFF;  // what hover lifts to; works on any base
+
+// what a thing IS
+$live:          #33FF00;   // running, ok, occupied
+$done:          #62A562;
+$attention:     #F06CB4;   // agents, the operator, something wants you
+$alarm:         #FF6969;
+$assistant:     #B98AFF;
+$warn:          #FF6E06;   // the step between the body and the alarm
+
+// inverse video: cursorField is WHERE YOU ARE, selField is WHAT YOU PICKED
+$cursor-field:  #FFB000;
+$sel-field:     #C7B6E8;
+$sel-ink:       #1A0A2E;
+$field-ink:     #0A0A0A;   // the ink inside any bright field
+$accent-field:  #33C7FF; // a control you act on: slider, switch, focus ring
+
+// structure
+$structure:     #B5651D;
+$border-active:   #FFB000;
+$border-inactive: #7A5500;
+
+// status tier (cards, cells) and identity tier (coworker archetypes)
 $st-working: #33FF00;
 $st-blocked: #FF6969;
 $st-await:   #F06CB4;
 $st-open:    #FFB000;
 $st-done:    #62A562;
 $st-idle:    #B8994C;
-
-// text roles beyond the body: keys/labels cyan, secondary text lilac
-$key:  #33C7FF;
-$meta: #B4A5D6;
-
-// identity tier
 $arch-surveyor:  #33C7FF;
 $arch-builder:   #33FF00;
 $arch-reviewer:  #FFB000;
 $arch-planner:   #F06CB4;
 $arch-assistant: #B98AFF;
 
+// THE CATEGORICAL TIER — hues as categories, not as meanings. Only the log-source colours
+// and the per-card hue map may use these; anything else wants a role above.
+$cat-amber:  #FFB000;
+$cat-green:  #33FF00;
+$cat-pink:   #F06CB4;
+$cat-cyan:   #33C7FF;
+$cat-lilac:  #B4A5D6;
+$cat-violet: #B98AFF;
+$cat-red:    #FF6969;
+
 // The one font. Low vision: sizes bias up, never down.
 $font: "ComicShannsMono Nerd Font", "ComicShannsMono Nerd Font Mono", monospace;
 
 // Hover/pressed fields: the body colour at low alpha, so hover reads as "lit", not recoloured.
-$hover: rgba($amber, 0.12);
-$pressed: rgba($amber, 0.22);
+$hover: rgba($body, 0.12);
+$pressed: rgba($body, 0.22);

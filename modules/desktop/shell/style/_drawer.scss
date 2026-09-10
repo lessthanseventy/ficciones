@@ -4,13 +4,13 @@
 // title; the focused card is amber; content breathes — padding, rows, a headline.
 window.drawer { background: transparent; }
 .clickaway-field { background: transparent; }
-.floating { background: $bg; padding: 0 $sp-2 $sp-2; }
+.floating { background: $ground; padding: 0 $sp-2 $sp-2; }
 .floating .card { margin-top: 0; }
 
 // the hub's sheet (right edge); the info surface is a .floating stack like the weather card
 .sheet {
-  background: $bg;
-  border-right: $rule solid $sep;
+  background: $ground;
+  border-right: $rule solid $structure;
   padding: 0 $sp-3 $sp-2 $sp-2;
 }
 .stack .card + .card { margin-top: $sp-3; }
@@ -20,30 +20,30 @@ window.drawer { background: transparent; }
 .card .panel-title { font-size: $size; }
 // splashes: each card's title wears its own hue; focus turns the border amber, not the title
 .card.focused .panel-title { color: inherit; }
-.cal-head label:nth-child(1), .cal-head label:nth-child(7) { color: $accent; }  // the weekend, Sunday-first
-.cal-nav .cal-title { background: none; border: none; padding: 0; label { color: $amber; } &:hover label { color: $white; } }
+.cal-head label:nth-child(1), .cal-head label:nth-child(7) { color: $attention; }  // the weekend, Sunday-first
+.cal-nav .cal-title { background: none; border: none; padding: 0; label { color: $body; } &:hover label { color: $max-contrast; } }
 
-.sheet.right { border-right: none; border-left: $rule solid $sep; padding: 0 $sp-2 $sp-2 $sp-3; }
+.sheet.right { border-right: none; border-left: $rule solid $structure; padding: 0 $sp-2 $sp-2 $sp-3; }
 
 .keys {
   min-height: $cell-h;
   label { color: $meta; font-size: $size-sm; }
 }
 
-.headline-lg { color: $amber; font-size: $size; margin-bottom: $sp-1; }
+.headline-lg { color: $body; font-size: $size; margin-bottom: $sp-1; }
 .row { min-height: $cell-h - 4px; padding: 0 $sp-2; }
-.row.chip * { color: $ink; }
+.row.chip * { color: $field-ink; }
 .big  { font-size: $size-lg; }
 .huge { font-size: 34px; }
-.spark { color: $amber; }
+.spark { color: $body; }
 .spark.wide { font-size: $size-lg; letter-spacing: 0; }
-.metric.idle { .huge, .spark { color: $green; } }
-.metric.busy { .huge, .spark { color: $amber; } }
-.metric.hot  { .huge, .spark { color: $red; } }
-// transport controls, not text: the interactive tier, like the sliders and every toolkit accent
-.act { padding: 0 $sp-2; color: $key; min-width: 28px; &:hover { background: $hover; color: $white; } }
-.act.play { font-size: $size-lg; }
-.wx-glyph { font-size: 44px; color: $amber; }
+.metric.idle { .huge, .spark { color: $live; } }
+.metric.busy { .huge, .spark { color: $body; } }
+.metric.hot  { .huge, .spark { color: $alarm; } }
+.act.play label { font-size: $size-lg; }
+// the month arrows carry a glyph, not a word: give it the room to read
+.cal-nav .act label { font-size: $size-lg; }
+.wx-glyph { font-size: 44px; color: $body; }
 .counts label { font-size: $size-sm; }
 
 .cal-head label { color: $meta; font-size: $size-sm; }
@@ -53,8 +53,8 @@ window.drawer { background: transparent; }
 
 // ── the right-hand hub ─────────────────────────────────────────────────────
 window.hub, window.clickaway { background: transparent; }
-.card-notices .panel-title { color: $amber; }
-.card-toggles .panel-title { color: $cyan; }
+.card-notices .panel-title { color: $body; }
+.card-toggles .panel-title { color: $key; }
 .hub-head { min-height: $cell-h; }
 .card-notices .toast { margin-top: $sp-2; }
 // toggles: outlined, not filled — amber when on, dim when off, both brighten on hover
@@ -63,10 +63,10 @@ window.hub, window.clickaway { background: transparent; }
   min-height: 48px;
   min-width: 56px;
   padding: $sp-1 0;
-  border: $rule solid $sep;
+  border: $rule solid $structure;
   background: none;
   * { color: $meta; }
-  &.chip { background: none; border-color: $amber; * { color: $amber; } }
+  &.chip { background: none; border-color: $body; * { color: $body; } }
   &:hover { background: none; border-color: $key; * { color: $key; } }
   .icon { font-size: $size-lg; }
 }
@@ -78,16 +78,16 @@ window.hub, window.clickaway { background: transparent; }
 .hours .sky { font-size: $size; min-height: 34px; }
 .day {
   .skies { min-width: 240px; margin: 0 $sp-2; .sky { min-width: 0; } }   // eight skies, 00 → 21, in equal cells
-  &.day-head { border-bottom: $rule solid $sep; padding-bottom: 2px; margin-bottom: 2px; }
+  &.day-head { border-bottom: $rule solid $structure; padding-bottom: 2px; margin-bottom: 2px; }
   min-height: 24px;
   .sky { font-size: $size; min-width: 30px; }
   .desc { color: $meta; font-size: $size-sm; }
-  .range { letter-spacing: -1px; .track { color: $sep; } .span { color: $amber; } }
+  .range { letter-spacing: -1px; .track { color: $structure; } .span { color: $body; } }
 }
 .day > label:first-child, .hours > box > label:first-child { color: $key; }
 
 // perf popovers
-.cores { color: $amber; font-size: $size-lg; letter-spacing: 1px; }
+.cores { color: $body; font-size: $size-lg; letter-spacing: 1px; }
 
 // the dashboard: the board is a black sheet with a margin of desktop showing round it; every
 // card wears its own hue on title AND border, so the sections read as sections, not text
@@ -95,7 +95,7 @@ window.dashboard { background: transparent; }
 // a heavy rounded frame in the accent, not amber — the board reads as its own object over
 // the desktop, not more of the same chrome (Andrew, 2026-09-07); 8px of desktop to the bar,
 // rail, deck row and screen edge on every side (the margins in Dashboard.tsx)
-.board { background: $bg; border: 3px solid $accent; border-radius: 12px; padding: $sp-4; }
+.board { background: $ground; border: 3px solid $attention; border-radius: 12px; padding: $sp-4; }
 // the board is the one surface that shows everything at once, so its type steps down a notch
 // (Andrew, 2026-09-05: "shrink the text a notch or two if that lets me see it all")
 .board {
@@ -111,7 +111,7 @@ window.dashboard { background: transparent; }
 // overhang; the margin is exactly that, so the outer frame sits on the card's allocation and
 // every gap between frames is the box spacing alone — one $sp-4 everywhere, measured (Andrew,
 // 2026-09-07: the stacked columns had 4px between frames against 18px across).
-.board .card { margin: 11px; outline: $rule solid $sep; outline-offset: 10px; }   // 11: the 1px outline draws just outside the offset
+.board .card { margin: 11px; outline: $rule solid $structure; outline-offset: 10px; }   // 11: the 1px outline draws just outside the offset
 // 14 over the content: the title tag hangs 9px into the body (12px type, −8px margin), and the
 // first row cleared it by nothing at 8 (Andrew, 2026-09-07: "overlaps its label")
 .board .card .panel-body { padding: 14px $sp-3 $sp-2; }
@@ -122,80 +122,80 @@ window.dashboard { background: transparent; }
 // machine; the old note here said amber, from when green was also the body colour and a green
 // number read as prose. Body is amber everywhere now, so green reads as a state again. The
 // green-on-green he did not like
-@mixin hue($c, $outer: $sep) { border-color: $c; .panel-title { color: $c; } .board & { outline-color: $outer; } }
-.card-now      { @include hue($amber, $violet); }
-.card-weather  { @include hue($cyan, $amber); }
-.card-calendar { @include hue($cyan, $amber); }
-.card-perf     { @include hue($green, $accent); }
-.card-agents   { @include hue($accent, $cyan); }
-.card-media    { @include hue($arch-assistant, $green); }
-.card-toggles  { @include hue($amber, $violet); }
-.card-power    { @include hue($red, $amber); }
-.card-shell    { @include hue($amber, $violet); }
-.card-today    { @include hue($accent, $cyan); }
-.card-disk     { @include hue($amber, $violet); }
-.card-net      { @include hue($cyan, $amber); }
-.card-log      { @include hue($amber, $violet); }
-.card-workspaces { @include hue($arch-assistant, $green); }
+@mixin hue($c, $outer: $structure) { border-color: $c; .panel-title { color: $c; } .board & { outline-color: $outer; } }
+.card-now      { @include hue($body, $assistant); }
+.card-weather  { @include hue($key, $body); }
+.card-calendar { @include hue($key, $body); }
+.card-perf     { @include hue($live, $attention); }
+.card-agents   { @include hue($attention, $key); }
+.card-media    { @include hue($arch-assistant, $live); }
+.card-toggles  { @include hue($body, $assistant); }
+.card-power    { @include hue($alarm, $body); }
+.card-shell    { @include hue($body, $assistant); }
+.card-today    { @include hue($attention, $key); }
+.card-disk     { @include hue($body, $assistant); }
+.card-net      { @include hue($key, $body); }
+.card-log      { @include hue($body, $assistant); }
+.card-workspaces { @include hue($arch-assistant, $live); }
 .card-today { min-width: 380px; }
 .card-disk, .card-net { min-width: 380px; }
 .mount {
   .bar { letter-spacing: 0; }
-  &.idle { .bar, .num { color: $green; } }
-  &.busy { .bar, .num { color: $amber; } }
-  &.hot  { .bar, .num { color: $red; } }
+  &.idle { .bar, .num { color: $live; } }
+  &.busy { .bar, .num { color: $body; } }
+  &.hot  { .bar, .num { color: $alarm; } }
 }
 .today-row { min-height: 24px; padding: 0 $sp-1; &:disabled { opacity: 1; } }
 .journal label { min-height: 22px; }
 .ws-row { min-height: 24px; }
-.ws-num { min-width: 26px; padding: 0 2px; label { color: $meta; } &.chip label { color: $ink; } }
+.ws-num { min-width: 26px; padding: 0 2px; label { color: $meta; } &.chip label { color: $field-ink; } }
 .strip-win { padding: 2px; &.focused { background: $hover; } &:hover { background: $pressed; } }
 .card-now, .card-workspaces { min-width: 250px; }
 .card-calendar { min-width: 380px; }
 .card-agents, .card-media { min-width: 320px; }
-.bigtime { color: $amber; font-size: 56px; }
+.bigtime { color: $body; font-size: 56px; }
 // the mark above the time: the corner's doubled aleph (amber over a pink echo), the name in cyan
 .wordmark {
   padding: $sp-1 $sp-2;
-  .aleph { color: $amber; font-size: 34px; }
-  .name { color: $cyan; font-size: 20px; letter-spacing: 3px; }
+  .aleph { color: $body; font-size: 34px; }
+  .name { color: $key; font-size: 20px; letter-spacing: 3px; }
   // the echo: the same glyphs in pink, dimmer, up and to the RIGHT (Andrew, 2026-09-07)
-  .hron { color: $accent; opacity: 0.55; margin-left: 5px; margin-bottom: 4px; font-size: 34px; }
-  .name.hron { color: $accent; font-size: 20px; margin-left: 3px; margin-bottom: 3px; }
+  .hron { color: $attention; opacity: 0.55; margin-left: 5px; margin-bottom: 4px; font-size: 34px; }
+  .name.hron { color: $attention; font-size: 20px; margin-left: 3px; margin-bottom: 3px; }
 }
-.card-mark { @include hue($accent, $cyan); }
+.card-mark { @include hue($attention, $key); }
 .lg { font-size: $size-lg; }
 .gauge {
   min-width: 220px;
   .bar { font-size: $size-sm; letter-spacing: 0; }
   .spark { letter-spacing: 0; }
-  &.idle { .num, .bar, .spark { color: $green; } }
-  &.busy { .num, .bar, .spark { color: $amber; } }
-  &.hot  { .num, .bar, .spark { color: $red; } }
+  &.idle { .num, .bar, .spark { color: $live; } }
+  &.busy { .num, .bar, .spark { color: $body; } }
+  &.hot  { .num, .bar, .spark { color: $alarm; } }
 }
 // POWER and SHELL are toggle tiles (the design language: a tile is a thing you press); the red
 // ones say so at rest, and every one lights like a toggle on hover
 // 42: these two-row grids set the third row's height, and the board fits 1080 with the card
 // titles cleared only at 42 (2026-09-07; was 56)
 .card-power .toggle, .card-shell .toggle { min-height: 42px; min-width: 84px; }
-.toggle.tile.red { border-color: rgba($red, 0.6); * { color: $red; } &:hover { border-color: $red; * { color: $red; } } }
+.toggle.tile.red { border-color: rgba($alarm, 0.6); * { color: $alarm; } &:hover { border-color: $alarm; * { color: $alarm; } } }
 .action {
   min-height: 30px; min-width: 150px; padding: 0 $sp-2;
   background: none; border: none; border-radius: 0; box-shadow: none;
-  .icon { font-size: $size-lg; color: $amber; }
+  .icon { font-size: $size-lg; color: $body; }
   .sm { color: $meta; }
-  &.red .icon { color: $red; }
-  &:hover { background: $chip; .icon, .sm { color: $ink; } }
+  &.red .icon { color: $alarm; }
+  &:hover { background: $cursor-field; .icon, .sm { color: $field-ink; } }
 }
 .card-toggles .toggle { min-height: 42px; min-width: 84px; }
 
 // perf card: the core grid and the process table
 .core {
   .spark { letter-spacing: 0; }
-  &.idle { .spark, .num { color: $green; } }
-  &.busy { .spark, .num { color: $amber; } }
-  &.hot  { .spark, .num { color: $red; } }
+  &.idle { .spark, .num { color: $live; } }
+  &.busy { .spark, .num { color: $body; } }
+  &.hot  { .spark, .num { color: $alarm; } }
 }
-.procs .sort { padding: 0 $sp-1; min-width: 34px; label { color: $meta; } &.chip label { color: $ink; } }
+.procs .sort { padding: 0 $sp-1; min-width: 34px; label { color: $meta; } &.chip label { color: $field-ink; } }
 .proc { min-height: 22px; }
-.proc .kill { padding: 0 $sp-1; label { color: $dim; } &:hover label { color: $red; } &.armed { background: $red; label { color: $ink; } } }
+.proc .kill { padding: 0 $sp-1; label { color: $inactive; } &:hover label { color: $alarm; } &.armed { background: $alarm; label { color: $field-ink; } } }

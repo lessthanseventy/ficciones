@@ -3,42 +3,42 @@
 window.notifications { background: transparent; }
 
 .toast {
-  background: $bg;
+  background: $ground;
   margin-top: $sp-2;
-  &.low      { border-color: $dim;   .panel-title { color: $dim; } }
-  &.normal   { border-color: $amber; .panel-title { color: $amber; } }
-  &.critical { border-color: $red;   .panel-title { color: $red; } }
+  &.low      { border-color: $inactive;   .panel-title { color: $inactive; } }
+  &.normal   { border-color: $body; .panel-title { color: $body; } }
+  &.critical { border-color: $alarm;   .panel-title { color: $alarm; } }
   .panel-body { padding: $sp-3 $sp-3 $sp-2; }
   .toast-hit { padding: 0; &:hover { background: $hover; } }
-  .summary { color: $amber; }
+  .summary { color: $body; }
   .body { color: $meta; font-size: $size-sm; }
-  // actions read as buttons: outlined green, inverse video on hover (notifd carries them;
-  // Slack's "Reply", a browser's "Open", pi's "Allow")
+  // notifd carries these (Slack's "Reply", a browser's "Open", pi's "Allow"). They are
+  // actions like any other, so they inherit .act from _tui.scss — they used to be outlined
+  // GREEN, which says "running", not "press me".
   .actions { margin-top: $sp-2; }
-  .act { color: $green; padding: 2px $sp-3; min-height: 24px; border: $rule solid $green; &:hover { background: $green; color: $ink; label { color: $ink; } } }
-  .act label { color: $green; }
+  .act { padding: 2px $sp-3; }
 }
 
 // ── the OSD ────────────────────────────────────────────────────────────────
 window.osd { background: transparent; }
 .osd-pane {
-  background: $bg;
-  border-color: $amber;
-  .panel-title { color: $amber; font-size: $size; }
+  background: $ground;
+  border-color: $body;
+  .panel-title { color: $body; font-size: $size; }
   .panel-body { padding: $sp-4 $sp-6 $sp-3; }
-  .osd-icon { font-size: 40px; color: $amber; min-width: 48px; }
-  .osd-bar { font-size: 26px; letter-spacing: 1px; color: $amber; }
-  .osd-num { font-size: 26px; color: $amber; }
-  &.muted { border-color: $dim; .panel-title, .osd-icon, .osd-bar, .osd-num { color: $dim; } }
+  .osd-icon { font-size: 40px; color: $body; min-width: 48px; }
+  .osd-bar { font-size: 26px; letter-spacing: 1px; color: $body; }
+  .osd-num { font-size: 26px; color: $body; }
+  &.muted { border-color: $inactive; .panel-title, .osd-icon, .osd-bar, .osd-num { color: $inactive; } }
 }
 
 // the hub's history scrolls once it outgrows the sheet; the bar is a thin amber rule
 .history { min-height: 0; }
-.history scrollbar { background: transparent; margin-left: $sp-2; slider { background: $dim; min-width: 6px; min-height: 24px; border-radius: 0; &:hover { background: $key; } } trough { background: $sep; border-radius: 0; } }
+.history scrollbar { background: transparent; margin-left: $sp-2; slider { background: $inactive; min-width: 6px; min-height: 24px; border-radius: 0; &:hover { background: $key; } } trough { background: $structure; border-radius: 0; } }
 // the rows are the cards; the listview's own row chrome (hover, selection, padding) goes
 .vlist, .vlist > row { background: none; padding: 0; margin: 0; border: none; outline: none; }
 .vlist > row:hover, .vlist > row:active { background: none; box-shadow: none; }
 // the keyboard cursor (lib/nav): inverse video, the palette's "active" — an amber field, black
 // ink on every label in the row (a tinted field left amber text on amber: Andrew, 2026-09-07)
-.vlist > row:selected { background: $amber; box-shadow: none; }
-.vlist > row:selected .logline label, .vlist > row:selected .thread-row label, .vlist > row:selected label { color: $ink; }
+.vlist > row:selected { background: $body; box-shadow: none; }
+.vlist > row:selected .logline label, .vlist > row:selected .thread-row label, .vlist > row:selected label { color: $field-ink; }
