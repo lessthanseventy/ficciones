@@ -95,8 +95,8 @@ menubutton.cell > button:hover { background: none; }
 // ── rail: clock + tray ─────────────────────────────────────────────────────
 .wx {
   padding: $sp-1 0 $sp-2;
-  .g { font-size: 26px; }
-  .t { font-size: $size-sm; }
+  .g { font-size: 26px; color: $key; }
+  .t { font-size: $size-sm; color: $amber; }
   &.dim * { color: $dim; }
   &:hover { background: $hover; }
 }
@@ -111,7 +111,7 @@ menubutton.clock > button:hover, menubutton.wx > button:hover { background: none
 }
 .item.wx {
   &:hover { background: $hover; }
-  .g { font-size: 22px; }
+  .g { font-size: 22px; color: $key; }
   .t { color: $amber; font-size: $size-sm; }
   &.dim .g, &.dim .t { color: $meta; }
 }

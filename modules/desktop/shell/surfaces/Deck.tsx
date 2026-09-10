@@ -147,9 +147,9 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         {/* ambient cells */}
         {/* now playing: transport in the cell, the title marquees when long, the media card in a popover */}
         <box cssClasses={["cell", "deck-media"]} spacing={6} visible={nowPlaying((p) => !!p)}>
-          <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.previous()} visible={nowPlaying((n) => !!n?.p.canGoPrevious)}><label label="\uf048" /></button>
+          <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.previous()} visible={nowPlaying((n) => !!n?.p.canGoPrevious)}><label label={"\uf048"} /></button>
           <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.play_pause()}><label label={nowPlaying((p) => (p?.playing ? "\uf04c" : "\uf04b"))} /></button>
-          <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.next()} visible={nowPlaying((n) => !!n?.p.canGoNext)}><label label="\uf051" /></button>
+          <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.next()} visible={nowPlaying((n) => !!n?.p.canGoNext)}><label label={"\uf051"} /></button>
           <menubutton cssClasses={["clickable", "deck-title"]} direction={Gtk.ArrowType.UP} $={(self) => hoverPopover(self, "deck")}>
             <label cssClasses={["deck-track"]} label={trackText} widthChars={TRACK_W} maxWidthChars={TRACK_W} xalign={0} />
             <popover cssClasses={["pop", "pop-media", "mediapop"]} $={(self) => { self.connect("show", () => setMediaShown(++mediaPops > 0)); self.connect("hide", () => setMediaShown((mediaPops = Math.max(0, mediaPops - 1)) > 0)) }}>
