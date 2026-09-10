@@ -81,9 +81,9 @@ function Player({ p }: { p: Mpris.Player }) {
       <label cssClasses={["big"]} label={createBinding(p, "title")((t) => t || "—")} xalign={0} ellipsize={3} maxWidthChars={34} />
       <label cssClasses={["dim"]} label={createComputed([createBinding(p, "artist"), createBinding(p, "album")], (a, b) => [a, b].filter(Boolean).join(" · ") || p.identity)} xalign={0} ellipsize={3} maxWidthChars={40} />
       <box spacing={10}>
-        <button cssClasses={["act"]} onClicked={() => p.previous()} visible={createBinding(p, "canGoPrevious")}><label label="⏮" /></button>
-        <button cssClasses={["act", "play"]} onClicked={() => p.play_pause()}><label label={playing((x) => (x ? "⏸" : "▶"))} /></button>
-        <button cssClasses={["act"]} onClicked={() => p.next()} visible={createBinding(p, "canGoNext")}><label label="⏭" /></button>
+        <button cssClasses={["act"]} onClicked={() => p.previous()} visible={createBinding(p, "canGoPrevious")}><label label="\uf048" /></button>
+        <button cssClasses={["act", "play"]} onClicked={() => p.play_pause()}><label label={playing((x) => (x ? "\uf04c" : "\uf04b"))} /></button>
+        <button cssClasses={["act"]} onClicked={() => p.next()} visible={createBinding(p, "canGoNext")}><label label="\uf051" /></button>
         <label cssClasses={["spark"]} label={pos} hexpand xalign={0} />
         <label cssClasses={["dim", "sm"]} label={time} />
       </box>
@@ -102,7 +102,7 @@ export function MediaCard() {
           {(p, i) => (
             <button cssClasses={createComputed([cur, i], (c, idx) => ["row", ...(c === idx ? ["chip"] : [])])} onClicked={() => setCurSel(i.get())}>
               <box spacing={8}>
-                <label label={createBinding(p, "playbackStatus")((s) => (s === Mpris.PlaybackStatus.PLAYING ? "▶" : "⏸"))} />
+                <label label={createBinding(p, "playbackStatus")((s) => (s === Mpris.PlaybackStatus.PLAYING ? "\uf04b" : "\uf04c"))} />
                 <label label={createBinding(p, "identity")} hexpand xalign={0} />
               </box>
             </button>

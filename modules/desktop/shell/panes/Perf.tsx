@@ -56,7 +56,7 @@ export function Top({ list, col }: { list: Accessor<Proc[]>; col: "cpu" | "mem" 
 
 /**
  * The dashboard's process list: one table, sorted by cpu or memory (the toggle in the head),
- * every row killable — the ✕ arms, a second click within 2.5 s sends SIGTERM (btop's k).
+ * every row killable — the kill glyph arms, a second click within 2.5 s sends SIGTERM (btop's k).
  */
 export function Procs() {
   const [by, setBy] = createState<"cpu" | "mem">("cpu")
@@ -93,7 +93,7 @@ export function Procs() {
               onClicked={() => { const x = p.get(); if (x) arm(x.pid) }}
               widthRequest={40}
             >
-              <label cssClasses={["sm"]} label={createComputed([armed, p], (a, x) => (x && a === x.pid ? "sure?" : "✕"))} />
+              <label cssClasses={["sm"]} label={createComputed([armed, p], (a, x) => (x && a === x.pid ? "sure?" : "\uf00d"))} />
             </button>
           </box>
         )

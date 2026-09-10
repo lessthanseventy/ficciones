@@ -31,11 +31,14 @@ export type Weather = {
 const cfgPath = `${GLib.get_user_config_dir()}/astal-shell/config.json`
 const cachePath = `${GLib.get_user_cache_dir()}/astal-shell/weather.json`
 
+// nf-weather, never emoji: a colour-emoji glyph ignores the palette entirely (it renders as a
+// bright orange tile with white ink, which is both off-theme and off-contrast). These take
+// whatever colour the cell asks for, like every other glyph on the bar.
 const glyphs: [number, string][] = [
-  [0, "☀\uFE0F"], [1, "🌤"], [2, "⛅"], [3, "☁\uFE0F"], [45, "🌫"], [48, "🌫"],
-  [51, "🌦"], [53, "🌦"], [55, "🌧"], [61, "🌧"], [63, "🌧"], [65, "🌧"],
-  [71, "🌨"], [73, "🌨"], [75, "❄\uFE0F"], [80, "🌦"], [81, "🌧"], [82, "⛈"],
-  [95, "⛈"], [96, "⛈"], [99, "⛈"],
+  [0, "\ue30d"], [1, "\ue302"], [2, "\ue302"], [3, "\ue312"], [45, "\ue313"], [48, "\ue313"],
+  [51, "\ue309"], [53, "\ue309"], [55, "\ue318"], [61, "\ue318"], [63, "\ue318"], [65, "\ue318"],
+  [71, "\ue31a"], [73, "\ue31a"], [75, "\ue31a"], [80, "\ue309"], [81, "\ue318"], [82, "\ue31d"],
+  [95, "\ue31d"], [96, "\ue31d"], [99, "\ue31d"],
 ]
 /** A word or two for a WMO code: the forecast rows read, not just glyph. */
 export function describe(code?: number): string {
@@ -56,7 +59,7 @@ export function describe(code?: number): string {
 }
 export function glyph(code?: number): string {
   if (code === undefined) return "·"
-  let g = "☁\uFE0F"
+  let g = "\ue312"
   for (const [c, s] of glyphs) if (code >= c) g = s
   return g
 }
