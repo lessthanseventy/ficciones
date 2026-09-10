@@ -195,6 +195,11 @@ rec {
     # than letting it render unreadable. Higher than this starts flattening third-party colour
     # toward black and white, which costs more than it buys.
     minimum-contrast = 4.5
+    # Take the window chrome (tab bar, headerbar) from OUR background/foreground rather than from
+    # GTK. GTK loads ~/.config/gtk-4.0/gtk.css once at startup, so on a live theme switch the tab
+    # bar kept the colours it booted with while the terminal body had already changed; ghostty
+    # re-reads this config on SIGUSR2, which the switch already sends.
+    window-theme = ghostty
     ${template}
   '';
 

@@ -158,6 +158,12 @@ in
         // {
           # the shell's stylesheet for this palette, compiled in the shell package
           "ficciones/themes/${name}/shell.css".source = "${config.ficciones.desktop.shell.package}/share/astal-shell/themes/${name}.css";
+          # Claude Code: ONE theme name, whose contents change with the palette. It watches
+          # ~/.claude/themes for content changes (watchCustomThemes/reloadCustomThemes) and reads
+          # the `theme` key in settings.json only at startup — so naming a different file per
+          # palette, which is what we used to do, could never switch a running session.
+          "ficciones/themes/${name}/claude-theme.json".text =
+            r.claudeTheme { name = "ficciones"; light = name == "zahir"; };
         }) renders))
       {
         # ghostty: the theme file + the config that names it (templates/ghostty.conf is the rest).
@@ -206,13 +212,12 @@ in
       }
     ];
 
-    # Claude Code's theme per palette; the switch points ~/.claude/settings.json at one
+    # ~/.claude/themes/ficciones.json is NOT declared here: it is mutable, seeded by the
+    # activation below and thereafter owned by the toggle, the same deal as the theme link.
     home.file = {
       # the statusline (scripts/statusline-box.sh) and its renderer's config, per theme
       ".claude/statusline-box.sh" = { source = ../scripts/statusline-box.sh; executable = true; };
       ".claude/claude-powerline.json" = via "claude-powerline.json";
-      ".claude/themes/uqbar.json".text = renders.uqbar.claudeTheme { name = "uqbar"; light = false; };
-      ".claude/themes/zahir.json".text = renders.zahir.claudeTheme { name = "zahir"; light = true; };
     } // lib.listToAttrs (lib.concatMap (profile: [
       (lib.nameValuePair ".floorp/${profile}/chrome/userChrome.css" (via "floorp-userChrome.css"))
       (lib.nameValuePair ".floorp/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
@@ -224,6 +229,33 @@ in
       # under it is linked by linkGeneration, which runs later in the same activation
       run mkdir -p "$(dirname "${themeDir}")"
       if [ ! -e "${themeDir}" ]; then run ln -sfn themes/uqbar "${themeDir}"; fi
+    '';
+
+    # Claude Code reads the `theme` key at startup and then WATCHES the theme file itself, so the
+    # name has to be constant and the contents have to change under it. Seeded here from whichever
+    # palette is live; the toggle rewrites it on every switch. Deliberately a real file, not a link
+    # into the theme dir: repointing a link fires no event in the directory being watched.
+    # AFTER linkGeneration: the theme dir it copies from is linked in that step, so running any
+    # earlier finds nothing to copy and leaves Claude Code pointed at a theme that is not there.
+    home.activation.ficcionesClaudeTheme = lib.hm.dag.entryAfter [ "ficcionesTheme" "linkGeneration" ] ''
+      run mkdir -p "$HOME/.claude/themes"
+      src="${themeDir}/claude-theme.json"
+      # the source is a store path (mode 444); the toggle has to be able to overwrite the copy
+      if [ -r "$src" ]; then
+        run cp -f "$src" "$HOME/.claude/themes/ficciones.json"
+        run chmod u+w "$HOME/.claude/themes/ficciones.json"
+      fi
+      # the old per-palette names are gone; a stale `theme` key would silently pin one of them
+      run rm -f "$HOME/.claude/themes/uqbar.json" "$HOME/.claude/themes/zahir.json"
+      cfg="$HOME/.claude/settings.json"
+      if [ -f "$cfg" ]; then
+        tmp=$(mktemp)
+        if ${pkgs.jq}/bin/jq '.theme = "custom:ficciones"' "$cfg" > "$tmp"; then
+          run mv -f "$tmp" "$cfg"
+        else
+          rm -f "$tmp"
+        fi
+      fi
     '';
 
     # btop rewrites btop.conf on exit, so it stays a real file; only the theme line is ours.
