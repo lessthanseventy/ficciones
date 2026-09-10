@@ -11,20 +11,37 @@ defmodule Menard do
   """
 
   @doc "The directory the caller stood in."
+  @format_timeout 30_000
+
   def caller_dir, do: System.get_env("MISE_ORIGINAL_CWD") || File.cwd!()
 
   @doc "A path as the caller meant it: absolute stays, relative joins the caller's directory."
   def resolve(path), do: Path.expand(path, caller_dir())
 
   @doc """
-  Format `file` with the TARGET project's formatter: `mix format` from the nearest ancestor holding a
-  `.formatter.exs` (else a `mix.exs`, else the file's own directory). Run from the file's own directory
-  — `lib/menard/` has no config — mix falls back to the DEFAULT line length and reflows the whole
-  file: a one-clause edit came back as a 39-line diff, the opposite of what these verbs promise.
+  Format `file` with the TARGET project's formatter: `mix format` from the nearest ancestor holding
+  a `.formatter.exs` (else a `mix.exs`, else the file's own directory). Run from the file's own
+  directory — `lib/menard/` has no config — mix falls back to the DEFAULT line length and reflows the
+  whole file: a one-clause edit came back as a 39-line diff, the opposite of what these verbs promise.
+
+  BOUNDED, because this shells out: `mix` can block on the build lock, on a mise shim resolving a
+  toolchain, or on a project that will not load. An unbounded wait hangs the CALLER — over stdio that
+  is an MCP tool which never answers at all. `{:error, reason}` after the timeout degrades to "written
+  but not formatted", which a caller can report; a hang is not.
   """
   def format(file) do
-    System.cmd("mix", ["format", file], cd: formatter_root(file), stderr_to_stdout: true)
-    :ok
+    task =
+      Task.async(fn ->
+        System.cmd("mix", ["format", file], cd: formatter_root(file), stderr_to_stdout: true)
+      end)
+
+    case Task.yield(task, @format_timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, _output} ->
+        :ok
+
+      _timeout ->
+        {:error, "mix format did not finish in #{div(@format_timeout, 1000)}s — file written UNFORMATTED"}
+    end
   end
 
   defp formatter_root(file) do
@@ -48,7 +65,13 @@ defmodule Menard do
     case Menard.Write.checked(file, content) do
       {:ok, checked} ->
         File.write!(file, checked)
-        format(file)
+        # A format timeout is NOT a write failure: the bytes are on disk and correct, just not
+        # reformatted. Say so rather than failing an edit that actually landed.
+        case format(file) do
+          :ok -> :ok
+          {:error, reason} -> Mix.shell().error("menard: " <> reason)
+        end
+
         :ok
 
       {:error, reason} ->
