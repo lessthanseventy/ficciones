@@ -142,8 +142,7 @@ app.start({
     startHotEdge()
     // the live theme's stylesheet over the bundled default (the same css when they agree)
     applyShellTheme()
-    // Andrew's defaults: glass and the zen backdrop on from login
-    setGlass(true)
+    // Andrew's default: the zen backdrop on from login (glass's lives in hyprland.lua)
     setBackdrop("zen")
     initAwake()
     adoptSidecars()

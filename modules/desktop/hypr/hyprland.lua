@@ -102,8 +102,10 @@ hl.config({
     decoration = {
         rounding = 8,
         rounding_power = 2,
-        active_opacity = 1.0,
-        inactive_opacity = 1.0,
+        -- glass on from login; the shell's toggle (lib/glass.ts, same values) never sets it at
+        -- start, so a shell restart keeps whatever was chosen
+        active_opacity = 0.90,
+        inactive_opacity = 0.90,
         dim_inactive = true,
         dim_strength = 0.15, -- subtle darkening of unfocused window contents
 
