@@ -79,7 +79,8 @@ if [ "$ws" != "special:quake" ]; then
   else fade out; fi
   [ "$pinned" = true ] && d "hl.dsp.window.pin({ $(W) })"
   d "hl.dsp.window.move({ workspace = \"special:quake\", follow = false, $(W) })"
-  prop opacity unset; prop opacity_override unset
+  # opacity takes a number on the lua socket ("unset" fails to parse); 1 is the default rule's
+  prop opacity 1; prop opacity_override unset
   # focus goes back to the window that had it (Hyprland leaves it nowhere otherwise)
   prev=$(cat "$PREV" 2>/dev/null); [ -n "$prev" ] && d "hl.dsp.focus({ window = \"address:$prev\" })"
   ring on
