@@ -14,10 +14,13 @@ import { wallpaper } from "../lib/wallpaper"
 import Gio from "gi://Gio"
 import Cairo from "cairo"
 import { showText } from "./Osd"
+import { fullscreenMonitors } from "../lib/hypr"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
 const TICK_MS = 200 // 5 fps: the ambient does not need more, and each frame is a full-surface paint per monitor
 const SWITCH_TICKS = Math.round(90_000 / TICK_MS)
+// braille bit layout: left column bits 0,1,2,6 ; right column bits 3,4,5,7
+const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 2], [0x40, 0, 3], [0x08, 1, 0], [0x10, 1, 1], [0x20, 1, 2], [0x80, 1, 3]]
 
 export const [zen, setZen] = createState(false)
 /** What the backdrop shows: a named ambient held, "random" (the modes rotate), or the photo. */
@@ -32,6 +35,7 @@ class Canvas {
   idx: number
   ticks = 0
   hold = false // a named mode is held: no rotation
+  paused = false // a fullscreen window covers the monitor: the tick does nothing, the mode keeps its state
   // one state per row: createState skips equal strings, so a row that did not change costs
   // nothing downstream — no label reset, no Pango relayout, no overlay re-allocate (the
   // relayout of 64×210 glyphs × 2 monitors at 8 fps was the shell's idle CPU)
@@ -42,6 +46,7 @@ class Canvas {
   textMode = createState(false)
   constructor(start: number) { this.idx = start % this.modes.length }
   step = () => {
+    if (this.paused) return
     if (this.ticks % SWITCH_TICKS === 0 && !(this.hold && this.ticks)) {
       if (this.ticks) this.idx = (this.idx + 1) % this.modes.length
       this.modes[this.idx].init(this.grid)
@@ -60,29 +65,28 @@ class Canvas {
     } else this.area?.queue_draw()
   }
   /** the dot field: every lit dot a small rect in its cell's hue. One fill per hue (≤5), not
-   * one per cell — 13k fills a frame was most of the cost; no antialiasing on the dots. */
+   * one per cell — 13k fills a frame was most of the cost; no antialiasing on the dots. Lit
+   * cells are bucketed by hue in one pass (five full-grid scans before, 2026-09-11). */
   draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number, h: number) => {
     const g = this.grid
     const cw = w / COLS, ch = h / ROWS, dw = cw / 2, dh = ch / 4
-    const rw = Math.max(1, Math.round(dw * 0.7)), rh = Math.max(1, Math.round(dh * 0.7))
+    // 0.64 of a dot's cell (0.7 first): the field reads ~10% quieter
+    const rw = Math.max(1, Math.round(dw * 0.64)), rh = Math.max(1, Math.round(dh * 0.64))
     const ox = (dw - rw) / 2, oy = (dh - rh) / 2
     cr.setAntialias(Cairo.Antialias.NONE)
-    // braille bit layout: left column bits 0,1,2,6 ; right column bits 3,4,5,7
-    const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 2], [0x40, 0, 3], [0x08, 1, 0], [0x10, 1, 1], [0x20, 1, 2], [0x80, 1, 3]]
-    const hues = new Set<number>()
-    for (let i = 0; i < g.dots.length; i++) if (g.dots[i]) hues.add(g.hue[i])
-    for (const hue of hues) {
+    const byHue = new Map<number, number[]>()
+    for (let i = 0; i < g.dots.length; i++) {
+      if (!g.dots[i]) continue
+      let cells = byHue.get(g.hue[i])
+      if (!cells) byHue.set(g.hue[i], (cells = []))
+      cells.push(i)
+    }
+    for (const [hue, cells] of byHue) {
       const x = g.colour(hue).replace("#", "")
       cr.setSourceRGB(parseInt(x.slice(0, 2), 16) / 255, parseInt(x.slice(2, 4), 16) / 255, parseInt(x.slice(4, 6), 16) / 255)
-      for (let r = 0; r < ROWS; r++) {
-        const y0 = r * ch
-        for (let c = 0; c < COLS; c++) {
-          const i = r * COLS + c
-          const d = g.dots[i]
-          if (!d || g.hue[i] !== hue) continue
-          const x0 = c * cw
-          for (const [bit, dx, dy] of BITS) if (d & bit) cr.rectangle(Math.round(x0 + dx * dw + ox), Math.round(y0 + dy * dh + oy), rw, rh)
-        }
+      for (const i of cells) {
+        const r = (i / COLS) | 0, x0 = (i - r * COLS) * cw, y0 = r * ch, d = g.dots[i]
+        for (const [bit, dx, dy] of BITS) if (d & bit) cr.rectangle(Math.round(x0 + dx * dw + ox), Math.round(y0 + dy * dh + oy), rw, rh)
       }
       cr.fill()
     }
@@ -138,6 +142,9 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   const { file, next } = wallpaper()
   nexts.push(next)
   onCleanup(() => { for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
+  const covered = () => { canvas.paused = fullscreenMonitors.peek().has(gdkmonitor.connector ?? "") }
+  covered()
+  onCleanup(fullscreenMonitors.subscribe(covered))
   return (
     <window
       // layer/anchor BEFORE visible: gtk4-layer-shell fixes the level at map time, and a

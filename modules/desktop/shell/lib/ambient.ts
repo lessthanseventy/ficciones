@@ -1,6 +1,7 @@
 // The ambient set for the zen backdrop: each mode owns the dot canvas for a while. Lorenz
 // (the attractor), Life (seeded at random), boids (a flock), rule 30 (falling rows). Every
 // mode is a pure `step` over the CharGrid so the backdrop only paces and switches them.
+// Densities sit ~10% under what first shipped: ambient, not wallpaper (Andrew, 2026-09-11).
 import { CharGrid } from "./chargrid"
 import { Babel, ensureBooks } from "./babel"
 
@@ -20,7 +21,7 @@ const lorenz = (): Mode => {
       if (t.length > 6) t.splice(3, 1)
     },
     step(g) {
-      g.decay(0.03)
+      g.decay(0.034)
       t.forEach((p, k) => {
         for (let i = 0; i < 22; i++) {
           const dt = 0.004
@@ -42,7 +43,7 @@ const life = (): Mode => {
     init(g) {
       w = g.cols * 2; h = g.rows * 4
       a = new Uint8Array(w * h); b = new Uint8Array(w * h)
-      for (let i = 0; i < a.length; i++) a[i] = Math.random() < 0.18 ? 1 : 0
+      for (let i = 0; i < a.length; i++) a[i] = Math.random() < 0.16 ? 1 : 0
       age = new Uint8Array(w * h)
     },
     poke(_g, px, py) {
@@ -80,7 +81,7 @@ const boids = (): Mode => {
     init(g) {
       W = g.cols * 2; H = g.rows * 4
       // every boid keeps the colour it was born with — a colourful flock, not a shifting one
-      flock = Array.from({ length: 70 }, (_, i) => ({ x: Math.random() * W, y: Math.random() * H, vx: Math.random() - 0.5, vy: Math.random() - 0.5, hue: i % 5 }))
+      flock = Array.from({ length: 63 }, (_, i) => ({ x: Math.random() * W, y: Math.random() * H, vx: Math.random() - 0.5, vy: Math.random() - 0.5, hue: i % 5 }))
       g.clear()
     },
     poke(_g, px, py) {
@@ -112,14 +113,17 @@ const boids = (): Mode => {
   }
 }
 
+// Every row it has ever made, faded by age: the newest dense, thinning to nothing at the top
+// (keeping them all at full density, in five hue bands, covered the screen — 2026-09-11).
 const rule30 = (): Mode => {
   let row = new Uint8Array(0)
   let rows: Uint8Array[] = []
+  let masks: Float32Array[] = [] // a fixed draw per dot, so a row thins without flickering
   return {
     name: "rule 30", colour: "cyan",
     init(g) {
       row = new Uint8Array(g.cols * 2); row[row.length >> 1] = 1
-      rows = []
+      rows = []; masks = []
       g.clear()
     },
     poke(_g, px) { row[Math.floor(px) % row.length] = 1 },
@@ -130,11 +134,16 @@ const rule30 = (): Mode => {
         next[x] = (l ^ (c | r)) & 1
       }
       row = next
-      rows.push(row)
+      rows.push(row); masks.push(Float32Array.from({ length: w }, Math.random))
       const H = g.rows * 4
-      if (rows.length > H) rows.shift()
+      if (rows.length > H) { rows.shift(); masks.shift() }
       g.clear()
-      rows.forEach((r, y) => { for (let x = 0; x < w; x++) if (r[x]) g.plot(x, y, Math.floor((x / w) * 5)) })
+      const n = rows.length
+      rows.forEach((r, y) => {
+        const keep = 0.9 * (1 - (n - 1 - y) / H) // newest row 90%, the screen's height back: none
+        const m = masks[y], hue = n - 1 - y < H / 3 ? 3 : 4
+        for (let x = 0; x < w; x++) if (r[x] && m[x] < keep) g.plot(x, y, hue)
+      })
     },
   }
 }

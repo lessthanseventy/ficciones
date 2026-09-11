@@ -42,10 +42,10 @@ export function ensureBooks() {
   if (books.length >= BOOKS.length || fetching) return
   fetching = true
   GLib.mkdir_with_parents(DIR, 0o755)
-  Promise.all(BOOKS.map((id) => {
+  Promise.all(BOOKS.map(async (id) => {
     const f = `${DIR}/pg${id}.txt`
-    if (Gio.File.new_for_path(f).query_exists(null)) return Promise.resolve()
-    return execAsync(["curl", "-fsSL", "--max-time", "60", "-o", f, `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`]).then(() => void 0).catch(() => {})
+    if (Gio.File.new_for_path(f).query_exists(null)) return
+    try { await execAsync(["curl", "-fsSL", "--max-time", "60", "-o", f, `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`]) } catch { /* a book that will not download stays missing */ }
   })).then(() => { loadBooks(); fetching = false })
 }
 
@@ -157,7 +157,8 @@ export class Babel {
         run += row[x]
       }
       flush()
-      return s
+      // the whole Library a tenth quieter, one span a row (Andrew, 2026-09-11)
+      return `<span fgalpha="90%">${s}</span>`
     })
   }
 }
