@@ -3,7 +3,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import type { Accessor } from "ags"
 import { pct, spark } from "../lib/format"
 import { perf, tier, rate, stats, tempFrac, BREAKS, NET_HOT, DISK_HOT, CORE_HIST } from "../lib/perf"
-import { topCpu, topMem, addrs, kill, ROWS, type Proc } from "../lib/top"
+import { topCpu, topMem, addrs, kill, watchTop, ROWS, type Proc } from "../lib/top"
 import { RuleH } from "../lib/tui"
 import { createComputed, createState } from "ags"
 import { timeout } from "ags/time"
@@ -43,7 +43,7 @@ const KV = ({ k, v, cls = [] }: { k: string; v: any; cls?: string[] }) => (
 /** Top processes as rows: name, then the number that matters for this metric. */
 export function Top({ list, col }: { list: Accessor<Proc[]>; col: "cpu" | "mem" }) {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={1}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={1} $={watchTop}>
       <label cssClasses={["k", "sm"]} label={col === "cpu" ? "top by cpu" : "top by memory"} xalign={0} />
       {Array.from({ length: 6 }, (_, i) => (
         <box spacing={8} visible={list((l) => i < l.length)}>
@@ -73,7 +73,7 @@ export function Procs() {
     <button cssClasses={by((b) => ["sort", ...(b === k ? ["chip"] : [])])} onClicked={() => setBy(k)}><label cssClasses={["sm"]} label={k} /></button>
   )
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={1} cssClasses={["procs"]}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={1} cssClasses={["procs"]} $={watchTop}>
       <box spacing={6}>
         <label cssClasses={["k", "sm"]} label="processes · by" xalign={0} />
         <Sort k="cpu" /><Sort k="mem" />

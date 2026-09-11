@@ -1,6 +1,9 @@
-// Top processes and network addresses for the perf popovers. Polled every 3s — `ps` is cheap,
-// and the popovers are the only readers.
-import { createPoll } from "ags/time"
+// Top processes and network addresses for the perf popovers. The process lists poll every 3 s
+// only while one is on screen (watchTop): popover content is built at startup, so an always-on
+// poll ran `ps` twice every 3 s for nobody.
+import type Gtk from "gi://Gtk?version=4.0"
+import { createState } from "ags"
+import { createPoll, interval, type Timer } from "ags/time"
 import { execAsync } from "ags/process"
 
 export type Proc = { pid: number; cpu: number; mem: number; comm: string }
@@ -20,8 +23,16 @@ async function ps(sort: string): Promise<Proc[]> {
   }
 }
 
-export const topCpu = createPoll<Proc[]>([], 3000, () => ps("-pcpu"))
-export const topMem = createPoll<Proc[]>([], 3000, () => ps("-rss"))
+const [topCpu, setTopCpu] = createState<Proc[]>([])
+const [topMem, setTopMem] = createState<Proc[]>([])
+export { topCpu, topMem }
+let watchers = 0, timer: Timer | null = null
+const refresh = () => { ps("-pcpu").then(setTopCpu); ps("-rss").then(setTopMem) }
+/** `$={watchTop}` on a widget showing a list: the lists poll while any such widget is mapped */
+export function watchTop(w: Gtk.Widget) {
+  w.connect("map", () => { if (watchers++ === 0) { refresh(); timer = interval(3000, refresh) } })
+  w.connect("unmap", () => { if (--watchers === 0) { timer?.cancel(); timer = null } })
+}
 
 /** SIGTERM; the row goes on its own when the next `ps` tick no longer lists it. */
 export const kill = (pid: number) => execAsync(["kill", String(pid)]).catch(console.error)

@@ -18,20 +18,25 @@ export const vpn = createPoll<string[]>([], 5000, async () => {
 
 export type Mullvad = { present: boolean; connected: boolean; state: string; location: string; relay: string; expires: string }
 const NONE: Mullvad = { present: false, connected: false, state: "", location: "", relay: "", expires: "" }
+// the relay and the account's expiry barely change: fetched every 5 min, the status every poll
+let relay = "", expires = "", slowAt = 0
 export const mullvad = createPoll<Mullvad>(NONE, 5000, async () => {
   try {
     const st = (await execAsync(["mullvad", "status"])).trim().split("\n")
     const state = st[0]?.trim() ?? ""
     const location = st.find((l) => /location/i.test(l))?.split(":").slice(1).join(":").replace(/\s*IPv[46].*$/, "").trim() ?? ""
-    const relay = (await execAsync(["mullvad", "relay", "get"]).catch(() => "")).split("\n").find((l) => /Location/.test(l))?.split(":")[1]?.trim() ?? ""
-    const expires = (await execAsync(["mullvad", "account", "get"]).catch(() => "")).split("\n").find((l) => /Expires/.test(l))?.split(/:\s+/)[1]?.slice(0, 10) ?? ""
+    if (Date.now() - slowAt > 300_000) {
+      slowAt = Date.now()
+      relay = (await execAsync(["mullvad", "relay", "get"]).catch(() => "")).split("\n").find((l) => /Location/.test(l))?.split(":")[1]?.trim() ?? ""
+      expires = (await execAsync(["mullvad", "account", "get"]).catch(() => "")).split("\n").find((l) => /Expires/.test(l))?.split(/:\s+/)[1]?.slice(0, 10) ?? ""
+    }
     return { present: true, connected: /^connected/i.test(state), state, location, relay, expires }
   } catch { return NONE }
 })
-export const mullvadToggle = () => {
+export const mullvadToggle = async () => {
   const on = mullvad.peek().connected
   logEvent("shell", `mullvad ${on ? "disconnect" : "connect"}`)
-  return execAsync(["mullvad", on ? "disconnect" : "connect"]).catch((e) => logEvent("shell", `mullvad: ${e}`, "warn"))
+  try { await execAsync(["mullvad", on ? "disconnect" : "connect"]) } catch (e) { logEvent("shell", `mullvad: ${e}`, "warn") }
 }
 
 /** the wg-quick configs: /etc/wireguard/<name>.conf — up/down through polkit (pkexec) */
@@ -44,7 +49,7 @@ export function wgConfigs(): string[] {
     return out.sort()
   } catch { return [] }
 }
-export const wgToggle = (name: string, up: boolean) => {
+export const wgToggle = async (name: string, up: boolean) => {
   logEvent("shell", `wg-quick ${up ? "up" : "down"} ${name}`)
-  return execAsync(["pkexec", "wg-quick", up ? "up" : "down", name]).catch((e) => logEvent("shell", `wg-quick: ${String(e).split("\n")[0]}`, "warn"))
+  try { await execAsync(["pkexec", "wg-quick", up ? "up" : "down", name]) } catch (e) { logEvent("shell", `wg-quick: ${String(e).split("\n")[0]}`, "warn") }
 }
