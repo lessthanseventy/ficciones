@@ -67,7 +67,8 @@ interval(5000, pick)
 const TRACK_W = 36
 const [slide, setSlide] = createState(0)
 let slider: T | null = null
-const trackText = createComputed([nowPlaying, slide], (n, off) => {
+const trackText = createComputed(() => {
+  const n = nowPlaying(), off = slide()
   if (!n) return ""
   const s = [n.title, n.artist].filter(Boolean).join(" — ")
   if (s.length <= TRACK_W) return s
@@ -161,7 +162,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         <menubutton cssClasses={["cell", "deck-timer", "clickable"]} direction={Gtk.ArrowType.UP} $={(self) => hoverPopover(self, "deck")}>
           <box spacing={6}>
             <label cssClasses={timer((t) => (t ? ["cyan"] : ["dim"]))} label={timer((t) => (t?.kind === "pomodoro" ? (t.phase === "work" ? "\u{f0a3d}" : "\u{f0a3b}") : t?.kind === "alarm" ? "\u{f0021}" : "\u{f051b}"))} />
-            <label cssClasses={timer((t) => (t ? ["cyan"] : ["dim"]))} label={createComputed([timer, left], (t, s) => (t ? `${fmtLeft(s)}${t.kind === "pomodoro" ? ` ${t.phase} ${t.round}` : ""}` : "timer"))} />
+            <label cssClasses={timer((t) => (t ? ["cyan"] : ["dim"]))} label={createComputed(() => { const t = timer(), s = left(); return t ? `${fmtLeft(s)}${t.kind === "pomodoro" ? ` ${t.phase} ${t.round}` : ""}` : "timer" })} />
           </box>
           <popover cssClasses={["pop", "pop-timer", "timerpop"]}>
             <Panel title={"\u{f051b}  TIMER"} cssClasses={["card", "card-timer"]}><TimerPane /></Panel>
@@ -213,18 +214,20 @@ export const deckMonitor = () => deckWin?.gdkmonitor?.connector
 // digits 1–6 pick a source, 0 or a = all; Enter copies the line under the cursor
 // the chips are tabs — one source at a time, or all (Andrew, 2026-09-07: not opt-in filters)
 const [logSel, setLogSel] = createState<Src | null>(null)
-const logShown = createComputed([log, logSel], (l, o) => [...l].reverse().filter((e) => o === null || e.src === o))
+const logShown = createComputed(() => { const o = logSel(); return [...log()].reverse().filter((e) => o === null || e.src === o) })
 const pickSrc = (src: Src | null) => setLogSel(src)
 export function LogPane() {
   const sel = logSel, shown = logShown
+  // tracked reads for the chip producers: the FILTERS pane has focus and its cursor is on chip i
+  const onChip = (i: number) => focus() === "FILTERS" && cursor().FILTERS === i
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
       <box spacing={6} cssClasses={focused("FILTERS")((f) => ["deck-filters", ...(f ? ["focused"] : [])])}>
-        <button cssClasses={createComputed([sel, focused("FILTERS"), cursorOf("FILTERS")], (o, f, c) => ["filter", "src-all", ...(o === null ? ["chip"] : ["off"]), ...(f && c === 0 ? ["cursor"] : [])])} onClicked={() => pickSrc(null)}>
+        <button cssClasses={createComputed(() => ["filter", "src-all", ...(sel() === null ? ["chip"] : ["off"]), ...(onChip(0) ? ["cursor"] : [])])} onClicked={() => pickSrc(null)}>
           <label label="all" />
         </button>
         {SRCS.map((s, i) => (
-          <button cssClasses={createComputed([sel, focused("FILTERS"), cursorOf("FILTERS")], (o, f, c) => ["filter", `src-${s}`, ...(o === s ? ["chip"] : ["off"]), ...(f && c === i + 1 ? ["cursor"] : [])])} onClicked={() => pickSrc(s)}>
+          <button cssClasses={createComputed(() => ["filter", `src-${s}`, ...(sel() === s ? ["chip"] : ["off"]), ...(onChip(i + 1) ? ["cursor"] : [])])} onClicked={() => pickSrc(s)}>
             <label label={s} />
           </button>
         ))}
@@ -276,8 +279,8 @@ export default function Deck() {
   const keys = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
   const K = Gdk
   // FILTERS is the chip row (all + the sources): h/l along it, Enter picks the chip
-  const count = () => { const f = focus.get(); return f === "FILTERS" ? SRCS.length + 1 : f === "LOG" ? logShown.peek().length : threads.peek().length }
-  const horizontal = () => focus.get() === "FILTERS"
+  const count = () => { const f = focus.peek(); return f === "FILTERS" ? SRCS.length + 1 : f === "LOG" ? logShown.peek().length : threads.peek().length }
+  const horizontal = () => focus.peek() === "FILTERS"
   keys.connect("key-pressed", (_, kv, __, mods) => {
     const shift = !!(mods & Gdk.ModifierType.SHIFT_MASK)
     if (kv === K.KEY_Escape || kv === K.KEY_q) { hideDeck(); return true }
@@ -293,7 +296,7 @@ export default function Deck() {
     if (kv === K.KEY_0 || kv === K.KEY_a) { pickSrc(null); return true }
     if (kv >= K.KEY_1 && kv <= K.KEY_6) { pickSrc(SRCS[kv - K.KEY_1]); return true }
     if (kv === K.KEY_Return || kv === K.KEY_KP_Enter || kv === K.KEY_space) {
-      const f = focus.get()
+      const f = focus.peek()
       if (f === "FILTERS") { const i = cursor.peek().FILTERS; pickSrc(i === 0 ? null : SRCS[i - 1]) }
       else if (f === "LOG") {
         const e = logShown.peek()[cursor.peek().LOG]
