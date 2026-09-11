@@ -2,7 +2,7 @@
 import Gtk from "gi://Gtk?version=4.0"
 import type { Accessor } from "ags"
 import { pct, spark } from "../lib/format"
-import { perf, tier, rate, stats, BREAKS, NET_HOT, DISK_HOT, CORE_HIST } from "../lib/perf"
+import { perf, tier, rate, stats, tempFrac, BREAKS, NET_HOT, DISK_HOT, CORE_HIST } from "../lib/perf"
 import { topCpu, topMem, addrs, kill, ROWS, type Proc } from "../lib/top"
 import { RuleH } from "../lib/tui"
 import { createComputed, createState } from "ags"
@@ -16,6 +16,7 @@ export type Metric = {
   hist: Accessor<number[]>
   detail: Accessor<string>
   fmt: (x: number) => string   // how a history value reads (percent, or a rate)
+  toSpark?: (x: number) => number  // a history value onto the spark's 0..1, when that is not the value itself
   breaks?: readonly [number, number]  // where this metric turns amber, then red
   ok?: Accessor<boolean>
 }
@@ -28,7 +29,7 @@ export const METRICS: Metric[] = [
   { key: "DISK", frac: perf((p) => Math.min(1, p.diskHist.at(-1) ?? 0)), num: perf((p) => rate(p.disk)), hist: perf((p) => p.diskHist), detail: perf(() => "read + write on the root disk"), fmt: (x) => rate(x * DISK_HOT) + "/s" },
   // the colour bands for a 13th-gen mobile part (Tjmax 100°, boosts into the 90s by design):
   // green under 75°, amber to 95°, red from 95° — 65..105 maps to 0..1 through BREAKS.temp
-  { key: "TEMP", frac: perf((p) => Math.max(0, Math.min(1, (p.temp - 65) / 40))), num: perf((p) => `${Math.round(p.temp)}°`), hist: perf((p) => p.tempHist), detail: perf(() => "cpu package · green <75° · red ≥95° (Tjmax 100°)"), fmt: (x) => `${Math.round(x * 100)}°`, breaks: BREAKS.temp, ok: perf((p) => p.temp > 0) },
+  { key: "TEMP", frac: perf((p) => tempFrac(p.temp)), num: perf((p) => `${Math.round(p.temp)}°`), hist: perf((p) => p.tempHist), detail: perf(() => "cpu package · green <75° · red ≥95° (Tjmax 100°)"), fmt: (x) => `${Math.round(x * 100)}°`, toSpark: (x) => tempFrac(x * 100), breaks: BREAKS.temp, ok: perf((p) => p.temp > 0) },
 ]
 
 /** A dim key with a body value, inline. */
@@ -159,7 +160,7 @@ export function MetricDetail({ m }: { m: Metric }) {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} cssClasses={m.frac((f) => ["metric", tier(f, m.breaks)])} spacing={8} widthRequest={560}>
       <Header m={m} />
-      <label cssClasses={["spark", "wide"]} label={m.hist((h) => spark(h, 60))} xalign={0} halign={Gtk.Align.START} />
+      <label cssClasses={["spark", "wide"]} label={m.hist((h) => spark(m.toSpark ? h.map(m.toSpark) : h, 60))} xalign={0} halign={Gtk.Align.START} />
       <RuleH />
       {m.key === "CPU" && (
         <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>

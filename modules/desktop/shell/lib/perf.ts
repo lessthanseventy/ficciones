@@ -105,7 +105,7 @@ function sample(): Perf {
   const [load1, load5, load15] = readFile("/proc/loadavg").split(" ").slice(0, 3).map(Number)
   push(cpuHist, cpu); push(memHist, m.mem); push(netHist, Math.min(1, (n.rx + n.tx) / NET_HOT))
   const d = diskRate(); push(diskHist, Math.min(1, d / DISK_HOT))
-  const temp = pkgTemp(); push(tempHist, Math.min(1, temp / 100))   // the spark stays 0..100°
+  const temp = pkgTemp(); push(tempHist, Math.min(1, temp / 100))   // °/100, so mean/peak read true; sparks map it through tempFrac
   cores.forEach((c, i) => { coreHist[i] ??= []; push(coreHist[i], c, CORE_HIST) })
   return { cpu, ...m, ...n, load1: load1 || 0, load5: load5 || 0, load15: load15 || 0, cpuHist, memHist, netHist, cores, coreHist, disk: d, diskHist, temp, tempHist }
 }
@@ -176,6 +176,9 @@ export const BREAKS = {
   /** 65..105 °C maps to 0..1, so these are 75 ° and 95 ° on a Tjmax-100 part. */
   temp: [0.25, 0.75],
 } as const satisfies Record<string, readonly [number, number]>
+/** °C onto 0..1 over 65..105: the colour tier, and the spark, so a spark row is a tier step
+ *  (°/100 put every reading from 50° to 99° in the top two rows) */
+export const tempFrac = (c: number) => Math.max(0, Math.min(1, (c - 65) / 40))
 
 export function tier(frac: number, breaks: readonly [number, number] = BREAKS.cpu): Tier {
   return frac < breaks[0] ? "idle" : frac < breaks[1] ? "busy" : "hot"
