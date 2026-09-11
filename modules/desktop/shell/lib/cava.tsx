@@ -1,13 +1,11 @@
-// The audio visualiser. AstalCava in stereo hands back left-channel bars then right-channel
-// bars; the bar shows the mix as vertical blocks, the rail shows each channel as a stack of
-// horizontal blocks. Ambient, but driven by real signal (design §6).
+// The audio visualiser: each channel as a column of horizontal bars on the rail. AstalCava in
+// stereo hands back left-channel bars then right-channel bars. Ambient, but driven by real
+// signal (design §6).
 import Cava from "gi://AstalCava"
 import Gtk from "gi://Gtk?version=4.0"
-import { createBinding } from "ags"
+import { onCleanup } from "ags"
 import { soundRunning } from "./sound"
 
-const V = "▁▂▃▄▅▆▇█"
-const H = "▏▎▍▌▋▊▉█"
 const BARS = 24 // per channel
 
 let inst: Cava.Cava | null | undefined
@@ -29,60 +27,45 @@ function cava() {
 // cava hands back linear amplitude, which sits low most of the time; a square root gives
 // quiet passages presence without clipping loud ones
 const curve = (v: number) => Math.sqrt(Math.min(1, Math.max(0, v)))
-const level = (v: number) => Math.min(7, Math.round(curve(v) * 7))
 
-/** Both channels mixed, left to right, for the bar. */
-export function Visualiser() {
-  const c = cava()
-  if (!c) return <label cssClasses={["cava"]} label="" />
-  const line = createBinding(c, "values")((vs) => {
-    const n = vs.length / 2
-    return Array.from({ length: n }, (_, i) => V[level((vs[i] + vs[n + i]) / 2)]).join("")
-  })
-  // fixed glyph count so the cell never resizes with the signal
-  return <label cssClasses={["cava"]} label={line} widthChars={BARS} maxWidthChars={BARS} />
+/** one channel's bars folded to `rows` bands, low freq first: each the mean of its band */
+function bands(vs: number[], side: "left" | "right", rows: number): number[] {
+  const n = vs.length / 2
+  const ch = side === "left" ? vs.slice(0, n) : vs.slice(n)
+  const step = Math.max(1, Math.floor(ch.length / rows))
+  return Array.from({ length: rows }, (_, r) => ch.slice(r * step, (r + 1) * step).reduce((a, b) => a + b, 0) / step)
 }
 
-const COLS = 4 // cells per row: full blocks + one fractional block, 32 levels
-
-/** A horizontal bar of `cols` cells: full blocks then a partial, grown from the left. */
-function hbar(v: number, cols = COLS): string {
-  const eighths = Math.round(curve(v) * cols * 8)
-  const full = Math.floor(eighths / 8)
-  const rest = eighths % 8
-  return "█".repeat(full) + (rest ? H[rest - 1] : "")
-}
-
-/** One channel as a column of horizontal bars, for the rail. `rows` bars, low freq at the top. */
+/** One channel as a column of horizontal bars, for the rail. `rows` bars, low freq at the top.
+ *  Drawn, not a label per row: 16 labels relaid out at 30 fps was most of the shell's CPU while
+ *  sound played (2026-09-11). */
 export function Channel({ side, rows = 8 }: { side: "left" | "right"; rows?: number }) {
   const c = cava()
   if (!c) return <box />
-  const lines = createBinding(c, "values")((vs) => {
-    const n = vs.length / 2
-    const ch = side === "left" ? vs.slice(0, n) : vs.slice(n)
-    const step = Math.max(1, Math.floor(ch.length / rows))
-    return Array.from({ length: rows }, (_, r) => {
-      const v = ch.slice(r * step, (r + 1) * step).reduce((a, b) => a + b, 0) / step
-      return hbar(v)
-    })
-  })
-  // block glyphs are wider than a mono cell, so the column is clipped to a fixed width — a
-  // full row must never widen the rail
   const W = 36
+  let vals: number[] = []
+  let area: Gtk.DrawingArea | null = null
+  const id = c.connect("notify::values", () => { vals = bands(c.values, side, rows); area?.queue_draw() })
+  onCleanup(() => c.disconnect(id))
   return (
-    <scrolledwindow
-      cssClasses={["cava-col", side]}
-      hscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
-      vscrollbarPolicy={Gtk.PolicyType.NEVER}
-      widthRequest={W}
-      maxContentWidth={W}
-      halign={Gtk.Align.START}
-    >
-      <box orientation={Gtk.Orientation.VERTICAL}>
-        {Array.from({ length: rows }, (_, r) => (
-          <label cssClasses={["ch"]} label={lines((l) => l[r])} xalign={0} />
-        ))}
-      </box>
-    </scrolledwindow>
+    <box cssClasses={["cava-col", side]} widthRequest={W} halign={Gtk.Align.START}>
+      <Gtk.DrawingArea
+        cssClasses={["ch"]}
+        widthRequest={W}
+        $={(self) => {
+          area = self
+          // a row is one line of the .ch font and a full bar four block glyphs, as the labels drew it
+          const [gw, rowH] = self.create_pango_layout("█").get_pixel_size()
+          self.heightRequest = rows * rowH
+          self.set_draw_func((_, cr, w) => {
+            const col = self.get_color()
+            cr.setSourceRGBA(col.red, col.green, col.blue, col.alpha)
+            const full = Math.min(w, 4 * gw)
+            vals.forEach((v, r) => { const bw = Math.round(curve(v) * full); if (bw > 0) cr.rectangle(0, r * rowH, bw, rowH - 1) })
+            cr.fill()
+          })
+        }}
+      />
+    </box>
   )
 }
