@@ -51,22 +51,24 @@ const life = (): Mode => {
       for (const [dx, dy] of [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]]) a[((gy + dy) % h) * w + ((gx + dx) % w)] = 1
     },
     step(g) {
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        let n = 0
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-          if (!dx && !dy) continue
-          n += a[((y + dy + h) % h) * w + ((x + dx + w) % w)]
+      // the torus wrap resolved once per row and column, not per neighbour: this loop is 107k
+      // cells × 8 a step on each monitor, and the per-lookup modulo made life the dearest mode
+      for (let y = 0; y < h; y++) {
+        const up = ((y - 1 + h) % h) * w, mid = y * w, dn = ((y + 1) % h) * w
+        for (let x = 0; x < w; x++) {
+          const l = x === 0 ? w - 1 : x - 1, r = x === w - 1 ? 0 : x + 1
+          const n = a[up + l] + a[up + x] + a[up + r] + a[mid + l] + a[mid + r] + a[dn + l] + a[dn + x] + a[dn + r]
+          b[mid + x] = n === 3 || (n === 2 && a[mid + x]) ? 1 : 0
         }
-        const i = y * w + x
-        b[i] = a[i] ? (n === 2 || n === 3 ? 1 : 0) : n === 3 ? 1 : 0
       }
       ;[a, b] = [b, a]
       g.clear()
-      for (let i = 0; i < a.length; i++) age[i] = a[i] ? Math.min(255, age[i] + 1) : 0
       // newborn green, settled amber, ancient cyan/lilac — hue by age band
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
         const i = y * w + x
-        if (a[i]) g.plot(x, y, age[i] < 3 ? 1 : age[i] < 12 ? 0 : age[i] < 40 ? 3 : 4)
+        if (!a[i]) { age[i] = 0; continue }
+        const t = age[i] = Math.min(255, age[i] + 1)
+        g.plot(x, y, t < 3 ? 1 : t < 12 ? 0 : t < 40 ? 3 : 4)
       }
     },
   }

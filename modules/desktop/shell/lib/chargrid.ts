@@ -2,6 +2,10 @@
 // Each cell also carries a hue index; lines() emits Pango markup with a span per hue run.
 import { PALETTE, HUES, type Hue } from "./palette"
 
+// braille bit layout: left column 1,2,3,7 ; right column 4,5,6,8. Module constants: plot() runs
+// ~17k times a step under life, and an array literal there was allocated per call.
+const LEFT = [0x01, 0x02, 0x04, 0x40], RIGHT = [0x08, 0x10, 0x20, 0x80]
+
 export class CharGrid {
   readonly cols: number
   readonly rows: number
@@ -28,8 +32,7 @@ export class CharGrid {
     const cx = Math.floor(x / 2), cy = Math.floor(y / 4)
     if (cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows) return
     const dx = Math.floor(x) & 1, dy = Math.floor(y) & 3
-    // braille bit layout: left column 1,2,3,7 ; right column 4,5,6,8
-    const bit = dx === 0 ? [0x01, 0x02, 0x04, 0x40][dy] : [0x08, 0x10, 0x20, 0x80][dy]
+    const bit = (dx === 0 ? LEFT : RIGHT)[dy]
     const i = cy * this.cols + cx
     this.dots[i] |= bit
     this.hue[i] = hue
