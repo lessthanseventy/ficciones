@@ -83,7 +83,7 @@ menubutton.cell > button:hover { background: none; }
   min-height: 24px;
   trough { background: $structure; min-height: 4px; border-radius: 0; }
   highlight { background: $key; border-radius: 0; }
-  slider { background: $key; border: none; border-radius: 0; min-width: 8px; min-height: 16px; margin: -6px; box-shadow: none; }
+  slider { background: $key; border: none; border-radius: 0; min-width: 8px; min-height: 16px; margin: -6px 0; box-shadow: none; }
   &:hover slider { background: $max-contrast; }
 }
 
