@@ -29,16 +29,12 @@ function Net() {
   const wifi = createBinding(net, "wifi")
   const primary = createBinding(net, "primary")
 
-  const icon = createComputed([primary, wifi], (p, w) =>
-    p === Network.Primary.WIRED ? "\u{f0200}" : w?.ssid ? "\u{f05a9}" : "\u{f092d}",
-  )
-  const label = createComputed([primary, wifi], (p, w) =>
-    p === Network.Primary.WIRED ? "eth" : w?.ssid ? meter((w.strength ?? 0) / 100) : "down",
-  )
-  const cls = createComputed([primary, wifi], (p, w) => [
+  const icon = createComputed(() => { const p = primary(), w = wifi(); return p === Network.Primary.WIRED ? "\u{f0200}" : w?.ssid ? "\u{f05a9}" : "\u{f092d}" })
+  const label = createComputed(() => { const p = primary(), w = wifi(); return p === Network.Primary.WIRED ? "eth" : w?.ssid ? meter((w.strength ?? 0) / 100) : "down" })
+  const cls = createComputed(() => { const p = primary(), w = wifi(); return [
     "item", "net",
     ...(p === Network.Primary.WIRED || w?.ssid ? [] : ["dim"]),
-  ])
+  ] })
 
   const sorted = (aps: Network.AccessPoint[]) => {
     const seen = new Set<string>()
@@ -108,8 +104,8 @@ function Bt() {
   const all = createBinding(bt, "devices")
   const known = all((ds) => ds.filter((d) => d.paired || d.connected).sort((a, b) => Number(b.connected) - Number(a.connected)))
   const found = all((ds) => ds.filter((d) => !d.paired && !d.connected && (d.alias || d.name)).slice(0, 10))
-  const cls = createComputed([powered, connected], (p, c) => ["item", "bt", ...(c ? ["live"] : p ? [] : ["dim"])])
-  const label = createComputed([powered, connected], (p, c) => (c ? "on" : p ? "idle" : "off"))
+  const cls = createComputed(() => { const p = powered(), c = connected(); return ["item", "bt", ...(c ? ["live"] : p ? [] : ["dim"])] })
+  const label = createComputed(() => { const p = powered(), c = connected(); return (c ? "on" : p ? "idle" : "off") })
   const act = async (d: Bluetooth.Device) => {
     try {
       if (d.connected) await (d as any).disconnect_device()
@@ -182,7 +178,7 @@ function Vol() {
   if (!speaker) return <box />
   const vol = createBinding(speaker, "volume")
   const mute = createBinding(speaker, "mute")
-  const icon = createComputed([vol, mute], (v, m) => volumeGlyph(v, m))
+  const icon = createComputed(() => { const v = vol(), m = mute(); return volumeGlyph(v, m) })
   const cls = mute((m) => ["item", "vol", ...(m ? ["dim"] : [])])
   // wheel over the icon: 2 % a notch, capped at 100 % (the keys go to 150 %; the wheel is for
   // nudging). The OSD shows it — the popover is closed while you scroll.
@@ -192,11 +188,11 @@ function Vol() {
     return true
   })
   return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} tooltipText={createComputed([vol, mute], (v, m) => (m ? "muted" : pct(v)))} $={(self) => { hoverPopover(self, "rail"); self.add_controller(scroll) }}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} tooltipText={createComputed(() => { const v = vol(), m = mute(); return (m ? "muted" : pct(v)) })} $={(self) => { hoverPopover(self, "rail"); self.add_controller(scroll) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={icon} />
         {/* a five-block meter like the wifi item's; the percentage is the tooltip and the OSD */}
-        <label cssClasses={["sm"]} label={createComputed([vol, mute], (v, m) => (m ? "mute" : meter(v, 5)))} />
+        <label cssClasses={["sm"]} label={createComputed(() => { const v = vol(), m = mute(); return (m ? "mute" : meter(v, 5)) })} />
       </box>
       <popover cssClasses={["pop", "pop-audio"]}><Audio /></popover>
     </menubutton>
@@ -353,12 +349,15 @@ function CaptureItem() {
   // windows"); a background window is shot on its own workspace — grim's -g is in
   // screen coordinates, so the workspace is switched to first (capture.ts)
   // the focused window first (Andrew, 2026-09-08: the "window" row went; pick it from the list)
-  const wins = createComputed([focusedWorkspace, createBinding(hypr, "clients"), createBinding(hypr, "focusedClient")], (ws, cs, fc) =>
-    cs.filter((c) => c.mapped && (c.workspace?.id ?? 0) > 0)
-      .sort((a, b) => ((a === fc ? 0 : 1) - (b === fc ? 0 : 1)) || ((a.workspace?.id === ws?.id ? 0 : 1) - (b.workspace?.id === ws?.id ? 0 : 1)) || (a.workspace?.id ?? 0) - (b.workspace?.id ?? 0) || a.x - b.x))
+  const hyprClients = createBinding(hypr, "clients"), hyprFocused = createBinding(hypr, "focusedClient")
+  const wins = createComputed(() => {
+    const ws = focusedWorkspace(), cs = hyprClients(), fc = hyprFocused()
+    return cs.filter((c) => c.mapped && (c.workspace?.id ?? 0) > 0)
+      .sort((a, b) => ((a === fc ? 0 : 1) - (b === fc ? 0 : 1)) || ((a.workspace?.id === ws?.id ? 0 : 1) - (b.workspace?.id === ws?.id ? 0 : 1)) || (a.workspace?.id ?? 0) - (b.workspace?.id ?? 0) || a.x - b.x)
+  })
   const Windows = () => (
     <box orientation={Gtk.Orientation.VERTICAL}>
-      <button cssClasses={["row", "cap-row"]} onClicked={() => setListOpen(!listOpen.get())}>
+      <button cssClasses={["row", "cap-row"]} onClicked={() => setListOpen(!listOpen.peek())}>
         <box spacing={8}><label cssClasses={["cap-glyph"]} label={listOpen((o) => (o ? "\u{f0d7}" : "\u{f0da}"))} widthChars={2} /><label label="a window…" xalign={0} hexpand /></box>
       </button>
       <revealer revealChild={listOpen} transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}>

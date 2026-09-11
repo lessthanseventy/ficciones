@@ -51,7 +51,7 @@ export function CalendarCard() {
   // the month on show; ‹ › walk it, the title snaps back to today
   const [view, setView] = createState({ year: now.get_year(), month: now.get_month() })
   const step = (n: number) => {
-    const v = view.get()
+    const v = view.peek()
     const d = GLib.DateTime.new_local(v.year, v.month, 1, 0, 0, 0)!.add_months(n)!
     setView({ year: d.get_year(), month: d.get_month() })
   }

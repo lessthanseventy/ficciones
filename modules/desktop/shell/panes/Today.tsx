@@ -10,7 +10,8 @@ import { urgencyOf, groups, dismissGroup } from "../surfaces/Notifications"
 type Row = { key: string; glyph: string; cls: string; text: string; sub?: string; onClick?: () => void }
 
 export function TodayCard() {
-  const rows = createComputed([groups, agenda, agents], (ns, ag, a): Row[] => {
+  const rows = createComputed((): Row[] => {
+    const ns = groups(), ag = agenda(), a = agents()
     const out: Row[] = []
     if (a.awaiting > 0)
       out.push({ key: "agents", glyph: "\u{f06a9}", cls: "pink", text: `${a.awaiting} ${a.awaiting === 1 ? "agent awaits" : "agents await"} you`, onClick: popAgents })

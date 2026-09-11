@@ -142,7 +142,7 @@ export default function Notifications() {
     <window
       $={(self) => (win = self)}
       // a film starting under a toast hides it too
-      visible={createComputed([list, hubOpen, fullscreenMonitors], (l, h, fs) => l.length > 0 && !h && !fs.has(win?.gdkmonitor?.connector ?? ""))}
+      visible={createComputed(() => { const l = list(), h = hubOpen(), fs = fullscreenMonitors(); return l.length > 0 && !h && !fs.has(win?.gdkmonitor?.connector ?? "") })}
       cssClasses={["notifications"]}
       namespace="astal-shell-notifications"
       name="notifications"

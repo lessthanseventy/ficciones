@@ -67,19 +67,21 @@ function Art({ p }: { p: Mpris.Player }) {
 }
 
 function Player({ p }: { p: Mpris.Player }) {
-  const playing = createComputed([createBinding(p, "playbackStatus"), soundPids], (s, pids) => s === Mpris.PlaybackStatus.PLAYING || playerSounding(p.busName, pids))
+  const status = createBinding(p, "playbackStatus"), position = createBinding(p, "position"), length = createBinding(p, "length")
+  const artist = createBinding(p, "artist"), album = createBinding(p, "album")
+  const playing = createComputed(() => status() === Mpris.PlaybackStatus.PLAYING || playerSounding(p.busName, soundPids()))
   const t = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`
   // a position sitting at the end while sound runs is the page's stale story (a streaming site
   // that never reset it for the next episode, 2026-09-07): show no time rather than a done bar
   const bogus = (a: number, b: number, snd: boolean) => b <= 0 || (snd && a >= b - 1)
-  const pos = createComputed([createBinding(p, "position"), createBinding(p, "length"), playing], (a, b, snd) => (bogus(a, b, snd) ? "" : meter(a / b, 26)))
-  const time = createComputed([createBinding(p, "position"), createBinding(p, "length"), playing], (a, b, snd) => (bogus(a, b, snd) ? "" : `${t(a)} / ${t(b)}`))
+  const pos = createComputed(() => { const a = position(), b = length(), snd = playing(); return bogus(a, b, snd) ? "" : meter(a / b, 26) })
+  const time = createComputed(() => { const a = position(), b = length(), snd = playing(); return bogus(a, b, snd) ? "" : `${t(a)} / ${t(b)}` })
   return (
     <box spacing={12}>
     <Art p={p} />
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand>
       <label cssClasses={["big"]} label={createBinding(p, "title")((t) => t || "—")} xalign={0} ellipsize={3} maxWidthChars={34} />
-      <label cssClasses={["dim"]} label={createComputed([createBinding(p, "artist"), createBinding(p, "album")], (a, b) => [a, b].filter(Boolean).join(" · ") || p.identity)} xalign={0} ellipsize={3} maxWidthChars={40} />
+      <label cssClasses={["dim"]} label={createComputed(() => [artist(), album()].filter(Boolean).join(" · ") || p.identity)} xalign={0} ellipsize={3} maxWidthChars={40} />
       <box spacing={10}>
         <button cssClasses={["act"]} onClicked={() => p.previous()} visible={createBinding(p, "canGoPrevious")}><label label={"\uf048"} /></button>
         <button cssClasses={["act", "play"]} onClicked={() => p.play_pause()}><label label={playing((x) => (x ? "\uf04c" : "\uf04b"))} /></button>
@@ -96,11 +98,11 @@ export function MediaCard() {
   const cur = curSel
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-      <For each={players}>{(p, i) => <box visible={createComputed([cur, i], (c, idx) => c === idx)}><Player p={p} /></box>}</For>
+      <For each={players}>{(p, i) => <box visible={createComputed(() => { const c = cur(), idx = i(); return c === idx })}><Player p={p} /></box>}</For>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={players((ps) => ps.length > 1)}>
         <For each={players}>
           {(p, i) => (
-            <button cssClasses={createComputed([cur, i], (c, idx) => ["row", ...(c === idx ? ["chip"] : [])])} onClicked={() => setCurSel(i.get())}>
+            <button cssClasses={createComputed(() => { const c = cur(), idx = i(); return ["row", ...(c === idx ? ["chip"] : [])] })} onClicked={() => setCurSel(i.peek())}>
               <box spacing={8}>
                 <label label={createBinding(p, "playbackStatus")((s) => (s === Mpris.PlaybackStatus.PLAYING ? "\uf04b" : "\uf04c"))} />
                 <label label={createBinding(p, "identity")} hexpand xalign={0} />

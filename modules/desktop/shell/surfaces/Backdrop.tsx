@@ -119,12 +119,12 @@ const ORDER: BackdropMode[] = [...MODE_NAMES, "random", "photo"]
 export function setBackdrop(mode: "zen" | "photo" | "toggle" | "cycle" | BackdropMode) {
   let next: BackdropMode
   if (mode === "zen") next = "random"
-  else if (mode === "toggle") next = zen.get() ? "photo" : "random"
-  else if (mode === "cycle") next = ORDER[(ORDER.indexOf(backdropMode.get()) + 1) % ORDER.length]
+  else if (mode === "toggle") next = zen.peek() ? "photo" : "random"
+  else if (mode === "cycle") next = ORDER[(ORDER.indexOf(backdropMode.peek()) + 1) % ORDER.length]
   else next = mode
   const on = next !== "photo"
   for (const [, c] of canvases) {
-    if (!zen.get() || !on) c.run(on)
+    if (!zen.peek() || !on) c.run(on)
     c.hold = on && next !== "random"
     if (c.hold) c.jump(next)
   }
@@ -150,7 +150,7 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       application={app}
-      $={(self) => { canvases.set(self, canvas); canvas.run(zen.get()); self.visible = true }}
+      $={(self) => { canvases.set(self, canvas); canvas.run(zen.peek()); self.visible = true }}
     >
       <overlay>
         <Gtk.Picture

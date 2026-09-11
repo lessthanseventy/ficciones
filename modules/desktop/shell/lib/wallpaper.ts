@@ -49,7 +49,7 @@ function pick(current: string | null): string | null {
 export function wallpaper() {
   const [file, setFile] = createState<string | null>(null)
   const next = () => {
-    const cur = file.get()
+    const cur = file.peek()
     const n = pick(cur)
     if (cur) inUse.delete(cur)
     if (n) inUse.add(n)

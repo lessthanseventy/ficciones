@@ -37,22 +37,24 @@ function Windows({ connector }: { connector: string }) {
   const activeWs = () => hypr.get_monitors().find((m) => m.name === connector)?.activeWorkspace
   // left to right by LIVE position: AstalHyprland's cached x goes stale as the scrolling
   // layout shifts columns (and a pinned sidecar sits at the far left)
-  const clients = createComputed(
-    [focusedWorkspace, focusedClient, createBinding(hypr, "clients")],
-    (_, __, cs) => {
-      const ws = activeWs()
-      let live = new Map<string, number>()
-      try { live = new Map((JSON.parse(query("j/clients")) as { address: string; at: [number, number] }[]).map((c) => [c.address.replace(/^0x/, ""), c.at[0]])) } catch { /* cached order */ }
-      const x = (c: Hyprland.Client) => live.get(c.address.replace(/^0x/, "")) ?? c.x
-      return cs.filter((c) => ws && c.workspace?.id === ws.id && c.mapped).sort((a, b) => x(a) - x(b))
-    },
-  )
+  const hyprClients = createBinding(hypr, "clients")
+  const clients = createComputed(() => {
+    // focus moves are triggers: the live positions below are read from hyprctl, not tracked
+    focusedWorkspace(); focusedClient()
+    const cs = hyprClients()
+    const ws = activeWs()
+    let live = new Map<string, number>()
+    try { live = new Map((JSON.parse(query("j/clients")) as { address: string; at: [number, number] }[]).map((c) => [c.address.replace(/^0x/, ""), c.at[0]])) } catch { /* cached order */ }
+    const x = (c: Hyprland.Client) => live.get(c.address.replace(/^0x/, "")) ?? c.x
+    return cs.filter((c) => ws && c.workspace?.id === ws.id && c.mapped).sort((a, b) => x(a) - x(b))
+  })
   return (
     <box cssClasses={["windows"]} hexpand={false}>
       <For each={clients}>
         {(c) => {
-          const focused = createComputed([focusedClient], (f) => f?.address === c.address)
+          const focused = focusedClient((f) => f?.address === c.address)
           const title = createBinding(c, "title")
+          const width = createBinding(c, "width"), height = createBinding(c, "height"), pinned = createBinding(c, "pinned")
           const w = addr(c)
           return (
             <menubutton
@@ -73,14 +75,14 @@ function Windows({ connector }: { connector: string }) {
                   <box cssClasses={["kv"]} spacing={16}>
                     <label cssClasses={["dim", "sm"]} label={`pid ${c.pid}`} />
                     <label cssClasses={["dim", "sm"]} label={createBinding(c, "workspace")((w) => `ws ${w?.id ?? "?"}`)} />
-                    <label cssClasses={["dim", "sm"]} label={createComputed([createBinding(c, "width"), createBinding(c, "height")], (w, h) => `${w}×${h}`)} />
+                    <label cssClasses={["dim", "sm"]} label={createComputed(() => `${width()}×${height()}`)} />
                     <label cssClasses={["dim", "sm"]} label={createBinding(c, "floating")((f) => (f ? "floating" : "tiled"))} />
                     <label cssClasses={["dim", "sm"]} label={c.xwayland ? "xwayland" : "wayland"} />
                   </box>
                   <RuleH />
                   <box spacing={6} cssClasses={["winacts"]}>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.float(w))}><label label={createBinding(c, "floating")((f) => (f ? "tile" : "float"))} /></button>
-                    <button cssClasses={["act"]} onClicked={() => toggleSidecar(c)}><label label={createComputed([sidecarAddrs, createBinding(c, "pinned")], (m, p) => (Object.values(m).includes(c.address) || p ? "unpin" : "pin"))} /></button>
+                    <button cssClasses={["act"]} onClicked={() => toggleSidecar(c)}><label label={createComputed(() => (Object.values(sidecarAddrs()).includes(c.address) || pinned() ? "unpin" : "pin"))} /></button>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.fullscreen(w, "fullscreen"))}><label label="fullscreen" /></button>
                     <button cssClasses={["act"]} onClicked={() => dispatch(L.moveToWorkspace(w, "special:magic", true))}><label label="to special" /></button>
                     <box hexpand />
@@ -154,8 +156,10 @@ function BatteryCell() {
   const chg = createBinding(bat, "charging")
   // Same traffic light as the perf cells: green from 50, amber to 20, red below; charging
   // always reads green.
-  const cls = createComputed([pctA, chg], (p, c) => [c || p >= 0.5 ? "idle" : p >= 0.2 ? "busy" : "hot"])
-  const eta = createComputed([createBinding(bat, "timeToEmpty"), createBinding(bat, "timeToFull"), chg, createBinding(bat, "energyRate")], (e, f, c, rate) => {
+  const cls = createComputed(() => { const p = pctA(), c = chg(); return [c || p >= 0.5 ? "idle" : p >= 0.2 ? "busy" : "hot"] })
+  const toEmpty = createBinding(bat, "timeToEmpty"), toFull = createBinding(bat, "timeToFull"), energyRate = createBinding(bat, "energyRate")
+  const eta = createComputed(() => {
+    const e = toEmpty(), f = toFull(), c = chg(), rate = energyRate()
     const s = c ? f : e
     if (rate < 0.5 || s <= 0 || s > 48 * 3600) return c ? "charging" : "on mains"
     return `${c ? "full in" : "empty in"} ${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
@@ -169,9 +173,7 @@ function BatteryCell() {
       <box spacing={4}>
         <label
           cssClasses={["icon"]}
-          label={createComputed([pctA, chg], (p, c) =>
-            c ? "\u{f0084}" : p >= 0.95 ? "\u{f0079}" : p >= 0.5 ? "\u{f0080}" : p >= 0.2 ? "\u{f007c}" : "\u{f008e}",
-          )}
+          label={createComputed(() => { const p = pctA(), c = chg(); return c ? "\u{f0084}" : p >= 0.95 ? "\u{f0079}" : p >= 0.5 ? "\u{f0080}" : p >= 0.2 ? "\u{f007c}" : "\u{f008e}" })}
         />
         <label cssClasses={["num"]} label={pctA(pct)} widthChars={4} xalign={1} />
       </box>
@@ -207,7 +209,8 @@ function RecCell() {
     if (capture.peek().count && !t) t = interval(1000, () => setNow(Date.now()))
     if (!capture.peek().count && t) { t.cancel(); t = null }
   })
-  const elapsed = createComputed([capture, now], (c, n) => {
+  const elapsed = createComputed(() => {
+    const c = capture(), n = now()
     if (!c.since) return ""
     const s = Math.floor((n - c.since) / 1000)
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
@@ -226,8 +229,8 @@ function RecCell() {
 function NextUpCell() {
   const [now, setNow] = createState(Date.now())
   interval(15_000, () => setNow(Date.now()))
-  const text = createComputed([nextUp, now], (n, t) => (n ? `${n.title}  ·  ${untilText(n.at, t)}` : ""))
-  const cls = createComputed([nextUp, now], (n, t) => ["cell", "nextup", ...(n && n.at - t < 10 * 60_000 ? ["soon"] : [])])
+  const text = createComputed(() => { const n = nextUp(), t = now(); return (n ? `${n.title}  ·  ${untilText(n.at, t)}` : "") })
+  const cls = createComputed(() => { const n = nextUp(), t = now(); return ["cell", "nextup", ...(n && n.at - t < 10 * 60_000 ? ["soon"] : [])] })
   return (
     <box cssClasses={cls} spacing={6} visible={nextUp((n) => !!n)} tooltipText={nextUp((n) => (n ? new Date(n.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""))}>
       <label cssClasses={["nextup-glyph"]} label={"\u{f00ed}"} />
@@ -242,7 +245,7 @@ function StateCells() {
   const dnd = createBinding(notifd, "dontDisturb")
   const caps = kbd((k) => k.caps)
   const layout = kbd((k) => !!k.layout && layoutShort(k.layout) !== "us")
-  const any = createComputed([caps, layout, dnd, awake], (a, b, c, d) => a || b || c || d)
+  const any = createComputed(() => { const a = caps(), b = layout(), c = dnd(), d = awake(); return a || b || c || d })
   return (
     <box cssClasses={["states"]} spacing={0}>
       <RuleV visible={any} />

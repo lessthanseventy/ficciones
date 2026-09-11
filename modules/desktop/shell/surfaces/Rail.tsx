@@ -27,16 +27,17 @@ export const popWorkspace = (id: number) => wsPops.get(id)?.toggle()
 
 /** This monitor's workspaces only, its active one chipped — two monitors, two rails. */
 function Workspaces({ connector }: { connector: string }) {
-  const mine = createComputed([workspaces, focusedWorkspace], (all) =>
-    all.filter((w) => w.monitor?.name === connector),
-  )
+  const mine = createComputed(() => {
+    focusedWorkspace() // a trigger: w.monitor is not tracked
+    return workspaces().filter((w) => w.monitor?.name === connector)
+  })
   const active = () => hypr.get_monitors().find((m) => m.name === connector)?.activeWorkspace
   // Wheel over the pane walks this monitor's workspaces in id order and stops at the ends —
   // Hyprland's m+1/m-1 wrap around, which Andrew does not want (2026-09-05).
   const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
   scroll.connect("scroll", (_, __, dy) => {
     const cur = active()
-    const ids = mine.get().map((w) => w.id).filter((id) => id > 0).sort((a, b) => a - b)
+    const ids = mine.peek().map((w) => w.id).filter((id) => id > 0).sort((a, b) => a - b)
     const i = cur ? ids.indexOf(cur.id) : -1
     const next = ids[i + (dy > 0 ? 1 : -1)]
     if (i >= 0 && next !== undefined) dispatch(L.workspace(String(next)))
@@ -46,7 +47,7 @@ function Workspaces({ connector }: { connector: string }) {
     <box cssClasses={["workspaces"]} orientation={Gtk.Orientation.VERTICAL} spacing={2} $={(self) => self.add_controller(scroll)}>
       <For each={mine}>
         {(ws) => {
-          const classes = createComputed([focusedWorkspace], () => [
+          const classes = focusedWorkspace(() => [
             "ws",
             ...(active()?.id === ws.id ? ["focused"] : []),
             ...(ws.get_clients().length > 0 ? ["occupied"] : []),
@@ -62,7 +63,10 @@ function Workspaces({ connector }: { connector: string }) {
             >
               {/* the last active window's icon; the number when empty, or while Super is held */}
               {(() => {
-                const last = createComputed([clients, focusedClient, superHeld], () => (superHeld.peek() ? null : lastClientOn(ws)))
+                const last = createComputed(() => {
+                  clients(); focusedClient() // triggers: lastClientOn reads hypr directly
+                  return superHeld() ? null : lastClientOn(ws)
+                })
                 return (
                   <box halign={Gtk.Align.CENTER}>
                     <image iconName={last((c) => (c ? iconFor(c) : "application-x-executable"))} pixelSize={18} visible={last((c) => !!c)} />
@@ -71,7 +75,7 @@ function Workspaces({ connector }: { connector: string }) {
                 )
               })()}
               <popover cssClasses={["pop", "pop-workspaces"]}>
-                <Panel title={createComputed([focusedWorkspace], () => `\u{f0e18}  WS ${ws.id} · ${ws.monitor?.name ?? ""}`)} cssClasses={["card", "card-workspaces"]}><WorkspacePop ws={ws} /></Panel>
+                <Panel title={focusedWorkspace(() => `\u{f0e18}  WS ${ws.id} · ${ws.monitor?.name ?? ""}`)} cssClasses={["card", "card-workspaces"]}><WorkspacePop ws={ws} /></Panel>
               </popover>
             </menubutton>
           )

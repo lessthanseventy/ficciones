@@ -12,17 +12,17 @@ export const [cursor, setCursor] = createState<Record<Pane, number>>({ FILTERS: 
 export const cursorOf = (p: Pane) => cursor((c) => c[p])
 export const focused = (p: Pane) => focus((f) => f === p)
 export function cycleFocus(dir: 1 | -1 = 1) {
-  const i = PANES.indexOf(focus.get())
+  const i = PANES.indexOf(focus.peek())
   setFocus(PANES[(i + dir + PANES.length) % PANES.length])
 }
 /** move the focused pane's cursor by delta, wrapping over `count` rows */
 export function move(delta: number, count: number) {
-  const p = focus.get()
+  const p = focus.peek()
   if (count <= 0) return
   setCursor((c) => ({ ...c, [p]: (((c[p] + delta) % count) + count) % count }))
 }
 export function jump(i: number, count: number) {
-  const p = focus.get()
+  const p = focus.peek()
   if (count <= 0) return
   setCursor((c) => ({ ...c, [p]: Math.max(0, Math.min(count - 1, i)) }))
 }

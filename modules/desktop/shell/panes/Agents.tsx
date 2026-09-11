@@ -42,7 +42,7 @@ export function AgentsCard() {
         {(t, i) => {
           const r = staffed(t)
           return (
-            <button cssClasses={createComputed([cur, i], (c, idx) => ["row", "thread-row", ...(c === idx ? ["chip"] : [])])} onClicked={() => select("AGENTS", i.get())}>
+            <button cssClasses={createComputed(() => { const c = cur(), idx = i(); return ["row", "thread-row", ...(c === idx ? ["chip"] : [])] })} onClicked={() => select("AGENTS", i.peek())}>
               <box spacing={8}>
                 <label cssClasses={[r ? (r.warm ? "st-working" : "st-idle") : "dim"]} label={r ? (r.warm ? "●" : "○") : "·"} />
                 <label cssClasses={["dim", "sm"]} label={`#${t.id}`} widthChars={3} xalign={1} />

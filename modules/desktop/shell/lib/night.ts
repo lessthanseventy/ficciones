@@ -19,7 +19,7 @@ function apply(on: boolean) {
 
 /** Is it after sunset or before sunrise, per today's forecast? null when unknown. */
 function isDark(): boolean | null {
-  const d = weather.get().days?.[0]
+  const d = weather.peek().days?.[0]
   if (!d) return null
   const now = Date.now()
   return now < Date.parse(d.sunrise) || now >= Date.parse(d.sunset)

@@ -139,7 +139,7 @@ function Days({ wide = false }: { wide?: boolean } = {}) {
   const part = (i: number, which: 0 | 1 | 2) =>
     days((d) => {
       if (!d[i]) return ""
-      const [a, b] = seg(d[i], range.get())
+      const [a, b] = seg(d[i], range.peek())
       return which === 0 ? "─".repeat(a) : which === 1 ? "━".repeat(b - a) : "─".repeat(W - b)
     })
   const HOURS = ["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"]

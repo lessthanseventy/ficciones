@@ -14,5 +14,5 @@ export function setCrt(m: Crt) {
   keyword("decoration:screen_shader", arg).then(() => setCrtState(m)).catch(console.error)
 }
 export function cycleCrt() {
-  setCrt(MODES[(MODES.indexOf(crt.get()) + 1) % MODES.length])
+  setCrt(MODES[(MODES.indexOf(crt.peek()) + 1) % MODES.length])
 }

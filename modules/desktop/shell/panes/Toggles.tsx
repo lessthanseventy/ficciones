@@ -53,7 +53,7 @@ export function Toggles({ perRow = 4, only, omit = [] }: { perRow?: number; only
     { key: "crt", el: (<Toggle icon={"\u{f0379}"} label={crt((m) => (m === "off" ? "crt" : m))} on={crt((m) => m !== "off")} onToggle={cycleCrt} />) },
     { key: "zen", el: (<Toggle icon={"\u{f0e2a}"} label={backdropMode((m) => (m === "photo" ? "zen" : m))} on={zen} onToggle={() => setBackdrop("cycle")} />) },
     // light/dark = zahir/aleph, live
-    { key: "theme", el: (<Toggle icon={theme((t) => (t === "zahir" ? "\u{f0599}" : "\u{f0594}"))} label={createComputed([theme, switching], (t, s) => (s ? "…" : t))} on={theme((t) => t === "zahir")} onToggle={() => setTheme("toggle")} />) },
+    { key: "theme", el: (<Toggle icon={theme((t) => (t === "zahir" ? "\u{f0599}" : "\u{f0594}"))} label={createComputed(() => { const t = theme(), s = switching(); return (s ? "…" : t) })} on={theme((t) => t === "zahir")} onToggle={() => setTheme("toggle")} />) },
     { key: "glass", el: (<Toggle icon={"◐"} label="glass" on={glass} onToggle={toggleGlass} />) },
     { key: "next wp", el: (<Toggle icon={"\u{f0e58}"} label="next wp" on={createState(false)[0]} onToggle={nextWallpaper} />) },
     { key: "profile", el: (<Toggle icon={"\u{f0e36}"} label={profile((p) => (p === "performance" ? "perf" : p === "power-saver" ? "saver" : "balanced"))} on={profile((p) => p === "performance")} onToggle={cycleProfile} />) },

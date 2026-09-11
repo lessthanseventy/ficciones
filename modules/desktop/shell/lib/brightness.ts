@@ -13,8 +13,8 @@ export const gamma = createPoll(1, 3000, async () => {
   try { return Math.max(0.3, Math.min(1, Number((await execAsync(["hyprctl", "hyprsunset", "gamma"])).trim()) / 100)) } catch { return 1 }
 })
 const back = dev ? createBinding(dev, "brightness")((x) => (Number.isFinite(x) && x >= 0 ? x : 0)) : null
-export const brightness: Accessor<number> = createComputed([external, gamma, ...(back ? [back] : [])], (ext, g, b) => (ext || !back ? g : (b as number)))
-export const usingGamma = () => external.get() || !dev
+export const brightness: Accessor<number> = createComputed(() => (external() || !back ? gamma() : back()))
+export const usingGamma = () => external.peek() || !dev
 export const floor = () => (usingGamma() ? 0.3 : 0)
 
 let onGamma: ((v: number) => void) | null = null
@@ -24,10 +24,10 @@ export const onGammaChange = (f: (v: number) => void) => { onGamma = f }
 export function setBrightness(v: number) {
   v = Math.max(floor(), Math.min(1, v))
   if (usingGamma()) {
-    if (Math.abs(v - gamma.get()) > 0.005) {
+    if (Math.abs(v - gamma.peek()) > 0.005) {
       execAsync(["hyprctl", "hyprsunset", "gamma", String(Math.round(v * 100))]).catch(console.error)
       onGamma?.(v)
     }
   } else if (dev && Math.abs(v - dev.brightness) > 0.005) dev.brightness = v
 }
-export const stepBrightness = (delta: number) => setBrightness(brightness.get() + delta)
+export const stepBrightness = (delta: number) => setBrightness(brightness.peek() + delta)

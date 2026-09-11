@@ -28,7 +28,7 @@ export function NetCard() {
       {Array.from({ length: 4 }, (_, i) => (
         <box spacing={10} visible={perf((p) => i < p.ifaces.length)}>
           <label cssClasses={["cyan", "sm"]} label={perf((p) => p.ifaces[i]?.name ?? "")} widthChars={9} xalign={0} />
-          <label cssClasses={["amber", "sm"]} label={createComputed([perf, addrs], (p, a) => a[p.ifaces[i]?.name ?? ""] ?? "—")} widthChars={15} xalign={0} />
+          <label cssClasses={["amber", "sm"]} label={createComputed(() => { const p = perf(), a = addrs(); return a[p.ifaces[i]?.name ?? ""] ?? "—" })} widthChars={15} xalign={0} />
           <label cssClasses={["dim", "sm"]} label={perf((p) => (p.ifaces[i] ? `↓ ${rate(p.ifaces[i].rx)}/s` : ""))} widthChars={10} xalign={1} />
           <label cssClasses={["dim", "sm"]} label={perf((p) => (p.ifaces[i] ? `↑ ${rate(p.ifaces[i].tx)}/s` : ""))} widthChars={10} xalign={1} />
         </box>

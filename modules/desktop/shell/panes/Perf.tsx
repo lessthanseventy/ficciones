@@ -61,12 +61,12 @@ export function Top({ list, col }: { list: Accessor<Proc[]>; col: "cpu" | "mem" 
  */
 export function Procs() {
   const [by, setBy] = createState<"cpu" | "mem">("cpu")
-  const list = createComputed([by, topCpu, topMem], (b, c, m) => (b === "cpu" ? c : m))
+  const list = createComputed(() => { const b = by(), c = topCpu(), m = topMem(); return (b === "cpu" ? c : m) })
   const [armed, setArmed] = createState(0)
   const arm = (pid: number) => {
-    if (armed.get() === pid) { kill(pid); setArmed(0); return }
+    if (armed.peek() === pid) { kill(pid); setArmed(0); return }
     setArmed(pid)
-    timeout(2500, () => { if (armed.get() === pid) setArmed(0) })
+    timeout(2500, () => { if (armed.peek() === pid) setArmed(0) })
   }
   const Sort = ({ k }: { k: "cpu" | "mem" }) => (
     <button cssClasses={by((b) => ["sort", ...(b === k ? ["chip"] : [])])} onClicked={() => setBy(k)}><label cssClasses={["sm"]} label={k} /></button>
@@ -90,11 +90,11 @@ export function Procs() {
             <label cssClasses={by((b) => [b === "cpu" ? "amber" : "dim", "sm"])} label={p((x) => (x ? `${x.cpu.toFixed(1)}%` : ""))} widthChars={6} xalign={1} />
             <label cssClasses={by((b) => [b === "mem" ? "amber" : "dim", "sm"])} label={p((x) => (x ? `${x.mem.toFixed(1)}%` : ""))} widthChars={6} xalign={1} />
             <button
-              cssClasses={createComputed([armed, p], (a, x) => ["kill", ...(x && a === x.pid ? ["armed"] : [])])}
-              onClicked={() => { const x = p.get(); if (x) arm(x.pid) }}
+              cssClasses={createComputed(() => { const a = armed(), x = p(); return ["kill", ...(x && a === x.pid ? ["armed"] : [])] })}
+              onClicked={() => { const x = p.peek(); if (x) arm(x.pid) }}
               widthRequest={40}
             >
-              <label cssClasses={["sm"]} label={createComputed([armed, p], (a, x) => (x && a === x.pid ? "sure?" : "\uf00d"))} />
+              <label cssClasses={["sm"]} label={createComputed(() => { const a = armed(), x = p(); return (x && a === x.pid ? "sure?" : "\uf00d") })} />
             </button>
           </box>
         )
@@ -195,7 +195,7 @@ export function MetricDetail({ m }: { m: Metric }) {
           {Array.from({ length: 4 }, (_, i) => (
             <box spacing={10} visible={perf((p) => i < p.ifaces.length)}>
               <label cssClasses={["cyan", "sm"]} label={perf((p) => p.ifaces[i]?.name ?? "")} widthChars={10} xalign={0} />
-              <label cssClasses={["dim", "sm"]} label={createComputed([perf, addrs], (p, a) => a[p.ifaces[i]?.name ?? ""] ?? "")} widthChars={16} xalign={0} />
+              <label cssClasses={["dim", "sm"]} label={createComputed(() => { const p = perf(), a = addrs(); return a[p.ifaces[i]?.name ?? ""] ?? "" })} widthChars={16} xalign={0} />
               <label cssClasses={["sm"]} label={perf((p) => (p.ifaces[i] ? `↓ ${rate(p.ifaces[i].rx)}/s` : ""))} widthChars={11} xalign={1} />
               <label cssClasses={["sm"]} label={perf((p) => (p.ifaces[i] ? `↑ ${rate(p.ifaces[i].tx)}/s` : ""))} widthChars={11} xalign={1} />
             </box>

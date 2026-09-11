@@ -28,9 +28,8 @@ let modeOverride: Mode | null = null
 const [query, setQuery] = createState("")
 const [items, setItems] = createState<Item[]>([])
 const [sel, setSel] = createState(0)
-const mode = createComputed([query], (q): Mode =>
-  modeOverride ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : "apps"),
-)
+const mode = query((q): Mode =>
+  modeOverride ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : "apps"))
 
 /** A remembered thing as an item again: apps relaunch, shell lines rerun, files reopen, sums recopy. */
 function recall(m: Memory): Item | null {
@@ -48,7 +47,7 @@ function recall(m: Memory): Item | null {
 let seq = 0
 async function search(q: string) {
   const my = ++seq
-  const m = mode.get()
+  const m = mode.peek()
   const body = m === "apps" || m === "clip" ? q : q.slice(1).trim()
   let out: Item[] = []
   try {
@@ -118,7 +117,7 @@ async function search(q: string) {
 }
 
 function activate() {
-  const it = items.get()[sel.get()]
+  const it = items.peek()[sel.peek()]
   if (!it) return
   hide()
   if (it.mode && it.key !== "err") remember({ key: it.key, mode: it.mode, title: it.title, sub: it.sub })
@@ -145,7 +144,7 @@ const hint: Record<Mode, string> = { apps: "apps · =calc · /files · :shell", 
 export default function Launcher() {
   const onKey = (_: Gtk.EventControllerKey, kv: number, __: number, state: number) => {
     const ctrl = state & Gdk.ModifierType.CONTROL_MASK
-    const n = items.get().length
+    const n = items.peek().length
     if (kv === Gdk.KEY_Escape) return hide(), true
     if (kv === Gdk.KEY_Down || (ctrl && kv === Gdk.KEY_j) || kv === Gdk.KEY_Tab) return setSel((s) => (n ? (s + 1) % n : 0)), true
     if (kv === Gdk.KEY_Up || (ctrl && kv === Gdk.KEY_k) || kv === Gdk.KEY_ISO_Left_Tab) return setSel((s) => (n ? (s + n - 1) % n : 0)), true
@@ -190,8 +189,8 @@ export default function Launcher() {
           <For each={items}>
             {(it, i) => (
               <button
-                cssClasses={createComputed([sel, i], (s, idx) => ["result", ...(s === idx ? ["chip"] : [])])}
-                onClicked={() => { setSel(i.get()); activate() }}
+                cssClasses={createComputed(() => { const s = sel(), idx = i(); return ["result", ...(s === idx ? ["chip"] : [])] })}
+                onClicked={() => { setSel(i.peek()); activate() }}
               >
                 <box spacing={10}>
                   {it.icon ? <image iconName={it.icon} pixelSize={20} /> : <label cssClasses={["glyph"]} label={it.glyph ?? ""} widthChars={2} />}
@@ -201,7 +200,7 @@ export default function Launcher() {
               </button>
             )}
           </For>
-          <label cssClasses={["dim", "sm"]} label="nothing" visible={createComputed([items, query], (l, q) => l.length === 0 && q.length > 0)} xalign={0} />
+          <label cssClasses={["dim", "sm"]} label="nothing" visible={createComputed(() => { const l = items(), q = query(); return l.length === 0 && q.length > 0 })} xalign={0} />
         </box>
       </Panel>
       </box>
