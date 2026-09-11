@@ -70,14 +70,16 @@ export function VList<T>({
   onCleanup(unsub)
 
   const factory = new Gtk.SignalListItemFactory()
-  factory.connect("setup", (_, li: Gtk.ListItem) => { li.child = new Gtk.Box({ hexpand: true }); li.activatable = false; li.selectable = !!cursor })
-  factory.connect("bind", (_, li: Gtk.ListItem) => {
+  factory.connect("setup", (_, o) => { const li = o as Gtk.ListItem; li.child = new Gtk.Box({ hexpand: true }); li.activatable = false; li.selectable = !!cursor })
+  factory.connect("bind", (_, o) => {
+    const li = o as Gtk.ListItem
     const it = li.item as ItemT
     if (!it.widget) build(it, it.value as T)
     detach(it.widget!)
     ;(li.child as Gtk.Box).append(it.widget!)
   })
-  factory.connect("unbind", (_, li: Gtk.ListItem) => {
+  factory.connect("unbind", (_, o) => {
+    const li = o as Gtk.ListItem
     const it = li.item as ItemT
     if (it.widget?.parent === li.child) (li.child as Gtk.Box).remove(it.widget)
   })

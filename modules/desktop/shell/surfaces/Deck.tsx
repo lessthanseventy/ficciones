@@ -54,7 +54,7 @@ soundPids.subscribe(pick)
 function hook() {
   for (const p of players.peek()) if (!hooked.has(p)) {
     hooked.add(p)
-    for (const sig of ["notify::playback-status", "notify::title", "notify::artist", "notify::metadata"]) p.connect(sig, pick)
+    for (const sig of ["notify::playback-status", "notify::title", "notify::artist", "notify::metadata"] as const) p.connect(sig, pick)
   }
   pick()
 }
