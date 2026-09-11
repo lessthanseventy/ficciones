@@ -1,5 +1,8 @@
 import GObject from "gi://GObject?version=2.0"
+import GLib from "gi://GLib?version=2.0"
+import Gio from "gi://Gio?version=2.0"
 import Gdk from "gi://Gdk?version=4.0"
+import { exit, programArgs } from "system"
 import app from "ags/gtk4/app"
 import { createBinding, For, This } from "ags"
 import style from "./style/main.scss"
@@ -29,6 +32,13 @@ import "./lib/opaque"
 
 // One process, every surface. Bars per monitor (exclusive, windows reflow around them); the
 // drawer once, floating. `astal-shell toggle drawer` from a keybind reaches requestHandler.
+// A verb with no shell up would become the shell itself, outside the unit and its restart-on-
+// failure (2026-09-11): refuse instead. The unit starts it with no arguments.
+if (programArgs.length > 0) {
+  const [up] = Gio.DBus.session.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner",
+    new GLib.Variant("(s)", ["io.Astal.astal-shell"]), null, Gio.DBusCallFlags.NONE, -1, null).deepUnpack() as [boolean]
+  if (!up) { printerr("astal-shell is not running: systemctl --user start astal-shell"); exit(1) }
+}
 app.start({
   css: style,
   instanceName: "astal-shell",
