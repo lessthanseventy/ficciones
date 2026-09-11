@@ -24,7 +24,7 @@ const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 
 
 export const [zen, setZen] = createState(false)
 /** What the backdrop shows: a named ambient held, "random" (the modes rotate), or the photo. */
-export const MODE_NAMES = ["lorenz", "babel", "life", "boids", "rule 30"] as const
+export const MODE_NAMES = ["lorenz", "babel", "life", "boids", "rule 30", "pipes", "bonsai", "maze", "stars", "flow", "ant", "rain"] as const
 export type BackdropMode = (typeof MODE_NAMES)[number] | "random" | "photo"
 export const [backdropMode, setBackdropMode] = createState<BackdropMode>("photo")
 

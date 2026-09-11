@@ -19,7 +19,7 @@ import { screenshot, startRecording, stopRecording } from "./lib/capture"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
-import Backdrop, { setBackdrop } from "./surfaces/Backdrop"
+import Backdrop, { setBackdrop, MODE_NAMES } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Deck"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
@@ -84,7 +84,7 @@ app.start({
     }
     if (verb === "backdrop") {
       // no argument cycles (Super+Shift+Z); `toggle` is the old on/off; a mode name holds it
-      const names = ["zen", "photo", "toggle", "cycle", "random", "lorenz", "babel", "life", "boids", "rule 30", "rule30"]
+      const names: string[] = ["zen", "photo", "toggle", "cycle", "random", ...MODE_NAMES, "rule30"]
       setBackdrop(!what ? "cycle" : names.includes(what) ? (what === "rule30" ? "rule 30" : what) as any : "cycle")
       return res("ok")
     }
@@ -137,7 +137,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell capture … | toggle drawer|hub|deck|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
+    res("usage: astal-shell capture … | toggle drawer|hub|deck|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;
