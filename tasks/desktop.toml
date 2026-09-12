@@ -32,6 +32,10 @@ run = [
   "nix build --no-link .#nixosConfigurations.ivysaur.config.system.build.toplevel",
 ]
 
+["hyprlock:preview"]
+description = "theme: photograph the generated hyprlock.conf in a nested Hyprland, per palette — hyprlock has no dry-run and a bad lock config is found while locked out"
+run = "scripts/hyprlock-preview.sh"
+
 ["ivysaur:build"]
 description = "machine: build the laptop's NixOS system closure to .dev/ivysaur — the runbook's install gate"
 run = "nix build .#nixosConfigurations.ivysaur.config.system.build.toplevel -o .dev/ivysaur"
