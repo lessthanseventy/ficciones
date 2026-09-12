@@ -161,10 +161,22 @@ Groups, with the decision each needs. Anything not listed either has a twin that
 - Qt: the Arch box never had `qt6ct`/`kvantum`, so `modules/desktop` defaults to Qt's `gtk3`
   platform theme (reads our GTK colours). `ivysaur.nix` sets `qt6ct` and installs it + kvantum.
 
-## 6 · Open decisions (Andrew)
+## 6 · Decisions (settled 2026-09-12)
 
-1. Floorp: nixpkgs has none. Overlay a `floorp` package, or move to Firefox + the same CSS?
-2. Kernel: `linuxPackages` (LTS-ish default) vs `linuxPackages_latest`/zen. The Arch box runs
-   plain `linux` today; the default is the safe first boot.
-3. Delete `EFI/Garuda` from the ESP before or after the first successful NixOS boot (§3.5 vs §4).
-4. Which of the §5 "TODO, per tool" binaries are actually used weekly — package those first.
+1. **Floorp — moot, it is already in.** nixpkgs had none when this was written; the pin
+   (26.11.20260907) has `floorp-bin` 12.17.0 and `ivysaur.nix` installs it alongside firefox.
+   The theme generator keeps writing to `~/.floorp/<profile>/chrome`, unchanged.
+2. **Kernel — `linuxPackages_latest`.** Resolves to 7.2.3, the kernel Arch runs today, up from
+   the 6.18.49 default. Not zen: nothing here was ever a latency complaint. Gated on the real
+   constraint — nvidia-open 595.99.02 builds against 7.2.3 and lands in the closure, and
+   `flake:check` now rebuilds that, so a kernel bump outrunning the driver fails the gate.
+3. **`EFI/Garuda` — delete after, not before (§4, not §3.5).** The ESP is 792 KB used of 300 MB,
+   so there is no space argument, and the entry IS the rollback path: §4 recovery restores it
+   after `mv @ @nixos-failed`. Delete once NixOS has booted AND suspend/resume, the external
+   monitor and GPU offload have all been exercised — those fail on day three, not day one.
+4. **§5 binaries — package none up front.** Linkage says nix-ld already covers them: `dblab` is
+   static, `gowall`/`runal`/`bombadillo` link 2-3 libs, `sampler` 6. They run as-is from
+   `~/.local/bin`; package reactively when one actually breaks. The exception is `seance` (142
+   shared libs — nix-ld will not carry that), worth packaging first if it is still in use.
+   Note none of the 141 foreign packages appear in 3349 commands of atuin history: the move is
+   a free chance to carry nothing and reinstall only what a week of use proves missing.
