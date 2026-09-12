@@ -156,8 +156,9 @@ Groups, with the decision each needs. Anything not listed either has a twin that
   Arch numbers simpledrm as `card0` and NixOS will not. Verified to resolve on Arch (card2/card1);
   **verify at the next Hyprland start** that aquamarine accepts the symlinked paths (it `open()`s
   them, so it should).
-- `hyprlock`: the generated `~/.config/hypr/hyprlock.conf` has not been exercised (locking the
-  screen while this was written unattended was not an option). Try `hyprlock` once by hand.
+- `hyprlock`: **exercised 2026-09-12, works.** Locks, PAM authenticates, releases the session and
+  exits clean; configures both eDP-1 and the docked Samsung, and renders the generated palette
+  (placeholder in `#B8994C`), so the config is read rather than falling back to defaults.
 - Qt: the Arch box never had `qt6ct`/`kvantum`, so `modules/desktop` defaults to Qt's `gtk3`
   platform theme (reads our GTK colours). `ivysaur.nix` sets `qt6ct` and installs it + kvantum.
 
