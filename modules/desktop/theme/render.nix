@@ -586,6 +586,17 @@ rec {
 
     hl.config(theme)
   '';
+  # The dashboard's chrome on the lock screen (style/_drawer.scss + _tui.scss): a ground board
+  # with a 3px attention frame and 12px corners, carrying SQUARE cards — .panel is
+  # border-radius 0 — that each wear a 1px hued border with a partner-hued 1px outline 10px
+  # outside it ("card on a panel"), and a title tag notched into the top rule (.panel-title is
+  # pulled up onto the border on a ground background). Hues follow the board's own pairs:
+  # .card-now is body/assistant, .card-today is attention/key.
+  #
+  # hyprlock has no layout engine and no z-index we rely on, so this is literal geometry:
+  # every position is an offset from screen centre, widgets paint in declaration order (board,
+  # outlines, cards, tag patches, then text), and a card's outline is simply its box + 20 in
+  # both axes. Sizes are even so the halves stay integral.
   hyprlockConf = ''
     # ${gen}
     general {
@@ -596,42 +607,166 @@ rec {
         monitor =
         color = rgba(${r.ground}ff)
     }
+
+    # ---- the board: ground sheet, heavy accent frame, 12px corners ----------------------
+    shape {
+        monitor =
+        size = 820, 460
+        color = rgba(${r.ground}ff)
+        rounding = 12
+        border_size = 3
+        border_color = rgba(${r.attention}ff)
+        position = 0, 0
+        halign = center
+        valign = center
+    }
+
+    # ---- card "now" (body / assistant) — outline first, then the card ------------------
+    shape {
+        monitor =
+        size = 720, 230
+        color = rgba(00000000)
+        rounding = 0
+        border_size = 1
+        border_color = rgba(${r.assistant}ff)
+        position = 0, 75
+        halign = center
+        valign = center
+    }
+    shape {
+        monitor =
+        size = 700, 210
+        color = rgba(${r.ground}ff)
+        rounding = 0
+        border_size = 1
+        border_color = rgba(${r.body}ff)
+        position = 0, 75
+        halign = center
+        valign = center
+    }
+
+    # ---- card "unlock" (attention / key) ------------------------------------------------
+    shape {
+        monitor =
+        size = 720, 140
+        color = rgba(00000000)
+        rounding = 0
+        border_size = 1
+        border_color = rgba(${r.key}ff)
+        position = 0, -128
+        halign = center
+        valign = center
+    }
+    shape {
+        monitor =
+        size = 700, 120
+        color = rgba(${r.ground}ff)
+        rounding = 0
+        border_size = 1
+        border_color = rgba(${r.attention}ff)
+        position = 0, -128
+        halign = center
+        valign = center
+    }
+
+    # ---- the title tags: a ground patch ON the top rule, then the word over it ----------
+    # x = card left (-350) + the tag's 8px inset + half its own width, as .panel-title's
+    # margin-left does; the patch is what makes the rule appear to break for the word.
+    shape {
+        monitor =
+        size = 46, 18
+        color = rgba(${r.ground}ff)
+        rounding = 0
+        border_size = 0
+        position = -319, 180
+        halign = center
+        valign = center
+    }
+    shape {
+        monitor =
+        size = 68, 18
+        color = rgba(${r.ground}ff)
+        rounding = 0
+        border_size = 0
+        position = -308, -68
+        halign = center
+        valign = center
+    }
+    label {
+        monitor =
+        text = now
+        color = rgba(${r.body}ff)
+        font_size = ${toString f.size}
+        font_family = ${f.family}
+        position = -319, 180
+        halign = center
+        valign = center
+    }
+    label {
+        monitor =
+        text = unlock
+        color = rgba(${r.attention}ff)
+        font_size = ${toString f.size}
+        font_family = ${f.family}
+        position = -308, -68
+        halign = center
+        valign = center
+    }
+
+    # ---- card contents: the board's .bigtime is 52px, its body type 12 ------------------
     label {
         monitor =
         text = cmd[update:1000] echo "$(date +'%H:%M')"
         color = rgba(${r.body}ff)
-        font_size = 96
+        font_size = 52
         font_family = ${f.family}
-        position = 0, 160
+        position = 0, 105
         halign = center
         valign = center
     }
     label {
         monitor =
-        text = $USER @ $HOST
-        color = rgba(${r.meta}ff)
-        font_size = ${toString (f.sizeLg + 3)}
+        text = cmd[update:60000] echo "$(date +'%A %-d %B')"
+        color = rgba(${r.key}ff)
+        font_size = ${toString f.size}
         font_family = ${f.family}
-        position = 0, 60
+        position = 0, 50
         halign = center
         valign = center
     }
+    label {
+        monitor =
+        # NOT "$USER @ $HOST": hyprlock substitutes $USER but has no $HOST, so the old config
+        # rendered the word "$HOST" on the lock screen. Caught by previewing in a nested
+        # Hyprland, 2026-09-12. The shell has both.
+        text = cmd[update:0] echo "$USER @ $(hostname)"
+        color = rgba(${r.meta}ff)
+        # the board drops identity type to 10px because it shows everything at once; nothing
+        # competes for room here, and palette.nix biases type up, never down
+        font_size = ${toString f.size}
+        font_family = ${f.family}
+        position = 0, 18
+        halign = center
+        valign = center
+    }
+
     input-field {
         monitor =
-        size = 420, 56
-        outline_thickness = 2
+        size = 560, 52
+        outline_thickness = 1
         dots_size = 0.3
         dots_spacing = 0.3
-        outer_color = rgba(${r.body}ff)
+        rounding = 0
+        outer_color = rgba(${r.attention}ff)
         inner_color = rgba(${r.ground}ff)
         font_color = rgba(${r.body}ff)
         font_family = ${f.family}
-        check_color = rgba(${r.key}ff)
+        check_color = rgba(${r.live}ff)
         fail_color = rgba(${r.alarm}ff)
         fail_text = <i>$FAIL</i>
         placeholder_text = <span foreground="##${r.inactive}">password</span>
         capslock_color = rgba(${r.attention}ff)
-        position = 0, -40
+        position = 0, -128
         halign = center
         valign = center
         fade_on_empty = false
