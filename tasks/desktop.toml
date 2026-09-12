@@ -20,14 +20,21 @@ run = [
 ]
 
 ["flake:check"]
-description = "machine: nix flake check + build the activation script — the machine-level gate"
-# `nix flake check` only EVALUATES homeConfigurations; it never builds the activation script, so a
-# bash syntax error in a home.activation block sails through it and only explodes at home:switch.
-# Building activationPackage runs home-manager's syntax check, which is what actually catches it.
+description = "machine: nix flake check + build both closures — the machine-level gate"
+# `nix flake check` only EVALUATES; it never builds. A bash syntax error in a home.activation
+# block sails through it and explodes at home:switch; a broken derivation in the laptop's closure
+# sails through it and explodes on the install ISO, where there is no shell to fix it from.
+# Building both is what actually catches them. (ivysaur added 2026-09-12 — until then the
+# runbook's gate was prose no task ran, and nothing had ever built that closure.)
 run = [
   "nix flake check",
   "nix build --no-link .#homeConfigurations.personalbox.activationPackage",
+  "nix build --no-link .#nixosConfigurations.ivysaur.config.system.build.toplevel",
 ]
+
+["ivysaur:build"]
+description = "machine: build the laptop's NixOS system closure to .dev/ivysaur — the runbook's install gate"
+run = "nix build .#nixosConfigurations.ivysaur.config.system.build.toplevel -o .dev/ivysaur"
 
 # The NixOS VM — the laptop's configuration booted under QEMU with this working tree shared in
 # at its real path (modules/os/vm.nix). KVM + virtio-gpu GL; the window is a Hyprland session
