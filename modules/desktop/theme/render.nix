@@ -538,26 +538,21 @@ rec {
         },
     }
 
-    -- hyprexpo registers these keys only when its .so is loaded; setting them without it is the
-    -- ~20 "unknown config key plugin.hyprexpo.*" errors on the overlay. NixOS ships the .so at a
-    -- fixed path (modules/os) and hyprland.lua loads it at start, which re-runs this file with the
-    -- keys valid. Arch has no plugin unless hyprpm built one, so there the block is simply absent
-    -- rather than wrong. (2026-09-12)
-    local function file_exists(path)
-        local f = io.open(path, "r")
-        if f then f:close() return true end
-        return false
-    end
-    local function hyprexpo_present()
-        if file_exists("/etc/hypr/plugins/hyprexpo.so") then return true end
-        local pipe = io.popen("ls -1 " .. (os.getenv("HOME") or "") ..
-            "/.local/share/hyprpm/*/hyprexpo*/*.so 2>/dev/null")
+    -- hyprexpo registers these keys only when the plugin is LOADED, and "installed" is not the
+    -- same thing. hyprpm keeps its built .so under /var/cache/hyprpm/$USER/ with an ABI hash that
+    -- must match the running Hyprland; a stale one is refused and nothing loads while the file
+    -- sits there (2026-09-12: the plugin was built against aq_0.14, Hyprland wanted aq_0.15).
+    -- So ask the compositor, not the filesystem. At the first parse the IPC socket may not be up,
+    -- which answers "no" — correct, since nothing is loaded yet — and hyprland.lua loads the
+    -- plugin at start, which re-reads this file with the keys valid.
+    local function hyprexpo_loaded()
+        local pipe = io.popen("hyprctl plugin list 2>/dev/null")
         if not pipe then return false end
-        local first = pipe:read("*l")
+        local out = pipe:read("*a") or ""
         pipe:close()
-        return first ~= nil
+        return out:find("hyprexpo", 1, true) ~= nil
     end
-    if hyprexpo_present() then
+    if hyprexpo_loaded() then
         theme.plugin = {
             hyprexpo = {
                     bg_col = "rgba(${r.ground}ff)",
