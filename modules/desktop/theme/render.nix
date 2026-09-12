@@ -512,7 +512,7 @@ rec {
   # the home-manager module, which knows the GTK/Qt theme options.
   hyprlandThemeLua = ''
     -- ${gen}
-    hl.config({
+    local theme = {
         general = {
             col = {
                 active_border = { colors = { "rgba(${r.body}ff)", "rgba(${r.borderActive2}ff)" }, angle = 45 },
@@ -536,31 +536,55 @@ rec {
             background_color = "rgba(${r.ground}ff)",
             font_family = "${f.family}",
         },
-        plugin = {
+    }
+
+    -- hyprexpo registers these keys only when its .so is loaded; setting them without it is the
+    -- ~20 "unknown config key plugin.hyprexpo.*" errors on the overlay. NixOS ships the .so at a
+    -- fixed path (modules/os) and hyprland.lua loads it at start, which re-runs this file with the
+    -- keys valid. Arch has no plugin unless hyprpm built one, so there the block is simply absent
+    -- rather than wrong. (2026-09-12)
+    local function file_exists(path)
+        local f = io.open(path, "r")
+        if f then f:close() return true end
+        return false
+    end
+    local function hyprexpo_present()
+        if file_exists("/etc/hypr/plugins/hyprexpo.so") then return true end
+        local pipe = io.popen("ls -1 " .. (os.getenv("HOME") or "") ..
+            "/.local/share/hyprpm/*/hyprexpo*/*.so 2>/dev/null")
+        if not pipe then return false end
+        local first = pipe:read("*l")
+        pipe:close()
+        return first ~= nil
+    end
+    if hyprexpo_present() then
+        theme.plugin = {
             hyprexpo = {
-                bg_col = "rgba(${r.ground}ff)",
-                gaps_in = 12,
-                gaps_out = 24,
-                tile_rounding = 8,
-                border_width = 2,
-                border_color = "rgba(${r.structure}ff)",
-                border_color_current = "rgba(${r.live}ff)",
-                border_color_focus = "rgba(${r.cursorField}ff)",
-                border_color_hover = "rgba(${r.attention}ff)",
-                label_font_family = "${f.family}",
-                label_font_size = 18,
-                label_position = "top-left",
-                label_bg_shape = "square",
-                label_bg_color = "rgba(${r.ground}ff)",
-                label_color_default = "rgba(${r.meta}ff)",
-                label_color_current = "rgba(${r.live}ff)",
-                label_color_focus = "rgba(${r.cursorField}ff)",
-                label_color_hover = "rgba(${r.attention}ff)",
-                selection_label_color = "rgba(${r.key}ff)",
-                keynav_enable = 1,
+                    bg_col = "rgba(${r.ground}ff)",
+                    gaps_in = 12,
+                    gaps_out = 24,
+                    tile_rounding = 8,
+                    border_width = 2,
+                    border_color = "rgba(${r.structure}ff)",
+                    border_color_current = "rgba(${r.live}ff)",
+                    border_color_focus = "rgba(${r.cursorField}ff)",
+                    border_color_hover = "rgba(${r.attention}ff)",
+                    label_font_family = "${f.family}",
+                    label_font_size = 18,
+                    label_position = "top-left",
+                    label_bg_shape = "square",
+                    label_bg_color = "rgba(${r.ground}ff)",
+                    label_color_default = "rgba(${r.meta}ff)",
+                    label_color_current = "rgba(${r.live}ff)",
+                    label_color_focus = "rgba(${r.cursorField}ff)",
+                    label_color_hover = "rgba(${r.attention}ff)",
+                    selection_label_color = "rgba(${r.key}ff)",
+                    keynav_enable = 1,
             },
-        },
-    })
+        }
+    end
+
+    hl.config(theme)
   '';
   hyprlockConf = ''
     # ${gen}
