@@ -47,6 +47,19 @@ let
 in
 {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  # Nothing else reclaims the store, and on NixOS the store IS the system: without this it only
+  # grows (124 GiB on Arch by 2026-09-12, where snapshots pinned it so GC appeared to do nothing).
+  # 30d outlives the 20 generations GRUB offers, so every bootable entry keeps its closure.
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 30d";
+  };
+  # hardlinks identical files across closures; ficciones' generations share most of nixpkgs
+  nix.optimise = {
+    automatic = true;
+    dates = [ "weekly" ];
+  };
   nixpkgs.config.allowUnfree = true;
 
   users.users.andrew = {
