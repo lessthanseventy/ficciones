@@ -38,6 +38,12 @@ in
     efi.canTouchEfiVariables = true;
     efi.efiSysMountPoint = "/boot/efi";
   };
+  # Mainline, not the nixpkgs default (which trails it) and not zen: the Arch box ran plain
+  # `linux` and this machine's hardware is recent enough to want current drivers. The constraint
+  # is nvidia-x11 — the out-of-tree module has to build against whatever this resolves to, so a
+  # kernel bump that outruns the driver breaks the BUILD, not the boot, and flake:check catches
+  # it before the ISO does. (2026-09-12)
+  boot.kernelPackages = pkgs.linuxPackages_latest;
   boot.initrd.availableKernelModules = [ "xhci_pci" "thunderbolt" "nvme" "usb_storage" "sd_mod" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.supportedFilesystems = [ "btrfs" ];
