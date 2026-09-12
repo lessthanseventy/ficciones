@@ -81,8 +81,13 @@ if [ "$ws" != "special:quake" ]; then
   d "hl.dsp.window.move({ workspace = \"special:quake\", follow = false, $(W) })"
   # opacity takes a number on the lua socket ("unset" fails to parse); 1 is the default rule's
   prop opacity 1; prop opacity_override unset
-  # focus goes back to the window that had it (Hyprland leaves it nowhere otherwise)
-  prev=$(cat "$PREV" 2>/dev/null); [ -n "$prev" ] && d "hl.dsp.focus({ window = \"address:$prev\" })"
+  # focus goes back to the window that had it (Hyprland leaves it nowhere otherwise) — if it is
+  # still a live window off the special workspaces: focusing the quake itself (it had focus when
+  # it was spawned) opened special:quake again, so a hide put it straight back (2026-09-11)
+  prev=$(cat "$PREV" 2>/dev/null)
+  if [ -n "$prev" ] && [ "$prev" != "$addr" ] && hyprctl -j clients | jq -e --arg a "$prev" 'any(.[]; .address == $a and (.workspace.name | startswith("special") | not))' >/dev/null; then
+    d "hl.dsp.focus({ window = \"address:$prev\" })"
+  fi
   ring on
   exit 0
 fi
@@ -93,7 +98,8 @@ read -r mx my mw mh rt wsid < <(hyprctl -j monitors | jq -r '.[]|select(.focused
 w=$(( mw * WIDTH_PCT / 100 ))
 x=$(( mx + (mw - w) / 2 ))
 y=$(( my + rt + GAP ))
-hyprctl -j activewindow | jq -r .address > "$PREV"
+active=$(hyprctl -j activewindow | jq -r '.address // empty')
+if [ -n "$active" ] && [ "$active" != "$addr" ]; then printf '%s\n' "$active" > "$PREV"; else : > "$PREV"; fi
 ring off
 # invisible first, sized and placed while still hidden; moving between workspaces nudges a
 # floating window, so it is placed again after the move; then it fades in where it is
