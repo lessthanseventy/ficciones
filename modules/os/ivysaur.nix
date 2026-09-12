@@ -1,7 +1,7 @@
 # ivysaur — the laptop, as NixOS. i7-13700H + Iris Xe (primary) + RTX 4060 Max-Q (PRIME
 # offload), btrfs on nvme0n1p2 with the Garuda subvolume layout kept as-is, the ESP at
 # /boot/efi. Everything Hyprland/shell/font comes from ./default.nix; this file is the hardware,
-# the disks, and what the machine additionally runs (steam, snapper on /home, nix-ld).
+# the disks, and what the machine additionally runs (steam, nix-ld).
 #
 # Facts captured from the live Arch install on 2026-09-05 (lsblk, findmnt, lspci, /etc/hosts):
 # see docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md. NOT yet installed anywhere —
@@ -63,18 +63,10 @@ in
   swapDevices = [ { device = "/dev/disk/by-uuid/dbc5438c-46d0-41b5-9530-2f4e0e907ed8"; } ];
   boot.tmp.useTmpfs = true;
 
-  # snapper for /home only — NixOS generations cover /. Same lever as Garuda's /.snapshots.
-  services.snapper.configs.home = {
-    SUBVOLUME = "/home";
-    ALLOW_USERS = [ "andrew" ];
-    TIMELINE_CREATE = true;
-    TIMELINE_CLEANUP = true;
-    TIMELINE_LIMIT_HOURLY = 12;
-    TIMELINE_LIMIT_DAILY = 7;
-    TIMELINE_LIMIT_WEEKLY = 4;
-    TIMELINE_LIMIT_MONTHLY = 2;
-    TIMELINE_LIMIT_YEARLY = 0;
-  };
+  # No snapper. Generations cover /, and a timeline over /home would have snapshotted the
+  # churn (Steam, containers, .cache — ~299 GiB of the 543) until btrfs metadata hit the wall,
+  # which is exactly what took the Arch install down on 2026-09-12. /home is backed up
+  # off-disk instead; snapshots share the drive and were never that backup. (2026-09-12)
   services.btrfs.autoScrub = { enable = true; interval = "monthly"; };
   services.fstrim.enable = true;
 
@@ -105,7 +97,6 @@ in
     nvtopPackages.full
     powertop
     btrfs-progs
-    snapper
     # Everything hyprland.lua binds or the shell execs, that ./default.nix does not already carry.
     grim slurp swappy hyprshot hyprpicker tesseract playerctl brightnessctl
     easyeffects xdg-user-dirs khal
