@@ -10,6 +10,29 @@ it writes — so a half-applied edit is impossible, and only the bytes a verb na
 It runs as a project of its own, which means `menard` keeps working on a codebase that does not
 currently compile — the case where you most need it.
 
+## Install
+
+Two things ship, and they install differently.
+
+**The library** — `Menard.Rename`, `Menard.Outline`, `Menard.Clause` and the rest as plain
+functions, for a tool of your own:
+
+```elixir
+{:menard, "~> 0.1"}
+```
+
+**The verbs** — the CLI, the MCP door and the Claude Code hooks — run from *this* project, with
+its own deps, which is what lets them work on a codebase that does not compile. So they install
+from git, not from hex:
+
+```
+/plugin marketplace add lessthanseventy/menard
+/plugin install menard@menard
+```
+
+Or clone it and put `bin/menard` on your `PATH`. Either way the first invocation fetches and
+compiles its deps for you.
+
 ## Verbs
 
 ```

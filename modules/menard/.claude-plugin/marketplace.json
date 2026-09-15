@@ -1,0 +1,17 @@
+{
+  "name": "menard",
+  "owner": { "name": "Andrew Moore" },
+  "metadata": {
+    "description": "AST-aware editing for Elixir",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "menard",
+      "source": "./",
+      "description": "AST-aware editing for Elixir. Verbs that parse the file, change the tree and parse-check the result, plus a hook that blocks Edit/Write on a module so an agent cannot fall back to text substitution.",
+      "category": "development",
+      "tags": ["elixir", "ast", "refactoring", "sourceror", "code-editing"]
+    }
+  ]
+}
