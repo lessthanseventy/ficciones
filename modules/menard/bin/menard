@@ -10,6 +10,18 @@ set -euo pipefail
 export MISE_ORIGINAL_CWD="${MISE_ORIGINAL_CWD:-$PWD}"
 cd -- "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# A fresh install has no deps/ and no _build — git carries neither, and nothing runs `mix deps.get`
+# for a cloned Claude Code plugin. Without this, every verb dies on "some dependencies are missing"
+# the first time anyone uses it. mix.lock is tracked, so this resolves to the tested versions.
+# Output goes to STDERR: `mcp`'s stdout is the JSON-RPC channel and a fetch log there is fatal.
+if [[ ! -d deps/sourceror ]]; then
+  echo "menard: first run — fetching deps" >&2
+  mix deps.get >&2
+  # Compile here too, with the log on stderr. A cold build is ~200 lines that mix writes to
+  # STDOUT, and stdout is the answer: one JSON line from `run`, the protocol for `mcp`.
+  mix compile >&2
+fi
+
 verbs="write|rename|clause|outline|find|diagnostics|inspect|run|mcp"
 frozen=0
 [[ "${1:-}" == "--frozen" ]] && { frozen=1; shift; }
