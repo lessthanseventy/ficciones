@@ -399,7 +399,7 @@
 
               # pi-sandbox: was ENABLED with built-in defaults (enabled=true is baked into the
               # extension even with no sandbox.json). Explicit policy instead, modeled on the
-              # Tlön coworker sandbox (Console.Profiles): unix sockets + local binding so
+              # Tlön coworker sandbox (Server.Profiles): unix sockets + local binding so
               # adapters-lspd/tmux/agent-browser work, writes scoped to the projects tree + caches,
               # the repo host allowlist, secret files deny-listed (denyWrite is a hard block).
               piSandboxSeed = pkgs.writeText "pi-sandbox-seed.json" (builtins.toJSON {
@@ -558,7 +558,7 @@
               # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
               # repo): mouse, extended-keys, resurrect+continuum (ANDREW's session persistence
               # — coworkers run on their own `-L console-<profile>` servers with a persistence-
-              # free config, see Console.Profiles), yank, tmux-thumbs. Dropped the status-script
+              # free config, see Server.Profiles), yank, tmux-thumbs. Dropped the status-script
               # chrome (gitmux/cpu/battery) that churned alongside embedded pi. Old file backed
               # up on `home:switch` via the -b flag.
               programs.tmux = {
@@ -609,7 +609,7 @@
 
                   # Persistence is for ANDREW's tmux only. Coworkers (Tlön's pi, future ones) run on
                   # their own per-profile tmux servers (tmux -L console-<profile>, persistence-free
-                  # config from Console.Profiles) and come up FRESH every rebuild — agent harnesses are
+                  # config from Server.Profiles) and come up FRESH every rebuild — agent harnesses are
                   # deliberately NOT in @resurrect-processes: auto-relaunching an agent at restore
                   # hands it stale identity/env (the old torn-down-coworker trap) and silently burns
                   # model budget.
