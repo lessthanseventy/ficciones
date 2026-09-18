@@ -1,0 +1,131 @@
+# ficciones — the one plan (2026-09-17)
+
+Andrew: "let's put all these plans and docs and shit together into one coherent one to follow."
+This is that document. It states the north star, names the surfaces, sequences the work, and
+points at the detailed docs for each piece. When a piece is built its row here is updated;
+nothing below is "done" until its check is green. Plans written far ahead go stale (roadmap
+lesson, 2026-09-01), so pieces more than one step out are *named*, not *detailed*.
+
+---
+
+## 0 · North star
+
+> **ficciones is a better Omarchy, with every Tlön integration it can carry.**
+> **Tlön steals every good idea from the orchestrator field and differentiates on purpose.**
+> **The day-to-day surface is Neovim — a maximal config where Tlön's screens, diffs, terminals,
+> notes and project management live. The console TUI becomes the god-view.**
+
+Three surfaces, one brain:
+
+```
+                 ┌──────────────── Tlön server (always up, one store) ─────────────────┐
+                 │  Server.* contexts · Bus · MCP · Sessions (tmux) · [Postgres] · [Oban]│
+                 └───────┬───────────────────┬───────────────────┬─────────────────────┘
+                         │ HTTP/MCP (→ erpc)  │ erpc + pg          │ MCP/HTTP
+              ┌──────────┴────────┐  ┌────────┴────────┐  ┌───────┴────────┐
+              │ NEOVIM (asterion) │  │ console TUI     │  │ astal shell    │
+              │ the daily front   │  │ the god-view    │  │ the desktop    │
+              │ threads · review  │  │ everything at   │  │ Agents pane ·  │
+              │ terminals · notes │  │ once, one glance│  │ notifications ·│
+              │ projects · AI     │  │                 │  │ bucket footer  │
+              └───────────────────┘  └─────────────────┘  └────────────────┘
+                                       coworkers: pi / Claude Code in tmux, per-thread worktrees
+```
+
+The rule that keeps three surfaces from becoming three computers: **every surface reads the same
+`Server.*` contexts and the same Bus topics, and wears the same generated palette.** No client
+owns state. No client names a hue.
+
+## 1 · What is already true (do not rebuild)
+
+- **Server**: threads as the record; FACTS with certainty + forgetting; CHECKS; TODOS/QUESTIONS;
+  worklines (gated, artifact-owing stages); per-thread worktrees; MCP channel; seed + fact
+  promotion; steering-config evals in CI; one-brain piece A (client split). Today: the
+  `Tlon-Thread` commit trailer + COMMITS in every brief (`a2fa10e`, `c08dd11`).
+- **Console**: 25 panels (rail, thread stack, composer, crew, triage, tickets kanban, notes,
+  stack, terminal, health, menu…), 874 tests, libghostty terminal embedding.
+- **Shell**: astal, 13 surfaces + 11 panes, systemd-supervised, WCAG-gated two-palette theme
+  across 22 rendered surfaces, live switch, `shot:*` gates.
+- **Loop**: `mise` tasks are the one API for human and agent; `cap`; `watch`; menard for Elixir.
+  Today: `machine:update` (`807914f`).
+- **Field position** (survey §3): the thread-as-record, certainty-ranked facts, artifact-gated
+  worklines, dossier-not-transcript, bucket routing and evals-on-steering are validated
+  differentiators. Keep them; do not flatten any of them to "match the field".
+
+## 2 · The surfaces and what moves where
+
+| Concern | Today | Target | Why |
+|---|---|---|---|
+| Read a thread, reply, wake a coworker | console composer panel | **Neovim** thread buffer + composer | modes kill the keymap problem; it is where the code is |
+| Review a coworker's work | console stack + lazygit | **Neovim** diff mode, inline comments posted back to the thread | field baseline: nobody reviews in a hand-rolled TUI (survey §1 baseline 5) |
+| Watch coworker terminals | console terminal panel (libghostty) | **Neovim** `:terminal` attached to the server's tmux windows; console keeps its embed | "a better tmux than tmux" |
+| Roster / attention | console crew + shell Agents pane | Neovim sidebar **and** shell notifications | needs-you must reach you outside any window (survey §4 adopt #2) |
+| Tickets, notes, projects | console kanban + note cards | **Neovim** (kanban/notes/project plugins over the same rows) | the editor is where notes are written anyway |
+| God-view: every thread, every coworker, triage, health, ledger | console | **console** (unchanged role, fewer duties) | one glance, one window, no editing |
+| Desktop status, launcher, OSD, lock, theme switch | shell | shell + **verb menu** + **manual** | the Omarchy bar (steals §2–§3) |
+
+The console does not lose code in this plan; it loses *duties*. Nothing is deleted until
+Neovim has carried the duty live for a while.
+
+## 3 · Organisation — name and repo
+
+`menard` was pulled out (2026-09-17) because it is a general tool with its own release cadence.
+The Neovim config is the same shape: its own history, its own cadence, useful without the rest,
+and the flake should *consume* it, not contain it.
+
+**Proposal: a separate repo, Borgesian name `asterion`** — *La casa de Asterión*: the house with
+"fourteen [infinite] doors", every room reachable from every other, its occupant certain no one
+else could live there. An editor of infinite windows, built for one person. (Alternatives
+considered: `arena` — *El libro de arena*, the infinite-paged book — good, but "arena" collides
+with N-way racing vocabulary in the field; `jardin` — forking paths — taken by every second
+project.) ficciones → `asterion` becomes a flake input, and `~/.config/nvim` an out-of-store
+symlink into a sibling checkout (the `hyprland.lua` pattern) so edits are live and the
+palette-rendered colorscheme is written *into* it by `theme:gen`.
+
+**Start lean, not from the December config.** 68 files / 5,270 lines / ~110 specs across six
+categories, on a tokyonight base, last touched 2025-12-10. Reviewed, it is a good *reference*
+(statusline, statuscol, folds, hackery mode, the Elixir/neotest wiring are worth lifting) and a
+poor *base*: it predates the palette law, snacks' consolidation, Neovim 0.12's built-ins, and
+every AI plugin in it has been superseded or forked since. Lift by the file, don't inherit by
+the tree. (Andrew: "or start a new one if it's cleaner" — it is.)
+
+## 4 · Sequence
+
+Each piece gets a detailed plan the session it starts. Checks are the gates that say "done".
+
+| # | Piece | Detail doc | Check |
+|---|---|---|---|
+| **A** | **asterion bootstrap** — repo, flake input, out-of-store symlink, lean core (lazy or vim.pack per survey), palette colorscheme from `render.nix`, Elixir/TS LSP, tests, git, terminal. Lift statusline/statuscol/folds from December. | `asterion/docs/plans/…-bootstrap.md` (written from the Neovim survey §N below) | `mise run theme:gen` writes the colorscheme; `theme:contrast` covers the editor pairs; `nvim --headless "+checkhealth"` clean; screenshot on both palettes |
+| **B** | **tlon.nvim inside asterion** — HTTP/MCP client to the server; sidebar (workspaces › threads › coworkers with attention); thread buffer + composer (post as operator, wake lead); `:terminal` attach to a coworker's tmux window; COMMITS → diff view. | its own plan | post from Neovim → coworker replies (live); a coworker's commit opens in diff mode from the thread |
+| **C** | **Review in Neovim** — inline comments on a diff hunk become thread messages the coworker wakes on; the workline review stage (`review.md`) authored here. | with B | a comment on a hunk appears in `server:dossier` RECENT and wakes the lead |
+| **D** | **Field adopts, cheap tier** (survey §4): branch fencing hook · needs-you → shell notification · seancing line in the brief · Oracle tool · symlinked deps into worktrees. | survey §4 #1, #2, #9, #6, #13 | each has a test or a live screenshot |
+| **E** | **Omarchy tier**: launcher verb mode over `mise tasks --json`; the operator **manual** (generated from hyprland.lua / mise / palette, rendered in the shell Cheatsheet and in Neovim). | steals §2 O3, O5 | manual has zero hand-maintained duplicates of generated facts |
+| **F** | **Field adopts, medium tier**: playbooks as rows + `promote_playbook`; `@thread`/`@sha` references; coworker-side stop-hook gates; capability-fit routing knob. | survey §4 #3, #4, #5, #7 | server tests + an eval scenario each |
+| **G** | **One-brain B–E** as already sequenced: sessions → server · Postgres · web UI · Oban (cron verb, budget pre-flight, bucket footer live here). | `2026-09-08-tlon-one-brain-umbrella.md` | unchanged |
+| **H** | **Experiments** (evals, not builds): query-driven brief vs fixed budget; forget-at-recall vs mem0's four verdicts; CHECKS up the evidence hierarchy. | survey §4 #10, #12 | a written result in `docs/research/` |
+
+Order rationale: A–C put the daily surface where he wants it and prove the API boundary the
+umbrella said the web UI would prove — earlier and cheaper. D is a day of small wins that also
+serve A–C (notifications, fencing). E is the Omarchy half of the north star. F needs the server
+API to have settled under B. G continues as planned; nothing here blocks it, and B (sessions to
+server) makes tlon.nvim's terminal attach cleaner when it lands. H runs whenever there is an
+idle evening.
+
+## 5 · Neovim ecosystem — findings
+
+_pending — survey running (`survey-neovim`, 2026-09-17). Fills: core 0.12 choices (vim.pack vs
+lazy), UI/sidebar library, AI plugins, diff/review, terminal multiplexing, project/notes,
+folke's current stack, theming approach, Nix packaging, Elixir tooling, the recommended list and
+the risk list._
+
+## 6 · Index of the docs this supersedes or points at
+
+- `2026-09-17-omarchy-atlas-steals.md` — the Omarchy/Atlas steal-list and the shell gap table (§2–§3 there are the E-piece backlog).
+- `2026-09-17-orchestrator-field-survey.md` — three-class field survey; §4 is the D/F/H backlog.
+- `2026-09-08-tlon-one-brain-umbrella.md` — piece G, unchanged.
+- `2026-09-08-cockpit-ux-principles-design.md` — still governs the console as god-view; the keymap rule is why the composer moves.
+- `2026-09-02-astal-shell-design.md` — the shell; E adds the verb menu and manual.
+- `2026-08-27-ai-native-sdlc-workline-design.md` — worklines; C authors review there, F gives gates teeth.
+- `2026-09-01-tlon-roadmap.md` — historical; WS1/2/4 done, WS3 = G.
+
+Memory: `ficciones-north-star-better-omarchy` (2026-09-17).
