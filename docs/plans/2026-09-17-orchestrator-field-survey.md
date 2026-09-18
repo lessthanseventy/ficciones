@@ -5,7 +5,7 @@ good idea from the field and differentiates on purpose). Three surveys, one per 
 Sonnet investigators with web access; §4 is the synthesis and the decision list. Every claim in
 §1–§3 carries the URL it came from; "–" means *not found in sources*, not *absent*.
 
-Status: §1–§2 banked · §3 (frameworks/protocols) pending · §4 pending.
+Status: complete — §1–§3 banked, §4 is the decision list.
 
 ---
 
@@ -132,10 +132,99 @@ Also noted, not profiled: **Google Antigravity 2.0** (Manager view over parallel
 
 Fleet-scale VM provisioning; team-wide thread visibility as an adoption mechanism (surveillance of yourself); enterprise governance surface (the audit that matters is `git log`); chat-ops/ticket intake as a primary interface (nobody is on the other end); cross-vendor provider abstraction as a business (Terragon's shutdown); a public SDK for third parties; marketed autonomy dials (trust-building for strangers).
 
-## 3 · Frameworks, protocols, memory
+## 3 · Frameworks, protocols, memory, and the essays (19 sources)
 
-_pending — survey running._
+| Source | Thesis | Distinctive mechanisms | Verdict for Tlön |
+|---|---|---|---|
+| **claude-flow / ruflo** ([repo](https://github.com/ruvnet/claude-flow), [hive-mind](https://github.com/ruvnet/ruflo/wiki/Hive-Mind-Intelligence)) | MCP-native "swarm OS" for Claude Code: Queen/worker hierarchy over shared persistent memory. | 6 named topologies; SQLite `.swarm/memory.db` with 12 typed tables (shared_state, events, workflow_state, patterns, consensus_state, metrics) — memory as schema, not vectors. | BASELINE-adjacent. Typed tables like Tlön's rows, but telemetry-shaped, no epistemics (no certainty, no forgetting). |
+| **ACP** — Agent Client Protocol ([site](https://agentclientprotocol.com/get-started/introduction), [Zed](https://zed.dev/acp), [registry](https://zed.dev/blog/acp-registry)) | "LSP for coding agents": standard editor↔agent transport. | JSON-RPC 2.0 over stdio (agent as editor subprocess) or HTTP/WS; reuses MCP's JSON shapes; session-oriented with diff visualization affordances MCP lacks. JetBrains co-adopted; dozens of agents/editors by 2026-08. | BASELINE for the industry, NOVEL vs Tlön — Tlön's MCP is server↔harness, a different axis. **Directly relevant to the Neovim question:** ACP is how an editor hosts an agent. |
+| **A2A** ([spec](https://a2a-protocol.org/latest/specification/)) | Interop for opaque peer agents across org boundaries. | Agent Cards at `/.well-known/agent.json`; typed Task lifecycle (SUBMITTED→WORKING→{COMPLETED,FAILED,CANCELED,REJECTED}, INPUT_REQUIRED/AUTH_REQUIRED interrupts); JSON-RPC + SSE; Linux Foundation. | A problem Tlön doesn't have (single tenant). The Task state machine rhymes with worklines. |
+| **MCP sampling / elicitation / tasks** ([tasks ext](https://modelcontextprotocol.io/extensions/tasks/overview), [2026-07-28 rev](https://blog.modelcontextprotocol.io/posts/2026-07-28/)) | MCP grows bidirectional, long-running, human-in-the-loop primitives. | Sampling (server asks client to run a completion — cost stays client-side); Elicitation (schema for structured mid-call input); Tasks (durable id, `tasks/get` poll, survives disconnects, `tasks/update`/`cancel`). | BASELINE. Tlön put durability one layer up (the thread), arguably the stronger place. **Elicitation** is the protocol shape for a workline gate's "awaiting operator". |
+| **OpenAI Agents SDK handoffs** ([docs](https://openai.github.io/openai-agents-python/handoffs/)) | Peer agents fully transfer control via a typed `handoff()`. | `input_type` schema; `input_filter` prunes what the receiver sees; handoffs enabled/disabled by code at runtime. | DIFFERENTIATOR kept: OpenAI passes live conversation forward; Tlön rotates with a fresh dossier — the more radical position, and the better-supported one below. |
+| **LangGraph / LangSmith** ([checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers)) | Agents as explicit state graphs with durable, replayable execution. | Checkpoint per super-step keyed by `thread_id`; a separate cross-thread Store; time-travel replay. | Structurally worklines generalised to arbitrary graphs; replays exact state instead of a compressed brief. Tlön's fixed named stages are the more opinionated choice Anthropic's guidance favours. |
+| **Letta (MemGPT)** ([memory](https://www.letta.com/blog/agent-memory/), [v1 agent](https://www.letta.com/blog/letta-v1-agent/)) | LLM-as-OS: the model manages memory tiers via tools. | core (in-context editable blocks) / recall (searchable history) / archival (vector); overflow → recursive summary block; 2026 rearchitecture cites Claude Code. | Nearest analogue to FACTS + forgetting; but agent-private and tiered by recency/relevance. Tlön's **certainty rank** axis appears nowhere in Letta, mem0, or the 2026 papers. NOVEL. |
+| **mem0** ([repo](https://github.com/mem0ai/mem0), [2026 report](https://mem0.ai/blog/state-of-ai-agent-memory-2026)) | Drop-in memory layer. | Extraction → update with an explicit **ADD/UPDATE/DELETE/NOOP** verdict per fact; 4-D scoping (user/agent/run/app); hybrid semantic+BM25+entity-graph retrieval with temporal reasoning. | BASELINE for LLM-judged merge/decay. **Audit forget-at-recall against mem0's four-verdict procedure** for gaps. |
+| **Anthropic — multi-agent research system** ([post](https://www.anthropic.com/engineering/multi-agent-research-system)) | Orchestrator-worker beats single long-context for breadth-first research (+90.2%), at ~15× tokens. | Subagents get objective + output format + tool guidance + explicit boundaries (vague tasks = the #1 failure); **plan persisted to external memory** because the window truncates; "think like your agents"; self-improvement from transcripts. | Field agrees with dossier-over-transcript; Tlön generalises it to every session start. |
+| **Anthropic — Building Effective Agents** ([post](https://www.anthropic.com/research/building-effective-agents)) | Default to workflows on fixed code paths; agents only where flexibility is needed. | Prompt chaining · routing · parallelisation · orchestrator-workers · evaluator-optimiser. | **Worklines are the textbook instance.** Validated convergence. |
+| **Claude Code agent teams / hooks** ([docs](https://code.claude.com/docs/en/agent-teams)) | Subagents (report-back) vs teams (peers, mailbox, shared task list). | File-locked claims + dependency blocking; JSON mailbox per agent; `TeammateIdle`/`TaskCreated`/`TaskCompleted` hooks block with exit 2. Team state deleted at session end. | DIFFERENTIATOR: Tlön's gates are durable server state; Claude's vanish with the process. Steal the *hook shape*. |
+| **Anthropic — context engineering** ([post](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)) | Context is finite and decays ("context rot"); curate the smallest high-signal set. | Compaction; structured note-taking (external memory reloaded on demand); **just-in-time retrieval** — references in context, data loaded at runtime; subagents return 1–2K-token condensations. | The theory behind the dossier and FACTS/CHECKS-by-reference. Strong agreement. |
+| **Cognition — Don't Build Multi-Agents** ([original](https://cognition.com/blog/dont-build-multi-agents), [walk-back](https://cognition.com/blog/multi-agents-working)) | Parallel subagents without shared context make conflicting implicit decisions. Revised 10 months later: **read-parallel, write-serial** works. | Share full traces; a dedicated compression agent when pruning; single-threaded by default. | Tlön's shape *is* the revised position: many coworkers read one record, one committed artifact gates each stage. Anthropic and Cognition reconcile once readers and writers are separated. |
+| **Steve Yegge — Gas Town / Beads** ([yegge.ai](https://yegge.ai/gastown), [Medium](https://steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04), [SE Daily](https://softwareengineeringdaily.com/podcasts/gas-town-beads-and-the-rise-of-agentic-development-with-steve-yegge/)) | Sessions are too fragile; push work into persistent structures. | Beads solves "50 First Dates"; K8s-modelled control plane (Mayor≈scheduler, Rigs≈nodes, Witness≈kubelet, Polecats≈pods, **Beads≈etcd**); reconciliation, not message passing, dedupes 20–30 agents. | **The closest independent convergence on Tlön's core bet**, via a different implementation. No stage gates in Gas Town — that stays Tlön's. |
+| **Armin Ronacher** ([agentic coding](https://lucumr.pocoo.org/2025/6/12/agentic-coding/), [The Coming Loop](https://lucumr.pocoo.org/2026/6/23/the-coming-loop/), [Pi](https://lucumr.pocoo.org/2026/1/31/pi/)) | Value comes from simplicity, stability, observability, legibility — not framework sophistication. | Tools must be fast, clear-error, misuse-resistant, **self-diagnosable via logs**; explicit over magic (Go's `context`, raw SQL over ORMs). | A design checklist for menard / MCP verbs / pi-sandbox, not an architecture claim. |
+| **The Ralph loop** ([ghuntley](https://ghuntley.com/loop/), [snarktank/ralph](https://github.com/snarktank/ralph)) | Agent in a bash loop; every iteration a fresh window reading a state file as its only memory. | One task per iteration; state only on disk/git; monolithic by design; human Ctrl+C as the gate. | The most extreme "dossier not transcript". Tlön = Ralph's state file as a typed server primitive. |
+| **Aider architect/editor** ([post](https://aider.chat/2024/09/26/architect.html)) | Split "solve" (reasoning model) from "emit exact diffs" (formatting model). | Two passes, model per role, `--editor-model`; SOTA 85% cheaper than one frontier model. | **Gap named:** Tlön routes by *bucket*, not by *capability fit*. Orthogonal axes; layer the second. |
+| **SWE-agent / OpenHands** ([SDK paper](https://arxiv.org/html/2511.03690v1)) | One typed chronological event stream, managed by pluggable condensers. | 9 condensers via registry (LLM-summarising ≈2× cost cut); proactive (size per step) and reactive (on context-exceeded) condensation; the Agent-Computer Interface idea. | DIFFERENTIATOR: OpenHands condenses events away; Tlön keeps FACTS/CHECKS as permanent rows. |
+| **2026 papers/posts** — [Hindsight consolidation](https://hindsight.vectorize.io/blog/2026/05/21/agent-memory-consolidation), [Always-On Agents](https://arxiv.org/pdf/2606.30306), [WorkOS/Sourcegraph](https://workos.com/blog/coding-agent-context-window-compaction-settings), [CompactionRL](https://arxiv.org/pdf/2607.05378), [MS governance toolkit](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/tutorials/24-cost-and-token-budgets.md), [Verification Horizon](https://arxiv.org/pdf/2606.26300) | Memory lifecycle (importance/merge/decay/evict) is the underbuilt layer; **5K tokens of targeted retrieval beat a 100K summary**; model-decided compaction timing cuts 30–70%; budgets as pre-flight interceptors; verification = deterministic tests → evaluator scores → historical reliability, mapped to reject/revise/escalate/merge. | Validates the forgetting engine as a subsystem. **Two live questions for Tlön:** (a) fixed token-budgeted dossier vs query-driven brief; (b) CHECKS could climb the evidence hierarchy as typed rows (evaluator score, reliability), not exit codes only. |
+
+### Design principles the field has converged on
+
+1. Externalise plan/state to a durable substrate before the window truncates it; reload, don't replay (Anthropic research system, Ralph, Beads).
+2. Compaction, not infinite context — and targeted retrieval beats summarisation when both exist (Anthropic context engineering, OpenHands, Sourcegraph).
+3. Under-specification, not parallelism, is what breaks multi-agent work (Anthropic, Cognition).
+4. Default to fixed-path workflows; open autonomy only where needed (Anthropic; Cognition revised).
+5. Structured typed external memory beats transcript replay (Letta, mem0, Anthropic notes).
+6. Memory lifecycle is its own policy layer (Hindsight, Always-On survey).
+7. Sandbox + allowlists are non-negotiable once agents run commands (OpenHands, Claude Code, A2A auth).
+8. Verification combines evidence tiers mapped to an explicit decision (Verification Horizon).
+9. Interop = thin JSON-RPC transports + capability manifests, not shared ontologies (ACP, A2A, MCP Tasks).
+10. Cost governance is a designed control plane — pre-flight, capability-routed (MS toolkit).
+
+### Open disagreements
+
+Multi-agent vs one long context (reconciled to read-parallel/write-serial; *when* the 15× pays is contested) · vector store vs structured facts (field says "make it swappable") · exact-state replay (LangGraph) vs compressed transcript (Anthropic) vs no history at all (Ralph, Beads) · who decides when to compact (fixed vs model-decided) · how much protocol standardisation a solo operator should pay for.
+
+### Where Tlön's choices sit
+
+| Tlön choice | Field verdict |
+|---|---|
+| Coworkers join durable **THREADS**; the thread is the record | Agrees; near-baseline (LangGraph `thread_id`, Beads, Amp). |
+| **FACTS with certainty ranks** + forgetting | Agrees on the need; **no surveyed system ranks by epistemic confidence** rather than recency/similarity. NOVEL. |
+| **CHECKS** as durable thread rows | Agrees on check-first; hasn't noticed the move of making a check an addressable conversation row. |
+| **Token-budgeted dossier**, never resume | Strong agreement (three independent arrivals). Open: fixed budget vs query-driven — evidence leans query-driven. |
+| **Worklines** — gated, artifact-owing stage machine as server state | Agrees directly (Anthropic's recommended default). No one else enforces "each stage owes a committed artifact" durably. DIFFERENTIATOR. |
+| Permission system + sandbox + egress allowlist | Baseline. |
+| **Routing by rate-limit bucket** | The solo-operator cost problem the literature doesn't address. NOVEL framing; missing the orthogonal capability-fit axis (Aider). |
+| **Evals on the steering config** in CI | Field evals task success; nobody evals the brief/persona as a versioned artifact. NOVEL. |
+
+---
 
 ## 4 · Synthesis — adopt · keep · skip
 
-_pending — written once §2–§3 land._
+Read across all three classes, the field's baseline and Tlön's position resolve into one list. "Adopt" = Tlön is behind the baseline or the idea is a cheap, clear win; "Keep" = a differentiator the field validates or hasn't matched — protect it, don't dilute it; "Skip" = scale- or org-shaped, not for one operator on one machine. Order inside Adopt is the build order.
+
+### Adopt
+
+| # | Move | From | Why now, and where it lands |
+|---|---|---|---|
+| 1 | **Structural branch fencing** — a pane with `TLON_THREAD` can only commit/push to its thread's `work/<slug>` (or `t<id>`) branch | Copilot (`copilot/*` only, no self-merge) | Governance as a hook, not a request. Lands beside today's `prepare-commit-msg` in `scripts/git-hooks/` (`pre-commit` + `pre-push`), reading `Server.Worktree.branch/1`'s convention. One afternoon. |
+| 2 | **A needs-you signal outside the cockpit** | Every platform (push/badge/chime); CCManager's hooks-on-state-change | Tlön is behind the baseline here. The shell already has `Notifications.tsx` and `Agents.tsx`; the Bus already emits the state. Wire `awaiting:andrew` / `check_failed` / `question opened` → a shell notification (the parked `herdr-native-notifications`). Small. |
+| 3 | **Hook-enforced gates with teeth** — `advance_stage` refuses without the artifact (exists); add the *coworker-side* equivalent: a stop/idle hook that bounces a coworker back with feedback when the stage's owed artifact is missing | Claude Code `TeammateIdle`/`TaskCompleted` exit 2 | The workline design already names this ("hooks vs skills"); the field has now shipped the shape. Claude Code adapter: a `Stop` hook calling `workline status`; pi: the same via the extension. |
+| 4 | **Playbooks as a first-class object** — a named, imperative procedure with success criteria a coworker can be told to run; **compound skill** = promote a solved thread into one | Devin Knowledge/Playbooks split; Multica compound skills | FACTS are Knowledge-shaped; Tlön has nothing Playbook-shaped except the stage playbooks in the flake. A `playbook` row (name, steps, success criteria, source thread) + `run_playbook`/`promote_playbook` verbs; the seed carries the baseline ones. Piece-sized. |
+| 5 | **`@thread` references in briefs and posts** — a thread cites another thread's FACTS/COMMITS by reference; `@<sha>` resolves via the new trailer join | Amp `@thread-id`; Atlas `@`-pointers | Composition instead of inert history. `Server.Mentions` grows two resolvers; the dossier renders cited rows under a CITED heading. Slot with UX slice 3. |
+| 6 | **The Oracle** — one MCP tool, `ask_other_bucket(question, context)`, that puts a hard decision to a model in the *other* subscription bucket | Amp Oracle | Cheap (the routing already exists in `tasks/pi.toml`), and it turns the bucket framing into a capability: Claude drafting, deepseek-v4-pro thinking:high as the second reader, or the reverse. |
+| 7 | **Capability-fit routing beside bucket routing** — spec/review on the reasoning model, mechanical plan expansion + diff emission on a precise cheap one | Aider architect/editor | The workline design already says "model routing per stage is a world knob"; name the axis explicitly in the knob. Config, not code. |
+| 8 | **Diff review with round-trip comments as *the* review surface** | Vibe Kanban, parallel-code, Conductor; baseline in §1 | Nobody in the field does review in a hand-rolled TUI. This is the Neovim argument (see the tlon.nvim proposal): native diff mode + inline comments posted back to the thread as messages the coworker wakes on. |
+| 9 | **Seancing** — tell the brief that the record is queryable | Gas Town/Beads | One line in the brief renderer: "this is the budgeted view; `get_facts`/`get_dossier` answer past the cap." The mechanism exists; the affordance doesn't. Ten minutes. |
+| 10 | **Query-driven brief experiment** — test a retrieval-first dossier (thread title + operator's latest words already seed recall) against the fixed budget on real threads | Sourcegraph 5K-beats-100K; CompactionRL | Not a build; an eval in `server:eval` with two brief shapes. The steering-config eval suite is exactly the instrument. |
+| 11 | **Cron as a verb; budget as a pre-flight gate** | Warp Oz `schedule --cron`; Paperclip atomic checkout+budget; MS toolkit | Both land in piece E (Oban): `mise run tlon:schedule -- <skill> <cron>` over Oban cron; spawn refuses when `ollama:usage`/Claude window says the bucket is drained. Not before E. |
+| 12 | **Audit forget-at-recall against mem0's ADD/UPDATE/DELETE/NOOP** and **climb CHECKS up the evidence hierarchy** (evaluator score, historical pass rate as typed rows) | mem0; Verification Horizon | Two reading-and-gap-list sessions, each an hour; then decide. |
+| 13 | **`.worktreeinclude` / symlinked deps into worktrees**; **archive** as the worktree's end-of-life verb | CCManager, parallel-code; Conductor | `Server.Worktree.ensure` gains a symlink pass for gitignored deps (node_modules, `_build`, `deps`) — the Elixir `_build` alone makes a fresh worktree minutes slower today. `remove/2` is already honest; name it archive in the cockpit. |
+
+### Keep — differentiators the field validates or hasn't matched
+
+- **The thread is the record, on a server, durably** — Claude Code's teams delete theirs at session end; Amp and Beads are the only durable peers. Protect it: every new client (Neovim, web) reads the same `Server.*` contexts, never a second store.
+- **Certainty-ranked FACTS + the forgetting engine** — nobody ranks by epistemic confidence. Do not flatten this into a vector store to "match the field"; make the *storage* swappable if ever needed, keep the axis.
+- **Worklines: fixed, named, artifact-owing stages as server state** — Anthropic's own recommendation, and no one else enforces it durably. Adopt #3 gives it teeth; nothing should make it a free-form graph.
+- **Dossier, never resume** — three independent arrivals (Anthropic, Ralph, Beads). Adopt #10 tunes it; it stays the rotation model.
+- **CHECKS as conversation rows** — the deterministic tier of the field's verification hierarchy, already thread-native. Adopt #12 extends it upward.
+- **Routing by bucket** — the solo-operator problem the literature ignores. Adopt #7 adds the missing axis rather than replacing it.
+- **Evals on the steering config** — nobody else gates the brief/persona. Adopt #10 uses it as the instrument it is.
+- **One mise loop for human and agent** — Omarchy's `omarchy-*` legibility already achieved in a stricter form (§2 of the steals doc).
+
+### Skip — scale- and org-shaped
+
+Fleet VM provisioning · team-visible threads as an adoption mechanism · enterprise governance/audit surface (the audit is `git log`, now with `Tlon-Thread` trailers) · Slack/Jira/Linear intake · multi-vendor provider abstraction as a product (Terragon's fate) · a public SDK/API for third parties · marketed autonomy dials · A2A (no cross-org boundary) · N-way racing of the same task (a token-budget multiplier a two-bucket operator can't afford routinely — allowed as a deliberate, rare `race` verb later, not a workflow) · file-level locking within a shared sweep (worktree-per-thread already isolates; only relevant if Tlön ever runs Agent-Farm-style sweeps) · a merge-queue agent that reimplements on conflict (worklines gate merges on the operator by design — a Refinery would delete the gate).
+
+### ACP and the editor
+
+ACP (§3) is the field's answer to "an editor hosts an agent"; Tlön's MCP channel is "a server hosts coworkers" — orthogonal axes, both real. A `tlon.nvim` does not need ACP to read threads and post as operator (that's the server API). It would use ACP only to host a harness *inside* Neovim — and `claudecode.nvim` already speaks Claude Code's own IDE protocol, which covers the near-term need. Decision: server API first, ACP only if a second harness worth hosting in the editor speaks only ACP.
