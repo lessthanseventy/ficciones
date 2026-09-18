@@ -170,6 +170,15 @@ rec {
       }
     '';
 
+  # ---- The web UI (Server.Web, one-brain piece D): the roles as CSS variables ----------------
+  # Inlined by the root layout from the theme dir, so the toggle reaches the browser on reload.
+  # Kebab-cased role names; the font stack rides along. Roles only — the page names no hue.
+  webCss =
+    let
+      kebab = k: lib.toLower (lib.replaceStrings [ "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" ] [ "-a" "-b" "-c" "-d" "-e" "-f" "-g" "-h" "-i" "-j" "-k" "-l" "-m" "-n" "-o" "-p" "-q" "-r" "-s" "-t" "-u" "-v" "-w" "-x" "-y" "-z" ] k);
+      vars = lib.concatStringsSep " " (lib.mapAttrsToList (k: v: "--${kebab k}:${hex v};") r);
+    in "/* ${gen} */\n:root { ${vars} --font:${fontStack}; }\n";
+
   # ---- Claude Code: a custom theme per palette (~/.claude/themes/<name>.json) -------------
   # The keys are Claude Code's; Andrew's hand-made high-contrast theme was the model (green
   # body text there, on purpose). `light` tells whether the ground is light.

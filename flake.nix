@@ -853,6 +853,11 @@
                   # exists.
                   Environment = [
                     "TLON_DATABASE=tlon"
+                    # one-brain D + E: the web UI on loopback :4042 (tailscale-only beyond the box) and
+                    # Oban on the store (the cron drain; the sweeps follow)
+                    "TLON_START_WEB=1"
+                    "TLON_WEB_PORT=4042"
+                    "TLON_START_OBAN=1"
                     "TLON_START_MCP=1"
                     "TLON_START_SWITCHBOARD=1"
                     "TLON_MCP_PORT=4040"

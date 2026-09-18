@@ -46,6 +46,7 @@ let
     "palette.sh" = r.envSh;
     "shell-palette.json" = r.paletteJson;
     "claude-powerline.json" = r.claudePowerlineJson;
+    "web.css" = r.webCss;
     "floorp-userChrome.css" = r.floorpUserChrome;
     "floorp-userContent.css" = r.floorpUserContent;
   };
