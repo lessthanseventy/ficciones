@@ -136,6 +136,40 @@ rec {
     export const HUES: Hue[] = ["amber", "green", "pink", "cyan", "lilac"]
   '';
 
+  # ---- Neovim (asterion): the palette as a Lua table --------------------------------------
+  # asterion reads ~/.config/ficciones/theme/nvim-palette.lua at startup and names ROLES; the
+  # base16 slots feed base16-nvim for syntax. Syntax hues are a CATEGORY tier (like the shell's
+  # `$cat-*`): code needs more distinct colours than the roles carry, so those slots bind hues
+  # directly, on purpose, here and nowhere in the editor.
+  nvimPalette = { name, light }:
+    let
+      h = p.hue;
+      row = attrs: lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "    ${k} = \"${hex v}\",") attrs);
+      base16 = {
+        base00 = r.ground; base01 = r.panel; base02 = r.raised; base03 = r.inactive;
+        base04 = r.meta; base05 = r.body; base06 = r.prose; base07 = r.maxContrast;
+        # syntax: variables · numbers · types · strings · regex/support · functions · keywords · deprecated
+        base08 = h.lilac; base09 = h.ember; base0A = h.amberSoft; base0B = h.green;
+        base0C = h.cyan; base0D = h.violet; base0E = h.pink; base0F = h.sep;
+      };
+    in ''
+      -- ${gen}
+      return {
+        name = "${name}",
+        light = ${lib.boolToString light},
+        font = { family = "${f.family}", size = ${toString f.size} },
+        role = {
+      ${row r}
+        },
+        ansi = {
+      ${row p.ansi}
+        },
+        base16 = {
+      ${row base16}
+        },
+      }
+    '';
+
   # ---- Claude Code: a custom theme per palette (~/.claude/themes/<name>.json) -------------
   # The keys are Claude Code's; Andrew's hand-made high-contrast theme was the model (green
   # body text there, on purpose). `light` tells whether the ground is light.

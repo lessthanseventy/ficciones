@@ -164,6 +164,9 @@ in
           # palette, which is what we used to do, could never switch a running session.
           "ficciones/themes/${name}/claude-theme.json".text =
             r.claudeTheme { name = "ficciones"; light = name == "zahir"; };
+          # Neovim (asterion, a sibling repo): roles + base16 as a Lua table, read at startup.
+          "ficciones/themes/${name}/nvim-palette.lua".text =
+            r.nvimPalette { inherit name; light = name == "zahir"; };
         }) renders))
       {
         # ghostty: the theme file + the config that names it (templates/ghostty.conf is the rest).

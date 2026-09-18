@@ -108,6 +108,8 @@ in
       libreoffice-stable qbittorrent pavucontrol eza imv hyprpicker brightnessctl diff-so-fancy
       # dev / cli
       direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wev pamixer bluetui
+      # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform formats lua/sh
+      tree-sitter stylua shfmt
       lazydocker lazysql lazyjj lazyjournal lazyssh
       # the agent CLIs and their tooling, off pacman (survey 2026-09-07); ollama stays pacman's
       # ollama-cuda (the GPU build), plocate pacman's (its updatedb timer is a system unit)
@@ -159,6 +161,12 @@ in
       # CRT screen shaders, switched by path (hyprctl keyword decoration:screen_shader …).
       "hypr/shaders/crt-full.glsl" = linkTo "shaders/crt-full.glsl";
       "hypr/shaders/crt-subtle.glsl" = linkTo "shaders/crt-subtle.glsl";
+
+      # Neovim = asterion, a SIBLING repo (master plan 2026-09-17 §3): the whole config dir as one
+      # out-of-store link, so an edit there is live and lazy.nvim owns plugins (lazy-lock.json in
+      # that repo). Nix owns only nvim's system deps (below) and the rendered palette file. The
+      # December config (claudevim) was moved to ~/projects/claudevim as a quarry.
+      "nvim" = { source = config.lib.file.mkOutOfStoreSymlink "${builtins.dirOf repo}/asterion"; };
     };
 
     # scripts/git-hooks/ holds the hooks (post-checkout/-merge/-rewrite, all one script), so they
