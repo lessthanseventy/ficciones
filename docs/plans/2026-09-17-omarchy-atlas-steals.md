@@ -1,6 +1,30 @@
 # Omarchy + Atlas — what to steal, ranked against what is already here
 
-2026-09-17. Andrew surfaced two "points of inspiration": [Omarchy](https://omarchy.org/manual/)
+## North star (Andrew, 2026-09-17)
+
+> ficciones should just be a better Omarchy, with all the Tlön integration it can carry; and
+> Tlön should steal every good idea from the bazillion other orchestrators — bring it in line
+> with the field, differentiate where it matters and is good, not all over the place.
+
+Two consequences this doc and its successors follow:
+
+1. **ficciones is measured against Omarchy** — the manual, the one-verb-per-action legibility,
+   the atomic theme, the update path — and should win on each, with the Tlön surfaces (Agents
+   pane, briefs in the shell, the bucket-drain footer) as the part Omarchy cannot have. §2–§3
+   below is that measurement; O5 (the manual) and O3 (the verb menu) are the two that close the
+   real gaps.
+2. **Tlön is measured against the whole orchestrator field, not six tmux managers.** The
+   2026-09-08 note "stop surveying" is retired: the field survey is its own research piece
+   (`2026-09-17-orchestrator-field-survey.md`, in progress), organised by *mechanism* rather than
+   by project — what each one does about the record, the join to git, context assembly, cost,
+   attention, sandboxing, review, and rotation — so Tlön adopts the field's baseline where it is
+   merely behind and keeps its differentiators (the durable thread as the record; the
+   certainty-ranked dossier; the worklines' owed artifacts; one loop for human and agent) where
+   they are the point. Differentiate on purpose, not by accident.
+
+## The two sources this doc covers
+
+Andrew surfaced two "points of inspiration": [Omarchy](https://omarchy.org/manual/)
 (DHH's omakase Arch + Hyprland distro, 51-chapter manual, `bin/omarchy-*` verbs, atomic themes,
 `migrations/`) and [Atlas](https://github.com/pacifio/atlas) (Tauri/Rust desktop cockpit for
 coding agents: ACP subprocesses, `.atlas/sessions.db` checkpoints that link commits back to the
