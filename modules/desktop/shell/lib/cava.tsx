@@ -54,8 +54,11 @@ export function Channel({ side, rows = 8 }: { side: "left" | "right"; rows?: num
         widthRequest={W}
         $={(self) => {
           area = self
-          // a row is one line of the .ch font and a full bar four block glyphs, as the labels drew it
-          const [gw, rowH] = self.create_pango_layout("█").get_pixel_size()
+          // a full bar is four block glyphs wide, as the labels drew it; a row is 15px, not the
+          // font's 18px line box — at 18 the rail's three sections overrun a 1080 monitor and
+          // the foot (the tray) falls off the bottom (2026-09-18)
+          const [gw] = self.create_pango_layout("█").get_pixel_size()
+          const rowH = 15
           self.heightRequest = rows * rowH
           self.set_draw_func((_, cr, w) => {
             const col = self.get_color()
