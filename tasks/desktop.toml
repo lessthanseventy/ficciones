@@ -149,6 +149,16 @@ run = "nix run github:nix-community/home-manager -- switch --flake .#personalbox
 # The one update verb (omarchy-update's shape, 2026-09-17): apply THIS checkout to the running
 # machine — profile, shell, server — in the order their dependencies require. Moving the pins is a
 # separate, committable step (flake:bump), not part of applying.
+# The manual (docs/manual): the generated pages come from their sources, never by hand —
+# keys from the live compositor, verbs from mise, the palette from render.nix. `--check` diffs.
+["manual:gen"]
+description = "manual: regenerate docs/manual/{keys,tasks,palette}.md from hyprctl binds, mise tasks and render.nix"
+run = "scripts/manual-gen.sh"
+
+["manual:check"]
+description = "manual: fail if a generated manual page drifts from its source (run manual:gen)"
+run = "scripts/manual-gen.sh --check"
+
 ["machine:update"]
 description = "machine: apply the checkout to the live machine — home:switch, then restart the shell and the server"
 run = [
