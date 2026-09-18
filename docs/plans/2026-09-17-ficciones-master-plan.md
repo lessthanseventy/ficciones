@@ -95,7 +95,7 @@ Each piece gets a detailed plan the session it starts. Checks are the gates that
 
 | # | Piece | Detail doc | Check |
 |---|---|---|---|
-| **A** | **asterion bootstrap** — repo, flake input, out-of-store symlink, lean core (lazy or vim.pack per survey), palette colorscheme from `render.nix`, Elixir/TS LSP, tests, git, terminal. Lift statusline/statuscol/folds from December. | `asterion/docs/plans/…-bootstrap.md` (written from the Neovim survey §N below) | `mise run theme:gen` writes the colorscheme; `theme:contrast` covers the editor pairs; `nvim --headless "+checkhealth"` clean; screenshot on both palettes |
+| **A** | **asterion bootstrap** — repo, flake input, out-of-store symlink, lean core (lazy.nvim, per §5), palette colorscheme from `render.nix`, Elixir/TS LSP, tests, git, terminal. Lift statusline/statuscol/folds from December. | `asterion/docs/plans/…-bootstrap.md` (written from the Neovim survey §N below) | `mise run theme:gen` writes the colorscheme; `theme:contrast` covers the editor pairs; `nvim --headless "+checkhealth"` clean; screenshot on both palettes |
 | **B** | **tlon.nvim inside asterion** — HTTP/MCP client to the server; sidebar (workspaces › threads › coworkers with attention); thread buffer + composer (post as operator, wake lead); `:terminal` attach to a coworker's tmux window; COMMITS → diff view. | its own plan | post from Neovim → coworker replies (live); a coworker's commit opens in diff mode from the thread |
 | **C** | **Review in Neovim** — inline comments on a diff hunk become thread messages the coworker wakes on; the workline review stage (`review.md`) authored here. | with B | a comment on a hunk appears in `server:dossier` RECENT and wakes the lead |
 | **D** | **Field adopts, cheap tier** (survey §4): branch fencing hook · needs-you → shell notification · seancing line in the brief · Oracle tool · symlinked deps into worktrees. | survey §4 #1, #2, #9, #6, #13 | each has a test or a live screenshot |
@@ -111,12 +111,31 @@ API to have settled under B. G continues as planned; nothing here blocks it, and
 server) makes tlon.nvim's terminal attach cleaner when it lands. H runs whenever there is an
 idle evening.
 
-## 5 · Neovim ecosystem — findings
+## 5 · Neovim ecosystem — findings and the decisions they settle
 
-_pending — survey running (`survey-neovim`, 2026-09-17). Fills: core 0.12 choices (vim.pack vs
-lazy), UI/sidebar library, AI plugins, diff/review, terminal multiplexing, project/notes,
-folke's current stack, theming approach, Nix packaging, Elixir tooling, the recommended list and
-the risk list._
+Survey run 2026-09-17 (Sonnet, web). Decisions in bold; every claim has its source.
+
+**Core (0.12, stable 0.12.5).** `vim.pack` is built in but has no event/ft/cmd lazy-loading — measured 180–250 ms vs lazy.nvim's 55–70 ms on 30+ plugins ([vim.pack vs lazy](https://samuellawrentz.com/blog/neovim-vim-pack-vs-lazy-nvim/), [echasnovski guide](https://echasnovski.com/blog/2026-03-13-a-guide-to-vim-pack)). **Keep lazy.nvim**; `lazy-lock.json` committed is the reproducibility story. LSP via **`vim.lsp.config`/`vim.lsp.enable`** (nvim-lspconfig kept only for filetype defaults, ≥0.11.3) ([native LSP in 0.12](https://dotfiles.substack.com/p/native-lsp-in-neovim-012)). Built-in tree-sitter parsers for common languages; **nvim-treesitter `master` is frozen and breaks on 0.12 — `main` branch, and the `tree-sitter` CLI becomes a flake dependency** ([migration](https://samuellawrentz.com/blog/nvim-treesitter-archived-neovim-0-12-migration/)). `vim._extui` (new cmdline/messages) is experimental — opt in, don't depend ([PR #27855](https://github.com/neovim/neovim/pull/27855)). **`vim.net.request()`** is a built-in HTTP client — tlon.nvim talks to the server from Lua with no curl shell-out. No living Elixir msgpack-RPC client exists (`dm1try/nvim` dead since 2017) — **Neovim is the client, the server never drives the editor.**
+
+**UI for custom screens.** **`snacks.win` + `snacks.layout`** for each screen (roster, thread view, composer via `snacks.input`), **`edgy.nvim`** (v1.10.2, 2026-07) to dock them as persistent panels ([snacks.layout](https://github.com/folke/snacks.nvim/blob/main/docs/layout.md), [edgy](https://github.com/folke/edgy.nvim)). nui.nvim is the older, more granular option; not needed.
+
+**AI/agents.** **`claudecode.nvim`** (coder, ~3.1k★, beta) implements Claude Code's own IDE protocol — a WebSocket MCP server in Neovim, lock file in `~/.claude/ide/`, native diff accept/reject, selection sync, a terminal for the CLI ([repo](https://github.com/coder/claudecode.nvim), [PROTOCOL.md](https://github.com/coder/claudecode.nvim/blob/main/PROTOCOL.md)). **`agentic.nvim`** is the ACP client (Claude Code, Gemini, Codex, OpenCode, **pi**, …; mid-session provider switch) ([repo](https://github.com/carlos-algms/agentic.nvim)). **`sidekick.nvim`** (folke) = Copilot NES with rich diffs + a terminal for any CLI agent, tmux-persistent ([repo](https://github.com/folke/sidekick.nvim)). Decision: **claudecode for Claude Code hosting, agentic for the ACP pane (pi speaks ACP), sidekick for NES; codecompanion as the one quick-chat plugin; avante and opencode.nvim dropped** — Tlön's own thread UI is the chat sidebar.
+
+**Diff & review.** **`codediff.nvim`** (esmuellert, 1.6k★) ports VSCode's actual diff algorithm, with explorer/history/conflicts/staging ([repo](https://github.com/esmuellert/codediff.nvim)). **`review.nvim`** (v1.10.1 released 2026-09-17) sits on it: comments on any line/range/file, per-branch persistence, `]n`/`[n`, and on quit exports every comment as structured AI-ready markdown ([repo](https://github.com/georgeguimaraes/review.nvim)). **Decision: codediff + review, with review's export step redirected to POST into the Tlön thread — piece C is nearly out of the box.** diffview.nvim demoted to fallback. gitsigns, neogit, octo all current.
+
+**Terminals.** Practice is "tmux stays the multiplexer; Neovim embeds and toggles" — matches the server owning coworker windows. **`snacks.terminal` running `tmux attach -t <window>` per coworker, docked by edgy; `flatten.nvim`** so a coworker pane's file-open lands in the parent Neovim ([snacks.terminal](https://github.com/folke/snacks.nvim/blob/main/docs/terminal.md), [flatten](https://github.com/willothy/flatten.nvim)). toggleterm optional.
+
+**Project / notes.** **`neovim-project`** — per-git-branch sessions with auto-switch, which maps onto per-thread worktrees; supersedes persistence.nvim ([repo](https://github.com/coffebar/neovim-project)). **`obsidian.nvim`** (obsidian-nvim fork) over neorg/orgmode — Tlön is markdown-native. **`render-markdown.nvim`** for the thread buffer (always rendered, cursor line reveals raw) ([ecosystem doc](https://github.com/MeanderingProgrammer/render-markdown.nvim/blob/main/doc/markdown-ecosystem.md)). Kanban: nothing mature (super-kanban is alpha) — **the board is a `snacks.win` screen over Tlön's ticket rows.** `snacks.dashboard` replaces alpha.
+
+**Folke's stack, Sept 2026.** snacks (umbrella), sidekick (new), edgy, trouble, which-key, flash, lazy all current; noice still "highly experimental" — **drop noice**, core `_extui` is closing the gap; persistence superseded here; tokyonight irrelevant (own palette).
+
+**Theming.** **`base16-nvim`** (RRethy) consumes a full 16-colour Lua table — `render.nix` emits it, no lush/colorbuddy DSL ([repo](https://github.com/RRethy/base16-nvim)). The palette-role law applies: the table is bound in the palette export, the editor names roles.
+
+**Nix.** nixvim/nvf: every tweak is a rebuild, lazy-loading experimental, slower startup ([comparison](https://devctrl.blog/posts/which-one-should-i-use-programs-neovim-nix-cats-nvim-nixvim-or-nvf/)). **Decision: plain Lua config as an out-of-store symlink (the `hyprland.lua` pattern), lazy.nvim owning plugins with a committed lock, Nix owning only Neovim's system deps (ripgrep, fd, lazygit, tree-sitter CLI) and the rendered palette file** — the nixCats philosophy without the dependency.
+
+**Elixir.** **Expert** (0.1.0, 2026-03; unified ElixirLS/Lexical/Next LS) via `vim.lsp.config`; `elixir-tools.nvim` for `:Mix`/projectionist; `neotest-elixir` presumed fine, activity unverified. Re-verify the stdin-Unicode fix (`cb87cb6`) is in the pinned version.
+
+**Risks carried into piece A:** treesitter `main` + CLI dep · claudecode/agentic/codediff/review are young single-maintainer projects — pin via lock, expect breakage · Expert pre-1.0 · pick one of dropbar/incline · avante out.
 
 ## 6 · Index of the docs this supersedes or points at
 
