@@ -47,6 +47,10 @@ function diff(next: Agents) {
     }
     for (const r of last.roster) if (!next.roster.some((x) => x.agent === r.agent)) logEvent("agent", `${r.agent} left`, "dim")
     if (next.awaiting !== last.awaiting) logEvent("agent", next.awaiting ? `${next.awaiting} awaiting you` : "nothing awaits you", next.awaiting ? "warn" : "dim")
+    // the needs-you signal OUTSIDE any window (field baseline: every platform has one): a toast
+    // through our own notifd when more threads wait on the operator than before
+    if (next.awaiting > last.awaiting)
+      execAsync(["notify-send", "-a", "tlön", "-u", "normal", "tlön needs you", `${next.awaiting} thread${next.awaiting === 1 ? "" : "s"} awaiting you`]).catch(() => void 0)
   } else if (last && !last.ok) logEvent("agent", "channel up")
   last = next
 }

@@ -1,6 +1,6 @@
 // The launcher (retires anyrun) and the clipboard picker (retires the fuzzel stopgap): one
 // list widget, two sources. A centred pane with a `>` prompt and a block cursor, results
-// below, the selection in inverse video. Prefixes switch mode: apps by default, `=` calc
+// below, the selection in inverse video. Prefixes switch mode: apps by default, `=` calc, `>` verbs (mise tasks)
 // (qalc), `/` files (fd from ~), `:` run a shell line. Up/Down or Ctrl+j/k, Enter, Escape.
 import { parseSpec } from "../lib/timer"
 import app from "ags/gtk4/app"
@@ -16,10 +16,14 @@ import { Panel } from "../lib/tui"
 import { remember, score, recent, times, type Memory } from "../lib/funes"
 
 type Item = { icon?: string; glyph?: string; title: string; sub?: string; run: () => void | Promise<void>; key: string; mode?: Mode }
-type Mode = "apps" | "calc" | "files" | "shell" | "clip"
+type Mode = "apps" | "calc" | "files" | "shell" | "clip" | "verbs"
 
 const apps = new Apps.Apps()
 const home = GLib.get_home_dir()
+const REPO = `${home}/projects/ficciones`
+/** A verb runs in its own ghostty window from the repo, and the window stays until you dismiss it. */
+const runVerb = (name: string) =>
+  execAsync(["ghostty", `--title=mise ${name}`, "-e", "sh", "-c", `cd ${REPO} && mise run ${name}; printf '\n[done — enter to close] '; read _`]).then(() => void 0)
 
 let win: Astal.Window | null = null
 let entry: Gtk.Entry | null = null
@@ -29,7 +33,7 @@ const [query, setQuery] = createState("")
 const [items, setItems] = createState<Item[]>([])
 const [sel, setSel] = createState(0)
 const mode = query((q): Mode =>
-  modeOverride ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : "apps"))
+  modeOverride ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : q.startsWith(">") ? "verbs" : "apps"))
 
 /** A remembered thing as an item again: apps relaunch, shell lines rerun, files reopen, sums recopy. */
 function recall(m: Memory): Item | null {
@@ -41,6 +45,7 @@ function recall(m: Memory): Item | null {
   if (m.mode === "shell") return { glyph: ":", title: m.key, sub: `${times("shell", m.key)}×`, key: m.key, mode: "shell", run: () => execAsync(["sh", "-c", m.key]).then(() => void 0) }
   if (m.mode === "files") return { glyph: "/", title: m.key.replace(home, "~"), sub: `${times("files", m.key)}×`, key: m.key, mode: "files", run: () => execAsync(["xdg-open", m.key]).then(() => void 0) }
   if (m.mode === "calc") return { glyph: "=", title: m.title, sub: m.key, key: m.key, mode: "calc", run: () => execAsync(["wl-copy", m.title]).then(() => void 0) }
+  if (m.mode === "verbs") return { glyph: ">", title: m.key, sub: `${times("verbs", m.key)}×`, key: m.key, mode: "verbs", run: () => runVerb(m.key) }
   return null
 }
 
@@ -95,6 +100,17 @@ async function search(q: string) {
       out = body ? [{ glyph: ":", title: body, sub: "run in a shell", key: body, mode: "shell", run: () => execAsync(["sh", "-c", body]).then(() => void 0) }] : []
       // lines run before that start the same way, most-reached-for first
       for (const r of recent(8, ["shell"]).filter((r) => r.key !== body && r.key.startsWith(body))) { const it = recall(r); if (it) out.push(it) }
+    } else if (m === "verbs") {
+      // `>` — the machine's verbs (omarchy-menu's shape, steals doc O3): every mise task in the
+      // repo, run in its own ghostty so its output is a window, not a lost stdout
+      const r = await execAsync(["mise", "--cd", REPO, "tasks", "ls", "--json"])
+      const tasks = JSON.parse(r) as { name: string; description?: string }[]
+      const needle = body.toLowerCase()
+      out = tasks
+        .filter((t) => !needle || t.name.toLowerCase().includes(needle) || (t.description ?? "").toLowerCase().includes(needle))
+        .sort((a, b) => score("verbs", b.name) - score("verbs", a.name) || a.name.localeCompare(b.name))
+        .slice(0, 14)
+        .map((t) => ({ glyph: ">", title: t.name, sub: (t.description ?? "").slice(0, 80), key: t.name, mode: "verbs" as Mode, run: () => runVerb(t.name) }))
     } else if (m === "clip") {
       const r = await execAsync(["cliphist", "list"])
       const rows = r.split("\n").filter(Boolean)
@@ -138,8 +154,8 @@ export function showLauncher(m: Mode | null = null) {
 }
 export function toggleLauncher(m: Mode | null = null) { if (win?.visible) hide(); else showLauncher(m) }
 
-const prompt: Record<Mode, string> = { apps: ">", calc: "=", files: "/", shell: ":", clip: "\u{f0cea}" }
-const hint: Record<Mode, string> = { apps: "apps · =calc · /files · :shell", calc: "qalc · Enter copies", files: "fd from ~ · Enter opens", shell: "Enter runs", clip: "Enter copies" }
+const prompt: Record<Mode, string> = { apps: ">", calc: "=", files: "/", shell: ":", clip: "\u{f0cea}", verbs: "\u{f0493}" }
+const hint: Record<Mode, string> = { apps: "apps · =calc · /files · :shell · >verbs", calc: "qalc · Enter copies", files: "fd from ~ · Enter opens", shell: "Enter runs", clip: "Enter copies", verbs: "mise tasks · Enter runs in a window" }
 
 export default function Launcher() {
   const onKey = (_: Gtk.EventControllerKey, kv: number, __: number, state: number) => {
