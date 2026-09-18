@@ -146,6 +146,17 @@ run = "journalctl --user -u astal-shell.service -f"
 description = "machine: apply the home-manager profile"
 run = "nix run github:nix-community/home-manager -- switch --flake .#personalbox -b backup"
 
+# The one update verb (omarchy-update's shape, 2026-09-17): apply THIS checkout to the running
+# machine — profile, shell, server — in the order their dependencies require. Moving the pins is a
+# separate, committable step (flake:bump), not part of applying.
+["machine:update"]
+description = "machine: apply the checkout to the live machine — home:switch, then restart the shell and the server"
+run = [
+  "mise run home:switch",
+  "mise run shell:restart",
+  "mise run server:restart",
+]
+
 # pi the agent — model launchers, pinned to a model + thinking level. NOT the adapters/pi
 # renderer (that's adapters:pi:test/check/watch above) — distinct namespace. All draw on
 # the flat $20 ollama.com plan (kimi-k3 excluded: bills as EXTRA usage on top). Bare
