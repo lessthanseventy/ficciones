@@ -847,8 +847,9 @@
                 };
                 Service = {
                   Type = "exec";
-                  # Worklines: artifact checks run git in the repo checkout; the memory pass +
-                  # maintain monitor are on for the always-up node (both post/park, never act).
+                  # Worklines: artifact checks run git in the repo checkout; the memory pass is
+                  # on for the always-up node (the Maintain sweeps ride Oban's cron; both post/park,
+                  # never act).
                   # The switchboard runs here too — delivery bookkeeping only until an arbiter
                   # exists.
                   Environment = [
@@ -863,7 +864,6 @@
                     "TLON_MCP_PORT=4040"
                     "TLON_WORKLINE_ROOT=${repo}"
                     "TLON_MEMORY_PASS=1"
-                    "TLON_MAINTAIN=1"
                   ];
                   # Seed + repair run at app boot (Server.Bootstrap); only the schema migration
                   # is a pre-step.
