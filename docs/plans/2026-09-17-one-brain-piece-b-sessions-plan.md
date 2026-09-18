@@ -40,6 +40,15 @@ Console.Sessions                    — keeps the libghostty embed, attaches via
 tlon.nvim                           — attaches via GET /api/threads/:id/terminal (the same target)
 ```
 
+## Status 2026-09-18
+
+Built, with two departures from the steps below: (1) the module is `Server.Staffing` on Oban's cron
+(`Server.Jobs.Staff`, each minute), not a GenServer — the tmux session is the state and a minute's
+cadence replaced the console's per-frame backoffs; (2) `pane_ref` was left alone — thread → window
+resolves by the `@funes_thread` tag (`Server.Arbiter.Tmux.terminal_target/1`), which is what
+`/api/threads/:id/terminal` already served. The console's `Console.Staffing` keeps only the centre
+embed (an attach), `Console.Arbiter`/`Console.Crew`/`Server.*.Remote`/`Server.CockpitNode` are gone.
+
 ## Steps (each a commit, each gated by `mise run check`)
 
 1. **Move `Console.Tmux` → `Server.Tmux`** unchanged (pure naming + `run/3`); console aliases
