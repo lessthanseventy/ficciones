@@ -1,11 +1,10 @@
 defmodule Menard.MCP do
   @moduledoc """
-  The standalone door (design step 5): a stdio MCP server exposing the SAME `Menard.*` functions
-  for a harness outside tlon — Claude Code, a bare pi. No identity: every path is scoped to the
-  ROOT the server was launched for (`MENARD_ROOT`, else the cwd); a path outside it is refused.
-  tlon's MCP stays the coworkers' door, scoped to a thread's worktree there.
+  The standalone door: a stdio MCP server exposing the SAME `Menard.*` functions to any harness —
+  Claude Code, an editor, an agent of your own. No identity: every path is scoped to the ROOT the
+  server was launched for (`MENARD_ROOT`, else the cwd); a path outside it is refused.
 
-      claude mcp add menard -- mise run menard -- mcp        # from the repo root
+      claude mcp add menard -- /path/to/menard/bin/menard mcp
   """
   use Anubis.Server, name: "menard", version: "0.1.0", capabilities: [:tools]
 

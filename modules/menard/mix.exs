@@ -23,7 +23,7 @@ defmodule Menard.MixProject do
       source_url: @source_url,
       deps: [
         {:sourceror, "~> 1.12"},
-        # the stdio MCP door (`mix menard.mcp`): the same functions for a harness outside tlon
+        # the stdio MCP door (`mix menard.mcp`): the same functions for any harness that speaks MCP
         {:anubis_mcp, "~> 2.0"},
         {:ex_doc, "~> 0.34", only: :dev, runtime: false}
       ],
