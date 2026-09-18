@@ -833,10 +833,10 @@
               # The always-up sovereign channel as a headless systemd --user service. A
               # self-contained release (`mise run server:release`) means ExecStart is one
               # absolute path with no toolchain on PATH. ExecStartPre migrates first —
-              # server never serves on a schema it can't repair. LOOPBACK-only. TLON_DB is PINNED
-              # to the pre-rename data location (~/.local/share/funes/wb.db) so the live corpus
-              # doesn't orphan — the app default is now ~/.local/share/tlon; to migrate, `mv` the
-              # dir and drop the pin. Node name + cookie come from the release's own env.sh, so
+              # server never serves on a schema it can't repair. LOOPBACK-only. The store is
+              # Postgres `tlon` on the local socket (one-brain piece C, 2026-09-18; the SQLite
+              # corpus at ~/.local/share/funes/wb.db was copied in once with
+              # `mix server.import_sqlite`). Node name + cookie come from the release's own env.sh, so
               # `server:console`/`:restart` reach THIS node. Build the release before the first
               # `home:switch` that starts it.
               systemd.user.services.tlon = {
@@ -852,7 +852,7 @@
                   # The switchboard runs here too — delivery bookkeeping only until an arbiter
                   # exists.
                   Environment = [
-                    "TLON_DB=/home/andrew/.local/share/funes/wb.db"
+                    "TLON_DATABASE=tlon"
                     "TLON_START_MCP=1"
                     "TLON_START_SWITCHBOARD=1"
                     "TLON_MCP_PORT=4040"
