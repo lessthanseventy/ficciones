@@ -101,7 +101,7 @@ Measured surface by surface. "Bar" = what Omarchy's manual promises a user; "Hav
 | Idle | hypridle | `hypridle.conf`; logind inhibitor in the shell | none |
 | Theme switch | `omarchy-theme-set`, per-theme wallpapers, ~10 themes | toggle between 2 palettes, WCAG-gated | **per-theme wallpaper (O4)**; palette count is a choice, not a gap |
 | Screenshots | Super+Print regions | `shot:*` tasks (monitor/window/layer/region) | none (ours is more) |
-| Clipboard history | cliphist via walker | not in the shell | **missing** — a Launcher mode over `cliphist list`; small. Andrew has not asked; note only. |
+| Clipboard history | cliphist via walker | `Launcher.tsx` `clip` mode over `cliphist list` | none (I had this wrong on first pass — corrected 2026-09-17) |
 | Cheatsheet | Super+K keybinding sheet | `Cheatsheet.tsx` from `hyprland.lua` | none |
 | Dashboard/panes | none in Omarchy | `Deck.tsx` + 11 panes incl. `Agents.tsx` | ours has more |
 | Update | `omarchy-update` | four tasks | **`machine:update` (O6)** |
