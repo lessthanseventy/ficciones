@@ -20,6 +20,9 @@ What each step touches:
   logind FD, so a restart drops and re-takes it).
 - **server:restart** — rebuilds the release and restarts `tlon.service`; coworkers' MCP
   connections re-mint their tokens on reconnect (`/mint`), so nothing is stranded.
+  The store is Postgres `tlon` on the local socket (since 2026-09-18); the release migrates it
+  on start. `mise run server:dev` uses `tlon_dev`; the suites create `tlon_test` and
+  `tlon_console_*` themselves — a local Postgres is a prerequisite for `mise run check`.
 
 Live-editable without any of that: `hyprland.lua` (hyprctl reload on save via the git hooks),
 asterion (`~/.config/nvim` is the repo), the shell from source (`mise run shell:dev`).
