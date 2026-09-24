@@ -63,11 +63,11 @@
       # programs.nix-ld, which does exactly that (verified in the VM, 2026-09-06).
       pi = pkgs.stdenv.mkDerivation rec {
         pname = "pi-coding-agent";
-        version = "0.85.1";
+        version = "0.87.1";
 
         src = pkgs.fetchurl {
           url = "https://github.com/earendil-works/pi/releases/download/v${version}/pi-linux-x64.tar.gz";
-          hash = "sha256-SU5Jj0fXTSH0CzOG9qXpIaPUlTGhacq1W72soOof4lo=";
+          hash = "sha256-gNeN1i1QBJoAa5gdmUxhJVvMEOcwsMJ41OoKdVkJdkw=";
         };
 
         sourceRoot = "pi";
