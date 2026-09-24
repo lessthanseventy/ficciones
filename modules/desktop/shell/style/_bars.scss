@@ -1,3 +1,4 @@
+@use "sass:list";
 @use "tokens" as *;
 
 // Two bars, two axes. The rail is the vertical axis (workspaces, clock, tray); the
@@ -263,8 +264,8 @@ $card-hues: (
 // wifi: the signal meter in tiers
 .card-net .sig { &.strong { color: $live; } &.fair { color: $body; } &.weak { color: $alarm; } }
 @each $name, $pair in $card-hues {
-  .card-#{$name} { border-color: nth($pair, 1); .panel-title { color: nth($pair, 1); } }
-  popover.pop-#{$name} > contents { border-color: nth($pair, 2); }
+  .card-#{$name} { border-color: list.nth($pair, 1); .panel-title { color: list.nth($pair, 1); } }
+  popover.pop-#{$name} > contents { border-color: list.nth($pair, 2); }
 }
 // the screen is being captured: red field, black ink — the one thing that must not be missed
 .cell.rec { background: $alarm; padding: 0 $sp-3; margin-right: $sp-2; .rec-dot, .rec-text, .rec-who { color: $field-ink; } .rec-who { font-size: $size-sm; } }
