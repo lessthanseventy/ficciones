@@ -127,7 +127,10 @@ dir = "modules/desktop/shell"
 # identities — a stock `ags init` project fails the same way), so errors inside /nix/store are
 # filtered; every error in OUR files fails the gate (zero as of 2026-09-07).
 run = [
-  "ags bundle app.tsx \"$(mktemp -d)/astal-shell\" >/dev/null && echo 'shell:check — bundle ok'",
+  # stderr, not just the exit code: sass deprecations and bundler warnings do not fail `ags
+  # bundle`, so three global-builtin nth() calls sat in the output for weeks (2026-09-24). Empty
+  # stderr is the gate; a new deprecation is refused the day it lands, not the day 3.0.0 drops.
+  "w=$(ags bundle app.tsx \"$(mktemp -d)/astal-shell\" 2>&1 >/dev/null); if [ -n \"$w\" ]; then echo \"$w\"; echo 'shell:check — bundle wrote to stderr (zero-warning rule)'; exit 1; fi; echo 'shell:check — bundle ok, stderr clean'",
   "ags types -d . -u --ignore Gtk3 --ignore Astal3 >/dev/null",
   "out=$(npx --yes -p typescript@5 tsc --noEmit -p . 2>&1 | grep -v '^ ' | grep -v '/nix/store' || true); if [ -n \"$out\" ]; then echo \"$out\"; exit 1; fi; echo 'shell:check — tsc ok'",
   # tsc does not report @deprecated, so gnim's two deprecated forms are refused by grep
