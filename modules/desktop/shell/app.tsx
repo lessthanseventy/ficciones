@@ -32,12 +32,22 @@ import "./lib/opaque"
 
 // One process, every surface. Bars per monitor (exclusive, windows reflow around them); the
 // drawer once, floating. `astal-shell toggle drawer` from a keybind reaches requestHandler.
-// A verb with no shell up would become the shell itself, outside the unit and its restart-on-
-// failure (2026-09-11): refuse instead. The unit starts it with no arguments.
-if (programArgs.length > 0) {
-  const [up] = Gio.DBus.session.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner",
-    new GLib.Variant("(s)", ["io.Astal.astal-shell"]), null, Gio.DBusCallFlags.NONE, -1, null).deepUnpack() as [boolean]
-  if (!up) { printerr("astal-shell is not running: systemctl --user start astal-shell"); exit(1) }
+// The unit starts it with NO arguments; a verb reaches the instance that unit is running. Either
+// mismatch would degrade quietly, so both refuse:
+//   - a verb with no shell up would become the shell itself, outside the unit and its
+//     restart-on-failure (2026-09-11)
+//   - a bare start with a shell already up becomes a CLIENT of the stray, answers its own empty
+//     argv with the usage string and exits 0 — which Restart=on-failure ignores, so the unit sits
+//     dead while the stray paints the screen and `machine:update` still goes green (2026-09-24,
+//     found after a flake bump: the pre-bump shell held the name and the new build never came up)
+const [up] = Gio.DBus.session.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner",
+  new GLib.Variant("(s)", ["io.Astal.astal-shell"]), null, Gio.DBusCallFlags.NONE, -1, null).deepUnpack() as [boolean]
+if (programArgs.length > 0 && !up) {
+  printerr("astal-shell is not running: systemctl --user start astal-shell"); exit(1)
+}
+if (programArgs.length === 0 && up) {
+  printerr("astal-shell is already running outside this unit — the name io.Astal.astal-shell is taken.\nStop the stray, then start the unit: pkill -f astal-shell; systemctl --user start astal-shell")
+  exit(1)
 }
 app.start({
   css: style,
