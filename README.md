@@ -16,20 +16,9 @@ knobs) and, through use, it becomes real work in your actual repo. The fiction o
 
 ## Tlön
 
-Tlön is **many UIs over one memory** — a communication, planning, and coordination surface for a crew
-of AI agents. Three internal apps make it up, named for what they do:
-
-- **`server`** — the shared spine: the data model, the communication bus, the single-writer discipline,
-  the always-up MCP channel. (The memory concept is *Funes the Memorious* — the man who could not
-  forget — living on in the recall engine.)
-- **`console`** — the TTY cockpit that renders the spine: workspaces, threads, the crew, embedded
-  terminals. (The seeing-everything-at-once concept is *The Aleph*.) Launched with the `tlon` command.
-- **`adapters`** — the hands: how a working agent (Claude Code, pi) reaches the spine, wakes up already
-  knowing its thread, and banks what it learns.
-
-A **workspace** is a project inside Tlön (this repo's own is *ficciones*). The crew keep their Borges
-names — **tertius** (the Orbis Tertius meta-agent), **hronir** (the builder). Cute names only for
-things with personality; everything else is called what it is.
+The AI stack — the server, the TTY cockpit (launched as `tlon`) and the agent adapters — is its own
+repo, `~/projects/tlon`, so it runs on boxes that are not this one. This machine runs it: the flake
+starts its server as a `systemd --user` service and points pi and Claude Code at its adapters.
 
 ## Layout
 
@@ -37,12 +26,11 @@ things with personality; everything else is called what it is.
 ficciones/
   flake.nix            # the installer — Nix + home-manager, adopted gradually (see below)
   mise.toml            # the shared dev loop — every task the human and the agents run
-  scripts/             # the shell side of that loop (cap, watch, the reaper, the tlon CLI)
+  scripts/             # the shell side of that loop (cap, watch, the theme and manual generators)
   modules/
-    server/            # the spine — its own spec, its own boundary; the first module built
-    console/           # the TTY cockpit, launched as `tlon`
-    adapters/          # the hands: pi extensions, the Claude Code launcher + hooks, skills
+    agents/            # the rules every agent on this machine works by
     desktop/           # hyprland + its stack
+    os/                # the NixOS side
   secrets/             # agenix-encrypted machine secrets
   docs/plans/          # design records, most recent first
 ```
@@ -66,6 +54,5 @@ building the machine is a change the human owns.
 ## Where to start reading
 
 - `docs/plans/2026-08-14-machine-v2-and-funes-design.md` — the machine-level design and every decision behind it.
-- `modules/server/README.md` — the AI stack, and where its name comes from.
-- `modules/server/docs/spec.md` — the specification that is the reason any of this exists. Read it before
-  writing anything in that module.
+- `~/projects/tlon` — the AI stack: its `README.md`, and `server/docs/spec.md`, the specification that
+  is the reason any of this exists.

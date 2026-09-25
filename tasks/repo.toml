@@ -1,0 +1,33 @@
+# The repo's own loop: the gate, the names check, and the run-once/watch helpers (AGENTS.md).
+
+["cap"]
+description = "Run a command once, capture ALL output to a log, print exit + failures + tail — then read the log for more, never re-run (see AGENTS.md)"
+run = "scripts/cap.sh"
+
+["cap:clean"]
+description = "Sweep all captured run logs (.logs/) — they self-cap at CAP_KEEP (40), this clears them now"
+run = "rm -rf .logs && echo 'swept .logs/'"
+
+["watch"]
+description = "Re-run a command on every file change, printing cap's signal — register in the background, edit, get pass/fail automatically (see AGENTS.md)"
+run = "scripts/watch.sh"
+
+# The `[w]atchexec` bracket: `pgrep -f` matches a process's ENTIRE argv, so a naive pattern would
+# match this task's own command line; `--project-origin $root` scopes it to this repo.
+["watch:stop"]
+description = "Stop ficciones file-watchers left running in the background (safe: never signals its own shell)"
+run = '''
+root="$(git rev-parse --show-toplevel)"
+pids="$(pgrep -f "[w]atchexec.*--project-origin $root" || true)"
+if [ -n "$pids" ]; then echo "stopping watchexec: $pids"; kill $pids; else echo "no ficciones watchers running"; fi
+'''
+
+# The seams no compiler covers: a mise task a guide names but no toml defines, a pi config file
+# tlon's adapters read but the flake stopped writing.
+["check:names"]
+description = "names-exist gate: every mise task a guide names, and every ~/.pi/agent file tlon's adapters read, must exist (grep, offline, fast)"
+run = "scripts/check-names.sh"
+
+["check"]
+description = "Everything green: the names gate, the manual's drift check, and the flake"
+depends = ["check:names", "manual:check", "flake:check"]

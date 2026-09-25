@@ -1,61 +1,28 @@
 # ficciones — boundaries for a session at the repo root
 
-This repository is one person's whole machine: an installer, dotfiles, a desktop, and an AI stack, as
-Nix-shaped modules under `modules/`. It is named *ficciones* after the Borges collection that contains
-the "Funes" story — the repo contains the `server` module as the book contains the story, and each module
-is another story. Read `docs/plans/2026-08-14-machine-v2-and-funes-design.md` before reshaping anything
-here — it is the design and every decision behind it.
+This repository is one person's whole machine: an installer, dotfiles, a desktop, and the agent wiring,
+as Nix-shaped modules under `modules/`. It is named *ficciones* after the Borges collection: the machine
+holds the stories. The apps it runs are their own repos, pinned here by path — **tlon**
+(`~/projects/tlon`: the server, the cockpit, the pi/Claude Code adapters, with its own `AGENTS.md` and
+loop) and **menard** (`~/projects/menard`). Read
+`docs/plans/2026-08-14-machine-v2-and-funes-design.md` before reshaping anything here — it is the
+design and every decision behind it.
 
 ## The dev loop — one shared API
 
 The human and any agent drive this repo through the **same mise tasks** (`mise tasks` lists them) — one
 control loop, not two, and no second way to run anything:
 
-- `mise run check` — server compile-clean + tests; the green-before-commit gate.
-- `mise run server:test` / `server:check` / `server:setup` / `server:doctor` — the server loop (Elixir/mix).
+- `mise run check` — the names gate, the manual's drift check and the flake; the green-before-commit gate.
 - `mise run flake:check` — the machine-level Nix gate.
-- `mise run server:release` / `server:restart` / `server:console` / `server:logs` — the always-up server channel: a headless `mix release` kept up by a `systemd --user` service (loopback, real db), and the ways to redeploy/inspect/watch it.
 - `mise run home:switch` — install/update this machine into the user profile via home-manager.
-- `mise run machine:update` — apply the checkout to the live machine: home:switch, then restart the shell and the server (the one update verb).
+- `mise run machine:update` — apply the checkout to the live machine: home:switch, then restart the shell and tlon's server (the one update verb).
+
+Elixir, the server loop, the pi model launchers and menard's verbs live in tlon (`cd ~/projects/tlon &&
+mise tasks`).
 
 mise owns dev runtimes; Nix owns packaging and the system. **If a command belongs in the loop, it becomes
 a task in `tasks/<group>.toml` (mise.toml includes them)** — never a prose instruction that drifts out of sync with what actually runs.
-
-### Picking a pi model — the routing, as tasks ("litellm but not")
-
-Two subscriptions, two buckets. The **$100 Claude plan** is the scarce, high-value bucket (5-hour +
-weekly caps); the **$20 ollama.com plan** is the flat all-night workhorse. Neither charges per token —
-"cost" means *which rate-limited bucket am I draining*, so the rule is: **push work down to the cheapest
-bucket that can still do it well.** pi (the harness) rides the ollama bucket; Claude Code is the Claude
-bucket — kept as two tools so a switch never drains the wrong one.
-
-Inside the ollama bucket the routing is not a proxy — it's five mise tasks, each a named model profile
-(the loop *is* the aliasing layer). Bare `pi` already starts on `ollama-cloud/deepseek-v4-flash` — the
- efficient-MoE default that drains the short rate-limit window far slower than a reasoning model
- (run `mise run ollama:usage` to see the session/weekly caps and per-model request counts); these pin an
-alternate, and in-session `Ctrl+P` cycles the same ring. Pass a one-shot with `-- -p "…"`.
-
-| Task | Model | Reach for it when |
-|---|---|---|
-| `mise run pi:balanced` | glm-5.2 | The strong default — Claude/GPT-alike, 976K ctx. Reach for it when the cheap default can't do the job, before escalating to pi:deep. |
-| `mise run pi:deep`     | deepseek-v4-pro `thinking:high` | Hard reasoning/logic — the escalate-before-you'd-miss-Claude tier. |
-| `mise run pi:code`     | kimi-k2.7-code | Coding-heavy work; code-specialized, fewer thinking tokens. |
-| `mise run pi:fast`     | deepseek-v4-flash `thinking:low` | The same model as the bare default but `thinking:low` — quick/cheap throwaway, 1M ctx, fast tier. |
-| `mise run pi:local`    | qwen3-coder (local daemon) | Free/offline grunt, tight iteration loops — zero cloud budget. |
-
-Every launcher also makes the harness a **server citizen**: it opens a fresh server thread (or JOINs one
-with a trailing id — `mise run pi:code -- 42`) and hands the session its identity, so the model shows up
-in `server:roster` and briefs from the thread. `mise run server:claude [thread-id]` does the same for
-Claude Code (its own MCP adapter, `headersHelper`-authed). If the server channel is down, the harness
-still launches — just not as a citizen.
-
-The bare default is `deepseek-v4-flash`, not glm-5.2, precisely because glm-5.2 is a reasoning model
-whose thinking tokens drain the short rate-limit window fast — run `mise run ollama:usage` to watch
-the session cap move per model. Two things that bite: **glm-5.2 is a reasoning model** (separate
-`reasoning` + `content` fields) — give it token headroom or `content` comes back empty while thinking
-eats the budget; and **`kimi-k3` is
-deliberately absent** — ollama.com serves it as *extra* usage (HTTP 402), billed per-token on top of the
-$20 plan, so it's out of both `flake.nix` and the live Ctrl+P ring. Every model above is plan-covered.
 
 ### Run once, read the log — never re-run to see more
 
@@ -81,7 +48,6 @@ cap:clean` sweeps the logs (they self-cap at 40 anyway).
 
 When you're iterating on a change, **register a watcher instead of re-running tests yourself**:
 
-- `mise run server:watch` / `mise run adapters:pi:watch` — re-run that module's suite on every change.
 - `scripts/watch.sh <cmd>` (or `mise run watch -- <cmd>`) — watch-and-run anything, any scope
   (one test file, a folder, the whole suite). New test files under a watched dir are picked up.
 
@@ -90,36 +56,6 @@ with the result when the suite settles; pi: a pane). Then just edit: you're ping
 automatically**, and you only spend a turn when something actually breaks. Kill the watcher when
 the change is done. This is the intended inner loop here — not "edit, then manually run tests,
 then read 1800 lines," every time.
-
-### Edit Elixir with Menard, not sed/python/grep
-
-Menard ([its own repo](https://github.com/lessthanseventy/menard), checked out at `~/projects/menard`)
-is the AST-aware toolbox for Elixir (Sourceror patches: only the bytes you named change).
-**[Its `AGENTS.md`](https://github.com/lessthanseventy/menard/blob/main/AGENTS.md) is the
-reference** — which verb for which shape, what each guarantees, and the gotchas no error message can
-teach. It ships with the plugin, so it is the one copy; this section is only the doors into it from here.
-
-Three doors onto one library:
-
-- `mise run menard -- VERB …` — runs the `~/projects/menard` checkout, always compiling its current
-  code. Dashes and underscores both work.
-- the `menard` stdio **MCP** in Claude Code — runs the code it started with, so **restart Claude
-  after changing Menard**.
-- the coworkers' `rename_identifier` / `edit_clause` / `outline_file` / `run_verb` tools, scoped to
-  their worktree — the server's own dep, pinned by git ref in `modules/server/mix.exs`; bump the
-  ref to give them a newer menard.
-
-`mise run menard -- --frozen VERB …` runs the last build with no compile step — the escape hatch for
-editing Menard WITH Menard, where a half-applied edit otherwise locks the tool out of finishing it.
-
-The `Edit` tool is for the languages Menard does not cover — TypeScript, Lua, Nix. On a module it
-is blocked outright, by a `PreToolUse` guard the plugin ships alongside a `PostToolUse` formatter
-that runs the file's own project formatter on every write (`console`'s Styler included). Neither is
-in `.claude/settings.json`, so a clone without the plugin gets no block; the rule holds regardless.
-
-    /plugin marketplace add lessthanseventy/menard && /plugin install menard@menard
-
-Still missing a verb: a `@spec` above a clause whose signature `rewrite` changes.
 
 ## How to work — the four rules
 
@@ -131,15 +67,8 @@ exists so a reader of the repo knows where the law comes from and edits the one 
 
 ## The rules most likely to be broken by accident
 
-- **Working inside `modules/server/`? That module has its own law.** Read `modules/server/AGENTS.md` and
-  `modules/server/docs/spec.md` first, and let them win. This root file governs the layer *around* the
-  modules, not the modules' insides.
-- **`server` is a bounded module and the boundary is load-bearing.** It must never import up into machine
-  config — no reading a `theme` variable, no assuming `desktop`, no path into `hosts/`. The reason is the
-  cohesion model: the *same* `server` runs on other machines, sovereign on each, talking only over its
-  channel. A reach upward welds it to this box and breaks that. The unit that travels is `modules/server/`.
 - **`nix` runs from the agent tools now** (Arch's nix, not Determinate — see the Nix machine-truth
-  memory). So `nix flake check`, `nix eval`, and `nix build .#server` are fair to run and verify directly.
+  memory). So `nix flake check`, `nix eval`, and `nix build .#astal-shell` are fair to run and verify directly.
   What stays the human's are the **system-mutating** commands — `home-manager switch`, `nixos-rebuild
   switch` on the host — because building the machine is a change the human owns. A claim that a build
   works without having run it is the one thing this repo cannot afford.
@@ -147,7 +76,7 @@ exists so a reader of the repo knows where the law comes from and edits the one 
   structure that does not exist yet. The tree should not lie about what is built.
 - **An `AGENTS.md` is born the same way a comment is — when a scope needs context its parent doesn't
   give.** Root holds repo-wide invariants; a module or subapp gets its own when it has distinct law, a
-  distinct dev loop, or gotchas that bite (`server`, `adapters` + its adapters, `console`). Don't add one per
+  distinct dev loop, or gotchas that bite (`modules/desktop/shell`). Don't add one per
   folder by reflex — `lib/schemas/`, `test/`, etc. earn a file only once they accumulate a rule a
   weaker model keeps getting wrong; until then that guidance lives in the module's file. Keep every one
   terse and actionable to the same standard as comments: orientation, the exact commands, the law, the
@@ -209,9 +138,9 @@ exists so a reader of the repo knows where the law comes from and edits the one 
 
 ## Verify
 
-`server` day-one step 1 exists and runs; verify with `mise run check` (tests + types) and `mise run
-flake:check` (Nix). `mise run check:names` (first in `check`) is the names-exist gate: every
-`Server.*`/`Console.*` module, mix task, mise task and `~/.pi/agent` file that scripts, `mise.toml`,
-`flake.nix`, the adapters or a guide name must actually exist — a rename that strands a reference
-fails here instead of at 2am. A claim that something works is backed by the command that proved it — and the agent
-and human run the *same* `mise` tasks, so "it works" means the shared task passed, not two private ones.
+`mise run check` is the gate: the names gate, the manual's drift check and `flake:check` (Nix).
+`mise run check:names` (first in it) checks that every mise task a guide, script or `flake.nix` names
+exists, and that every `~/.pi/agent` file tlon's adapters read is one the flake writes — a rename that
+strands a reference fails here instead of at 2am. A claim that something works is backed by the
+command that proved it — and the agent and human run the *same* `mise` tasks, so "it works" means the
+shared task passed, not two private ones.

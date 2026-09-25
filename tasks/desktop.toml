@@ -1,7 +1,7 @@
 # tasks/desktop.toml — the desktop: shell, screenshots, theme, VM, home-manager, flake. Included by mise.toml ([task_config] includes);
 # each top-level table is a task. `mise tasks` lists them all.
 
-# The one palette (modules/desktop/theme/palette.nix → palettes/<current>.nix) → the checked-in shell scss/ts + Console.Palette.
+# The one palette (modules/desktop/theme/palette.nix → palettes/<current>.nix) → the checked-in shell scss/ts.
 ["theme:gen"]
 description = "theme: rewrite the palette-generated files in the repo from palette.nix (checks.palette-sync fails the flake when they drift)"
 run = "scripts/theme-gen.sh"
@@ -167,12 +167,5 @@ description = "machine: apply the checkout to the live machine — home:switch, 
 run = [
   "mise run home:switch",
   "mise run shell:restart",
-  "mise run server:restart",
+  "mise --cd {{env.HOME}}/projects/tlon run server:restart",
 ]
-
-# pi the agent — model launchers, pinned to a model + thinking level. NOT the adapters/pi
-# renderer (that's adapters:pi:test/check/watch above) — distinct namespace. All draw on
-# the flat $20 ollama.com plan (kimi-k3 excluded: bills as EXTRA usage on top). Bare
-# `pi` already starts on ollama-cloud/deepseek-v4-flash (the flake default); these are one-command alternates —
-# in-session Ctrl+P still cycles the same ring. Args pass through:
-# `mise run pi:deep -- -p "one-shot prompt"`. Full when-to-reach-for-each: AGENTS.md.
