@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "menard",
-      "source": "./modules/menard",
+      "source": { "source": "github", "repo": "lessthanseventy/menard" },
       "description": "AST-aware editing for Elixir. Verbs that parse the file, change the tree and parse-check the result, plus a hook that blocks Edit/Write on a module so an agent cannot fall back to text substitution.",
       "category": "development",
       "tags": ["elixir", "ast", "refactoring", "sourceror", "code-editing"]
