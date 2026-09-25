@@ -853,6 +853,10 @@
                   # The switchboard runs here too — delivery bookkeeping only until an arbiter
                   # exists.
                   Environment = [
+                    # The service shells tmux/claude/pi (all profile-owned) — a boot-time start
+                    # inherits the manager's PATH before the session imports the profile, and the
+                    # staffing pass died on `tmux: enoent` for 31 h (2026-09-23).
+                    "PATH=${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin"
                     "TLON_DATABASE=tlon"
                     # one-brain D + E: the web UI on loopback :4042 (tailscale-only beyond the box) and
                     # Oban on the store (the cron drain; the sweeps follow)
