@@ -42,6 +42,10 @@
       # Hardcoded, not `self`: consumers load the REAL files so a dev edit is picked up,
       # not a stale store snapshot. Single-user machine, fixed home dir.
       repo = "/home/andrew/projects/ficciones";
+      # menard — standalone repo (github.com/lessthanseventy/menard). Its pi adapter
+      # (pi/extension.ts) ships from there, not here; ficciones only points at it. On a
+      # box without ficciones, `mise run install:pi` from menard does the same wiring.
+      menardRepo = "/home/andrew/projects/menard";
 
       # The desktop shell (modules/desktop/shell). Built here once and handed to home-manager
       # as a special arg so the Arch profile and the NixOS VM install the identical package.
@@ -224,9 +228,11 @@
               # (e.g. a text-only model delegating a screenshot to minimax-m3) and return
               # the answer.
               consultExtension = "${repo}/modules/adapters/consult/src/extension.ts";
-              # fmt — format-on-save (mix format) so `mix format --check-formatted` in the
-              # gate never fails on agent-written files. No typecheck here (too heavy per-save).
-              fmtExtension = "${repo}/modules/adapters/fmt/src/extension.ts";
+              # menard — the guard (block raw edits on Elixir modules) + format-on-save, as a pi
+              # extension menard ships from its own repo. Replaces adapters/fmt (bare mix format):
+              # menard's formatter runs in its own VM and works on a broken host. See menard's
+              # docs/adapters.md. The extension self-locates bin/menard via import.meta.dir.
+              menardExtension = "${menardRepo}/pi/extension.ts";
               # lsp — LSP-backed agent tools over Expert/tsserver/nil/bash-ls/json-ls;
               # servers installed via home.packages below so the next box gets them. See
               # modules/adapters/lsp/AGENTS.md.
@@ -239,6 +245,8 @@
               # which the Tlön coworker profile drops) and loads for every pi. See modules/adapters/footer.
               footerExtension = "${repo}/modules/adapters/footer/src/footer.ts";
               adaptersSkillsGlob = "${repo}/modules/adapters/skills/*";
+              # menard's verb reference — shipped from its own repo, wired here as a pi skill.
+              menardSkill = "${menardRepo}/skills/menard";
 
               # server' self-contained release (`mise run server:release`). The service below
               # runs it headless; `server:console`/`:restart` drive the same bin/server, so
@@ -256,6 +264,12 @@
                   headers.Authorization = "!${repo}/scripts/tlon-cli.sh bearer";
                   directTools = [ "post_message" "bank_fact" "raise_issue" "record_done" "get_dossier" "consult_peer" ];
                   excludeTools = [ "register" ];
+                };
+                # menard — the AST verbs over stdio MCP. No MENARD_ROOT: pi spawns stdio
+                # servers with the project as cwd, and menard's root falls back to that.
+                mcpServers.menard = {
+                  command = "${menardRepo}/bin/menard";
+                  args = [ "mcp" ];
                 };
               };
 
@@ -716,15 +730,18 @@
                 run ${pkgs.jq}/bin/jq \
                   --arg ext "${adaptersExtension}" \
                   --arg ext2 "${consultExtension}" \
-                  --arg ext3 "${fmtExtension}" \
+                  --arg ext3 "${menardExtension}" \
                   --arg ext4 "${lspExtension}" \
                   --arg ext5 "${reloadExtension}" \
                   --arg ext6 "${footerExtension}" \
                   --arg adaptersDir "${repo}/modules/adapters/" \
                   --arg skills "${adaptersSkillsGlob}" \
-                  '.extensions = (((.extensions // []) | map(select(startswith($adaptersDir) | not)))
+                  --arg menardDir "${menardRepo}/pi/" \
+                  --arg menardRepo "${menardRepo}" \
+                  --arg menardSkill "${menardSkill}" \
+                  '.extensions = (((.extensions // []) | map(select(startswith($adaptersDir) | not) | select(startswith($menardDir) | not)))
                        + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
-                   | .skills = ((.skills // []) + [$skills] | unique)
+                   | .skills = (((.skills // []) | map(select(startswith($menardRepo + "/skills/") | not))) + [$skills, $menardSkill] | unique)
                    # .packages is likewise PRUNE-then-add: a pure union (the old form) can add
                    # a package but never remove one, so dropping pi-cc-header from the array
                    # below did not un-install it from an already-switched machine — it just
