@@ -872,7 +872,11 @@
                   ];
                   # Seed + repair run at app boot (Server.Bootstrap); only the schema migration
                   # is a pre-step.
+                  # A --user unit cannot order itself After= the system postgresql.service, so at
+                  # boot it can start before the socket accepts; wait (up to 60 s) instead of
+                  # failing the migration and leaning on Restart.
                   ExecStartPre = [
+                    "/bin/sh -c 'for i in $(seq 60); do /usr/bin/pg_isready -q -h /run/postgresql && exit 0; sleep 1; done; exit 1'"
                     "${serverRel}/bin/server eval Server.Release.migrate()"
                   ];
                   ExecStart = "${serverRel}/bin/server start";
