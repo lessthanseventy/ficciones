@@ -1,7 +1,7 @@
 # ficciones — the one plan (2026-09-17)
 
-> **2026-09-25: the surfaces below are superseded by `2026-09-25-tlon-tui-focus.md`.** Neovim is
-> dropped; the console TUI is primary; the web UI waits.
+> **2026-09-25: superseded by `2026-09-25-tlon-master-plan.md`.** Neovim is dropped; the console
+> TUI is primary; the web UI is frozen. §5 below (the Neovim findings) is history.
 
 Andrew: "let's put all these plans and docs and shit together into one coherent one to follow."
 This is that document. It states the north star, names the surfaces, sequences the work, and
