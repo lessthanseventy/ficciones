@@ -1,7 +1,7 @@
 # Sovereign repos + aleph as the life TUI — design
 
 **Date:** 2026-09-25
-**Status:** step 1 built on both sides, cutover pending (§6.1). Sequenced in §6, each step gated by a check.
+**Status:** step 1 done (§6.1); step 2 next. Sequenced in §6, each step gated by a check.
 **Asked:** Andrew wants tlön and menard (and aleph) to run outside ficciones — on the work Mac —
 and aleph to become the life app it was meant to be. Orbis: ditch it? One life app or three?
 
@@ -127,18 +127,11 @@ runtime after a server rename, aleph's test env compiles against the server as a
    *Check:* `mise run check` green in `tlon` standalone; `mise run check` + `mise run flake:check`
    green in ficciones; `mise run machine:update` brings the live server and cockpit back up from
    the input, and `server:roster` shows the cast.
-   **State (2026-09-25):** `~/projects/tlon` exists (no remote yet), `mise run check` green there
-   (server 710, console 914, adapters). ficciones' side is branch `tlon-out` (worktree
-   `~/projects/ficciones-tlon-out`), `mise run check` green including `flake:check`. The prod
-   release is built in tlon. What is left is the cutover, which is the human's (`home:switch`):
-   1. `git -C ~/projects/ficciones merge --ff-only tlon-out`
-   2. `mise run machine:update` — the unit now starts tlon's release; pi's settings drop the old
-      paths
-   3. check: `mise --cd ~/projects/tlon run server:roster` answers; `tlon` opens the cockpit;
-      `jq .extensions ~/.pi/agent/settings.json` lists only tlon and menard paths
-   4. then delete the ignored leftovers under `ficciones/modules/{server,console,adapters}`
-      (`_build`, `deps`, `node_modules`), and add tlon as a project repo in the Tlön workspace so
-      threads about tlon get worktrees there
+   **Done 2026-09-25.** `~/projects/tlon` is public at github.com/lessthanseventy/tlon; its
+   `mise run check` is green standalone. ficciones consumes it by path; `machine:update` moved the
+   service, pi, the launcher and the MCP helper over, and `server:roster` answers from tlon's
+   release. Left: register tlon as a project repo in the Tlön workspace, so threads about tlon get
+   worktrees there instead of in ficciones.
 2. **tlon on the work Mac.** The server needs Postgres and a supervisor that isn't
    `systemd --user` (launchd); its own database — work never reaches the home brain.
    *Check:* a fresh clone on the Mac: `mise run check` green, the server up under launchd, the
@@ -153,8 +146,6 @@ runtime after a server rename, aleph's test env compiles against the server as a
 
 ## 7 · Open
 
-- **A GitHub home for tlon** — `lessthanseventy/tlon`, private or public; the work Mac (step 2)
-  needs a remote to clone.
 - **aleph's first view-mode** — Notes is recommended (the only one with code today). Journal or
   finances would be a from-scratch first build.
 - **Mac install path** — home-manager on nix-darwin, or plain mise + Homebrew Postgres. Decided at
