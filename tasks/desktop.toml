@@ -82,7 +82,7 @@ description = "desktop: grim one window (arg: class/title regex; none = focused)
 run = '''
 set -euo pipefail
 d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
-re='{{arg(name="match", default="")}}'
+re={{arg(name="match", default="")}}
 if [ -n "$re" ]; then
   c=$(hyprctl clients -j | jq -c --arg re "$re" '[.[] | select(.mapped and ((.class|test($re;"i")) or (.title|test($re;"i"))))][0]')
 else
@@ -100,7 +100,7 @@ description = "desktop: grim ONE of the shell's layer surfaces on the focused mo
 run = '''
 set -euo pipefail
 d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
-q='{{arg(name="layer", default="bar")}}'
+q={{arg(name="layer", default="bar")}}
 m=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name')
 # layer x/y are already global compositor coords, which is what grim -g wants
 g=$(hyprctl layers -j | jq -r --arg m "$m" --arg q "$q" '.[$m].levels | to_entries[].value[] | select(.namespace | test($q;"i")) | "\(.x),\(.y) \(.w)x\(.h)"' | head -1)
@@ -113,7 +113,7 @@ grim -g "$g" "$f" && echo "$f"
 description = "desktop: grim an arbitrary rectangle in global compositor coords (arg: 'X,Y WxH', e.g. '1920,40 48x280') — the escape hatch when the thing you want is not a window or a layer"
 run = '''
 set -euo pipefail
-g='{{arg(name="geometry")}}'
+g={{arg(name="geometry")}}
 [ -n "$g" ] || { echo "usage: mise run shot:region -- 'X,Y WxH'" >&2; exit 2; }
 d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
 f="$d/$(date +%Y-%m-%d_%H.%M.%S)_region.png"
