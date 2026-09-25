@@ -49,7 +49,7 @@ export function AgentsCard() {
                 <label label={t.title} hexpand xalign={0} ellipsize={3} maxWidthChars={22} />
                 <label cssClasses={["pink", "sm"]} label={r ? r.agent : ""} visible={!!r} />
                 <label cssClasses={["cyan", "sm"]} label={t.stage ?? ""} visible={!!t.stage} />
-                <label cssClasses={["pink", "sm"]} label={t.awaiting ? `\u{f0e7e} ${t.awaiting}` : ""} visible={!!t.awaiting} />
+                <label cssClasses={["pink", "sm"]} label={t.awaiting ? `\u{f0e7e} ${t.awaiting}` : t.prompt ? `\u{f0e7e} ${t.prompt.summary}` : ""} visible={!!t.awaiting || !!t.prompt} ellipsize={3} maxWidthChars={24} />
               </box>
             </button>
           )

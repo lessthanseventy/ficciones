@@ -4,7 +4,8 @@ import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import { logEvent } from "./log"
 
-export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null }
+/** `prompt`: its coworker is sitting on a dialog (Server.Attention) — the ask, answered from the thread */
+export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null; prompt?: { summary: string } | null }
 export type Agents = {
   ok: boolean
   roster: { agent: string; thread_id: number; title: string; warm: boolean }[]
@@ -51,6 +52,11 @@ function diff(next: Agents) {
     // through our own notifd when more threads wait on the operator than before
     if (next.awaiting > last.awaiting)
       execAsync(["notify-send", "-a", "tlön", "-u", "normal", "tlön needs you", `${next.awaiting} thread${next.awaiting === 1 ? "" : "s"} awaiting you`]).catch(() => void 0)
+    // a coworker stuck on a permission dialog names what it is asking about, so the toast is the ask
+    const asked = new Set(last.threads.filter((t) => t.prompt).map((t) => t.id))
+    for (const t of next.threads)
+      if (t.prompt && !asked.has(t.id))
+        execAsync(["notify-send", "-a", "tlön", "-u", "normal", `#${t.id} ${t.title} is waiting on you`, t.prompt.summary]).catch(() => void 0)
   } else if (last && !last.ok) logEvent("agent", "channel up")
   last = next
 }
