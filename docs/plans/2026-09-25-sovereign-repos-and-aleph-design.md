@@ -130,8 +130,8 @@ runtime after a server rename, aleph's test env compiles against the server as a
    **Done 2026-09-25.** `~/projects/tlon` is public at github.com/lessthanseventy/tlon; its
    `mise run check` is green standalone. ficciones consumes it by path; `machine:update` moved the
    service, pi, the launcher and the MCP helper over, and `server:roster` answers from tlon's
-   release. Left: register tlon as a project repo in the Tlön workspace, so threads about tlon get
-   worktrees there instead of in ficciones.
+   release. The Tlön project's primary repo is tlon, so its threads get worktrees there; the Machine
+   project keeps ficciones.
 2. **tlon on the work Mac.** The server needs Postgres and a supervisor that isn't
    `systemd --user` (launchd); its own database — work never reaches the home brain.
    *Check:* a fresh clone on the Mac: `mise run check` green, the server up under launchd, the
