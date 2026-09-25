@@ -1,7 +1,7 @@
 # Sovereign repos + aleph as the life TUI — design
 
 **Date:** 2026-09-25
-**Status:** designed; no code moved yet. Sequenced in §6, each step gated by a check.
+**Status:** step 1 built on both sides, cutover pending (§6.1). Sequenced in §6, each step gated by a check.
 **Asked:** Andrew wants tlön and menard (and aleph) to run outside ficciones — on the work Mac —
 and aleph to become the life app it was meant to be. Orbis: ditch it? One life app or three?
 
@@ -119,13 +119,26 @@ runtime after a server rename, aleph's test env compiles against the server as a
    server/console/adapters; no staffed leaf threads. Extraction strands any branch cut before it.
    *Check:* `git worktree list` shows only the main checkout; `mise run check` green on `main`.
 1. **Extract `tlon`.** `git filter-repo` `modules/{server,console,adapters}` plus their tasks,
-   scripts and gates into `~/projects/tlon`, history kept. ficciones takes it as a flake input;
-   `flake.nix`'s `${repo}/modules/adapters/…` and `serverRel` paths point into the input; the
-   systemd unit's release path follows. `check-names.sh` goes with tlon; ficciones keeps a smaller
-   one for its own glue.
+   scripts and gates into `~/projects/tlon`, history kept. ficciones points at it by path
+   (`tlonRepo`, the way it already points at menard — a flake input would be a store copy, and the
+   service, pi and the launcher all want the live checkout); the adapter paths, `serverRel`, the
+   launcher and the MCP bearer helper follow. `check-names.sh` goes with tlon; ficciones keeps a
+   smaller one for its own seams, including the `~/.pi/agent` files tlon's adapters read.
    *Check:* `mise run check` green in `tlon` standalone; `mise run check` + `mise run flake:check`
    green in ficciones; `mise run machine:update` brings the live server and cockpit back up from
    the input, and `server:roster` shows the cast.
+   **State (2026-09-25):** `~/projects/tlon` exists (no remote yet), `mise run check` green there
+   (server 710, console 914, adapters). ficciones' side is branch `tlon-out` (worktree
+   `~/projects/ficciones-tlon-out`), `mise run check` green including `flake:check`. The prod
+   release is built in tlon. What is left is the cutover, which is the human's (`home:switch`):
+   1. `git -C ~/projects/ficciones merge --ff-only tlon-out`
+   2. `mise run machine:update` — the unit now starts tlon's release; pi's settings drop the old
+      paths
+   3. check: `mise --cd ~/projects/tlon run server:roster` answers; `tlon` opens the cockpit;
+      `jq .extensions ~/.pi/agent/settings.json` lists only tlon and menard paths
+   4. then delete the ignored leftovers under `ficciones/modules/{server,console,adapters}`
+      (`_build`, `deps`, `node_modules`), and add tlon as a project repo in the Tlön workspace so
+      threads about tlon get worktrees there
 2. **tlon on the work Mac.** The server needs Postgres and a supervisor that isn't
    `systemd --user` (launchd); its own database — work never reaches the home brain.
    *Check:* a fresh clone on the Mac: `mise run check` green, the server up under launchd, the
@@ -140,8 +153,8 @@ runtime after a server rename, aleph's test env compiles against the server as a
 
 ## 7 · Open
 
-- **When to start step 0** — after which master-plan piece (`2026-09-25-tlon-master-plan.md`,
-  A→G). Extraction mid-plan costs rebases for every open workline.
+- **A GitHub home for tlon** — `lessthanseventy/tlon`, private or public; the work Mac (step 2)
+  needs a remote to clone.
 - **aleph's first view-mode** — Notes is recommended (the only one with code today). Journal or
   finances would be a from-scratch first build.
 - **Mac install path** — home-manager on nix-darwin, or plain mise + Homebrew Postgres. Decided at
