@@ -6,6 +6,7 @@
   pkgs,
   lib,
   repo,
+  tlonRepo,
   astalShell,
   hyprexpo,
   pi,
@@ -141,7 +142,7 @@ in
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    extraSpecialArgs = { inherit repo astalShell; };
+    extraSpecialArgs = { inherit repo tlonRepo astalShell; };
     users.andrew = {
       imports = [ ../desktop ];
       home.stateVersion = "25.11";

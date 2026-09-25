@@ -1,5 +1,5 @@
-# home-manager: every themed surface written from palette.nix (render.nix). The shell and the
-# console get theirs IN the repo (generated.nix, `mise theme:gen`); everything here lands in
+# home-manager: every themed surface written from palette.nix (render.nix). The shell gets
+# its own IN the repo (generated.nix, `mise theme:gen`); everything here lands in
 # ~/.config and is a store file — none of it is edited by hand, so nothing needs to be live.
 {
   config,
@@ -18,7 +18,7 @@ let
   # under ~/.config/ficciones/themes/<name>/, each app's fixed path is a symlink through
   # ~/.config/ficciones/theme (the one mutable link, made on activation if missing), and the
   # toggle repoints it — no nix, under a second. `palette.nix`/`current` remain the build-time
-  # default (the checked-in generated files, Console.Palette).
+  # default (the checked-in generated files).
   palettes = { uqbar = import ./palettes/uqbar.nix; zahir = import ./palettes/zahir.nix; };
   renders = lib.mapAttrs (_: p: import ./render.nix { inherit lib; palette = p; }) palettes;
   envLua =

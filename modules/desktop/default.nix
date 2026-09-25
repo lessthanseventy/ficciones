@@ -15,6 +15,7 @@
   lib,
   pkgs,
   repo,
+  tlonRepo,
   ...
 }:
 
@@ -57,10 +58,10 @@ in
 
     # sudo's askpass (scripts/sudo-askpass): random glyphs per keystroke; a tty or a dialog
     # when stdin is not a terminal (hyprpm and friends used to hang on it).
-    # Claude Code skills for THIS repo, tracked under modules/adapters/skills (the project .claude/
-    # dir is gitignored); an out-of-store link so an edit lands without a switch
+    # Claude Code skills tracked in tlon's adapters/skills; an out-of-store link so an edit lands
+    # without a switch
     home.file.".claude/skills/drive-cockpit".source =
-      config.lib.file.mkOutOfStoreSymlink "${repo}/modules/adapters/skills/drive-cockpit";
+      config.lib.file.mkOutOfStoreSymlink "${tlonRepo}/adapters/skills/drive-cockpit";
     home.file.".local/bin/sudo-askpass" = { source = ./scripts/sudo-askpass; executable = true; };
     # recolours open ghostty surfaces to the live theme (the switch runs it; see lib/theme.ts)
     home.file.".local/bin/ficciones-recolor" = { source = ./scripts/ficciones-recolor; executable = true; };

@@ -46,6 +46,9 @@
       # (pi/extension.ts) ships from there, not here; ficciones only points at it. On a
       # box without ficciones, menard's own `install:pi` task does the same wiring.
       menardRepo = "/home/andrew/projects/menard";
+      # tlon — its own repo: the server, the cockpit and the pi/Claude Code adapters. The flake
+      # runs the service from its release and points pi at its adapters, as it does for menard.
+      tlonRepo = "/home/andrew/projects/tlon";
 
       # The desktop shell (modules/desktop/shell). Built here once and handed to home-manager
       # as a special arg so the Arch profile and the NixOS VM install the identical package.
@@ -189,7 +192,7 @@
       # (modules/os/vm.nix). `ivysaur` lands when the laptop leaves Arch.
       nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo astalShell hyprexpo pi; };
+        specialArgs = { inherit repo tlonRepo astalShell hyprexpo pi; };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os
@@ -200,7 +203,7 @@
       # (docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md).
       nixosConfigurations.ivysaur = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo astalShell hyprexpo pi; };
+        specialArgs = { inherit repo tlonRepo astalShell hyprexpo pi; };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os
@@ -213,7 +216,7 @@
       # server citizen.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        extraSpecialArgs = { inherit repo astalShell; };
+        extraSpecialArgs = { inherit repo tlonRepo astalShell; };
         modules = [
           # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
           ./modules/desktop
@@ -223,11 +226,11 @@
           (
             { config, lib, ... }:
             let
-              adaptersExtension = "${repo}/modules/adapters/pi/src/extension.ts";
+              adaptersExtension = "${tlonRepo}/adapters/pi/src/extension.ts";
               # consult — /consult and /fresh: delegate a question to a different model
               # (e.g. a text-only model delegating a screenshot to minimax-m3) and return
               # the answer.
-              consultExtension = "${repo}/modules/adapters/consult/src/extension.ts";
+              consultExtension = "${tlonRepo}/adapters/consult/src/extension.ts";
               # menard — the guard (block raw edits on Elixir modules) + format-on-save, as a pi
               # extension menard ships from its own repo. Replaces adapters/fmt (bare mix format):
               # menard's formatter runs in its own VM and works on a broken host. See menard's
@@ -235,23 +238,23 @@
               menardExtension = "${menardRepo}/pi/extension.ts";
               # lsp — LSP-backed agent tools over Expert/tsserver/nil/bash-ls/json-ls;
               # servers installed via home.packages below so the next box gets them. See
-              # modules/adapters/lsp/AGENTS.md.
-              lspExtension = "${repo}/modules/adapters/lsp/src/extension.ts";
+              # tlon's adapters/lsp/AGENTS.md.
+              lspExtension = "${tlonRepo}/adapters/lsp/src/extension.ts";
               # reload — restart the pi harness in place and resume the session, so an agent
-              # that edited its own tooling picks up the new code. See modules/adapters/reload.
-              reloadExtension = "${repo}/modules/adapters/reload/src/extension.ts";
+              # that edited its own tooling picks up the new code. See tlon's adapters/reload.
+              reloadExtension = "${tlonRepo}/adapters/reload/src/extension.ts";
               # footer — a dense 2-line statusline (model, context bar, I/O, branch, statuses).
               # A generic footer, NOT a server concern, so it's its OWN package (not adapters/pi,
-              # which the Tlön coworker profile drops) and loads for every pi. See modules/adapters/footer.
-              footerExtension = "${repo}/modules/adapters/footer/src/footer.ts";
-              adaptersSkillsGlob = "${repo}/modules/adapters/skills/*";
+              # which the Tlön coworker profile drops) and loads for every pi. See tlon's adapters/footer.
+              footerExtension = "${tlonRepo}/adapters/footer/src/footer.ts";
+              adaptersSkillsGlob = "${tlonRepo}/adapters/skills/*";
               # menard's verb reference — shipped from its own repo, wired here as a pi skill.
               menardSkill = "${menardRepo}/skills/menard";
 
-              # server' self-contained release (`mise run server:release`). The service below
+              # server' self-contained release (tlon's `server:release` task). The service below
               # runs it headless; `server:console`/`:restart` drive the same bin/server, so
               # node + cookie agree via the release's own env.sh.
-              serverRel = "${repo}/modules/server/_build/prod/rel/server";
+              serverRel = "${tlonRepo}/server/_build/prod/rel/server";
 
               # server' MCP server for pi-mcp-adapter. Auth header is a `!command`
               # (pi-mcp-adapter §headers): tlon-cli.sh bearer mints a FRESH token per
@@ -261,7 +264,7 @@
               serverMcpJson = builtins.toJSON {
                 mcpServers.tlon = {
                   url = "\${TLON_MCP_URL}";
-                  headers.Authorization = "!${repo}/scripts/tlon-cli.sh bearer";
+                  headers.Authorization = "!${tlonRepo}/scripts/tlon-cli.sh bearer";
                   directTools = [ "post_message" "bank_fact" "raise_issue" "record_done" "get_dossier" "consult_peer" ];
                   excludeTools = [ "register" ];
                 };
@@ -659,7 +662,7 @@
               # (hover/definition/references/diagnostics as pi tools) — ALL flake-managed now so
               # the next box gets them, including Expert (the Elixir LSP, expert-lsp.org — NOT
               # elixir-ls; the `expert` derivation above fetches its release binary since it's not
-              # in nixpkgs). The adapter registry in modules/adapters/lspd/src/adapters.ts spawns these
+              # in nixpkgs). The adapter registry in tlon's adapters/lspd/src/adapters.ts spawns these
               # by name — adding a language is an adapter object + usually a package here.
               home.packages = [
                 pi
@@ -676,8 +679,8 @@
                 # `tlon` — the product launcher (design slice F: the launcher takes the product name).
                 # A thin wrapper over the mise task; not `console`, which collides with TeX Live's binary.
                 (pkgs.writeShellScriptBin "tlon" ''
-                  cd ${repo} || { echo "tlon: repo not found at ${repo}" >&2; exit 1; }
-                  exec mise run console:run
+                  cd ${tlonRepo} || { echo "tlon: repo not found at ${tlonRepo}" >&2; exit 1; }
+                  exec mise --cd ${tlonRepo} run console:run
                 '')
               ];
 
@@ -710,8 +713,9 @@
               # model choice), so a read-only symlink would break it. jq unions our keys in
               # idempotently, seeding {} if absent.
               #
-              # `.extensions` is PRUNE-then-add, not pure union: every path under modules/adapters/
-              # is ours, so dropping every modules/adapters/ entry before re-adding the current six
+              # `.extensions` and `.skills` are PRUNE-then-add, not pure union: every path under tlon's
+              # adapters/ or ficciones' modules/ (where adapters used to live) is ours, so dropping every
+              # such entry before re-adding the current set
               # makes a renamed/removed extension self-heal — a plain `+ [...] | unique` union
               # would leave pi loading a dead path on every subsequent home:switch.
               #
@@ -720,7 +724,7 @@
               # home:switch — this only picks the default the FIRST time. defaultProvider is
               # ollama-cloud/deepseek-v4-flash: the efficient MoE default drains the short
               # rate-limit window slower than a reasoning model (glm-5.2's thinking tokens
-              # trip it mid-session; `mise run ollama:usage` watches this). enabledModels is
+              # trip it mid-session; tlon's `ollama:usage` task watches this). enabledModels is
               # the Ctrl+P cycle ring — every id from models.json.
               home.activation.manosWiring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 PI_DIR="$HOME/.pi/agent"
@@ -734,14 +738,15 @@
                   --arg ext4 "${lspExtension}" \
                   --arg ext5 "${reloadExtension}" \
                   --arg ext6 "${footerExtension}" \
-                  --arg adaptersDir "${repo}/modules/adapters/" \
+                  --arg adaptersDir "${tlonRepo}/adapters/" \
+                  --arg ficcionesModules "${repo}/modules/" \
                   --arg skills "${adaptersSkillsGlob}" \
                   --arg menardDir "${menardRepo}/pi/" \
                   --arg menardRepo "${menardRepo}" \
                   --arg menardSkill "${menardSkill}" \
-                  '.extensions = (((.extensions // []) | map(select(startswith($adaptersDir) | not) | select(startswith($menardDir) | not)))
+                  '.extensions = (((.extensions // []) | map(select(startswith($adaptersDir) | not) | select(startswith($ficcionesModules) | not) | select(startswith($menardDir) | not)))
                        + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
-                   | .skills = (((.skills // []) | map(select(startswith($menardRepo + "/skills/") | not))) + [$skills, $menardSkill] | unique)
+                   | .skills = (((.skills // []) | map(select(startswith($menardRepo + "/skills/") | not) | select(startswith($adaptersDir) | not) | select(startswith($ficcionesModules) | not))) + [$skills, $menardSkill] | unique)
                    # .packages is likewise PRUNE-then-add: a pure union (the old form) can add
                    # a package but never remove one, so dropping pi-cc-header from the array
                    # below did not un-install it from an already-switched machine — it just
@@ -848,7 +853,7 @@
               '';
 
               # The always-up sovereign channel as a headless systemd --user service. A
-              # self-contained release (`mise run server:release`) means ExecStart is one
+              # self-contained release (tlon's `server:release` task) means ExecStart is one
               # absolute path with no toolchain on PATH. ExecStartPre migrates first —
               # server never serves on a schema it can't repair. LOOPBACK-only. The store is
               # Postgres `tlon` on the local socket (one-brain piece C, 2026-09-18; the SQLite
@@ -859,7 +864,7 @@
               systemd.user.services.tlon = {
                 Unit = {
                   Description = "tlon — the always-up sovereign MCP channel (loopback)";
-                  Documentation = [ "file://${repo}/modules/server/AGENTS.md" ];
+                  Documentation = [ "file://${tlonRepo}/server/AGENTS.md" ];
                   After = [ "network.target" ];
                 };
                 Service = {

@@ -34,7 +34,7 @@ export async function dossier(id: number): Promise<Dossier | null> {
 }
 
 // Single-user machine, fixed checkout — the same assumption flake.nix makes.
-const CLI = "/home/andrew/projects/ficciones/scripts/tlon-cli.sh"
+const CLI = "/home/andrew/projects/tlon/scripts/tlon-cli.sh"
 
 // the command log gets the changes, not the polls: who woke, who slept, who waits on you
 let last: Agents | null = null
