@@ -300,9 +300,8 @@
                     apiKey = "\${OLLAMA_API_KEY}";
                     models = [
                       { id = "glm-5.2"; }
-                      { id = "glm-5.1"; }
                       { id = "deepseek-v4-pro"; }
-                      { id = "deepseek-v4-flash"; }
+                      { id = "deepseek-v4.1-flash"; }
                       { id = "kimi-k2.7-code"; }
                       # kimi-k3 excluded: ollama.com bills it as EXTRA usage (HTTP 402), not
                       # covered by the plan — kept out so it can't be selected by accident.
@@ -327,8 +326,7 @@
               # plan is the fallback when Claude caps. preferredModels.ollama pins the fallback to
               # ollama.com's cloud glm: the `:cloud` suffix is what routes multi-account's request to
               # https://ollama.com/v1 instead of the local daemon (it discovers the ollama account from
-              # auth.json's `ollama` api-key entry, NOT from models.json). glm-5.1 ahead of 5.2 (5.2 was
-              # 500ing on ollama.com, 2026-08-17); both listed so it hops to 5.2 if 5.1 is unavailable.
+              # auth.json's `ollama` api-key entry, NOT from models.json).
               # The five below were left implicit (extension defaults) until this pass — made
               # explicit so a defaults change upstream can't silently retune failover behavior
               # underneath us. All five are kept AT their documented default; this is a
@@ -359,7 +357,7 @@
                 includeCursor = false;
                 showUsage = true;
                 providerOrder = [ "anthropic" "openai-codex" "qwen" "ollama" ];
-                preferredModels = { ollama = [ "glm-5.1:cloud" "glm-5.2:cloud" ]; };
+                preferredModels = { ollama = [ "glm-5.2:cloud" ]; };
                 preserveInterruptedContext = true;
                 routeCompactionToHealthyAccount = true;
                 autoContinue = true;
@@ -376,7 +374,7 @@
               #     adapters/pi extracts durable facts from ONLY the delta since the last capture (a
               #     cheap out-of-band model call — bounded input, never the full context) and banks
               #     them DERIVED. Set false to disable all automatic fact capture.
-              #   captureModel — the out-of-band extractor. deepseek-v4-flash (ollama.com cloud)
+              #   captureModel — the out-of-band extractor. deepseek-v4.1-flash (ollama.com cloud)
               #     by default; point at a LOCAL daemon model (e.g. qwen3-coder) to keep capture
               #     deltas off the wire entirely — they are secret-redacted before egress either
               #     way, but local means zero egress and zero cloud budget.
@@ -384,7 +382,7 @@
                 correctionDetection = true;
                 boundaryCapture = true;
                 captureEveryTurns = 8;
-                captureModel = "deepseek-v4-flash";
+                captureModel = "deepseek-v4.1-flash";
               };
 
               # pi's keybindings (~/.pi/agent/keybindings.json) — owned like mcp.json; pi
@@ -722,10 +720,13 @@
               # Defaults use `//=` (set-only-if-absent), NOT `=`: pi persists your runtime
               # model switch (Ctrl+P) back into this file, so we must not stomp it on every
               # home:switch — this only picks the default the FIRST time. defaultProvider is
-              # ollama-cloud/deepseek-v4-flash: the efficient MoE default drains the short
+              # ollama-cloud/deepseek-v4.1-flash: the efficient MoE default drains the short
               # rate-limit window slower than a reasoning model (glm-5.2's thinking tokens
               # trip it mid-session; tlon's `ollama:usage` task watches this). enabledModels is
-              # the Ctrl+P cycle ring — every id from models.json.
+              # the Ctrl+P cycle ring — every id from models.json. `$retired` maps a model
+              # ollama.com retired (HTTP 410) to its successor, or null to drop it: both the
+              # default and the ring are rewritten through it on every switch, the one exception
+              # to set-only-if-absent, since a retired id is dead wherever it sits.
               home.activation.manosWiring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 PI_DIR="$HOME/.pi/agent"
                 SETTINGS="$PI_DIR/settings.json"
@@ -744,6 +745,7 @@
                   --arg menardDir "${menardRepo}/pi/" \
                   --arg menardRepo "${menardRepo}" \
                   --arg menardSkill "${menardSkill}" \
+                  --argjson retired '${builtins.toJSON { "deepseek-v4-flash" = "deepseek-v4.1-flash"; "glm-5.1" = null; }}' \
                   '.extensions = (((.extensions // []) | map(select(startswith($adaptersDir) | not) | select(startswith($ficcionesModules) | not) | select(startswith($menardDir) | not)))
                        + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
                    | .skills = (((.skills // []) | map(select(startswith($menardRepo + "/skills/") | not) | select(startswith($adaptersDir) | not) | select(startswith($ficcionesModules) | not))) + [$skills, $menardSkill] | unique)
@@ -791,7 +793,7 @@
                        # (skipAnimation in pi-cc-header.ts) but not a plain fresh launch, and
                        # ships no setting to disable just the animation — bisected 2026-08-18.
                    | .defaultProvider //= "ollama-cloud"
-                   | .defaultModel //= "deepseek-v4-flash"
+                   | .defaultModel = ((.defaultModel // "deepseek-v4.1-flash") as $m | if ($retired | has($m)) then ($retired[$m] // "deepseek-v4.1-flash") else $m end)
                    | .defaultThinkingLevel //= "medium"
                    | .retry.enabled //= true
                    # pi-multi-account recommends zeroing the SDK per-provider retries so a capped
@@ -799,7 +801,7 @@
                    # (No apostrophes in this comment: it rides inside a bash single-quoted jq string;
                    # an apostrophe would close the quote and silently truncate the program.)
                    | .retry.provider.maxRetries //= 0
-                   | .enabledModels //= ["deepseek-v4-flash","glm-5.2","glm-5.1","deepseek-v4-pro","kimi-k2.7-code","minimax-m3","qwen3-coder"]' \
+                   | .enabledModels = [(.enabledModels // ["deepseek-v4.1-flash","glm-5.2","deepseek-v4-pro","kimi-k2.7-code","minimax-m3","qwen3-coder"])[] | . as $m | if ($retired | has($m)) then $retired[$m] else $m end | select(. != null)]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
               '';
 
