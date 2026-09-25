@@ -44,7 +44,7 @@
       repo = "/home/andrew/projects/ficciones";
       # menard — standalone repo (github.com/lessthanseventy/menard). Its pi adapter
       # (pi/extension.ts) ships from there, not here; ficciones only points at it. On a
-      # box without ficciones, `mise run install:pi` from menard does the same wiring.
+      # box without ficciones, menard's own `install:pi` task does the same wiring.
       menardRepo = "/home/andrew/projects/menard";
 
       # The desktop shell (modules/desktop/shell). Built here once and handed to home-manager
