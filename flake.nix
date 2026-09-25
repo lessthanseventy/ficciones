@@ -865,6 +865,7 @@
                     "TLON_START_OBAN=1"
                     "TLON_START_MCP=1"
                     "TLON_START_SWITCHBOARD=1"
+                    "TLON_START_ATTENTION=1"
                     "TLON_MCP_PORT=4040"
                     "TLON_WORKLINE_ROOT=${repo}"
                     "TLON_MEMORY_PASS=1"
