@@ -863,6 +863,10 @@
               # `mix server.import_sqlite`). Node name + cookie come from the release's own env.sh, so
               # `server:console`/`:restart` reach THIS node. Build the release before the first
               # `home:switch` that starts it.
+              # The machine seed tlon's Server.Seed applies on every boot: this box's workspaces and
+              # the facts its coworkers must see (tlon's own repo holds only product knowledge).
+              xdg.configFile."tlon/seed.exs".source = ./modules/agents/tlon-seed.exs;
+
               systemd.user.services.tlon = {
                 Unit = {
                   Description = "tlon — the always-up sovereign MCP channel (loopback)";
