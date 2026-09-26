@@ -707,6 +707,10 @@
               home.file.".claude/CLAUDE.md".source = ./modules/agents/how-to-work.md;
               home.file.".pi/agent/AGENTS.md".source = ./modules/agents/how-to-work.md;
 
+              # the interactive shell's rc: ls and cat are eza and bat at a terminal, the plain tools
+              # for anything that reads their output (an agent's Bash)
+              home.file.".zshrc".source = ./modules/os/zshrc;
+
               # adapters into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in
               # idempotently, seeding {} if absent.
