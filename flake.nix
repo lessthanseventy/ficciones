@@ -710,6 +710,8 @@
               # the interactive shell's rc: ls and cat are eza and bat at a terminal, the plain tools
               # for anything that reads their output (an agent's Bash)
               home.file.".zshrc".source = ./modules/os/zshrc;
+              # git's global ignore (~/.gitconfig's core.excludesFile): the sandboxes' phantom files too
+              home.file.".gitignore".source = ./modules/os/gitignore;
 
               # adapters into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in
