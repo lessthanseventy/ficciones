@@ -669,6 +669,8 @@
                 pkgs.typescript-language-server
                 pkgs.nil
                 pkgs.bash-language-server
+                # shell lint, for agents and for bash-language-server's diagnostics
+                pkgs.shellcheck
                 pkgs.vscode-json-languageserver
                 # `agenix -e secrets/<name>.age` to create/edit a secret; decryption at switch is
                 # handled by the agenix module (age.secrets below).
