@@ -132,6 +132,9 @@ in
       socat bubblewrap
       # the last pacman-only user tools (survey 2026-09-08); yq-go is what pacman called go-yq
       ripgrep fzf atuin yq-go sqlite
+      # arithmetic on fractions in a shell (timings: `echo "$end - $start" | bc`); agents reach for it
+      # and it was missing (2026-09-26)
+      bc
     ];
 
     xdg.configFile = {
