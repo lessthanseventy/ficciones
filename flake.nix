@@ -29,10 +29,15 @@
     # into. The NixOS side runs the Hyprland this flake pins (its `hyprland` input); the Arch box
     # gets it through hyprpm instead (modules/desktop/hypr/hyprland.lua says how).
     hyprexpo.url = "github:sandwichfarm/hyprexpo";
+    # Expert — the Elixir LSP (expert-lsp.org, NOT elixir-ls), built from main by its own flake.
+    # Main, not a release: v0.1.10 stops answering once a client rejects its registerCapability,
+    # which Claude Code does (expert #904, fixed by #907). Back to a release once one has #907.
+    # Its nixpkgs is left its own: that is the pin it builds and is tested against.
+    expert.url = "github:expert-lsp/expert";
   };
 
   outputs =
-    { self, nixpkgs, home-manager, agenix, astal, ags, hyprexpo }:
+    inputs@{ self, nixpkgs, home-manager, agenix, astal, ags, hyprexpo, ... }:
     let
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
@@ -101,38 +106,8 @@
         };
       };
 
-      # Expert — the Elixir LSP (expert-lsp.org, NOT elixir-ls). Not in nixpkgs, so we fetch the
-      # prebuilt release binary (a self-contained burrito BEAM) and install it byte-for-byte — same
-      # treatment as pi/bun above: no strip, no ELF rewrite (Arch's system glibc runs it as-is;
-      # patching would break the embedded runtime). It's a bare binary, not an archive → dontUnpack.
-      expert = pkgs.stdenv.mkDerivation rec {
-        pname = "expert";
-        version = "0.1.10";
-
-        src = pkgs.fetchurl {
-          url = "https://github.com/expert-lsp/expert/releases/download/v${version}/expert_linux_amd64";
-          hash = "sha256-rynVJwUDJjE58Q/MtZdDD+sMUQ2kg4aCGxdvv9/jP40=";
-        };
-
-        dontUnpack = true;
-        dontStrip = true;
-        dontPatchELF = true;
-        dontPatchShebangs = true;
-
-        installPhase = ''
-          runHook preInstall
-          install -Dm755 $src $out/bin/expert
-          runHook postInstall
-        '';
-
-        meta = {
-          description = "Expert — the Elixir language server (prebuilt burrito release binary, unpatched)";
-          homepage = "https://github.com/expert-lsp/expert";
-          platforms = [ "x86_64-linux" ];
-          sourceProvenance = [ pkgs.lib.sourceTypes.binaryNativeCode ];
-          mainProgram = "expert";
-        };
-      };
+      # Expert, from its flake input (above).
+      expert = inputs.expert.packages.${system}.expert;
     in
     {
       # Exposed as a build target so it can be verified (`nix build .#pi`) without touching
@@ -659,7 +634,7 @@
               # change-triggered test runner. LSP servers for adapters/lsp
               # (hover/definition/references/diagnostics as pi tools) — ALL flake-managed now so
               # the next box gets them, including Expert (the Elixir LSP, expert-lsp.org — NOT
-              # elixir-ls; the `expert` derivation above fetches its release binary since it's not
+              # elixir-ls; built from its own flake input, since it's not
               # in nixpkgs). The adapter registry in tlon's adapters/lspd/src/adapters.ts spawns these
               # by name — adding a language is an adapter object + usually a package here.
               home.packages = [
