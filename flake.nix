@@ -108,13 +108,140 @@
 
       # Expert, from its flake input (above).
       expert = inputs.expert.packages.${system}.expert;
+
+      # dbx (github.com/t8y2/dbx) — the database GUI, plus its CLI (same store, for agents).
+      # Its own flake builds Tauri from source with no binary cache, so the prebuilt AppImage is
+      # wrapped instead; the CLI is the prebuilt binary from its npm platform package, kept
+      # unpatched like pi (Arch's loader runs it; the VM has nix-ld).
+      dbxVersion = "0.6.28";
+      dbxAppImageSrc = pkgs.fetchurl {
+        url = "https://github.com/t8y2/dbx/releases/download/v${dbxVersion}/DBX_${dbxVersion}_amd64.AppImage";
+        hash = "sha256-p12B4dvB2Ve/tmdTak/opKWC6ziqyexkO1V8bgeX+v8=";
+      };
+      dbxAppImage = pkgs.appimageTools.wrapType2 {
+        pname = "dbx-appimage";
+        version = dbxVersion;
+        src = dbxAppImageSrc;
+      };
+      dbxCli = pkgs.stdenv.mkDerivation rec {
+        pname = "dbx-cli";
+        version = "0.4.102";
+        src = pkgs.fetchurl {
+          url = "https://registry.npmjs.org/@dbx-app/cli-linux-x64-gnu/-/cli-linux-x64-gnu-${version}.tgz";
+          hash = "sha256-11idXlMJA6RGrHUlBIX2zIY+kub+6tKuXeb1pseZX24=";
+        };
+        sourceRoot = "package";
+        dontStrip = true;
+        dontPatchELF = true;
+        installPhase = ''
+          runHook preInstall
+          install -Dm755 bin/dbx $out/bin/dbx-native
+          runHook postInstall
+        '';
+      };
+      # One data dir for the app and the CLI, seeded on every launch (create-if-absent — see
+      # the script). The seed holds only what may sit in a public repo: the local Postgres
+      # (trust auth as this user, so no password) and the two SQLite projects. The AI key and
+      # the prod connections are read from agenix files at launch, never from the store.
+      dbxDataDir = "$HOME/.local/share/dbx";
+      dbxSeed = pkgs.writeText "dbx-seed.json" (builtins.toJSON {
+        connections = [
+          {
+            id = "ficciones-local-postgres";
+            name = "local postgres";
+            db_type = "postgres";
+            host = "127.0.0.1";
+            port = 5432;
+            username = "andrew";
+            password = "";
+            database = null;
+            ssl = false;
+            save_password = false;
+          }
+          {
+            id = "ficciones-excelsior-sqlite";
+            name = "excelsior (sqlite)";
+            db_type = "sqlite";
+            host = "/home/andrew/projects/excelsior/excelsior_dev.db";
+            port = 0;
+            username = "";
+            password = "";
+            database = null;
+            ssl = false;
+            save_password = false;
+          }
+          {
+            id = "ficciones-ex-ternal-sqlite";
+            name = "ex_ternal (sqlite)";
+            db_type = "sqlite";
+            host = "/home/andrew/projects/ex_ternal/data/ex_ternal_dev.db";
+            port = 0;
+            username = "";
+            password = "";
+            database = null;
+            ssl = false;
+            save_password = false;
+          }
+        ];
+        # ollama.com over its OpenAI-compatible endpoint, bearer = the same key pi uses; the model
+        # is pi's cloud fallback (piModelsJson below).
+        ai = {
+          id = "ficciones-ollama-cloud";
+          name = "ollama.com";
+          config = {
+            provider = "ollama";
+            auth_method = "bearer";
+            endpoint = "https://ollama.com/v1";
+            model = "glm-5.2";
+            api_style = "completions";
+          };
+        };
+        # agenix secret names, resolved under $XDG_RUNTIME_DIR/agenix at launch
+        ai_key_secret = "ollama-api-key";
+        extra_connections_secret = "dbx-connections";
+      });
+      dbxSeedScript = pkgs.writeShellScript "dbx-seed" ''
+        export PATH=${pkgs.lib.makeBinPath [ pkgs.sqlite pkgs.jq ]}:$PATH
+        export DBX_DATA_DIR="${dbxDataDir}"
+        exec ${pkgs.bash}/bin/bash ${./modules/desktop/scripts/dbx-seed.sh} ${dbxSeed}
+      '';
+      dbx = pkgs.symlinkJoin {
+        name = "dbx-${dbxVersion}";
+        paths = [
+          (pkgs.writeShellScriptBin "dbx-desktop" ''
+            ${dbxSeedScript}
+            export DBX_DATA_DIR="${dbxDataDir}"
+            exec ${dbxAppImage}/bin/dbx-appimage "$@"
+          '')
+          (pkgs.writeShellScriptBin "dbx" ''
+            export DBX_DATA_DIR="${dbxDataDir}"
+            exec ${dbxCli}/bin/dbx-native "$@"
+          '')
+          (pkgs.makeDesktopItem {
+            name = "dbx";
+            exec = "dbx-desktop %u";
+            icon = "dbx";
+            desktopName = "DBX";
+            comment = "Database GUI";
+            categories = [ "Development" "Database" ];
+          })
+        ];
+        postBuild = ''
+          contents=${pkgs.appimageTools.extract { pname = "dbx-appimage"; version = dbxVersion; src = dbxAppImageSrc; }}
+          for png in $contents/usr/share/icons/hicolor/*/apps/*.png; do
+            size=$(basename "$(dirname "$(dirname "$png")")")
+            mkdir -p $out/share/icons/hicolor/$size/apps
+            cp "$png" $out/share/icons/hicolor/$size/apps/dbx.png
+          done
+        '';
+      };
     in
     {
       # Exposed as a build target so it can be verified (`nix build .#pi`) without touching
       # the system — the same way server' package will be. home-manager consumes the same
       # derivation below.
       packages.${system} = {
-        inherit pi expert astalShell;
+        inherit pi expert astalShell dbx;
         astal-shell = astalShell;
       };
 
@@ -640,6 +767,7 @@
               home.packages = [
                 pi
                 expert
+                dbx
                 pkgs.watchexec
                 pkgs.typescript-language-server
                 pkgs.nil
@@ -663,6 +791,8 @@
               # Gated on pathExists so the flake evaluates before the first secret is created.
               age.secrets = lib.optionalAttrs (builtins.pathExists ./secrets/ollama-api-key.age) {
                 ollama-api-key.file = ./secrets/ollama-api-key.age;
+              } // lib.optionalAttrs (builtins.pathExists ./secrets/dbx-connections.age) {
+                dbx-connections.file = ./secrets/dbx-connections.age;
               };
 
               # server' channel config — we own this file; pi only reads it.

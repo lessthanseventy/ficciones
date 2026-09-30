@@ -12,4 +12,8 @@ in
   # ollama.com API key — consumed non-interactively by the Tlön pi spawn, so it lives here rather
   # than rbw (needs interactive unlock). Rotate with `agenix -e secrets/ollama-api-key.age`.
   "ollama-api-key.age".publicKeys = all;
+  # dbx connections that must not sit in this public repo (prod hosts, users, passwords): a JSON
+  # array in dbx's connection shape, seeded create-if-absent at every `dbx-desktop` launch by
+  # modules/desktop/scripts/dbx-seed.sh. Optional — the flake skips it until the file exists.
+  "dbx-connections.age".publicKeys = all;
 }
