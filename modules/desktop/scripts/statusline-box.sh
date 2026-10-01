@@ -29,6 +29,11 @@ if [ -n "$used" ] && [ "${#L[@]}" -ge 2 ]; then
   L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
 fi
 
+effort=$(printf '%s' "$input" | jq -r '.effort.level // empty' 2>/dev/null)
+if [ -n "$effort" ] && [ "${#L[@]}" -ge 1 ]; then
+  L[0]="${L[0]} ${WARM}◆ ${effort}${RESET}"
+fi
+
 # background agents: unanswered Agent / background-Bash tool uses in the transcript
 transcript=$(printf '%s' "$input" | sed -n 's/.*"transcript_path":"\([^"]*\)".*/\1/p')
 agents=0
