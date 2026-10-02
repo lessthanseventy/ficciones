@@ -11,7 +11,7 @@ import Cairo from "cairo"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
 import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Thread } from "../lib/agents"
-import { OfficeSim, S, W, type Hit } from "../lib/office"
+import { OfficeSim, S, W, boardColumns, type BoardItem, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
 import { Brief } from "../panes/Agents"
@@ -31,8 +31,19 @@ const wsId = createComputed(() => chosen() ?? busiest(agents()))
 const view = createComputed((): Agents => {
   const a = agents(), ws = wsId()
   const threads = a.threads.filter((t) => t.workspace_id === ws)
+  const bench = a.bench.filter((c) => c.workspace_id === ws)
+  const sessions = a.roster.filter((r) => r.workspace_id === ws)
+  // a desk for every staffed open thread, not only the ones with a session: a Claude Code worker
+  // registers none until it calls register. Without one, a thread's own running window means
+  // working — but not the lobby's, whose lead runs there all day
+  const unregistered = threads
+    .filter((t) => t.lead && !sessions.some((r) => r.thread_id === t.id))
+    .map((t) => {
+      const c = bench.find((b) => b.name === t.lead)
+      return { agent: t.lead!, thread_id: t.id, title: t.title, warm: !!t.live && !t.standing, archetype: c?.archetype ?? null, lead: c?.lead ?? false, workspace_id: ws }
+    })
   return {
-    ...a, threads, roster: a.roster.filter((r) => r.workspace_id === ws), bench: a.bench.filter((c) => c.workspace_id === ws),
+    ...a, threads, roster: [...sessions, ...unregistered], bench,
     tickets: a.tickets.filter((t) => t.workspace_id === ws), projects: a.projects.filter((p) => p.workspace_id === ws),
     awaiting: threads.filter(needsYou).length,
   }
@@ -73,6 +84,7 @@ type Mode =
   | { kind: "workspace" }
   | { kind: "handoff"; tid: number }
   | { kind: "confirm-handoff"; tid: number; name: string }
+  | { kind: "column"; col: number }
 const [mode, setMode] = createState<Mode>({ kind: "none" })
 // asides, by agent id: survive closing the card, so reopening someone shows what they last said
 const [talks, setTalks] = createState<Record<number, { name: string; q: string; a: string | null }>>({})
@@ -91,7 +103,8 @@ const pickedTitle = createComputed(() => {
 
 function act(h: Hit) {
   const m = mode.peek(), x = h.act
-  if (x.kind === "pen") setMode({ kind: "new-ticket" })
+  if (x.kind === "column") setMode(m.kind === "column" && m.col === x.col ? { kind: "none" } : { kind: "column", col: x.col })
+  else if (x.kind === "pen") setMode({ kind: "new-ticket" })
   else if (x.kind === "hire") setMode({ kind: "hire" })
   else if (x.kind === "ticket") setMode(m.kind === "ticket" && m.id === x.id ? { kind: "none" } : { kind: "ticket", id: x.id })
   else if (x.kind === "person" && m.kind === "ticket" && x.agentId !== null) setMode({ kind: "confirm", id: m.id, agentId: x.agentId, name: x.name })
@@ -236,6 +249,8 @@ function ActionCard() {
     if (m.kind === "ticket" && ticketTitle) ticketTitle.text = agents.peek().tickets.find((t) => t.id === m.id)?.title ?? ""
   })
   let ticketTitle: Gtk.Entry | null = null
+  const columns = view((a) => boardColumns(a))
+  const columnItems = createComputed(() => { const m = mode(); return m.kind === "column" ? columns()[m.col]?.items ?? [] : [] })
   const heir = createComputed(() => { const ws = wsId(); return agents().workspaces.filter((w) => w.id !== ws).sort((p, q) => p.id - q.id)[0] ?? null })
   const wsThreads = view((a) => a.threads.length)
   const base = createComputed(() => archOf(mode().kind === "hire" ? arch() : coworker()?.archetype ?? null)?.model ?? "")
@@ -301,9 +316,29 @@ function ActionCard() {
         case "workspace": return `\u{f0004}  ${wsName()}`
         case "coworker": return `\u{f0004}  ${coworker()?.name ?? ""}`
         case "handoff": case "confirm-handoff": return `\u{f0e7e}  HAND OFF #${m.tid}`
+        case "column": { const col = columns()[m.col]; return `\u{f0e7e}  ${col?.name ?? ""} · ${col?.items.length ?? 0}` }
         default: return `\u{f0e7e}  TICKET #${m.id}`
       }
     })} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
+      {/* a whiteboard column as a list: the titles the stickies have no room for */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={is("column")}>
+        <label cssClasses={["dim"]} label="nothing here" xalign={0} visible={columnItems((l) => l.length === 0)} />
+        <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} propagateNaturalHeight maxContentHeight={300}>
+          <box orientation={Gtk.Orientation.VERTICAL}>
+            <For each={columnItems}>
+              {(it: BoardItem) => (
+                <button cssClasses={["row", "thread-row"]} onClicked={() => (it.act.kind === "ticket" ? setMode({ kind: "ticket", id: it.act.id }) : it.act.kind === "thread" && setPicked(it.act.tid))}>
+                  <box spacing={8}>
+                    <label cssClasses={["dim", "sm"]} label={`#${it.act.kind === "ticket" ? it.act.id : it.act.kind === "thread" ? it.act.tid : ""}`} widthChars={4} xalign={1} />
+                    <label cssClasses={it.asks ? ["pink"] : []} label={it.title} hexpand xalign={0} ellipsize={3} maxWidthChars={26} tooltipText={it.title} />
+                    <label cssClasses={["dim", "sm"]} label={it.act.kind === "ticket" ? (it.high ? "high" : "") : it.who ? `${it.who} · ${it.stage}` : it.stage} />
+                  </box>
+                </button>
+              )}
+            </For>
+          </box>
+        </scrolledwindow>
+      </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("workspace")}>
         <label cssClasses={["dim", "sm"]} label={createComputed(() => (heir() ? `deleting it moves its ${wsThreads()} open thread(s) to ${heir()!.name}; its bench goes` : "the only workspace — threads need a home, so it stays"))} xalign={0} wrap maxWidthChars={44} />
         <box spacing={6}>

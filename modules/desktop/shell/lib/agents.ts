@@ -7,7 +7,8 @@ import { execAsync } from "ags/process"
 import { logEvent } from "./log"
 
 /** `prompt`: its coworker is sitting on a dialog (Server.Attention) — the ask, answered from the thread */
-export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null; workspace_id?: number | null; prompt?: { summary: string; options?: { key: string; label: string }[] | null } | null }
+/** `lead`: who it is staffed with; `live`: a tmux window is running it; `standing`: its workspace's lobby */
+export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null; workspace_id?: number | null; lead?: string | null; live?: boolean; standing?: boolean; prompt?: { summary: string; options?: { key: string; label: string }[] | null } | null }
 /** `archetype`/`lead`: the agent's seat on its workspace bench (null/false off every bench) */
 export type Seat = { agent: string; thread_id: number; title: string; warm: boolean; archetype?: string | null; lead?: boolean; workspace_id?: number | null }
 /** a model as the server names it; `thinking` is the effort level */

@@ -27,6 +27,7 @@ export type Act =
   | { kind: "person"; agentId: number | null; name: string; tid: number | null }
   | { kind: "hire" }
   | { kind: "pen" }
+  | { kind: "column"; col: number }
 export type Hit = { x: number; y: number; w: number; h: number; tip: string; act: Act }
 type Dir = "down" | "up" | "left" | "right"
 type Pose = "stand" | "sit" | "couch"
@@ -200,9 +201,26 @@ const LOUNGE: Spot[] = [
   { x: 98, y: 98, aisle: 98, pose: "couch", face: "down", kind: "couch" },
   { x: 112, y: 100, aisle: 100, pose: "stand", face: "right", kind: "cooler" },
 ]
-const STAGE_COL: Record<string, number> = { intent: 1, spec: 1, plan: 2, build: 3, verify: 3, review: 4 }
-const COLS = ["TICKETS", "SPEC", "PLAN", "BUILD", "REVIEW"]
-const COL_W = 27, PER_ROW = 4, PER_COL = 16
+// TICKETS (unstarted) and DOING (a started plain thread — no workline stage) before the stages
+const STAGE_COL: Record<string, number> = { intent: 2, spec: 2, plan: 3, build: 4, verify: 4, review: 5 }
+const COLS = ["TICKETS", "DOING", "SPEC", "PLAN", "BUILD", "REVIEW"]
+const COL_W = 22, PER_ROW = 3, PER_COL = 12
+
+/** one note on the whiteboard: what a click on it does, and what its sticky and its list row say */
+export type BoardItem = { act: Act; title: string; who: string | null; stage: string; asks: boolean; archetype: string | null; high: boolean }
+/** the whiteboard's columns — the board draws them as stickies, the office's column card as rows */
+export function boardColumns(a: Agents): { name: string; items: BoardItem[] }[] {
+  const cols: BoardItem[][] = COLS.map(() => [])
+  for (const tk of a.tickets as Ticket[])
+    cols[0].push({ act: { kind: "ticket", id: tk.id }, title: tk.title, who: null, stage: "ticket", asks: false, archetype: null, high: tk.priority === "high" })
+  for (const th of a.threads) {
+    const c = th.stage ? STAGE_COL[th.stage] : th.lead && !th.standing ? 1 : undefined
+    if (c === undefined) continue
+    const r = a.roster.find((x) => x.thread_id === th.id)
+    cols[c].push({ act: { kind: "thread", tid: th.id }, title: th.title, who: r?.agent ?? th.lead ?? null, stage: th.stage ?? "doing", asks: needsYou(th), archetype: r?.archetype ?? null, high: false })
+  }
+  return COLS.map((name, i) => ({ name, items: cols[i] }))
+}
 /** a coworker on the bench with no thread: a person without a desk (thread_id is minus the agent id) */
 const benchOnly = (a: Agents): Seat[] =>
   a.bench.filter((c) => !a.roster.some((r) => r.agent === c.name)).map((c) => ({ agent: c.name, thread_id: -c.agent_id, title: "", warm: false, archetype: c.archetype, lead: c.lead }))
@@ -364,20 +382,18 @@ export class OfficeSim {
     px(4, 30, 136, 2, ROLE.borderInactive)
     blit(["kk.aa.ll"], 100, 30, { k: ROLE.key, a: ROLE.alarm, l: ROLE.live })
     type Note = { tip: string; act: Act; colour: string; mark?: string; blink?: boolean }
-    const cols: Note[][] = [[], [], [], [], []]
-    for (const tk of a.tickets as Ticket[])
-      cols[0].push({ tip: `ticket #${tk.id} ${tk.title}\nclick, then click a coworker to hand it over`, act: { kind: "ticket", id: tk.id }, colour: ROLE.prose, mark: tk.priority === "high" ? ROLE.alarm : undefined, blink: tk.id === armed })
-    for (const th of a.threads) {
-      const c = STAGE_COL[th.stage ?? ""]
-      if (c === undefined) continue
-      const r = a.roster.find((x) => x.thread_id === th.id)
-      const asks = needsYou(th)
-      cols[c].push({ tip: `#${th.id} ${th.title}\n${th.stage}${r ? ` · ${r.agent}` : ""}${asks ? "\nwaiting on you" : ""}`, act: { kind: "thread", tid: th.id }, colour: r ? shirtOf(r) : ROLE.inactive, blink: asks })
-    }
+    const cols: Note[][] = boardColumns(a).map((col) => col.items.map((it): Note => {
+      if (it.act.kind === "ticket")
+        return { tip: `ticket #${it.act.id} ${it.title}\nclick, then click a coworker to hand it over`, act: it.act, colour: ROLE.prose, mark: it.high ? ROLE.alarm : undefined, blink: it.act.id === armed }
+      const id = it.act.kind === "thread" ? it.act.tid : 0
+      return { tip: `#${id} ${it.title}\n${it.stage}${it.who ? ` · ${it.who}` : ""}${it.asks ? "\nwaiting on you" : ""}`, act: it.act, colour: it.who ? shirtOf({ archetype: it.archetype } as Seat) : ROLE.inactive, blink: it.asks }
+    }))
     cols.forEach((list, c) => {
-      const x0 = 6 + c * COL_W
+      const x0 = 5 + c * COL_W
       if (c) px(x0 - 2, 4, 1, 25, ROLE.edge)
-      text(`${COLS[c]} ${list.length}`, ox + (x0 + 12) * S, 10 * S, ROLE.key, 10)
+      text(`${COLS[c]} ${list.length}`, ox + (x0 + 9) * S, 10 * S, ROLE.key, 9)
+      // the header opens the column as a list under the scene, where the titles have room
+      hits.push({ x: ox + (x0 - 1) * S, y: 3 * S, w: COL_W * S, h: 8 * S, tip: `${COLS[c].toLowerCase()}: open as a list`, act: { kind: "column", col: c } })
       const shown = c === 0 ? [...list.slice(0, PER_COL - 1), null] : list.slice(0, PER_COL)
       shown.forEach((n, i) => {
         const sx = x0 + (i % PER_ROW) * 6, sy = 12 + Math.floor(i / PER_ROW) * 5
@@ -392,7 +408,7 @@ export class OfficeSim {
         if (n.mark) px(sx + 4, sy, 1, 1, n.mark)
         hits.push({ x: ox + sx * S, y: sy * S, w: 5 * S, h: 4 * S, tip: n.tip, act: n.act })
       })
-      if (list.length > shown.filter(Boolean).length) text(`+${list.length - shown.filter(Boolean).length}`, ox + (x0 + 20) * S, 31 * S + 8, ROLE.key, 10)
+      if (list.length > shown.filter(Boolean).length) text(`+${list.length - shown.filter(Boolean).length}`, ox + (x0 + 16) * S, 31 * S + 8, ROLE.key, 10)
     })
     hits.push({ x: ox + 100 * S, y: 29 * S, w: 8 * S, h: 3 * S, tip: "new ticket", act: { kind: "pen" } })
 
