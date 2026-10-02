@@ -24,7 +24,7 @@ export type Note = { id: number; author: string; body: string; workspace_id: num
 /** a consult in the last few minutes: `from` asked `to` something */
 export type Visit = { from: string; to: string; workspace_id: number; at: string }
 /** a filed ticket nobody has started yet */
-export type Ticket = { id: number; workspace_id: number; project_id: number | null; title: string; priority: string }
+export type Ticket = { id: number; workspace_id: number; project_id: number | null; title: string; priority: string; routed?: boolean }
 export type Agents = {
   ok: boolean
   roster: Seat[]
@@ -113,6 +113,10 @@ export async function aside(ws: number, agentId: number, question: string): Prom
 export const workspaceNew = (name: string, repo: string) => write(["workspace-new", name, ...(repo ? [repo] : [])], `making workspace ${name}`)
 export const fire = (seatId: number, name: string) => write(["fire", String(seatId)], `letting ${name} go`)
 export const ticketSet = (id: number, field: "status" | "title" | "body", value: string) => write(["ticket-set", String(id), field, value], `changing ticket #${id}`)
+/** send a ticket to the workspace's manager to staff (no manager: its lead starts it) */
+export const ticketRoute = (id: number) => write(["ticket-route", String(id)], `sending ticket #${id} to the manager`)
+/** close a thread as done: its sessions end, its ticket is done, a child reports up */
+export const closeThread = (id: number) => write(["close-thread", String(id)], `closing #${id}`)
 export const ticketDelete = (id: number) => write(["ticket-delete", String(id)], `deleting ticket #${id}`)
 export const workspaceDelete = (id: number) => write(["workspace-delete", String(id)], `deleting workspace #${id}`)
 /** give a running thread to another coworker; staffed within seconds */

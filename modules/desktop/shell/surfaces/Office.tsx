@@ -10,7 +10,7 @@ import Hyprland from "gi://AstalHyprland"
 import Cairo from "cairo"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
-import { agents, dossier, threadView, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
+import { agents, dossier, threadView, post, ticketRoute, closeThread, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
 import { OfficeSim, S, W, boardColumns, type BoardItem, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
@@ -194,7 +194,7 @@ const archOf = (name: string | null) => agents.peek().archetypes.find((a) => a.n
 const archFacts = (name: string | null, lead = false) => {
   const a = archOf(name)
   if (!a) return ""
-  return [a.name, lead && "lead", a.read_only && "read-only (cannot write)", a.meta && "meta (oversees, never works a thread)", `default ${choiceLabel(a.model)}`].filter(Boolean).join(" · ")
+  return [a.name, a.meta && "manager: routes the work, never works a thread", lead && "the lead: works whatever is started without the manager", a.read_only && "read-only (cannot write)", `default ${choiceLabel(a.model)}`].filter(Boolean).join(" · ")
 }
 
 type Setter<T> = (v: T) => void
@@ -266,6 +266,10 @@ function ActionCard() {
     if (m.kind === "ticket" && ticketTitle) ticketTitle.text = agents.peek().tickets.find((t) => t.id === m.id)?.title ?? ""
   })
   let ticketTitle: Gtk.Entry | null = null
+  // who manages this office (its meta coworker) and who leads it — the ticket card names them
+  const managerName = view((a) => a.bench.find((c) => a.archetypes.find((x) => x.name === c.archetype)?.meta)?.name ?? null)
+  const leadName = view((a) => a.bench.find((c) => c.lead)?.name ?? null)
+  const armedRouted = createComputed(() => { const id = armed(); return !!agents().tickets.find((t) => t.id === id)?.routed })
   const columns = view((a) => boardColumns(a))
   const columnItems = createComputed(() => { const m = mode(); return m.kind === "column" ? columns()[m.col]?.items ?? [] : [] })
   const heir = createComputed(() => { const ws = wsId(); return agents().workspaces.filter((w) => w.id !== ws).sort((p, q) => p.id - q.id)[0] ?? null })
@@ -469,9 +473,12 @@ function ActionCard() {
           ticketTitle = self
           self.connect("activate", () => { const m = mode.peek(); if (m.kind === "ticket" && self.text.trim()) ticketSet(m.id, "title", self.text.trim()) })
         }} />
-        <label cssClasses={["dim", "sm"]} label="click a coworker in the office to hand it over" xalign={0} />
+        <label cssClasses={["dim", "sm"]} label={armedRouted((r) => (r ? `with ${managerName.peek() ?? "the manager"} to staff — or click a coworker to hand it over yourself` : "send it to the manager, or click a coworker in the office to hand it over yourself"))} xalign={0} wrap maxWidthChars={44} />
         <box spacing={6}>
-          <button cssClasses={["act"]} onClicked={() => start(null)}><label label="start with the lead" /></button>
+          <button cssClasses={["act"]} visible={managerName((n) => !!n)} onClicked={async () => { const m = mode.peek(); if (m.kind === "ticket" && (await ticketRoute(m.id))) cancel() }}>
+            <label label={managerName((n) => `send to ${n}`)} />
+          </button>
+          <button cssClasses={["act"]} onClicked={() => start(null)}><label label={leadName((n) => (n ? `start with ${n} directly` : "start with the lead"))} /></button>
           <button cssClasses={["act"]} onClicked={async () => { const m = mode.peek(); if (m.kind === "ticket" && (await ticketSet(m.id, "status", "done"))) cancel() }}><label label="done" /></button>
           {danger("ticket", "delete", async () => { const m = mode.peek(); if (m.kind === "ticket" && (await ticketDelete(m.id))) cancel() })}
           <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
@@ -584,9 +591,15 @@ function Reply() {
         </For>
       </box>
       <entry cssClasses={["deck-entry"]} placeholderText="reply to the thread…" $={(self) => { entry = self; self.connect("activate", () => send(self.text)) }} />
-      <button cssClasses={["act"]} halign={Gtk.Align.START} visible={pickedThread((t) => !!t)} onClicked={() => { const id = picked.peek(); if (id !== null) setMode({ kind: "handoff", tid: id }) }}>
-        <label label="hand to…" />
-      </button>
+      <box spacing={6} visible={pickedThread((t) => !!t)}>
+        <button cssClasses={["act"]} onClicked={() => { const id = picked.peek(); if (id !== null) setMode({ kind: "handoff", tid: id }) }}>
+          <label label="hand to…" />
+        </button>
+        {/* done: the thread closes, its ticket is done, a child reports up; a reply reopens it */}
+        <button cssClasses={["act"]} onClicked={async () => { const id = picked.peek(); if (id !== null && (await closeThread(id))) setPicked(null) }}>
+          <label label="close (done)" />
+        </button>
+      </box>
     </box>
   )
 }

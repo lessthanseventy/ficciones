@@ -35,7 +35,7 @@ type Dir = "down" | "up" | "left" | "right"
 type Pose = "stand" | "sit" | "couch"
 type Kind = "desk" | "queue" | "board" | "couch" | "cooler" | "coffee" | "roam" | "exit" | "visit" | "note"
 type Spot = { x: number; y: number; aisle: number; pose: Pose; face: Dir; kind: Kind }
-type Desk = { x: number; y: number; w: number; kind: "boss" | "lead" | "worker"; seat?: Seat }
+type Desk = { x: number; y: number; w: number; kind: "boss" | "manager" | "lead" | "worker"; seat?: Seat }
 type Look = { hair: Hair; hairRole: Role; decor: number; fav: Kind; emote: string; slow: boolean; blink: number }
 type Actor = {
   seat: Seat; look: Look; x: number; y: number; path: { x: number; y: number }[]
@@ -178,12 +178,15 @@ const BOSS_LOOK: Look = { hair: "mop", hairRole: "structure", decor: 1, fav: "bo
 // ── the room ──────────────────────────────────────────────────────────────────────────────
 function layout(a: Agents) {
   const desks: Desk[] = [{ x: 6, y: 42, w: BOSS_W, kind: "boss" }]
-  const leads = a.roster.filter((r) => r.lead), floor = a.roster.filter((r) => !r.lead)
+  // the manager (a meta coworker) stands at the front of the leads' rug, the leads beside them
+  const managers = a.roster.filter((r) => isManager(a, r))
+  const leads = [...managers, ...a.roster.filter((r) => r.lead && !isManager(a, r))]
+  const floor = a.roster.filter((r) => !r.lead && !isManager(a, r))
   let y = FLOOR
   leads.forEach((r, i) => {
     const n = Math.min(2, leads.length - Math.floor(i / 2) * 2)
     const gap = (130 - n * LEAD_W) / (n + 1)
-    desks.push({ x: Math.round(gap + (i % 2) * (LEAD_W + gap)), y: y + Math.floor(i / 2) * ROW_H, w: LEAD_W, kind: "lead", seat: r })
+    desks.push({ x: Math.round(gap + (i % 2) * (LEAD_W + gap)), y: y + Math.floor(i / 2) * ROW_H, w: LEAD_W, kind: isManager(a, r) ? "manager" : "lead", seat: r })
   })
   const leadRows = Math.ceil(leads.length / 2)
   y += leadRows * ROW_H + (leadRows ? 4 : 0)
@@ -191,10 +194,15 @@ function layout(a: Agents) {
   const height = y + Math.max(1, Math.ceil(floor.length / 3)) * ROW_H + 10
   return { desks, leadRows, height }
 }
+/** a meta coworker — the one who routes the work and never works a thread */
+const isManager = (a: Agents, r: { archetype?: string | null }) => !!a.archetypes.find((x) => x.name === r.archetype)?.meta
 const seatX = (d: Desk) => d.x + Math.round(d.w / 2)
 // a worker sits on the room side of their desk, back to you, the monitor across the desk facing
 // them (and you); they come and go along the aisle below the row
-const deskSpot = (d: Desk): Spot => ({ x: seatX(d), y: d.y + 26, aisle: d.y + 34, pose: "sit", face: "up", kind: "desk" })
+const deskSpot = (d: Desk): Spot =>
+  d.kind === "manager"
+    ? { x: seatX(d), y: d.y + 19, aisle: d.y + 34, pose: "sit", face: "down", kind: "desk" } // behind their desk, facing the floor
+    : { x: seatX(d), y: d.y + 26, aisle: d.y + 34, pose: "sit", face: "up", kind: "desk" }
 // whoever has a question for you stands at your desk; the rest line up behind them, out the door
 const QUEUE: Spot[] = [38, 50, 61, 82, 94].map((x, i) => ({ x, y: 100, aisle: 100, pose: "stand", face: i === 0 ? "up" : "left", kind: "queue" }))
 // the lounge: the board up front; the couch below the TV, its back to you; the kitchenette along
@@ -223,12 +231,12 @@ const SCRIBBLES = [["k.kk.k.kk", ".k..k.k..", "kk.k.kk.k"], ["kk.k.kk.k", "k.k..
 const VISIT_MS = 60_000, NOTE_MS = 45_000
 
 /** one note on the whiteboard: what a click on it does, and what its sticky and its list row say */
-export type BoardItem = { act: Act; title: string; who: string | null; stage: string; asks: boolean; archetype: string | null; high: boolean }
+export type BoardItem = { act: Act; title: string; who: string | null; stage: string; asks: boolean; archetype: string | null; high: boolean; routed?: boolean }
 /** the whiteboard's columns — the board draws them as stickies, the office's column card as rows */
 export function boardColumns(a: Agents): { name: string; items: BoardItem[] }[] {
   const cols: BoardItem[][] = COLS.map(() => [])
   for (const tk of a.tickets as Ticket[])
-    cols[0].push({ act: { kind: "ticket", id: tk.id }, title: tk.title, who: null, stage: "ticket", asks: false, archetype: null, high: tk.priority === "high" })
+    cols[0].push({ act: { kind: "ticket", id: tk.id }, title: tk.title, who: null, stage: tk.routed ? "with the manager" : "ticket", asks: false, archetype: null, high: tk.priority === "high", routed: !!tk.routed })
   for (const th of a.threads) {
     const c = th.stage ? STAGE_COL[th.stage] : th.lead && !th.standing ? 1 : undefined
     if (c === undefined) continue
@@ -408,6 +416,9 @@ export class OfficeSim {
     // floors and walls
     for (let ty = BAND; ty < height; ty += 8) for (let tx = 0; tx < W; tx += 8) px(tx, ty, 8, 8, ((tx + ty) / 8) % 2 ? ROLE.panel : ROLE.ground)
     px(0, BAND, 71, 104 - BAND, ROLE.raised)
+    // your rug: gold-bordered, under the desk
+    px(3, 38, 64, 42, ROLE.body); px(4, 39, 62, 40, ROLE.panel)
+    for (let i = 0; i < 7; i++) for (let j = 0; j < 4; j++) px(8 + i * 9, 44 + j * 10, 2, 2, ROLE.attention)
     // the lounge's floorboards: warmer than the office's tiles, the seams staggered row to row
     px(72, BAND, 59, 104 - BAND, ROLE.raised)
     for (let y = BAND + 3; y < 104; y += 4) { px(72, y, 59, 1, ROLE.edge); px(78 + ((y >> 2) % 3) * 19, y - 3, 1, 3, ROLE.edge) }
@@ -424,7 +435,7 @@ export class OfficeSim {
     type Note = { tip: string; act: Act; colour: string; mark?: string; blink?: boolean }
     const cols: Note[][] = boardColumns(a).map((col) => col.items.map((it): Note => {
       if (it.act.kind === "ticket")
-        return { tip: `ticket #${it.act.id} ${it.title}\nclick, then click a coworker to hand it over`, act: it.act, colour: ROLE.prose, mark: it.high ? ROLE.alarm : undefined, blink: it.act.id === armed }
+        return { tip: `ticket #${it.act.id} ${it.title}\n${it.routed ? "with the manager to staff" : "click: send to the manager, or click a coworker to hand it over"}`, act: it.act, colour: it.routed ? ROLE.meta : ROLE.prose, mark: it.high ? ROLE.alarm : undefined, blink: it.act.id === armed }
       const id = it.act.kind === "thread" ? it.act.tid : 0
       return { tip: `#${id} ${it.title}\n${it.stage}${it.who ? ` · ${it.who}` : ""}${it.asks ? "\nwaiting on you" : ""}`, act: it.act, colour: it.who ? shirtOf({ archetype: it.archetype } as Seat) : ROLE.inactive, blink: it.asks }
     }))
@@ -555,18 +566,48 @@ export class OfficeSim {
     for (const d of desks) {
       const sx = seatX(d)
       if (d.kind === "boss") {
-        // you: behind your desk, facing the room and the door; the back of your monitor toward us
+        // you: the corner office's big desk on its rug, a throne of a chair in your colour, three
+        // screens (their backs to us) and a trophy — the one desk better than the manager's
+        items.push({ base: d.y + 2, draw: () => {
+          px(sx - 11, d.y - 2, 22, 20, ROLE.body); px(sx - 10, d.y - 1, 20, 18, ROLE.structure)
+          for (let i = 0; i < 3; i++) px(sx - 7 + i * 6, d.y + 1, 2, 2, ROLE.body)
+        } })
         items.push({ base: d.y + 25, draw: () => {
-          blit(figure(BOSS_LOOK, null, false, true, "down", "sit", 0, (f + BOSS_LOOK.blink) % 13 === 0), sx - 2, d.y + 5, this.paints(ROLE.attention, BOSS_LOOK))
+          blit(figure(BOSS_LOOK, null, false, true, "down", "sit", 0, (f + BOSS_LOOK.blink) % 13 === 0), sx - 6, d.y + 5, this.paints(ROLE.attention, BOSS_LOOK))
         } })
         items.push({ base: d.y + 30, draw: () => {
-          px(d.x + 6, d.y + 10, 10, 7, ROLE.inactive); px(d.x + 7, d.y + 11, 8, 5, ROLE.edge); px(d.x + 10, d.y + 17, 4, 2, ROLE.inactive)
+          for (const mx of [d.x + 2, sx - 26, d.x + d.w - 26]) { px(mx, d.y + 11, 10, 7, ROLE.inactive); px(mx + 1, d.y + 12, 8, 5, ROLE.edge); px(mx + 4, d.y + 18, 2, 1, ROLE.inactive) }
           px(d.x, d.y + 19, d.w, 2, ROLE.structure)
-          px(d.x + 1, d.y + 21, d.w - 2, 10, ROLE.borderInactive)
-          px(d.x + d.w - 12, d.y + 24, 8, 1, ROLE.structure)
-          decor(BOSS_LOOK, d.x + d.w - 4, d.y + 19)
+          px(d.x, d.y + 21, d.w, 1, ROLE.body)
+          px(d.x + 1, d.y + 22, d.w - 2, 9, ROLE.borderInactive)
+          px(d.x + 8, d.y + 24, d.w - 16, 5, ROLE.structure); px(d.x + 9, d.y + 25, d.w - 18, 3, ROLE.body)
+          blit([".yyy.", "yyyyy", ".yyy.", "..y..", ".yyy."], d.x + d.w - 14, d.y + 14, { y: ROLE.body })
+          decor(BOSS_LOOK, d.x + d.w - 2, d.y + 19)
           text(a.awaiting ? `you - ${a.awaiting} waiting` : "you", ox + (d.x + d.w / 2) * S, (d.y + 38) * S - 2, ROLE.attention)
           hits.push({ x: ox + d.x * S, y: (d.y + 4) * S, w: d.w * S, h: 30 * S, tip: "you: hire, file, workspaces, what waits on you", act: { kind: "boss" } })
+        } })
+        continue
+      }
+      if (d.kind === "manager") {
+        // the manager's desk: a high-backed chair, a wide desk trimmed in gold, two screens and a
+        // lamp; they sit behind it facing the floor, like you do in your office
+        const owner = actorAt(d)
+        const there = !!owner && owner.spot.kind === "desk" && !owner.path.length
+        items.push({ base: d.y + 16, draw: () => {
+          px(sx - 7, d.y + 1, 14, 16, ROLE.structure); px(sx - 6, d.y + 2, 12, 14, ROLE.borderInactive)
+          px(sx - 7, d.y + 1, 14, 1, ROLE.body)
+        } })
+        items.push({ base: d.y + 31, draw: () => {
+          for (const mx of [sx - 14, sx + 4]) { px(mx, d.y + 11, 10, 7, ROLE.inactive); px(mx + 1, d.y + 12, 8, 5, ROLE.edge); px(mx + 4, d.y + 18, 2, 1, ROLE.inactive) }
+          px(d.x + 1, d.y + 19, d.w - 2, 2, ROLE.structure)
+          px(d.x + 1, d.y + 21, d.w - 2, 1, ROLE.body)
+          px(d.x + 2, d.y + 22, d.w - 4, 9, ROLE.borderInactive)
+          px(d.x + 8, d.y + 25, 4, 1, ROLE.body); px(d.x + d.w - 12, d.y + 25, 4, 1, ROLE.body)
+          blit(["sss.", ".s..", ".s..", "ooo."], d.x + d.w - 6, d.y + 15, { s: ROLE.body, o: ROLE.inactive })
+        } })
+        items.push({ base: d.y + 32, draw: () => {
+          text(plate(d.seat!.agent, "(manager)", d.w * S - 6), ox + (d.x + d.w / 2) * S, (d.y + 38) * S - 2, there ? shirtOf(d.seat) : ROLE.inactive)
+          hits.push({ x: ox + d.x * S, y: d.y * S, w: d.w * S, h: (ROW_H - 1) * S, tip: this.tip(d.seat!, threadOf(d.seat!.thread_id), there ? "at the manager's desk" : "about the office"), act: { kind: "thread", tid: d.seat!.thread_id } })
         } })
         continue
       }
@@ -609,8 +650,8 @@ export class OfficeSim {
       // seated, at a desk or on the couch, they face away from you — toward the screen, toward
       // the TV — and turn round only to talk with you
       const talking = this.talk.has(seat.agent)
-      const working = sitting && seat.warm && !talking
-      const rows = figure(actor.look, seat.archetype, !!seat.lead, false, sitting ? (talking ? "down" : "up") : couch ? "up" : actor.face, sitting || couch ? "sit" : "stand", step, shut)
+      const working = sitting && seat.warm && !talking && actor.spot.face === "up"
+      const rows = figure(actor.look, seat.archetype, !!seat.lead, false, sitting ? (talking || actor.spot.face === "down" ? "down" : "up") : couch ? "up" : actor.face, sitting || couch ? "sit" : "stand", step, shut)
       const top = sitting || couch ? actor.y - 14 : actor.y - 20 + (actor.moving && step === 2 ? -1 : 0)
       const left = actor.x - 6
       const th = threadOf(seat.thread_id)
