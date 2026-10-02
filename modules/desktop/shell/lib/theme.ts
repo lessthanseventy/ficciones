@@ -10,7 +10,7 @@ import Gio from "gi://Gio?version=2.0"
 import app from "ags/gtk4/app"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
-import { PALETTE } from "./palette"
+import { PALETTE, ROLE } from "./palette"
 
 export const THEMES = ["uqbar", "zahir"] as const
 export type Theme = (typeof THEMES)[number]
@@ -43,7 +43,11 @@ export function applyShellTheme() {
   } catch (e) { console.error("theme gtk.css:", String(e)) }
   try {
     const [ok, json] = GLib.file_get_contents(`${LINK}/shell-palette.json`)
-    if (ok) Object.assign(PALETTE as Record<string, string>, JSON.parse(new TextDecoder().decode(json)))
+    if (ok) {
+      const { role, ...hues } = JSON.parse(new TextDecoder().decode(json))
+      Object.assign(PALETTE as Record<string, string>, hues)
+      if (role) Object.assign(ROLE as Record<string, string>, role)
+    }
   } catch (e) { console.error("theme palette:", String(e)) }
 }
 

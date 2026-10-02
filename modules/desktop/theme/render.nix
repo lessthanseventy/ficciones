@@ -114,10 +114,19 @@ rec {
     $pressed: rgba($body, 0.22);
   '';
 
+  # Roles for the shell's Cairo drawing (the office rail), which CSS cannot reach either.
+  shellRoles = lib.mapAttrs (_: hex) {
+    inherit (r) ground panel raised edge structure borderInactive body key meta prose inactive
+      live attention alarm fieldInk;
+    surveyor = p.identity.surveyor; builder = p.identity.builder; reviewer = p.identity.reviewer;
+    planner = p.identity.planner; assistant = p.identity.assistant;
+  };
+
   # The palette as JSON — the shell loads the theme's copy at runtime for its Pango markup.
   paletteJson = let h = p.hue; in builtins.toJSON {
     amber = hex h.amber; green = hex h.green; pink = hex h.pink; cyan = hex h.cyan;
     lilac = hex h.violet; chip = hex h.chip; red = hex h.red; dim = hex h.dim;
+    role = shellRoles;
   };
 
   paletteTs = let h = p.hue; in ''
@@ -134,6 +143,10 @@ rec {
     } as const
     export type Hue = keyof typeof PALETTE
     export const HUES: Hue[] = ["amber", "green", "pink", "cyan", "lilac"]
+    /** roles (and coworker archetypes) for Cairo drawing; the live theme swaps them in place */
+    export const ROLE = {
+    ${lib.concatStrings (lib.mapAttrsToList (k: v: "  ${k}: \"${v}\",\n") shellRoles)}} as const
+    export type Role = keyof typeof ROLE
   '';
 
   # ---- Neovim (asterion): the palette as a Lua table --------------------------------------
