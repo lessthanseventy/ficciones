@@ -119,20 +119,23 @@ function diff(next: Agents) {
 const EMPTY: Agents = { ok: false, roster: [], threads: [], counts: {}, awaiting: 0, bench: [], projects: [], tickets: [], workspaces: [], archetypes: [], models: [] }
 export const [agents, setAgents] = createState<Agents>({ ...EMPTY, note: "…" })
 export async function refreshAgents() {
+  let next: Agents
   try {
     const out = await execAsync([CLI, "shell-status"])
     const j = JSON.parse(out.trim().split("\n").pop() ?? "{}")
-    const next: Agents = {
+    next = {
       ok: true, roster: j.roster ?? [], threads: j.threads ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0,
       bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], archetypes: j.archetypes ?? [], models: j.models ?? [],
     }
-    diff(next)
-    setAgents(next)
   } catch {
     if (last?.ok) logEvent("agent", "channel down", "warn")
     last = { ...EMPTY, note: "channel down" }
     setAgents(last)
+    return
   }
+  // outside the try: a surface that throws on the new data is its own bug, not a channel down
+  diff(next)
+  setAgents(next)
 }
 refreshAgents()
 interval(30_000, refreshAgents)
