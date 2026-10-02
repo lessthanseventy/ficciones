@@ -116,7 +116,6 @@ const GLYPH: Record<string, string[]> = {
   "♥": [".k.k.", "kkkkk", "kkkkk", ".kkk.", "..k.."],
 }
 const SIGNATURES = ["♪", "♥", "*", "…"]
-const ZED = ["zzzzz", "...z.", "..z..", ".z...", "zzzzz"]
 const ARROW = ["vvvvv", ".vvv.", "..v.."]
 
 function overlay(rows: string[], over: Record<number, string> | undefined) {
@@ -202,7 +201,7 @@ const LOUNGE: Spot[] = [
   { x: 90, y: 46, aisle: 46, pose: "stand", face: "up", kind: "board" },
   { x: 104, y: 66, aisle: 66, pose: "couch", face: "down", kind: "couch" },
   { x: 118, y: 66, aisle: 66, pose: "couch", face: "down", kind: "couch" },
-  { x: 112, y: 100, aisle: 100, pose: "stand", face: "right", kind: "cooler" },
+  { x: 88, y: 74, aisle: 74, pose: "stand", face: "left", kind: "cooler" },
 ]
 // TICKETS (unstarted) and DOING (a started plain thread — no workline stage) before the stages
 /** beside whoever is visited: at their desk if they sit at one, else where they stand */
@@ -404,6 +403,9 @@ export class OfficeSim {
     // floors and walls
     for (let ty = BAND; ty < height; ty += 8) for (let tx = 0; tx < W; tx += 8) px(tx, ty, 8, 8, ((tx + ty) / 8) % 2 ? ROLE.panel : ROLE.ground)
     px(0, BAND, 71, 104 - BAND, ROLE.raised)
+    // the lounge's floorboards: warmer than the office's tiles, the seams staggered row to row
+    px(72, BAND, 59, 104 - BAND, ROLE.raised)
+    for (let y = BAND + 3; y < 104; y += 4) { px(72, y, 59, 1, ROLE.edge); px(78 + ((y >> 2) % 3) * 19, y - 3, 1, 3, ROLE.edge) }
     px(0, 0, W, BAND - 1, ROLE.edge)
     px(0, BAND - 1, W, 1, ROLE.structure)
     if (leadRows) px(2, FLOOR - 2, 128, leadRows * ROW_H, ROLE.raised)
@@ -464,6 +466,10 @@ export class OfficeSim {
     px(96, 52, 32, 6, ROLE.structure)
     px(98, 58, 28, 6, ROLE.borderInactive)
     px(98, 64, 2, 3, ROLE.structure); px(124, 64, 2, 3, ROLE.structure)
+    // a rug between the couch and the TV
+    px(98, 68, 30, 12, ROLE.structure)
+    px(99, 69, 28, 10, ROLE.borderInactive)
+    for (let i = 0; i < 6; i++) px(101 + i * 5, 73 + (i % 2), 2, 2, ROLE.meta)
 
     // everything with a footprint, back to front
     type Item = { base: number; draw: () => void }
@@ -491,9 +497,23 @@ export class OfficeSim {
       paint(ROLE.fieldInk)
       lines.forEach((l, i) => { cr.moveTo(bx + 7, by + 4 + (i + 1) * lh - 3); cr.showText(l) })
     }
-    items.push({ base: 98, draw: () => {
-      blit(COOLER, 120, 82, { k: ROLE.key, m: ROLE.prose, a: ROLE.alarm, o: ROLE.inactive })
-      if ([...this.actors.values()].some((x) => x.spot.kind === "cooler" && !x.moving) && f % 3 === 0) px(122 + (f % 2) * 2, 83, 1, 1, ROLE.ground)
+    items.push({ base: 74, draw: () => {
+      blit(COOLER, 74, 58, { k: ROLE.key, m: ROLE.prose, a: ROLE.alarm, o: ROLE.inactive })
+      if ([...this.actors.values()].some((x) => x.spot.kind === "cooler" && !x.moving) && f % 3 === 0) px(76 + (f % 2) * 2, 59, 1, 1, ROLE.ground)
+    } })
+    // the TV on its cabinet, facing the couch: a show on while someone sits there, dark otherwise
+    items.push({ base: 94, draw: () => {
+      px(102, 88, 24, 4, ROLE.structure); px(103, 92, 2, 2, ROLE.structure); px(123, 92, 2, 2, ROLE.structure)
+      px(105, 78, 18, 10, ROLE.inactive)
+      if ([...this.actors.values()].some((x) => x.spot.kind === "couch" && !x.moving)) {
+        px(106, 79, 16, 4, ROLE.key); px(106, 83, 16, 4, ROLE.live)
+        px(106 + ((f * 3) % 15), 81 - (f % 2), 2, 2, ROLE.body)
+      } else { px(106, 79, 16, 8, ROLE.ground); px(119, 80, 2, 1, ROLE.edge) }
+    } })
+    // a floor lamp by the couch, its shade lit
+    items.push({ base: 66, draw: () => {
+      px(92, 50, 1, 16, ROLE.inactive); px(91, 66, 3, 1, ROLE.inactive)
+      blit(["sssss", ".sss."], 90, 47, { s: ROLE.body })
     } })
     items.push({ base: 66.5, draw: () => { px(95, 55, 3, 11, ROLE.structure); px(126, 55, 3, 11, ROLE.structure) } })
     items.push({ base: 101, draw: () => blit(BIG_PLANT, 2, 90, { l: ROLE.live, o: ROLE.structure }) })
@@ -570,7 +590,7 @@ export class OfficeSim {
       const sitting = actor.pose === "sit" && !actor.moving
       const couch = actor.pose === "couch" && !actor.moving
       const step = actor.moving ? 1 + (Math.floor(t / 2) % 2) : 0
-      const shut = couch || (f + actor.look.blink) % 13 === 0
+      const shut = (f + actor.look.blink) % 13 === 0
       // at work they turn to the screen; seated and idle, or talking with you, they face the room
       const working = sitting && seat.warm && !this.talk.has(seat.agent)
       const rows = figure(actor.look, seat.archetype, !!seat.lead, false, working ? "left" : sitting || couch ? "down" : actor.face, sitting ? "sit" : couch ? "couch" : "stand", step, shut)
@@ -602,8 +622,7 @@ export class OfficeSim {
         } else if (actor.spot.kind === "queue" && !actor.moving) {
           blit(BUBBLE, left + 3, above + bob, { a: ROLE.attention })
           blit(GLYPH["!"], left + 4, above + 1 + bob, { k: ROLE.fieldInk })
-        } else if (couch) blit(ZED, left + 9, top - 4 - (f % 3), { z: ROLE.inactive })
-        else if (actor.emote) {
+        } else if (actor.emote) {
           blit(BUBBLE, left + 3, above, { a: ROLE.prose })
           blit(GLYPH[actor.emote] ?? GLYPH["…"], left + 4, above + 1, { k: ROLE.fieldInk })
         } else above = top - 1
