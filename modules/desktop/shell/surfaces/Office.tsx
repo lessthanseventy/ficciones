@@ -98,6 +98,7 @@ type Mode =
   | { kind: "confirm-handoff"; tid: number; name: string }
   | { kind: "column"; col: number }
   | { kind: "notes" }
+  | { kind: "boss" }
 const [mode, setMode] = createState<Mode>({ kind: "none" })
 // asides, by agent id: survive closing the card, so reopening someone shows what they last said
 const [talks, setTalks] = createState<Record<number, { name: string; q: string; a: string | null }>>({})
@@ -116,7 +117,8 @@ const pickedTitle = createComputed(() => {
 
 function act(h: Hit) {
   const m = mode.peek(), x = h.act
-  if (x.kind === "notes") setMode(m.kind === "notes" ? { kind: "none" } : { kind: "notes" })
+  if (x.kind === "boss") setMode(m.kind === "boss" ? { kind: "none" } : { kind: "boss" })
+  else if (x.kind === "notes") setMode(m.kind === "notes" ? { kind: "none" } : { kind: "notes" })
   else if (x.kind === "column") setMode(m.kind === "column" && m.col === x.col ? { kind: "none" } : { kind: "column", col: x.col })
   else if (x.kind === "pen") setMode({ kind: "new-ticket" })
   else if (x.kind === "hire") setMode({ kind: "hire" })
@@ -333,9 +335,36 @@ function ActionCard() {
         case "handoff": case "confirm-handoff": return `\u{f0e7e}  HAND OFF #${m.tid}`
         case "column": { const col = columns()[m.col]; return `\u{f0e7e}  ${col?.name ?? ""} · ${col?.items.length ?? 0}` }
         case "notes": return `\u{f0e7e}  NOTES · ${view().notes.length}`
+        case "boss": return "\u{f0004}  YOU"
         default: return `\u{f0e7e}  TICKET #${m.id}`
       }
     })} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
+      {/* your desk: what waits on you, and the running of the office */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={8} visible={is("boss")}>
+        <label cssClasses={inbox((l) => (l.length ? ["pink"] : ["dim"]))} label={inbox((l) => (l.length ? `${l.length} waiting on you` : "nothing waits on you"))} xalign={0} />
+        <box orientation={Gtk.Orientation.VERTICAL}>
+          <For each={inbox}>
+            {(t: Thread) => (
+              <button cssClasses={["row", "thread-row"]} onClicked={() => { setPicked(t.id); cancel() }}>
+                <box spacing={8}>
+                  <label cssClasses={["dim", "sm"]} label={`#${t.id}`} widthChars={4} xalign={1} />
+                  <label label={t.title} hexpand xalign={0} ellipsize={3} maxWidthChars={22} />
+                  <label cssClasses={["pink", "sm"]} label={t.prompt?.summary ?? t.lead ?? ""} ellipsize={3} maxWidthChars={16} />
+                </box>
+              </button>
+            )}
+          </For>
+        </box>
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={() => setMode({ kind: "hire" })}><label label="hire someone" /></button>
+          <button cssClasses={["act"]} onClicked={() => setMode({ kind: "new-ticket" })}><label label="new ticket" /></button>
+          <button cssClasses={["act"]} onClicked={() => setMode({ kind: "notes" })}><label label="notes" /></button>
+        </box>
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={() => setMode({ kind: "workspace" })}><label label="this workspace" /></button>
+          <button cssClasses={["act"]} onClicked={() => setMode({ kind: "new-workspace" })}><label label="new workspace" /></button>
+        </box>
+      </box>
       {/* the notes on the board's strip, newest first: who left them, when, what they say */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("notes")}>
         <label cssClasses={["dim"]} label="no notes yet — coworkers leave them with write_note" xalign={0} wrap visible={view((a) => a.notes.length === 0)} />
