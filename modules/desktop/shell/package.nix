@@ -10,6 +10,7 @@
   libadwaita,
   libsoup_3,
   glib-networking,
+  vte-gtk4,
   writeText,
   dart-sass,
   agsPackages,
@@ -34,7 +35,8 @@ let
   ];
   # glib-networking: GIO's TLS backend, or every https fetch dies with "TLS support is not
   # available". wrapGAppsHook3 turns it into GIO_EXTRA_MODULES on both wrappers.
-  extra = [ libadwaita libsoup_3 glib-networking ];
+  # vte-gtk4: the office's wide view embeds a worker's real terminal (their tmux window).
+  extra = [ libadwaita libsoup_3 glib-networking vte-gtk4 ];
   # The palette-generated files (style/_palette.scss, lib/palette.ts) are rewritten from
   # palette.nix before bundling, so the store shell can never disagree with the machine palette
   # even if a checked-in copy drifted (checks.palette-sync catches that for the dev loop).
