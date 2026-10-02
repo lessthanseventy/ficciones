@@ -10,7 +10,7 @@ import Hyprland from "gi://AstalHyprland"
 import Cairo from "cairo"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
-import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread } from "../lib/agents"
+import { agents, dossier, threadView, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
 import { OfficeSim, S, W, boardColumns, type BoardItem, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
@@ -65,6 +65,15 @@ const sim = () => { const ws = wsId.peek() ?? 0; let s = sims.get(ws); if (!s) s
 const [picked, setPicked] = createState<number | null>(null)
 const [brief, setBrief] = createState<Dossier | null>(null)
 const [frame, setFrame] = createState(0)
+// wide: the picked thread opens beside the office — its conversation and its worker's pane
+const [wide, setWide] = createState(false)
+const [tview, setTview] = createState<ThreadView | null>(null)
+let viewing = 0
+async function loadThreadView() {
+  const id = picked.peek(), my = ++viewing
+  const v = id === null || !wide.peek() ? null : await threadView(id)
+  if (my === viewing) setTview(v)
+}
 let loading = 0
 async function loadBrief() {
   const id = picked.peek()
@@ -73,6 +82,8 @@ async function loadBrief() {
   if (my === loading) setBrief(d)
 }
 picked.subscribe(loadBrief)
+picked.subscribe(() => { setTview(null); loadThreadView() })
+wide.subscribe(loadThreadView)
 
 type Mode =
   | { kind: "none" }
@@ -164,6 +175,7 @@ function Switcher() {
       <label cssClasses={["pink", "sm"]} label={elsewhere((n) => `! ${n} elsewhere`)} visible={elsewhere((n) => n > 0)} />
       <button cssClasses={["act"]} onClicked={() => stepWs(1)} tooltipText="next workspace"><label label="›" /></button>
       <button cssClasses={["act"]} onClicked={() => setMode({ kind: "new-workspace" })} tooltipText="new workspace"><label label="+" /></button>
+      <button cssClasses={["act"]} onClicked={() => setWide(!wide.peek())} tooltipText={wide((w) => (w ? "back to the rail" : "wide: the thread beside the office"))}><label label={wide((w) => (w ? "⤡" : "⤢"))} /></button>
     </box>
   )
 }
@@ -482,6 +494,47 @@ function ActionCard() {
   )
 }
 
+/** the wide view's second column: the picked thread's actions, its conversation, its worker's pane */
+function ThreadPane() {
+  const hhmm = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }
+  let convo: Gtk.ScrolledWindow | null = null
+  // the newest message in view: scroll to the bottom whenever the conversation changes
+  tview.subscribe(() => setTimeout(() => { const v = convo?.get_vadjustment(); if (v) v.set_value(v.get_upper()) }, 50))
+  return (
+    <box cssClasses={["sheet", "right", "office-thread"]} orientation={Gtk.Orientation.VERTICAL} spacing={8} widthRequest={720} visible={createComputed(() => wide() && picked() !== null)}>
+      <Panel title={pickedTitle} cssClasses={["card", "card-agents"]}>
+        <Reply />
+      </Panel>
+      <Panel title={"\u{f0e7e}  CONVERSATION"} cssClasses={["card", "card-agents"]} vexpand>
+        <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand $={(self) => { convo = self }}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+            <For each={tview((v) => v?.messages ?? [])}>
+              {(m: ThreadView["messages"][number]) => (
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+                  <box spacing={8}>
+                    <label cssClasses={m.author === "andrew" ? ["amber", "sm"] : ["cyan", "sm"]} label={m.author} xalign={0} />
+                    <label cssClasses={["dim", "sm"]} label={hhmm(m.at)} xalign={0} />
+                    <label cssClasses={["pink", "sm"]} label="asks" visible={m.kind === "prompt"} />
+                  </box>
+                  <label label={m.body} xalign={0} wrap maxWidthChars={80} selectable />
+                </box>
+              )}
+            </For>
+            <label cssClasses={["dim"]} label="loading…" visible={tview((v) => !v)} xalign={0} />
+          </box>
+        </scrolledwindow>
+      </Panel>
+      {/* what the worker's screen shows right now — read-only; the cockpit is where you take the wheel */}
+      <Panel title={tview((v) => `\u{f018d}  OVER THEIR SHOULDER${v?.window ? ` · ${v.window}` : ""}`)} cssClasses={["card", "card-agents"]} visible={tview((v) => !!v)}>
+        <label cssClasses={["dim"]} label="no window is running this thread" xalign={0} visible={tview((v) => !v?.peek)} />
+        <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vscrollbarPolicy={Gtk.PolicyType.NEVER} visible={tview((v) => !!v?.peek)}>
+          <label cssClasses={["peek"]} label={tview((v) => (v?.peek ?? "").split("\n").slice(-28).join("\n"))} xalign={0} yalign={0} />
+        </scrolledwindow>
+      </Panel>
+    </box>
+  )
+}
+
 function Reply() {
   let entry: Gtk.Entry
   const send = async (body: string) => {
@@ -511,6 +564,7 @@ function Reply() {
 
 let officeWin: Astal.Window | null = null
 let ticker: Timer | null = null
+let peeker: Timer | null = null
 export function showOffice(on?: Gdk.Monitor) {
   if (!officeWin) return
   closeAny()
@@ -587,6 +641,8 @@ export default function Office() {
         self.connect("notify::visible", () => {
           ticker?.cancel(); ticker = null
           if (self.visible) ticker = interval(100, () => { if (sim().step(view.peek())) setFrame((n) => n + 1) })
+          peeker?.cancel(); peeker = null
+          if (self.visible) peeker = interval(3000, () => { if (wide.peek()) loadThreadView() })
         })
       }}
       visible={false}
@@ -635,12 +691,13 @@ export default function Office() {
               )}
             </For>
           </Panel>
-          <Panel title={pickedTitle} cssClasses={["card", "card-agents"]} visible={picked((p) => p !== null)}>
+          <Panel title={pickedTitle} cssClasses={["card", "card-agents"]} visible={createComputed(() => picked() !== null && !wide())}>
             <Reply />
             <Brief brief={brief} />
           </Panel>
         </box>
       </scrolledwindow>
+      <ThreadPane />
       </box>
     </window>
   )

@@ -571,13 +571,19 @@ export class OfficeSim {
       const couch = actor.pose === "couch" && !actor.moving
       const step = actor.moving ? 1 + (Math.floor(t / 2) % 2) : 0
       const shut = couch || (f + actor.look.blink) % 13 === 0
-      const rows = figure(actor.look, seat.archetype, !!seat.lead, false, sitting || couch ? "down" : actor.face, sitting ? "sit" : couch ? "couch" : "stand", step, shut)
+      // at work they turn to the screen; seated and idle, or talking with you, they face the room
+      const working = sitting && seat.warm && !this.talk.has(seat.agent)
+      const rows = figure(actor.look, seat.archetype, !!seat.lead, false, working ? "left" : sitting || couch ? "down" : actor.face, sitting ? "sit" : couch ? "couch" : "stand", step, shut)
       const top = sitting ? actor.y - 20 : actor.y - 20 + (actor.moving && step === 2 ? -1 : 0)
       const left = actor.x - 6
       const th = threadOf(seat.thread_id)
       items.push({ base: sitting ? actor.y : actor.y + 0.5, draw: () => {
         blit(rows, left, top, this.paints(shirtOf(seat), actor.look))
-        if (sitting && seat.warm) {
+        if (working) {
+          // a keyboard on the desk between them and the screen, a hand tapping across it
+          px(left - 6, top + 13, 7, 1, ROLE.inactive)
+          px(left - 5 + ((f + actor.x) % 3) * 2, top + 12, 2, 1, ROLE.prose)
+        } else if (sitting && seat.warm) {
           const up = (f + actor.x) % 2 === 0
           px(left + 1, top + 13 - (up ? 1 : 0), 2, 1, ROLE.prose)
           px(left + 9, top + 13 - (up ? 0 : 1), 2, 1, ROLE.prose)

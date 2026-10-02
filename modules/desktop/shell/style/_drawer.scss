@@ -53,6 +53,8 @@ window.drawer { background: transparent; }
 
 // ── the right-hand hub ─────────────────────────────────────────────────────
 window.hub, window.office, window.clickaway { background: transparent; }
+// the office's wide column: a worker's pane, read-only, small enough for 80 columns to fit
+.office-thread .peek { font-size: $size-sm; color: $prose; background: $panel; padding: $sp-2; }
 .card-notices .panel-title { color: $body; }
 .card-toggles .panel-title { color: $key; }
 .hub-head { min-height: $cell-h; }

@@ -59,6 +59,14 @@ export async function dossier(id: number): Promise<Dossier | null> {
     return JSON.parse(out.trim().split("\n").pop() ?? "null")
   } catch { return null }
 }
+/** a thread for the office's wide view: its last messages, and what its worker's pane shows now */
+export type ThreadView = { messages: { id: number; author: string; body: string; at: string; kind: string }[]; peek: string | null; window: string | null }
+export async function threadView(id: number): Promise<ThreadView | null> {
+  try {
+    const out = await execAsync([CLI, "shell-thread", String(id)])
+    return JSON.parse(out.trim().split("\n").pop() ?? "null")
+  } catch { return null }
+}
 /** Post to a thread as the operator. A body naming an open prompt's option answers it. */
 export async function post(id: number, body: string): Promise<boolean> {
   try {
