@@ -8,9 +8,9 @@ import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import Cairo from "cairo"
-import { For, createComputed, createState } from "ags"
+import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
-import { agents, dossier, post, fileTicket, startTicket, hire, type Agents, type Dossier, type Thread } from "../lib/agents"
+import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, type Agents, type Dossier, type Thread } from "../lib/agents"
 import { OfficeSim, S, W, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
@@ -67,6 +67,8 @@ type Mode =
   | { kind: "confirm"; id: number; agentId: number; name: string }
   | { kind: "new-ticket" }
   | { kind: "hire" }
+  | { kind: "coworker"; agentId: number }
+  | { kind: "new-workspace" }
 const [mode, setMode] = createState<Mode>({ kind: "none" })
 const armed = mode((m) => (m.kind === "ticket" || m.kind === "confirm" ? m.id : null))
 const armedTitle = createComputed(() => { const id = armed(); return agents().tickets.find((t) => t.id === id)?.title ?? "" })
@@ -85,8 +87,10 @@ function act(h: Hit) {
   else if (x.kind === "hire") setMode({ kind: "hire" })
   else if (x.kind === "ticket") setMode(m.kind === "ticket" && m.id === x.id ? { kind: "none" } : { kind: "ticket", id: x.id })
   else if (x.kind === "person" && m.kind === "ticket" && x.agentId !== null) setMode({ kind: "confirm", id: m.id, agentId: x.agentId, name: x.name })
-  else if (x.kind === "person" && x.tid !== null) setPicked(x.tid)
-  else if (x.kind === "thread") setPicked(x.tid)
+  else if (x.kind === "person") {
+    if (x.agentId !== null) setMode({ kind: "coworker", agentId: x.agentId })
+    if (x.tid !== null) setPicked(x.tid)
+  } else if (x.kind === "thread") setPicked(x.tid)
 }
 
 function Scene() {
@@ -130,17 +134,101 @@ function Switcher() {
       <label cssClasses={["amber"]} label={wsName} hexpand />
       <label cssClasses={["pink", "sm"]} label={elsewhere((n) => `! ${n} elsewhere`)} visible={elsewhere((n) => n > 0)} />
       <button cssClasses={["act"]} onClicked={() => stepWs(1)} tooltipText="next workspace"><label label="›" /></button>
+      <button cssClasses={["act"]} onClicked={() => setMode({ kind: "new-workspace" })} tooltipText="new workspace"><label label="+" /></button>
+    </box>
+  )
+}
+
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"]
+const shortModel = (key: string) => key.replace(/^[^/]*\//, "").replace(/^claude-/, "")
+const harnessName = (h: string) => (h === "claude_code" ? "claude code" : h)
+const choiceLabel = (key: string) => {
+  const m = agents.peek().models.find((x) => x.key === key)
+  return m ? `${shortModel(key)} · ${harnessName(m.harness)}` : shortModel(key)
+}
+const archOf = (name: string | null) => agents.peek().archetypes.find((a) => a.name === name)
+/** what an archetype changes beyond its prompt, in a line */
+const archFacts = (name: string | null, lead = false) => {
+  const a = archOf(name)
+  if (!a) return ""
+  return [a.name, lead && "lead", a.read_only && "read-only (cannot write)", a.meta && "meta (oversees, never works a thread)", `default ${choiceLabel(a.model)}`].filter(Boolean).join(" · ")
+}
+
+type Setter<T> = (v: T) => void
+/** model (with the harness it runs under), effort, ask/allow — null on a knob is the archetype's default */
+function Knobs({ model, setModel, effort, setEffort, ask, setAsk }: {
+  model: Accessor<string | null>; setModel: Setter<string | null>
+  effort: Accessor<string | null>; setEffort: Setter<string | null>
+  ask: Accessor<string | null>; setAsk: Setter<string | null>
+}) {
+  const chip = (on: Accessor<boolean>) => on((x) => ["act", ...(x ? ["chip"] : [])])
+  const rows = agents((a) => [null, ...a.models.map((m) => m.key)])
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+      <label cssClasses={["k", "sm"]} label="model" xalign={0} />
+      {/* two to a row: the labels carry the harness */}
+      {[0, 2, 4, 6].map((from) => (
+        <box spacing={6}>
+          <For each={rows((r) => r.slice(from, from + 2))}>
+            {(key: string | null) => (
+              <button cssClasses={chip(model((m) => m === key))} onClicked={() => setModel(key)}>
+                <label label={key === null ? "default" : choiceLabel(key)} />
+              </button>
+            )}
+          </For>
+        </box>
+      ))}
+      <label cssClasses={["k", "sm"]} label="effort" xalign={0} />
+      <box spacing={6}>
+        {[null, ...EFFORTS].map((e) => (
+          <button cssClasses={chip(effort((x) => x === e))} onClicked={() => setEffort(e)}><label label={e ?? "default"} /></button>
+        ))}
+      </box>
+      <label cssClasses={["k", "sm"]} label="permissions" xalign={0} />
+      <box spacing={6}>
+        {([[null, "default"], ["ask", "ask first"], ["allow", "just do it"]] as const).map(([v, l]) => (
+          <button cssClasses={chip(ask((x) => x === v))} onClicked={() => setAsk(v)}><label label={l} /></button>
+        ))}
+      </box>
     </box>
   )
 }
 
 /** the card under the scene for whatever the last click started */
 function ActionCard() {
-  let title: Gtk.Entry, body: Gtk.Entry, name: Gtk.Entry
+  let title: Gtk.Entry, body: Gtk.Entry, name: Gtk.Entry, wsNameEntry: Gtk.Entry, wsRepo: Gtk.Entry
   const [project, setProject] = createState<number | null>(null)
   const [arch, setArch] = createState<string | null>(null)
+  const [model, setModel] = createState<string | null>(null)
+  const [effort, setEffort] = createState<string | null>(null)
+  const [ask, setAsk] = createState<string | null>(null)
   const cancel = () => setMode({ kind: "none" })
   const is = (k: Mode["kind"]) => mode((m) => m.kind === k)
+  const coworker = createComputed(() => { const m = mode(); return m.kind === "coworker" ? agents().bench.find((c) => c.agent_id === m.agentId) ?? null : null })
+  // the knobs open on what is set now: a coworker's policy, or nothing (the archetype's) for a hire
+  mode.subscribe(() => {
+    const c = coworker.peek()
+    setModel(c?.model ? `${c.model.provider}/${c.model.model}` : null)
+    setEffort(c?.model?.thinking ?? null)
+    setAsk(c?.ask ?? null)
+  })
+  const base = createComputed(() => archOf(mode().kind === "hire" ? arch() : coworker()?.archetype ?? null)?.model ?? "")
+  // an effort on the default model still needs a model named, so it names the archetype's
+  const modelKnob = (unset: string) => model.peek() ?? (effort.peek() ? base.peek() : unset)
+  const submitWorkspace = async () => {
+    const n = wsNameEntry.text.trim()
+    if (!n) return
+    if (await workspaceNew(n, wsRepo.text.trim())) {
+      wsNameEntry.text = ""; wsRepo.text = ""; cancel()
+      const w = agents.peek().workspaces.find((x) => x.name === n)
+      if (w) setChosen(w.id)
+    }
+  }
+  const saveCoworker = async () => {
+    const c = coworker.peek(), ws = wsId.peek()
+    if (!c || ws === null) return
+    if (await coworkerSet(ws, c.agent_id, modelKnob("inherit"), effort.peek() ?? "-", ask.peek() ?? "inherit")) cancel()
+  }
   const submitTicket = async () => {
     const ws = wsId.peek()
     if (ws === null || !title.text.trim()) return
@@ -149,7 +237,7 @@ function ActionCard() {
   const submitHire = async () => {
     const ws = wsId.peek(), n = name.text.trim().toLowerCase(), a = arch.peek()
     if (ws === null || !/^[a-z][a-z0-9-]*$/.test(n) || !a) return
-    if (await hire(ws, n, a)) { name.text = ""; cancel() }
+    if (await hire(ws, n, a, modelKnob("-"), effort.peek() ?? "-", ask.peek() ?? "-")) { name.text = ""; cancel() }
   }
   const start = async (agentId: number | null) => {
     const m = mode.peek()
@@ -157,7 +245,29 @@ function ActionCard() {
     if (await startTicket(m.id, agentId)) cancel()
   }
   return (
-    <Panel title={mode((m) => m.kind === "new-ticket" ? "\u{f0e7e}  NEW TICKET" : m.kind === "hire" ? "\u{f0004}  HIRE" : m.kind === "none" ? "" : `\u{f0e7e}  TICKET #${m.id}`)} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
+    <Panel title={createComputed(() => {
+      const m = mode()
+      return m.kind === "new-ticket" ? "\u{f0e7e}  NEW TICKET" : m.kind === "hire" ? "\u{f0004}  HIRE" : m.kind === "new-workspace" ? "\u{f0004}  NEW WORKSPACE"
+        : m.kind === "coworker" ? `\u{f0004}  ${coworker()?.name ?? ""}` : m.kind === "none" ? "" : `\u{f0e7e}  TICKET #${m.id}`
+    })} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("coworker")}>
+        <label cssClasses={["dim", "sm"]} label={coworker((c) => (c ? archFacts(c.archetype, c.lead) : ""))} xalign={0} wrap maxWidthChars={44} />
+        <Knobs model={model} setModel={setModel} effort={effort} setEffort={setEffort} ask={ask} setAsk={setAsk} />
+        <label cssClasses={["dim", "sm"]} label="takes effect from their next session" xalign={0} />
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={saveCoworker}><label label="save" /></button>
+          <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+        </box>
+      </box>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("new-workspace")}>
+        <entry cssClasses={["deck-entry"]} placeholderText="name" $={(self) => { wsNameEntry = self; self.connect("activate", () => wsRepo.grab_focus()) }} />
+        <entry cssClasses={["deck-entry"]} placeholderText="repo path (optional) — where its coworkers work" $={(self) => { wsRepo = self; self.connect("activate", submitWorkspace) }} />
+        <label cssClasses={["dim", "sm"]} label="it opens empty: hire at the help-wanted desk; the first builder leads" xalign={0} wrap maxWidthChars={44} />
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={submitWorkspace}><label label="create" /></button>
+          <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+        </box>
+      </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("ticket")}>
         <label label={armedTitle} xalign={0} wrap maxWidthChars={40} />
         <label cssClasses={["dim", "sm"]} label="click a coworker in the office to hand it over" xalign={0} />
@@ -194,13 +304,15 @@ function ActionCard() {
         {/* three to a row, so the rail keeps its width */}
         {[0, 3].map((from) => (
           <box spacing={6}>
-            <For each={agents((a) => a.archetypes.slice(from, from + 3))}>
+            <For each={agents((a) => a.archetypes.slice(from, from + 3).map((x) => x.name))}>
               {(k: string) => (
                 <button cssClasses={arch((x) => ["act", ...(x === k ? ["chip"] : [])])} onClicked={() => setArch(k)}><label label={k} /></button>
               )}
             </For>
           </box>
         ))}
+        <label cssClasses={["dim", "sm"]} label={arch((a) => archFacts(a))} visible={arch((a) => !!a)} xalign={0} wrap maxWidthChars={44} />
+        <Knobs model={model} setModel={setModel} effort={effort} setEffort={setEffort} ask={ask} setAsk={setAsk} />
         <box spacing={6}>
           <button cssClasses={["act"]} onClicked={submitHire}><label label="hire" /></button>
           <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>

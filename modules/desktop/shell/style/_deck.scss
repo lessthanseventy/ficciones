@@ -80,3 +80,5 @@ window.deck-drawer { background: transparent; }
 .card-agents .thread-row { min-height: 24px; padding: 0 $sp-1; }
 .card-agents .brief { padding: $sp-1 0 0; .msg label { min-height: 20px; } }
 .card-agents { min-width: 420px; }
+// a picked choice on the office's cards: the action outline turns inverse, ink included
+.card-agents .act.chip { background: $cursor-field; border-color: $cursor-field; label { color: $field-ink; } }
