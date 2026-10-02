@@ -239,6 +239,13 @@ function ActionCard() {
     setTalks({ ...talks.peek(), [c.agent_id]: { name: c.name, q: q.trim(), a: a || "(no answer)" } })
     room.say(c.name, a || "...")
   }
+  const dismiss = () => {
+    const c = coworker.peek()
+    if (!c) return
+    const rest = { ...talks.peek() }
+    delete rest[c.agent_id]
+    setTalks(rest)
+  }
   const saveCoworker = async () => {
     const c = coworker.peek(), ws = wsId.peek()
     if (!c || ws === null) return
@@ -267,9 +274,13 @@ function ActionCard() {
     })} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("coworker")}>
         <entry cssClasses={["deck-entry"]} placeholderText={coworker((c) => `say something to ${c?.name ?? ""}…`)} $={(self) => { self.connect("activate", () => { talkTo(self.text); self.text = "" }) }} />
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={3} visible={exchange((x) => !!x)}>
-          <label cssClasses={["dim"]} label={exchange((x) => (x ? `you: ${x.q}` : ""))} xalign={0} wrap maxWidthChars={44} />
-          <label cssClasses={exchange((x) => (x?.a === null ? ["dim"] : ["amber"]))} label={exchange((x) => (x ? `${x.name}: ${x.a ?? "thinking…"}` : ""))} xalign={0} wrap maxWidthChars={44} selectable />
+        <box spacing={6} visible={exchange((x) => !!x)}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={3} hexpand>
+            <label cssClasses={["dim"]} label={exchange((x) => (x ? `you: ${x.q}` : ""))} xalign={0} wrap maxWidthChars={42} />
+            <label cssClasses={exchange((x) => (x?.a === null ? ["dim"] : ["amber"]))} label={exchange((x) => (x ? `${x.name}: ${x.a ?? "thinking…"}` : ""))} xalign={0} wrap maxWidthChars={42} selectable />
+          </box>
+          {/* dismiss an answered exchange; one still waiting on its answer stays */}
+          <button cssClasses={["act"]} valign={Gtk.Align.START} tooltipText="dismiss" visible={exchange((x) => x?.a != null)} onClicked={dismiss}><label label="×" /></button>
         </box>
         <label cssClasses={["dim", "sm"]} label={coworker((c) => (c ? archFacts(c.archetype, c.lead) : ""))} xalign={0} wrap maxWidthChars={44} />
         <button cssClasses={["act"]} halign={Gtk.Align.START} onClicked={() => setSettings(!settings.peek())}><label label={settings((s) => (s ? "settings ▴" : "settings ▾"))} /></button>
