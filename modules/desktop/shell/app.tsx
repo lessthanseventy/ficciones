@@ -21,6 +21,7 @@ import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
 import Backdrop, { setBackdrop, MODE_NAMES } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Deck"
+import Office, { toggleOffice } from "./surfaces/Office"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, applyShellTheme, type Theme } from "./lib/theme"
@@ -74,6 +75,10 @@ app.start({
     // verbs still land
     if (verb === "toggle" && (what === "drawer" || what === "calendar")) {
       toggleCalendarPop()
+      return res("ok")
+    }
+    if (verb === "toggle" && what === "office") {
+      toggleOffice()
       return res("ok")
     }
     if (verb === "toggle" && what === "launcher") {
@@ -147,7 +152,7 @@ app.start({
       else toggleCalendarPop()
       return res("ok")
     }
-    res("usage: astal-shell capture … | toggle drawer|hub|deck|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
+    res("usage: astal-shell capture … | toggle drawer|hub|deck|office|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;
@@ -159,6 +164,7 @@ app.start({
     Notifications()
     Hub()
     Deck()
+    Office()
     startHotEdge()
     // the live theme's stylesheet over the bundled default (the same css when they agree)
     applyShellTheme()

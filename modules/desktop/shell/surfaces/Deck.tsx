@@ -27,6 +27,7 @@ import { armClickaway, disarmClickaway, closeOnPress, closeAny } from "./Clickaw
 import { focus, focused, cursor, cursorOf, cycleFocus, move, jump, select } from "../lib/nav"
 import { threads } from "../panes/Agents"
 import { hoverPopover } from "../lib/hover"
+import { showOffice, toggleOffice } from "./Office"
 
 const TAIL = 2 // the activity segment: the last couple of events; the drawer has the rest
 const SRCS: Src[] = ["shell", "notice", "agent", "hypr", "journal", "sys"]
@@ -97,9 +98,8 @@ function Line({ e, wide = false }: { e: Entry; wide?: boolean }) {
   )
 }
 
-let agentsBtn: Gtk.MenuButton | null = null
-/** Pop the roster (the TODAY card's "agents await you" line, `astal-shell show drawer agents`). */
-export const popAgents = () => agentsBtn?.popup()
+/** Open the office rail (the TODAY card's "agents await you" line, `astal-shell show drawer agents`). */
+export const popAgents = () => showOffice()
 
 // ── the row ───────────────────────────────────────────────────────────────────────────────
 export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
@@ -168,16 +168,13 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             <Panel title={"\u{f051b}  TIMER"} cssClasses={["card", "card-timer"]}><TimerPane /></Panel>
           </popover>
         </menubutton>
-        {/* the Tlön roster (from the rail, 2026-09-07): warm/total, pink with a ! when someone awaits you */}
-        <menubutton cssClasses={agents((a) => ["cell", "deck-agents", "clickable", ...(a.awaiting > 0 ? ["await"] : [])])} direction={Gtk.ArrowType.UP} $={(self) => { agentsBtn = self; hoverPopover(self, "deck") }}>
+        {/* the Tlön roster: warm/total, pink with a ! when someone awaits you; toggles the office rail */}
+        <button cssClasses={agents((a) => ["cell", "deck-agents", "clickable", ...(a.awaiting > 0 ? ["await"] : [])])} onClicked={() => toggleOffice(gdkmonitor)}>
           <box spacing={6}>
             <label cssClasses={["pink"]} label={"\u{f06a9}"} />
             <label cssClasses={["pink"]} label={agents((a) => (!a.ok ? "down" : a.awaiting > 0 ? `${a.awaiting}!` : `${a.roster.filter((r) => r.warm).length}/${a.roster.length}`))} />
           </box>
-          <popover cssClasses={["pop", "pop-agents"]}>
-            <Panel title={"\u{f06a9}  AGENTS"} cssClasses={["card", "card-agents"]}><AgentsCard /></Panel>
-          </popover>
-        </menubutton>
+        </button>
       </box>
     </window>
   )

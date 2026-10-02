@@ -5,10 +5,12 @@ import { execAsync } from "ags/process"
 import { logEvent } from "./log"
 
 /** `prompt`: its coworker is sitting on a dialog (Server.Attention) — the ask, answered from the thread */
-export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null; prompt?: { summary: string } | null }
+export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null; prompt?: { summary: string; options?: { key: string; label: string }[] | null } | null }
+/** `archetype`/`lead`: the agent's seat on its workspace bench (null/false off every bench) */
+export type Seat = { agent: string; thread_id: number; title: string; warm: boolean; archetype?: string | null; lead?: boolean }
 export type Agents = {
   ok: boolean
-  roster: { agent: string; thread_id: number; title: string; warm: boolean }[]
+  roster: Seat[]
   /** every open thread, newest first — the pane's rows; a staffed one carries its roster entry */
   threads: Thread[]
   counts: Record<string, number>
@@ -31,6 +33,17 @@ export async function dossier(id: number): Promise<Dossier | null> {
     const out = await execAsync([CLI, "shell-dossier", String(id)])
     return JSON.parse(out.trim().split("\n").pop() ?? "null")
   } catch { return null }
+}
+/** Post to a thread as the operator. A body naming an open prompt's option answers it. */
+export async function post(id: number, body: string): Promise<boolean> {
+  try {
+    await execAsync([CLI, "post", String(id), body])
+    logEvent("agent", `you → #${id}: ${body}`)
+    return true
+  } catch (e) {
+    logEvent("agent", `post to #${id} failed: ${String(e)}`, "warn")
+    return false
+  }
 }
 
 // Single-user machine, fixed checkout — the same assumption flake.nix makes.

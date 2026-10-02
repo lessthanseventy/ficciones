@@ -2,7 +2,7 @@
 // who it awaits — and, under them, the selected thread's brief: goal, lead, next, blockers,
 // the last messages (Andrew, 2026-09-07: "agents → dossier"). j/k, Enter, click.
 import Gtk from "gi://Gtk?version=4.0"
-import { For, createComputed, createState } from "ags"
+import { For, createComputed, createState, type Accessor } from "ags"
 import { agents, dossier, type Dossier, type Thread } from "../lib/agents"
 import { cursorOf, select } from "../lib/nav"
 import { RuleH } from "../lib/tui"
@@ -60,33 +60,40 @@ export function AgentsCard() {
       <label cssClasses={agents((a) => (a.ok ? ["dim"] : ["red"]))} label={agents((a) => (a.ok ? "no open threads" : a.note ?? ""))} visible={agents((a) => !a.ok || a.threads.length === 0)} xalign={0} />
       <RuleH />
       {/* the brief of the thread under the cursor */}
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={["brief"]} visible={brief((b) => !!b)}>
-        <box spacing={8}>
-          <label cssClasses={["k", "sm"]} label="goal" widthChars={5} xalign={0} />
-          <label cssClasses={["amber"]} label={brief((b) => b?.goal ?? "—")} xalign={0} hexpand wrap maxWidthChars={40} />
-        </box>
-        <box spacing={8}>
-          <label cssClasses={["k", "sm"]} label="lead" widthChars={5} xalign={0} />
-          <label cssClasses={["pink"]} label={brief((b) => b?.lead ?? "—")} xalign={0} hexpand />
-        </box>
-        <box spacing={8} visible={brief((b) => !!b?.next)}>
-          <label cssClasses={["k", "sm"]} label="next" widthChars={5} xalign={0} />
-          <label label={brief((b) => b?.next ?? "")} xalign={0} hexpand wrap maxWidthChars={40} />
-        </box>
-        <box spacing={8} visible={brief((b) => (b?.blockers?.shown?.length ?? 0) > 0)}>
-          <label cssClasses={["red", "sm"]} label="block" widthChars={5} xalign={0} />
-          <label cssClasses={["red"]} label={brief((b) => (b?.blockers?.shown ?? []).map(line).join(" · "))} xalign={0} hexpand wrap maxWidthChars={40} />
-        </box>
-        <For each={brief((b): Dossier["recent"] => (b?.recent ?? []).slice(-3))}>
-          {(m: Dossier["recent"][number]) => (
-            <box spacing={8} cssClasses={["msg"]}>
-              <label cssClasses={["dim", "sm"]} label={hhmm(m.at)} />
-              <label cssClasses={["cyan", "sm"]} label={m.author} widthChars={8} xalign={0} ellipsize={3} />
-              <label cssClasses={["sm"]} label={m.body} xalign={0} hexpand ellipsize={3} maxWidthChars={40} />
-            </box>
-          )}
-        </For>
+      <Brief brief={brief} />
+    </box>
+  )
+}
+
+/** A thread's brief: goal, lead, next, blockers, the last three messages. */
+export function Brief({ brief }: { brief: Accessor<Dossier | null> }) {
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={3} cssClasses={["brief"]} visible={brief((b) => !!b)}>
+      <box spacing={8}>
+        <label cssClasses={["k", "sm"]} label="goal" widthChars={5} xalign={0} />
+        <label cssClasses={["amber"]} label={brief((b) => b?.goal ?? "—")} xalign={0} hexpand wrap maxWidthChars={40} />
       </box>
+      <box spacing={8}>
+        <label cssClasses={["k", "sm"]} label="lead" widthChars={5} xalign={0} />
+        <label cssClasses={["pink"]} label={brief((b) => b?.lead ?? "—")} xalign={0} hexpand />
+      </box>
+      <box spacing={8} visible={brief((b) => !!b?.next)}>
+        <label cssClasses={["k", "sm"]} label="next" widthChars={5} xalign={0} />
+        <label label={brief((b) => b?.next ?? "")} xalign={0} hexpand wrap maxWidthChars={40} />
+      </box>
+      <box spacing={8} visible={brief((b) => (b?.blockers?.shown?.length ?? 0) > 0)}>
+        <label cssClasses={["red", "sm"]} label="block" widthChars={5} xalign={0} />
+        <label cssClasses={["red"]} label={brief((b) => (b?.blockers?.shown ?? []).map(line).join(" · "))} xalign={0} hexpand wrap maxWidthChars={40} />
+      </box>
+      <For each={brief((b): Dossier["recent"] => (b?.recent ?? []).slice(-3))}>
+        {(m: Dossier["recent"][number]) => (
+          <box spacing={8} cssClasses={["msg"]}>
+            <label cssClasses={["dim", "sm"]} label={hhmm(m.at)} />
+            <label cssClasses={["cyan", "sm"]} label={m.author} widthChars={8} xalign={0} ellipsize={3} />
+            <label cssClasses={["sm"]} label={m.body} xalign={0} hexpand ellipsize={3} maxWidthChars={40} />
+          </box>
+        )}
+      </For>
     </box>
   )
 }
