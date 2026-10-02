@@ -86,6 +86,15 @@ export const hire = (ws: number, name: string, archetype: string, model: Knob, e
   write(["hire", String(ws), name, archetype, model, effort, ask], `hiring ${name}`)
 export const coworkerSet = (ws: number, agentId: number, model: Knob, effort: Knob, ask: Knob) =>
   write(["coworker-set", String(ws), String(agentId), model, effort, ask], "retargeting a coworker")
+/** ask a coworker one thing outside any thread (its own harness, read-only); null when it failed */
+export async function aside(ws: number, agentId: number, question: string): Promise<string | null> {
+  try {
+    return (await execAsync([CLI, "aside", String(ws), String(agentId), question])).trim()
+  } catch (e) {
+    logEvent("agent", `aside failed: ${String(e)}`, "warn")
+    return null
+  }
+}
 export const workspaceNew = (name: string, repo: string) => write(["workspace-new", name, ...(repo ? [repo] : [])], `making workspace ${name}`)
 
 // Single-user machine, fixed checkout — the same assumption flake.nix makes.

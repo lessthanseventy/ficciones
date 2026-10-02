@@ -10,7 +10,7 @@ import Hyprland from "gi://AstalHyprland"
 import Cairo from "cairo"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
-import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, type Agents, type Dossier, type Thread } from "../lib/agents"
+import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, type Agents, type Dossier, type Thread } from "../lib/agents"
 import { OfficeSim, S, W, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
@@ -71,6 +71,8 @@ type Mode =
   | { kind: "coworker"; agentId: number }
   | { kind: "new-workspace" }
 const [mode, setMode] = createState<Mode>({ kind: "none" })
+// asides, by agent id: survive closing the card, so reopening someone shows what they last said
+const [talks, setTalks] = createState<Record<number, { name: string; q: string; a: string | null }>>({})
 const armed = mode((m) => (m.kind === "ticket" || m.kind === "confirm" ? m.id : null))
 const armedTitle = createComputed(() => { const id = armed(); return agents().tickets.find((t) => t.id === id)?.title ?? "" })
 
@@ -225,6 +227,18 @@ function ActionCard() {
       if (w) setChosen(w.id)
     }
   }
+  const [settings, setSettings] = createState(false)
+  // the last thing you said to whoever's card is open, and their answer (null while they think)
+  const exchange = createComputed(() => { const c = coworker(); return c ? talks()[c.agent_id] ?? null : null })
+  const talkTo = async (q: string) => {
+    const c = coworker.peek(), ws = wsId.peek(), room = sim()
+    if (!c || ws === null || !q.trim()) return
+    setTalks({ ...talks.peek(), [c.agent_id]: { name: c.name, q: q.trim(), a: null } })
+    room.say(c.name, null)
+    const a = await aside(ws, c.agent_id, q.trim())
+    setTalks({ ...talks.peek(), [c.agent_id]: { name: c.name, q: q.trim(), a: a || "(no answer)" } })
+    room.say(c.name, a || "...")
+  }
   const saveCoworker = async () => {
     const c = coworker.peek(), ws = wsId.peek()
     if (!c || ws === null) return
@@ -252,12 +266,20 @@ function ActionCard() {
         : m.kind === "coworker" ? `\u{f0004}  ${coworker()?.name ?? ""}` : m.kind === "none" ? "" : `\u{f0e7e}  TICKET #${m.id}`
     })} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("coworker")}>
+        <entry cssClasses={["deck-entry"]} placeholderText={coworker((c) => `say something to ${c?.name ?? ""}…`)} $={(self) => { self.connect("activate", () => { talkTo(self.text); self.text = "" }) }} />
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={3} visible={exchange((x) => !!x)}>
+          <label cssClasses={["dim"]} label={exchange((x) => (x ? `you: ${x.q}` : ""))} xalign={0} wrap maxWidthChars={44} />
+          <label cssClasses={exchange((x) => (x?.a === null ? ["dim"] : ["amber"]))} label={exchange((x) => (x ? `${x.name}: ${x.a ?? "thinking…"}` : ""))} xalign={0} wrap maxWidthChars={44} selectable />
+        </box>
         <label cssClasses={["dim", "sm"]} label={coworker((c) => (c ? archFacts(c.archetype, c.lead) : ""))} xalign={0} wrap maxWidthChars={44} />
-        <Knobs model={model} setModel={setModel} effort={effort} setEffort={setEffort} ask={ask} setAsk={setAsk} />
-        <label cssClasses={["dim", "sm"]} label="takes effect from their next session" xalign={0} />
-        <box spacing={6}>
-          <button cssClasses={["act"]} onClicked={saveCoworker}><label label="save" /></button>
-          <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+        <button cssClasses={["act"]} halign={Gtk.Align.START} onClicked={() => setSettings(!settings.peek())}><label label={settings((s) => (s ? "settings ▴" : "settings ▾"))} /></button>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={settings}>
+          <Knobs model={model} setModel={setModel} effort={effort} setEffort={setEffort} ask={ask} setAsk={setAsk} />
+          <label cssClasses={["dim", "sm"]} label="takes effect from their next session" xalign={0} />
+          <box spacing={6}>
+            <button cssClasses={["act"]} onClicked={saveCoworker}><label label="save" /></button>
+            <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+          </box>
         </box>
       </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("new-workspace")}>

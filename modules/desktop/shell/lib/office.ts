@@ -207,9 +207,15 @@ export class OfficeSim {
   private tick = 0
   private seeded = false
 
+  /** who you are talking to, by agent name: `text` null while they think, then what they said */
+  private talk = new Map<string, { text: string | null; until: number }>()
+  /** someone was asked something (`text` null) or has answered; an answer shows for ~12 s */
+  say(agent: string, text: string | null) { this.talk.set(agent, { text, until: text === null ? Infinity : this.tick + 120 }) }
+
   /** advance one tick (100 ms): retarget everyone from the roster, then walk */
   step(a: Agents) {
     this.tick++
+    for (const [k, v] of this.talk) if (this.tick > v.until) this.talk.delete(k)
     const { desks, height } = layout(a)
     const exit: Spot = { x: CX, y: height - 2, aisle: height - 2, pose: "stand", face: "down", kind: "exit" }
     const threadOf = (id: number) => a.threads.find((t) => t.id === id)
@@ -247,7 +253,9 @@ export class OfficeSim {
         actor.spot = goal; actor.spotKey = gk; actor.pose = "stand"
         actor.until = this.tick + 80 + Math.floor(Math.random() * 120)
       }
-      this.walk(actor, goal.kind === "desk" || goal.kind === "queue" || !actor.look.slow ? 2 : 1)
+      // someone you are talking to stops where they are and faces you until they have answered
+      if (this.talk.get(actor.seat.agent)?.text === null) { actor.moving = false; if (actor.pose === "stand") actor.face = "down" }
+      else this.walk(actor, goal.kind === "desk" || goal.kind === "queue" || !actor.look.slow ? 2 : 1)
       if (actor.leaving && !actor.moving && actor.path.length === 0) { this.actors.delete(k); continue }
       if (actor.emote && this.tick > actor.emoteUntil) actor.emote = null
       if (!actor.emote && !actor.moving && Math.random() < 0.006) {
@@ -368,6 +376,28 @@ export class OfficeSim {
     type Item = { base: number; draw: () => void }
     const items: Item[] = []
     const overhead: (() => void)[] = []
+    const balloons: (() => void)[] = []
+    // what someone said, over their head: a few lines, clamped inside the room. Cairo's toy text
+    // has no font fallback, so typographic punctuation goes to ASCII here (the card has the rest)
+    const balloon = (said: string, cx: number, top: number) => {
+      const flat = said.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/…/g, "...")
+        .replace(/[^\x20-\x7e]/g, "").replace(/\s+/g, " ").trim()
+      const lines: string[] = []
+      let line = ""
+      for (const w of flat.split(" ")) {
+        if ((line + " " + w).trim().length > 26) { lines.push(line); line = w } else line = (line + " " + w).trim()
+        if (lines.length === 3) break
+      }
+      if (lines.length < 3 && line) lines.push(line)
+      if (lines.join(" ").length < flat.length) lines[lines.length - 1] = lines[lines.length - 1].slice(0, 23) + "..."
+      cr.setFontSize(11)
+      const lh = 14, bw = Math.max(...lines.map((l) => cr.textExtents(l).width)) + 14, bh = lines.length * lh + 8
+      const bx = Math.min(Math.max(ox + cx * S - bw / 2, ox + 4), ox + W * S - bw - 4), by = Math.max(4, top * S - bh - 12)
+      paint(ROLE.prose); cr.rectangle(bx, by, bw, bh); cr.fill()
+      cr.rectangle(ox + cx * S - 3, by + bh, 6, 6); cr.fill()
+      paint(ROLE.fieldInk)
+      lines.forEach((l, i) => { cr.moveTo(bx + 7, by + 4 + (i + 1) * lh - 3); cr.showText(l) })
+    }
     items.push({ base: 98, draw: () => {
       blit(COOLER, 120, 82, { k: ROLE.key, m: ROLE.prose, a: ROLE.alarm, o: ROLE.inactive })
       if ([...this.actors.values()].some((x) => x.spot.kind === "cooler" && !x.moving) && f % 3 === 0) px(122 + (f % 2) * 2, 83, 1, 1, ROLE.ground)
@@ -460,10 +490,15 @@ export class OfficeSim {
       } })
       const agentId = a.bench.find((c) => c.name === seat.agent)?.agent_id ?? null
       people.push({ x: ox + left * S, y: top * S, w: 12 * S, h: (sitting ? 14 : 20) * S, tip: this.tip(seat, th, actor.spot.kind === "queue" ? "in your queue" : actor.moving ? "walking" : `at the ${actor.spot.kind}`), act: { kind: "person", agentId, name: seat.agent, tid: seat.thread_id > 0 ? seat.thread_id : null } })
+      const talk = this.talk.get(seat.agent)
+      if (talk?.text) balloons.push(() => balloon(talk.text!, actor.x, top))
       overhead.push(() => {
         let above = top - 9
         const bob = f % 2
-        if (actor.spot.kind === "queue" && !actor.moving) {
+        if (talk && talk.text === null) {
+          blit(BUBBLE, left + 3, above + bob, { a: ROLE.prose })
+          blit(GLYPH["…"], left + 4, above + 1 + bob, { k: ROLE.fieldInk })
+        } else if (actor.spot.kind === "queue" && !actor.moving) {
           blit(BUBBLE, left + 3, above + bob, { a: ROLE.attention })
           blit(GLYPH["!"], left + 4, above + 1 + bob, { k: ROLE.fieldInk })
         } else if (couch) blit(ZED, left + 9, top - 4 - (f % 3), { z: ROLE.inactive })
@@ -478,6 +513,7 @@ export class OfficeSim {
 
     items.sort((p, q) => p.base - q.base).forEach((x) => x.draw())
     overhead.forEach((d) => d())
+    balloons.forEach((d) => d())
     if (!a.ok || (a.roster.length === 0 && a.bench.length === 0)) text(a.ok ? "nobody on the clock" : (a.note ?? "channel down"), ox + (W * S) / 2, (FLOOR + 20) * S, a.ok ? ROLE.inactive : ROLE.alarm)
     // a click lands on a person before the desk behind them
     return { hits: [...people.reverse(), ...hits], height }
