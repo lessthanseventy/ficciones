@@ -8,11 +8,16 @@ import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import Cairo from "cairo"
+import GLib from "gi://GLib?version=2.0"
+import Pango from "gi://Pango?version=1.0"
+import Vte from "gi://Vte?version=3.91"
+import { execAsync } from "ags/process"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
 import { agents, dossier, threadView, post, ticketRoute, closeThread, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
 import { OfficeSim, S, W, boardColumns, type BoardItem, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
+import { ROLE } from "../lib/palette"
 import { Panel } from "../lib/tui"
 import { Brief } from "../panes/Agents"
 import { armClickaway, closeAny, disarmClickaway } from "./Clickaway"
@@ -530,19 +535,66 @@ function ActionCard() {
   )
 }
 
-/** the wide view's second column: the picked thread's actions, its conversation, its worker's pane */
+// the wide view's terminal: a client of the workspace's tmux server on a session GROUPED with the
+// workers' one — it shares their windows but has its own current window, so it never moves the
+// cockpit's view — and it ends itself when this client goes. One client; a thread in another
+// workspace respawns it against that workspace's server.
+let liveTerm: Vte.Terminal | null = null
+let liveWs: number | null = null
+let livePid = 0
+/** attach to whatever the wide view shows now — the office coming back up re-attaches */
+let reattach = () => {}
+function endTerminal() {
+  if (livePid) execAsync(["kill", String(livePid)]).catch(() => {})
+  livePid = 0; liveWs = null
+}
+function attachTerminal(ws: number, window: string) {
+  if (!liveTerm) return
+  const sock = `console-workspace-${ws}`
+  if (liveWs === ws && livePid) {
+    execAsync(["tmux", "-L", sock, "select-window", "-t", `office:=${window}`]).catch(() => {})
+    return
+  }
+  endTerminal()
+  liveWs = ws
+  liveTerm.reset(true, true)
+  liveTerm.spawn_async(Vte.PtyFlags.DEFAULT, null,
+    ["tmux", "-L", sock, "new-session", "-A", "-s", "office", "-t", `w${ws}`, ";", "set-option", "destroy-unattached", "on", ";", "select-window", "-t", `office:=${window}`],
+    null, GLib.SpawnFlags.SEARCH_PATH, null, -1, null, (_t, pid) => { livePid = pid })
+}
+
+/** the wide view's second column: the picked thread's actions, its worker's live terminal, its conversation */
 function ThreadPane() {
   const hhmm = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }
   let convo: Gtk.ScrolledWindow | null = null
   // the newest message in view: scroll to the bottom whenever the conversation changes
   tview.subscribe(() => setTimeout(() => { const v = convo?.get_vadjustment(); if (v) v.set_value(v.get_upper()) }, 50))
+  // the terminal follows the picked thread's window while the wide view shows; gone, it ends
+  const target = createComputed(() => {
+    const v = tview(), t = pickedThread(), on = wide()
+    return on && v?.window && t?.workspace_id != null ? `${t.workspace_id}:${v.window}` : null
+  })
+  reattach = () => {
+    const k = target.peek()
+    if (!k) return endTerminal()
+    attachTerminal(Number(k.slice(0, k.indexOf(":"))), k.slice(k.indexOf(":") + 1))
+  }
+  target.subscribe(() => reattach())
   return (
     <box cssClasses={["sheet", "right", "office-thread"]} orientation={Gtk.Orientation.VERTICAL} spacing={8} widthRequest={720} visible={createComputed(() => wide() && picked() !== null)}>
-      <Panel title={pickedTitle} cssClasses={["card", "card-agents"]}>
-        <Reply />
+      <Panel title={tview((v) => `\u{f018d}  ${pickedTitle.peek()}${v?.window ? `  ·  ${v.window} — click in to type` : ""}`)} cssClasses={["card", "card-agents"]} vexpand>
+        <ThreadActions />
+        <label cssClasses={["dim"]} label="no window is running this thread" xalign={0} visible={tview((v) => !!v && !v.window)} />
+        <Vte.Terminal vexpand hexpand visible={tview((v) => !!v?.window)} $={(self) => {
+          liveTerm = self
+          self.set_font(Pango.FontDescription.from_string("ComicShannsMono Nerd Font Mono 11"))
+          const rgba = (hex: string) => { const c = new Gdk.RGBA(); c.parse(hex); return c }
+          self.set_colors(rgba(ROLE.prose), rgba(ROLE.ground), null)
+          self.connect("child-exited", () => { livePid = 0; liveWs = null })
+        }} />
       </Panel>
-      <Panel title={"\u{f0e7e}  CONVERSATION"} cssClasses={["card", "card-agents"]} vexpand>
-        <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand $={(self) => { convo = self }}>
+      <Panel title={"\u{f0e7e}  CONVERSATION"} cssClasses={["card", "card-agents"]}>
+        <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} propagateNaturalHeight maxContentHeight={260} $={(self) => { convo = self }}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
             <For each={tview((v) => v?.messages ?? [])}>
               {(m: ThreadView["messages"][number]) => (
@@ -560,13 +612,16 @@ function ThreadPane() {
           </box>
         </scrolledwindow>
       </Panel>
-      {/* what the worker's screen shows right now — read-only; the cockpit is where you take the wheel */}
-      <Panel title={tview((v) => `\u{f018d}  OVER THEIR SHOULDER${v?.window ? ` · ${v.window}` : ""}`)} cssClasses={["card", "card-agents"]} visible={tview((v) => !!v)}>
-        <label cssClasses={["dim"]} label="no window is running this thread" xalign={0} visible={tview((v) => !v?.peek)} />
-        <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vscrollbarPolicy={Gtk.PolicyType.NEVER} visible={tview((v) => !!v?.peek)}>
-          <label cssClasses={["peek"]} label={tview((v) => (v?.peek ?? "").split("\n").slice(-28).join("\n"))} xalign={0} yalign={0} />
-        </scrolledwindow>
-      </Panel>
+    </box>
+  )
+}
+
+/** a thread's two verbs beside its terminal: give it to someone else, or close it as done */
+function ThreadActions() {
+  return (
+    <box spacing={6}>
+      <button cssClasses={["act"]} onClicked={() => { const id = picked.peek(); if (id !== null) setMode({ kind: "handoff", tid: id }) }}><label label="hand to…" /></button>
+      <button cssClasses={["act"]} onClicked={async () => { const id = picked.peek(); if (id !== null && (await closeThread(id))) setPicked(null) }}><label label="close (done)" /></button>
     </box>
   )
 }
@@ -617,10 +672,12 @@ export function showOffice(on?: Gdk.Monitor) {
   // the keyboard while it is up, like the hub: it is a click-away sheet, not a place to type past
   officeWin.keymode = Astal.Keymode.EXCLUSIVE
   officeWin.visible = true
+  reattach()
   armClickaway(() => hideOffice())
 }
 export function hideOffice() {
   if (officeWin) { officeWin.visible = false; officeWin.keymode = Astal.Keymode.NONE }
+  endTerminal()
   disarmClickaway()
 }
 export function toggleOffice(on?: Gdk.Monitor) { if (officeWin?.visible) hideOffice(); else showOffice(on) }
@@ -653,6 +710,8 @@ export default function Office() {
   // typing — only Esc gets through it
   const keys = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
   keys.connect("key-pressed", (_, kv) => {
+    // the worker's terminal, focused, is theirs: every key goes to it, Esc too (Claude Code needs it)
+    if (officeWin?.get_focus() instanceof Vte.Terminal) return false
     if (kv === Gdk.KEY_Escape) {
       if (mode.peek().kind !== "none") setMode({ kind: "none" })
       else hideOffice()
