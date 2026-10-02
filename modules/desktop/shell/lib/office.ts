@@ -6,6 +6,9 @@
 // finder. Looks and habits come from a hash of the agent's name, gear from its archetype; every
 // colour is a theme ROLE read at draw time.
 import Cairo from "cairo"
+import GLib from "gi://GLib?version=2.0"
+import Gdk from "gi://Gdk?version=4.0"
+import GdkPixbuf from "gi://GdkPixbuf?version=2.0"
 import { ROLE, type Role } from "./palette"
 import type { Agents, Seat, Thread, Ticket } from "./agents"
 
@@ -37,6 +40,8 @@ type Actor = {
   until: number; emote: string | null; emoteUntil: number; leaving: boolean
 }
 
+// a theme switch brings new hex strings, so the cache keys on the string itself
+const rgbs = new Map<string, number[]>()
 const needsYou = (t?: Thread) => !!t && (!!t.awaiting || !!t.prompt)
 const keyOf = (r: Seat) => `${r.agent}#${r.thread_id}`
 const spotKey = (s: Spot) => `${s.kind}:${s.x}:${s.y}`
@@ -210,12 +215,19 @@ export class OfficeSim {
   /** who you are talking to, by agent name: `text` null while they think, then what they said */
   private talk = new Map<string, { text: string | null; until: number }>()
   /** someone was asked something (`text` null) or has answered; an answer shows for ~12 s */
-  say(agent: string, text: string | null) { this.talk.set(agent, { text, until: text === null ? Infinity : this.tick + 120 }) }
+  say(agent: string, text: string | null) { this.talk.set(agent, { text, until: text === null ? Infinity : this.tick + 120 }); this.changed = true }
+  private changed = true
 
-  /** advance one tick (100 ms): retarget everyone from the roster, then walk */
-  step(a: Agents) {
+  /**
+   * Advance one tick (100 ms): retarget everyone from the roster, then walk. True when the room
+   * looks different — someone moved, or the 400 ms animation frame turned — so the caller redraws
+   * only then: a full office repainted every tick cost a fifth of a core.
+   */
+  step(a: Agents): boolean {
     this.tick++
-    for (const [k, v] of this.talk) if (this.tick > v.until) this.talk.delete(k)
+    let changed = this.changed || this.tick % 4 === 0
+    this.changed = false
+    for (const [k, v] of this.talk) if (this.tick > v.until) { this.talk.delete(k); changed = true }
     const { desks, height } = layout(a)
     const exit: Spot = { x: CX, y: height - 2, aisle: height - 2, pose: "stand", face: "down", kind: "exit" }
     const threadOf = (id: number) => a.threads.find((t) => t.id === id)
@@ -256,14 +268,17 @@ export class OfficeSim {
       // someone you are talking to stops where they are and faces you until they have answered
       if (this.talk.get(actor.seat.agent)?.text === null) { actor.moving = false; if (actor.pose === "stand") actor.face = "down" }
       else this.walk(actor, goal.kind === "desk" || goal.kind === "queue" || !actor.look.slow ? 2 : 1)
-      if (actor.leaving && !actor.moving && actor.path.length === 0) { this.actors.delete(k); continue }
-      if (actor.emote && this.tick > actor.emoteUntil) actor.emote = null
+      if (actor.moving) changed = true
+      if (actor.leaving && !actor.moving && actor.path.length === 0) { this.actors.delete(k); changed = true; continue }
+      if (actor.emote && this.tick > actor.emoteUntil) { actor.emote = null; changed = true }
       if (!actor.emote && !actor.moving && Math.random() < 0.006) {
         const e = { board: "?", cooler: "~" } as Record<string, string>
         actor.emote = e[actor.spot.kind] ?? actor.look.emote
         actor.emoteUntil = this.tick + 25
+        changed = true
       }
     }
+    return changed
   }
 
   private idleGoal(actor: Actor, held: Set<string>, desks: Desk[]): Spot {
@@ -303,14 +318,31 @@ export class OfficeSim {
     const ox = Math.floor((areaW - W * S) / 2)
     const threadOf = (id: number) => a.threads.find((x) => x.id === id)
     cr.setAntialias(Cairo.Antialias.NONE)
-    const paint = (c: string) => { const x = c.replace("#", ""); cr.setSourceRGB(parseInt(x.slice(0, 2), 16) / 255, parseInt(x.slice(2, 4), 16) / 255, parseInt(x.slice(4, 6), 16) / 255) }
-    const px = (x: number, y: number, pw: number, ph: number, c: string) => { paint(c); cr.rectangle(ox + x * S, y * S, pw * S, ph * S); cr.fill() }
+    const rgb = (c: string) => { let v = rgbs.get(c); if (!v) rgbs.set(c, (v = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)))); return v }
+    const paint = (c: string) => { const [r, g, b] = rgb(c); cr.setSourceRGB(r / 255, g / 255, b / 255) }
+    // the pixel art goes into a 1x buffer that Cairo paints once, scaled S times with no smoothing —
+    // a Cairo rectangle per logical pixel cost a third of a core with a full office
+    const buf = new Uint8Array(W * height * 4)
+    const px = (x: number, y: number, pw: number, ph: number, c: string) => {
+      const [r, g, b] = rgb(c)
+      const x0 = Math.max(0, Math.floor(x)), x1 = Math.min(W, Math.floor(x + pw)), y1 = Math.min(height, Math.floor(y + ph))
+      for (let j = Math.max(0, Math.floor(y)); j < y1; j++) for (let i = x0, o = (j * W + x0) * 4; i < x1; i++, o += 4) { buf[o] = r; buf[o + 1] = g; buf[o + 2] = b; buf[o + 3] = 255 }
+    }
     const blit = (rows: string[], x: number, y: number, map: Record<string, string>) =>
       rows.forEach((row, j) => { for (let i = 0; i < row.length; i++) { const c = map[row[i]]; if (c) px(x + i, y + j, 1, 1, c) } })
-    const text = (s: string, cx: number, baseline: number, c: string, size = 12) => {
+    // text and the cursor go on top of the art, at the screen's own resolution
+    const ink: (() => void)[] = []
+    const text = (s: string, cx: number, baseline: number, c: string, size = 12) => ink.push(() => {
       cr.setFontSize(size); paint(c)
       const tw = cr.textExtents(s).width
       cr.moveTo(Math.round(cx - tw / 2), baseline); cr.showText(s)
+    })
+    /** `name #id` cut to `width` px: the name gives way, the number stays */
+    const plate = (name: string, tail: string, width: number) => {
+      cr.setFontSize(12)
+      let n = name
+      while (n.length > 2 && cr.textExtents(`${n} ${tail}`).width > width) n = n.slice(0, -1)
+      return n === name ? `${name} ${tail}` : `${n.slice(0, -1)}.. ${tail}`
     }
     cr.selectFontFace("ComicShannsMono Nerd Font", Cairo.FontSlant.NORMAL, Cairo.FontWeight.NORMAL)
     const hits: Hit[] = []
@@ -427,7 +459,7 @@ export class OfficeSim {
       const sx = seatX(d)
       if (d.kind === "boss") {
         items.push({ base: d.y + 25, draw: () => {
-          blit(figure(BOSS_LOOK, null, false, true, "down", "sit", 0, (t + BOSS_LOOK.blink) % 50 < 2), sx - 6, d.y + 5, this.paints(ROLE.attention, BOSS_LOOK))
+          blit(figure(BOSS_LOOK, null, false, true, "down", "sit", 0, (f + BOSS_LOOK.blink) % 13 === 0), sx - 6, d.y + 5, this.paints(ROLE.attention, BOSS_LOOK))
           const up = f % 3 === 0
           px(sx - 5, d.y + 18 - (up ? 1 : 0), 2, 1, ROLE.prose); px(sx + 3, d.y + 18, 2, 1, ROLE.prose)
         } })
@@ -442,7 +474,7 @@ export class OfficeSim {
           for (let l = 0; l < 3; l++) px(mx + 2, my + 1 + l * 2, 1 + ((f + l * 3 + (d.seat?.thread_id ?? 0)) % 6), 1, ROLE.live)
         } else {
           px(mx + 1, my + 1, 8, 5, ROLE.ground)
-          const bx = Math.abs(((t >> 1) + d.x) % 14 - 7), by = Math.abs(((t >> 1) + d.y) % 8 - 4)
+          const bx = Math.abs((f + d.x) % 14 - 7), by = Math.abs((f + d.y) % 8 - 4)
           px(mx + 1 + bx, my + 1 + by, 1, 1, ROLE.key)
         }
         px(d.x, d.y + 19, d.w, 2, ROLE.structure)
@@ -455,16 +487,18 @@ export class OfficeSim {
           blit(dec, dx, d.y + 19 - dec.length, { l: ROLE.live, o: ROLE.structure, m: ROLE.prose, y: ROLE.body, a: ROLE.attention, k: ROLE.key })
           if (look.decor === 1) blit(f % 2 ? ["v.v.", ".v.."] : [".v.v", "..v."], dx, d.y + 13, { v: ROLE.inactive })
         }
-        const name = d.kind === "boss" ? "you" : `${d.seat!.agent} #${d.seat!.thread_id}`
+        const name = d.kind === "boss" ? "you" : plate(d.seat!.agent, `#${d.seat!.thread_id}`, d.w * S - 6)
         text(name, ox + (d.x + d.w / 2) * S, (d.y + 38) * S - 2, d.kind === "boss" || asks ? ROLE.attention : seated ? shirtOf(d.seat) : ROLE.inactive)
         const hx = ox + d.x * S - 2, hy = d.y * S, hw = d.w * S + 4, hh = (ROW_H - 1) * S
         const where = !owner ? "" : owner.spot.kind === "desk" ? (owner.path.length ? "headed to the desk" : "working") : owner.spot.kind === "queue" ? "in your queue" : owner.leaving ? "leaving" : `idle, at the ${owner.spot.kind}`
         if (d.kind !== "boss") hits.push({ x: hx, y: hy, w: hw, h: hh, tip: this.tip(d.seat!, threadOf(d.seat!.thread_id), where), act: { kind: "thread", tid: d.seat!.thread_id } })
         if (d.kind !== "boss" && d.seat!.thread_id === picked) {
-          paint(ROLE.body); cr.setLineWidth(2)
-          for (const [x0, y0, gx, gy] of [[hx, hy, 1, 1], [hx + hw, hy, -1, 1], [hx, hy + hh, 1, -1], [hx + hw, hy + hh, -1, -1]]) {
-            cr.moveTo(x0 + gx * 10, y0); cr.lineTo(x0, y0); cr.lineTo(x0, y0 + gy * 10); cr.stroke()
-          }
+          ink.push(() => {
+            paint(ROLE.body); cr.setLineWidth(2)
+            for (const [x0, y0, gx, gy] of [[hx, hy, 1, 1], [hx + hw, hy, -1, 1], [hx, hy + hh, 1, -1], [hx + hw, hy + hh, -1, -1]]) {
+              cr.moveTo(x0 + gx * 10, y0); cr.lineTo(x0, y0); cr.lineTo(x0, y0 + gy * 10); cr.stroke()
+            }
+          })
         }
       } })
     }
@@ -475,7 +509,7 @@ export class OfficeSim {
       const sitting = actor.pose === "sit" && !actor.moving
       const couch = actor.pose === "couch" && !actor.moving
       const step = actor.moving ? 1 + (Math.floor(t / 2) % 2) : 0
-      const shut = couch || (t + actor.look.blink) % 50 < 2
+      const shut = couch || (f + actor.look.blink) % 13 === 0
       const rows = figure(actor.look, seat.archetype, !!seat.lead, false, sitting || couch ? "down" : actor.face, sitting ? "sit" : couch ? "couch" : "stand", step, shut)
       const top = sitting ? actor.y - 20 : actor.y - 20 + (actor.moving && step === 2 ? -1 : 0)
       const left = actor.x - 6
@@ -513,8 +547,15 @@ export class OfficeSim {
 
     items.sort((p, q) => p.base - q.base).forEach((x) => x.draw())
     overhead.forEach((d) => d())
-    balloons.forEach((d) => d())
     if (!a.ok || (a.roster.length === 0 && a.bench.length === 0)) text(a.ok ? "nobody on the clock" : (a.note ?? "channel down"), ox + (W * S) / 2, (FLOOR + 20) * S, a.ok ? ROLE.inactive : ROLE.alarm)
+    const art = GdkPixbuf.Pixbuf.new_from_bytes(new GLib.Bytes(buf), GdkPixbuf.Colorspace.RGB, true, 8, W, height, W * 4)
+    cr.save(); cr.translate(ox, 0); cr.scale(S, S)
+    Gdk.cairo_set_source_pixbuf(cr, art, 0, 0)
+    ;(cr.getSource() as Cairo.SurfacePattern).setFilter(Cairo.Filter.NEAREST)
+    cr.paint(); cr.restore()
+    cr.selectFontFace("ComicShannsMono Nerd Font", Cairo.FontSlant.NORMAL, Cairo.FontWeight.NORMAL)
+    ink.forEach((d) => d())
+    balloons.forEach((d) => d())
     // a click lands on a person before the desk behind them
     return { hits: [...people.reverse(), ...hits], height }
   }

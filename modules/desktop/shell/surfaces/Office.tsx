@@ -81,7 +81,9 @@ const pickedThread = createComputed(() => { const id = picked(); return agents()
 // a staffed thread can be closed and so missing from `threads`; its roster row still names it
 const pickedTitle = createComputed(() => {
   const id = picked(), a = agents()
-  return id === null ? "" : `#${id}  ${a.threads.find((t) => t.id === id)?.title ?? a.roster.find((r) => r.thread_id === id)?.title ?? ""}`
+  const title = a.threads.find((t) => t.id === id)?.title ?? a.roster.find((r) => r.thread_id === id)?.title ?? ""
+  // a panel title cannot ellipsize, and a long one would widen the whole rail
+  return id === null ? "" : `#${id}  ${title.length > 40 ? `${title.slice(0, 39)}…` : title}`
 })
 
 function act(h: Hit) {
@@ -134,7 +136,7 @@ function Switcher() {
   return (
     <box spacing={8} cssClasses={["office-switch"]}>
       <button cssClasses={["act"]} onClicked={() => stepWs(-1)} tooltipText="previous workspace"><label label="‹" /></button>
-      <label cssClasses={["amber"]} label={wsName} hexpand />
+      <label cssClasses={["amber"]} label={wsName} hexpand ellipsize={3} maxWidthChars={24} />
       <label cssClasses={["pink", "sm"]} label={elsewhere((n) => `! ${n} elsewhere`)} visible={elsewhere((n) => n > 0)} />
       <button cssClasses={["act"]} onClicked={() => stepWs(1)} tooltipText="next workspace"><label label="›" /></button>
       <button cssClasses={["act"]} onClicked={() => setMode({ kind: "new-workspace" })} tooltipText="new workspace"><label label="+" /></button>
@@ -228,6 +230,7 @@ function ActionCard() {
     }
   }
   const [settings, setSettings] = createState(false)
+  const [more, setMore] = createState(false)
   // the last thing you said to whoever's card is open, and their answer (null while they think)
   const exchange = createComputed(() => { const c = coworker(); return c ? talks()[c.agent_id] ?? null : null })
   const talkTo = async (q: string) => {
@@ -277,7 +280,12 @@ function ActionCard() {
         <box spacing={6} visible={exchange((x) => !!x)}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={3} hexpand>
             <label cssClasses={["dim"]} label={exchange((x) => (x ? `you: ${x.q}` : ""))} xalign={0} wrap maxWidthChars={42} />
-            <label cssClasses={exchange((x) => (x?.a === null ? ["dim"] : ["amber"]))} label={exchange((x) => (x ? `${x.name}: ${x.a ?? "thinking…"}` : ""))} xalign={0} wrap maxWidthChars={42} selectable />
+            {/* a long answer folds to ten lines, so it cannot push the rest of the rail away */}
+            <label cssClasses={exchange((x) => (x?.a === null ? ["dim"] : ["amber"]))} label={exchange((x) => (x ? `${x.name}: ${x.a ?? "thinking…"}` : ""))} xalign={0} wrap maxWidthChars={42} selectable
+              lines={more((m) => (m ? -1 : 10))} ellipsize={more((m) => (m ? 0 : 3))} />
+            <button cssClasses={["act"]} halign={Gtk.Align.START} visible={exchange((x) => (x?.a?.length ?? 0) > 420)} onClicked={() => setMore(!more.peek())}>
+              <label label={more((m) => (m ? "less ▴" : "more ▾"))} />
+            </button>
           </box>
           {/* dismiss an answered exchange; one still waiting on its answer stays */}
           <button cssClasses={["act"]} valign={Gtk.Align.START} tooltipText="dismiss" visible={exchange((x) => x?.a != null)} onClicked={dismiss}><label label="×" /></button>
@@ -417,7 +425,7 @@ export default function Office() {
         // the animation runs only while someone can see it
         self.connect("notify::visible", () => {
           ticker?.cancel(); ticker = null
-          if (self.visible) ticker = interval(100, () => { sim().step(view.peek()); setFrame((n) => n + 1) })
+          if (self.visible) ticker = interval(100, () => { if (sim().step(view.peek())) setFrame((n) => n + 1) })
         })
       }}
       visible={false}

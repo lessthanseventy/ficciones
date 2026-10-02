@@ -90,7 +90,8 @@ export function Brief({ brief }: { brief: Accessor<Dossier | null> }) {
           <box spacing={8} cssClasses={["msg"]}>
             <label cssClasses={["dim", "sm"]} label={hhmm(m.at)} />
             <label cssClasses={["cyan", "sm"]} label={m.author} widthChars={8} xalign={0} ellipsize={3} />
-            <label cssClasses={["sm"]} label={m.body} xalign={0} hexpand ellipsize={3} maxWidthChars={40} />
+            {/* one line per message: a body's own newlines would stack it into a tall block */}
+            <label cssClasses={["sm"]} label={m.body.replace(/\s+/g, " ").trim()} tooltipText={m.body} xalign={0} hexpand ellipsize={3} maxWidthChars={40} />
           </box>
         )}
       </For>
