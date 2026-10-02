@@ -1,6 +1,7 @@
 // The office: a rail on the right (the deck's agents cell toggles it, `astal-shell toggle office`)
-// with the Tlön roster as a pixel-art office (lib/office.ts), then the inbox (threads waiting on
-// you) and the picked thread: a prompt's options as buttons, a reply line, its brief.
+// with one workspace's Tlön roster as a pixel-art office (lib/office.ts), then the action card
+// (hand a ticket to a coworker, file a ticket, hire), the inbox (threads waiting on you) and the
+// picked thread: a prompt's options as buttons, a reply line, its brief. ‹ › walks the workspaces.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -9,13 +10,44 @@ import Hyprland from "gi://AstalHyprland"
 import Cairo from "cairo"
 import { For, createComputed, createState } from "ags"
 import { interval, type Timer } from "ags/time"
-import { agents, dossier, post, type Dossier, type Thread } from "../lib/agents"
+import { agents, dossier, post, fileTicket, startTicket, hire, type Agents, type Dossier, type Thread } from "../lib/agents"
 import { OfficeSim, S, W, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
 import { Brief } from "../panes/Agents"
 
-const sim = new OfficeSim()
+const needsYou = (t?: Thread) => !!t && (!!t.awaiting || !!t.prompt)
+
+// which workspace's office is showing; null = the one that needs you most
+const [chosen, setChosen] = createState<number | null>(null)
+function busiest(a: Agents): number | null {
+  const by = (pred: (ws: number) => boolean) => a.workspaces.find((w) => pred(w.id))?.id
+  return by((ws) => a.threads.some((t) => t.workspace_id === ws && needsYou(t))) ?? by((ws) => a.roster.some((r) => r.workspace_id === ws))
+    ?? by((ws) => a.bench.some((c) => c.workspace_id === ws)) ?? a.workspaces[0]?.id ?? null
+}
+const wsId = createComputed(() => chosen() ?? busiest(agents()))
+/** the snapshot narrowed to one workspace — what the office draws and acts on */
+const view = createComputed((): Agents => {
+  const a = agents(), ws = wsId()
+  const threads = a.threads.filter((t) => t.workspace_id === ws)
+  return {
+    ...a, threads, roster: a.roster.filter((r) => r.workspace_id === ws), bench: a.bench.filter((c) => c.workspace_id === ws),
+    tickets: a.tickets.filter((t) => t.workspace_id === ws), projects: a.projects.filter((p) => p.workspace_id === ws),
+    awaiting: threads.filter(needsYou).length,
+  }
+})
+const wsName = createComputed(() => agents().workspaces.find((w) => w.id === wsId())?.name ?? "—")
+const elsewhere = createComputed(() => { const a = agents(), ws = wsId(); return a.threads.filter((t) => t.workspace_id !== ws && needsYou(t)).length })
+function stepWs(d: 1 | -1) {
+  const list = agents.peek().workspaces
+  if (!list.length) return
+  const i = list.findIndex((w) => w.id === wsId.peek())
+  setChosen(list[(i + d + list.length) % list.length].id)
+  setMode({ kind: "none" })
+}
+// each workspace keeps its own room, so switching back finds everyone where they were
+const sims = new Map<number, OfficeSim>()
+const sim = () => { const ws = wsId.peek() ?? 0; let s = sims.get(ws); if (!s) sims.set(ws, (s = new OfficeSim())); return s }
 
 const [picked, setPicked] = createState<number | null>(null)
 const [brief, setBrief] = createState<Dossier | null>(null)
@@ -29,8 +61,17 @@ async function loadBrief() {
 }
 picked.subscribe(loadBrief)
 
-const needsYou = (t?: Thread) => !!t && (!!t.awaiting || !!t.prompt)
-const inbox = agents((a) => a.threads.filter(needsYou))
+type Mode =
+  | { kind: "none" }
+  | { kind: "ticket"; id: number }
+  | { kind: "confirm"; id: number; agentId: number; name: string }
+  | { kind: "new-ticket" }
+  | { kind: "hire" }
+const [mode, setMode] = createState<Mode>({ kind: "none" })
+const armed = mode((m) => (m.kind === "ticket" || m.kind === "confirm" ? m.id : null))
+const armedTitle = createComputed(() => { const id = armed(); return agents().tickets.find((t) => t.id === id)?.title ?? "" })
+
+const inbox = view((a) => a.threads.filter(needsYou))
 const pickedThread = createComputed(() => { const id = picked(); return agents().threads.find((t) => t.id === id) ?? null })
 // a staffed thread can be closed and so missing from `threads`; its roster row still names it
 const pickedTitle = createComputed(() => {
@@ -38,19 +79,29 @@ const pickedTitle = createComputed(() => {
   return id === null ? "" : `#${id}  ${a.threads.find((t) => t.id === id)?.title ?? a.roster.find((r) => r.thread_id === id)?.title ?? ""}`
 })
 
+function act(h: Hit) {
+  const m = mode.peek(), x = h.act
+  if (x.kind === "pen") setMode({ kind: "new-ticket" })
+  else if (x.kind === "hire") setMode({ kind: "hire" })
+  else if (x.kind === "ticket") setMode(m.kind === "ticket" && m.id === x.id ? { kind: "none" } : { kind: "ticket", id: x.id })
+  else if (x.kind === "person" && m.kind === "ticket" && x.agentId !== null) setMode({ kind: "confirm", id: m.id, agentId: x.agentId, name: x.name })
+  else if (x.kind === "person" && x.tid !== null) setPicked(x.tid)
+  else if (x.kind === "thread") setPicked(x.tid)
+}
+
 function Scene() {
   let area: Gtk.DrawingArea | null = null
   let hits: Hit[] = []
   const hitAt = (x: number, y: number) => hits.find((h) => x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h)
 
   const draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number) => {
-    const out = sim.draw(cr, w, agents.peek(), picked.peek())
+    const out = sim().draw(cr, w, view.peek(), picked.peek(), armed.peek())
     hits = out.hits
     if (area && area.heightRequest !== out.height * S) area.heightRequest = out.height * S
   }
 
   const redraw = () => area?.queue_draw()
-  agents.subscribe(redraw); frame.subscribe(redraw); picked.subscribe(redraw); theme.subscribe(redraw)
+  view.subscribe(redraw); frame.subscribe(redraw); picked.subscribe(redraw); theme.subscribe(redraw); mode.subscribe(redraw)
   return (
     <Gtk.DrawingArea
       widthRequest={W * S}
@@ -60,14 +111,102 @@ function Scene() {
         area = self
         self.set_draw_func(draw)
         const click = new Gtk.GestureClick({ button: 1 })
-        click.connect("pressed", (_, _n, x, y) => { const h = hitAt(x, y); if (h?.tid != null) setPicked(h.tid) })
+        click.connect("pressed", (_, _n, x, y) => { const h = hitAt(x, y); if (h) act(h) })
         self.add_controller(click)
         const motion = new Gtk.EventControllerMotion()
-        motion.connect("motion", (_, x, y) => self.set_cursor_from_name(hitAt(x, y)?.tid != null ? "pointer" : null))
+        motion.connect("motion", (_, x, y) => self.set_cursor_from_name(hitAt(x, y) ? "pointer" : null))
         self.add_controller(motion)
         self.connect("query-tooltip", (_, x, y, _kb, tip) => { const h = hitAt(x, y); if (!h) return false; tip.set_text(h.tip); return true })
       }}
     />
+  )
+}
+
+/** ‹ workspace › — and how many threads wait on you in the other offices */
+function Switcher() {
+  return (
+    <box spacing={8} cssClasses={["office-switch"]}>
+      <button cssClasses={["act"]} onClicked={() => stepWs(-1)} tooltipText="previous workspace"><label label="‹" /></button>
+      <label cssClasses={["amber"]} label={wsName} hexpand />
+      <label cssClasses={["pink", "sm"]} label={elsewhere((n) => `! ${n} elsewhere`)} visible={elsewhere((n) => n > 0)} />
+      <button cssClasses={["act"]} onClicked={() => stepWs(1)} tooltipText="next workspace"><label label="›" /></button>
+    </box>
+  )
+}
+
+/** the card under the scene for whatever the last click started */
+function ActionCard() {
+  let title: Gtk.Entry, body: Gtk.Entry, name: Gtk.Entry
+  const [project, setProject] = createState<number | null>(null)
+  const [arch, setArch] = createState<string | null>(null)
+  const cancel = () => setMode({ kind: "none" })
+  const is = (k: Mode["kind"]) => mode((m) => m.kind === k)
+  const submitTicket = async () => {
+    const ws = wsId.peek()
+    if (ws === null || !title.text.trim()) return
+    if (await fileTicket(ws, project.peek(), title.text.trim(), body.text.trim())) { title.text = ""; body.text = ""; cancel() }
+  }
+  const submitHire = async () => {
+    const ws = wsId.peek(), n = name.text.trim().toLowerCase(), a = arch.peek()
+    if (ws === null || !/^[a-z][a-z0-9-]*$/.test(n) || !a) return
+    if (await hire(ws, n, a)) { name.text = ""; cancel() }
+  }
+  const start = async (agentId: number | null) => {
+    const m = mode.peek()
+    if (m.kind !== "ticket" && m.kind !== "confirm") return
+    if (await startTicket(m.id, agentId)) cancel()
+  }
+  return (
+    <Panel title={mode((m) => m.kind === "new-ticket" ? "\u{f0e7e}  NEW TICKET" : m.kind === "hire" ? "\u{f0004}  HIRE" : m.kind === "none" ? "" : `\u{f0e7e}  TICKET #${m.id}`)} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("ticket")}>
+        <label label={armedTitle} xalign={0} wrap maxWidthChars={40} />
+        <label cssClasses={["dim", "sm"]} label="click a coworker in the office to hand it over" xalign={0} />
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={() => start(null)}><label label="start with the lead" /></button>
+          <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+        </box>
+      </box>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("confirm")}>
+        <label cssClasses={["amber"]} label={mode((m) => (m.kind === "confirm" ? `start #${m.id} with ${m.name}?` : ""))} xalign={0} />
+        <label label={armedTitle} xalign={0} wrap maxWidthChars={40} />
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={() => { const m = mode.peek(); if (m.kind === "confirm") start(m.agentId) }}><label label="start" /></button>
+          <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+        </box>
+      </box>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("new-ticket")}>
+        <entry cssClasses={["deck-entry"]} placeholderText="title" $={(self) => { title = self; self.connect("activate", () => body.grab_focus()) }} />
+        <entry cssClasses={["deck-entry"]} placeholderText="details (optional)" $={(self) => { body = self; self.connect("activate", submitTicket) }} />
+        <box spacing={6} visible={view((a) => a.projects.length > 0)}>
+          <For each={view((a) => a.projects)}>
+            {(p: { id: number; name: string }) => (
+              <button cssClasses={project((x) => ["act", ...(x === p.id ? ["chip"] : [])])} onClicked={() => setProject(project.peek() === p.id ? null : p.id)}><label label={p.name} /></button>
+            )}
+          </For>
+        </box>
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={submitTicket}><label label="file" /></button>
+          <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+        </box>
+      </box>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("hire")}>
+        <entry cssClasses={["deck-entry"]} placeholderText="name (lowercase, one word)" $={(self) => { name = self; self.connect("activate", submitHire) }} />
+        {/* three to a row, so the rail keeps its width */}
+        {[0, 3].map((from) => (
+          <box spacing={6}>
+            <For each={agents((a) => a.archetypes.slice(from, from + 3))}>
+              {(k: string) => (
+                <button cssClasses={arch((x) => ["act", ...(x === k ? ["chip"] : [])])} onClicked={() => setArch(k)}><label label={k} /></button>
+              )}
+            </For>
+          </box>
+        ))}
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={submitHire}><label label="hire" /></button>
+          <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+        </box>
+      </box>
+    </Panel>
   )
 }
 
@@ -102,7 +241,7 @@ export function showOffice(on?: Gdk.Monitor) {
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = on ?? app.get_monitors().find((m) => m.connector === name)
   if (mon) officeWin.gdkmonitor = mon
-  if (picked.peek() === null) setPicked(inbox.peek()[0]?.id ?? agents.peek().roster[0]?.thread_id ?? null)
+  if (picked.peek() === null) setPicked(inbox.peek()[0]?.id ?? view.peek().roster[0]?.thread_id ?? null)
   officeWin.visible = true
 }
 export function hideOffice() { if (officeWin) officeWin.visible = false }
@@ -110,7 +249,13 @@ export function toggleOffice(on?: Gdk.Monitor) { if (officeWin?.visible) hideOff
 
 export default function Office() {
   const keys = new Gtk.EventControllerKey()
-  keys.connect("key-pressed", (_, kv) => { if (kv === Gdk.KEY_Escape) { hideOffice(); return true } return false })
+  // Esc backs out of a half-done action first, then closes the rail
+  keys.connect("key-pressed", (_, kv) => {
+    if (kv !== Gdk.KEY_Escape) return false
+    if (mode.peek().kind !== "none") setMode({ kind: "none" })
+    else hideOffice()
+    return true
+  })
   // a fresh brief on every poll, so a reply's answer shows up while the rail is open
   agents.subscribe(() => { if (officeWin?.visible) loadBrief() })
   return (
@@ -121,7 +266,7 @@ export default function Office() {
         // the animation runs only while someone can see it
         self.connect("notify::visible", () => {
           ticker?.cancel(); ticker = null
-          if (self.visible) ticker = interval(100, () => { sim.step(agents.peek()); setFrame((n) => n + 1) })
+          if (self.visible) ticker = interval(100, () => { sim().step(view.peek()); setFrame((n) => n + 1) })
         })
       }}
       visible={false}
@@ -135,7 +280,11 @@ export default function Office() {
     >
       <scrolledwindow cssClasses={["sheet", "right", "office-sheet"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}>
         <box orientation={Gtk.Orientation.VERTICAL}>
-          <Panel title={"\u{f06a9}  OFFICE"} cssClasses={["card", "card-agents"]}><Scene /></Panel>
+          <Panel title={"\u{f06a9}  OFFICE"} cssClasses={["card", "card-agents"]}>
+            <Switcher />
+            <Scene />
+          </Panel>
+          <ActionCard />
           <Panel title={inbox((l) => `\u{f0e7e}  INBOX · ${l.length}`)} cssClasses={["card", "card-agents"]} visible={inbox((l) => l.length > 0)}>
             <For each={inbox}>
               {(t: Thread) => (

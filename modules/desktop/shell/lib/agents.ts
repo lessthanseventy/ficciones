@@ -1,13 +1,19 @@
-// The Tlön roster + thread counts for the AGENTS pane, via scripts/tlon-cli.sh shell-status
-// (an rpc into the always-up server node). Polled; "channel down" when the server is not up.
-import { createPoll } from "ags/time"
+// The Tlön roster + thread counts for the AGENTS pane and the office, via scripts/tlon-cli.sh
+// shell-status (an rpc into the always-up server node). Polled every 30 s, and at once after a
+// write (`refreshAgents`); "channel down" when the server is not up.
+import { createState } from "ags"
+import { interval } from "ags/time"
 import { execAsync } from "ags/process"
 import { logEvent } from "./log"
 
 /** `prompt`: its coworker is sitting on a dialog (Server.Attention) — the ask, answered from the thread */
-export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null; prompt?: { summary: string; options?: { key: string; label: string }[] | null } | null }
+export type Thread = { id: number; title: string; stage: string | null; awaiting: string | null; workspace_id?: number | null; prompt?: { summary: string; options?: { key: string; label: string }[] | null } | null }
 /** `archetype`/`lead`: the agent's seat on its workspace bench (null/false off every bench) */
-export type Seat = { agent: string; thread_id: number; title: string; warm: boolean; archetype?: string | null; lead?: boolean }
+export type Seat = { agent: string; thread_id: number; title: string; warm: boolean; archetype?: string | null; lead?: boolean; workspace_id?: number | null }
+/** a coworker a workspace employs, on a thread or not */
+export type Coworker = { workspace_id: number; agent_id: number; name: string; archetype: string | null; lead: boolean }
+/** a filed ticket nobody has started yet */
+export type Ticket = { id: number; workspace_id: number; project_id: number | null; title: string; priority: string }
 export type Agents = {
   ok: boolean
   roster: Seat[]
@@ -15,6 +21,11 @@ export type Agents = {
   threads: Thread[]
   counts: Record<string, number>
   awaiting: number
+  bench: Coworker[]
+  projects: { id: number; workspace_id: number; name: string }[]
+  tickets: Ticket[]
+  workspaces: { id: number; name: string }[]
+  archetypes: string[]
   note?: string
 }
 /** a thread's brief, the scope get_dossier hands an agent (scripts/tlon-cli.sh shell-dossier) */
@@ -46,6 +57,24 @@ export async function post(id: number, body: string): Promise<boolean> {
   }
 }
 
+async function write(args: string[], what: string): Promise<boolean> {
+  try {
+    const out = await execAsync([CLI, ...args])
+    logEvent("agent", out.trim().split("\n").pop() ?? what)
+    refreshAgents()
+    return true
+  } catch (e) {
+    logEvent("agent", `${what} failed: ${String(e)}`, "warn")
+    return false
+  }
+}
+export const fileTicket = (ws: number, project: number | null, title: string, body: string) =>
+  write(["ticket-file", String(ws), project === null ? "-" : String(project), title, body], "filing a ticket")
+/** start a ticket's thread, handed to `agentId` or else the workspace's lead */
+export const startTicket = (ticket: number, agentId: number | null) =>
+  write(["ticket-start", String(ticket), ...(agentId === null ? [] : [String(agentId)])], `starting ticket #${ticket}`)
+export const hire = (ws: number, name: string, archetype: string) => write(["hire", String(ws), name, archetype], `hiring ${name}`)
+
 // Single-user machine, fixed checkout — the same assumption flake.nix makes.
 const CLI = "/home/andrew/projects/tlon/scripts/tlon-cli.sh"
 
@@ -74,20 +103,23 @@ function diff(next: Agents) {
   last = next
 }
 
-export const agents = createPoll<Agents>(
-  { ok: false, roster: [], threads: [], counts: {}, awaiting: 0, note: "…" },
-  30_000,
-  async () => {
-    try {
-      const out = await execAsync([CLI, "shell-status"])
-      const j = JSON.parse(out.trim().split("\n").pop() ?? "{}")
-      const next: Agents = { ok: true, roster: j.roster ?? [], threads: j.threads ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0 }
-      diff(next)
-      return next
-    } catch (e) {
-      if (last?.ok) logEvent("agent", "channel down", "warn")
-      last = { ok: false, roster: [], threads: [], counts: {}, awaiting: 0, note: "channel down" }
-      return last
+const EMPTY: Agents = { ok: false, roster: [], threads: [], counts: {}, awaiting: 0, bench: [], projects: [], tickets: [], workspaces: [], archetypes: [] }
+export const [agents, setAgents] = createState<Agents>({ ...EMPTY, note: "…" })
+export async function refreshAgents() {
+  try {
+    const out = await execAsync([CLI, "shell-status"])
+    const j = JSON.parse(out.trim().split("\n").pop() ?? "{}")
+    const next: Agents = {
+      ok: true, roster: j.roster ?? [], threads: j.threads ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0,
+      bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], archetypes: j.archetypes ?? [],
     }
-  },
-)
+    diff(next)
+    setAgents(next)
+  } catch {
+    if (last?.ok) logEvent("agent", "channel down", "warn")
+    last = { ...EMPTY, note: "channel down" }
+    setAgents(last)
+  }
+}
+refreshAgents()
+interval(30_000, refreshAgents)
