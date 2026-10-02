@@ -18,7 +18,7 @@ const CX = 137 // the corridor
 const BAND = 34 // the back wall ends here
 const DOOR_Y = [80, 103] // the gap in your office's glass wall, low, where the queue walks in
 const FLOOR = 108 // the desks start here
-const DESK_W = 42, LEAD_W = 56, BOSS_W = 58, ROW_H = 40
+const LEAD_W = 56, BOSS_W = 58, ROW_H = 40
 
 /** what a click on the scene means: a thread to show, a ticket to hand out, a person, or a tool */
 export type Act =
@@ -35,7 +35,9 @@ type Dir = "down" | "up" | "left" | "right"
 type Pose = "stand" | "sit" | "couch"
 type Kind = "desk" | "queue" | "board" | "couch" | "cooler" | "coffee" | "roam" | "exit" | "visit" | "note"
 type Spot = { x: number; y: number; aisle: number; pose: Pose; face: Dir; kind: Kind }
-type Desk = { x: number; y: number; w: number; kind: "boss" | "manager" | "lead" | "worker"; seat?: Seat }
+type Desk = { x: number; y: number; w: number; kind: "boss" | "manager" | "table"; seat?: Seat }
+/** a seat at a long table, owned by one person (null: free) */
+type Chair = { x: number; table: number; agent: string | null }
 type Look = { hair: Hair; hairRole: Role; decor: number; fav: Kind; emote: string; slow: boolean; blink: number }
 type Actor = {
   seat: Seat; look: Look; x: number; y: number; path: { x: number; y: number }[]
@@ -46,7 +48,8 @@ type Actor = {
 // a theme switch brings new hex strings, so the cache keys on the string itself
 const rgbs = new Map<string, number[]>()
 const needsYou = (t?: Thread) => !!t && (!!t.awaiting || !!t.prompt)
-const keyOf = (r: Seat) => `${r.agent}#${r.thread_id}`
+// one figure per person, whatever threads they are on
+const keyOf = (r: Seat) => r.agent
 const spotKey = (s: Spot) => `${s.kind}:${s.x}:${s.y}`
 function hash(s: string) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0 }
 
@@ -176,33 +179,58 @@ function lookOf(name: string): Look {
 const BOSS_LOOK: Look = { hair: "mop", hairRole: "structure", decor: 1, fav: "board", emote: "…", slow: false, blink: 7 }
 
 // ── the room ──────────────────────────────────────────────────────────────────────────────
+const PER_TABLE = 6, TABLE_X = 4, TABLE_W = 122, SEAT_GAP = 20
+
+/**
+ * The office's people, once each: the bench, then anyone on a thread who is not on it. Each is
+ * shown on the thread that needs you if one does, else their first — and is warm if any is.
+ */
+function peopleOf(a: Agents): Seat[] {
+  const byName = new Map<string, Seat>()
+  for (const c of a.bench) byName.set(c.name, { agent: c.name, thread_id: -c.agent_id, title: "", warm: false, archetype: c.archetype, lead: c.lead })
+  for (const r of a.roster) {
+    const p = byName.get(r.agent) ?? { ...r, warm: false, thread_id: 0 }
+    if (p.thread_id <= 0 || needsYou(a.threads.find((t) => t.id === r.thread_id))) { p.thread_id = r.thread_id; p.title = r.title }
+    p.warm = p.warm || r.warm
+    byName.set(r.agent, p)
+  }
+  return [...byName.values()]
+}
+
+/**
+ * The furniture, from the bench alone — never from threads, so nothing pops in or out: your desk,
+ * the manager's desk on the front rug, and long tables with a seat for everyone else.
+ */
 function layout(a: Agents) {
   const desks: Desk[] = [{ x: 6, y: 42, w: BOSS_W, kind: "boss" }]
-  // the manager (a meta coworker) stands at the front of the leads' rug, the leads beside them
-  const managers = a.roster.filter((r) => isManager(a, r))
-  const leads = [...managers, ...a.roster.filter((r) => r.lead && !isManager(a, r))]
-  const floor = a.roster.filter((r) => !r.lead && !isManager(a, r))
+  const people = peopleOf(a)
+  const managers = people.filter((p) => isManager(a, p)), workers = people.filter((p) => !isManager(a, p))
   let y = FLOOR
-  leads.forEach((r, i) => {
-    const n = Math.min(2, leads.length - Math.floor(i / 2) * 2)
-    const gap = (130 - n * LEAD_W) / (n + 1)
-    desks.push({ x: Math.round(gap + (i % 2) * (LEAD_W + gap)), y: y + Math.floor(i / 2) * ROW_H, w: LEAD_W, kind: isManager(a, r) ? "manager" : "lead", seat: r })
-  })
-  const leadRows = Math.ceil(leads.length / 2)
-  y += leadRows * ROW_H + (leadRows ? 4 : 0)
-  floor.forEach((r, i) => desks.push({ x: 2 + (i % 3) * 43, y: y + Math.floor(i / 3) * ROW_H, w: DESK_W, kind: "worker", seat: r }))
-  const height = y + Math.max(1, Math.ceil(floor.length / 3)) * ROW_H + 10
-  return { desks, leadRows, height }
+  managers.forEach((p, i) => desks.push({ x: managers.length === 1 ? Math.round((130 - LEAD_W) / 2) : 6 + i * (LEAD_W + 8), y, w: LEAD_W, kind: "manager", seat: p }))
+  if (managers.length) y += ROW_H + 4
+  const tables = Math.max(1, Math.ceil(workers.length / PER_TABLE))
+  const chairs: Chair[] = []
+  for (let t = 0; t < tables; t++) {
+    desks.push({ x: TABLE_X, y: y + t * ROW_H, w: TABLE_W, kind: "table" })
+    for (let i = 0; i < PER_TABLE; i++) chairs.push({ x: TABLE_X + 12 + i * SEAT_GAP, table: y + t * ROW_H, agent: workers[t * PER_TABLE + i]?.agent ?? null })
+  }
+  return { desks, chairs, people, managerRow: managers.length > 0, height: y + tables * ROW_H + 10 }
 }
+type Layout = ReturnType<typeof layout>
+
 /** a meta coworker — the one who routes the work and never works a thread */
 const isManager = (a: Agents, r: { archetype?: string | null }) => !!a.archetypes.find((x) => x.name === r.archetype)?.meta
 const seatX = (d: Desk) => d.x + Math.round(d.w / 2)
-// a worker sits on the room side of their desk, back to you, the monitor across the desk facing
-// them (and you); they come and go along the aisle below the row
-const deskSpot = (d: Desk): Spot =>
-  d.kind === "manager"
-    ? { x: seatX(d), y: d.y + 19, aisle: d.y + 34, pose: "sit", face: "down", kind: "desk" } // behind their desk, facing the floor
-    : { x: seatX(d), y: d.y + 26, aisle: d.y + 34, pose: "sit", face: "up", kind: "desk" }
+/**
+ * Where someone works: the manager behind their desk facing the floor, come in from the aisle
+ * behind it; anyone else in their own chair at a table, back to you, come in from the aisle below.
+ */
+function homeOf(l: Layout, agent: string): Spot | null {
+  const m = l.desks.find((d) => d.kind === "manager" && d.seat?.agent === agent)
+  if (m) return { x: seatX(m), y: m.y + 19, aisle: m.y - 3, pose: "sit", face: "down", kind: "desk" }
+  const c = l.chairs.find((x) => x.agent === agent)
+  return c ? { x: c.x, y: c.table + 26, aisle: c.table + 34, pose: "sit", face: "up", kind: "desk" } : null
+}
 // whoever has a question for you stands at your desk; the rest line up behind them, out the door
 const QUEUE: Spot[] = [38, 50, 61, 82, 94].map((x, i) => ({ x, y: 100, aisle: 100, pose: "stand", face: i === 0 ? "up" : "left", kind: "queue" }))
 // the lounge: the board up front; the couch below the TV, its back to you; the kitchenette along
@@ -219,6 +247,8 @@ const COFFEE = ["mmmmmmm", "mlmmmmm", "mmmmmmm", "m.....m", "m..c..m", "m.ccc.m"
 // TICKETS (unstarted) and DOING (a started plain thread — no workline stage) before the stages
 /** beside whoever is visited: at their desk if they sit at one, else where they stand */
 function visitSpot(h: Actor): Spot {
+  // someone who sits facing the room (the manager) is visited from in front of their desk
+  if (h.spot.kind === "desk" && !h.path.length && h.spot.face === "down") return { x: h.x, y: h.spot.y + 16, aisle: h.spot.y + 16, pose: "stand", face: "up", kind: "visit" }
   const at = h.spot.kind === "desk" && !h.path.length ? h.spot : { x: h.x, y: h.y, aisle: h.y }
   return { x: Math.min(128, at.x + 12), y: at.y, aisle: at.aisle, pose: "stand", face: "left", kind: "visit" }
 }
@@ -245,10 +275,6 @@ export function boardColumns(a: Agents): { name: string; items: BoardItem[] }[] 
   }
   return COLS.map((name, i) => ({ name, items: cols[i] }))
 }
-/** a coworker on the bench with no thread: a person without a desk (thread_id is minus the agent id) */
-const benchOnly = (a: Agents): Seat[] =>
-  a.bench.filter((c) => !a.roster.some((r) => r.agent === c.name)).map((c) => ({ agent: c.name, thread_id: -c.agent_id, title: "", warm: false, archetype: c.archetype, lead: c.lead }))
-
 export class OfficeSim {
   private actors = new Map<string, Actor>()
   private tick = 0
@@ -270,21 +296,18 @@ export class OfficeSim {
     let changed = this.changed || this.tick % 4 === 0
     this.changed = false
     for (const [k, v] of this.talk) if (this.tick > v.until) { this.talk.delete(k); changed = true }
-    const { desks, height } = layout(a)
+    const l = layout(a)
+    const { desks, height } = l
     const exit: Spot = { x: CX, y: height - 2, aisle: height - 2, pose: "stand", face: "down", kind: "exit" }
     const threadOf = (id: number) => a.threads.find((t) => t.id === id)
-    const asks = a.roster.filter((r) => needsYou(threadOf(r.thread_id))).sort((p, q) => p.thread_id - q.thread_id)
-    const people = [...a.roster, ...benchOnly(a)]
+    const asks = l.people.filter((p) => needsYou(threadOf(p.thread_id))).sort((p, q) => p.thread_id - q.thread_id)
+    const people = l.people
     const live = new Set(people.map(keyOf))
     for (const r of people) {
       const k = keyOf(r)
       const actor = this.actors.get(k)
       if (actor) { actor.seat = r; actor.leaving = false; continue }
-      // the same person under a new key (a session ended, or began): they keep where they stand
-      const was = [...this.actors].find(([ok, x]) => !live.has(ok) && x.seat.agent === r.agent)
-      if (was) { this.actors.delete(was[0]); was[1].seat = r; was[1].leaving = false; this.actors.set(k, was[1]); continue }
-      const d = desks.find((x) => x.seat && keyOf(x.seat) === k)
-      const at = this.seeded ? exit : d ? deskSpot(d) : LOUNGE[this.actors.size % LOUNGE.length]
+      const at = this.seeded ? exit : homeOf(l, r.agent) ?? LOUNGE[this.actors.size % LOUNGE.length]
       this.actors.set(k, { seat: r, look: lookOf(r.agent), x: at.x, y: at.y, path: [], spot: at, spotKey: this.seeded ? "" : spotKey(at), pose: at.pose, face: at.face, moving: false, until: 0, emote: null, emoteUntil: 0, leaving: false })
     }
     if (a.ok) this.seeded = true
@@ -298,13 +321,13 @@ export class OfficeSim {
     const held = new Set([...this.actors.values()].map((x) => x.spotKey))
     for (const [k, actor] of this.actors) {
       const slot = asks.findIndex((r) => keyOf(r) === k)
-      const d = desks.find((x) => x.seat && keyOf(x.seat) === k)
+      const home = homeOf(l, actor.seat.agent)
       let goal: Spot
       if (actor.leaving) goal = exit
       else if (slot >= 0) goal = QUEUE[Math.min(slot, QUEUE.length - 1)]
       else if (visiting.has(actor.seat.agent) && (host = this.find(visiting.get(actor.seat.agent)!))) goal = visitSpot(host)
       else if (writing.has(actor.seat.agent)) goal = BOARD_PEN
-      else if (actor.seat.warm && d) goal = deskSpot(d)
+      else if (actor.seat.warm && home) goal = home
       else goal = this.idleGoal(actor, held, desks)
       const gk = spotKey(goal)
       if (gk !== actor.spotKey) {
@@ -378,7 +401,7 @@ export class OfficeSim {
   /** `focus`: the agent whose card is open — the arrow follows them as it follows the picked thread */
   draw(cr: Cairo.Context, areaW: number, a: Agents, picked: number | null, armed: number | null, focus: string | null = null): { hits: Hit[]; height: number } {
     const t = this.tick, f = Math.floor(t / 4)
-    const { desks, leadRows, height } = layout(a)
+    const { desks, chairs, managerRow, height } = layout(a)
     const ox = Math.floor((areaW - W * S) / 2)
     const threadOf = (id: number) => a.threads.find((x) => x.id === id)
     cr.setAntialias(Cairo.Antialias.NONE)
@@ -424,7 +447,7 @@ export class OfficeSim {
     for (let y = BAND + 3; y < 104; y += 4) { px(72, y, 59, 1, ROLE.edge); px(78 + ((y >> 2) % 3) * 19, y - 3, 1, 3, ROLE.edge) }
     px(0, 0, W, BAND - 1, ROLE.edge)
     px(0, BAND - 1, W, 1, ROLE.structure)
-    if (leadRows) px(2, FLOOR - 2, 128, leadRows * ROW_H, ROLE.raised)
+    if (managerRow) px(2, FLOOR - 2, 128, ROW_H, ROLE.raised)
     px(CX - 6, height - 4, 12, 3, ROLE.borderInactive)
 
     // the whiteboard: one sticky per open workline, in its stage's column, in its coworker's colour
@@ -547,6 +570,20 @@ export class OfficeSim {
     items.push({ base: height - 2, draw: () => blit(BIG_PLANT, 2, height - 13, { l: ROLE.live, o: ROLE.structure }) })
 
     const actorAt = (d: Desk) => (d.seat ? this.actors.get(keyOf(d.seat)) : undefined)
+    const agentIdOf = (name: string) => a.bench.find((b) => b.name === name)?.agent_id ?? null
+    const brackets = (hx: number, hy: number, hw: number, hh: number) => ink.push(() => {
+      paint(ROLE.body); cr.setLineWidth(2)
+      for (const [x0, y0, gx, gy] of [[hx, hy, 1, 1], [hx + hw, hy, -1, 1], [hx, hy + hh, 1, -1], [hx + hw, hy + hh, -1, -1]]) {
+        cr.moveTo(x0 + gx * 10, y0); cr.lineTo(x0, y0); cr.lineTo(x0, y0 + gy * 10); cr.stroke()
+      }
+    })
+    /** a name cut to `w` px at `size` */
+    const fit = (name: string, w: number, size: number) => {
+      cr.setFontSize(size)
+      let n = name
+      while (n.length > 2 && cr.textExtents(n).width > w) n = n.slice(0, -1)
+      return n === name ? name : `${n.slice(0, -1)}.`
+    }
     const screen = (mx: number, my: number, on: boolean, asks: boolean, seed: number) => {
       blit(MONITOR, mx, my, { o: ROLE.inactive })
       if (asks) px(mx + 1, my + 1, 8, 5, f % 2 ? ROLE.attention : ROLE.raised)
@@ -607,35 +644,37 @@ export class OfficeSim {
         } })
         items.push({ base: d.y + 32, draw: () => {
           text(plate(d.seat!.agent, "(manager)", d.w * S - 6), ox + (d.x + d.w / 2) * S, (d.y + 38) * S - 2, there ? shirtOf(d.seat) : ROLE.inactive)
-          hits.push({ x: ox + d.x * S, y: d.y * S, w: d.w * S, h: (ROW_H - 1) * S, tip: this.tip(d.seat!, threadOf(d.seat!.thread_id), there ? "at the manager's desk" : "about the office"), act: { kind: "thread", tid: d.seat!.thread_id } })
+          const p = d.seat!
+          hits.push({ x: ox + d.x * S, y: d.y * S, w: d.w * S, h: (ROW_H - 1) * S, tip: this.tip(p, threadOf(p.thread_id), there ? "at the manager's desk" : "about the office"), act: { kind: "person", agentId: agentIdOf(p.agent), name: p.agent, tid: p.thread_id > 0 ? p.thread_id : null } })
         } })
         continue
       }
-      const owner = actorAt(d)
-      const seated = !!owner && owner.spot.kind === "desk" && !owner.path.length
-      const asks = !!d.seat && needsYou(threadOf(d.seat.thread_id))
-      // the desk with its monitor across it facing the chair, then the chair (empty, it shows)
+      // a long table: a monitor at every seat facing its chair; whose seat it is, under it
+      const mine = chairs.filter((c) => c.table === d.y)
+      const stateOf = (c: Chair) => {
+        const owner = c.agent ? this.actors.get(c.agent) : undefined
+        return { owner, p: owner?.seat, seated: !!owner && owner.spot.kind === "desk" && !owner.path.length, asks: !!owner && needsYou(threadOf(owner.seat.thread_id)) }
+      }
       items.push({ base: d.y + 22, draw: () => {
-        screen(sx - 5, d.y + 3, seated, asks, d.seat?.thread_id ?? d.x)
         px(d.x, d.y + 12, d.w, 2, ROLE.structure)
         px(d.x + 1, d.y + 14, d.w - 2, 8, ROLE.borderInactive)
-        px(d.x + d.w - 10, d.y + 17, 6, 1, ROLE.structure)
-        if (owner) decor(owner.look, d.x + d.w - 3, d.y + 12)
+        for (const c of mine) {
+          const { owner, seated, asks } = stateOf(c)
+          if (c.agent) screen(c.x - 5, d.y + 3, seated, asks, c.x)
+          else { blit(MONITOR, c.x - 5, d.y + 3, { o: ROLE.inactive }); px(c.x - 4, d.y + 4, 8, 5, ROLE.ground) }
+          if (owner) decor(owner.look, c.x + 10, d.y + 12)
+        }
       } })
-      items.push({ base: d.y + 27, draw: () => { px(sx - 5, d.y + 24, 10, 5, ROLE.inactive); px(sx - 4, d.y + 25, 8, 3, ROLE.edge) } })
+      items.push({ base: d.y + 27, draw: () => { for (const c of mine) { px(c.x - 5, d.y + 24, 10, 5, ROLE.inactive); px(c.x - 4, d.y + 25, 8, 3, ROLE.edge) } } })
       items.push({ base: d.y + 30, draw: () => {
-        const name = plate(d.seat!.agent, `#${d.seat!.thread_id}`, d.w * S - 6)
-        text(name, ox + (d.x + d.w / 2) * S, (d.y + 38) * S - 2, asks ? ROLE.attention : seated ? shirtOf(d.seat) : ROLE.inactive)
-        const hx = ox + d.x * S - 2, hy = d.y * S, hw = d.w * S + 4, hh = (ROW_H - 1) * S
-        const where = !owner ? "" : owner.spot.kind === "desk" ? (owner.path.length ? "headed to the desk" : "working") : owner.spot.kind === "queue" ? "in your queue" : owner.leaving ? "leaving" : `idle, at the ${owner.spot.kind}`
-        hits.push({ x: hx, y: hy, w: hw, h: hh, tip: this.tip(d.seat!, threadOf(d.seat!.thread_id), where), act: { kind: "thread", tid: d.seat!.thread_id } })
-        if (d.seat!.thread_id === picked) {
-          ink.push(() => {
-            paint(ROLE.body); cr.setLineWidth(2)
-            for (const [x0, y0, gx, gy] of [[hx, hy, 1, 1], [hx + hw, hy, -1, 1], [hx, hy + hh, 1, -1], [hx + hw, hy + hh, -1, -1]]) {
-              cr.moveTo(x0 + gx * 10, y0); cr.lineTo(x0, y0); cr.lineTo(x0, y0 + gy * 10); cr.stroke()
-            }
-          })
+        for (const c of mine) {
+          if (!c.agent) continue
+          const { owner, p, seated, asks } = stateOf(c)
+          text(fit(c.agent, SEAT_GAP * S - 4, 10), ox + c.x * S, (d.y + 37) * S - 2, asks ? ROLE.attention : seated ? shirtOf(p) : ROLE.inactive, 10)
+          const hx = ox + (c.x - 9) * S, hy = d.y * S, hw = 18 * S, hh = (ROW_H - 1) * S
+          const where = !owner ? "" : seated ? "working" : owner.spot.kind === "queue" ? "in your queue" : owner.leaving ? "leaving" : owner.path.length ? "walking" : `idle, at the ${owner.spot.kind}`
+          hits.push({ x: hx, y: hy, w: hw, h: hh, tip: p ? this.tip(p, threadOf(p.thread_id), where) : c.agent, act: { kind: "person", agentId: agentIdOf(c.agent), name: c.agent, tid: p && p.thread_id > 0 ? p.thread_id : null } })
+          if (p && p.thread_id > 0 && p.thread_id === picked) brackets(hx, hy, hw, hh)
         }
       } })
     }

@@ -160,7 +160,8 @@ function Scene() {
         area = self
         self.set_draw_func(draw)
         const click = new Gtk.GestureClick({ button: 1 })
-        click.connect("pressed", (_, _n, x, y) => { const h = hitAt(x, y); if (h) act(h) })
+        // a click on nothing is the way home: whatever was open closes
+        click.connect("pressed", (_, _n, x, y) => { const h = hitAt(x, y); if (h) act(h); else { setMode({ kind: "none" }); setPicked(null) } })
         self.add_controller(click)
         const motion = new Gtk.EventControllerMotion()
         motion.connect("motion", (_, x, y) => self.set_cursor_from_name(hitAt(x, y) ? "pointer" : null))
@@ -347,7 +348,9 @@ function ActionCard() {
         case "boss": return "\u{f0004}  YOU"
         default: return `\u{f0e7e}  TICKET #${m.id}`
       }
-    })} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
+    })} cssClasses={["card", "card-agents"]} vexpand visible={mode((m) => m.kind !== "none")}>
+      <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
       {/* your desk: what waits on you, and the running of the office */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={8} visible={is("boss")}>
         <label cssClasses={inbox((l) => (l.length ? ["pink"] : ["dim"]))} label={inbox((l) => (l.length ? `${l.length} waiting on you` : "nothing waits on you"))} xalign={0} />
@@ -531,6 +534,8 @@ function ActionCard() {
           <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
         </box>
       </box>
+      </box>
+      </scrolledwindow>
     </Panel>
   )
 }
@@ -659,6 +664,8 @@ function Reply() {
   )
 }
 
+// the detail box under the room: fixed, so the rail never jumps as cards come and go
+const DETAIL_H = 380
 let officeWin: Astal.Window | null = null
 let ticker: Timer | null = null
 let peeker: Timer | null = null
@@ -713,7 +720,9 @@ export default function Office() {
     // the worker's terminal, focused, is theirs: every key goes to it, Esc too (Claude Code needs it)
     if (officeWin?.get_focus() instanceof Vte.Terminal) return false
     if (kv === Gdk.KEY_Escape) {
+      // back out one step at a time: the open action, then the picked thread, then the office
       if (mode.peek().kind !== "none") setMode({ kind: "none" })
+      else if (picked.peek() !== null) setPicked(null)
       else hideOffice()
       return true
     }
@@ -778,24 +787,38 @@ export default function Office() {
             <Scene />
             <label cssClasses={["dim", "sm"]} label="j/k people · [ ] workspace · ⏎ talk · n ticket · h hire · esc back" xalign={0} />
           </Panel>
-          <ActionCard />
-          <Panel title={inbox((l) => `\u{f0e7e}  INBOX · ${l.length}`)} cssClasses={["card", "card-agents"]} visible={inbox((l) => l.length > 0)}>
-            <For each={inbox}>
-              {(t: Thread) => (
-                <button cssClasses={picked((p) => ["row", "thread-row", ...(p === t.id ? ["chip"] : [])])} onClicked={() => setPicked(t.id)}>
-                  <box spacing={8}>
-                    <label cssClasses={["dim", "sm"]} label={`#${t.id}`} widthChars={3} xalign={1} />
-                    <label label={t.title} hexpand xalign={0} ellipsize={3} maxWidthChars={22} />
-                    <label cssClasses={["pink", "sm"]} label={t.prompt?.summary ?? t.awaiting ?? ""} ellipsize={3} maxWidthChars={18} />
-                  </box>
-                </button>
-              )}
-            </For>
-          </Panel>
-          <Panel title={pickedTitle} cssClasses={["card", "card-agents"]} visible={createComputed(() => picked() !== null && !wide())}>
-            <Reply />
-            <Brief brief={brief} />
-          </Panel>
+          {/* one fixed-size place under the room for whatever you are looking at — an action, the
+              picked thread, or home (what waits on you) — so the rail never jumps */}
+          <box orientation={Gtk.Orientation.VERTICAL} heightRequest={DETAIL_H} vexpand={false}>
+            <ActionCard />
+            <Panel title={pickedTitle} cssClasses={["card", "card-agents"]} vexpand visible={createComputed(() => mode().kind === "none" && picked() !== null && !wide())}>
+              <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+                  <Reply />
+                  <Brief brief={brief} />
+                </box>
+              </scrolledwindow>
+            </Panel>
+            <Panel title={inbox((l) => (l.length ? `\u{f0e7e}  WAITING ON YOU · ${l.length}` : "\u{f0e7e}  HOME"))} cssClasses={["card", "card-agents"]} vexpand visible={createComputed(() => mode().kind === "none" && (picked() === null || wide()))}>
+              <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+                  <For each={inbox}>
+                    {(t: Thread) => (
+                      <button cssClasses={picked((p) => ["row", "thread-row", ...(p === t.id ? ["chip"] : [])])} onClicked={() => setPicked(t.id)}>
+                        <box spacing={8}>
+                          <label cssClasses={["dim", "sm"]} label={`#${t.id}`} widthChars={3} xalign={1} />
+                          <label label={t.title} hexpand xalign={0} ellipsize={3} maxWidthChars={22} />
+                          <label cssClasses={["pink", "sm"]} label={t.prompt?.summary ?? t.lead ?? ""} ellipsize={3} maxWidthChars={18} />
+                        </box>
+                      </button>
+                    )}
+                  </For>
+                  <label cssClasses={["dim"]} wrap maxWidthChars={44} xalign={0}
+                    label={inbox((l) => `${l.length ? "" : "Nothing waits on you. "}Click someone to talk to them, a desk or sticky to open it, yourself for the menu — and empty floor to come back here.`)} />
+                </box>
+              </scrolledwindow>
+            </Panel>
+          </box>
         </box>
       </scrolledwindow>
       <ThreadPane />
