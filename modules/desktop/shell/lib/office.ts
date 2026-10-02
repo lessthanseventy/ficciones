@@ -16,7 +16,7 @@ export const S = 3
 export const W = 144
 const CX = 137 // the corridor
 const BAND = 34 // the back wall ends here
-const DOOR_Y = [46, 68] // the gap in your office's glass wall
+const DOOR_Y = [80, 103] // the gap in your office's glass wall, low, where the queue walks in
 const FLOOR = 108 // the desks start here
 const DESK_W = 42, LEAD_W = 56, BOSS_W = 58, ROW_H = 40
 
@@ -28,10 +28,11 @@ export type Act =
   | { kind: "hire" }
   | { kind: "pen" }
   | { kind: "column"; col: number }
+  | { kind: "notes" }
 export type Hit = { x: number; y: number; w: number; h: number; tip: string; act: Act }
 type Dir = "down" | "up" | "left" | "right"
 type Pose = "stand" | "sit" | "couch"
-type Kind = "desk" | "queue" | "board" | "couch" | "cooler" | "roam" | "exit"
+type Kind = "desk" | "queue" | "board" | "couch" | "cooler" | "roam" | "exit" | "visit" | "note"
 type Spot = { x: number; y: number; aisle: number; pose: Pose; face: Dir; kind: Kind }
 type Desk = { x: number; y: number; w: number; kind: "boss" | "lead" | "worker" | "hire"; seat?: Seat }
 type Look = { hair: Hair; hairRole: Role; decor: number; fav: Kind; emote: string; slow: boolean; blink: number }
@@ -108,6 +109,7 @@ const GLYPH: Record<string, string[]> = {
   "!": ["..k..", "..k..", "..k..", ".....", "..k.."],
   "?": [".kkk.", "....k", "..kk.", ".....", "..k.."],
   "…": [".....", ".....", ".....", ".....", "k.k.k"],
+  "✎": ["....k", "...k.", "..k..", ".k...", "kk..."],
   "♪": ["..kk.", "..k.k", "..k..", "kkk..", "kk..."],
   "~": [".....", ".k...", "k.k.k", "...k.", "....."],
   "*": ["k.k.k", ".kkk.", "kkkkk", ".kkk.", "k.k.k"],
@@ -193,18 +195,28 @@ function layout(a: Agents) {
 }
 const seatX = (d: Desk) => d.x + Math.round(d.w / 2) + 4
 const deskSpot = (d: Desk): Spot => ({ x: seatX(d), y: d.y + 25, aisle: d.y + 3, pose: "sit", face: "down", kind: "desk" })
-const QUEUE: Spot[] = [80, 91, 102, 113, 124].map((x) => ({ x, y: 66, aisle: 66, pose: "stand", face: "left", kind: "queue" }))
+// whoever has a question for you stands at your desk; the rest line up behind them, out the door
+const QUEUE: Spot[] = [38, 50, 61, 82, 94].map((x, i) => ({ x, y: 100, aisle: 100, pose: "stand", face: i === 0 ? "up" : "left", kind: "queue" }))
 const LOUNGE: Spot[] = [
-  { x: 84, y: 46, aisle: 46, pose: "stand", face: "up", kind: "board" },
-  { x: 106, y: 46, aisle: 46, pose: "stand", face: "up", kind: "board" },
-  { x: 84, y: 98, aisle: 98, pose: "couch", face: "down", kind: "couch" },
-  { x: 98, y: 98, aisle: 98, pose: "couch", face: "down", kind: "couch" },
+  { x: 78, y: 46, aisle: 46, pose: "stand", face: "up", kind: "board" },
+  { x: 90, y: 46, aisle: 46, pose: "stand", face: "up", kind: "board" },
+  { x: 104, y: 66, aisle: 66, pose: "couch", face: "down", kind: "couch" },
+  { x: 118, y: 66, aisle: 66, pose: "couch", face: "down", kind: "couch" },
   { x: 112, y: 100, aisle: 100, pose: "stand", face: "right", kind: "cooler" },
 ]
 // TICKETS (unstarted) and DOING (a started plain thread — no workline stage) before the stages
+/** beside whoever is visited: at their desk if they sit at one, else where they stand */
+function visitSpot(h: Actor): Spot {
+  const at = h.spot.kind === "desk" && !h.path.length ? h.spot : { x: h.x, y: h.y, aisle: h.y }
+  return { x: Math.min(128, at.x + 12), y: at.y, aisle: at.aisle, pose: "stand", face: "left", kind: "visit" }
+}
+const BOARD_PEN: Spot = { x: 84, y: 44, aisle: 44, pose: "stand", face: "up", kind: "note" }
 const STAGE_COL: Record<string, number> = { intent: 2, spec: 2, plan: 3, build: 4, verify: 4, review: 5 }
 const COLS = ["TICKETS", "DOING", "SPEC", "PLAN", "BUILD", "REVIEW"]
-const COL_W = 22, PER_ROW = 3, PER_COL = 12
+const COL_W = 22, PER_ROW = 3, PER_COL = 6
+// a note on the board's strip: a squiggle in its author's colour, one of these by its id
+const SCRIBBLES = [["k.kk.k.kk", ".k..k.k..", "kk.k.kk.k"], ["kk.k.kk.k", "k.k..k.k.", ".kk.kk.kk"], [".k.kk.k.k", "kk.k..kk.", "k..kk.k.k"]]
+const VISIT_MS = 60_000, NOTE_MS = 45_000
 
 /** one note on the whiteboard: what a click on it does, and what its sticky and its list row say */
 export type BoardItem = { act: Act; title: string; who: string | null; stage: string; asks: boolean; archetype: string | null; high: boolean }
@@ -266,6 +278,11 @@ export class OfficeSim {
     if (a.ok) this.seeded = true
     for (const [k, actor] of this.actors) if (!live.has(k)) actor.leaving = true
 
+    // a consult walks the asker over to whoever they asked; a note walks its author to the board
+    const now = Date.now()
+    const visiting = new Map(a.visits.filter((v) => now - Date.parse(v.at) < VISIT_MS).map((v) => [v.from, v.to]))
+    const writing = new Set(a.notes.filter((n) => now - Date.parse(n.at) < NOTE_MS).map((n) => n.author))
+    let host: Actor | undefined
     const held = new Set([...this.actors.values()].map((x) => x.spotKey))
     for (const [k, actor] of this.actors) {
       const slot = asks.findIndex((r) => keyOf(r) === k)
@@ -273,6 +290,8 @@ export class OfficeSim {
       let goal: Spot
       if (actor.leaving) goal = exit
       else if (slot >= 0) goal = QUEUE[Math.min(slot, QUEUE.length - 1)]
+      else if (visiting.has(actor.seat.agent) && (host = this.find(visiting.get(actor.seat.agent)!))) goal = visitSpot(host)
+      else if (writing.has(actor.seat.agent)) goal = BOARD_PEN
       else if (actor.seat.warm && d) goal = deskSpot(d)
       else goal = this.idleGoal(actor, held, desks)
       const gk = spotKey(goal)
@@ -287,6 +306,14 @@ export class OfficeSim {
       if (this.talk.get(actor.seat.agent)?.text === null) { actor.moving = false; if (actor.pose === "stand") actor.face = "down" }
       else this.walk(actor, goal.kind === "desk" || goal.kind === "queue" || !actor.look.slow ? 2 : 1)
       if (actor.moving) changed = true
+      else if (goal.kind === "visit" || goal.kind === "note") {
+        // arrived: the two of them talk, or the pen moves
+        const e = goal.kind === "note" ? "✎" : "~"
+        if (actor.emote !== e) { actor.emote = e; changed = true }
+        actor.emoteUntil = this.tick + 5
+        const h = goal.kind === "visit" ? this.find(visiting.get(actor.seat.agent)!) : undefined
+        if (h && h.emote !== "~") { h.emote = "~"; h.emoteUntil = this.tick + 5; changed = true }
+      }
       if (actor.leaving && !actor.moving && actor.path.length === 0) { this.actors.delete(k); changed = true; continue }
       if (actor.emote && this.tick > actor.emoteUntil) { actor.emote = null; changed = true }
       if (!actor.emote && !actor.moving && Math.random() < 0.006) {
@@ -297,6 +324,12 @@ export class OfficeSim {
       }
     }
     return changed
+  }
+
+  /** where someone is now, by name — at their desk before anywhere else */
+  private find(agent: string): Actor | undefined {
+    const all = [...this.actors.values()].filter((x) => x.seat.agent === agent && !x.leaving)
+    return all.find((x) => x.spot.kind === "desk") ?? all[0]
   }
 
   private idleGoal(actor: Actor, held: Set<string>, desks: Desk[]): Spot {
@@ -408,18 +441,29 @@ export class OfficeSim {
         if (n.mark) px(sx + 4, sy, 1, 1, n.mark)
         hits.push({ x: ox + sx * S, y: sy * S, w: 5 * S, h: 4 * S, tip: n.tip, act: n.act })
       })
-      if (list.length > shown.filter(Boolean).length) text(`+${list.length - shown.filter(Boolean).length}`, ox + (x0 + 16) * S, 31 * S + 8, ROLE.key, 10)
+      if (list.length > shown.filter(Boolean).length) text(`+${list.length - shown.filter(Boolean).length}`, ox + (x0 + 16) * S, 23 * S, ROLE.key, 9)
     })
     hits.push({ x: ox + 100 * S, y: 29 * S, w: 8 * S, h: 3 * S, tip: "new ticket", act: { kind: "pen" } })
+    // the notes strip along the bottom of the board: one squiggle per note, newest first
+    px(4, 23, 136, 1, ROLE.edge)
+    const shownNotes = a.notes.slice(0, 12)
+    shownNotes.forEach((n, i) => {
+      const sx = 6 + i * 11
+      const c = a.bench.find((b) => b.name === n.author)
+      blit(SCRIBBLES[n.id % SCRIBBLES.length], sx, 25, { k: c ? shirtOf({ archetype: c.archetype } as Seat) : ROLE.prose })
+      hits.push({ x: ox + sx * S, y: 24 * S, w: 10 * S, h: 5 * S, tip: `${n.author}: ${n.body}`, act: { kind: "notes" } })
+    })
+    if (!shownNotes.length) text("notes land here", ox + 72 * S, 28 * S, ROLE.inactive, 9)
+    hits.push({ x: ox + 4 * S, y: 24 * S, w: 136 * S, h: 5 * S, tip: `${a.notes.length} note(s): open as a list`, act: { kind: "notes" } })
 
     // your office: glass on the lounge side, a door where the queue forms
     for (const [y0, y1] of [[BAND, DOOR_Y[0]], [DOOR_Y[1], 104]]) { px(70, y0, 1, y1 - y0, ROLE.edge); px(71, y0, 1, y1 - y0, ROLE.key) }
     px(0, 103, 72, 1, ROLE.structure)
 
     // the lounge: the couch's back and seat (its arms go in front of whoever sits)
-    px(74, 84, 34, 6, ROLE.structure)
-    px(76, 90, 30, 6, ROLE.borderInactive)
-    px(76, 96, 2, 3, ROLE.structure); px(104, 96, 2, 3, ROLE.structure)
+    px(96, 52, 32, 6, ROLE.structure)
+    px(98, 58, 28, 6, ROLE.borderInactive)
+    px(98, 64, 2, 3, ROLE.structure); px(124, 64, 2, 3, ROLE.structure)
 
     // everything with a footprint, back to front
     type Item = { base: number; draw: () => void }
@@ -451,8 +495,8 @@ export class OfficeSim {
       blit(COOLER, 120, 82, { k: ROLE.key, m: ROLE.prose, a: ROLE.alarm, o: ROLE.inactive })
       if ([...this.actors.values()].some((x) => x.spot.kind === "cooler" && !x.moving) && f % 3 === 0) px(122 + (f % 2) * 2, 83, 1, 1, ROLE.ground)
     } })
-    items.push({ base: 99.5, draw: () => { px(73, 87, 3, 11, ROLE.structure); px(106, 87, 3, 11, ROLE.structure) } })
-    items.push({ base: 101, draw: () => blit(BIG_PLANT, 58, 90, { l: ROLE.live, o: ROLE.structure }) })
+    items.push({ base: 66.5, draw: () => { px(95, 55, 3, 11, ROLE.structure); px(126, 55, 3, 11, ROLE.structure) } })
+    items.push({ base: 101, draw: () => blit(BIG_PLANT, 2, 90, { l: ROLE.live, o: ROLE.structure }) })
 
     const actorAt = (d: Desk) => (d.seat ? this.actors.get(keyOf(d.seat)) : undefined)
     for (const d of desks) {
@@ -560,7 +604,7 @@ export class OfficeSim {
         if (focus ? seat.agent === focus : seat.thread_id === picked) blit(ARROW, left + 4, above - 4 - bob, { v: ROLE.body })
       })
     }
-    if (queued.length > QUEUE.length) overhead.push(() => text(`+${queued.length - QUEUE.length + 1}`, ox + 124 * S, 72 * S, ROLE.attention))
+    if (queued.length > QUEUE.length) overhead.push(() => text(`+${queued.length - QUEUE.length + 1}`, ox + 104 * S, 82 * S, ROLE.attention))
 
     items.sort((p, q) => p.base - q.base).forEach((x) => x.draw())
     overhead.forEach((d) => d())

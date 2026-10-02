@@ -19,6 +19,10 @@ export type Coworker = { workspace_id: number; seat_id: number; agent_id: number
 export type Archetype = { name: string; meta: boolean; read_only: boolean; model: string }
 /** a model a coworker may run, keyed `provider/model`, with the harness it resolves to here */
 export type ModelChoice = ModelSpec & { key: string; harness: string }
+/** a note someone left (the whiteboard's strip); `workspace_id` null = machine-wide */
+export type Note = { id: number; author: string; body: string; workspace_id: number | null; at: string }
+/** a consult in the last few minutes: `from` asked `to` something */
+export type Visit = { from: string; to: string; workspace_id: number; at: string }
 /** a filed ticket nobody has started yet */
 export type Ticket = { id: number; workspace_id: number; project_id: number | null; title: string; priority: string }
 export type Agents = {
@@ -34,6 +38,8 @@ export type Agents = {
   workspaces: { id: number; name: string }[]
   archetypes: Archetype[]
   models: ModelChoice[]
+  notes: Note[]
+  visits: Visit[]
   note?: string
 }
 /** a thread's brief, the scope get_dossier hands an agent (scripts/tlon-cli.sh shell-dossier) */
@@ -141,7 +147,7 @@ function diff(next: Agents) {
   last = next
 }
 
-const EMPTY: Agents = { ok: false, roster: [], threads: [], counts: {}, awaiting: 0, bench: [], projects: [], tickets: [], workspaces: [], archetypes: [], models: [] }
+const EMPTY: Agents = { ok: false, roster: [], threads: [], counts: {}, awaiting: 0, bench: [], projects: [], tickets: [], workspaces: [], archetypes: [], models: [], notes: [], visits: [] }
 export const [agents, setAgents] = createState<Agents>({ ...EMPTY, note: "…" })
 export async function refreshAgents() {
   let next: Agents
@@ -150,7 +156,7 @@ export async function refreshAgents() {
     const j = JSON.parse(out.trim().split("\n").pop() ?? "{}")
     next = {
       ok: true, roster: j.roster ?? [], threads: j.threads ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0,
-      bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], archetypes: j.archetypes ?? [], models: j.models ?? [],
+      bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], archetypes: j.archetypes ?? [], models: j.models ?? [], notes: j.notes ?? [], visits: j.visits ?? [],
     }
   } catch {
     if (last?.ok) logEvent("agent", "channel down", "warn")

@@ -10,7 +10,7 @@ import Hyprland from "gi://AstalHyprland"
 import Cairo from "cairo"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
-import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Thread } from "../lib/agents"
+import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread } from "../lib/agents"
 import { OfficeSim, S, W, boardColumns, type BoardItem, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
@@ -45,6 +45,7 @@ const view = createComputed((): Agents => {
   return {
     ...a, threads, roster: [...sessions, ...unregistered], bench,
     tickets: a.tickets.filter((t) => t.workspace_id === ws), projects: a.projects.filter((p) => p.workspace_id === ws),
+    notes: a.notes.filter((n) => n.workspace_id === ws || n.workspace_id === null), visits: a.visits.filter((v) => v.workspace_id === ws),
     awaiting: threads.filter(needsYou).length,
   }
 })
@@ -85,6 +86,7 @@ type Mode =
   | { kind: "handoff"; tid: number }
   | { kind: "confirm-handoff"; tid: number; name: string }
   | { kind: "column"; col: number }
+  | { kind: "notes" }
 const [mode, setMode] = createState<Mode>({ kind: "none" })
 // asides, by agent id: survive closing the card, so reopening someone shows what they last said
 const [talks, setTalks] = createState<Record<number, { name: string; q: string; a: string | null }>>({})
@@ -103,7 +105,8 @@ const pickedTitle = createComputed(() => {
 
 function act(h: Hit) {
   const m = mode.peek(), x = h.act
-  if (x.kind === "column") setMode(m.kind === "column" && m.col === x.col ? { kind: "none" } : { kind: "column", col: x.col })
+  if (x.kind === "notes") setMode(m.kind === "notes" ? { kind: "none" } : { kind: "notes" })
+  else if (x.kind === "column") setMode(m.kind === "column" && m.col === x.col ? { kind: "none" } : { kind: "column", col: x.col })
   else if (x.kind === "pen") setMode({ kind: "new-ticket" })
   else if (x.kind === "hire") setMode({ kind: "hire" })
   else if (x.kind === "ticket") setMode(m.kind === "ticket" && m.id === x.id ? { kind: "none" } : { kind: "ticket", id: x.id })
@@ -317,9 +320,29 @@ function ActionCard() {
         case "coworker": return `\u{f0004}  ${coworker()?.name ?? ""}`
         case "handoff": case "confirm-handoff": return `\u{f0e7e}  HAND OFF #${m.tid}`
         case "column": { const col = columns()[m.col]; return `\u{f0e7e}  ${col?.name ?? ""} · ${col?.items.length ?? 0}` }
+        case "notes": return `\u{f0e7e}  NOTES · ${view().notes.length}`
         default: return `\u{f0e7e}  TICKET #${m.id}`
       }
     })} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
+      {/* the notes on the board's strip, newest first: who left them, when, what they say */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("notes")}>
+        <label cssClasses={["dim"]} label="no notes yet — coworkers leave them with write_note" xalign={0} wrap visible={view((a) => a.notes.length === 0)} />
+        <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} propagateNaturalHeight maxContentHeight={320}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+            <For each={view((a) => a.notes)}>
+              {(n: Note) => (
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+                  <box spacing={8}>
+                    <label cssClasses={["cyan", "sm"]} label={n.author} xalign={0} />
+                    <label cssClasses={["dim", "sm"]} label={new Date(n.at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} xalign={0} />
+                  </box>
+                  <label label={n.body} xalign={0} wrap maxWidthChars={44} lines={6} ellipsize={3} selectable tooltipText={n.body} />
+                </box>
+              )}
+            </For>
+          </box>
+        </scrolledwindow>
+      </box>
       {/* a whiteboard column as a list: the titles the stickies have no room for */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={is("column")}>
         <label cssClasses={["dim"]} label="nothing here" xalign={0} visible={columnItems((l) => l.length === 0)} />
