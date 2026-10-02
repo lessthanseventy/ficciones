@@ -10,7 +10,7 @@ import Hyprland from "gi://AstalHyprland"
 import Cairo from "cairo"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
-import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, type Agents, type Dossier, type Thread } from "../lib/agents"
+import { agents, dossier, post, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Thread } from "../lib/agents"
 import { OfficeSim, S, W, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
@@ -70,6 +70,9 @@ type Mode =
   | { kind: "hire" }
   | { kind: "coworker"; agentId: number }
   | { kind: "new-workspace" }
+  | { kind: "workspace" }
+  | { kind: "handoff"; tid: number }
+  | { kind: "confirm-handoff"; tid: number; name: string }
 const [mode, setMode] = createState<Mode>({ kind: "none" })
 // asides, by agent id: survive closing the card, so reopening someone shows what they last said
 const [talks, setTalks] = createState<Record<number, { name: string; q: string; a: string | null }>>({})
@@ -92,6 +95,7 @@ function act(h: Hit) {
   else if (x.kind === "hire") setMode({ kind: "hire" })
   else if (x.kind === "ticket") setMode(m.kind === "ticket" && m.id === x.id ? { kind: "none" } : { kind: "ticket", id: x.id })
   else if (x.kind === "person" && m.kind === "ticket" && x.agentId !== null) setMode({ kind: "confirm", id: m.id, agentId: x.agentId, name: x.name })
+  else if (x.kind === "person" && m.kind === "handoff") setMode({ kind: "confirm-handoff", tid: m.tid, name: x.name })
   else if (x.kind === "person") {
     if (x.agentId !== null) setMode({ kind: "coworker", agentId: x.agentId })
     if (x.tid !== null) setPicked(x.tid)
@@ -104,7 +108,9 @@ function Scene() {
   const hitAt = (x: number, y: number) => hits.find((h) => x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h)
 
   const draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number) => {
-    const out = sim().draw(cr, w, view.peek(), picked.peek(), armed.peek())
+    const m = mode.peek()
+    const focus = m.kind === "coworker" ? view.peek().bench.find((c) => c.agent_id === m.agentId)?.name ?? null : null
+    const out = sim().draw(cr, w, view.peek(), picked.peek(), armed.peek(), focus)
     hits = out.hits
     if (area && area.heightRequest !== out.height * S) area.heightRequest = out.height * S
   }
@@ -136,7 +142,9 @@ function Switcher() {
   return (
     <box spacing={8} cssClasses={["office-switch"]}>
       <button cssClasses={["act"]} onClicked={() => stepWs(-1)} tooltipText="previous workspace"><label label="‹" /></button>
-      <label cssClasses={["amber"]} label={wsName} hexpand ellipsize={3} maxWidthChars={24} />
+      <button cssClasses={["ws-name"]} hexpand tooltipText="this workspace" onClicked={() => setMode({ kind: "workspace" })}>
+        <label cssClasses={["amber"]} label={wsName} ellipsize={3} maxWidthChars={24} />
+      </button>
       <label cssClasses={["pink", "sm"]} label={elsewhere((n) => `! ${n} elsewhere`)} visible={elsewhere((n) => n > 0)} />
       <button cssClasses={["act"]} onClicked={() => stepWs(1)} tooltipText="next workspace"><label label="›" /></button>
       <button cssClasses={["act"]} onClicked={() => setMode({ kind: "new-workspace" })} tooltipText="new workspace"><label label="+" /></button>
@@ -210,13 +218,26 @@ function ActionCard() {
   const cancel = () => setMode({ kind: "none" })
   const is = (k: Mode["kind"]) => mode((m) => m.kind === k)
   const coworker = createComputed(() => { const m = mode(); return m.kind === "coworker" ? agents().bench.find((c) => c.agent_id === m.agentId) ?? null : null })
+  // a destructive button arms on the first click and acts on the second; a new card disarms it
+  const [sure, setSure] = createState<string | null>(null)
+  const danger = (key: string, label: string, run: () => Promise<unknown>) => (
+    <button cssClasses={["act", "red"]} onClicked={async () => { if (sure.peek() !== key) setSure(key); else { setSure(null); await run() } }}>
+      <label label={sure((s) => (s === key ? `really ${label}?` : label))} />
+    </button>
+  )
   // the knobs open on what is set now: a coworker's policy, or nothing (the archetype's) for a hire
   mode.subscribe(() => {
     const c = coworker.peek()
     setModel(c?.model ? `${c.model.provider}/${c.model.model}` : null)
     setEffort(c?.model?.thinking ?? null)
     setAsk(c?.ask ?? null)
+    setSure(null)
+    const m = mode.peek()
+    if (m.kind === "ticket" && ticketTitle) ticketTitle.text = agents.peek().tickets.find((t) => t.id === m.id)?.title ?? ""
   })
+  let ticketTitle: Gtk.Entry | null = null
+  const heir = createComputed(() => { const ws = wsId(); return agents().workspaces.filter((w) => w.id !== ws).sort((p, q) => p.id - q.id)[0] ?? null })
+  const wsThreads = view((a) => a.threads.length)
   const base = createComputed(() => archOf(mode().kind === "hire" ? arch() : coworker()?.archetype ?? null)?.model ?? "")
   // an effort on the default model still needs a model named, so it names the archetype's
   const modelKnob = (unset: string) => model.peek() ?? (effort.peek() ? base.peek() : unset)
@@ -272,11 +293,41 @@ function ActionCard() {
   return (
     <Panel title={createComputed(() => {
       const m = mode()
-      return m.kind === "new-ticket" ? "\u{f0e7e}  NEW TICKET" : m.kind === "hire" ? "\u{f0004}  HIRE" : m.kind === "new-workspace" ? "\u{f0004}  NEW WORKSPACE"
-        : m.kind === "coworker" ? `\u{f0004}  ${coworker()?.name ?? ""}` : m.kind === "none" ? "" : `\u{f0e7e}  TICKET #${m.id}`
+      switch (m.kind) {
+        case "none": return ""
+        case "new-ticket": return "\u{f0e7e}  NEW TICKET"
+        case "hire": return "\u{f0004}  HIRE"
+        case "new-workspace": return "\u{f0004}  NEW WORKSPACE"
+        case "workspace": return `\u{f0004}  ${wsName()}`
+        case "coworker": return `\u{f0004}  ${coworker()?.name ?? ""}`
+        case "handoff": case "confirm-handoff": return `\u{f0e7e}  HAND OFF #${m.tid}`
+        default: return `\u{f0e7e}  TICKET #${m.id}`
+      }
     })} cssClasses={["card", "card-agents"]} visible={mode((m) => m.kind !== "none")}>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("workspace")}>
+        <label cssClasses={["dim", "sm"]} label={createComputed(() => (heir() ? `deleting it moves its ${wsThreads()} open thread(s) to ${heir()!.name}; its bench goes` : "the only workspace — threads need a home, so it stays"))} xalign={0} wrap maxWidthChars={44} />
+        <box spacing={6}>
+          <box visible={heir((h) => !!h)}>{danger("workspace", "delete this workspace", async () => {
+            const ws = wsId.peek()
+            if (ws !== null && (await workspaceDelete(ws))) { setChosen(null); cancel() }
+          })}</box>
+          <button cssClasses={["act"]} onClicked={cancel}><label label="close" /></button>
+        </box>
+      </box>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("handoff")}>
+        <label label={mode((m) => (m.kind === "handoff" ? `click the coworker to hand #${m.tid} to` : ""))} xalign={0} />
+        <label cssClasses={["dim", "sm"]} label="they pick it up from the thread's brief; whoever has it now stops" xalign={0} wrap maxWidthChars={44} />
+        <button cssClasses={["act"]} halign={Gtk.Align.START} onClicked={cancel}><label label="cancel" /></button>
+      </box>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("confirm-handoff")}>
+        <label cssClasses={["amber"]} label={mode((m) => (m.kind === "confirm-handoff" ? `hand #${m.tid} to ${m.name}?` : ""))} xalign={0} />
+        <box spacing={6}>
+          <button cssClasses={["act"]} onClicked={async () => { const m = mode.peek(); if (m.kind === "confirm-handoff" && (await handOff(m.tid, m.name))) cancel() }}><label label="hand it over" /></button>
+          <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+        </box>
+      </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("coworker")}>
-        <entry cssClasses={["deck-entry"]} placeholderText={coworker((c) => `say something to ${c?.name ?? ""}…`)} $={(self) => { self.connect("activate", () => { talkTo(self.text); self.text = "" }) }} />
+        <entry cssClasses={["deck-entry"]} placeholderText={coworker((c) => `say something to ${c?.name ?? ""}…`)} $={(self) => { talkEntry = self; self.connect("activate", () => { talkTo(self.text); self.text = "" }) }} />
         <box spacing={6} visible={exchange((x) => !!x)}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={3} hexpand>
             <label cssClasses={["dim"]} label={exchange((x) => (x ? `you: ${x.q}` : ""))} xalign={0} wrap maxWidthChars={42} />
@@ -298,7 +349,10 @@ function ActionCard() {
           <box spacing={6}>
             <button cssClasses={["act"]} onClicked={saveCoworker}><label label="save" /></button>
             <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
+            {danger("fire", "let go", async () => { const c = coworker.peek(); if (c && (await fire(c.seat_id, c.name))) cancel() })}
           </box>
+          <label cssClasses={["dim", "sm"]} visible={sure((s) => s === "fire")} xalign={0} wrap maxWidthChars={44}
+            label={coworker((c) => { const n = c ? view.peek().roster.filter((r) => r.agent === c.name).length : 0; return n ? `their ${n} thread(s) stop until you hand them to someone` : "they have no threads" })} />
         </box>
       </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("new-workspace")}>
@@ -311,10 +365,16 @@ function ActionCard() {
         </box>
       </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("ticket")}>
-        <label label={armedTitle} xalign={0} wrap maxWidthChars={40} />
+        {/* the title edits in place: Enter saves it */}
+        <entry cssClasses={["deck-entry"]} $={(self) => {
+          ticketTitle = self
+          self.connect("activate", () => { const m = mode.peek(); if (m.kind === "ticket" && self.text.trim()) ticketSet(m.id, "title", self.text.trim()) })
+        }} />
         <label cssClasses={["dim", "sm"]} label="click a coworker in the office to hand it over" xalign={0} />
         <box spacing={6}>
           <button cssClasses={["act"]} onClicked={() => start(null)}><label label="start with the lead" /></button>
+          <button cssClasses={["act"]} onClicked={async () => { const m = mode.peek(); if (m.kind === "ticket" && (await ticketSet(m.id, "status", "done"))) cancel() }}><label label="done" /></button>
+          {danger("ticket", "delete", async () => { const m = mode.peek(); if (m.kind === "ticket" && (await ticketDelete(m.id))) cancel() })}
           <button cssClasses={["act"]} onClicked={cancel}><label label="cancel" /></button>
         </box>
       </box>
@@ -384,6 +444,9 @@ function Reply() {
         </For>
       </box>
       <entry cssClasses={["deck-entry"]} placeholderText="reply to the thread…" $={(self) => { entry = self; self.connect("activate", () => send(self.text)) }} />
+      <button cssClasses={["act"]} halign={Gtk.Align.START} visible={pickedThread((t) => !!t)} onClicked={() => { const id = picked.peek(); if (id !== null) setMode({ kind: "handoff", tid: id }) }}>
+        <label label="hand to…" />
+      </button>
     </box>
   )
 }
@@ -397,23 +460,63 @@ export function showOffice(on?: Gdk.Monitor) {
   const mon = on ?? app.get_monitors().find((m) => m.connector === name)
   if (mon) officeWin.gdkmonitor = mon
   if (picked.peek() === null) setPicked(inbox.peek()[0]?.id ?? view.peek().roster[0]?.thread_id ?? null)
+  // the keyboard while it is up, like the hub: it is a click-away sheet, not a place to type past
+  officeWin.keymode = Astal.Keymode.EXCLUSIVE
   officeWin.visible = true
   armClickaway(() => hideOffice())
 }
 export function hideOffice() {
-  if (officeWin) officeWin.visible = false
+  if (officeWin) { officeWin.visible = false; officeWin.keymode = Astal.Keymode.NONE }
   disarmClickaway()
 }
 export function toggleOffice(on?: Gdk.Monitor) { if (officeWin?.visible) hideOffice(); else showOffice(on) }
+/** open the office on thread `tid` — its workspace, picked (a click on a "waiting on you" toast) */
+export function openOfficeAt(tid: number) {
+  const t = agents.peek().threads.find((x) => x.id === tid)
+  if (t?.workspace_id != null) setChosen(t.workspace_id)
+  setPicked(tid)
+  if (!officeWin?.visible) showOffice()
+}
+setOpener(openOfficeAt)
+
+let talkEntry: Gtk.Entry | null = null
+/** the office's people in walking order — the bench, then anyone on a thread who is not on it */
+const people = view((a) => [...a.bench.map((c) => c.name), ...a.roster.map((r) => r.agent).filter((n) => !a.bench.some((c) => c.name === n))])
+function stepPerson(d: 1 | -1) {
+  const list = people.peek(), a = view.peek()
+  if (!list.length) return
+  const m = mode.peek()
+  const cur = m.kind === "coworker" ? list.indexOf(a.bench.find((c) => c.agent_id === m.agentId)?.name ?? "") : -1
+  const name = list[(cur + d + list.length) % list.length]
+  const c = a.bench.find((x) => x.name === name)
+  if (c) setMode({ kind: "coworker", agentId: c.agent_id })
+  const r = a.roster.find((x) => x.agent === name)
+  if (r) setPicked(r.thread_id)
+}
 
 export default function Office() {
-  const keys = new Gtk.EventControllerKey()
-  // Esc backs out of a half-done action first, then closes the rail
+  // CAPTURE, so the keys reach us before a focused button eats them; a focused entry keeps its
+  // typing — only Esc gets through it
+  const keys = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
   keys.connect("key-pressed", (_, kv) => {
-    if (kv !== Gdk.KEY_Escape) return false
-    if (mode.peek().kind !== "none") setMode({ kind: "none" })
-    else hideOffice()
-    return true
+    if (kv === Gdk.KEY_Escape) {
+      if (mode.peek().kind !== "none") setMode({ kind: "none" })
+      else hideOffice()
+      return true
+    }
+    if (officeWin?.get_focus() instanceof Gtk.Text) return false
+    switch (kv) {
+      case Gdk.KEY_j: case Gdk.KEY_Down: stepPerson(1); return true
+      case Gdk.KEY_k: case Gdk.KEY_Up: stepPerson(-1); return true
+      case Gdk.KEY_bracketleft: stepWs(-1); return true
+      case Gdk.KEY_bracketright: stepWs(1); return true
+      case Gdk.KEY_n: setMode({ kind: "new-ticket" }); return true
+      case Gdk.KEY_h: setMode({ kind: "hire" }); return true
+      case Gdk.KEY_Return: case Gdk.KEY_KP_Enter:
+        if (mode.peek().kind === "coworker") { talkEntry?.grab_focus(); return true }
+        return false
+    }
+    return false
   })
   // a fresh brief on every poll, so a reply's answer shows up while the rail is open
   agents.subscribe(() => { if (officeWin?.visible) loadBrief() })
@@ -435,7 +538,7 @@ export default function Office() {
       // like the hub: a sheet over the windows with a field beside it, so it stays up wherever
       // the pointer goes and the first click outside it closes it
       layer={Astal.Layer.OVERLAY}
-      keymode={Astal.Keymode.ON_DEMAND}
+      keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT}
       marginTop={36}
@@ -458,6 +561,7 @@ export default function Office() {
           <Panel title={"\u{f06a9}  OFFICE"} cssClasses={["card", "card-agents"]}>
             <Switcher />
             <Scene />
+            <label cssClasses={["dim", "sm"]} label="j/k people · [ ] workspace · ⏎ talk · n ticket · h hire · esc back" xalign={0} />
           </Panel>
           <ActionCard />
           <Panel title={inbox((l) => `\u{f0e7e}  INBOX · ${l.length}`)} cssClasses={["card", "card-agents"]} visible={inbox((l) => l.length > 0)}>

@@ -312,7 +312,8 @@ export class OfficeSim {
   }
 
   /** paint the room; returns the click targets (widget pixels) and the scene's height (lpx) */
-  draw(cr: Cairo.Context, areaW: number, a: Agents, picked: number | null, armed: number | null): { hits: Hit[]; height: number } {
+  /** `focus`: the agent whose card is open — the arrow follows them as it follows the picked thread */
+  draw(cr: Cairo.Context, areaW: number, a: Agents, picked: number | null, armed: number | null, focus: string | null = null): { hits: Hit[]; height: number } {
     const t = this.tick, f = Math.floor(t / 4)
     const { desks, leadRows, height } = layout(a)
     const ox = Math.floor((areaW - W * S) / 2)
@@ -540,7 +541,7 @@ export class OfficeSim {
           blit(BUBBLE, left + 3, above, { a: ROLE.prose })
           blit(GLYPH[actor.emote] ?? GLYPH["…"], left + 4, above + 1, { k: ROLE.fieldInk })
         } else above = top - 1
-        if (seat.thread_id === picked) blit(ARROW, left + 4, above - 4 - bob, { v: ROLE.body })
+        if (focus ? seat.agent === focus : seat.thread_id === picked) blit(ARROW, left + 4, above - 4 - bob, { v: ROLE.body })
       })
     }
     if (queued.length > QUEUE.length) overhead.push(() => text(`+${queued.length - QUEUE.length + 1}`, ox + 124 * S, 72 * S, ROLE.attention))

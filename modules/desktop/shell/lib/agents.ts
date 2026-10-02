@@ -13,7 +13,7 @@ export type Seat = { agent: string; thread_id: number; title: string; warm: bool
 /** a model as the server names it; `thinking` is the effort level */
 export type ModelSpec = { provider: string; model: string; thinking: string }
 /** a coworker a workspace employs, on a thread or not; `model`/`ask` are its policy, null = the archetype's */
-export type Coworker = { workspace_id: number; agent_id: number; name: string; archetype: string | null; lead: boolean; model: ModelSpec | null; ask: string | null }
+export type Coworker = { workspace_id: number; seat_id: number; agent_id: number; name: string; archetype: string | null; lead: boolean; model: ModelSpec | null; ask: string | null }
 /** what an archetype is beyond its prompt: `meta` never works a thread, `read_only` cannot write */
 export type Archetype = { name: string; meta: boolean; read_only: boolean; model: string }
 /** a model a coworker may run, keyed `provider/model`, with the harness it resolves to here */
@@ -96,6 +96,21 @@ export async function aside(ws: number, agentId: number, question: string): Prom
   }
 }
 export const workspaceNew = (name: string, repo: string) => write(["workspace-new", name, ...(repo ? [repo] : [])], `making workspace ${name}`)
+export const fire = (seatId: number, name: string) => write(["fire", String(seatId)], `letting ${name} go`)
+export const ticketSet = (id: number, field: "status" | "title" | "body", value: string) => write(["ticket-set", String(id), field, value], `changing ticket #${id}`)
+export const ticketDelete = (id: number) => write(["ticket-delete", String(id)], `deleting ticket #${id}`)
+export const workspaceDelete = (id: number) => write(["workspace-delete", String(id)], `deleting workspace #${id}`)
+/** give a running thread to another coworker; staffed within seconds */
+export const handOff = (tid: number, agent: string) => write(["hand-off", String(tid), agent], `handing #${tid} to ${agent}`)
+
+// a click on a "waiting on you" toast opens the office there; the office registers how
+let opener: (tid: number) => void = () => {}
+export const setOpener = (fn: (tid: number) => void) => { opener = fn }
+/** a toast whose click (freedesktop's default action) opens thread `tid`; notify-send waits for it */
+const toast = (summary: string, body: string, tid: number | undefined) =>
+  execAsync(["notify-send", "-a", "tlön", "-u", "normal", "-A", "default=open", summary, body])
+    .then((out) => { if (out.trim() === "default" && tid !== undefined) opener(tid) })
+    .catch(() => void 0)
 
 // Single-user machine, fixed checkout — the same assumption flake.nix makes.
 const CLI = "/home/andrew/projects/tlon/scripts/tlon-cli.sh"
@@ -115,12 +130,12 @@ function diff(next: Agents) {
     // the needs-you signal OUTSIDE any window (field baseline: every platform has one): a toast
     // through our own notifd when more threads wait on the operator than before
     if (next.awaiting > last.awaiting)
-      execAsync(["notify-send", "-a", "tlön", "-u", "normal", "tlön needs you", `${next.awaiting} thread${next.awaiting === 1 ? "" : "s"} awaiting you`]).catch(() => void 0)
+      toast("tlön needs you", `${next.awaiting} thread${next.awaiting === 1 ? "" : "s"} awaiting you`, next.threads.find((t) => t.awaiting || t.prompt)?.id)
     // a coworker stuck on a permission dialog names what it is asking about, so the toast is the ask
     const asked = new Set(last.threads.filter((t) => t.prompt).map((t) => t.id))
     for (const t of next.threads)
       if (t.prompt && !asked.has(t.id))
-        execAsync(["notify-send", "-a", "tlön", "-u", "normal", `#${t.id} ${t.title} is waiting on you`, t.prompt.summary]).catch(() => void 0)
+        toast(`#${t.id} ${t.title} is waiting on you`, t.prompt.summary, t.id)
   } else if (last && !last.ok) logEvent("agent", "channel up")
   last = next
 }
