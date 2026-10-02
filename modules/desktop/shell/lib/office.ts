@@ -30,6 +30,7 @@ export type Act =
   | { kind: "column"; col: number }
   | { kind: "notes" }
   | { kind: "boss" }
+  | { kind: "crew" }
 export type Hit = { x: number; y: number; w: number; h: number; tip: string; act: Act }
 type Dir = "down" | "up" | "left" | "right"
 type Pose = "stand" | "sit" | "couch"
@@ -179,7 +180,10 @@ function lookOf(name: string): Look {
 const BOSS_LOOK: Look = { hair: "mop", hairRole: "structure", decor: 1, fav: "board", emote: "…", slow: false, blink: 7 }
 
 // ── the room ──────────────────────────────────────────────────────────────────────────────
-const PER_TABLE = 6, TABLE_X = 4, TABLE_W = 122, SEAT_GAP = 20
+// two long tables of five: the room holds ten workers, so its size never changes
+const TABLES = 2, PER_TABLE = 5, TABLE_X = 4, TABLE_W = 122, SEAT_GAP = 24
+// the front rug: the crew board on the left, the manager's desk beside it
+const CREW_BOARD = { x: 3, w: 38 }, MANAGER_X = 46
 
 /**
  * The office's people, once each: the bench, then anyone on a thread who is not on it. Each is
@@ -197,24 +201,34 @@ function peopleOf(a: Agents): Seat[] {
   return [...byName.values()]
 }
 
+export type CrewStatus = "working" | "waiting" | "idle"
+/** one row of the crew: who, in what role, doing what — the board's light and the crew card's row */
+export type Crew = { name: string; archetype: string | null; manager: boolean; lead: boolean; status: CrewStatus; thread: number | null; title: string }
+/** the office's crew, in bench order — the board in the room and the crew card read the same rows */
+export function crewOf(a: Agents): Crew[] {
+  return peopleOf(a).map((p) => {
+    const t = p.thread_id > 0 ? a.threads.find((x) => x.id === p.thread_id) : undefined
+    const status: CrewStatus = needsYou(t) ? "waiting" : p.warm ? "working" : "idle"
+    return { name: p.agent, archetype: p.archetype ?? null, manager: isManager(a, p), lead: !!p.lead, status, thread: p.thread_id > 0 ? p.thread_id : null, title: p.title }
+  })
+}
+
 /**
- * The furniture, from the bench alone — never from threads, so nothing pops in or out: your desk,
- * the manager's desk on the front rug, and long tables with a seat for everyone else.
+ * The furniture — fixed: your desk; on the front rug the crew board and the manager's desk; two long
+ * tables of five behind them. Hiring fills a seat; nothing ever pops in or out.
  */
 function layout(a: Agents) {
   const desks: Desk[] = [{ x: 6, y: 42, w: BOSS_W, kind: "boss" }]
   const people = peopleOf(a)
   const managers = people.filter((p) => isManager(a, p)), workers = people.filter((p) => !isManager(a, p))
-  let y = FLOOR
-  managers.forEach((p, i) => desks.push({ x: managers.length === 1 ? Math.round((130 - LEAD_W) / 2) : 6 + i * (LEAD_W + 8), y, w: LEAD_W, kind: "manager", seat: p }))
-  if (managers.length) y += ROW_H + 4
-  const tables = Math.max(1, Math.ceil(workers.length / PER_TABLE))
+  if (managers[0]) desks.push({ x: MANAGER_X, y: FLOOR, w: LEAD_W, kind: "manager", seat: managers[0] })
+  const y = FLOOR + ROW_H + 4
   const chairs: Chair[] = []
-  for (let t = 0; t < tables; t++) {
+  for (let t = 0; t < TABLES; t++) {
     desks.push({ x: TABLE_X, y: y + t * ROW_H, w: TABLE_W, kind: "table" })
-    for (let i = 0; i < PER_TABLE; i++) chairs.push({ x: TABLE_X + 12 + i * SEAT_GAP, table: y + t * ROW_H, agent: workers[t * PER_TABLE + i]?.agent ?? null })
+    for (let i = 0; i < PER_TABLE; i++) chairs.push({ x: TABLE_X + 13 + i * SEAT_GAP, table: y + t * ROW_H, agent: workers[t * PER_TABLE + i]?.agent ?? null })
   }
-  return { desks, chairs, people, managerRow: managers.length > 0, height: y + tables * ROW_H + 10 }
+  return { desks, chairs, people, height: y + TABLES * ROW_H + 10 }
 }
 type Layout = ReturnType<typeof layout>
 
@@ -401,7 +415,7 @@ export class OfficeSim {
   /** `focus`: the agent whose card is open — the arrow follows them as it follows the picked thread */
   draw(cr: Cairo.Context, areaW: number, a: Agents, picked: number | null, armed: number | null, focus: string | null = null): { hits: Hit[]; height: number } {
     const t = this.tick, f = Math.floor(t / 4)
-    const { desks, chairs, managerRow, height } = layout(a)
+    const { desks, chairs, height } = layout(a)
     const ox = Math.floor((areaW - W * S) / 2)
     const threadOf = (id: number) => a.threads.find((x) => x.id === id)
     cr.setAntialias(Cairo.Antialias.NONE)
@@ -447,7 +461,20 @@ export class OfficeSim {
     for (let y = BAND + 3; y < 104; y += 4) { px(72, y, 59, 1, ROLE.edge); px(78 + ((y >> 2) % 3) * 19, y - 3, 1, 3, ROLE.edge) }
     px(0, 0, W, BAND - 1, ROLE.edge)
     px(0, BAND - 1, W, 1, ROLE.structure)
-    if (managerRow) px(2, FLOOR - 2, 128, ROW_H, ROLE.raised)
+    px(2, FLOOR - 2, 128, ROW_H, ROLE.raised)
+    // the crew board: who is on, at a glance — a light each (working, waiting on you, idle)
+    {
+      const bx = CREW_BOARD.x, bw = CREW_BOARD.w, by = FLOOR + 1
+      px(bx, by, bw, 34, ROLE.structure); px(bx + 1, by + 1, bw - 2, 32, ROLE.ground)
+      text("CREW", ox + (bx + bw / 2) * S, (by + 6) * S, ROLE.key, 9)
+      const light: Record<CrewStatus, string> = { working: ROLE.live, waiting: ROLE.attention, idle: ROLE.inactive }
+      crewOf(a).slice(0, 12).forEach((c, i) => {
+        const cx = bx + 2 + Math.floor(i / 6) * Math.floor(bw / 2), cy = by + 8 + (i % 6) * 4
+        px(cx, cy, 2, 2, c.status === "waiting" && f % 2 ? ROLE.raised : light[c.status])
+        ink.push(() => { cr.setFontSize(8); paint(c.status === "idle" ? ROLE.inactive : ROLE.prose); cr.moveTo(ox + (cx + 3) * S, (cy + 2) * S); cr.showText(fit(c.name, (bw / 2 - 5) * S, 8)) })
+      })
+      hits.push({ x: ox + bx * S, y: by * S, w: bw * S, h: 34 * S, tip: "the crew: who is on what — click for the card", act: { kind: "crew" } })
+    }
     px(CX - 6, height - 4, 12, 3, ROLE.borderInactive)
 
     // the whiteboard: one sticky per open workline, in its stage's column, in its coworker's colour

@@ -15,7 +15,7 @@ import { execAsync } from "ags/process"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
 import { agents, dossier, threadView, post, ticketRoute, closeThread, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
-import { OfficeSim, S, W, boardColumns, type BoardItem, type Hit } from "../lib/office"
+import { OfficeSim, S, W, boardColumns, crewOf, type BoardItem, type Crew, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { ROLE } from "../lib/palette"
 import { Panel } from "../lib/tui"
@@ -104,6 +104,7 @@ type Mode =
   | { kind: "column"; col: number }
   | { kind: "notes" }
   | { kind: "boss" }
+  | { kind: "crew" }
 const [mode, setMode] = createState<Mode>({ kind: "none" })
 // asides, by agent id: survive closing the card, so reopening someone shows what they last said
 const [talks, setTalks] = createState<Record<number, { name: string; q: string; a: string | null }>>({})
@@ -122,7 +123,8 @@ const pickedTitle = createComputed(() => {
 
 function act(h: Hit) {
   const m = mode.peek(), x = h.act
-  if (x.kind === "boss") setMode(m.kind === "boss" ? { kind: "none" } : { kind: "boss" })
+  if (x.kind === "crew") setMode(m.kind === "crew" ? { kind: "none" } : { kind: "crew" })
+  else if (x.kind === "boss") setMode(m.kind === "boss" ? { kind: "none" } : { kind: "boss" })
   else if (x.kind === "notes") setMode(m.kind === "notes" ? { kind: "none" } : { kind: "notes" })
   else if (x.kind === "column") setMode(m.kind === "column" && m.col === x.col ? { kind: "none" } : { kind: "column", col: x.col })
   else if (x.kind === "pen") setMode({ kind: "new-ticket" })
@@ -272,6 +274,13 @@ function ActionCard() {
     if (m.kind === "ticket" && ticketTitle) ticketTitle.text = agents.peek().tickets.find((t) => t.id === m.id)?.title ?? ""
   })
   let ticketTitle: Gtk.Entry | null = null
+  const crew = view((a) => crewOf(a))
+  /** the model someone runs on and its harness: their own setting, else their archetype's */
+  const runsOn = (name: string) => {
+    const a = view.peek(), b = a.bench.find((x) => x.name === name)
+    const key = b?.model ? `${b.model.provider}/${b.model.model}` : a.archetypes.find((x) => x.name === b?.archetype)?.model
+    return key ? choiceLabel(key) : ""
+  }
   // who manages this office (its meta coworker) and who leads it — the ticket card names them
   const managerName = view((a) => a.bench.find((c) => a.archetypes.find((x) => x.name === c.archetype)?.meta)?.name ?? null)
   const leadName = view((a) => a.bench.find((c) => c.lead)?.name ?? null)
@@ -346,11 +355,30 @@ function ActionCard() {
         case "column": { const col = columns()[m.col]; return `\u{f0e7e}  ${col?.name ?? ""} · ${col?.items.length ?? 0}` }
         case "notes": return `\u{f0e7e}  NOTES · ${view().notes.length}`
         case "boss": return "\u{f0004}  YOU"
+        case "crew": return `\u{f0004}  CREW · ${crew().length}`
         default: return `\u{f0e7e}  TICKET #${m.id}`
       }
     })} cssClasses={["card", "card-agents"]} vexpand visible={mode((m) => m.kind !== "none")}>
       <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+      {/* the crew: everyone on the bench, what they are, what runs them, what they are on */}
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={is("crew")}>
+        <For each={crew}>
+          {(c: Crew) => (
+            <button cssClasses={["row", "thread-row"]} onClicked={() => { const b = view.peek().bench.find((x) => x.name === c.name); if (b) setMode({ kind: "coworker", agentId: b.agent_id }); if (c.thread !== null) setPicked(c.thread) }}>
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={1}>
+                <box spacing={8}>
+                  <label cssClasses={[c.status === "working" ? "st-working" : c.status === "waiting" ? "pink" : "dim"]} label={c.status === "working" ? "●" : c.status === "waiting" ? "!" : "○"} widthChars={1} />
+                  <label cssClasses={c.status === "idle" ? ["dim"] : []} label={c.name} xalign={0} widthChars={9} />
+                  <label cssClasses={["dim", "sm"]} label={`${c.manager ? "manager" : c.archetype ?? "?"}${c.lead ? " · lead" : ""}`} xalign={0} widthChars={16} />
+                  <label cssClasses={["cyan", "sm"]} label={runsOn(c.name)} xalign={0} hexpand ellipsize={3} />
+                </box>
+                <label cssClasses={["dim", "sm"]} label={c.thread !== null ? `   #${c.thread} ${c.title}` : "   on the bench"} xalign={0} ellipsize={3} maxWidthChars={46} />
+              </box>
+            </button>
+          )}
+        </For>
+      </box>
       {/* your desk: what waits on you, and the running of the office */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={8} visible={is("boss")}>
         <label cssClasses={inbox((l) => (l.length ? ["pink"] : ["dim"]))} label={inbox((l) => (l.length ? `${l.length} waiting on you` : "nothing waits on you"))} xalign={0} />
@@ -371,6 +399,7 @@ function ActionCard() {
           <button cssClasses={["act"]} onClicked={() => setMode({ kind: "hire" })}><label label="hire someone" /></button>
           <button cssClasses={["act"]} onClicked={() => setMode({ kind: "new-ticket" })}><label label="new ticket" /></button>
           <button cssClasses={["act"]} onClicked={() => setMode({ kind: "notes" })}><label label="notes" /></button>
+          <button cssClasses={["act"]} onClicked={() => setMode({ kind: "crew" })}><label label="crew" /></button>
         </box>
         <box spacing={6}>
           <button cssClasses={["act"]} onClicked={() => setMode({ kind: "workspace" })}><label label="this workspace" /></button>
