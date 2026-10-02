@@ -52,7 +52,7 @@ window.drawer { background: transparent; }
 .cal-day.chip { padding: 0; }
 
 // ── the right-hand hub ─────────────────────────────────────────────────────
-window.hub, window.clickaway { background: transparent; }
+window.hub, window.office, window.clickaway { background: transparent; }
 .card-notices .panel-title { color: $body; }
 .card-toggles .panel-title { color: $key; }
 .hub-head { min-height: $cell-h; }

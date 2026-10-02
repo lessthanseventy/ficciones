@@ -15,6 +15,7 @@ import { OfficeSim, S, W, type Hit } from "../lib/office"
 import { theme } from "../lib/theme"
 import { Panel } from "../lib/tui"
 import { Brief } from "../panes/Agents"
+import { armClickaway, closeAny, disarmClickaway } from "./Clickaway"
 
 const needsYou = (t?: Thread) => !!t && (!!t.awaiting || !!t.prompt)
 
@@ -350,13 +351,18 @@ let officeWin: Astal.Window | null = null
 let ticker: Timer | null = null
 export function showOffice(on?: Gdk.Monitor) {
   if (!officeWin) return
+  closeAny()
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = on ?? app.get_monitors().find((m) => m.connector === name)
   if (mon) officeWin.gdkmonitor = mon
   if (picked.peek() === null) setPicked(inbox.peek()[0]?.id ?? view.peek().roster[0]?.thread_id ?? null)
   officeWin.visible = true
+  armClickaway(() => hideOffice())
 }
-export function hideOffice() { if (officeWin) officeWin.visible = false }
+export function hideOffice() {
+  if (officeWin) officeWin.visible = false
+  disarmClickaway()
+}
 export function toggleOffice(on?: Gdk.Monitor) { if (officeWin?.visible) hideOffice(); else showOffice(on) }
 
 export default function Office() {
@@ -385,12 +391,28 @@ export default function Office() {
       cssClasses={["office"]}
       namespace="astal-shell-office"
       name="office"
+      // like the hub: a sheet over the windows with a field beside it, so it stays up wherever
+      // the pointer goes and the first click outside it closes it
+      layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.ON_DEMAND}
-      exclusivity={Astal.Exclusivity.EXCLUSIVE}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
+      exclusivity={Astal.Exclusivity.IGNORE}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT}
+      marginTop={36}
+      marginLeft={48}
       application={app}
     >
-      <scrolledwindow cssClasses={["sheet", "right", "office-sheet"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}>
+      <box>
+      <box
+        cssClasses={["clickaway-field"]}
+        hexpand
+        vexpand
+        $={(self) => {
+          const g = new Gtk.GestureClick({ button: 0 })
+          g.connect("pressed", () => hideOffice())
+          self.add_controller(g)
+        }}
+      />
+      <scrolledwindow cssClasses={["sheet", "right", "office-sheet"]} hexpand={false} halign={Gtk.Align.END} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}>
         <box orientation={Gtk.Orientation.VERTICAL}>
           <Panel title={"\u{f06a9}  OFFICE"} cssClasses={["card", "card-agents"]}>
             <Switcher />
@@ -416,6 +438,7 @@ export default function Office() {
           </Panel>
         </box>
       </scrolledwindow>
+      </box>
     </window>
   )
 }
