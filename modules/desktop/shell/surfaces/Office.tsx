@@ -24,14 +24,29 @@ import { armClickaway, closeAny, disarmClickaway } from "./Clickaway"
 
 const needsYou = (t?: Thread) => !!t && (!!t.awaiting || !!t.prompt)
 
-// which workspace's office is showing; null = the one that needs you most
-const [chosen, setChosen] = createState<number | null>(null)
+// which workspace's office is showing: the last one you had open, across restarts; until there is
+// one (or it was deleted), Machine, else the one that needs you most
+const LAST_WS = `${GLib.get_user_state_dir()}/astal-shell/office-workspace`
+const [chosen, setChosen] = createState<number | null>((() => {
+  try { const [ok, b] = GLib.file_get_contents(LAST_WS); const n = ok ? Number(new TextDecoder().decode(b).trim()) : NaN; return n > 0 ? n : null } catch { return null }
+})())
+function choose(id: number | null) {
+  setChosen(id)
+  try {
+    GLib.mkdir_with_parents(GLib.path_get_dirname(LAST_WS), 0o755)
+    GLib.file_set_contents(LAST_WS, id === null ? "" : String(id))
+  } catch (e) { console.error("office workspace:", String(e)) }
+}
 function busiest(a: Agents): number | null {
   const by = (pred: (ws: number) => boolean) => a.workspaces.find((w) => pred(w.id))?.id
   return by((ws) => a.threads.some((t) => t.workspace_id === ws && needsYou(t))) ?? by((ws) => a.roster.some((r) => r.workspace_id === ws))
     ?? by((ws) => a.bench.some((c) => c.workspace_id === ws)) ?? a.workspaces[0]?.id ?? null
 }
-const wsId = createComputed(() => chosen() ?? busiest(agents()))
+const wsId = createComputed(() => {
+  const a = agents(), c = chosen()
+  if (c !== null && (!a.ok || a.workspaces.some((w) => w.id === c))) return c
+  return a.workspaces.find((w) => w.name.toLowerCase() === "machine")?.id ?? busiest(a)
+})
 /** the snapshot narrowed to one workspace — what the office draws and acts on */
 const view = createComputed((): Agents => {
   const a = agents(), ws = wsId()
@@ -60,7 +75,7 @@ function stepWs(d: 1 | -1) {
   const list = agents.peek().workspaces
   if (!list.length) return
   const i = list.findIndex((w) => w.id === wsId.peek())
-  setChosen(list[(i + d + list.length) % list.length].id)
+  choose(list[(i + d + list.length) % list.length].id)
   setMode({ kind: "none" })
 }
 // each workspace keeps its own room, so switching back finds everyone where they were
@@ -299,7 +314,7 @@ function ActionCard() {
     if (await workspaceNew(n, wsRepo.text.trim())) {
       wsNameEntry.text = ""; wsRepo.text = ""; cancel()
       const w = agents.peek().workspaces.find((x) => x.name === n)
-      if (w) setChosen(w.id)
+      if (w) choose(w.id)
     }
   }
   const [settings, setSettings] = createState(false)
@@ -450,7 +465,7 @@ function ActionCard() {
         <box spacing={6}>
           <box visible={heir((h) => !!h)}>{danger("workspace", "delete this workspace", async () => {
             const ws = wsId.peek()
-            if (ws !== null && (await workspaceDelete(ws))) { setChosen(null); cancel() }
+            if (ws !== null && (await workspaceDelete(ws))) { choose(null); cancel() }
           })}</box>
           <button cssClasses={["act"]} onClicked={cancel}><label label="close" /></button>
         </box>
@@ -712,6 +727,7 @@ export function showOffice(on?: Gdk.Monitor) {
   reattach()
   armClickaway(() => hideOffice())
 }
+export const officeVisible = () => !!officeWin?.visible
 export function hideOffice() {
   if (officeWin) { officeWin.visible = false; officeWin.keymode = Astal.Keymode.NONE }
   endTerminal()
@@ -721,13 +737,12 @@ export function toggleOffice(on?: Gdk.Monitor) { if (officeWin?.visible) hideOff
 /** open the office on thread `tid` — its workspace, picked (a click on a "waiting on you" toast) */
 export function openOfficeAt(tid: number) {
   const t = agents.peek().threads.find((x) => x.id === tid)
-  if (t?.workspace_id != null) setChosen(t.workspace_id)
+  if (t?.workspace_id != null) choose(t.workspace_id)
   setPicked(tid)
   if (!officeWin?.visible) showOffice()
 }
 setOpener(openOfficeAt)
 
-export const officeVisible = () => !!officeWin?.visible
 let talkEntry: Gtk.Entry | null = null
 /** the office's people in walking order — the bench, then anyone on a thread who is not on it */
 const people = view((a) => [...a.bench.map((c) => c.name), ...a.roster.map((r) => r.agent).filter((n) => !a.bench.some((c) => c.name === n))])
