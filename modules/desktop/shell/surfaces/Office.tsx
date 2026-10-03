@@ -727,6 +727,7 @@ export function openOfficeAt(tid: number) {
 }
 setOpener(openOfficeAt)
 
+export const officeVisible = () => !!officeWin?.visible
 let talkEntry: Gtk.Entry | null = null
 /** the office's people in walking order — the bench, then anyone on a thread who is not on it */
 const people = view((a) => [...a.bench.map((c) => c.name), ...a.roster.map((r) => r.agent).filter((n) => !a.bench.some((c) => c.name === n))])

@@ -16,6 +16,7 @@ import { VList } from "../lib/vlist"
 import { Toggles } from "../panes/Toggles"
 import { isFullscreen } from "../lib/hypr"
 import { deckVisible } from "./Deck"
+import { officeVisible } from "./Office"
 import { armClickaway, disarmClickaway } from "./Clickaway"
 
 const notifd = Notifd.get_default()
@@ -87,8 +88,9 @@ export function startHotEdge() {
     let x = 0, y = 0
     try { [x, y] = query("cursorpos").split(",").map((v) => Number(v.trim())) } catch { return }
     // open: nothing here — the hub and the deck close on Esc or a click outside, not on the
-    // pointer leaving (Andrew, 2026-09-07)
-    if (hubWin?.visible || deckVisible()) { since = 0; return }
+    // pointer leaving (Andrew, 2026-09-07). The office rail lies along this same edge, so the
+    // edge is quiet while it is open too
+    if (hubWin?.visible || deckVisible() || officeVisible()) { since = 0; return }
     // the right edge only: the deck opens on a click (Andrew, 2026-09-07: no hover for it)
     const mons = Hyprland.get_default().get_monitors()
     const mon = mons.find(
