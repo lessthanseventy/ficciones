@@ -123,7 +123,8 @@ const pickedTitle = createComputed(() => {
 
 function act(h: Hit) {
   const m = mode.peek(), x = h.act
-  if (x.kind === "crew") setMode(m.kind === "crew" ? { kind: "none" } : { kind: "crew" })
+  if (x.kind === "cat") sim().pet()
+  else if (x.kind === "crew") setMode(m.kind === "crew" ? { kind: "none" } : { kind: "crew" })
   else if (x.kind === "boss") setMode(m.kind === "boss" ? { kind: "none" } : { kind: "boss" })
   else if (x.kind === "notes") setMode(m.kind === "notes" ? { kind: "none" } : { kind: "notes" })
   else if (x.kind === "column") setMode(m.kind === "column" && m.col === x.col ? { kind: "none" } : { kind: "column", col: x.col })

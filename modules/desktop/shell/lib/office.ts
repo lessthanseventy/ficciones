@@ -31,6 +31,7 @@ export type Act =
   | { kind: "notes" }
   | { kind: "boss" }
   | { kind: "crew" }
+  | { kind: "cat" }
 export type Hit = { x: number; y: number; w: number; h: number; tip: string; act: Act }
 type Dir = "down" | "up" | "left" | "right"
 type Pose = "stand" | "sit" | "couch"
@@ -296,7 +297,62 @@ export function boardColumns(a: Agents): { name: string; items: BoardItem[] }[] 
   }
   return COLS.map((name, i) => ({ name, items: cols[i] }))
 }
+// your cat, drawn facing right (mirrored for left): k fur, e its yellow eyes, t the tail
+const CAT = {
+  sit: [["......k.k", "......kkk", "......kek", ".....kkk.", "....kkkk.", "t..kkkkk.", "tkkkkkkk."],
+        ["......k.k", "......kkk", "......kek", "t....kkk.", ".t..kkkk.", "...kkkkk.", "..kkkkkk."]],
+  walk: [["t......k.k", ".t.....kkk", "..kkkkkkek", "..kkkkkkk.", "..k.k..k.k"],
+         ["t......k.k", ".t.....kkk", "..kkkkkkek", "..kkkkkkk.", "...k.k.k.."]],
+  // curled up: ears, the closed eye (c), the tail wrapped round its front (w)
+  sleep: [["..k.k....", "..kkk.kk.", ".kckkkkkk", "kkkkkkkkk", ".kwwwwwk."]],
+}
+// where it likes to be: your rug (to nap), your floor, up on your desk beside you, and the lounge
+// in front of the couch and by the kitchenette, where whoever is idling can reach it
+const CAT_NAP = { x: 35, y: 96 }, CAT_DESK = { x: 24, y: 61 }
+const CAT_LOUNGE = [{ x: 111, y: 84 }, { x: 96, y: 92 }]
+const CAT_SPOTS = [CAT_NAP, { x: 22, y: 98 }, { x: 56, y: 96 }, CAT_DESK, ...CAT_LOUNGE]
+const LOUNGING = new Set(["couch", "cooler", "coffee", "roam"])
+const inLounge = (x: number) => x > 70
+
 export class OfficeSim {
+  private cat = { x: CAT_NAP.x, y: CAT_NAP.y, path: [] as { x: number; y: number }[], mode: "sleep" as "walk" | "sit" | "sleep", until: 300, face: 1, purr: 0, byYou: false }
+  /** a click on the cat: it purrs for a few seconds, and wakes if it was asleep */
+  pet() { this.cat.purr = this.tick + 30; this.cat.byYou = false; if (this.cat.mode === "sleep") { this.cat.mode = "sit"; this.cat.until = this.tick + 150 } this.changed = true }
+  /** the cat: naps on your rug, sits and flicks its tail, wanders your floor and the lounge */
+  private stepCat(): boolean {
+    const c = this.cat
+    if (c.path.length) {
+      if (this.tick % 2) return false
+      const to = c.path[0]
+      c.x += Math.sign(to.x - c.x); c.y += Math.sign(to.y - c.y)
+      if (to.x !== c.x) c.face = Math.sign(to.x - c.x)
+      if (c.x === to.x && c.y === to.y) c.path.shift()
+      if (!c.path.length) { const nap = c.x === CAT_NAP.x && c.y === CAT_NAP.y; c.mode = nap ? "sleep" : "sit"; c.until = this.tick + (nap ? 600 : 150) + Math.floor(Math.random() * 300) }
+      return true
+    }
+    // nobody leaves it lonely: you pat it when it is on your desk, and anyone idling in the lounge
+    // reaches down to it when it is close
+    if (this.tick >= c.purr) {
+      if (c.x === CAT_DESK.x && c.y === CAT_DESK.y && Math.random() < 0.02) { c.purr = this.tick + 30; c.byYou = true; return true }
+      if (c.mode !== "sleep") for (const a of this.actors.values()) {
+        if (a.moving || a.path.length || !LOUNGING.has(a.spot.kind) || Math.abs(a.x - c.x) > 18 || Math.abs(a.y - c.y) > 16 || Math.random() > 0.004) continue
+        c.purr = this.tick + 30; c.byYou = false; a.emote = "♥"; a.emoteUntil = this.tick + 30
+        return true
+      }
+    }
+    if (this.tick < c.until || this.tick < c.purr) return false
+    const company = [...this.actors.values()].some((a) => !a.moving && LOUNGING.has(a.spot.kind))
+    const r = Math.random()
+    const to = company && r < 0.4 ? CAT_LOUNGE[Math.floor(Math.random() * CAT_LOUNGE.length)]
+      : r < 0.6 ? CAT_NAP : r < 0.75 ? CAT_DESK : CAT_SPOTS[Math.floor(Math.random() * CAT_SPOTS.length)]
+    // through the gap in the glass wall when it changes rooms
+    const door = inLounge(c.x) !== inLounge(to.x) ? [{ x: inLounge(c.x) ? 76 : 64, y: 92 }, { x: inLounge(c.x) ? 64 : 76, y: 92 }] : []
+    const onDesk = (p: { x: number; y: number }) => p.x === CAT_DESK.x && p.y === CAT_DESK.y
+    const hop = onDesk(c) ? [{ x: CAT_DESK.x, y: 76 }] : onDesk(to) ? [{ x: CAT_DESK.x, y: 76 }] : []
+    c.path = onDesk(c) ? [...hop, ...door, to] : [...door, ...hop, to]; c.mode = "walk"
+    return true
+  }
+
   private actors = new Map<string, Actor>()
   private tick = 0
   private seeded = false
@@ -317,6 +373,7 @@ export class OfficeSim {
     let changed = this.changed || this.tick % 4 === 0
     this.changed = false
     for (const [k, v] of this.talk) if (this.tick > v.until) { this.talk.delete(k); changed = true }
+    if (this.stepCat()) changed = true
     const l = layout(a)
     const { desks, height } = l
     const exit: Spot = { x: CX, y: height - 2, aisle: height - 2, pose: "stand", face: "down", kind: "exit" }
@@ -465,9 +522,9 @@ export class OfficeSim {
     for (let x = 3; x < 70; x += 6) px(x, BAND, 1, 13, ROLE.borderInactive)
     px(0, BAND + 13, 70, 1, ROLE.body)
     for (const fx of [6, 52]) { px(fx, BAND + 2, 12, 8, ROLE.body); px(fx + 1, BAND + 3, 10, 6, ROLE.panel); px(fx + 2, BAND + 6, 4, 2, ROLE.live); px(fx + 6, BAND + 5, 4, 3, ROLE.attention) }
-    // your rug: gold-bordered, on the floor in front of the desk, where whoever waits on you stands
-    px(14, 70, 52, 32, ROLE.body); px(15, 71, 50, 30, ROLE.panel)
-    for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) px(19 + i * 8, 76 + j * 9, 2, 2, ROLE.attention)
+    // your rug: centred on the floor in front of the desk, where whoever waits on you stands
+    px(6, 82, 58, 20, ROLE.body); px(7, 83, 56, 18, ROLE.meta)
+    for (let i = 0; i < 6; i++) for (const [dx, dy, w] of [[1, 0, 1], [0, 1, 3], [1, 2, 1]]) px(12 + i * 9 + dx, 90 + dy, w, 1, ROLE.assistant)
     // the lounge's floorboards: warmer than the office's tiles, the seams staggered row to row
     px(72, BAND, 59, 104 - BAND, ROLE.raised)
     for (let y = BAND + 3; y < 104; y += 4) { px(72, y, 59, 1, ROLE.edge); px(78 + ((y >> 2) % 3) * 19, y - 3, 1, 3, ROLE.edge) }
@@ -799,6 +856,27 @@ export class OfficeSim {
     }
     if (queued.length > QUEUE.length) overhead.push(() => text(`+${queued.length - QUEUE.length + 1}`, ox + 104 * S, 82 * S, ROLE.attention))
 
+    {
+      const c = this.cat
+      const frames = CAT[c.mode], rows0 = frames[c.mode === "walk" ? (c.x + c.y) % 2 : c.mode === "sit" && f % 5 === 0 ? 1 : 0]
+      const rows = c.face < 0 ? rows0.map((r) => [...r].reverse().join("")) : rows0
+      const w = rows[0].length, h = rows.length, x = c.x - Math.floor(w / 2), y = c.y - h
+      // on your desk it is drawn over the desk's front, as it is when it jumps up or down
+      const desky = c.x === CAT_DESK.x && c.y < 76
+      items.push({ base: desky ? 80 : c.y, draw: () => {
+        // a dim rim, so a black cat still reads on the dark floor
+        const rim = { k: ROLE.edge, e: ROLE.edge, t: ROLE.edge, c: ROLE.edge, w: ROLE.edge }
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, -1]]) blit(rows, x + dx, y + dy, rim)
+        blit(rows, x, y, { k: ROLE.fieldInk, t: ROLE.fieldInk, e: ROLE.body, c: ROLE.inactive, w: ROLE.edge })
+        if (c.mode === "sleep" && f % 6 < 3) text("z", ox + (x + w + 1) * S, (y - 1) * S, ROLE.inactive, 10)
+        if (this.tick < c.purr) {
+          text("prr", ox + c.x * S, (y - 2) * S, ROLE.attention, 11)
+          // your hand, stroking its back
+          if (c.byYou) px(x + 3 + (f % 2) * 2, y + 2, 3, 1, ROLE.prose)
+        }
+        hits.push({ x: ox + (x - 1) * S, y: (y - 2) * S, w: (w + 2) * S, h: (h + 3) * S, tip: "your cat", act: { kind: "cat" } })
+      } })
+    }
     items.sort((p, q) => p.base - q.base).forEach((x) => x.draw())
     overhead.forEach((d) => d())
     if (!a.ok || (a.roster.length === 0 && a.bench.length === 0)) text(a.ok ? "nobody on the clock" : (a.note ?? "channel down"), ox + (W * S) / 2, (FLOOR + 20) * S, a.ok ? ROLE.inactive : ROLE.alarm)
