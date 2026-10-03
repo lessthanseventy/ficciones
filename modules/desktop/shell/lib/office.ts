@@ -460,9 +460,14 @@ export class OfficeSim {
     // floors and walls
     for (let ty = BAND; ty < height; ty += 8) for (let tx = 0; tx < W; tx += 8) px(tx, ty, 8, 8, ((tx + ty) / 8) % 2 ? ROLE.panel : ROLE.ground)
     px(0, BAND, 71, 104 - BAND, ROLE.raised)
-    // your rug: gold-bordered, under the desk
-    px(3, 38, 64, 42, ROLE.body); px(4, 39, 62, 40, ROLE.panel)
-    for (let i = 0; i < 7; i++) for (let j = 0; j < 4; j++) px(8 + i * 9, 44 + j * 10, 2, 2, ROLE.attention)
+    // your office's back wall: wood panels behind the throne, a baseboard, two framed pictures
+    px(0, BAND, 70, 14, ROLE.structure)
+    for (let x = 3; x < 70; x += 6) px(x, BAND, 1, 13, ROLE.borderInactive)
+    px(0, BAND + 13, 70, 1, ROLE.body)
+    for (const fx of [6, 52]) { px(fx, BAND + 2, 12, 8, ROLE.body); px(fx + 1, BAND + 3, 10, 6, ROLE.panel); px(fx + 2, BAND + 6, 4, 2, ROLE.live); px(fx + 6, BAND + 5, 4, 3, ROLE.attention) }
+    // your rug: gold-bordered, on the floor in front of the desk, where whoever waits on you stands
+    px(14, 70, 52, 32, ROLE.body); px(15, 71, 50, 30, ROLE.panel)
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) px(19 + i * 8, 76 + j * 9, 2, 2, ROLE.attention)
     // the lounge's floorboards: warmer than the office's tiles, the seams staggered row to row
     px(72, BAND, 59, 104 - BAND, ROLE.raised)
     for (let y = BAND + 3; y < 104; y += 4) { px(72, y, 59, 1, ROLE.edge); px(78 + ((y >> 2) % 3) * 19, y - 3, 1, 3, ROLE.edge) }
@@ -471,16 +476,18 @@ export class OfficeSim {
     px(2, FLOOR - 2, TABLE_X + TABLE_W - 2, ROW_H, ROLE.raised)
     // the crew board: who is on, at a glance — a light each (working, waiting on you, idle)
     {
-      const bx = CREW_BOARD.x, bw = CREW_BOARD.w, by = FLOOR + 1
-      px(bx, by, bw, 34, ROLE.structure); px(bx + 1, by + 1, bw - 2, 32, ROLE.ground)
-      text("CREW", ox + (bx + bw / 2) * S, (by + 6) * S, ROLE.key, 9)
+      // one column of names while they fit (six); a full office of ten takes two, smaller
+      const bx = CREW_BOARD.x, bw = CREW_BOARD.w, by = FLOOR, bh = 38
+      px(bx, by, bw, bh, ROLE.structure); px(bx + 1, by + 1, bw - 2, bh - 2, ROLE.ground)
+      text("CREW", ox + (bx + bw / 2) * S, (by + 6) * S, ROLE.key, 11)
       const light: Record<CrewStatus, string> = { working: ROLE.live, waiting: ROLE.attention, idle: ROLE.inactive }
-      crewOf(a).slice(0, 12).forEach((c, i) => {
-        const cx = bx + 2 + Math.floor(i / 6) * Math.floor(bw / 2), cy = by + 8 + (i % 6) * 4
-        px(cx, cy, 2, 2, c.status === "waiting" && f % 2 ? ROLE.raised : light[c.status])
-        ink.push(() => { cr.setFontSize(8); paint(c.status === "idle" ? ROLE.inactive : ROLE.prose); cr.moveTo(ox + (cx + 3) * S, (cy + 2) * S); cr.showText(fit(c.name, (bw / 2 - 5) * S, 8)) })
+      const crew = crewOf(a).slice(0, 10), cols = crew.length > 6 ? 2 : 1, per = cols === 1 ? 6 : 5, size = cols === 1 ? 11 : 9
+      crew.forEach((c, i) => {
+        const cx = bx + 3 + Math.floor(i / per) * Math.floor(bw / 2), cy = by + 10 + (i % per) * (cols === 1 ? 4.5 : 5)
+        px(cx, Math.round(cy), 2, 2, c.status === "waiting" && f % 2 ? ROLE.raised : light[c.status])
+        ink.push(() => { cr.setFontSize(size); paint(c.status === "idle" ? ROLE.inactive : ROLE.prose); cr.moveTo(ox + (cx + 4) * S, (cy + 2.5) * S); cr.showText(fit(c.name, (bw / cols - 8) * S, size)) })
       })
-      hits.push({ x: ox + bx * S, y: by * S, w: bw * S, h: 34 * S, tip: "the crew: who is on what — click for the card", act: { kind: "crew" } })
+      hits.push({ x: ox + bx * S, y: by * S, w: bw * S, h: bh * S, tip: "the crew: who is on what — click for the card", act: { kind: "crew" } })
     }
     px(CX - 6, height - 4, 12, 3, ROLE.borderInactive)
 
@@ -499,7 +506,7 @@ export class OfficeSim {
     cols.forEach((list, c) => {
       const x0 = 5 + c * COL_W
       if (c) px(x0 - 2, 4, 1, 25, ROLE.edge)
-      text(`${COLS[c]} ${list.length}`, ox + (x0 + 9) * S, 10 * S, ROLE.key, 9)
+      text(`${COLS[c]} ${list.length}`, ox + (x0 + 9) * S, 10 * S, ROLE.key, 10)
       // the header opens the column as a list under the scene, where the titles have room
       hits.push({ x: ox + (x0 - 1) * S, y: 3 * S, w: COL_W * S, h: 8 * S, tip: `${COLS[c].toLowerCase()}: open as a list`, act: { kind: "column", col: c } })
       const shown = c === 0 ? [...list.slice(0, PER_COL - 1), null] : list.slice(0, PER_COL)
@@ -516,7 +523,7 @@ export class OfficeSim {
         if (n.mark) px(sx + 4, sy, 1, 1, n.mark)
         hits.push({ x: ox + sx * S, y: sy * S, w: 5 * S, h: 4 * S, tip: n.tip, act: n.act })
       })
-      if (list.length > shown.filter(Boolean).length) text(`+${list.length - shown.filter(Boolean).length}`, ox + (x0 + 16) * S, 23 * S, ROLE.key, 9)
+      if (list.length > shown.filter(Boolean).length) text(`+${list.length - shown.filter(Boolean).length}`, ox + (x0 + 16) * S, 23 * S, ROLE.key, 10)
     })
     hits.push({ x: ox + 100 * S, y: 29 * S, w: 8 * S, h: 3 * S, tip: "new ticket", act: { kind: "pen" } })
     // the notes strip along the bottom of the board: one squiggle per note, newest first
@@ -528,7 +535,7 @@ export class OfficeSim {
       blit(SCRIBBLES[n.id % SCRIBBLES.length], sx, 25, { k: c ? shirtOf({ archetype: c.archetype } as Seat) : ROLE.prose })
       hits.push({ x: ox + sx * S, y: 24 * S, w: 10 * S, h: 5 * S, tip: `${n.author}: ${n.body}`, act: { kind: "notes" } })
     })
-    if (!shownNotes.length) text("notes land here", ox + 72 * S, 28 * S, ROLE.inactive, 9)
+    if (!shownNotes.length) text("notes land here", ox + 72 * S, 28 * S, ROLE.inactive, 10)
     hits.push({ x: ox + 4 * S, y: 24 * S, w: 136 * S, h: 5 * S, tip: `${a.notes.length} note(s): open as a list`, act: { kind: "notes" } })
 
     // your office: glass on the lounge side, a door where the queue forms
@@ -702,7 +709,6 @@ export class OfficeSim {
             px(d.x + d.w - 4, my, 2, 7, ROLE.inactive); px(d.x + 2, my + 6, 4, 1, ROLE.inactive)
             px(d.x + d.w - 2, my + 1, 1, 5, asks ? (f % 2 ? ROLE.attention : ROLE.raised) : seated ? ROLE.live : ROLE.ground)
           } })
-          items.push({ base: c.feet + 0.5, draw: () => { px(c.x + 5, c.feet - 11, 3, 10, ROLE.inactive); px(c.x + 6, c.feet - 10, 1, 8, ROLE.edge) } })
           items.push({ base: c.feet + 1, draw: () => {
             if (!c.agent) return
             const { owner, p, seated } = stateOf(c)
@@ -730,12 +736,11 @@ export class OfficeSim {
           if (owner) decor(owner.look, c.x + 6, d.y + 12)
         }
       } })
-      items.push({ base: d.y + 27, draw: () => { for (const c of mine) { px(c.x - 5, d.y + 24, 10, 5, ROLE.inactive); px(c.x - 4, d.y + 25, 8, 3, ROLE.edge) } } })
       items.push({ base: d.y + 30, draw: () => {
         for (const c of mine) {
           if (!c.agent) continue
           const { owner, p, seated, asks } = stateOf(c)
-          text(fit(c.agent, SEAT_GAP * S - 4, 10), ox + c.x * S, (d.y + 37) * S - 2, asks ? ROLE.attention : seated ? shirtOf(p) : ROLE.inactive, 10)
+          text(fit(c.agent, SEAT_GAP * S - 2, 11), ox + c.x * S, (d.y + 37) * S - 2, asks ? ROLE.attention : seated ? shirtOf(p) : ROLE.inactive, 11)
           const hx = ox + (c.x - 9) * S, hy = d.y * S, hw = 18 * S, hh = (ROW_H - 1) * S
           const where = !owner ? "" : seated ? "working" : owner.spot.kind === "queue" ? "in your queue" : owner.leaving ? "leaving" : owner.path.length ? "walking" : `idle, at the ${owner.spot.kind}`
           hits.push({ x: hx, y: hy, w: hw, h: hh, tip: p ? this.tip(p, threadOf(p.thread_id), where) : c.agent, act: { kind: "person", agentId: agentIdOf(c.agent), name: c.agent, tid: p && p.thread_id > 0 ? p.thread_id : null } })
