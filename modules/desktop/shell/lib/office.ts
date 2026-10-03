@@ -18,7 +18,7 @@ const CX = 137 // the corridor
 const BAND = 34 // the back wall ends here
 const DOOR_Y = [80, 103] // the gap in your office's glass wall, low, where the queue walks in
 const FLOOR = 108 // the desks start here
-const LEAD_W = 56, BOSS_W = 58, ROW_H = 40
+const LEAD_W = 56, BOSS_W = 48, ROW_H = 40
 
 /** what a click on the scene means: a thread to show, a ticket to hand out, a person, or a tool */
 export type Act =
@@ -50,6 +50,11 @@ type Actor = {
 
 // a theme switch brings new hex strings, so the cache keys on the string itself
 const rgbs = new Map<string, number[]>()
+/** `t` of the way from `base` to `c`: shades between two theme roles, so they follow a theme switch */
+function tint(c: string, base: string, t: number) {
+  const h = (x: string, i: number) => parseInt(x.slice(i, i + 2), 16)
+  return "#" + [1, 3, 5].map((i) => Math.round(h(base, i) + (h(c, i) - h(base, i)) * t).toString(16).padStart(2, "0")).join("")
+}
 const needsYou = (t?: Thread) => !!t && (!!t.awaiting || !!t.prompt)
 // one figure per person, whatever threads they are on
 const keyOf = (r: Seat) => r.agent
@@ -222,7 +227,7 @@ export function crewOf(a: Agents): Crew[] {
  * tables of five behind them. Hiring fills a seat; nothing ever pops in or out.
  */
 function layout(a: Agents) {
-  const desks: Desk[] = [{ x: 6, y: 42, w: BOSS_W, kind: "boss" }]
+  const desks: Desk[] = [{ x: 11, y: 42, w: BOSS_W, kind: "boss" }]
   const people = peopleOf(a)
   const managers = people.filter((p) => isManager(a, p)), workers = people.filter((p) => !isManager(a, p))
   if (managers[0]) desks.push({ x: MANAGER_X, y: FLOOR, w: LEAD_W, kind: "manager", seat: managers[0] })
@@ -305,17 +310,30 @@ const CAT = {
          ["t......k.k", ".t.....kkk", "..kkkkkkek", "..kkkkkkk.", "...k.k.k.."]],
   // curled up: ears, the closed eye (c), the tail wrapped round its front (w)
   sleep: [["..k.k....", "..kkk.kk.", ".kckkkkkk", "kkkkkkkkk", ".kwwwwwk."]],
+  // batting the yarn: a paw out, then back
+  play: [["......k.k.", "......kkk.", "......kek.", ".....kkkkk", "....kkkk..", "t..kkkkk..", "tkkkkkkk.."],
+         ["......k.k.", "......kkk.", "......kek.", ".....kkk..", "....kkkk..", "t..kkkkk..", "tkkkkkkk.."]],
 }
+const CAT_NAME = "Nina"
 // where it likes to be: your rug (to nap), your floor, up on your desk beside you, and the lounge
 // in front of the couch and by the kitchenette, where whoever is idling can reach it
-const CAT_NAP = { x: 35, y: 96 }, CAT_DESK = { x: 24, y: 61 }
+const CAT_NAP = { x: 35, y: 96 }, CAT_DESK = { x: 25, y: 61 }
 const CAT_LOUNGE = [{ x: 111, y: 84 }, { x: 96, y: 92 }]
-const CAT_SPOTS = [CAT_NAP, { x: 22, y: 98 }, { x: 56, y: 96 }, CAT_DESK, ...CAT_LOUNGE]
+// her things in your office: the tower in the right corner, the litter box front-left, the yarn
+// and a toy mouse on the rug
+const TOWER_X = 59, PERCH_TOP = { x: 64, y: 40 }, PERCH_MID = { x: 64, y: 57 }
+const LITTER = { x: 6, y: 72 }, YARN = { x: 55, y: 95 }, PLAY = { x: 49, y: 97 }, MOUSE = { x: 17, y: 97 }
+const CAT_SPOTS = [CAT_NAP, { x: 22, y: 98 }, CAT_DESK, PERCH_TOP, PERCH_MID, PLAY, ...CAT_LOUNGE]
+// a spot up off the floor is got to from the floor below it: a hop, a climb, a step in
+const viaOf = (p: { x: number; y: number }) =>
+  p.x === CAT_DESK.x && p.y === CAT_DESK.y ? { x: CAT_DESK.x, y: 76 }
+    : p.x === PERCH_TOP.x && p.y <= PERCH_MID.y ? { x: PERCH_TOP.x, y: 78 }
+      : p.x === LITTER.x && p.y === LITTER.y ? { x: LITTER.x, y: 78 } : null
 const LOUNGING = new Set(["couch", "cooler", "coffee", "roam"])
 const inLounge = (x: number) => x > 70
 
 export class OfficeSim {
-  private cat = { x: CAT_NAP.x, y: CAT_NAP.y, path: [] as { x: number; y: number }[], mode: "sleep" as "walk" | "sit" | "sleep", until: 300, face: 1, purr: 0, byYou: false }
+  private cat = { x: CAT_NAP.x, y: CAT_NAP.y, path: [] as { x: number; y: number }[], mode: "sleep" as "walk" | "sit" | "sleep" | "play", until: 300, face: 1, purr: 0, byYou: false, yarn: 0 }
   /** a click on the cat: it purrs for a few seconds, and wakes if it was asleep */
   pet() { this.cat.purr = this.tick + 30; this.cat.byYou = false; if (this.cat.mode === "sleep") { this.cat.mode = "sit"; this.cat.until = this.tick + 150 } this.changed = true }
   /** the cat: naps on your rug, sits and flicks its tail, wanders your floor and the lounge */
@@ -327,9 +345,16 @@ export class OfficeSim {
       c.x += Math.sign(to.x - c.x); c.y += Math.sign(to.y - c.y)
       if (to.x !== c.x) c.face = Math.sign(to.x - c.x)
       if (c.x === to.x && c.y === to.y) c.path.shift()
-      if (!c.path.length) { const nap = c.x === CAT_NAP.x && c.y === CAT_NAP.y; c.mode = nap ? "sleep" : "sit"; c.until = this.tick + (nap ? 600 : 150) + Math.floor(Math.random() * 300) }
+      if (!c.path.length) {
+        const at = (p: { x: number; y: number }) => c.x === p.x && c.y === p.y
+        const nap = at(CAT_NAP) || (at(PERCH_TOP) && Math.random() < 0.7)
+        c.mode = nap ? "sleep" : at(PLAY) ? "play" : "sit"
+        if (at(PLAY)) c.face = 1
+        c.until = this.tick + (at(LITTER) ? 60 : nap ? 600 : 150) + Math.floor(Math.random() * (at(LITTER) ? 40 : 300))
+      }
       return true
     }
+    if (c.mode === "play" && this.tick % 3 === 0) { c.yarn = (c.yarn + 1) % 4; return true }
     // nobody leaves it lonely: you pat it when it is on your desk, and anyone idling in the lounge
     // reaches down to it when it is close
     if (this.tick >= c.purr) {
@@ -343,13 +368,13 @@ export class OfficeSim {
     if (this.tick < c.until || this.tick < c.purr) return false
     const company = [...this.actors.values()].some((a) => !a.moving && LOUNGING.has(a.spot.kind))
     const r = Math.random()
-    const to = company && r < 0.4 ? CAT_LOUNGE[Math.floor(Math.random() * CAT_LOUNGE.length)]
-      : r < 0.6 ? CAT_NAP : r < 0.75 ? CAT_DESK : CAT_SPOTS[Math.floor(Math.random() * CAT_SPOTS.length)]
+    const to = company && r < 0.3 ? CAT_LOUNGE[Math.floor(Math.random() * CAT_LOUNGE.length)]
+      : r < 0.45 ? CAT_NAP : r < 0.55 ? CAT_DESK : r < 0.7 ? (Math.random() < 0.5 ? PERCH_TOP : PERCH_MID)
+        : r < 0.8 ? PLAY : r < 0.85 ? LITTER : CAT_SPOTS[Math.floor(Math.random() * CAT_SPOTS.length)]
     // through the gap in the glass wall when it changes rooms
     const door = inLounge(c.x) !== inLounge(to.x) ? [{ x: inLounge(c.x) ? 76 : 64, y: 92 }, { x: inLounge(c.x) ? 64 : 76, y: 92 }] : []
-    const onDesk = (p: { x: number; y: number }) => p.x === CAT_DESK.x && p.y === CAT_DESK.y
-    const hop = onDesk(c) ? [{ x: CAT_DESK.x, y: 76 }] : onDesk(to) ? [{ x: CAT_DESK.x, y: 76 }] : []
-    c.path = onDesk(c) ? [...hop, ...door, to] : [...door, ...hop, to]; c.mode = "walk"
+    const down = viaOf(c), up = viaOf(to)
+    c.path = [...(down ? [down] : []), ...door, ...(up ? [up] : []), to]; c.mode = "walk"
     return true
   }
 
@@ -515,22 +540,27 @@ export class OfficeSim {
     const shirtOf = (r?: Seat) => ROLE[(r?.archetype ?? "") as Role] ?? ROLE.body
 
     // floors and walls
-    for (let ty = BAND; ty < height; ty += 8) for (let tx = 0; tx < W; tx += 8) px(tx, ty, 8, 8, ((tx + ty) / 8) % 2 ? ROLE.panel : ROLE.ground)
-    px(0, BAND, 71, 104 - BAND, ROLE.raised)
-    // your office's back wall: wood panels behind the throne, a baseboard, two framed pictures
+    // lighter than the room's black, so a black cat reads on every one; each area its own pattern
+    const tileA = tint(ROLE.prose, ROLE.ground, 0.27), tileB = tint(ROLE.prose, ROLE.ground, 0.21)
+    for (let ty = BAND; ty < height; ty += 8) for (let tx = 0; tx < W; tx += 8) px(tx, ty, 8, 8, ((tx + ty) / 8) % 2 ? tileA : tileB)
+    // your office: a carpet, flecked
+    px(0, BAND, 71, 104 - BAND, tint(ROLE.meta, ROLE.ground, 0.3))
+    for (let y = BAND + 15; y < 104; y += 3) for (let x = (y * 5) % 7; x < 70; x += 7) px(x, y, 1, 1, tint(ROLE.meta, ROLE.ground, 0.4))
+    // your office's back wall: wood panels behind the throne, a baseboard, a framed picture
     px(0, BAND, 70, 14, ROLE.structure)
     for (let x = 3; x < 70; x += 6) px(x, BAND, 1, 13, ROLE.borderInactive)
     px(0, BAND + 13, 70, 1, ROLE.body)
-    for (const fx of [6, 52]) { px(fx, BAND + 2, 12, 8, ROLE.body); px(fx + 1, BAND + 3, 10, 6, ROLE.panel); px(fx + 2, BAND + 6, 4, 2, ROLE.live); px(fx + 6, BAND + 5, 4, 3, ROLE.attention) }
+    for (const fx of [8]) { px(fx, BAND + 2, 12, 8, ROLE.body); px(fx + 1, BAND + 3, 10, 6, ROLE.panel); px(fx + 2, BAND + 6, 4, 2, ROLE.live); px(fx + 6, BAND + 5, 4, 3, ROLE.attention) }
     // your rug: centred on the floor in front of the desk, where whoever waits on you stands
     px(6, 82, 58, 20, ROLE.body); px(7, 83, 56, 18, ROLE.meta)
     for (let i = 0; i < 6; i++) for (const [dx, dy, w] of [[1, 0, 1], [0, 1, 3], [1, 2, 1]]) px(12 + i * 9 + dx, 90 + dy, w, 1, ROLE.assistant)
     // the lounge's floorboards: warmer than the office's tiles, the seams staggered row to row
-    px(72, BAND, 59, 104 - BAND, ROLE.raised)
-    for (let y = BAND + 3; y < 104; y += 4) { px(72, y, 59, 1, ROLE.edge); px(78 + ((y >> 2) % 3) * 19, y - 3, 1, 3, ROLE.edge) }
+    const board = tint(ROLE.structure, ROLE.ground, 0.4), seam = tint(ROLE.structure, ROLE.ground, 0.22)
+    px(72, BAND, 59, 104 - BAND, board)
+    for (let y = BAND + 3; y < 104; y += 4) { px(72, y, 59, 1, seam); px(78 + ((y >> 2) % 3) * 19, y - 3, 1, 3, seam) }
     px(0, 0, W, BAND - 1, ROLE.edge)
     px(0, BAND - 1, W, 1, ROLE.structure)
-    px(2, FLOOR - 2, TABLE_X + TABLE_W - 2, ROW_H, ROLE.raised)
+    px(2, FLOOR - 2, TABLE_X + TABLE_W - 2, ROW_H, tint(ROLE.prose, ROLE.ground, 0.33))
     // the crew board: who is on, at a glance — a light each (working, waiting on you, idle)
     {
       // one column of names while they fit (six); a full office of ten takes two, smaller
@@ -710,13 +740,13 @@ export class OfficeSim {
           blit(figure(BOSS_LOOK, null, false, true, "down", "sit", 0, (f + BOSS_LOOK.blink) % 13 === 0), sx - 6, d.y + 5, this.paints(ROLE.attention, BOSS_LOOK))
         } })
         items.push({ base: d.y + 30, draw: () => {
-          for (const mx of [d.x + 2, sx - 26, d.x + d.w - 26]) { px(mx, d.y + 11, 10, 7, ROLE.inactive); px(mx + 1, d.y + 12, 8, 5, ROLE.edge); px(mx + 4, d.y + 18, 2, 1, ROLE.inactive) }
+          for (const mx of [d.x + 1, sx + 6]) { px(mx, d.y + 11, 10, 7, ROLE.inactive); px(mx + 1, d.y + 12, 8, 5, ROLE.edge); px(mx + 4, d.y + 18, 2, 1, ROLE.inactive) }
           px(d.x, d.y + 19, d.w, 2, ROLE.structure)
           px(d.x, d.y + 21, d.w, 1, ROLE.body)
           px(d.x + 1, d.y + 22, d.w - 2, 9, ROLE.borderInactive)
           px(d.x + 8, d.y + 24, d.w - 16, 5, ROLE.structure); px(d.x + 9, d.y + 25, d.w - 18, 3, ROLE.body)
-          blit([".yyy.", "yyyyy", ".yyy.", "..y..", ".yyy."], d.x + d.w - 14, d.y + 14, { y: ROLE.body })
-          decor(BOSS_LOOK, d.x + d.w - 2, d.y + 19)
+          blit([".yyy.", "yyyyy", ".yyy.", "..y..", ".yyy."], d.x + d.w - 8, d.y + 14, { y: ROLE.body })
+          decor(BOSS_LOOK, d.x + d.w - 1, d.y + 19)
           text(a.awaiting ? `you - ${a.awaiting} waiting` : "you", ox + (d.x + d.w / 2) * S, (d.y + 38) * S - 2, ROLE.attention)
           hits.push({ x: ox + d.x * S, y: (d.y + 4) * S, w: d.w * S, h: 30 * S, tip: "you: hire, file, workspaces, what waits on you", act: { kind: "boss" } })
         } })
@@ -858,23 +888,41 @@ export class OfficeSim {
 
     {
       const c = this.cat
-      const frames = CAT[c.mode], rows0 = frames[c.mode === "walk" ? (c.x + c.y) % 2 : c.mode === "sit" && f % 5 === 0 ? 1 : 0]
+      // the cat tower: a sisal post, two carpeted perches, a toy on a string
+      items.push({ base: 76, draw: () => {
+        const tx = TOWER_X, carpet = ROLE.meta, post = ROLE.inactive
+        px(tx + 4, 42, 3, 32, post); for (let y = 44; y < 72; y += 3) px(tx + 4, y, 3, 1, ROLE.borderInactive)
+        px(tx, 72, 11, 3, carpet); px(tx, 75, 11, 1, tint(ROLE.meta, ROLE.ground, 0.5))
+        px(tx, 57, 11, 2, carpet); px(tx, 59, 11, 1, tint(ROLE.meta, ROLE.ground, 0.5))
+        px(tx - 1, 40, 12, 2, carpet); px(tx - 1, 42, 12, 1, tint(ROLE.meta, ROLE.ground, 0.5))
+        px(tx + 10, 59, 1, 5, ROLE.prose); px(tx + 9, 64, 3, 2, ROLE.attention)
+      } })
+      // the litter box: its back and sand behind her, its front lip over her feet
+      items.push({ base: 66, draw: () => { px(1, 67, 10, 4, ROLE.key); px(2, 68, 8, 2, ROLE.inactive) } })
+      items.push({ base: 74, draw: () => px(1, 71, 10, 2, ROLE.key) })
+      // the toys: yarn (rolling while she bats it) and a mouse
+      items.push({ base: YARN.y, draw: () => {
+        const yx = YARN.x + (c.mode === "play" ? [0, 1, 2, 1][c.yarn] : 0)
+        px(yx, YARN.y - 3, 3, 3, ROLE.attention); px(yx + 1, YARN.y - 2, 1, 1, ROLE.assistant); px(yx - 2, YARN.y - 1, 2, 1, ROLE.attention)
+      } })
+      items.push({ base: MOUSE.y, draw: () => { px(MOUSE.x, MOUSE.y - 2, 4, 2, ROLE.prose); px(MOUSE.x + 3, MOUSE.y - 3, 1, 1, ROLE.attention); px(MOUSE.x - 2, MOUSE.y - 1, 2, 1, ROLE.attention) } })
+      const frames = CAT[c.mode], rows0 = frames[c.mode === "walk" ? (c.x + c.y) % 2 : c.mode === "play" ? c.yarn % 2 : c.mode === "sit" && f % 5 === 0 ? 1 : 0]
       const rows = c.face < 0 ? rows0.map((r) => [...r].reverse().join("")) : rows0
       const w = rows[0].length, h = rows.length, x = c.x - Math.floor(w / 2), y = c.y - h
-      // on your desk it is drawn over the desk's front, as it is when it jumps up or down
-      const desky = c.x === CAT_DESK.x && c.y < 76
-      items.push({ base: desky ? 80 : c.y, draw: () => {
+      // up on the desk or the tower she is drawn over it, as she is climbing up or down
+      const up = (c.x === CAT_DESK.x || c.x === PERCH_TOP.x) && c.y < 76
+      items.push({ base: up ? 80 : c.y, draw: () => {
         // a dim rim, so a black cat still reads on the dark floor
-        const rim = { k: ROLE.edge, e: ROLE.edge, t: ROLE.edge, c: ROLE.edge, w: ROLE.edge }
+        const r = tint(ROLE.prose, ROLE.ground, 0.55), rim = { k: r, e: r, t: r, c: r, w: r }
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, -1]]) blit(rows, x + dx, y + dy, rim)
         blit(rows, x, y, { k: ROLE.fieldInk, t: ROLE.fieldInk, e: ROLE.body, c: ROLE.inactive, w: ROLE.edge })
         if (c.mode === "sleep" && f % 6 < 3) text("z", ox + (x + w + 1) * S, (y - 1) * S, ROLE.inactive, 10)
         if (this.tick < c.purr) {
-          text("prr", ox + c.x * S, (y - 2) * S, ROLE.attention, 11)
+          text(`${CAT_NAME}: prr`, ox + c.x * S, (y - 2) * S, ROLE.attention, 11)
           // your hand, stroking its back
           if (c.byYou) px(x + 3 + (f % 2) * 2, y + 2, 3, 1, ROLE.prose)
         }
-        hits.push({ x: ox + (x - 1) * S, y: (y - 2) * S, w: (w + 2) * S, h: (h + 3) * S, tip: "your cat", act: { kind: "cat" } })
+        hits.push({ x: ox + (x - 1) * S, y: (y - 2) * S, w: (w + 2) * S, h: (h + 3) * S, tip: `${CAT_NAME} - click to pet her`, act: { kind: "cat" } })
       } })
     }
     items.sort((p, q) => p.base - q.base).forEach((x) => x.draw())
