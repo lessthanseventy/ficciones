@@ -213,6 +213,8 @@ in
 
         # The palette as shell variables, for scripts that draw.
         "ficciones/palette.sh" = via "palette.sh";
+        # tlon's office TUI takes its roles from here, and follows the link on a switch.
+        "tlon/palette.json" = via "shell-palette.json";
       }
     ];
 
