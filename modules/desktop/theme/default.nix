@@ -121,7 +121,10 @@ in
 
   config = {
     # the one font, plus coverage for what it has no glyphs for: non-Latin text and emoji
-    home.packages = [ pkgs.nerd-fonts.comic-shanns-mono pkgs.noto-fonts pkgs.noto-fonts-cjk-sans pkgs.noto-fonts-color-emoji ];
+    home.packages = [ pkgs.nerd-fonts.comic-shanns-mono pkgs.noto-fonts pkgs.noto-fonts-cjk-sans pkgs.noto-fonts-color-emoji ]
+      # candidates for the office's pixel text (tlon's office/kit/font.ts is rasterized from one):
+      # Comic-flavoured, pixel-art and readability-first, side by side until one is picked
+      ++ (with pkgs; [ comic-mono departure-mono cozette atkinson-hyperlegible-mono spleen terminus_font ]);
     # fontconfig, by hand rather than fonts.fontconfig.enable: home-manager re-links its conf.d
     # files at EVERY switch, fontconfig's timestamp bumps, GTK broadcasts it, and ghostty
     # re-initialises its bundled fontconfig and segfaults in FcPatternDestroy (16:33 on
