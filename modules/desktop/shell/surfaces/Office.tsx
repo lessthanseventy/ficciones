@@ -16,6 +16,7 @@ import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
 import { agents, dossier, threadView, post, ticketRoute, closeThread, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
 import { OfficeSim, S, W, boardColumns, crewOf, type BoardItem, type Crew, type Hit } from "../lib/office"
+import { busiest, viewOf } from "../office/kit/crew"
 import { theme } from "../lib/theme"
 import { ROLE } from "../lib/palette"
 import { Panel } from "../lib/tui"
@@ -37,38 +38,13 @@ function choose(id: number | null) {
     GLib.file_set_contents(LAST_WS, id === null ? "" : String(id))
   } catch (e) { console.error("office workspace:", String(e)) }
 }
-function busiest(a: Agents): number | null {
-  const by = (pred: (ws: number) => boolean) => a.workspaces.find((w) => pred(w.id))?.id
-  return by((ws) => a.threads.some((t) => t.workspace_id === ws && needsYou(t))) ?? by((ws) => a.roster.some((r) => r.workspace_id === ws))
-    ?? by((ws) => a.bench.some((c) => c.workspace_id === ws)) ?? a.workspaces[0]?.id ?? null
-}
 const wsId = createComputed(() => {
   const a = agents(), c = chosen()
   if (c !== null && (!a.ok || a.workspaces.some((w) => w.id === c))) return c
   return a.workspaces.find((w) => w.name.toLowerCase() === "machine")?.id ?? busiest(a)
 })
 /** the snapshot narrowed to one workspace — what the office draws and acts on */
-const view = createComputed((): Agents => {
-  const a = agents(), ws = wsId()
-  const threads = a.threads.filter((t) => t.workspace_id === ws)
-  const bench = a.bench.filter((c) => c.workspace_id === ws)
-  const sessions = a.roster.filter((r) => r.workspace_id === ws)
-  // a desk for every staffed open thread, not only the ones with a session: a Claude Code worker
-  // registers none until it calls register. Without one, a thread's own running window means
-  // working — but not the lobby's, whose lead runs there all day
-  const unregistered = threads
-    .filter((t) => t.lead && !sessions.some((r) => r.thread_id === t.id))
-    .map((t) => {
-      const c = bench.find((b) => b.name === t.lead)
-      return { agent: t.lead!, thread_id: t.id, title: t.title, warm: !!t.live && !t.standing, archetype: c?.archetype ?? null, lead: c?.lead ?? false, workspace_id: ws }
-    })
-  return {
-    ...a, threads, roster: [...sessions, ...unregistered], bench,
-    tickets: a.tickets.filter((t) => t.workspace_id === ws), projects: a.projects.filter((p) => p.workspace_id === ws),
-    notes: a.notes.filter((n) => n.workspace_id === ws || n.workspace_id === null), visits: a.visits.filter((v) => v.workspace_id === ws),
-    awaiting: threads.filter(needsYou).length,
-  }
-})
+const view = createComputed((): Agents => viewOf(agents(), wsId()))
 const wsName = createComputed(() => agents().workspaces.find((w) => w.id === wsId())?.name ?? "—")
 const elsewhere = createComputed(() => { const a = agents(), ws = wsId(); return a.threads.filter((t) => t.workspace_id !== ws && needsYou(t)).length })
 function stepWs(d: 1 | -1) {

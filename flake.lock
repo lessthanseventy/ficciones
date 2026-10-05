@@ -714,7 +714,8 @@
         "expert": "expert",
         "home-manager": "home-manager_2",
         "hyprexpo": "hyprexpo",
-        "nixpkgs": "nixpkgs_3"
+        "nixpkgs": "nixpkgs_3",
+        "tlon": "tlon"
       }
     },
     "systems": {
@@ -745,6 +746,22 @@
         "owner": "nix-systems",
         "repo": "default-linux",
         "type": "github"
+      }
+    },
+    "tlon": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791221987,
+        "narHash": "sha256-LdkfIHe+Uya9F2SRcdxbwdChf3lklKcJnmUz1yPPnoY=",
+        "ref": "refs/heads/office-next",
+        "rev": "4198fcec069cda29c3059e5b581a9855745f956e",
+        "revCount": 545,
+        "type": "git",
+        "url": "file:///home/andrew/projects/tlon"
+      },
+      "original": {
+        "type": "git",
+        "url": "file:///home/andrew/projects/tlon"
       }
     },
     "xdph": {
