@@ -1,12 +1,14 @@
-// The Tlön roster + thread counts for the AGENTS pane and the office, via scripts/tlon-cli.sh
-// shell-status (an rpc into the always-up server node). Polled every 30 s, and at once after a
-// write (`refreshAgents`); "channel down" when the server is not up.
+// The Tlön roster + thread counts for the AGENTS pane and the office: GET /api/office on the
+// always-up service (Server.Office.status, the same read the office TUI makes). Polled every 30 s,
+// and at once after a write (`refreshAgents`); "channel down" when the server is not up. Writes
+// still go through scripts/tlon-cli.sh verbs.
 import { createState } from "ags"
 import { interval } from "ags/time"
 import { execAsync } from "ags/process"
+import { fetch } from "ags/fetch"
 import { logEvent } from "./log"
 
-// the snapshot's shape is tlon's (office/kit/types.ts, the shell-status contract), shared with
+// the snapshot's shape is tlon's (office/kit/types.ts, Server.Office's contract), shared with
 // every office surface
 import type { Agents, ThreadView } from "../office/kit/types"
 export type { Agents, Archetype, Coworker, ModelChoice, ModelSpec, Note, Seat, Thread, ThreadView, Ticket, Visit } from "../office/kit/types"
@@ -29,8 +31,8 @@ export async function dossier(id: number): Promise<Dossier | null> {
 }
 export async function threadView(id: number): Promise<ThreadView | null> {
   try {
-    const out = await execAsync([CLI, "shell-thread", String(id)])
-    return JSON.parse(out.trim().split("\n").pop() ?? "null")
+    const res = await fetch(`${API}/office/threads/${id}`)
+    return res.status === 200 ? ((await res.json()) as ThreadView) : null
   } catch { return null }
 }
 /** Post to a thread as the operator. A body naming an open prompt's option answers it. */
@@ -99,6 +101,8 @@ const toast = (summary: string, body: string, tid: number | undefined) =>
 
 // Single-user machine, fixed checkout — the same assumption flake.nix makes.
 const CLI = "/home/andrew/projects/tlon/scripts/tlon-cli.sh"
+// the always-up service's operator API (loopback)
+const API = "http://127.0.0.1:4040/api"
 
 // the command log gets the changes, not the polls: who woke, who slept, who waits on you
 let last: Agents | null = null
@@ -130,8 +134,9 @@ export const [agents, setAgents] = createState<Agents>({ ...EMPTY, note: "…" }
 export async function refreshAgents() {
   let next: Agents
   try {
-    const out = await execAsync([CLI, "shell-status"])
-    const j = JSON.parse(out.trim().split("\n").pop() ?? "{}")
+    const res = await fetch(`${API}/office`)
+    if (res.status !== 200) throw new Error(`office ${res.status}`)
+    const j: any = await res.json()
     next = {
       ok: true, roster: j.roster ?? [], threads: j.threads ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0,
       bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], archetypes: j.archetypes ?? [], models: j.models ?? [], notes: j.notes ?? [], visits: j.visits ?? [],
