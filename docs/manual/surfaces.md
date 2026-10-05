@@ -6,7 +6,8 @@ wears the same generated palette; none owns state.
 | Surface | Where | Day-to-day job | Open it |
 |---|---|---|---|
 | **asterion** (Neovim) | `~/projects/asterion`, linked at `~/.config/nvim` | code · diffs · review · the Tlön sidebar, thread buffers and composer · a coworker terminal | `nvim`, then `<leader>oo` |
-| **console** (TUI) | `modules/console` | the god-view: every thread, coworker, triage, health, ledger at one glance | `tlon` |
+| **office** (TUI) | tlon's `office/` | the pixel-art room over the server: who works, who waits on you, the worklines | `tlon` |
+| **console** (TUI) | `modules/console` | the god-view: every thread, coworker, triage, health, ledger at one glance | `tlon console` |
 | **web** (LiveView) | `modules/server/lib/server/web` | the same sidebar · thread · composer in a browser, live on the Bus — from a phone over tailscale | `mise run server:web` → http://127.0.0.1:4042 |
 | **shell** (astal) | `modules/desktop/shell` | rail, bar, launcher (`>` verbs), deck panes (Agents…), notifications, OSD, lock, theme toggle | always up (`astal-shell.service`) |
 

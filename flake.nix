@@ -787,11 +787,12 @@
                 # handled by the agenix module (age.secrets below).
                 agenix.packages.${system}.default
 
-                # `tlon` — the product launcher (design slice F: the launcher takes the product name).
-                # A thin wrapper over the mise task; not `console`, which collides with TeX Live's binary.
+                # `tlon` — the product launcher: the office TUI; `tlon console` the console until it
+                # retires. Thin wrappers over the mise tasks; not `console`, which collides with TeX Live's binary.
                 (pkgs.writeShellScriptBin "tlon" ''
                   cd ${tlonRepo} || { echo "tlon: repo not found at ${tlonRepo}" >&2; exit 1; }
-                  exec mise --cd ${tlonRepo} run console:run
+                  if [ "''${1:-}" = console ]; then shift; exec mise --cd ${tlonRepo} run console:run -- "$@"; fi
+                  exec mise --cd ${tlonRepo} run office:run -- "$@"
                 '')
               ];
 
