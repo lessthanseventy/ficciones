@@ -237,6 +237,8 @@ hl.window_rule({ name = "default-opacity", match = { class = ".*" }, opacity = "
 -- pinned windows skip glass (Andrew, 2026-09-08): a PiP or share toolbar over other windows is
 -- the one thing that should never be see-through
 hl.window_rule({ name = "pinned-opaque", match = { pin = true }, opaque = true })
+-- tlon's office TUI titles its window "tlon office": glass would show the backdrop through the room's art
+hl.window_rule({ name = "tlon-office-opaque", match = { title = "^(tlon office)$" }, opaque = true })
 
 -- Floating utilities
 hl.window_rule({
