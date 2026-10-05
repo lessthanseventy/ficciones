@@ -1019,6 +1019,8 @@
                     "TLON_MCP_PORT=4040"
                     "TLON_WORKLINE_ROOT=${repo}"
                     "TLON_MEMORY_PASS=1"
+                    # the office's small talk, on the cheap ollama tier, only while an office watches
+                    "TLON_BANTER=1"
                   ];
                   # Seed + repair run at app boot (Server.Bootstrap); only the schema migration
                   # is a pre-step.
