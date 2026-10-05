@@ -423,58 +423,6 @@
                 };
               };
 
-              # pi-multi-account's config — we own it like mcp.json (the extension only
-              # READS it; it self-seeds defaults only when the file is ABSENT, so our copy wins
-              # and nothing rewrites config at runtime). We keep multi-account's DEFAULT
-              # provider order (anthropic-first, ollama last) rather than set providerOrder:
-              # that's exactly "lean on the $100 Claude plan, fall over to ollama only when
-              # Claude finally caps." Qwen/Cursor excluded (no such accounts); local ollama
-              # stays in rotation as the fallback. showUsage off so it doesn't fight
-              # adapters/footer's statusline — flip true if you want the per-account Claude-cap
-              # readout and it doesn't clash. Claude OAuth is `/login`, the human's one-time step.
-              # providerOrder is anthropic-first, ollama LAST — Claude is the driver, the flat ollama.com
-              # plan is the fallback when Claude caps. preferredModels.ollama pins the fallback to
-              # ollama.com's cloud glm: the `:cloud` suffix is what routes multi-account's request to
-              # https://ollama.com/v1 instead of the local daemon (it discovers the ollama account from
-              # auth.json's `ollama` api-key entry, NOT from models.json).
-              # The five below were left implicit (extension defaults) until this pass — made
-              # explicit so a defaults change upstream can't silently retune failover behavior
-              # underneath us. All five are kept AT their documented default; this is a
-              # "declare the decision" pass, not a behavior change.
-              #   preserveInterruptedContext — keep true: rewrites the turn that triggered a
-              #     failover into a verbatim handoff record instead of dropping it, so a
-              #     mid-turn Claude→ollama switch doesn't lose the reasoning/tool-call trail.
-              #     Exactly the continuity this rotation exists to provide.
-              #   routeCompactionToHealthyAccount — keep true: if context needs compacting
-              #     while the active account is rate-limited, generate the summary on the
-              #     healthy fallback instead of hanging on the dead one.
-              #   autoContinue — keep true: queues a continuation prompt after a switch so a
-              #     long run doesn't stall waiting for a human to notice and re-type. Matches
-              #     "lean on Claude, don't babysit it" (AGENTS.md, the two-bucket routing).
-              #   cooldownMs — keep the 6h default: only used when a provider gives no reset
-              #     metadata of its own (Anthropic/Codex normally do). With just two real
-              #     accounts in rotation (anthropic, ollama), a rare 6h miss just means staying
-              #     on ollama longer, not getting stuck.
-              #   maxRecheckIntervalMs — keep the 600000 (10 min) default: this is already the
-              #     ceiling the docs recommend ("raise to probe less, never to trust a
-              #     provider's estimate") — nothing here calls for probing less often.
-              # showUsage ON (was off "so it does not fight adapters/footer"): the whole routing
-              # doctrine is lean-on-Claude-until-it-caps, which needs the per-account cap
-              # readout visible. If it visually fights the footer, flip back — one line.
-              piFailoverJson = builtins.toJSON {
-                enabled = true;
-                includeQwen = false;
-                includeCursor = false;
-                showUsage = true;
-                providerOrder = [ "anthropic" "openai-codex" "qwen" "ollama" ];
-                preferredModels = { ollama = [ "glm-5.2:cloud" ]; };
-                preserveInterruptedContext = true;
-                routeCompactionToHealthyAccount = true;
-                autoContinue = true;
-                cooldownMs = 21600000;
-                maxRecheckIntervalMs = 600000;
-              };
-
               # server total-recall's knobs (design: server-total-recall). Owned like the other pi
               # config; the adapter defaults if absent.
               #   correctionDetection — a user message that reads as a correction ("don't do that",
@@ -807,9 +755,6 @@
               # server' channel config — we own this file; pi only reads it.
               home.file.".pi/agent/mcp.json".text = serverMcpJson;
 
-              # pi-multi-account's failover config — owned like mcp.json (see the binding
-              # above for why the default anthropic-first order is left in place).
-              home.file.".pi/agent/provider-failover.json".text = piFailoverJson;
 
               # server total-recall's noise knob (correction→habit proposals) — owned; adapter reads it.
               home.file.".pi/agent/server-recall.json".text = piRecallJson;
@@ -876,7 +821,7 @@
                    # below did not un-install it from an already-switched machine — it just
                    # sat in settings.json forever. Strip known-retired packages by name before
                    # re-adding the current set, so retiring a package here actually retires it.
-                   | .packages = (((.packages // []) | map(select(. != "npm:pi-cc-header" and . != "pi-cc-header")))
+                   | .packages = (((.packages // []) | map(select(. != "npm:pi-cc-header" and . != "pi-cc-header" and . != "npm:pi-multi-account" and . != "pi-multi-account")))
                        # pi auto-installs these npm extensions on launch. The npm: prefix
                        # matches what `pi install` persists, so `unique` dedupes against a
                        # hand-installed copy instead of doubling it.
@@ -884,9 +829,6 @@
                        #                       ollama.com plan we already pay for).
                        #   agent-browser     → browser-automation tool (may want a system
                        #                       chromium — see verify note).
-                       #   multi-account     → Anthropic OAuth + cap-aware failover/rotation;
-                       #                       replaces pi-anthropic-auth. Config + rationale in
-                       #                       provider-failover.json below. `/login` stays manual (human).
                        #   permission-system → tool-permission enforcement (pairs with sandbox).
                        #   pi-sandbox        → sandboxed bash; installed by hand, captured here.
                        #   cc-header         → Claude-Code-style startup banner + status line.
@@ -906,7 +848,7 @@
                        #                       enable via /unipi:notify-settings). Uses notify-send on
                        #                       Linux, so it needs a notification daemon (mako on
                        #                       Hyprland); NOT the OSC-9/777-through-ghostty path yet.
-                       + ["npm:pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:pi-multi-account","npm:@gotgenes/pi-permission-system","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry","npm:@pi-unipi/notify"] | unique)
+                       + ["npm:pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:@gotgenes/pi-permission-system","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry","npm:@pi-unipi/notify"] | unique)
                        # pi-cc-header dropped: its startup logo animation races the pi-tui
                        # first-paint (differential renderer establishes cursor/scroll state
                        # while the animation repaints above it), leaving the composer border
@@ -918,11 +860,10 @@
                    | .defaultModel = ((.defaultModel // "deepseek-v4.1-flash") as $m | if ($retired | has($m)) then ($retired[$m] // "deepseek-v4.1-flash") else $m end)
                    | .defaultThinkingLevel //= "medium"
                    | .retry.enabled //= true
-                   # pi-multi-account recommends zeroing the SDK per-provider retries so a capped
-                   # account fails over IMMEDIATELY instead of retry-spinning before the switch.
-                   # (No apostrophes in this comment: it rides inside a bash single-quoted jq string;
-                   # an apostrophe would close the quote and silently truncate the program.)
-                   | .retry.provider.maxRetries //= 0
+                   # per-provider retries at the SDK default: nothing switches accounts, so a
+                   # transient error retries in place. (No apostrophes in this comment: it rides
+                   # inside a bash single-quoted jq string; one would close the quote.)
+                   | del(.retry.provider.maxRetries)
                    | .enabledModels = [(.enabledModels // ["deepseek-v4.1-flash","glm-5.2","deepseek-v4-pro","kimi-k2.7-code","minimax-m3","qwen3-coder"])[] | . as $m | if ($retired | has($m)) then $retired[$m] else $m end | select(. != null)]' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
               '';
