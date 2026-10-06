@@ -47,7 +47,7 @@ if (programArgs.length > 0 && !up) {
   printerr("astal-shell is not running: systemctl --user start astal-shell"); exit(1)
 }
 if (programArgs.length === 0 && up) {
-  printerr("astal-shell is already running outside this unit — the name io.Astal.astal-shell is taken.\nStop the stray, then start the unit: pkill -f astal-shell; systemctl --user start astal-shell")
+  printerr("astal-shell is already running outside this unit — the name io.Astal.astal-shell is taken.\nStop the stray, then start the unit: pkill -x gjs; systemctl --user reset-failed astal-shell; systemctl --user start astal-shell")
   exit(1)
 }
 app.start({

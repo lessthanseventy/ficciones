@@ -605,7 +605,9 @@ bind("XF86AudioPrev", exec("playerctl previous"), { locked = true })
 
 -- ----- System -----
 bind("CTRL + ALT + L", exec("hyprlock"))
-bind("CTRL + " .. M .. " + R", exec("bash -c 'pkill -x gjs; sleep 0.3; astal-shell &'"))
+-- through the unit: a bare `astal-shell &` races the unit's own restart for the dbus name, and
+-- whichever loses exits, so it took a second press
+bind("CTRL + " .. M .. " + R", exec("sh -c 'pkill -x gjs; systemctl --user reset-failed astal-shell; systemctl --user restart astal-shell'"))
 bind("CTRL + ALT + Delete", hl.dsp.exit())
 bind("CTRL + SHIFT + ALT + " .. M .. " + Delete", exec("systemctl poweroff"))
 bind("CTRL + " .. M .. " + SHIFT + P", hl.dsp.dpms({ action = "off" }))

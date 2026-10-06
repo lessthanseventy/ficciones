@@ -66,7 +66,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `XF86AudioNext` | `exec("playerctl next"), { locked = true }` |
 | `XF86AudioPrev` | `exec("playerctl previous"), { locked = true }` |
 | `CTRL+ALT+L` | `hyprlock` |
-| `CTRL+SUPER+R` | `bash -c 'pkill -x gjs; sleep 0.3; astal-shell &'` |
+| `CTRL+SUPER+R` | `sh -c 'pkill -x gjs; systemctl --user reset-failed astal-she` |
 | `CTRL+SHIFT+ALT+SUPER+Delete` | `systemctl poweroff` |
 
 ## focus
