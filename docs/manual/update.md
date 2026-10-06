@@ -8,7 +8,7 @@ mise run machine:update      # home:switch → shell:restart → server:restart
 
 Moving the pins is a separate, committable step — `mise run flake:bump` (nix inputs + the
 hand-pinned packages) — then `machine:update` applies it. Gates before either:
-`mise run check` (server, console, adapters), `mise run flake:check` (the machine closure),
+`mise run check` (server, adapters, office), `mise run flake:check` (the machine closure),
 `mise run manual:check` (this manual).
 
 What each step touches:

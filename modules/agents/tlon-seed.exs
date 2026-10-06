@@ -38,7 +38,7 @@
       ]
     },
     # No bench: a benched workspace keeps its centre and tail running around the clock. Seat a
-    # coworker (the cockpit's CONFIG) when real work starts there.
+    # coworker (the office: W, then + to hire) when real work starts there.
     %{
       name: "Accessibility",
       projects: [

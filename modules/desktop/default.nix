@@ -73,8 +73,8 @@ in
     # when stdin is not a terminal (hyprpm and friends used to hang on it).
     # Claude Code skills tracked in tlon's adapters/skills; an out-of-store link so an edit lands
     # without a switch
-    home.file.".claude/skills/drive-cockpit".source =
-      config.lib.file.mkOutOfStoreSymlink "${tlonRepo}/adapters/skills/drive-cockpit";
+    home.file.".claude/skills/drive-office".source =
+      config.lib.file.mkOutOfStoreSymlink "${tlonRepo}/adapters/skills/drive-office";
     home.file.".local/bin/sudo-askpass" = { source = ./scripts/sudo-askpass; executable = true; };
     # recolours open ghostty surfaces to the live theme (the switch runs it; see lib/theme.ts)
     home.file.".local/bin/ficciones-recolor" = { source = ./scripts/ficciones-recolor; executable = true; };

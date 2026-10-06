@@ -563,7 +563,7 @@ function ActionCard() {
 
 // the wide view's terminal: a client of the workspace's tmux server on a session GROUPED with the
 // workers' one — it shares their windows but has its own current window, so it never moves the
-// cockpit's view — and it ends itself when this client goes. One client; a thread in another
+// workers' view — and it ends itself when this client goes. One client; a thread in another
 // workspace respawns it against that workspace's server.
 let liveTerm: Vte.Terminal | null = null
 let liveWs: number | null = null
@@ -576,7 +576,7 @@ function endTerminal() {
 }
 function attachTerminal(ws: number, window: string) {
   if (!liveTerm) return
-  const sock = `console-workspace-${ws}`
+  const sock = `tlon-workspace-${ws}`
   if (liveWs === ws && livePid) {
     execAsync(["tmux", "-L", sock, "select-window", "-t", `office:=${window}`]).catch(() => {})
     return

@@ -92,7 +92,7 @@ rec {
     # a warning that is the same colour as body text says nothing: ember is the step between the
     # body amber and the alarm red, and was doing nothing but partnering the active border
     warn = ember;
-    # who is speaking. Claude Code is the surface that needs this; the cockpit answers the same
+    # who is speaking. Claude Code is the surface that needs this; the office answers the same
     # question differently (its :operator is pink), which is a disagreement worth settling.
     userVoice = green;
     assistantVoice = amber;
@@ -150,7 +150,7 @@ rec {
     brightBlack brightRed brightGreen brightYellow brightBlue brightMagenta brightCyan brightWhite
   ];
 
-  # Status tier (cockpit cards + shell cells) and identity tier (coworker archetypes).
+  # Status tier (office cards + shell cells) and identity tier (coworker archetypes).
   status = with hue; { working = green; blocked = red; await = pink; open = amber; done = moss; idle = dim; };
   identity = with hue; { surveyor = cyan; builder = green; reviewer = amber; planner = pink; assistant = violet; };
 }

@@ -13,7 +13,7 @@
 # empty-file case and fails the render.
 OLLAMA_API_KEY = "{{ exec(command='p=\"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/agenix/ollama-api-key\"; v=\"$(cat \"$p\" 2>/dev/null)\" || true; if [ -n \"$v\" ]; then printf %s \"$v\"; else printf %s \"$OLLAMA_API_KEY\"; fi') }}"
 
-# Tasks live in tasks/<group>.toml. tlon (the server, cockpit and adapters) and menard are their
+# Tasks live in tasks/<group>.toml. tlon (the server, office and adapters) and menard are their
 # own repos with their own loops; ~/projects/tlon's `mise tasks` lists tlon's.
 [task_config]
 includes = ["tasks/repo.toml", "tasks/desktop.toml"]

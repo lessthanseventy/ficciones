@@ -58,7 +58,7 @@
       # (pi/extension.ts) ships from there, not here; ficciones only points at it. On a
       # box without ficciones, menard's own `install:pi` task does the same wiring.
       menardRepo = "/home/andrew/projects/menard";
-      # tlon — its own repo: the server, the cockpit and the pi/Claude Code adapters. The flake
+      # tlon — its own repo: the server, the office and the pi/Claude Code adapters. The flake
       # runs the service from its release and points pi at its adapters, as it does for menard.
       tlonRepo = "/home/andrew/projects/tlon";
 
@@ -253,9 +253,9 @@
         astal-shell = astalShell;
       };
 
-      # The checked-in palette outputs (shell scss/ts, Console.Palette) must equal what
+      # The checked-in palette outputs (the shell's scss/ts) must equal what
       # modules/desktop/theme/palette.nix renders — `mise theme:gen` rewrites them. Without this a
-      # palette edit would ship to ghostty and GTK but leave the shell and the cockpit behind.
+      # palette edit would ship to ghostty and GTK but leave the shell behind.
       checks.${system} = {
         palette-sync =
           let
@@ -482,7 +482,7 @@
                   allowAllUnixSockets = true;
                   # Derived from real Claude + pi session history — the dev-infra hosts this machine's
                   # agents actually reach. An allowlist (not "*") stays the network fence; extend it
-                  # from the transcripts when a new infra host appears. Twin of console @tlon_sandbox.
+                  # from the transcripts when a new infra host appears.
                   allowedDomains = [
                     # source control + package registries
                     "github.com"
@@ -606,7 +606,7 @@
 
               # pi-interactive-shell: defer=true keeps its large tool schema out of every
               # system prompt until enable_interactive_shell is called — context is the scarce
-              # resource on the Claude bucket. console owns coworker spawning; this tool stays
+              # resource on the Claude bucket. The tlon server owns coworker spawning; this tool stays
               # for vim/psql/ssh overlays.
               piInteractiveShellSeed = pkgs.writeText "pi-interactive-shell-seed.json" (builtins.toJSON {
                 defer = true;
@@ -630,13 +630,13 @@
 
               # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
               # repo): mouse, extended-keys, resurrect+continuum (ANDREW's session persistence
-              # — coworkers run on their own `-L console-<profile>` servers with a persistence-
+              # — coworkers run on their own `-L tlon-workspace-<id>` servers with a persistence-
               # free config, see Server.Profiles), yank, tmux-thumbs. Dropped the status-script
               # chrome (gitmux/cpu/battery) that churned alongside embedded pi. Old file backed
               # up on `home:switch` via the -b flag.
               programs.tmux = {
                 enable = true;
-                shortcut = "b"; # Ctrl+B prefix (console's leader is Ctrl+Space, so no clash)
+                shortcut = "b"; # Ctrl+B prefix
                 escapeTime = 10;
                 baseIndex = 1;
                 historyLimit = 50000;
@@ -681,7 +681,7 @@
                   bind r source-file ~/.config/tmux/tmux.conf \; display "Config reloaded!"
 
                   # Persistence is for ANDREW's tmux only. Coworkers (Tlön's pi, future ones) run on
-                  # their own per-profile tmux servers (tmux -L console-<profile>, persistence-free
+                  # their own per-workspace tmux servers (tmux -L tlon-workspace-<id>, persistence-free
                   # config from Server.Profiles) and come up FRESH every rebuild — agent harnesses are
                   # deliberately NOT in @resurrect-processes: auto-relaunching an agent at restore
                   # hands it stale identity/env (the old torn-down-coworker trap) and silently burns
@@ -735,11 +735,9 @@
                 # handled by the agenix module (age.secrets below).
                 agenix.packages.${system}.default
 
-                # `tlon` — the product launcher: the office TUI; `tlon console` the console until it
-                # retires. Thin wrappers over the mise tasks; not `console`, which collides with TeX Live's binary.
+                # `tlon` — the product launcher: the office TUI, a thin wrapper over its mise task.
                 (pkgs.writeShellScriptBin "tlon" ''
                   cd ${tlonRepo} || { echo "tlon: repo not found at ${tlonRepo}" >&2; exit 1; }
-                  if [ "''${1:-}" = console ]; then shift; exec mise --cd ${tlonRepo} run console:run -- "$@"; fi
                   exec mise --cd ${tlonRepo} run office:run -- "$@"
                 '')
               ];
@@ -838,7 +836,7 @@
                        #                       long builds without non-interactive-tty trip-ups;
                        #                       Monitor/Hands-free modes can retire the brittle
                        #                       parts of scripts/watch.sh. Self-installs its skill;
-                       #                       test it inside the console embedded pane, and note its
+                       #                       test it inside a coworker pane, and note its
                        #                       spawn/PTY tools may need sandbox/permission allowlisting.
                        #   pi-retry          → zero-dep stall-watchdog + transient-error retry,
                        #                       stronger than settings.retry.enabled alone; matters
@@ -906,9 +904,9 @@
                 seed ${unipiNotifySeed} "$HOME/.unipi/config/notify/config.json"
               '';
 
-              # The node cookie the service and the cockpit share (rel/env.sh.eex reads it into
-              # RELEASE_COOKIE; Console.Backend.Link reads it too): written once, 0600, never
-              # rotated by a switch — a rotation would cut a running cockpit off its server.
+              # The node cookie the service and its remote shells share (rel/env.sh.eex reads it into
+              # RELEASE_COOKIE; `server:console`, `server:dev` and tlon-cli.sh rpc use it): written once, 0600, never
+              # rotated by a switch — a rotation would cut a running remote shell off its node.
               home.activation.tlonCookie = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 f="$HOME/.local/share/tlon/cookie"
                 if [ ! -s "$f" ]; then

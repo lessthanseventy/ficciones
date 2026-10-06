@@ -105,7 +105,7 @@ stdenv.mkDerivation {
   passthru = { inherit ags astalLibs; };
 
   meta = {
-    description = "ficciones desktop shell — a TUI-native Astal/GTK4 shell on Console.Style";
+    description = "ficciones desktop shell — a TUI-native Astal/GTK4 shell on the machine palette";
     mainProgram = "astal-shell";
     platforms = [ "x86_64-linux" ];
   };

@@ -2,7 +2,7 @@
   "name": "astal-shell",
   "private": true,
   "type": "module",
-  "description": "ficciones desktop shell — AGS 3 / Astal / GTK4, styled from Console.Style",
+  "description": "ficciones desktop shell — AGS 3 / Astal / GTK4, styled from the machine palette",
   "devDependencies": {
     "typescript": "^5.9.0"
   }
