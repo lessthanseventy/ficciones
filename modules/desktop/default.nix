@@ -25,7 +25,9 @@ let
   # The old xscreensaver hacks as the desktop's background, unported: each runs on a rootful
   # Xwayland whose window windowtolayer turns into OUTPUT's background layer (the shell's backdrop
   # rotation starts and stops them, shell/lib/xscreensaver.ts). GL needs a driver the nix mesa
-  # can find off NixOS, so both the X server and the hack are pointed at it, as nixGL does.
+  # can find off NixOS, so both the X server and the hack are pointed at it, as nixGL does. The hacks
+  # draw in SOFTWARE (llvmpipe), niced: one GL hack on the GPU the desktop draws with hung it, and the
+  # reset took Hyprland down with it.
   # `xss-host --list` names the hacks; the ones that distort a grab of the screen are left out —
   # the X server they grab from is empty, so they show black.
   xssHost = pkgs.writeShellScriptBin "xss-host" ''
@@ -48,7 +50,7 @@ let
     (while kill -0 $PPID 2>/dev/null; do sleep 2; done; kill $$) &
     watch=$!
     for _ in $(seq 50); do [ -S "/tmp/.X11-unix/X$d" ] && break; sleep 0.1; done
-    DISPLAY=":$d" "$hacks/$hack" -root &
+    DISPLAY=":$d" LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe nice -n 19 "$hacks/$hack" -root &
     run=$!
     wait $run
   '';
@@ -155,7 +157,7 @@ in
       # decided in modules/os/ivysaur.nix, applied to today's profile too
       libreoffice-stable qbittorrent pavucontrol eza imv hyprpicker brightnessctl diff-so-fancy
       # dev / cli
-      direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wlrctl wev pamixer bluetui
+      glow direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wlrctl wev pamixer bluetui
       # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform formats lua/sh
       tree-sitter stylua shfmt
       lazydocker lazysql lazyjournal lazyssh
