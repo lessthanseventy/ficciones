@@ -159,7 +159,7 @@ in
       # decided in modules/os/ivysaur.nix, applied to today's profile too
       libreoffice-stable qbittorrent pavucontrol eza imv hyprpicker brightnessctl diff-so-fancy
       # dev / cli
-      glow direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wlrctl wev pamixer bluetui
+      glow direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wlrctl wev pamixer playerctl bluetui
       # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform formats lua/sh
       tree-sitter stylua shfmt
       lazydocker lazysql lazyjournal lazyssh
