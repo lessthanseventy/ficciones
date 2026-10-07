@@ -15,6 +15,7 @@ import Gio from "gi://Gio"
 import Cairo from "cairo"
 import { showText } from "./Osd"
 import { closeAny } from "./Clickaway"
+import { loadHacks, haveHacks, startHack, stopHack, pauseHack } from "../lib/xscreensaver"
 import { fullscreenMonitors } from "../lib/hypr"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
@@ -45,14 +46,40 @@ class Canvas {
   /** the dot canvas (cairo), told to redraw each step; text modes go through the labels */
   area: Gtk.DrawingArea | null = null
   textMode = createState(false)
-  constructor(start: number) { this.idx = start % this.modes.length }
+  /** every other turn is an xscreensaver hack (lib/xscreensaver.ts), drawn under this window,
+   * which steps aside for it; `monitor` and `win` are set once the window is up */
+  hack: string | null = null
+  turn = 0
+  monitor: Gdk.Monitor | null = null
+  win: Astal.Window | null = null
+  constructor(start: number) { this.idx = start % this.modes.length; this.turn = start }
+  private endHack() {
+    if (this.hack && this.monitor?.connector) stopHack(this.monitor.connector)
+    this.hack = null
+    if (this.win) this.win.visible = true
+  }
+  private beginHack(): boolean {
+    const m = this.monitor, g = m?.get_geometry()
+    if (!m?.connector || !g || !haveHacks()) return false
+    this.hack = startHack(m.connector, g.width, g.height)
+    if (this.hack && this.win) this.win.visible = false
+    return !!this.hack
+  }
+  setPaused(p: boolean) {
+    this.paused = p
+    if (this.hack && this.monitor?.connector) pauseHack(this.monitor.connector, p)
+  }
   step = () => {
     if (this.paused) return
     if (this.ticks % SWITCH_TICKS === 0 && !(this.hold && this.ticks)) {
+      this.endHack()
+      if (this.ticks) this.turn++
+      if (this.turn % 2 === 1 && this.beginHack()) { this.ticks++; return }
       if (this.ticks) this.idx = (this.idx + 1) % this.modes.length
       this.modes[this.idx].init(this.grid)
     }
     this.ticks++
+    if (this.hack) return
     const m = this.modes[this.idx]
     m.step(this.grid)
     // a text mode (babel) is glyphs and goes through Pango; a dot mode is drawn straight onto
@@ -96,6 +123,7 @@ class Canvas {
   jump(name: string) {
     const i = this.modes.findIndex((m) => m.name === name)
     if (i < 0) return
+    this.endHack()
     this.idx = i
     this.ticks = 1
     this.modes[i].init(this.grid)
@@ -106,6 +134,7 @@ class Canvas {
   }
   run(on: boolean) {
     this.timer?.cancel(); this.timer = null
+    this.endHack()
     if (on) { this.ticks = 0; this.timer = interval(TICK_MS, this.step) }
   }
 }
@@ -115,6 +144,8 @@ const nexts: (() => void)[] = []
 /** Skip every monitor to its next photo (the dashboard's "next wp"). */
 export const nextWallpaper = () => nexts.forEach((n) => n())
 let created = 0
+// the list comes after the first frames: a monitor already on a hack's turn starts that turn over
+void loadHacks().then(() => { for (const c of canvases.values()) if (c.timer && !c.hack && c.turn % 2 === 1) c.ticks = 0 })
 
 const ORDER: BackdropMode[] = [...MODE_NAMES, "random", "photo"]
 /**
@@ -143,7 +174,8 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   const { file, next } = wallpaper()
   nexts.push(next)
   onCleanup(() => { for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
-  const covered = () => { canvas.paused = fullscreenMonitors.peek().has(gdkmonitor.connector ?? "") }
+  canvas.monitor = gdkmonitor
+  const covered = () => canvas.setPaused(fullscreenMonitors.peek().has(gdkmonitor.connector ?? ""))
   covered()
   onCleanup(fullscreenMonitors.subscribe(covered))
   return (
@@ -158,7 +190,7 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       application={app}
-      $={(self) => { canvases.set(self, canvas); canvas.run(zen.peek()); self.visible = true }}
+      $={(self) => { canvases.set(self, canvas); canvas.win = self; canvas.run(zen.peek()); self.visible = true }}
     >
       <overlay>
         <Gtk.Picture

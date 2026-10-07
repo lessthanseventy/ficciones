@@ -21,6 +21,35 @@
 
 let
   cfg = config.ficciones.desktop;
+
+  # The old xscreensaver hacks as the desktop's background, unported: each runs on a rootful
+  # Xwayland whose window windowtolayer turns into OUTPUT's background layer (the shell's backdrop
+  # rotation starts and stops them, shell/lib/xscreensaver.ts). GL needs a driver the nix mesa
+  # can find off NixOS, so both the X server and the hack are pointed at it, as nixGL does.
+  # `xss-host --list` names the hacks; the ones that distort a grab of the screen are left out —
+  # the X server they grab from is empty, so they show black.
+  xssHost = pkgs.writeShellScriptBin "xss-host" ''
+    hacks=${pkgs.xscreensaver}/libexec/xscreensaver
+    if [ "''${1:-}" = --list ]; then
+      ls "$hacks" | grep -vxE 'xscreensaver-.*|webcollage.*|vidwhacker|blitspin|bumps|carousel|decayscreen|distort|flipscreen3d|gleidescope|glslideshow|jigsaw|mirrorblob|photopile|ripples|rotzoomer|slidescreen|spotlight|twang|zoom|xanalogtv|esper'
+      exit 0
+    fi
+    out=$1 d=$2 w=$3 h=$4 hack=$5
+    export __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json
+    export __GLX_VENDOR_LIBRARY_NAME=mesa LIBGL_DRIVERS_PATH=${pkgs.mesa}/lib/dri
+    export GBM_BACKENDS_PATH=${pkgs.mesa}/lib/gbm LD_LIBRARY_PATH=${pkgs.mesa}/lib
+    ${pkgs.windowtolayer}/bin/windowtolayer -l background --output-name "$out" -m -- \
+      ${pkgs.xwayland}/bin/Xwayland ":$d" -geometry "''${w}x''${h}" -nolisten tcp &
+    host=$!
+    trap 'kill $host $run $watch 2>/dev/null; wait' EXIT TERM INT
+    # the shell that started it gone (a restart), it goes too: nothing left drawing under the new one
+    (while kill -0 $PPID 2>/dev/null; do sleep 2; done; kill $$) &
+    watch=$!
+    for _ in $(seq 50); do [ -S "/tmp/.X11-unix/X$d" ] && break; sleep 0.1; done
+    DISPLAY=":$d" "$hacks/$hack" -root &
+    run=$!
+    wait $run
+  '';
   linkTo =
     rel:
     { source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}"; };
@@ -114,6 +143,7 @@ in
       yazi lf vifm
       # user-level tools moved off pacman (2026-09-07 survey): the flake owns what the next box
       # needs; pacman keeps the kernel, drivers, Hyprland and its ecosystem until NixOS
+      xssHost
       fastfetch fd lazygit gh rclone tokei zenith lnav flyctl mise
       # pandoc from the binary cache — pacman's built it locally through ~190 haskell-* packages
       pandoc
