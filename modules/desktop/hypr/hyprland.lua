@@ -239,8 +239,6 @@ hl.window_rule({ name = "default-opacity", match = { class = ".*" }, opacity = "
 hl.window_rule({ name = "pinned-opaque", match = { pin = true }, opaque = true })
 -- tlon's office TUI titles its window "tlon office": glass would show the backdrop through the room's art
 hl.window_rule({ name = "tlon-office-opaque", match = { title = "^(tlon office)$" }, opaque = true })
--- the browser skips glass: pages are read, not looked through
-hl.window_rule({ name = "floorp-opaque", match = { class = "^(floorp)$" }, opaque = true })
 
 -- Floating utilities
 hl.window_rule({
