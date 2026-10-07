@@ -7,8 +7,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import { For, With, createState, createComputed, onCleanup } from "ags"
 import { Panel } from "../lib/tui"
-import { openInOffice } from "../lib/agents"
-import { alarms, banner, stickies, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
+import { openThread, alarms, banner, stickies, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 const until = (iso: string) => {
@@ -16,11 +15,13 @@ const until = (iso: string) => {
   return m > 0 ? `in ${m} min` : m === 0 ? "now" : `${-m} min ago`
 }
 
-/** an alert's actions as buttons; one taking text opens an entry, and Enter sends it */
+/** an alert's actions as buttons; one taking text opens a box that grows as you write — Enter
+ * sends, Shift+Enter a new line, Esc cancels */
 function Actions({ a, extra = [] }: { a: Alert; extra?: { label: string; run: () => void }[] }) {
   const [asking, setAsking] = createState<Action | null>(null)
-  let entry: Gtk.Entry | null = null
-  const send = () => { const x = asking.peek(); if (x) void act(a, x, entry?.text ?? ""); setAsking(null) }
+  let input: Gtk.TextView | null = null
+  const typed = () => { const b = input?.buffer; return b ? b.get_text(b.get_start_iter(), b.get_end_iter(), false) : "" }
+  const send = () => { const x = asking.peek(); if (x) void act(a, x, typed()); setAsking(null) }
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <box cssClasses={["actions"]} spacing={8}>
@@ -29,18 +30,26 @@ function Actions({ a, extra = [] }: { a: Alert; extra?: { label: string; run: ()
         ))}
         {extra.map((e) => <button cssClasses={["act", "dim"]} onClicked={e.run}><label label={e.label} /></button>)}
       </box>
-      <entry
-        visible={asking((x) => x !== null)}
-        placeholderText={asking((x) => (x ? `${x.label.replace("…", "")} — Enter sends, Esc cancels` : ""))}
-        $={(self) => {
-          entry = self
-          self.connect("activate", send)
-          const keys = new Gtk.EventControllerKey()
-          keys.connect("key-pressed", (_, kv) => { if (kv === Gdk.KEY_Escape) { setAsking(null); return true } return false })
-          self.add_controller(keys)
-          asking.subscribe(() => { if (asking.peek()) { self.text = ""; self.grab_focus() } })
-        }}
-      />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={asking((x) => x !== null)}>
+        <label cssClasses={["dim", "sm"]} xalign={0} label={asking((x) => (x ? `${x.label.replace("…", "")} — Enter sends · Shift+Enter new line · Esc cancels` : ""))} />
+        <scrolledwindow cssClasses={["alert-input"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} propagateNaturalHeight maxContentHeight={240}>
+          <Gtk.TextView
+            wrapMode={Gtk.WrapMode.WORD_CHAR}
+            acceptsTab={false}
+            $={(self) => {
+              input = self
+              const keys = new Gtk.EventControllerKey()
+              keys.connect("key-pressed", (_, kv, _code, mods) => {
+                if (kv === Gdk.KEY_Escape) { setAsking(null); return true }
+                if ((kv === Gdk.KEY_Return || kv === Gdk.KEY_KP_Enter) && !(mods & Gdk.ModifierType.SHIFT_MASK)) { send(); return true }
+                return false
+              })
+              self.add_controller(keys)
+              asking.subscribe(() => { if (asking.peek()) { self.buffer.set_text("", 0); self.grab_focus() } })
+            }}
+          />
+        </scrolledwindow>
+      </box>
     </box>
   )
 }
@@ -54,7 +63,7 @@ export function Stickies() {
           <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-sticky"]} spacing={4}>
             <label cssClasses={["summary"]} label={a.thread_id ? `#${a.thread_id} ${a.title}` : a.title} xalign={0} wrap maxWidthChars={44} />
             <label cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={48} />
-            <Actions a={a} extra={[...(a.thread_id ? [{ label: "Open", run: () => openInOffice(a.thread_id!) }] : []), { label: "Dismiss", run: () => dismiss(a) }]} />
+            <Actions a={a} extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Dismiss", run: () => dismiss(a) }]} />
           </Panel>
         )}
       </For>
@@ -86,7 +95,7 @@ export function DecisionBanner() {
             <Panel title={`⚑ tlön needs a decision${a.thread_id ? ` · #${a.thread_id}` : ""}`} cssClasses={["alert-banner"]} spacing={6}>
               <label cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={70} />
               <label cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={80} />
-              <Actions a={a} extra={[...(a.thread_id ? [{ label: "Open", run: () => openInOffice(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }]} />
+              <Actions a={a} extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }]} />
             </Panel>
           )
         }

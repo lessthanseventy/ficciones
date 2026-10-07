@@ -9,12 +9,15 @@ import { execAsync } from "ags/process"
 import { fetch } from "ags/fetch"
 import GLib from "gi://GLib?version=2.0"
 import { logEvent } from "./log"
+import { openInOffice } from "./agents"
+import { hypr } from "./hypr"
+import { dispatchNow } from "./hyprlua"
 
 const API = "http://127.0.0.1:4040"
 const STATE = `${GLib.get_user_state_dir()}/astal-shell/alerts.json`
 const SNOOZE_S = 5 * 60
 
-export type Action = { label: string; method?: string; path?: string; body?: Record<string, unknown> | null; input?: string; open?: string }
+export type Action = { label: string; method?: string; path?: string; body?: Record<string, unknown> | null; input?: string; open?: string; read?: string }
 export type Alert = {
   key: string; level: "alarm" | "decision" | "sticky"; kind: string; title: string; body: string | null
   at: string; thread_id: number | null; link: string | null; actions: Action[]
@@ -75,10 +78,31 @@ export const snooze = (a: Alert, s = SNOOZE_S) => save({ ...kept.peek(), snoozed
 export const foldAway = (a: Alert) => setLater([...later.peek(), a.key])
 export const unfold = () => setLater([])
 
-/** Do what an action says: open its link, or make its call (with `text` in its `input` field). */
+/** Show thread `tid` where the operator works: the office TUI when its window is up (it polls the
+ * server's focus request and opens it), else the rail's office. */
+export async function openThread(tid: number) {
+  const tui = hypr.get_clients().find((c) => c.title === "tlon office")
+  if (!tui) return openInOffice(tid)
+  await fetch(`${API}/api/office/focus`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ thread_id: tid }) }).catch(() => {})
+  dispatchNow(`hl.dsp.focus({ window = "address:0x${tui.address.replace(/^0x/, "")}" })`)
+}
+
+/** a doc (an alert's Read it) in a terminal of its own, rendered by glow */
+async function readDoc(a: Alert, path: string) {
+  const res = await fetch(`${API}${path}`)
+  if (res.status !== 200) throw new Error(`no doc (HTTP ${res.status})`)
+  const { name, text } = (await res.json()) as { name: string; text: string }
+  const file = `${GLib.get_user_runtime_dir()}/tlon-doc-${a.thread_id ?? "x"}.md`
+  GLib.file_set_contents(file, text)
+  const title = `${name === "current" ? "doc" : name} · ${a.thread_id ? `#${a.thread_id} ` : ""}${a.title}`
+  dispatchNow(`hl.dsp.exec_cmd(${JSON.stringify(`ghostty --title=${JSON.stringify(title)} -e glow -p ${file}`)})`)
+}
+
+/** Do what an action says: open its link, read its doc, or make its call (with `text` in its `input` field). */
 export async function act(a: Alert, x: Action, text?: string) {
   try {
     if (x.open) { await execAsync(["xdg-open", x.open]); dismiss(a); return }
+    if (x.read) { await readDoc(a, x.read); return }
     if (!x.path) return
     const body = x.input ? { ...(x.body ?? {}), [x.input]: text ?? "" } : x.body ?? {}
     const res = await fetch(`${API}${x.path}`, { method: x.method ?? "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
