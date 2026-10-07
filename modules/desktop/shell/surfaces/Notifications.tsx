@@ -150,6 +150,8 @@ export default function Notifications() {
       name="notifications"
       layer={Astal.Layer.OVERLAY}
       exclusivity={Astal.Exclusivity.IGNORE}
+      // a sticky's Reply box types here; a layer surface takes no keys under the default NONE
+      keymode={Astal.Keymode.ON_DEMAND}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
       marginTop={44}
       marginRight={8}
