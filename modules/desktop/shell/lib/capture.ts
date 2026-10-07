@@ -6,7 +6,6 @@ import { createState } from "ags"
 import { execAsync, subprocess, type Process } from "ags/process"
 import { logEvent } from "./log"
 import { hypr } from "./hypr"
-import { L, dispatch } from "./hyprlua"
 
 const stamp = () => GLib.DateTime.new_now_local().format("%Y-%m-%d_%H.%M.%S")
 const shotsDir = () => `${GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES) ?? `${GLib.get_home_dir()}/Pictures`}/Screenshots`
@@ -45,27 +44,32 @@ export type Sink = "file" | "clip" | "both"
 export type Target = "region" | "last" | "monitor" | "window"
 const clientOf = (address?: string) =>
   address ? hypr.get_client(address.replace(/^0x/, "")) ?? hypr.get_client(address) : hypr.focusedClient
+/** the window's ext-foreign-toplevel-list identifier, which Hyprland reports as its `stableId` */
+async function stableId(address: string): Promise<string> {
+  const a = `0x${address.replace(/^0x/, "")}`
+  const c = (JSON.parse(await execAsync(["hyprctl", "clients", "-j"])) as { address: string; stableId: string }[]).find((x) => x.address === a)
+  if (!c) throw new Error(`no window ${a}`)
+  return c.stableId
+}
 export async function screenshot(what: Target, sink: Sink = "both", address?: string) {
   GLib.mkdir_with_parents(shotsDir(), 0o755)
   const where = sink === "both" ? "file + clipboard" : sink === "file" ? shotsDir().replace(GLib.get_home_dir(), "~") : "clipboard"
   try {
-    let g: string | null
+    // a window is captured as itself (`grim -T`, ext-image-copy-capture), not as the screen region
+    // it covers: one on another workspace, or parked past a monitor's edge by the scrolling layout,
+    // comes out whole, with nothing scrolled or focused to get it
+    let src: string[] | null
     if (what === "window") {
-      // a window on another workspace: go there first (grim's -g is in screen coordinates)
       const c = clientOf(address)
-      const ws = c?.workspace
-      if (c && ws && ws.id !== hypr.focusedMonitor?.activeWorkspace?.id && ws.id > 0) {
-        await dispatch(L.workspace(String(ws.id)))
-        await new Promise((r) => setTimeout(r, 400))
-      }
-      g = c ? `${c.x},${c.y} ${c.width}x${c.height}` : null
+      src = c ? ["-T", await stableId(c.address)] : null
     } else {
-      g = await geometry(what)
+      const g = await geometry(what)
+      src = g ? ["-g", g] : null
     }
-    if (!g) return
+    if (!src) return
     // one grim to a file (a temp one when only the clipboard wants it), wl-copy from that
     const file = sink === "clip" ? `${GLib.get_tmp_dir()}/shot-${stamp()}.png` : `${shotsDir()}/${stamp()}.png`
-    await execAsync(["grim", "-g", g, file])
+    await execAsync(["grim", ...src, file])
     if (sink !== "file") await execAsync(["sh", "-c", `wl-copy --type image/png < "$1"${sink === "clip" ? ' && rm -f "$1"' : ""}`, "_", file])
     logEvent("shell", `screenshot (${what}) → ${where}`)
     notify("screenshot", where)

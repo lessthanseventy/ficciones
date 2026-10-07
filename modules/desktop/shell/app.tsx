@@ -26,6 +26,7 @@ import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, applyShellTheme, type Theme } from "./lib/theme"
 import { sidecarVerb, colresize, focusDir, adoptSidecars } from "./lib/sidecar"
+import { toggleQuake } from "./lib/quake"
 import { setGlass, toggleGlass } from "./lib/glass"
 import { cards } from "./lib/hover"
 import "./lib/night"
@@ -132,6 +133,10 @@ app.start({
     }
     if (verb === "colresize") {
       colresize(what ?? "wider")
+      return res("ok")
+    }
+    if (verb === "quake") {
+      void toggleQuake()
       return res("ok")
     }
     if (verb === "sidecar") {

@@ -137,8 +137,6 @@ in
       # the clipboard history behind the rail's clipboard card and Super+V (hyprland.lua's
       # wl-paste --watch at start); pacman's went in the 2026-09-07 sweep as a dependency
       cliphist wl-clipboard
-      # hypr/scripts/quake-toggle.sh reads hyprctl's json through jq: pacman's went as an orphan
-      # in the 2026-09-08 sweep and F12 spawned a terminal per press (2026-09-08)
       jq
       # more of the 2026-09-08 sweep's collateral: grim + slurp came off as hyprshot's deps (the
       # shell's thumbnails, capture card and `mise shot:*` are grim); zoxide/sesh/cliamp were
@@ -175,7 +173,6 @@ in
       "hypr/host.lua" = linkTo "hosts/${cfg.host}.lua";
 
       "hypr/scripts/launch_hyprland.sh" = linkTo "scripts/launch_hyprland.sh";
-      "hypr/scripts/quake-toggle.sh" = linkTo "scripts/quake-toggle.sh";
       "hypr/scripts/shot-region.sh" = linkTo "scripts/shot-region.sh";
       "hypr/scripts/shell-req.sh" = linkTo "scripts/shell-req.sh";
 

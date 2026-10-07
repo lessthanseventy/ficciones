@@ -14,6 +14,7 @@ import { wallpaper } from "../lib/wallpaper"
 import Gio from "gi://Gio"
 import Cairo from "cairo"
 import { showText } from "./Osd"
+import { closeAny } from "./Clickaway"
 import { fullscreenMonitors } from "../lib/hypr"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
@@ -173,9 +174,9 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           valign={Gtk.Align.CENTER}
           visible={zen}
           $={(self) => {
-            // clicks on the bare desktop reach the backdrop: poke whatever is running
+            // clicks on the bare desktop reach the backdrop: close what's open, poke whatever is running
             const g = new Gtk.GestureClick({ button: 0 })
-            g.connect("pressed", (_, __, x, y) => canvas.poke(x, y, self.get_width(), self.get_height()))
+            g.connect("pressed", (_, __, x, y) => { closeAny(); canvas.poke(x, y, self.get_width(), self.get_height()) })
             self.add_controller(g)
           }}
         >
@@ -193,9 +194,9 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           $type="overlay"
           visible={zen((z) => !z)}
           $={(self) => {
-            // a click on the photo skips to the next one
+            // a click on the photo closes what's open, and skips to the next one
             const g = new Gtk.GestureClick({ button: 0 })
-            g.connect("pressed", () => next())
+            g.connect("pressed", () => { closeAny(); next() })
             self.add_controller(g)
           }}
         />

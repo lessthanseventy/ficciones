@@ -1,8 +1,8 @@
-// Window thumbnails for the workspace strips: grim crops each mapped window on the workspace
-// that just became visible (and the ones showing at start), scaled to a quarter, into the
-// cache dir keyed by window address. A hidden workspace shows its windows as they last were —
-// Wayland has no way to picture a window that is not on screen. `stamp` bumps after a capture
-// so pictures reload.
+// Window thumbnails for the workspace strips: grim captures each mapped window on the workspace
+// that just became visible (and the ones showing at start) as itself (`grim -T`, by the window's
+// `stableId`), so a column the scrolling layout parks past the monitor's edge comes out whole, into
+// the cache dir keyed by window address. A hidden workspace shows its windows as they last were.
+// `stamp` bumps after a capture so pictures reload.
 import Gio from "gi://Gio?version=2.0"
 import GLib from "gi://GLib?version=2.0"
 import Hyprland from "gi://AstalHyprland"
@@ -19,22 +19,22 @@ export const pathFor = (address: string) => `${DIR}/${address.replace(/^0x/, "")
 export const [stamp, setStamp] = createState(0)
 
 type Rect = { x: number; y: number; w: number; h: number }
-/** The captured rectangle per window — a scrolling layout leaves columns partly off screen. */
+/** The captured rectangle per window: the whole window, wherever the layout has it. */
 export const geom = new Map<string, Rect>()
 
-/** Windows on a workspace that is on screen right now, clipped to the monitor, left to right. */
+/** Windows on a workspace that is on screen right now, whole, left to right. */
 function visibleClients(ws: Hyprland.Workspace): { c: Hyprland.Client; r: Rect }[] {
-  const m = hypr.get_monitors().find((mm) => mm.activeWorkspace?.id === ws.id)
-  if (!m) return []
+  if (!hypr.get_monitors().some((m) => m.activeWorkspace?.id === ws.id)) return []
   return hypr.get_clients()
-    .filter((c) => c.workspace?.id === ws.id && c.mapped)
-    .map((c) => {
-      const x0 = Math.max(c.x, m.x), y0 = Math.max(c.y, m.y)
-      const x1 = Math.min(c.x + c.width, m.x + m.width), y1 = Math.min(c.y + c.height, m.y + m.height)
-      return { c, r: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } }
-    })
-    .filter(({ r }) => r.w > 40 && r.h > 40)
+    .filter((c) => c.workspace?.id === ws.id && c.mapped && c.width > 40 && c.height > 40)
+    .map((c) => ({ c, r: { x: c.x, y: c.y, w: c.width, h: c.height } }))
     .sort((a, b) => a.r.x - b.r.x)
+}
+
+/** Every window's ext-foreign-toplevel-list identifier (Hyprland's `stableId`), by address */
+async function stableIds(): Promise<Map<string, string>> {
+  const cs = JSON.parse(await execAsync(["hyprctl", "clients", "-j"])) as { address: string; stableId: string }[]
+  return new Map(cs.map((c) => [c.address.replace(/^0x/, ""), c.stableId]))
 }
 
 let busy = false
@@ -45,9 +45,12 @@ export async function capture(ws: Hyprland.Workspace | null | undefined) {
   if (!cs.length) return
   busy = true
   try {
-    // full resolution, jpeg: grim's -s with -g leaves the scaled content in a corner of a
-    // full-size canvas (grim 1.4); GTK scales the picture down instead
-    await Promise.all(cs.map(({ c, r }) => execAsync(["grim", "-t", "jpeg", "-q", "70", "-g", `${r.x},${r.y} ${r.w}x${r.h}`, pathFor(c.address)]).then(() => geom.set(c.address, r)).catch(() => {})))
+    // full resolution, jpeg; GTK scales the picture down
+    const ids = await stableIds()
+    await Promise.all(cs.map(({ c, r }) => {
+      const id = ids.get(c.address.replace(/^0x/, ""))
+      return id ? execAsync(["grim", "-t", "jpeg", "-q", "70", "-T", id, pathFor(c.address)]).then(() => geom.set(c.address, r)).catch(() => {}) : null
+    }))
     setStamp((s) => s + 1)
   } finally { busy = false }
 }

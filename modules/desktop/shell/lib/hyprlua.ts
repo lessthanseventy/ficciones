@@ -4,6 +4,7 @@
 // nothing (2026-09-07, the morning after the .conf → .lua switch: no focus keys, no rail
 // clicks, no sidecar). Everything the shell asks of the compositor goes through here.
 import { execAsync } from "ags/process"
+import { query } from "./hyprsock"
 
 const q = (s: string) => JSON.stringify(s) // a lua string literal; the escapes coincide
 /** `address:0x…` for a client — AstalHyprland's address has no 0x. */
@@ -34,6 +35,18 @@ export async function dispatch(...exprs: string[]) {
     const out = await execAsync(["hyprctl", "--batch", exprs.map((e) => `dispatch ${e}`).join("; ")])
     const bad = out.split("\n").filter((l) => l.trim() && l.trim() !== "ok")
     if (bad.length) (bad.every((l) => l.trim().startsWith("warning:")) ? console.warn : console.error)("hypr dispatch:", bad.join(" | "))
+  } catch (e) { console.error("hypr dispatch:", String(e)) }
+}
+
+/**
+ * Dispatch in order as one batch over the request socket, with no hyprctl process — for what runs
+ * many times a second (the quake's slide), where a spawn per step stutters under load.
+ */
+export function dispatchNow(...exprs: string[]) {
+  if (!exprs.length) return
+  try {
+    const bad = query(`[[BATCH]]${exprs.map((e) => `dispatch ${e}`).join(";")}`).split("\n").filter((l) => l.trim() && l.trim() !== "ok")
+    if (bad.length) console.error("hypr dispatch:", bad.join(" | "))
   } catch (e) { console.error("hypr dispatch:", String(e)) }
 }
 

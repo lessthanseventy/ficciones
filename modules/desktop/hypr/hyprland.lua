@@ -285,8 +285,8 @@ hl.window_rule({
 hl.window_rule({ name = "fzf-picker", match = { class = "^(fzf-picker)$" }, float = true, size = { 800, 600 } })
 
 -- Quake dropdown terminal: ghostty (class com.ghostty.quake) on the special:quake workspace,
--- toggled globally by F12. quake-toggle.sh sizes/positions it as a full-width top band on the
--- focused monitor (dual-monitor safe), so only float here.
+-- toggled globally by F12. The shell (shell/lib/quake.ts) sizes, places and slides it, so only
+-- float here; no_anim because the slide is the shell's.
 hl.window_rule({ name = "quake-term", match = { class = "^(com\\.ghostty\\.quake)$" }, float = true, no_anim = true })
 
 -- Bitwarden popups
@@ -407,7 +407,7 @@ bind(M .. " + W", exec("floorp"))
 bind(M .. " + X", exec("kate"))
 bind("CTRL + " .. M .. " + V", exec("pavucontrol"))
 bind("CTRL + SHIFT + Escape", exec("ghostty -e btop"))
-bind("F12", exec(shell .. "/quake-toggle.sh"))
+bind("F12", exec(shell .. "/shell-req.sh quake"))
 
 bind(M .. " + Space", exec("astal-shell toggle launcher"))
 -- The astal shell's info panel (caelestia is gone — cutover 2026-09-05).

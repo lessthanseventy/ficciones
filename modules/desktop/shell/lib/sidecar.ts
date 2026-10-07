@@ -357,7 +357,7 @@ export function focusDir(dir: "l" | "r") {
 let ringOff = false
 export function sidecarVerb(what = "toggle", arg?: string) {
   if (what === "ring") {
-    // the quake script: the ring off before its slide, on after; the poll keeps it off while
+    // the quake (lib/quake.ts): the ring off before its slide, on after; the poll keeps it off while
     // another pinned window is up regardless
     ringOff = arg === "off"
     for (const s of sidecars.values()) s.frame.visible = !ringOff
