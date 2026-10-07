@@ -10,6 +10,7 @@ import Rail, { toggleCalendarPop, toggleWeatherPop, popWorkspace } from "./surfa
 import Bar from "./surfaces/Bar"
 import Notifications from "./surfaces/Notifications"
 import { DecisionBanner, Alarms } from "./surfaces/Alerts"
+import DocReader from "./surfaces/DocReader"
 import { startAlerts } from "./lib/alerts"
 import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Deck, { DeckRow, toggleDeck } from "./surfaces/Deck"
@@ -170,6 +171,7 @@ app.start({
     // per-monitor bars come back as the tree.
     Notifications()
     DecisionBanner()
+    DocReader()
     startAlerts()
     Hub()
     Deck()

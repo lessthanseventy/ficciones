@@ -67,3 +67,6 @@ window.alert-alarm-win { background: rgba($ground, 0.88); }
   .act.big { padding: $sp-2 $sp-6; font-size: 18px; }
 }
 .alert-input { background: $input-ground; min-height: 2.2em; textview, text { background: $input-ground; color: $body; padding: $sp-1 $sp-2; } }
+window.doc-reader { background: transparent; }
+.doc-sheet { background: $ground; border-color: $key; .panel-title { color: $key; } .panel-body { padding: $sp-3 $sp-4; } }
+.doc-body { color: $prose; font-size: $size; }

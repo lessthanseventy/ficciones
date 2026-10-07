@@ -88,15 +88,16 @@ export async function openThread(tid: number) {
   dispatchNow(`hl.dsp.focus({ window = "address:0x${tui.address.replace(/^0x/, "")}" })`)
 }
 
-/** a doc (an alert's Read it) in a terminal of its own, rendered by glow */
+/** the doc the reader sheet shows (surfaces/DocReader.tsx), or null when it is closed */
+export const [doc, setDoc] = createState<{ title: string; text: string } | null>(null)
+export const closeDoc = () => setDoc(null)
+
+/** a doc (an alert's Read it), opened in the shell's own reader */
 async function readDoc(a: Alert, path: string) {
   const res = await fetch(`${API}${path}`)
   if (res.status !== 200) throw new Error(`no doc (HTTP ${res.status})`)
-  const { name, text } = (await res.json()) as { name: string; text: string }
-  const file = `${GLib.get_user_runtime_dir()}/tlon-doc-${a.thread_id ?? "x"}.md`
-  GLib.file_set_contents(file, text)
-  const title = `${name === "current" ? "doc" : name} · ${a.thread_id ? `#${a.thread_id} ` : ""}${a.title}`
-  dispatchNow(`hl.dsp.exec_cmd(${JSON.stringify(`ghostty --title=${JSON.stringify(title)} -e glow -p ${file}`)})`)
+  const { text } = (await res.json()) as { name: string; text: string }
+  setDoc({ title: `${a.thread_id ? `#${a.thread_id} ` : ""}${a.title}`, text })
 }
 
 /** Do what an action says: open its link, read its doc, or make its call (with `text` in its `input` field). */
