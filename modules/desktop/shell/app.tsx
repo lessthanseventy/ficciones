@@ -9,6 +9,8 @@ import style from "./style/main.scss"
 import Rail, { toggleCalendarPop, toggleWeatherPop, popWorkspace } from "./surfaces/Rail"
 import Bar from "./surfaces/Bar"
 import Notifications from "./surfaces/Notifications"
+import { DecisionBanner, Alarms } from "./surfaces/Alerts"
+import { startAlerts } from "./lib/alerts"
 import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Deck, { DeckRow, toggleDeck } from "./surfaces/Deck"
 import { logEvent } from "./lib/log"
@@ -167,6 +169,8 @@ app.start({
     // gnim cannot nest a <For> inside a fragment, so the drawer is created outright and the
     // per-monitor bars come back as the tree.
     Notifications()
+    DecisionBanner()
+    startAlerts()
     Hub()
     Deck()
     Office()
@@ -191,6 +195,7 @@ app.start({
             <Bar gdkmonitor={monitor} />
             <DeckRow gdkmonitor={monitor} />
             <Backdrop gdkmonitor={monitor} />
+            <Alarms gdkmonitor={monitor} />
           </This>
         )}
       </For>

@@ -6,6 +6,7 @@ import { awake } from "../lib/awake"
 import Notifd from "gi://AstalNotifd"
 import app from "ags/gtk4/app"
 import { closeOnPress } from "./Clickaway"
+import { AlertPill } from "./Alerts"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
@@ -262,6 +263,7 @@ function StateCells() {
 function Status() {
   return (
     <box cssClasses={["status"]} halign={Gtk.Align.END}>
+      <AlertPill />
       <RuleV />
       <BatteryCell />
     </box>

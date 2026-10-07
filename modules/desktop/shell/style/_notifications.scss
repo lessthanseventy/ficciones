@@ -41,3 +41,28 @@ window.osd { background: transparent; }
 // ink on every label in the row (a tinted field left amber text on amber: Andrew, 2026-09-07)
 .vlist > row:selected { background: $body; box-shadow: none; }
 .vlist > row:selected .logline label, .vlist > row:selected .thread-row label, .vlist > row:selected label { color: $field-ink; }
+
+// ── tlon's alerts (surfaces/Alerts.tsx) ────────────────────────────────────
+// sticky: a toast in tlon's colour that stays; the decision banner: top centre, the attention
+// hue; the alarm: the whole monitor dimmed, the meeting in big type
+.toast.alert-sticky { border-color: $key; .panel-title { color: $key; } }
+window.decision, window.alert-banner-win { background: transparent; }
+.alert-banner {
+  background: $ground;
+  border-color: $attention;
+  min-width: 560px;
+  .panel-title { color: $attention; }
+  .panel-body { padding: $sp-3 $sp-4 $sp-3; }
+  .summary { color: $body; font-size: $size; }
+  .body { color: $meta; font-size: $size-sm; }
+  .act { padding: 2px $sp-3; }
+  entry { margin-top: $sp-2; }
+}
+.alert-pill { padding: 0 $sp-2; color: $ground; background: $attention; border-radius: 0; label { color: $ground; } }
+window.alert-alarm-win { background: rgba($ground, 0.88); }
+.alert-alarm {
+  .alarm-kicker { color: $attention; font-size: $size; letter-spacing: 2px; }
+  .alarm-title { color: $body; font-size: 44px; font-weight: bold; }
+  .alarm-when { color: $meta; font-size: 22px; }
+  .act.big { padding: $sp-2 $sp-6; font-size: 18px; }
+}

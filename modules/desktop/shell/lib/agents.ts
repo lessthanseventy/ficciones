@@ -99,14 +99,10 @@ export const workspaceDelete = (id: number) => write("DELETE", `/workspaces/${id
 /** give a running thread to another coworker; staffed within seconds */
 export const handOff = (tid: number, agent: string) => write("POST", `/threads/${tid}/hand-off`, { agent }, `handing #${tid} to ${agent}`, () => `handed #${tid} to ${agent}`)
 
-// a click on a "waiting on you" toast opens the office there; the office registers how
+// an alert's Open takes you to its thread in the office; the office registers how
 let opener: (tid: number) => void = () => {}
 export const setOpener = (fn: (tid: number) => void) => { opener = fn }
-/** a toast whose click (freedesktop's default action) opens thread `tid`; notify-send waits for it */
-const toast = (summary: string, body: string, tid: number | undefined) =>
-  execAsync(["notify-send", "-a", "tlön", "-u", "normal", "-A", "default=open", summary, body])
-    .then((out) => { if (out.trim() === "default" && tid !== undefined) opener(tid) })
-    .catch(() => void 0)
+export const openInOffice = (tid: number) => opener(tid)
 
 // the always-up service's operator API (loopback; its port is the service's, as flake.nix sets it)
 const API = "http://127.0.0.1:4040/api"
@@ -123,15 +119,7 @@ function diff(next: Agents) {
     }
     for (const r of last.roster) if (!next.roster.some((x) => x.agent === r.agent)) logEvent("agent", `${r.agent} left`, "dim")
     if (next.awaiting !== last.awaiting) logEvent("agent", next.awaiting ? `${next.awaiting} awaiting you` : "nothing awaits you", next.awaiting ? "warn" : "dim")
-    // the needs-you signal OUTSIDE any window (field baseline: every platform has one): a toast
-    // through our own notifd when more threads wait on the operator than before
-    if (next.awaiting > last.awaiting)
-      toast("tlön needs you", `${next.awaiting} thread${next.awaiting === 1 ? "" : "s"} awaiting you`, next.threads.find((t) => t.awaiting || t.prompt)?.id)
-    // a coworker stuck on a permission dialog names what it is asking about, so the toast is the ask
-    const asked = new Set(last.threads.filter((t) => t.prompt).map((t) => t.id))
-    for (const t of next.threads)
-      if (t.prompt && !asked.has(t.id))
-        toast(`#${t.id} ${t.title} is waiting on you`, t.prompt.summary, t.id)
+    // what waits on you is raised by the alerts (lib/alerts.ts: a decision banner), not a toast here
   } else if (last && !last.ok) logEvent("agent", "channel up")
   last = next
 }
