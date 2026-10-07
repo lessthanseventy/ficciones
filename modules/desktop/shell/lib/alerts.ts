@@ -62,10 +62,13 @@ export async function refreshAlerts() {
   try {
     const res = await fetch(`${API}/api/alerts`)
     if (res.status !== 200) return
-    const next = (await res.json()) as Alert[]
-    const was = new Set(all.peek().map((a) => a.key))
-    for (const a of next) if (!was.has(a.key)) logEvent("agent", `${a.level}: ${a.title}`, a.level === "sticky" ? "normal" : "warn")
-    setAll(next)
+    const fresh = (await res.json()) as Alert[]
+    const prev = all.peek(), was = new Map(prev.map((a) => [a.key, a]))
+    for (const a of fresh) if (!was.has(a.key)) logEvent("agent", `${a.level}: ${a.title}`, a.level === "sticky" ? "normal" : "warn")
+    // an unchanged alert keeps its object: the banner's <With> rebuilds on a new one, which every
+    // poll would otherwise do under the pointer — eating a click, wiping a half-typed reply
+    const next = fresh.map((a) => { const p = was.get(a.key); return p && JSON.stringify(p) === JSON.stringify(a) ? p : a })
+    if (next.length !== prev.length || next.some((a, i) => a !== prev[i])) setAll(next)
     // forget what has dropped off for good, so the state file does not grow forever
     const live = new Set(next.map((a) => a.key)), k = kept.peek()
     if (k.dismissed.some((d) => !live.has(d))) save({ ...k, dismissed: k.dismissed.filter((d) => live.has(d)) })
