@@ -11,6 +11,7 @@ import { hypr } from "./hypr"
 import { L, dispatchNow } from "./hyprlua"
 import { query } from "./hyprsock"
 import { sidecarVerb } from "./sidecar"
+import { glass, GLASS } from "./glass"
 
 const CLASS = "com.ghostty.quake"
 const HEIGHT = 0.55 // of the monitor
@@ -62,7 +63,7 @@ async function show(c: Client) {
     L.float(w, "on"), L.resizeExact(w, width, height), L.moveExact(w, x, y0),
     L.moveToWorkspace(w, String(m.activeWorkspace.id), true), L.moveExact(w, x, y0),
     ...(c.pinned ? [] : [L.pin(w)]), L.focusWindow(w), `hl.dsp.window.alter_zorder({ mode = "top", window = ${JSON.stringify(w)} })`,
-    L.setProp(w, "opacity", "1"),
+    L.setProp(w, "opacity", glass.peek() ? GLASS : "1"), // a terminal: glass whenever glass is on (lib/glass.ts)
   )
   await slide(w, x, y0, y1)
   dispatchNow(L.focusWindow(w)) // asked while it hung above the screen, focus did not stick
