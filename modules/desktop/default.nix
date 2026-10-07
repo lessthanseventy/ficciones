@@ -41,7 +41,9 @@ let
     ${pkgs.windowtolayer}/bin/windowtolayer -l background --output-name "$out" -m -- \
       ${pkgs.xwayland}/bin/Xwayland ":$d" -geometry "''${w}x''${h}" -nolisten tcp &
     host=$!
-    trap 'kill $host $run $watch 2>/dev/null; wait' EXIT TERM INT
+    # the X server by its display too: windowtolayer can go first, orphaning it, and an orphan comes
+    # back as a plain window
+    trap 'kill $run $watch $host 2>/dev/null; pkill -f "^[^ ]*/bin/Xwayland :$d "; wait' EXIT TERM INT
     # the shell that started it gone (a restart), it goes too: nothing left drawing under the new one
     (while kill -0 $PPID 2>/dev/null; do sleep 2; done; kill $$) &
     watch=$!
