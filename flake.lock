@@ -751,11 +751,11 @@
     "tlon": {
       "flake": false,
       "locked": {
-        "lastModified": 1791357539,
-        "narHash": "sha256-hPWHwRfMN2Us+sL+j69bfH2TWbj583MvTuNDZuMeFII=",
+        "lastModified": 1791394729,
+        "narHash": "sha256-EBhlTQxPETxL8qtz8t5/EgNhDuL6IrCqsL4bGQuwc00=",
         "ref": "refs/heads/main",
-        "rev": "fd57f8d2d825e7146aacb9bec92bf51d206b9852",
-        "revCount": 685,
+        "rev": "d12b847888846e75dc9fcef9de10e2e35558ab6f",
+        "revCount": 746,
         "type": "git",
         "url": "file:///home/andrew/projects/tlon"
       },
