@@ -50,7 +50,9 @@ let
     (while kill -0 $PPID 2>/dev/null; do sleep 2; done; kill $$) &
     watch=$!
     for _ in $(seq 50); do [ -S "/tmp/.X11-unix/X$d" ] && break; sleep 0.1; done
-    DISPLAY=":$d" LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe nice -n 19 "$hacks/$hack" -root &
+    # software GL spreads over every core by default — a spinning planet took three; one is plenty
+    # for a wallpaper
+    DISPLAY=":$d" LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe LP_NUM_THREADS=1 nice -n 19 "$hacks/$hack" -root &
     run=$!
     wait $run
   '';
