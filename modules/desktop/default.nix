@@ -75,6 +75,8 @@ in
     # without a switch
     home.file.".claude/skills/drive-office".source =
       config.lib.file.mkOutOfStoreSymlink "${tlonRepo}/adapters/skills/drive-office";
+    # gh finds extensions only in its own dir, not on PATH: `gh stack` (GitHub's stacked PRs)
+    home.file.".local/share/gh/extensions/gh-stack/gh-stack".source = "${pkgs.gh-stack}/bin/gh-stack";
     home.file.".local/bin/sudo-askpass" = { source = ./scripts/sudo-askpass; executable = true; };
     # recolours open ghostty surfaces to the live theme (the switch runs it; see lib/theme.ts)
     home.file.".local/bin/ficciones-recolor" = { source = ./scripts/ficciones-recolor; executable = true; };
@@ -112,7 +114,7 @@ in
       yazi lf vifm
       # user-level tools moved off pacman (2026-09-07 survey): the flake owns what the next box
       # needs; pacman keeps the kernel, drivers, Hyprland and its ecosystem until NixOS
-      fastfetch fd lazygit jujutsu gh rclone tokei zenith lnav flyctl mise
+      fastfetch fd lazygit gh rclone tokei zenith lnav flyctl mise
       # pandoc from the binary cache — pacman's built it locally through ~190 haskell-* packages
       pandoc
       signal-desktop slack discord podman-desktop audacity strawberry
@@ -124,7 +126,7 @@ in
       direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wlrctl wev pamixer bluetui
       # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform formats lua/sh
       tree-sitter stylua shfmt
-      lazydocker lazysql lazyjj lazyjournal lazyssh
+      lazydocker lazysql lazyjournal lazyssh
       # the agent CLIs and their tooling, off pacman (survey 2026-09-07); ollama stays pacman's
       # ollama-cuda (the GPU build), plocate pacman's (its updatedb timer is a system unit)
       claude-code codex uv libation piper-tts

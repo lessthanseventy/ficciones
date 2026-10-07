@@ -1,0 +1,9 @@
+# Linear history everywhere: pulls rebase, merges only fast-forward, and a rebase carries the
+# branches stacked on the one it moves (gh stack, or plain git).
+[pull]
+	rebase = true
+[merge]
+	ff = only
+[rebase]
+	updateRefs = true
+	autoStash = true

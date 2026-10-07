@@ -771,6 +771,9 @@
               home.file.".zshrc".source = ./modules/os/zshrc;
               # git's global ignore (~/.gitconfig's core.excludesFile): the sandboxes' phantom files too
               home.file.".gitignore".source = ./modules/os/gitignore;
+              # the workflow every repo here keeps (linear history: rebase, fast-forward, stacks); git
+              # reads this beside ~/.gitconfig, which stays the machine's (identity, credentials)
+              home.file.".config/git/config".source = ./modules/os/gitconfig;
 
               # adapters into pi's settings.json — MERGED, not owned: pi writes this file (auth,
               # model choice), so a read-only symlink would break it. jq unions our keys in

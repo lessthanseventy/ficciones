@@ -18,3 +18,9 @@ Installed by the flake as `~/.claude/CLAUDE.md` and `~/.pi/agent/AGENTS.md`; the
 
 Habits that follow: small commits as you go; comments carry the load-bearing *why* only; nothing
 is called "known" or "ignorable" — fix it or name it as open.
+
+**Linear history, every repo.** Rebase, then fast-forward — never a merge commit (git here is set
+`merge.ff=only`, `pull.rebase=true`). A change bigger than one review is a stack of small PRs, each on
+the last: `gh stack` (GitHub's stacked PRs) where the repo is on GitHub, plain branches with
+`git rebase --update-refs` otherwise. Bring a branch up to date by rebasing it onto main, not by
+merging main in. Rewriting history that is already pushed or shared is the human's call — ask.
