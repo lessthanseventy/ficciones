@@ -44,7 +44,7 @@ function tick() {
   if (playingChanged(want)) setVideoPlaying(want.size > 0)
   const on = glass.peek()
   for (const c of clients) {
-    if (!c.mapped || !TERMINAL.test(c.class) || c.title === "tlon office" || termGlass.get(c.address) === on) continue
+    if (!c.mapped || !TERMINAL.test(c.class) || c.title.endsWith("tlon office") || termGlass.get(c.address) === on) continue
     termGlass.set(c.address, on)
     const w = `address:${c.address}`
     cmds.push(...(on ? [L.setProp(w, "opacity_override", "1"), L.setProp(w, "opacity", GLASS)] : [L.setProp(w, "opacity", "1"), L.setProp(w, "opacity_override", "unset")]))

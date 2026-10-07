@@ -81,7 +81,8 @@ export const unfold = () => setLater([])
 /** Show thread `tid` where the operator works: the office TUI when its window is up (it polls the
  * server's focus request and opens it), else the rail's office. */
 export async function openThread(tid: number) {
-  const tui = hypr.get_clients().find((c) => c.title === "tlon office")
+  // ghostty puts a 🔔 before the title when the TUI rings, so the end is what names it
+  const tui = hypr.get_clients().find((c) => c.title.endsWith("tlon office"))
   if (!tui) return openInOffice(tid)
   await fetch(`${API}/api/office/focus`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ thread_id: tid }) }).catch(() => {})
   dispatchNow(`hl.dsp.focus({ window = "address:0x${tui.address.replace(/^0x/, "")}" })`)
