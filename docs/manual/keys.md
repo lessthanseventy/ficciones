@@ -14,7 +14,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `SUPER+X` | `kate` |
 | `CTRL+SUPER+V` | `pavucontrol` |
 | `CTRL+SHIFT+Escape` | `ghostty -e btop` |
-| `F12` | `shell/quake-toggle.sh` |
+| `F12` | `shell/shell-req.sh quake` |
 | `SUPER+Space` | `astal-shell toggle launcher` |
 | `SUPER+I` | `astal-shell toggle drawer` |
 | `SUPER+SHIFT+I` | `astal-shell toggle drawer` |
