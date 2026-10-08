@@ -76,6 +76,9 @@ in
   services.btrfs.autoScrub = { enable = true; interval = "monthly"; };
   services.fstrim.enable = true;
 
+  # sched_ext LAVD: latency-criticality aware, so the desktop stays snappy under a full office.
+  services.scx = { enable = true; scheduler = "scx_lavd"; };
+
   # ---- graphics: Intel primary, NVIDIA on PRIME offload (EnvyControl "hybrid" mode) ---------
   hardware.graphics = {
     enable = true;
