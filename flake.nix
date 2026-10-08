@@ -361,10 +361,11 @@
               # menard's verb reference — shipped from its own repo, wired here as a pi skill.
               menardSkill = "${menardRepo}/skills/menard";
 
-              # server' self-contained release (tlon's `server:release` task). The service below
-              # runs it headless; `server:console`/`:restart` drive the same bin/server, so
-              # node + cookie agree via the release's own env.sh.
-              serverRel = "${tlonRepo}/server/_build/prod/rel/server";
+              # server' self-contained release, built in tlon's `.release` checkout at its release
+              # pointer (`mise run release:cut` moves it; a merge to main deploys nothing). The
+              # service below runs it headless; `server:console`/`:restart` drive the same
+              # bin/server, so node + cookie agree via the release's own env.sh.
+              serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
 
               # server' MCP server for pi-mcp-adapter. Auth header is a `!command`
               # (pi-mcp-adapter §headers): tlon-cli.sh bearer mints a FRESH token per
