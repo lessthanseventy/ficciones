@@ -16,6 +16,14 @@ const DEFAULTS = {
   /** every other rotation turn is an xscreensaver hack */
   "backdrop.hacks": true,
   "backdrop.hacksOff": [] as string[],
+  "look.glass": true,
+  /** both active and inactive windows: the background is not dimmer than the foreground */
+  "look.glassOpacity": 0.9,
+  /** "off", "subtle" or "full": a screen shader over the whole output */
+  "look.crt": "off",
+  "look.nightKelvin": 4000,
+  /** night light on at sunset and off at sunrise; off, only the toggle moves it */
+  "look.nightFollowsSun": true,
 }
 type Defaults = typeof DEFAULTS
 export type SettingKey = keyof Defaults
