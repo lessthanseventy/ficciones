@@ -932,6 +932,19 @@
               # the facts its coworkers must see (tlon's own repo holds only product knowledge).
               xdg.configFile."tlon/seed.exs".source = ./modules/agents/tlon-seed.exs;
 
+              # The office's CPU yields to the desktop: CPU is split between cgroups before
+              # processes, so each coworker scope in app.slice was a full peer of the video player.
+              # tlon.service, its coworkers' tmux scopes and its redeploys all run here (tlon passes
+              # --slice=tlon.slice); the quota keeps 6 of 20 threads (and the fans) free regardless.
+              systemd.user.slices.tlon = {
+                Unit.Description = "tlon — the office's coworkers, server and rebuilds";
+                Slice = {
+                  CPUWeight = 20;
+                  IOWeight = 20;
+                  CPUQuota = "1400%";
+                };
+              };
+
               systemd.user.services.tlon = {
                 Unit = {
                   Description = "tlon — the always-up sovereign MCP channel (loopback)";
@@ -940,6 +953,7 @@
                 };
                 Service = {
                   Type = "exec";
+                  Slice = "tlon.slice";
                   # Worklines: artifact checks run git in the repo checkout; the memory pass is
                   # on for the always-up node (the Maintain sweeps ride Oban's cron; both post/park,
                   # never act).
