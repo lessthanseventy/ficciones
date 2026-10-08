@@ -21,6 +21,7 @@ import "./lib/zoomfix"
 import { screenshot, startRecording, stopRecording } from "./lib/capture"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
+import Settings, { toggleSettings } from "./surfaces/Settings"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
 import Backdrop, { setBackdrop, MODE_NAMES, type BackdropMode } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Deck"
@@ -94,6 +95,10 @@ app.start({
       toggleLauncher("clip")
       return res("ok")
     }
+    if (verb === "toggle" && what === "settings") {
+      toggleSettings()
+      return res("ok")
+    }
     if (verb === "toggle" && what === "cheatsheet") {
       toggleCheatsheet()
       return res("ok")
@@ -163,7 +168,7 @@ app.start({
     }
     if (verb === "get") return res(getCli(what))
     if (verb === "set") return res(setCli(what, argv.slice(2).join(" ")))
-    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | toggle drawer|hub|deck|office|dashboard|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
+    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | toggle drawer|hub|deck|office|dashboard|settings|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;
@@ -190,6 +195,7 @@ app.start({
     adoptSidecars()
     Launcher()
     Cheatsheet()
+    Settings()
     Dashboard()
     Osd()
     return (
