@@ -10,10 +10,10 @@ import Gio from "gi://Gio?version=2.0"
 import GioUnix from "gi://GioUnix?version=2.0"
 import GLib from "gi://GLib?version=2.0"
 import { createState } from "ags"
-import { readFile, writeFile } from "ags/file"
 import { logEvent } from "./log"
+import { setting, setSetting } from "./settings"
 
-const STATE = `${GLib.get_user_state_dir()}/astal-shell/awake`
+/** whether the inhibitor is HELD — not what was asked for: a refusal shows as off */
 export const [awake, setAwakeState] = createState(false)
 
 // Wrapped rather than a raw fd so release is deterministic; GC would drop the lock whenever.
@@ -44,32 +44,35 @@ function takeInhibitor(): GioUnix.InputStream | null {
   }
 }
 
-export function setAwake(on: boolean, remember = true) {
+function hold(on: boolean) {
   if (on && !held) held = takeInhibitor()
   if (!on && held) {
     held.close(null)
     held = null
   }
-  setAwakeState(on)
-  if (remember) {
-    try {
-      GLib.mkdir_with_parents(GLib.path_get_dirname(STATE), 0o755)
-      writeFile(STATE, on ? "on" : "off")
-    } catch {
-      /* state dir */
-    }
-    logEvent("shell", on ? "awake: idle inhibited" : "awake off: idle may lock and suspend", "dim")
-  }
+  setAwakeState(!!held)
 }
-export const toggleAwake = () => setAwake(!awake.peek())
+/** The wish is a setting (power.awake, remembered); the toggle shows what is held. */
+export function toggleAwake() {
+  const want = !awake.peek()
+  // wanted already but refused: the click is a retry
+  if (want === setting("power.awake").peek()) hold(want)
+  else setSetting("power.awake", want)
+}
 
-/** At start: what was remembered, on when nothing was. */
+/** At start: hold what the setting asks, and follow it from then on. */
 export function initAwake() {
-  let on = true
+  // the state-dir file awake was kept in before it was a setting: an "off" in it carries over, once
+  const old = `${GLib.get_user_state_dir()}/astal-shell/awake`
   try {
-    on = readFile(STATE).trim() !== "off"
-  } catch {
-    /* first run */
-  }
-  setAwake(on, false)
+    const [ok, bytes] = GLib.file_get_contents(old)
+    if (ok && new TextDecoder().decode(bytes).trim() === "off") setSetting("power.awake", false)
+    GLib.unlink(old)
+  } catch { /* no old file */ }
+  hold(setting("power.awake").peek())
+  setting("power.awake").subscribe(() => {
+    const on = setting("power.awake").peek()
+    hold(on)
+    logEvent("shell", on ? (held ? "awake: idle inhibited" : "awake: wanted, but logind refused") : "awake off: idle may lock and suspend", "dim")
+  })
 }
