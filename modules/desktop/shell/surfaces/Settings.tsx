@@ -201,6 +201,7 @@ function Notifications() {
 function Feel() {
   return (
     <Panel title="FEEL" cssClasses={["set-section"]} spacing={10} visible={section((s) => s === "feel")}>
+      <Row label="stay awake" hint="no idle lock, screen-off or suspend"><OnOff k="power.awake" /></Row>
       <Row label="hover to open" hint="resting on a bar item before its card opens">
         <Stepper k="feel.hoverDwellMs" stops={range(0, 1500, 100)} fmt={ms} />
       </Row>
