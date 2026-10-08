@@ -121,7 +121,7 @@ grim -g "$g" "$f" && echo "$f"
 '''
 
 ["shell:check"]
-description = "shell: the gate — ags bundle (syntax + imports + scss), then tsc over our files; both hard-fail"
+description = "shell: the gate — ags bundle (syntax + imports + scss), tsc over our files, then the node tests; all hard-fail"
 dir = "modules/desktop/shell"
 # ags 3.1's own lib does not typecheck under TS 5.9 (decorator signatures, two GObject
 # identities — a stock `ags init` project fails the same way), so errors inside /nix/store are
@@ -135,7 +135,13 @@ run = [
   "out=$(npx --yes -p typescript@5 tsc --noEmit -p . 2>&1 | grep -v '^ ' | grep -v '/nix/store' || true); if [ -n \"$out\" ]; then echo \"$out\"; exit 1; fi; echo 'shell:check — tsc ok'",
   # tsc does not report @deprecated, so gnim's two deprecated forms are refused by grep
   "dep=$(grep -rnE 'createComputed\\(\\s*\\[|\\.get\\(\\)' --include=*.ts --include=*.tsx --exclude-dir=node_modules --exclude-dir=@girs . || true); if [ -n \"$dep\" ]; then echo \"$dep\"; echo 'shell:check — deprecated gnim API: createComputed(() => …) not the deps array, .peek() not .get()'; exit 1; fi; echo 'shell:check — no deprecated gnim API'",
+  "node --test lib/*.test.mjs",
 ]
+
+["shell:test"]
+description = "shell: the pure-logic tests (node --test, no gi): lib/*.test.mjs"
+dir = "modules/desktop/shell"
+run = "node --test lib/*.test.mjs"
 
 ["shell:restart"]
 description = "shell: restart the astal-shell user unit (VM / post-cutover)"
