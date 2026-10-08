@@ -18,6 +18,7 @@ import { isFullscreen } from "../lib/hypr"
 import { deckVisible } from "./Deck"
 import { officeVisible } from "./Office"
 import { armClickaway, disarmClickaway } from "./Clickaway"
+import { setting } from "../lib/settings"
 
 const notifd = Notifd.get_default()
 
@@ -70,7 +71,7 @@ export function toggleHub() {
 }
 
 /**
- * The hot edge: the pointer parked within 2px of a monitor's right edge for 400 ms opens the
+ * The hot edge: the pointer parked within 2px of a monitor's right edge for feel.hotEdgeMs opens the
  * hub on that monitor. Polled from Hyprland's socket at 5 Hz — a layer surface for the strip
  * would not shrink below 200px and swallowed clicks.
  *
@@ -99,7 +100,7 @@ export function startHotEdge() {
     // no hot edge on a monitor showing a film
     if (!mon || isFullscreen(mon.name)) { since = 0; armedFor = null; return }
     if (armedFor !== mon.name) { armedFor = mon.name; since = Date.now(); return }
-    if (Date.now() - since >= 400) {
+    if (Date.now() - since >= setting("feel.hotEdgeMs").peek()) {
       since = Date.now() + 1e9   // once per visit
       showHub(app.get_monitors().find((m) => m.connector === mon.name))
     }

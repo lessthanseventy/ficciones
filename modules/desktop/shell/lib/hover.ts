@@ -5,9 +5,8 @@
 // the rail's workspace strips only.
 import Gtk from "gi://Gtk?version=4.0"
 import { timeout, type Timer } from "ags/time"
+import { setting } from "./settings"
 
-const DWELL_MS = 500
-const GRACE_MS = 350
 
 type Entry = { close: () => void }
 const open = new Map<string, Entry>() // group → the open one
@@ -39,7 +38,6 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   // `hover` may be a predicate: the workspace strips open on hover only while Super is held
   const hoverOn = () => (typeof opts.hover === "function" ? opts.hover() : !!opts.hover)
   const pop = mb.popover as Gtk.Popover
-  const dwellMs = opts.dwell ?? DWELL_MS
   pop.autohide = false // a grab would send the trigger a synthetic leave the moment it opened
   let dwell: Timer | null = null
   let grace: Timer | null = null
@@ -64,7 +62,7 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   let inPop = () => false
   const armClose = () => {
     grace?.cancel()
-    grace = timeout(GRACE_MS, () => { if (!inTrigger() && !inPop()) me.close() })
+    grace = timeout(setting("feel.hoverGraceMs").peek(), () => { if (!inTrigger() && !inPop()) me.close() })
   }
   inTrigger = watch(mb, () => {
     grace?.cancel(); dwell?.cancel()
@@ -72,7 +70,7 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
     // one is open in this group: sliding to the next swaps at once — unless this one is
     // hover-driven with its own long dwell (the workspace strips)
     if (cur && cur !== me && !opts.hover) show()
-    else if (opts.hover && hoverOn()) dwell = timeout(dwellMs, () => { if (inTrigger() && hoverOn()) show() })
+    else if (opts.hover && hoverOn()) dwell = timeout(opts.dwell ?? setting("feel.hoverDwellMs").peek(), () => { if (inTrigger() && hoverOn()) show() })
   }, () => { dwell?.cancel(); armClose() })
   inPop = watch(pop, () => grace?.cancel(), armClose)
   // CAPTURE + claimed: the menubutton never sees the press, so this is the one click path
