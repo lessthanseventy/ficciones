@@ -17,10 +17,11 @@ import { showText } from "./Osd"
 import { closeAny } from "./Clickaway"
 import { loadHacks, haveHacks, startHack, stopHack, pauseHack } from "../lib/xscreensaver"
 import { fullscreenMonitors } from "../lib/hypr"
+import { setting } from "../lib/settings"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
 const TICK_MS = 1000 / FAST_HZ
-const SWITCH_TICKS = Math.round(90_000 / TICK_MS)
+const switchTicks = () => Math.round((Math.max(10, setting("backdrop.rotateSeconds").peek()) * 1000) / TICK_MS)
 // braille bit layout: left column bits 0,1,2,6 ; right column bits 3,4,5,7
 const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 2], [0x40, 0, 3], [0x08, 1, 0], [0x10, 1, 1], [0x20, 1, 2], [0x80, 1, 3]]
 
@@ -60,10 +61,16 @@ class Canvas {
   }
   private beginHack(): boolean {
     const m = this.monitor, g = m?.get_geometry()
-    if (!m?.connector || !g || !haveHacks()) return false
+    if (!m?.connector || !g || !haveHacks() || !setting("backdrop.hacks").peek()) return false
     this.hack = startHack(m.connector, g.width, g.height)
     if (this.hack && this.win) this.win.visible = false
     return !!this.hack
+  }
+  /** the next ambient after `i` the rotation may show; with every one switched off, simply the next */
+  private nextOn(i: number) {
+    const off = setting("backdrop.ambientsOff").peek(), n = this.modes.length
+    for (let k = 1; k <= n; k++) if (!off.includes(this.modes[(i + k) % n].name)) return (i + k) % n
+    return (i + 1) % n
   }
   setPaused(p: boolean) {
     this.paused = p
@@ -71,11 +78,11 @@ class Canvas {
   }
   step = () => {
     if (this.paused) return
-    if (this.ticks % SWITCH_TICKS === 0 && !(this.hold && this.ticks)) {
+    if (this.ticks === 0 || (!this.hold && this.ticks % switchTicks() === 0)) {
       this.endHack()
       if (this.ticks) this.turn++
       if (this.turn % 2 === 1 && this.beginHack()) { this.ticks++; return }
-      if (this.ticks) this.idx = (this.idx + 1) % this.modes.length
+      if (this.ticks || (!this.hold && setting("backdrop.ambientsOff").peek().includes(this.modes[this.idx].name))) this.idx = this.nextOn(this.idx)
       this.modes[this.idx].init(this.grid)
     }
     this.ticks++
@@ -147,6 +154,17 @@ export const nextWallpaper = () => nexts.forEach((n) => n())
 let created = 0
 // the list comes after the first frames: a monitor already on a hack's turn starts that turn over
 void loadHacks().then(() => { for (const c of canvases.values()) if (c.timer && !c.hack && c.turn % 2 === 1) c.ticks = 0 })
+// a hack or an ambient switched off while it is up ends its turn now, not at the next rotation
+// (a held ambient stays: holding it was the explicit ask)
+const offNow = () => {
+  const hacksOn = setting("backdrop.hacks").peek(), hacksOff = setting("backdrop.hacksOff").peek()
+  const ambientsOff = setting("backdrop.ambientsOff").peek()
+  for (const c of canvases.values()) {
+    if (!c.timer) continue
+    if (c.hack ? !hacksOn || hacksOff.includes(c.hack) : !c.hold && ambientsOff.includes(c.modes[c.idx].name)) c.ticks = 0
+  }
+}
+for (const k of ["backdrop.hacks", "backdrop.hacksOff", "backdrop.ambientsOff"] as const) setting(k).subscribe(offNow)
 
 const ORDER: BackdropMode[] = [...MODE_NAMES, "random", "photo"]
 /**
