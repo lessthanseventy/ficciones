@@ -65,6 +65,15 @@ From the 2026-10-08 survey of the toggles:
 7. The CLI usage string omits `quake`, `super`, `pop`; `lib/state.ts` is the keyboard poll, not
    state — rename to `lib/kbd.ts`.
 
+## Status (2026-10-08)
+
+Built: the store and `get`/`set`; the Settings surface with Backdrop (incl. the photo's interval),
+Look, Notifications and Feel (incl. stay awake and the audio bars' rate); jank items 1, 2, 4, 5, 6
+and 7. Item 3 is covered by `look.nightFollowsSun` (off, a manual toggle sticks); a manual toggle
+with the schedule on still lasts until the next sunset or sunrise, as designed, and is not kept
+across a restart. Open: the menu's clicks, typing and Super+Shift+click are unverified by hand;
+`backdrop.smoothHz` and the hack draw scale are still constants.
+
 ## Slices
 
 1. `lib/settings.ts` + `get`/`set` verbs + a test of load/merge/malformed (no UI).
