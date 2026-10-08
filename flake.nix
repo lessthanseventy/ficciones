@@ -362,7 +362,7 @@
               menardSkill = "${menardRepo}/skills/menard";
 
               # server' self-contained release, built in tlon's `.release` checkout at its release
-              # pointer (`mise run release:cut` moves it; a merge to main deploys nothing). The
+              # pointer (tlon's `release:cut` task moves it; a merge to main deploys nothing). The
               # service below runs it headless; `server:console`/`:restart` drive the same
               # bin/server, so node + cookie agree via the release's own env.sh.
               serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
