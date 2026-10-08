@@ -19,9 +19,7 @@ import { isFullscreen, fullscreenMonitors } from "../lib/hypr"
 import { logEvent } from "../lib/log"
 import { Stickies, replyKeymode } from "./Alerts"
 import { stickies } from "../lib/alerts"
-
-const DEFAULT_MS = 6000
-const MAX_TOASTS = 5
+import { setting, setSetting } from "../lib/settings"
 
 export const urgencyOf = (n: Notifd.Notification) =>
   n.urgency === Notifd.Urgency.CRITICAL ? "critical" : n.urgency === Notifd.Urgency.LOW ? "low" : "normal"
@@ -45,6 +43,11 @@ export function groupNotices(ns: Notifd.Notification[]): Group[] {
 }
 
 const notifd = Notifd.get_default()
+// do-not-disturb is a setting so it survives a restart (notifd keeps no state); the toggles
+// still flip notifd, and either side follows the other
+notifd.dontDisturb = setting("notify.dnd").peek()
+notifd.connect("notify::dont-disturb", () => setSetting("notify.dnd", notifd.dontDisturb))
+setting("notify.dnd").subscribe(() => { if (notifd.dontDisturb !== setting("notify.dnd").peek()) notifd.dontDisturb = setting("notify.dnd").peek() })
 /** Every undismissed notice, newest first. */
 export const notices: Accessor<Notifd.Notification[]> =
   createBinding(notifd, "notifications")((ns) => [...ns].sort((a, b) => b.time - a.time))
@@ -100,7 +103,7 @@ export default function Notifications() {
   // the toast list holds raw notices; the For renders their groups, so a repeat folds into the
   // toast already up (count ticks, timer re-arms) instead of stacking a twin under it
   const [list, setList] = createState<Notifd.Notification[]>([])
-  const toastGroups = list((l) => groupNotices(l).slice(0, MAX_TOASTS))
+  const toastGroups = list((l) => groupNotices(l).slice(0, Math.max(1, setting("notify.maxToasts").peek())))
   const hide = (ids: number[]) => setList((l) => l.filter((x) => !ids.includes(x.id)))
 
   function Toast({ g }: { g: Group }) {
@@ -111,7 +114,7 @@ export default function Notifications() {
       const cur = live.peek()
       // expiring hides the toast but keeps the notification for the hub's history; a click
       // dismisses it for good (you saw it)
-      const ms = cur.head.expireTimeout > 0 ? cur.head.expireTimeout : urgencyOf(cur.head) === "critical" ? 0 : DEFAULT_MS
+      const ms = cur.head.expireTimeout > 0 ? cur.head.expireTimeout : urgencyOf(cur.head) === "critical" ? 0 : Math.max(1, setting("notify.toastSeconds").peek()) * 1000
       t = ms > 0 ? timeout(ms, () => hide(live.peek().ids)) : null
     }
     arm()

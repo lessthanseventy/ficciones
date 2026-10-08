@@ -13,8 +13,8 @@ import { timeout, type Timer } from "ags/time"
 import { Panel } from "../lib/tui"
 import { meter, pct } from "../lib/format"
 import { onGammaChange } from "../lib/brightness"
+import { setting } from "../lib/settings"
 
-const HOLD_MS = 1400
 type Kind = "volume" | "brightness" | "text"
 const [osd, setOsd] = createState<{ kind: Kind; frac: number; muted: boolean; icon: string; title?: string; text?: string } | null>(null)
 
@@ -31,7 +31,7 @@ function show(kind: Kind, frac: number, muted = false) {
   const mon = app.get_monitors().find((m) => m.connector === name)
   if (win && mon) win.gdkmonitor = mon
   hide?.cancel()
-  hide = timeout(HOLD_MS, () => setOsd(null))
+  hide = timeout(setting("feel.osdHoldMs").peek(), () => setOsd(null))
 }
 
 let win: Astal.Window | null = null
@@ -43,7 +43,7 @@ export function showText(title: string, text: string, icon = "\u{f0e2a}") {
   const mon = app.get_monitors().find((m) => m.connector === name)
   if (win && mon) win.gdkmonitor = mon
   hide?.cancel()
-  hide = timeout(HOLD_MS, () => setOsd(null))
+  hide = timeout(setting("feel.osdHoldMs").peek(), () => setOsd(null))
 }
 
 /** Watch the sources. The first notify of each is the initial value, not a change. */

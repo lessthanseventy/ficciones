@@ -24,9 +24,25 @@ const DEFAULTS = {
   "look.nightKelvin": 4000,
   /** night light on at sunset and off at sunrise; off, only the toggle moves it */
   "look.nightFollowsSun": true,
+  /** how long a toast stays up, unless the sender says; critical ones stay until clicked */
+  "notify.toastSeconds": 6,
+  "notify.maxToasts": 5,
+  "notify.dnd": false,
+  /** the rail's audio bars; the visualiser's whole CPU cost while sound plays */
+  "sound.vizFps": 30,
+  /** how long the pointer rests on a bar item before its card opens */
+  "feel.hoverDwellMs": 500,
+  /** how long a card stays after the pointer leaves it */
+  "feel.hoverGraceMs": 350,
+  "feel.osdHoldMs": 1400,
+  /** the pointer parked on a monitor's right edge this long opens the hub */
+  "feel.hotEdgeMs": 400,
 }
 type Defaults = typeof DEFAULTS
 export type SettingKey = keyof Defaults
+type KeyOf<T> = { [K in SettingKey]: Defaults[K] extends T ? K : never }[SettingKey]
+export type NumberKey = KeyOf<number>
+export type BoolKey = KeyOf<boolean>
 export const PATH = `${GLib.get_user_config_dir()}/ficciones/shell.json`
 
 function read(): string | null {
