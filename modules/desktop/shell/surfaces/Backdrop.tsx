@@ -9,7 +9,7 @@ import { createState, onCleanup, type Accessor } from "ags"
 import Gdk from "gi://Gdk?version=4.0"
 import { interval, type Timer } from "ags/time"
 import { CharGrid } from "../lib/chargrid"
-import { makeModes } from "../lib/ambient"
+import { makeModes, FAST_HZ, SLOW_HZ } from "../lib/ambient"
 import { wallpaper } from "../lib/wallpaper"
 import Gio from "gi://Gio"
 import Cairo from "cairo"
@@ -19,7 +19,7 @@ import { loadHacks, haveHacks, startHack, stopHack, pauseHack } from "../lib/xsc
 import { fullscreenMonitors } from "../lib/hypr"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
-const TICK_MS = 200 // 5 fps: the ambient does not need more, and each frame is a full-surface paint per monitor
+const TICK_MS = 1000 / FAST_HZ
 const SWITCH_TICKS = Math.round(90_000 / TICK_MS)
 // braille bit layout: left column bits 0,1,2,6 ; right column bits 3,4,5,7
 const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 2], [0x40, 0, 3], [0x08, 1, 0], [0x10, 1, 1], [0x20, 1, 2], [0x80, 1, 3]]
@@ -81,6 +81,7 @@ class Canvas {
     this.ticks++
     if (this.hack) return
     const m = this.modes[this.idx]
+    if (!m.smooth && (this.ticks - 1) % (FAST_HZ / SLOW_HZ)) return
     m.step(this.grid)
     // a text mode (babel) is glyphs and goes through Pango; a dot mode is drawn straight onto
     // the canvas — 64 rows × 210 glyphs of colour-span markup relaid out 8× a second per

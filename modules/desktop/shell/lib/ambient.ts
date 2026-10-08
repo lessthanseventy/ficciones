@@ -6,13 +6,19 @@
 import { CharGrid } from "./chargrid"
 import { Babel, ensureBooks } from "./babel"
 
-/** `text` supersedes the dot grid: the mode paints whole rows of markup itself (the Library). */
-export type Mode = { name: string; colour: string; init(g: CharGrid): void; step(g: CharGrid): void; poke?(g: CharGrid, x: number, y: number): void; text?(): string[] }
+/** `text` supersedes the dot grid: the mode paints whole rows of markup itself (the Library).
+ * `smooth` steps at FAST_HZ, each step `dt` of a SLOW_HZ one; the rest step at SLOW_HZ. */
+export type Mode = { name: string; colour: string; smooth?: true; init(g: CharGrid): void; step(g: CharGrid): void; poke?(g: CharGrid, x: number, y: number): void; text?(): string[] }
+
+export const FAST_HZ = 15, SLOW_HZ = 5
+const dt = SLOW_HZ / FAST_HZ
+/** a SLOW_HZ step's decay as one smooth step's, so a trail fades as fast at either rate */
+const fade = (p: number) => 1 - (1 - p) ** dt
 
 const lorenz = (): Mode => {
   const t = [{ x: 0.1, y: 0, z: 0 }, { x: -0.2, y: 0.1, z: 20 }, { x: 8, y: 8, z: 27 }]
   return {
-    name: "lorenz", colour: "amber",
+    name: "lorenz", colour: "amber", smooth: true,
     init(g) { g.clear() },
     poke(g, x, y) {
       // spawn near the attractor (clamped), keep the three originals, at most three extras
@@ -22,12 +28,13 @@ const lorenz = (): Mode => {
       if (t.length > 6) t.splice(3, 1)
     },
     step(g) {
-      g.decay(0.034)
+      g.decay(fade(0.034))
+      // 22 integrations of 0.004 a slow step: as many plots a second, spread over the smooth steps
+      const n = Math.round(22 * dt), h = (0.004 * 22 * dt) / n
       t.forEach((p, k) => {
-        for (let i = 0; i < 22; i++) {
-          const dt = 0.004
+        for (let i = 0; i < n; i++) {
           const dx = 10 * (p.y - p.x), dy = p.x * (28 - p.z) - p.y, dz = p.x * p.y - (8 / 3) * p.z
-          p.x += dx * dt; p.y += dy * dt; p.z += dz * dt
+          p.x += dx * h; p.y += dy * h; p.z += dz * h
           g.plot((p.x + 24) / 48 * g.cols * 2, (1 - (p.z - 2) / 50) * g.rows * 4, k)
         }
         // a runaway (numerical or a wild spawn) comes home
@@ -80,7 +87,7 @@ const boids = (): Mode => {
   let flock: B[] = []
   let W = 0, H = 0
   return {
-    name: "boids", colour: "pink",
+    name: "boids", colour: "pink", smooth: true,
     init(g) {
       W = g.cols * 2; H = g.rows * 4
       // every boid keeps the colour it was born with — a colourful flock, not a shifting one
@@ -94,7 +101,7 @@ const boids = (): Mode => {
       }
     },
     step(g) {
-      g.decay(0.12)
+      g.decay(fade(0.12))
       for (const b of flock) {
         let cx = 0, cy = 0, ax = 0, ay = 0, sx = 0, sy = 0, n = 0
         for (const o of flock) {
@@ -103,13 +110,13 @@ const boids = (): Mode => {
           if (d2 < 900) { cx += o.x; cy += o.y; ax += o.vx; ay += o.vy; n++; if (d2 < 64) { sx -= dx; sy -= dy } }
         }
         if (n) {
-          b.vx += ((cx / n - b.x) * 0.004) + ((ax / n - b.vx) * 0.05) + sx * 0.02
-          b.vy += ((cy / n - b.y) * 0.004) + ((ay / n - b.vy) * 0.05) + sy * 0.02
+          b.vx += (((cx / n - b.x) * 0.004) + ((ax / n - b.vx) * 0.05) + sx * 0.02) * dt
+          b.vy += (((cy / n - b.y) * 0.004) + ((ay / n - b.vy) * 0.05) + sy * 0.02) * dt
         }
         const sp = Math.hypot(b.vx, b.vy) || 1
         const max = 1.6
         if (sp > max) { b.vx = b.vx / sp * max; b.vy = b.vy / sp * max }
-        b.x = (b.x + b.vx + W) % W; b.y = (b.y + b.vy + H) % H
+        b.x = (b.x + b.vx * dt + W) % W; b.y = (b.y + b.vy * dt + H) % H
         g.plot(b.x, b.y, b.hue); g.plot(b.x - b.vx, b.y - b.vy, b.hue)
       }
     },
@@ -287,13 +294,13 @@ const stars = (): Mode => {
   let st: S[] = [], W = 0, H = 0
   const born = (z: number): S => ({ x: Math.random() * 2 - 1, y: Math.random() * 2 - 1, z, px: NaN, py: NaN })
   return {
-    name: "stars", colour: "cyan",
+    name: "stars", colour: "cyan", smooth: true,
     init(g) { W = g.cols * 2; H = g.rows * 4; st = Array.from({ length: 150 }, () => born(0.1 + Math.random() * 0.9)); g.clear() },
     step(g) {
-      g.decay(0.45)
+      g.decay(fade(0.45))
       const f = H * 0.35
       for (const s of st) {
-        s.z -= 0.005
+        s.z -= 0.005 * dt
         const x = W / 2 + (s.x / s.z) * f, y = H / 2 + (s.y / s.z) * f
         if (s.z <= 0.02 || x < 0 || x >= W || y < 0 || y >= H) { Object.assign(s, born(1)); continue }
         const hue = s.z < 0.2 ? 0 : s.z < 0.5 ? 3 : 4
@@ -313,17 +320,18 @@ const flow = (): Mode => {
   const spawn = (p: F): F => Object.assign(p, { x: Math.random() * W, y: Math.random() * H, life: 40 + Math.random() * 120, hue: Math.random() < 0.7 ? 3 : Math.random() < 0.6 ? 1 : 4 })
   const angle = (x: number, y: number) => Math.sin(x * 0.017 + t) * 1.6 + Math.cos(y * 0.023 - t * 0.7) * 1.4 + Math.sin((x + y) * 0.008 + t * 0.4)
   return {
-    name: "flow", colour: "cyan",
+    name: "flow", colour: "cyan", smooth: true,
     init(g) { W = g.cols * 2; H = g.rows * 4; t = Math.random() * 100; ps = Array.from({ length: 240 }, () => spawn({ x: 0, y: 0, life: 0, hue: 3 })); g.clear() },
     poke(_g, px, py) {
       for (let i = 0; i < 30; i++) ps.push({ x: px + (Math.random() - 0.5) * 20, y: py + (Math.random() - 0.5) * 20, life: 60 + Math.random() * 60, hue: 2 })
       if (ps.length > 330) ps.splice(240, ps.length - 330)
     },
     step(g) {
-      g.decay(0.07); t += 0.003
+      g.decay(fade(0.07)); t += 0.003 * dt
       for (const p of ps) {
-        for (let i = 0; i < 2; i++) { const a = angle(p.x, p.y); p.x += Math.cos(a) * 0.9; p.y += Math.sin(a) * 0.9; g.plot(p.x, p.y, p.hue) }
-        if (--p.life < 0 || p.x < 0 || p.x >= W || p.y < 0 || p.y >= H) spawn(p)
+        const a = angle(p.x, p.y)
+        p.x += Math.cos(a) * 1.8 * dt; p.y += Math.sin(a) * 1.8 * dt; g.plot(p.x, p.y, p.hue)
+        if ((p.life -= dt) < 0 || p.x < 0 || p.x >= W || p.y < 0 || p.y >= H) spawn(p)
       }
     },
   }
@@ -364,14 +372,14 @@ const rain = (): Mode => {
   type R = { x: number; y: number; r: number; max: number }
   let rings: R[] = [], W = 0, H = 0
   return {
-    name: "rain", colour: "cyan",
+    name: "rain", colour: "cyan", smooth: true,
     init(g) { W = g.cols * 2; H = g.rows * 4; rings = []; g.clear() },
     poke(_g, x, y) { rings.push({ x, y, r: 0, max: 50 }) },
     step(g) {
       // as many rings as the canvas has room for (a fixed dozen read as empty on a full screen)
-      if (rings.length < (W * H) / 3000 && Math.random() < 0.6) rings.push({ x: Math.random() * W, y: H * 0.1 + Math.random() * H * 0.85, r: 0, max: 16 + Math.random() * 40 })
+      if (rings.length < (W * H) / 3000 && Math.random() < 0.6 * dt) rings.push({ x: Math.random() * W, y: H * 0.1 + Math.random() * H * 0.85, r: 0, max: 16 + Math.random() * 40 })
       g.clear()
-      rings = rings.filter((q) => (q.r += 0.8) < q.max)
+      rings = rings.filter((q) => (q.r += 0.8 * dt) < q.max)
       for (const q of rings) {
         const life = 1 - q.r / q.max, n = Math.ceil(q.r * 3)
         for (let j = 0; j < n; j++) {
