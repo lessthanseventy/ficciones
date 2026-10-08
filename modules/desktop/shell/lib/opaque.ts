@@ -8,7 +8,7 @@ import { soundPids } from "./sound"
 import { L, dispatch } from "./hyprlua"
 import { interval } from "ags/time"
 import { query } from "./hyprsock"
-import { glass, setVideoPlaying, GLASS } from "./glass"
+import { glass, setVideoPlaying, glassOpacity } from "./glass"
 
 type Client = { address: string; pid: number; class: string; title: string; mapped: boolean; inhibitingIdle?: boolean; fullscreen: number }
 
@@ -47,7 +47,7 @@ function tick() {
     if (!c.mapped || !TERMINAL.test(c.class) || c.title.endsWith("tlon office") || termGlass.get(c.address) === on) continue
     termGlass.set(c.address, on)
     const w = `address:${c.address}`
-    cmds.push(...(on ? [L.setProp(w, "opacity_override", "1"), L.setProp(w, "opacity", GLASS)] : [L.setProp(w, "opacity", "1"), L.setProp(w, "opacity_override", "unset")]))
+    cmds.push(...(on ? [L.setProp(w, "opacity_override", "1"), L.setProp(w, "opacity", glassOpacity())] : [L.setProp(w, "opacity", "1"), L.setProp(w, "opacity_override", "unset")]))
   }
   for (const a of [...termGlass.keys()]) if (!clients.some((c) => c.address === a)) termGlass.delete(a)
   if (cmds.length) dispatch(...cmds)
