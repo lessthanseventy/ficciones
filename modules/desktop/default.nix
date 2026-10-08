@@ -77,10 +77,10 @@ let
   # Drop this once nixpkgs ships >= this version.
   claude-code = pkgs.claude-code.override {
     manifest = {
-      version = "2.1.283";
+      version = "2.1.293";
       platforms.linux-x64 = {
         binary = "claude.zst";
-        checksum = "94345861e88be3d67a8393494f98f5b1c67604c14ccd4ef3c7a51e3643fa25eb";
+        checksum = "25786da347c30641dc6c50733d090d77cb540f105a61af7e9895b56e39fe16a5";
       };
     };
   };
