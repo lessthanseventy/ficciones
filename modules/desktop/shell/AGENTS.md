@@ -6,7 +6,8 @@ where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
 ## Loop
 
 - `mise shell:dev` — run from source on the live desktop (it replaces the running shell). Edit,
-  Ctrl+C, rerun.
+  Ctrl+C, rerun. Its styles are the working tree's in the bundled (uqbar) palette: `ASTAL_SHELL_DEV`
+  skips the installed theme's compiled css, which would hide every style change until a home:switch.
 - `mise shot:layer -- rail|bar|deck` — the shell draws in LAYERS, not windows, so `shot:window`
   cannot see it. **Verify a colour or layout change on a screenshot, not in the source**: a rule
   can be right in the file and reach nothing on screen (see the `*` selector below).

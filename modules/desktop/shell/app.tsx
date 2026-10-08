@@ -180,8 +180,10 @@ app.start({
     Deck()
     Office()
     startHotEdge()
-    // the live theme's stylesheet over the bundled default (the same css when they agree)
-    applyShellTheme()
+    // the live theme's stylesheet over the bundled default (the same css when they agree); from
+    // source (shell:dev) the bundled css is the working tree's, and the installed one would hide
+    // every style change until a home:switch
+    if (!GLib.getenv("ASTAL_SHELL_DEV")) applyShellTheme()
     const start = setting("backdrop.startup").peek()
     setBackdrop(start === "photo" || (MODE_NAMES as readonly string[]).includes(start) ? (start as BackdropMode) : "random")
     initAwake()

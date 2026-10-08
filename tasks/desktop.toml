@@ -61,7 +61,7 @@ run = "ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null a
 ["shell:dev"]
 description = "shell: run the shell from source (Ctrl+C stops it); pkill -x gjs first — the dbus name is taken while the installed shell runs"
 dir = "modules/desktop/shell"
-run = "if command -v nix-gpu >/dev/null; then exec nix-gpu ags run app.tsx; fi; echo 'shell:dev — no nix-gpu yet (home:switch): drawing in software'; exec ags run app.tsx"
+run = "export ASTAL_SHELL_DEV=1; if command -v nix-gpu >/dev/null; then exec nix-gpu ags run app.tsx; fi; echo 'shell:dev — no nix-gpu yet (home:switch): drawing in software'; exec ags run app.tsx"
 
 # Silent screenshots for an agent's eyes (no flameshot UI): a PNG under ~/Pictures/Screenshots,
 # its path on stdout — Read it. `shot:window` matches class or title (regex, case-insensitive)
