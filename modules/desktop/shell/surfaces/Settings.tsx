@@ -123,6 +123,9 @@ function Backdrop() {
       <Row label="turn length" hint="each ambient or hack, then the next">
         <Stepper k="backdrop.rotateSeconds" stops={[10, 30, 60, 90, 120, 300, 600, 1800]} fmt={fmtTurn} />
       </Row>
+      <Row label="photo changes" hint="a new wallpaper this often">
+        <Stepper k="wallpaper.rotateMinutes" stops={[1, 2, 5, 10, 15, 30, 60, 120, 240]} fmt={(n) => (n < 60 ? `${n} min` : `${n / 60} h`)} />
+      </Row>
       <Row label="ambients" hint="in the rotation; off ones can still be held">{flow(ambientChips)}</Row>
       <Row label="hack turns" hint="every other turn, an xscreensaver hack">
         <OnOff k="backdrop.hacks" />
