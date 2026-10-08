@@ -37,6 +37,7 @@ window.settings { background: transparent; }
 .toggle.set-step { min-height: 30px; min-width: 44px; padding: 0 $sp-2; }
 .set-value { color: $body; }
 .set-search entry { font-size: $size; }
+.set-nav .toggle.set-chip { min-width: 110px; }
 .set-hacks { border-top: $rule solid $structure; padding-top: $sp-1; }
 
 // cheatsheet
