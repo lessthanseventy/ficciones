@@ -12,6 +12,9 @@ where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
   can be right in the file and reach nothing on screen (see the `*` selector below).
 - `mise shell:check` — the gate: `ags bundle`, then tsc over our files. Both must pass; zero
   type errors is the bar, no error is "known" or ignorable.
+- `mise shell:test` — node tests of the pure logic (`lib/*.test.mjs`, also the last step of
+  `shell:check`). What they import must not touch `gi://`; split a module's pure half out
+  (`settings-core.ts`) to test it.
 - `nix build .#astal-shell` — the store package the VM and home-manager install.
 - In the NixOS VM the unit is `astal-shell.service`; `mise shell:logs` / `shell:restart`.
 
@@ -24,6 +27,9 @@ where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
   inverse video · `$sel-field` what you picked · `$max-contrast` what hover lifts to. The `$cat-*`
   tier is hues used as CATEGORIES (log sources, the per-card hue map) and nothing else. Colour
   names like `$amber` do not exist, so a stale one is a sass error. One font (`$font`).
+- **A preference is a setting, not a constant or a private state file.** Add it to `DEFAULTS` in
+  `lib/settings.ts` and read it with `setting(key)` (live; `astal-shell get`/`set` reach it).
+  Where things are (pinned windows, frecency) is state and stays under `~/.local/state/astal-shell`.
 - **`_tui.scss` opens with `* { color: $body }`, so a colour on a parent never reaches its
   children.** Set it on the `label` too, or the rule is correct in the file and dead on screen —
   which is how four hover states did nothing for a day.
