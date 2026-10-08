@@ -128,10 +128,12 @@ export default function Notifications() {
     logEvent("notice", `${n.appName || "notice"}: ${n.summary}`, u === "critical" ? "crit" : u === "low" ? "dim" : "normal")
     // critical notices pin to the deck's row instead of a sticky toast
     if (notifd.dontDisturb || u === "critical") return
-    // toasts follow the pointer's monitor — unless a film is on it: then the other monitor,
-    // or none at all (the notice still lands in the hub's history)
-    const focused = Hyprland.get_default().focusedMonitor?.name
-    const name = isFullscreen(focused) ? Hyprland.get_default().get_monitors().map((m) => m.name).find((m) => !isFullscreen(m)) : focused
+    // toasts go to an external monitor whenever one is plugged in, wherever the pointer is; the
+    // laptop panel only when it is the only screen. A film on it means none at all (the notice
+    // still lands in the hub's history)
+    const names = Hyprland.get_default().get_monitors().map((m) => m.name)
+    const externals = names.filter((m) => !m.startsWith("eDP"))
+    const name = (externals.length ? externals : names).find((m) => !isFullscreen(m))
     const mon = app.get_monitors().find((m) => m.connector === name)
     if (!mon) return
     win.gdkmonitor = mon
