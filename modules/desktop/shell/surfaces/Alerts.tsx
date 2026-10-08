@@ -17,10 +17,12 @@ const until = (iso: string) => {
 
 // how many reply boxes are open: the toast column and the banner take keys only while one is — a
 // layer surface that takes keys on demand can be handed the keyboard just by appearing, and then
-// every toast steals the operator's typing until they switch away and back
+// every toast steals the operator's typing until they switch away and back. While one is open the
+// keys are its outright, so Esc works at once; Esc, Enter or any of the card's buttons closes it
+// and gives them back
 const [replies, setReplies] = createState(0)
-/** the keymode for a window holding alert cards: keys only while a reply is being written */
-export const replyKeymode = replies((n) => (n > 0 ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE))
+/** the keymode for a window holding alert cards: the keyboard only while a reply is being written */
+export const replyKeymode = replies((n) => (n > 0 ? Astal.Keymode.EXCLUSIVE : Astal.Keymode.NONE))
 
 /** the shell's line keys in a text box: Ctrl+A/E start and end of line, Ctrl+U/K delete to them,
  * Ctrl+W the word before the cursor. True when it took the key. */
@@ -57,9 +59,9 @@ function Actions({ a, extra = [] }: { a: Alert; extra?: { label: string; run: ()
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <box cssClasses={["actions"]} spacing={8}>
         {a.actions.map((x) => (
-          <button cssClasses={["act"]} onClicked={() => (x.input ? setAsking(x) : void act(a, x))}><label label={x.label} /></button>
+          <button cssClasses={["act"]} onClicked={() => { if (x.input) setAsking(x); else { setAsking(null); void act(a, x) } }}><label label={x.label} /></button>
         ))}
-        {extra.map((e) => <button cssClasses={["act", "dim"]} onClicked={e.run}><label label={e.label} /></button>)}
+        {extra.map((e) => <button cssClasses={["act", "dim"]} onClicked={() => { setAsking(null); e.run() }}><label label={e.label} /></button>)}
       </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={asking((x) => x !== null)}>
         <label cssClasses={["dim", "sm"]} xalign={0} label={asking((x) => (x ? `${x.label.replace("…", "")} — Enter sends · Shift+Enter new line · Esc cancels · Ctrl+A/E/U/K/W` : ""))} />
