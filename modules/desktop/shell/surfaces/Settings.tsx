@@ -8,7 +8,7 @@ import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import { createState, createComputed, createRoot, type Accessor } from "ags"
 import { Panel } from "../lib/tui"
-import { setting, setSetting, PATH } from "../lib/settings"
+import { setting, setSetting, PATH, type NumberKey, type BoolKey } from "../lib/settings"
 import { hackNames } from "../lib/xscreensaver"
 import { MODE_NAMES } from "./Backdrop"
 import { theme, setTheme, THEMES } from "../lib/theme"
@@ -19,7 +19,7 @@ let hackGrid: Gtk.FlowBox | null = null
 let search: Gtk.Entry | null = null
 const [query, setQuery] = createState("")
 const [hacks, setHacks] = createState<string[]>([])
-const SECTIONS = ["backdrop", "look"] as const
+const SECTIONS = ["backdrop", "look", "notifications", "feel"] as const
 const [section, setSection] = createState<(typeof SECTIONS)[number]>("backdrop")
 
 /** Open (on `sec` when named) or close the surface. */
@@ -69,7 +69,7 @@ const toggleIn = (key: "backdrop.ambientsOff" | "backdrop.hacksOff", name: strin
 }
 
 /** − value +, stepping a number setting through `stops` (a value between two stops goes to the next) */
-function Stepper({ k, stops, fmt }: { k: "backdrop.rotateSeconds" | "look.glassOpacity" | "look.nightKelvin"; stops: number[]; fmt: (n: number) => string }) {
+function Stepper({ k, stops, fmt }: { k: NumberKey; stops: number[]; fmt: (n: number) => string }) {
   const step = (dir: 1 | -1) => {
     const now = setting(k).peek()
     const next = dir > 0 ? stops.find((t) => t > now + 1e-9) : [...stops].reverse().find((t) => t < now - 1e-9)
@@ -84,7 +84,7 @@ function Stepper({ k, stops, fmt }: { k: "backdrop.rotateSeconds" | "look.glassO
   )
 }
 const range = (from: number, to: number, by: number) => Array.from({ length: Math.round((to - from) / by) + 1 }, (_, i) => +(from + i * by).toFixed(4))
-const OnOff = ({ k }: { k: "backdrop.hacks" | "look.glass" | "look.nightFollowsSun" }) => (
+const OnOff = ({ k }: { k: BoolKey }) => (
   <box valign={Gtk.Align.START}>
     <Chip label={setting(k)((v) => (v ? "on" : "off"))} on={setting(k)} onClicked={() => setSetting(k, !setting(k).peek())} />
   </box>
@@ -179,6 +179,44 @@ function Look() {
   )
 }
 
+const ms = (n: number) => (n >= 1000 ? `${+(n / 1000).toFixed(2)} s` : `${n} ms`)
+
+function Notifications() {
+  return (
+    <Panel title="NOTIFICATIONS" cssClasses={["set-section"]} spacing={10} visible={section((s) => s === "notifications")}>
+      <Row label="do not disturb" hint="no toasts; notices still land in the hub"><OnOff k="notify.dnd" /></Row>
+      <Row label="toast time" hint="unless the sender sets one; critical stays until clicked">
+        <Stepper k="notify.toastSeconds" stops={[2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 60]} fmt={(n) => `${n} s`} />
+      </Row>
+      <Row label="toasts at once" hint="more wait in the hub">
+        <Stepper k="notify.maxToasts" stops={range(1, 10, 1)} fmt={(n) => `${n}`} />
+      </Row>
+    </Panel>
+  )
+}
+
+function Feel() {
+  return (
+    <Panel title="FEEL" cssClasses={["set-section"]} spacing={10} visible={section((s) => s === "feel")}>
+      <Row label="hover to open" hint="resting on a bar item before its card opens">
+        <Stepper k="feel.hoverDwellMs" stops={range(0, 1500, 100)} fmt={ms} />
+      </Row>
+      <Row label="card grace" hint="a card stays this long after the pointer leaves">
+        <Stepper k="feel.hoverGraceMs" stops={range(0, 1500, 50)} fmt={ms} />
+      </Row>
+      <Row label="hot edge" hint="parked on the right edge this long opens the hub">
+        <Stepper k="feel.hotEdgeMs" stops={range(100, 2000, 100)} fmt={ms} />
+      </Row>
+      <Row label="osd" hint="how long volume and brightness stay on screen">
+        <Stepper k="feel.osdHoldMs" stops={range(400, 4000, 200)} fmt={ms} />
+      </Row>
+      <Row label="audio bars" hint="the rail's visualiser while sound plays; its whole CPU cost">
+        <Stepper k="sound.vizFps" stops={[5, 10, 15, 20, 30, 45, 60]} fmt={(n) => `${n} fps`} />
+      </Row>
+    </Panel>
+  )
+}
+
 export default function Settings() {
   return (
     <window
@@ -208,6 +246,8 @@ export default function Settings() {
           <box orientation={Gtk.Orientation.VERTICAL} hexpand>
             <Backdrop />
             <Look />
+            <Notifications />
+            <Feel />
           </box>
         </box>
       </Panel>
