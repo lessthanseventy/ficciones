@@ -16,6 +16,8 @@ const DEFAULTS = {
   /** every other rotation turn is an xscreensaver hack */
   "backdrop.hacks": true,
   "backdrop.hacksOff": [] as string[],
+  /** hacks draw at this fraction of the monitor, stretched to fit: smaller is smoother and softer */
+  "backdrop.hackScale": 0.5,
   /** the photo backdrop picks a new image this often */
   "wallpaper.rotateMinutes": 5,
   "look.glass": true,

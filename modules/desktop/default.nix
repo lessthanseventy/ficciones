@@ -36,14 +36,15 @@ let
       ls "$hacks" | grep -vxE 'xscreensaver-.*|webcollage.*|vidwhacker|blitspin|bumps|carousel|decayscreen|distort|flipscreen3d|gleidescope|glslideshow|jigsaw|mirrorblob|photopile|ripples|rotzoomer|slidescreen|spotlight|twang|zoom|xanalogtv|esper'
       exit 0
     fi
+    # W×H is the size the hack draws at, not the monitor's (the shell scales it: backdrop.hackScale)
     out=$1 d=$2 w=$3 h=$4 hack=$5
     export __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json
     export __GLX_VENDOR_LIBRARY_NAME=mesa LIBGL_DRIVERS_PATH=${pkgs.mesa}/lib/dri
     export GBM_BACKENDS_PATH=${pkgs.mesa}/lib/gbm LD_LIBRARY_PATH=${pkgs.mesa}/lib
-    # drawn at half size and stretched to the monitor by the compositor (rootful -fullscreen scales
-    # through the viewporter): software GL is fill-bound, so this is 2–3× the frames for no more CPU
+    # stretched to the monitor by the compositor (rootful -fullscreen scales through the
+    # viewporter): software GL is fill-bound, so half size is 2–3× the frames for no more CPU
     ${pkgs.windowtolayer}/bin/windowtolayer -l background --output-name "$out" -m -- \
-      ${pkgs.xwayland}/bin/Xwayland ":$d" -fullscreen -geometry "$((w / 2))x$((h / 2))" -nolisten tcp &
+      ${pkgs.xwayland}/bin/Xwayland ":$d" -fullscreen -geometry "''${w}x''${h}" -nolisten tcp &
     host=$!
     # the X server by its display too: windowtolayer can go first, orphaning it, and an orphan comes
     # back as a plain window

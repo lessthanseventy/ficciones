@@ -130,6 +130,9 @@ function Backdrop() {
       <Row label="hack turns" hint="every other turn, an xscreensaver hack">
         <OnOff k="backdrop.hacks" />
       </Row>
+      <Row label="hack sharpness" hint="drawn at this size, stretched; smaller is smoother, softer">
+        <Stepper k="backdrop.hackScale" stops={[0.25, 0.33, 0.5, 0.67, 0.75, 1]} fmt={(n) => `${Math.round(n * 100)} %`} />
+      </Row>
       <Row label="hacks" hint="which ones the hack turns draw from">
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
           <box spacing={8} cssClasses={["prompt", "set-search"]}>
