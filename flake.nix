@@ -34,11 +34,11 @@
     # which Claude Code does (expert #904, fixed by #907). Back to a release once one has #907.
     # Its nixpkgs is left its own: that is the pin it builds and is tested against.
     expert.url = "github:expert-lsp/expert";
-    # tlon's office kit and rooms (office/{kit,rooms}), baked into the desktop shell's bundle —
+    # tlon's office kit and rooms (office/{kit,rooms}) at its release pointer (`live`), baked into the desktop shell's bundle —
     # the shell's office draws tlon's rail room. Pinned like any input: flake:bump moves it; the
     # dev loop (shell:dev) reads the live checkout through modules/desktop/shell/office's links.
     tlon = {
-      url = "git+file:///home/andrew/projects/tlon";
+      url = "git+file:///home/andrew/projects/tlon?ref=live";
       flake = false;
     };
   };
