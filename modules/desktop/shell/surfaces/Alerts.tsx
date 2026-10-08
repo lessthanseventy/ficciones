@@ -15,10 +15,41 @@ const until = (iso: string) => {
   return m > 0 ? `in ${m} min` : m === 0 ? "now" : `${-m} min ago`
 }
 
+// how many reply boxes are open: the toast column and the banner take keys only while one is — a
+// layer surface that takes keys on demand can be handed the keyboard just by appearing, and then
+// every toast steals the operator's typing until they switch away and back
+const [replies, setReplies] = createState(0)
+/** the keymode for a window holding alert cards: keys only while a reply is being written */
+export const replyKeymode = replies((n) => (n > 0 ? Astal.Keymode.ON_DEMAND : Astal.Keymode.NONE))
+
+/** the shell's line keys in a text box: Ctrl+A/E start and end of line, Ctrl+U/K delete to them,
+ * Ctrl+W the word before the cursor. True when it took the key. */
+function readline(b: Gtk.TextBuffer, kv: number): boolean {
+  const at = b.get_iter_at_mark(b.get_insert())
+  const start = at.copy()
+  start.set_line_offset(0)
+  const end = at.copy()
+  if (!end.ends_line()) end.forward_to_line_end()
+  switch (kv) {
+    case Gdk.KEY_a: b.place_cursor(start); return true
+    case Gdk.KEY_e: b.place_cursor(end); return true
+    case Gdk.KEY_u: b.delete(start, at); return true
+    case Gdk.KEY_k: b.delete(at, end); return true
+    case Gdk.KEY_w: { const word = at.copy(); word.backward_word_start(); b.delete(word, at); return true }
+    default: return false
+  }
+}
+
 /** an alert's actions as buttons; one taking text opens a box that grows as you write — Enter
- * sends, Shift+Enter a new line, Esc cancels */
+ * sends, Shift+Enter a new line, Esc cancels, and the line keys (`readline`) edit */
 function Actions({ a, extra = [] }: { a: Alert; extra?: { label: string; run: () => void }[] }) {
   const [asking, setAsking] = createState<Action | null>(null)
+  let open = false
+  const unsub = asking.subscribe(() => {
+    const now = asking.peek() !== null
+    if (now !== open) { open = now; setReplies((n) => n + (now ? 1 : -1)) }
+  })
+  onCleanup(() => { unsub(); if (open) setReplies((n) => n - 1) })
   let input: Gtk.TextView | null = null
   const typed = () => { const b = input?.buffer; return b ? b.get_text(b.get_start_iter(), b.get_end_iter(), false) : "" }
   const send = () => { const x = asking.peek(); if (x) void act(a, x, typed()); setAsking(null) }
@@ -31,7 +62,7 @@ function Actions({ a, extra = [] }: { a: Alert; extra?: { label: string; run: ()
         {extra.map((e) => <button cssClasses={["act", "dim"]} onClicked={e.run}><label label={e.label} /></button>)}
       </box>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={asking((x) => x !== null)}>
-        <label cssClasses={["dim", "sm"]} xalign={0} label={asking((x) => (x ? `${x.label.replace("…", "")} — Enter sends · Shift+Enter new line · Esc cancels` : ""))} />
+        <label cssClasses={["dim", "sm"]} xalign={0} label={asking((x) => (x ? `${x.label.replace("…", "")} — Enter sends · Shift+Enter new line · Esc cancels · Ctrl+A/E/U/K/W` : ""))} />
         <scrolledwindow cssClasses={["alert-input"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} propagateNaturalHeight maxContentHeight={240}>
           <Gtk.TextView
             wrapMode={Gtk.WrapMode.WORD_CHAR}
@@ -42,7 +73,7 @@ function Actions({ a, extra = [] }: { a: Alert; extra?: { label: string; run: ()
               keys.connect("key-pressed", (_, kv, _code, mods) => {
                 if (kv === Gdk.KEY_Escape) { setAsking(null); return true }
                 if ((kv === Gdk.KEY_Return || kv === Gdk.KEY_KP_Enter) && !(mods & Gdk.ModifierType.SHIFT_MASK)) { send(); return true }
-                return false
+                return (mods & Gdk.ModifierType.CONTROL_MASK) !== 0 && readline(self.buffer, kv)
               })
               self.add_controller(keys)
               asking.subscribe(() => { if (asking.peek()) { self.buffer.set_text("", 0); self.grab_focus() } })
@@ -84,7 +115,7 @@ export function DecisionBanner() {
       name="decision"
       layer={Astal.Layer.OVERLAY}
       exclusivity={Astal.Exclusivity.IGNORE}
-      keymode={Astal.Keymode.ON_DEMAND}
+      keymode={replyKeymode}
       anchor={Astal.WindowAnchor.TOP}
       marginTop={44}
       application={app}

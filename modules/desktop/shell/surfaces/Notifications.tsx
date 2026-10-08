@@ -17,7 +17,7 @@ import { timeout, type Timer } from "ags/time"
 import { Panel } from "../lib/tui"
 import { isFullscreen, fullscreenMonitors } from "../lib/hypr"
 import { logEvent } from "../lib/log"
-import { Stickies } from "./Alerts"
+import { Stickies, replyKeymode } from "./Alerts"
 import { stickies } from "../lib/alerts"
 
 const DEFAULT_MS = 6000
@@ -152,8 +152,7 @@ export default function Notifications() {
       name="notifications"
       layer={Astal.Layer.OVERLAY}
       exclusivity={Astal.Exclusivity.IGNORE}
-      // a sticky's Reply box types here; a layer surface takes no keys under the default NONE
-      keymode={Astal.Keymode.ON_DEMAND}
+      keymode={replyKeymode}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
       marginTop={44}
       marginRight={8}
