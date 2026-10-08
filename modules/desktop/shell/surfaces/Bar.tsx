@@ -1,7 +1,7 @@
 import { L, dispatch } from "../lib/hyprlua"
 import { capture } from "../lib/hypr"
 import { nextUp, untilText } from "../lib/nextup"
-import { kbd, layoutShort } from "../lib/state"
+import { kbd, layoutShort } from "../lib/kbd"
 import { awake } from "../lib/awake"
 import Notifd from "gi://AstalNotifd"
 import app from "ags/gtk4/app"
