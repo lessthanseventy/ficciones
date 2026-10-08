@@ -96,7 +96,7 @@ app.start({
       return res("ok")
     }
     if (verb === "toggle" && what === "settings") {
-      toggleSettings()
+      toggleSettings(tab)
       return res("ok")
     }
     if (verb === "toggle" && what === "cheatsheet") {
@@ -168,7 +168,7 @@ app.start({
     }
     if (verb === "get") return res(getCli(what))
     if (verb === "set") return res(setCli(what, argv.slice(2).join(" ")))
-    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | toggle drawer|hub|deck|office|dashboard|settings|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
+    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | toggle drawer|hub|deck|office|dashboard|settings [backdrop|look]|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents]")
   },
   main() {
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;
