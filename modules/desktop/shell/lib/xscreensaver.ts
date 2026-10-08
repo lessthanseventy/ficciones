@@ -3,6 +3,7 @@
 // starts, stops and freezes it per monitor. The backdrop (surfaces/Backdrop.tsx) hides its own
 // window while a hack has the monitor, and asks for a pause while a film covers it.
 import { execAsync, subprocess, type Process } from "ags/process"
+import { setting } from "./settings"
 
 let hacks: string[] = []
 const running = new Map<string, { p: Process; display: number }>() // monitor connector → its xss-host
@@ -15,11 +16,14 @@ export async function loadHacks() {
 }
 export const haveHacks = () => hacks.length > 0
 
-/** Start a random hack as `connector`'s background; the one already there stops first. Its name. */
+/** Start a random hack (one not switched off) as `connector`'s background; the one already there
+ * stops first. Its name, or null when there is none to start. */
 export function startHack(connector: string, w: number, h: number): string | null {
   stopHack(connector)
-  if (!hacks.length) return null
-  const hack = hacks[Math.floor(Math.random() * hacks.length)]
+  const off = setting("backdrop.hacksOff").peek()
+  const pool = hacks.filter((x) => !off.includes(x))
+  if (!pool.length) return null
+  const hack = pool[Math.floor(Math.random() * pool.length)]
   display = display >= 99 ? 40 : display + 1
   try {
     running.set(connector, { p: subprocess(["xss-host", connector, String(display), String(w), String(h), hack], () => {}, () => {}), display })

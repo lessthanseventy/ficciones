@@ -22,7 +22,7 @@ import { screenshot, startRecording, stopRecording } from "./lib/capture"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
-import Backdrop, { setBackdrop, MODE_NAMES } from "./surfaces/Backdrop"
+import Backdrop, { setBackdrop, MODE_NAMES, type BackdropMode } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Deck"
 import Office, { toggleOffice } from "./surfaces/Office"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
@@ -32,7 +32,7 @@ import { sidecarVerb, colresize, focusDir, adoptSidecars } from "./lib/sidecar"
 import { toggleQuake } from "./lib/quake"
 import { setGlass, toggleGlass } from "./lib/glass"
 import { cards } from "./lib/hover"
-import { getCli, setCli } from "./lib/settings"
+import { getCli, setCli, setting } from "./lib/settings"
 import "./lib/night"
 import "./lib/opaque"
 
@@ -182,8 +182,8 @@ app.start({
     startHotEdge()
     // the live theme's stylesheet over the bundled default (the same css when they agree)
     applyShellTheme()
-    // Andrew's default: the zen backdrop on from login (glass's lives in hyprland.lua)
-    setBackdrop("zen")
+    const start = setting("backdrop.startup").peek()
+    setBackdrop(start === "photo" || (MODE_NAMES as readonly string[]).includes(start) ? (start as BackdropMode) : "random")
     initAwake()
     adoptSidecars()
     Launcher()
