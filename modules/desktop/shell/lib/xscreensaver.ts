@@ -15,6 +15,8 @@ export async function loadHacks() {
   return hacks
 }
 export const haveHacks = () => hacks.length > 0
+/** Every hack there is (after loadHacks), switched off or not. */
+export const hackNames = () => hacks
 
 /** Start a random hack (one not switched off) as `connector`'s background; the one already there
  * stops first. Its name, or null when there is none to start. */

@@ -20,7 +20,7 @@ const keyName = (k: string) => k.replace(/^mouse:272$/, "LMB").replace(/^mouse:2
 /** The shell's own verbs, in words. */
 const SHELL_WORDS: Record<string, string> = {
   "toggle launcher": "launcher", "toggle clipboard": "clipboard", "toggle cheatsheet": "this sheet",
-  "toggle drawer": "calendar", "toggle hub": "notifications", "toggle deck": "deck: log · media · agents · timer", "toggle dashboard": "dashboard",
+  "toggle drawer": "calendar", "toggle hub": "notifications", "toggle deck": "deck: log · media · agents · timer", "toggle dashboard": "dashboard", "toggle settings": "settings",
   "toggle weather": "weather", "show drawer agents": "agents", "show drawer calendar": "calendar",
   "backdrop": "backdrop: next mode", "theme": "light / dark", "crt": "crt scanlines", "glass": "glass",
   "sidecar toggle": "pin as sidecar", "colresize narrower": "column narrower", "colresize wider": "column wider",

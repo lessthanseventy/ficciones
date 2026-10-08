@@ -28,6 +28,17 @@ window.launcher { background: transparent; }
   &:hover:not(.chip) { background: $hover; }
 }
 
+// settings: the cheatsheet's frame; chips are the dashboard's toggles, a word wide
+window.settings { background: transparent; }
+.settings-pane { background: $ground; min-width: 1120px; .panel-body { padding: $sp-3; } }
+.set-section > .panel-body { padding: $sp-3 $sp-2 $sp-2; }
+.set-label { min-width: 190px; }
+.toggle.set-chip { min-height: 30px; min-width: 0; padding: 0 $sp-2; }
+.toggle.set-step { min-height: 30px; min-width: 44px; padding: 0 $sp-2; }
+.set-value { color: $body; }
+.set-search entry { font-size: $size; }
+.set-hacks { border-top: $rule solid $structure; padding-top: $sp-1; }
+
 // cheatsheet
 window.cheatsheet { background: transparent; }
 .sheet-pane { background: $ground; .panel-body { padding: $sp-3; } }

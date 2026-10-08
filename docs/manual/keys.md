@@ -1,7 +1,7 @@
 # Keys
 
 Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — edit THAT, never this file.
-126 binds. `SUPER` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).
+127 binds. `SUPER` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).
 
 ## launch
 
@@ -32,6 +32,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `SUPER+SHIFT+T` | `astal-shell glass` |
 | `SUPER+SHIFT+W` | `astal-shell toggle weather` |
 | `SUPER+D` | `astal-shell toggle dashboard` |
+| `SUPER+comma` | `astal-shell toggle settings` |
 | `CTRL+SUPER+Slash` | `xdg-open " .. hyprdir .. "/hyprland.lua` |
 | `SUPER+H` | `shell/shell-req.sh focus l` |
 | `SUPER+L` | `shell/shell-req.sh focus r` |

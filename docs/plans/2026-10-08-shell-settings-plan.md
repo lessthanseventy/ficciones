@@ -79,6 +79,5 @@ menu's look.
 
 ## Open
 
-- The menu's keybind: Super+Comma is free in `hyprland.lua` today; confirm before slice 3.
 - Hack thumbnails (a still per hack in the list) would help pick taste, but cost a render of
   each; not in these slices.

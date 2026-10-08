@@ -15,6 +15,7 @@ import { CalendarCard } from "../panes/Calendar"
 import { hoverPopover } from "../lib/hover"
 import TrayPane from "./Tray"
 import { toggleDashboard } from "./Dashboard"
+import { toggleSettings } from "./Settings"
 import { type HoverPop } from "../lib/hover"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
@@ -96,7 +97,12 @@ function Corner() {
     // toggles on the PRESS, not GTK's clicked: once the dashboard is up and holds the keyboard
     // the rail loses its pointer crossing state, and a second click on the same spot without a
     // move never completes as a click (Andrew, 2026-09-07)
-    <button cssClasses={["corner"]} $={(self) => { const g = new Gtk.GestureClick({ button: 0, propagationPhase: Gtk.PropagationPhase.CAPTURE }); g.connect("pressed", () => { toggleDashboard(); g.set_state(Gtk.EventSequenceState.CLAIMED) }); self.add_controller(g) }}>
+    <button cssClasses={["corner"]} $={(self) => { const g = new Gtk.GestureClick({ button: 0, propagationPhase: Gtk.PropagationPhase.CAPTURE }); g.connect("pressed", () => {
+      // Super+Shift+click opens settings (plain Super+click is Hyprland's window drag)
+      const m = g.get_current_event_state(), want = Gdk.ModifierType.SUPER_MASK | Gdk.ModifierType.SHIFT_MASK
+      ;(m & want) === want ? toggleSettings() : toggleDashboard()
+      g.set_state(Gtk.EventSequenceState.CLAIMED)
+    }); self.add_controller(g) }}>
       <overlay>
         <label cssClasses={["aleph"]} label={"\u2135"} />
         <label $type="overlay" cssClasses={["hron"]} label={"\u2135"} canTarget={false} />
