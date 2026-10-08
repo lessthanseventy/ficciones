@@ -1,14 +1,14 @@
 // The photo under the zen grid: a random image per monitor from the wallpaper directory,
-// rotated every ROTATE_MS. Drawn by the shell's own background layer (Backdrop.tsx), so no
+// rotated every wallpaper.rotateMinutes (a setting). Drawn by the shell's own background layer (Backdrop.tsx), so no
 // hyprpaper — the one wallpaper path that works nix-built on Arch and on NixOS alike.
 // Directory: "wallpapers" in ~/.config/astal-shell/config.json (home-manager writes it),
 // default ~/Pictures/Wallpapers.
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
-import { interval } from "ags/time"
+import { timeout, type Timer } from "ags/time"
+import { setting } from "./settings"
 
-const ROTATE_MS = 5 * 60_000
 const EXT = /\.(jpe?g|png|webp|avif)$/i
 
 function dir(): string {
@@ -56,6 +56,10 @@ export function wallpaper() {
     setFile(n)
   }
   next()
-  interval(ROTATE_MS, next)
+  // re-armed from the setting each time, so a new interval applies from now
+  let t: Timer | null = null
+  const arm = () => { t?.cancel(); t = timeout(Math.max(1, setting("wallpaper.rotateMinutes").peek()) * 60_000, () => { next(); arm() }) }
+  arm()
+  setting("wallpaper.rotateMinutes").subscribe(arm)
   return { file, next }
 }
