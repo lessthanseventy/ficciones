@@ -14,7 +14,7 @@ import Vte from "gi://Vte?version=3.91"
 import { execAsync } from "ags/process"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
-import { agents, dossier, threadView, post, ticketRoute, closeThread, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
+import { agents, dossier, threadView, post, ticketRoute, closeThread, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, shiftSwitch, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
 import { OfficeSim, S, W, boardColumns, crewOf, type BoardItem, type Crew, type Hit } from "../lib/office"
 import { busiest, viewOf } from "../office/kit/crew"
 import { theme } from "../lib/theme"
@@ -46,6 +46,11 @@ const wsId = createComputed(() => {
 /** the snapshot narrowed to one workspace — what the office draws and acts on */
 const view = createComputed((): Agents => viewOf(agents(), wsId()))
 const wsName = createComputed(() => agents().workspaces.find((w) => w.id === wsId())?.name ?? "—")
+/** this workspace's shift, once its crews are split across shifts (Server.Shifts); else null */
+const shiftOn = createComputed(() => {
+  const a = agents(), ws = wsId()
+  return (a.shifts ?? []).some((x) => x.workspace_id === ws && x.crew !== "all") ? a.workspaces.find((w) => w.id === ws)?.shift ?? "day" : null
+})
 const elsewhere = createComputed(() => { const a = agents(), ws = wsId(); return a.threads.filter((t) => t.workspace_id !== ws && needsYou(t)).length })
 function stepWs(d: 1 | -1) {
   const list = agents.peek().workspaces
@@ -176,6 +181,10 @@ function Switcher() {
       </button>
       <label cssClasses={["pink", "sm"]} label={elsewhere((n) => `! ${n} elsewhere`)} visible={elsewhere((n) => n > 0)} />
       <button cssClasses={["act"]} onClicked={() => stepWs(1)} tooltipText="next workspace"><label label="›" /></button>
+      <button cssClasses={["act"]} visible={shiftOn((x) => x !== null)} tooltipText={shiftOn((x) => `the ${x} shift is on — click for the ${x === "night" ? "day" : "night"} shift`)}
+        onClicked={() => { const ws = wsId.peek(), on = shiftOn.peek(); if (ws !== null && on) void shiftSwitch(ws, on === "night" ? "day" : "night") }}>
+        <label label={shiftOn((x) => (x === "night" ? "☾ night" : "☼ day"))} />
+      </button>
       <button cssClasses={["act"]} onClicked={() => setMode({ kind: "new-workspace" })} tooltipText="new workspace"><label label="+" /></button>
       <button cssClasses={["act"]} onClicked={() => setWide(!wide.peek())} tooltipText={wide((w) => (w ? "back to the rail" : "wide: the thread beside the office"))}><label label={wide((w) => (w ? "⤡" : "⤢"))} /></button>
     </box>
