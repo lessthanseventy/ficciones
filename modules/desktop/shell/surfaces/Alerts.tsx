@@ -1,4 +1,5 @@
-// tlon's alerts, by level (lib/alerts.ts): sticky cards at the head of the toast column, a
+// tlon's alerts, by level (lib/alerts.ts): sticky cards at the head of the toast column, info
+// toasts under them that go by on their own, a
 // decision banner at the top centre — one at a time, "later" folds it into the bar's pill — and
 // an alarm over every monitor, a film included, for a meeting about to start.
 import app from "ags/gtk4/app"
@@ -6,8 +7,10 @@ import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import { For, With, createState, createComputed, onCleanup } from "ags"
+import { timeout } from "ags/time"
 import { Panel } from "../lib/tui"
-import { openThread, alarms, banner, stickies, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
+import { setting } from "../lib/settings"
+import { openThread, alarms, banner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 const until = (iso: string) => {
@@ -100,6 +103,30 @@ export function Stickies() {
           </Panel>
         )}
       </For>
+    </box>
+  )
+}
+
+/** an info toast: goes by after the toast time and is dismissed for good when it does, so a key
+ * shows once (the state file keeps it down across a restart while the server still lists it) */
+function Info({ a }: { a: Alert }) {
+  const t = timeout(Math.max(1, setting("notify.toastSeconds").peek()) * 1000, () => dismiss(a))
+  onCleanup(() => t.cancel())
+  return (
+    <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-info"]} spacing={4}>
+      <label cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={44} />
+      <box cssClasses={["actions"]} spacing={8} visible={!!a.thread_id}>
+        <button cssClasses={["act", "dim"]} onClicked={() => { dismiss(a); void openThread(a.thread_id!) }}><label label="Open" /></button>
+      </box>
+    </Panel>
+  )
+}
+
+/** the info toasts: under the sticky cards in the toast column */
+export function Infos() {
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} visible={infos((s) => s.length > 0)}>
+      <For each={infos} id={(a) => a.key}>{(a: Alert) => <Info a={a} />}</For>
     </box>
   )
 }

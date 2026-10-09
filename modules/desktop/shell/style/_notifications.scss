@@ -46,6 +46,7 @@ window.osd { background: transparent; }
 // sticky: a toast in tlon's colour that stays; the decision banner: top centre, the attention
 // hue; the alarm: the whole monitor dimmed, the meeting in big type
 .toast.alert-sticky { border-color: $key; .panel-title { color: $key; } }
+.toast.alert-info { border-color: $body; .panel-title { color: $body; } }
 window.decision, window.alert-banner-win { background: transparent; }
 .alert-banner {
   background: $ground;
