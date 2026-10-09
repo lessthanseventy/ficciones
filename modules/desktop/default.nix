@@ -29,11 +29,12 @@ let
   # draw in SOFTWARE (llvmpipe), niced: one GL hack on the GPU the desktop draws with hung it, and the
   # reset took Hyprland down with it.
   # `xss-host --list` names the hacks; the ones that distort a grab of the screen are left out —
-  # the X server they grab from is empty, so they show black.
+  # the X server they grab from is empty, so they show black. So are the ones that die on start:
+  # mapscroller (its .pl helper is not on PATH), xshadertoy (wants --program), xsublim (no -root).
   xssHost = pkgs.writeShellScriptBin "xss-host" ''
     hacks=${pkgs.xscreensaver}/libexec/xscreensaver
     if [ "''${1:-}" = --list ]; then
-      ls "$hacks" | grep -vxE 'xscreensaver-.*|webcollage.*|vidwhacker|blitspin|bumps|carousel|decayscreen|distort|flipscreen3d|gleidescope|glslideshow|jigsaw|mirrorblob|photopile|ripples|rotzoomer|slidescreen|spotlight|twang|zoom|xanalogtv|esper'
+      ls "$hacks" | grep -vxE 'xscreensaver-.*|webcollage.*|vidwhacker|blitspin|bumps|carousel|decayscreen|distort|flipscreen3d|gleidescope|glslideshow|jigsaw|mirrorblob|photopile|ripples|rotzoomer|slidescreen|spotlight|twang|zoom|xanalogtv|esper|glitchpeg|mapscroller.*|xshadertoy|xsublim'
       exit 0
     fi
     # W×H is the size the hack draws at, not the monitor's (the shell scales it: backdrop.hackScale)
