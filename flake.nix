@@ -396,7 +396,24 @@
               # "ollama" is a placeholder the daemon ignores) and ollama-cloud (apiKey
               # env-interpolated by pi as \${OLLAMA_API_KEY} so the secret never lands in
               # the nix store; cloud model ids are BARE — no ":cloud" suffix, that's only
-              # for the local-daemon signin path).
+              # for the local-daemon signin path). The ollama-cloud model list is the one part
+              # OWNED: piPluginSeeds rewrites it in the live file on every switch, so a model
+              # ollama.com stops serving leaves pi's picker with the next switch.
+              piCloudModels = [
+                { id = "deepseek-v4.1-flash"; }
+                { id = "glm-5.2"; }
+                { id = "glm-5.3"; }
+                { id = "glm-5.3-flash"; }
+                { id = "deepseek-v4-pro"; }
+                { id = "kimi-k2.6"; }
+                { id = "kimi-k2.7-code"; }
+                { id = "minimax-m2.7"; }
+                # kimi-k3 excluded: ollama.com bills it as EXTRA usage (HTTP 402), not
+                # covered by the plan — kept out so it can't be selected by accident.
+                # minimax-m3: the one cloud model taking images (`input` declared) — the
+                # vision target for /consult (text-only models delegate screenshots here).
+                { id = "minimax-m3"; input = [ "text" "image" ]; }
+              ];
               piModelsJson = builtins.toJSON {
                 providers = {
                   ollama = {
@@ -409,17 +426,7 @@
                     baseUrl = "https://ollama.com/v1";
                     api = "openai-completions";
                     apiKey = "\${OLLAMA_API_KEY}";
-                    models = [
-                      { id = "glm-5.2"; }
-                      { id = "deepseek-v4-pro"; }
-                      { id = "deepseek-v4.1-flash"; }
-                      { id = "kimi-k2.7-code"; }
-                      # kimi-k3 excluded: ollama.com bills it as EXTRA usage (HTTP 402), not
-                      # covered by the plan — kept out so it can't be selected by accident.
-                      # minimax-m3: the one cloud model taking images (`input` declared) — the
-                      # vision target for /consult (text-only models delegate screenshots here).
-                      { id = "minimax-m3"; input = [ "text" "image" ]; }
-                    ];
+                    models = piCloudModels;
                   };
                 };
               };
@@ -786,16 +793,15 @@
               # makes a renamed/removed extension self-heal — a plain `+ [...] | unique` union
               # would leave pi loading a dead path on every subsequent home:switch.
               #
-              # Defaults use `//=` (set-only-if-absent), NOT `=`: pi persists your runtime
-              # model switch (Ctrl+P) back into this file, so we must not stomp it on every
-              # home:switch — this only picks the default the FIRST time. defaultProvider is
-              # ollama-cloud/deepseek-v4.1-flash: the efficient MoE default drains the short
-              # rate-limit window slower than a reasoning model (glm-5.2's thinking tokens
-              # trip it mid-session; tlon's `ollama:usage` task watches this). enabledModels is
-              # the Ctrl+P cycle ring — every id from models.json. `$retired` maps a model
-              # ollama.com retired (HTTP 410) to its successor, or null to drop it: both the
-              # default and the ring are rewritten through it on every switch, the one exception
-              # to set-only-if-absent, since a retired id is dead wherever it sits.
+              # The other defaults use `//=` (set-only-if-absent). defaultModel and enabledModels
+              # are OWNED (`=`): bare `pi` starts on ollama-cloud/deepseek-v4.1-flash, the
+              # contract tlon's AGENTS.md states — the efficient MoE default drains the short
+              # rate-limit window slower than a reasoning model (glm-5.2's thinking tokens trip
+              # it mid-session; tlon's `ollama:usage` task watches this), and the pi:* launchers
+              # pin any other. pi persists a runtime model switch into this file; the next
+              # switch puts the default back. enabledModels is the Ctrl+P cycle ring: every
+              # piCloudModels id plus the local qwen3-coder, so a model ollama.com stops serving
+              # leaves the ring with the list.
               home.activation.manosWiring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 PI_DIR="$HOME/.pi/agent"
                 SETTINGS="$PI_DIR/settings.json"
@@ -814,7 +820,7 @@
                   --arg menardDir "${menardRepo}/pi/" \
                   --arg menardRepo "${menardRepo}" \
                   --arg menardSkill "${menardSkill}" \
-                  --argjson retired '${builtins.toJSON { "deepseek-v4-flash" = "deepseek-v4.1-flash"; "glm-5.1" = null; }}' \
+                  --argjson ring '${builtins.toJSON (map (m: m.id) piCloudModels ++ [ "qwen3-coder" ])}' \
                   '.extensions = (((.extensions // []) | map(select(startswith($adaptersDir) | not) | select(startswith($ficcionesModules) | not) | select(startswith($menardDir) | not)))
                        + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
                    | .skills = (((.skills // []) | map(select(startswith($menardRepo + "/skills/") | not) | select(startswith($adaptersDir) | not) | select(startswith($ficcionesModules) | not))) + [$skills, $menardSkill] | unique)
@@ -859,14 +865,14 @@
                        # (skipAnimation in pi-cc-header.ts) but not a plain fresh launch, and
                        # ships no setting to disable just the animation — bisected 2026-08-18.
                    | .defaultProvider //= "ollama-cloud"
-                   | .defaultModel = ((.defaultModel // "deepseek-v4.1-flash") as $m | if ($retired | has($m)) then ($retired[$m] // "deepseek-v4.1-flash") else $m end)
+                   | .defaultModel = "deepseek-v4.1-flash"
                    | .defaultThinkingLevel //= "medium"
                    | .retry.enabled //= true
                    # per-provider retries at the SDK default: nothing switches accounts, so a
                    # transient error retries in place. (No apostrophes in this comment: it rides
                    # inside a bash single-quoted jq string; one would close the quote.)
                    | del(.retry.provider.maxRetries)
-                   | .enabledModels = [(.enabledModels // ["deepseek-v4.1-flash","glm-5.2","deepseek-v4-pro","kimi-k2.7-code","minimax-m3","qwen3-coder"])[] | . as $m | if ($retired | has($m)) then $retired[$m] else $m end | select(. != null)]' \
+                   | .enabledModels = $ring' \
                   "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
               '';
 
@@ -903,6 +909,15 @@
                 }
                 force ${piSandboxSeed} "$HOME/.pi/agent/sandbox.json"
                 seed ${pkgs.writeText "pi-models-seed.json" piModelsJson} "$HOME/.pi/agent/models.json"
+                # the ollama-cloud model list is owned (piCloudModels); the rest of the file stays pi's,
+                # and stays 0600 (pi may have written an account key into it)
+                MODELS="$HOME/.pi/agent/models.json"
+                if [ -f "$MODELS" ]; then
+                  ${pkgs.jq}/bin/jq --argjson models '${builtins.toJSON piCloudModels}' \
+                    '.providers["ollama-cloud"].models = $models' "$MODELS" > "$MODELS.tmp" \
+                    && run install -m 0600 "$MODELS.tmp" "$MODELS"
+                  rm -f "$MODELS.tmp"
+                fi
                 seed ${piPermissionSeed} "$HOME/.pi/agent/extensions/pi-permission-system/config.json"
                 seed ${piInteractiveShellSeed} "$HOME/.pi/agent/interactive-shell.json"
                 seed ${unipiNotifySeed} "$HOME/.unipi/config/notify/config.json"
