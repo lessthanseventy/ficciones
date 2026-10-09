@@ -1,5 +1,6 @@
 // tlon's alerts (GET /api/alerts, Server.Alerts): what to raise and how loudly — an alarm for a
-// meeting about to start, a decision blocking work, a sticky note that stays until seen. Each
+// meeting about to start, a decision blocking work, a sticky note that stays until seen, an info
+// toast that goes by on its own (once per key: it dismisses itself when it goes). Each
 // carries its actions as operator-API calls (or a link to open), so every surface acts on any
 // alert the same way. Polled every 15 s; dismissing and snoozing are ours, kept in the state dir
 // so a restart does not fire them again. An alert whose cause resolves drops off on its own.
@@ -12,19 +13,14 @@ import { logEvent } from "./log"
 import { openInOffice } from "./agents"
 import { hypr } from "./hypr"
 import { dispatchNow } from "./hyprlua"
+import { showing as up, ofLevel, request, type Action, type Alert, type Kept } from "./alerts-core"
+
+export type { Action, Alert }
 
 const API = "http://127.0.0.1:4040"
 const STATE = `${GLib.get_user_state_dir()}/astal-shell/alerts.json`
 const SNOOZE_S = 5 * 60
 
-export type Action = { label: string; method?: string; path?: string; body?: Record<string, unknown> | null; input?: string; open?: string; read?: string }
-export type Alert = {
-  key: string; level: "alarm" | "decision" | "sticky"; kind: string; title: string; body: string | null
-  at: string; thread_id: number | null; link: string | null; actions: Action[]
-}
-
-/** keys dismissed for good, and keys snoozed until a unix time */
-type Kept = { dismissed: string[]; snoozed: Record<string, number> }
 function load(): Kept {
   try {
     const [ok, bytes] = GLib.file_get_contents(STATE)
@@ -46,13 +42,11 @@ const [now, setNow] = createState(Date.now() / 1000)
 /** decisions folded into the bar's pill ("later") — only for this session */
 const [later, setLater] = createState<string[]>([])
 
-const showing = createComputed(() => {
-  const k = kept(), t = now()
-  return all().filter((a) => !k.dismissed.includes(a.key) && !((k.snoozed[a.key] ?? 0) > t))
-})
-export const alarms = showing((as) => as.filter((a) => a.level === "alarm"))
-export const decisions = showing((as) => as.filter((a) => a.level === "decision"))
-export const stickies = showing((as) => as.filter((a) => a.level === "sticky"))
+const showing = createComputed(() => up(all(), kept(), now()))
+export const alarms = showing((as) => ofLevel(as, "alarm"))
+export const decisions = showing((as) => ofLevel(as, "decision"))
+export const stickies = showing((as) => ofLevel(as, "sticky"))
+export const infos = showing((as) => ofLevel(as, "info"))
 /** the decision on the banner: the first not folded away */
 export const banner = createComputed(() => decisions().find((a) => !later().includes(a.key)) ?? null)
 /** how many decisions are folded into the pill */
@@ -64,7 +58,7 @@ export async function refreshAlerts() {
     if (res.status !== 200) return
     const fresh = (await res.json()) as Alert[]
     const prev = all.peek(), was = new Map(prev.map((a) => [a.key, a]))
-    for (const a of fresh) if (!was.has(a.key)) logEvent("agent", `${a.level}: ${a.title}`, a.level === "sticky" ? "normal" : "warn")
+    for (const a of fresh) if (!was.has(a.key)) logEvent("agent", `${a.level}: ${a.title}`, a.level === "sticky" || a.level === "info" ? "normal" : "warn")
     // an unchanged alert keeps its object: the banner's <With> rebuilds on a new one, which every
     // poll would otherwise do under the pointer — eating a click, wiping a half-typed reply
     const next = fresh.map((a) => { const p = was.get(a.key); return p && JSON.stringify(p) === JSON.stringify(a) ? p : a })
@@ -108,9 +102,9 @@ export async function act(a: Alert, x: Action, text?: string) {
   try {
     if (x.open) { await execAsync(["xdg-open", x.open]); dismiss(a); return }
     if (x.read) { await readDoc(a, x.read); return }
-    if (!x.path) return
-    const body = x.input ? { ...(x.body ?? {}), [x.input]: text ?? "" } : x.body ?? {}
-    const res = await fetch(`${API}${x.path}`, { method: x.method ?? "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+    const call = request(x, text)
+    if (!call) return
+    const res = await fetch(`${API}${call.path}`, { method: call.method, headers: { "content-type": "application/json" }, body: JSON.stringify(call.body) })
     if (res.status >= 300) throw new Error(`HTTP ${res.status}`)
     logEvent("agent", `${x.label}: ${a.title}`)
     dismiss(a)

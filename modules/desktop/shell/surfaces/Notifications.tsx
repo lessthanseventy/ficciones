@@ -17,8 +17,8 @@ import { timeout, type Timer } from "ags/time"
 import { Panel } from "../lib/tui"
 import { isFullscreen, fullscreenMonitors } from "../lib/hypr"
 import { logEvent } from "../lib/log"
-import { Stickies, replyKeymode } from "./Alerts"
-import { stickies } from "../lib/alerts"
+import { Stickies, Infos, replyKeymode } from "./Alerts"
+import { stickies, infos } from "../lib/alerts"
 import { setting, setSetting } from "../lib/settings"
 
 export const urgencyOf = (n: Notifd.Notification) =>
@@ -149,7 +149,7 @@ export default function Notifications() {
     <window
       $={(self) => (win = self)}
       // a film starting under a toast hides it too
-      visible={createComputed(() => { const l = list(), s = stickies(), h = hubOpen(), fs = fullscreenMonitors(); return (l.length > 0 || s.length > 0) && !h && !fs.has(win?.gdkmonitor?.connector ?? "") })}
+      visible={createComputed(() => { const l = list(), s = stickies(), i = infos(), h = hubOpen(), fs = fullscreenMonitors(); return (l.length > 0 || s.length > 0 || i.length > 0) && !h && !fs.has(win?.gdkmonitor?.connector ?? "") })}
       cssClasses={["notifications"]}
       namespace="astal-shell-notifications"
       name="notifications"
@@ -163,6 +163,7 @@ export default function Notifications() {
     >
       <box orientation={Gtk.Orientation.VERTICAL} spacing={0} widthRequest={420}>
         <Stickies />
+        <Infos />
         <For each={toastGroups} id={(g) => g.key}>{(g) => <Toast g={g} />}</For>
       </box>
     </window>
