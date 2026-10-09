@@ -97,6 +97,9 @@ export const closeThread = (id: number) => write("POST", `/threads/${id}/close`,
 export const ticketDelete = (id: number) => write("DELETE", `/tickets/${id}`, {}, `deleting ticket #${id}`, () => `deleted ticket #${id}`)
 export const workspaceDelete = (id: number) => write("DELETE", `/workspaces/${id}`, {}, `deleting workspace #${id}`, () => `deleted workspace #${id}`)
 /** give a running thread to another coworker; staffed within seconds */
+/** start a workspace's other shift (Server.Shifts): the night crew on, or the day crew back */
+export const shiftSwitch = (ws: number, shift: "day" | "night") =>
+  write("POST", "/office/shift", { workspace_id: ws, shift }, `starting the ${shift} shift`, () => `the ${shift} shift is on`)
 export const handOff = (tid: number, agent: string) => write("POST", `/threads/${tid}/hand-off`, { agent }, `handing #${tid} to ${agent}`, () => `handed #${tid} to ${agent}`)
 
 // an alert's Open takes you to its thread in the office; the office registers how
@@ -134,7 +137,7 @@ export async function refreshAgents() {
     const j: any = await res.json()
     next = {
       ok: true, roster: j.roster ?? [], threads: j.threads ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0,
-      bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], archetypes: j.archetypes ?? [], models: j.models ?? [], notes: j.notes ?? [], visits: j.visits ?? [], triage: j.triage ?? {}, health: j.health ?? null, calendar: j.calendar ?? {},
+      bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], shifts: j.shifts ?? [], archetypes: j.archetypes ?? [], models: j.models ?? [], notes: j.notes ?? [], visits: j.visits ?? [], triage: j.triage ?? {}, health: j.health ?? null, calendar: j.calendar ?? {},
     }
   } catch {
     if (last?.ok) logEvent("agent", "channel down", "warn")
