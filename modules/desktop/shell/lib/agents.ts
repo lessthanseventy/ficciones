@@ -96,10 +96,10 @@ export const ticketRoute = (id: number) =>
 export const closeThread = (id: number) => write("POST", `/threads/${id}/close`, {}, `closing #${id}`, (t) => `closed #${id} — ${t.title}`)
 export const ticketDelete = (id: number) => write("DELETE", `/tickets/${id}`, {}, `deleting ticket #${id}`, () => `deleted ticket #${id}`)
 export const workspaceDelete = (id: number) => write("DELETE", `/workspaces/${id}`, {}, `deleting workspace #${id}`, () => `deleted workspace #${id}`)
-/** give a running thread to another coworker; staffed within seconds */
 /** start a workspace's other shift (Server.Shifts): the night crew on, or the day crew back */
 export const shiftSwitch = (ws: number, shift: "day" | "night") =>
   write("POST", "/office/shift", { workspace_id: ws, shift }, `starting the ${shift} shift`, () => `the ${shift} shift is on`)
+/** give a running thread to another coworker; staffed within seconds */
 export const handOff = (tid: number, agent: string) => write("POST", `/threads/${tid}/hand-off`, { agent }, `handing #${tid} to ${agent}`, () => `handed #${tid} to ${agent}`)
 
 // an alert's Open takes you to its thread in the office; the office registers how
