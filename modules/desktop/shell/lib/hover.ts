@@ -32,9 +32,10 @@ function watch(w: Gtk.Widget, onEnter: () => void, onLeave: () => void) {
 /**
  * A menubutton whose popover opens on click (or on hover, with `hover`). `onClick` runs on
  * the click as well — the window cells focus, the workspace numbers switch — and then the
- * popover opens too unless the cell is hover-driven (there a click means "do it and close").
+ * popover opens too unless the cell is hover-driven (there a click means "do it and close") or
+ * `onClick` returns false (the click did all it should).
  */
-export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => void, opts: { dwell?: number; hover?: boolean | (() => boolean); onShow?: () => void } = {}) {
+export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => unknown, opts: { dwell?: number; hover?: boolean | (() => boolean); onShow?: () => void } = {}) {
   // `hover` may be a predicate: the workspace strips open on hover only while Super is held
   const hoverOn = () => (typeof opts.hover === "function" ? opts.hover() : !!opts.hover)
   const pop = mb.popover as Gtk.Popover
@@ -77,9 +78,9 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   const click = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
   click.connect("pressed", () => {
     click.set_state(Gtk.EventSequenceState.CLAIMED)
-    onClick?.()
+    const more = onClick?.()
     if (opts.hover && onClick) me.close()
-    else if (mb.popover?.visible) me.close()
+    else if (mb.popover?.visible || more === false) me.close()
     else show()
   })
   mb.add_controller(click)
