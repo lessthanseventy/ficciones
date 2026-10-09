@@ -20,7 +20,6 @@ import { type HoverPop } from "../lib/hover"
 import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
 import { WorkspacePop } from "../panes/Workspaces"
-import { agents, shiftSwitch, type Agents } from "../lib/agents"
 import { captureShowing, watchThumbs } from "../lib/thumbs"
 
 /** Debug: `astal-shell pop ws <id>` opens that number's strip without a hover. */
@@ -160,31 +159,6 @@ function Weather({ connector }: { connector: string }) {
   )
 }
 
-/** the workspace whose crews are split across shifts (the office's day and night), or null */
-const shifted = (a: Agents) =>
-  a.workspaces.find((w) => w.shift && (a.shifts ?? []).some((x) => x.workspace_id === w.id && x.crew !== "all")) ?? null
-
-/** Under the weather: the office's shift, ☼ day or ☾ night, shown once it has crews; a click starts the other. */
-function Shift() {
-  const ws = agents(shifted)
-  return (
-    <button
-      cssClasses={["item", "wx"]}
-      visible={ws((w) => w !== null)}
-      tooltipText={ws((w) => (w ? `the ${w.shift} shift is on — click for the ${w.shift === "night" ? "day" : "night"} shift` : ""))}
-      onClicked={() => {
-        const w = shifted(agents.peek())
-        if (w) void shiftSwitch(w.id, w.shift === "night" ? "day" : "night")
-      }}
-    >
-      <box orientation={Gtk.Orientation.VERTICAL}>
-        <label cssClasses={["g"]} label={ws((w) => (w?.shift === "night" ? "☾" : "☼"))} />
-        <label cssClasses={["t"]} label={ws((w) => w?.shift ?? "")} />
-      </box>
-    </button>
-  )
-}
-
 export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   const connector = gdkmonitor.connector ?? ""
   let win: Astal.Window
@@ -215,7 +189,6 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           <Channel side="left" />
           <Clock connector={connector} />
           <Weather connector={connector} />
-          <Shift />
           <Channel side="right" />
         </box>
         <box $type="end" orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.END}>
