@@ -264,7 +264,8 @@ alias ua-update-all='export TMPFILE="$(mktemp)"; \
       && ua-drop-caches \
       && paru -Syyu --noconfirm'
 # everything: Arch (paru), then the flake's pins (committed, flake.lock alone, when they moved) and
-# the home-manager profile; the tlon server is left as it was (machine:update would restart it)
+# the home-manager profile. home:switch starts the tlon service if it was stopped (home-manager starts
+# the units it manages); machine:update would also restart a running one.
 alias upall='ua-update-all \
   && mise --cd ~/projects/ficciones run flake:bump \
   && { git -C ~/projects/ficciones diff --quiet -- flake.lock \
