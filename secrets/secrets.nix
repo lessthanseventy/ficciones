@@ -9,7 +9,7 @@ let
   all = [ andrew ];
 in
 {
-  # ollama.com API key — consumed non-interactively by the Tlön pi spawn, so it lives here rather
+  # ollama.com API key — read non-interactively by tlon and dbx, so it lives here rather
   # than rbw (needs interactive unlock). Rotate with `agenix -e secrets/ollama-api-key.age`.
   "ollama-api-key.age".publicKeys = all;
   # dbx connections that must not sit in this public repo (prod hosts, users, passwords): a JSON

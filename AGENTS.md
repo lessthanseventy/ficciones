@@ -3,7 +3,7 @@
 This repository is one person's whole machine: an installer, dotfiles, a desktop, and the agent wiring,
 as Nix-shaped modules under `modules/`. It is named *ficciones* after the Borges collection: the machine
 holds the stories. The apps it runs are their own repos, pinned here by path — **tlon**
-(`~/projects/tlon`: the server, the office, the pi/Claude Code adapters, with its own `AGENTS.md` and
+(`~/projects/tlon`: the server, the office, the Claude Code adapters, with its own `AGENTS.md` and
 loop) and **menard** (`~/projects/menard`). Read
 `docs/plans/2026-08-14-machine-v2-and-funes-design.md` before reshaping anything here — it is the
 design and every decision behind it.
@@ -18,7 +18,7 @@ control loop, not two, and no second way to run anything:
 - `mise run home:switch` — install/update this machine into the user profile via home-manager.
 - `mise run machine:update` — apply the checkout to the live machine: home:switch, then restart the shell and tlon's server (the one update verb).
 
-Elixir, the server loop, the pi model launchers and menard's verbs live in tlon (`cd ~/projects/tlon &&
+Elixir, the server loop and menard's verbs live in tlon (`cd ~/projects/tlon &&
 mise tasks`).
 
 mise owns dev runtimes; Nix owns packaging and the system. **If a command belongs in the loop, it becomes
@@ -52,7 +52,7 @@ When you're iterating on a change, **register a watcher instead of re-running te
   (one test file, a folder, the whole suite). New test files under a watched dir are picked up.
 
 Run it **in the background** (this harness: `Bash` with `run_in_background` — you're re-invoked
-with the result when the suite settles; pi: a pane). Then just edit: you're pinged **red/green
+with the result when the suite settles). Then just edit: you're pinged **red/green
 automatically**, and you only spend a turn when something actually breaks. Kill the watcher when
 the change is done. This is the intended inner loop here — not "edit, then manually run tests,
 then read 1800 lines," every time.
@@ -62,7 +62,7 @@ then read 1800 lines," every time.
 Every agent on this machine, in any repo, works by the four rules in `modules/agents/how-to-work.md`:
 think before coding (state assumptions, ask when readings diverge), the simplest thing that works,
 surgical changes, and goal-driven execution against a check you can run. The flake installs that file
-as `~/.claude/CLAUDE.md` and `~/.pi/agent/AGENTS.md`, so it is already in your context; this section
+as `~/.claude/CLAUDE.md`, so it is already in your context; this section
 exists so a reader of the repo knows where the law comes from and edits the one source.
 
 ## The rules most likely to be broken by accident
@@ -90,18 +90,13 @@ exists so a reader of the repo knows where the law comes from and edits the one 
 - **Adopt Nix gradually.** home-manager on Arch first, a disposable NixOS VM (`nixos-rebuild build-vm`)
   as the testbed, metal last. Do not propose replacing the OS as a first step.
 - **Commit as who you are.** An agent's commit ends with a `Co-Authored-By:` trailer naming the model
-  that wrote it — YOUR model, read from the brief's `You are … (pi)` line (or `$PI_MODEL`), never a
-  name copied from an example or another model's commit. Format: `Co-Authored-By: <your model> (pi)
-  <noreply@ollama.com>` (pi) or `Co-Authored-By: <your model> <noreply@anthropic.com>` (Claude Code).
+  that wrote it — YOUR model, never a name copied from an example or another model's commit.
+  Format: `Co-Authored-By: <your model> <noreply@anthropic.com>`.
   `git log` is part of the machine's memory; a commit that hides its author — or names the wrong one —
   lies to it. (The first dogfood branch shipped 7 unattributed machine commits — that's the incident
   this rule comes from.)
-- **Sandboxed Bash — phantom dotfiles and unreachable localhost are the sandbox, not the repo.** Both
-  harnesses are affected: pi via the `pi-sandbox` extension (`~/.pi/agent/sandbox.json`, seeded at
-  `flake.nix`'s `piSandboxSeed`) and Claude Code via its own. pi-sandbox delegates to
-  `@carderne/sandbox-runtime`, a fork of Anthropic's, so **the `CLAUDE_CODE_*` and proxy env vars
-  inside a pi bash call come from the fork — they are not evidence you're in Claude Code.** Two
-  symptoms follow, and neither is a bug to chase:
+- **Sandboxed Bash — phantom dotfiles and unreachable localhost are the sandbox, not the repo.**
+  Claude Code's sandbox wraps each Bash call. Two symptoms follow, and neither is a bug to chase:
   - *Phantom untracked dotfiles.* The wrapper bind-mounts over shell-rc / `.gitconfig` / editor paths,
     so `git status` **run inside a bash call** reports `.bashrc`, `.zshrc`, `.gitconfig`, `.env`,
     `.mcp.json`, `.idea`, `.vscode`, … as untracked at the repo root. The tell: `ls -la` shows them
@@ -112,11 +107,10 @@ exists so a reader of the repo knows where the law comes from and edits the one 
     **regardless of whether it is up.** `allowLocalBinding` only permits binding *within* that netns.
     External traffic escapes via a socat→unix-socket proxy, but that proxy refuses loopback targets
     with a `403`, so there is no route. Do not conclude "server is down" from a bash probe; a bash
-    probe cannot answer the question. **server MCP tools still work** — pi makes those calls from its
-    own process, outside bubblewrap — so use them, or ask the human to check from the host.
+    probe cannot answer the question. **server MCP tools still work** — the harness makes those calls
+    from its own process, outside bubblewrap — so use them, or ask the human to check from the host.
 
-  To get true git state or real host network, disable the sandbox: `Alt+S`, `/sandbox-disable`, or
-  relaunch `pi --no-sandbox`.
+  To get true git state or real host network, run the command outside the sandbox.
 - **Comments earn their place — load-bearing only.** A comment survives only if it states a non-obvious
   *why* or a real gotcha the code can't. Narrative, lore, dated incident references, decorative
   `# --- section ---` dividers, and restatements of what the next line plainly does are noise — don't
@@ -129,7 +123,7 @@ exists so a reader of the repo knows where the law comes from and edits the one 
     Keep the current-state constraint even when it grew out of a past bug — just state the constraint,
     drop the incident. The git history holds the story; the code holds the present.
 - **Secrets: agenix for the machine, rbw for you.** A secret a non-interactive process needs — a
-  service, a spawned pane (e.g. `OLLAMA_API_KEY` for the Tlön pi) — lives age-encrypted in
+  service, a spawned pane (e.g. `OLLAMA_API_KEY`) — lives age-encrypted in
   `secrets/*.age` (agenix), decrypted at `home:switch` to `$XDG_RUNTIME_DIR/agenix/<name>` with *no*
   runtime unlock. Human/interactive passwords live in Bitwarden via `rbw`. Never a plaintext key in the
   repo, a dotfile, or the nix store. To add a machine secret: recipient pubkey → `secrets/secrets.nix`,
@@ -140,7 +134,7 @@ exists so a reader of the repo knows where the law comes from and edits the one 
 
 `mise run check` is the gate: the names gate, the manual's drift check and `flake:check` (Nix).
 `mise run check:names` (first in it) checks that every mise task a guide, script or `flake.nix` names
-exists, and that every `~/.pi/agent` file tlon's adapters read is one the flake writes — a rename that
+exists — a rename that
 strands a reference fails here instead of at 2am. A claim that something works is backed by the
 command that proved it — and the agent and human run the *same* `mise` tasks, so "it works" means the
 shared task passed, not two private ones.

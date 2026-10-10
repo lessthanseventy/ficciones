@@ -7,7 +7,7 @@ TODOS, QUESTIONS, and — since 2026-09-17 — its COMMITS (every commit a cowor
 that record, never a resumed transcript. The brief says so and names the tools that read past
 its caps (`get_facts`, `get_messages`, `search_history`).
 
-**Coworkers** are pi or Claude Code sessions the server spawned as citizens of a thread
+**Coworkers** are Claude Code sessions the server spawned as citizens of a thread
 (`TLON_THREAD`, `TLON_AUTHOR` in their env). They commit only on their thread's `work/<slug>`
 branch, in its own worktree (`.worktrees/<slug>`) — the git hooks refuse anything else. A
 coworker that goes cold is not resumed; a fresh one is briefed.

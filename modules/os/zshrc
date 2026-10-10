@@ -226,7 +226,7 @@ alias lg="lazygit"
 
 # Replace some more things with better alternatives
 # cat and ls: bat and eza at a terminal, the plain tools when the output is piped or captured, which
-# is how agents (Claude Code, pi) run them and what their parsing expects (`cat -v` is no bat flag)
+# is how agents (Claude Code) run them and what their parsing expects (`cat -v` is no bat flag)
 unalias cat 2>/dev/null
 function cat {
   if [[ -t 1 ]]; then
@@ -328,7 +328,7 @@ esac
 
 # mise — full activation for interactive shells. Shims (in .zshenv) cover non-interactive
 # contexts with tool versions; activate additionally exports [env] vars (e.g. OLLAMA_API_KEY
-# from ~/.config/mise/config.toml) so tools launched here — like pi — inherit them.
+# from ~/.config/mise/config.toml) so tools launched here inherit them.
 eval "$(mise activate zsh)"
 
 

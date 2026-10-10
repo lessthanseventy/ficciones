@@ -5,7 +5,7 @@
 # packaging and the system.
 
 # Secrets from the agenix-decrypted file (flake.nix age.secrets), no runtime unlock needed.
-# File-level, not per-task: pi launches many ways and all need the key. Falls back to
+# File-level, not per-task: every task that reaches ollama.com needs the key. Falls back to
 # $OLLAMA_API_KEY from the env if the secret file isn't there yet.
 [env]
 # `$(cat …)` strips a trailing newline that would otherwise break the Authorization header.

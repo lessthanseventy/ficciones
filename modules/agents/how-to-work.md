@@ -1,6 +1,6 @@
 # How to work — four rules for any agent on this machine
 
-Installed by the flake as `~/.claude/CLAUDE.md` and `~/.pi/agent/AGENTS.md`; the source is
+Installed by the flake as `~/.claude/CLAUDE.md`; the source is
 `modules/agents/how-to-work.md` in ficciones. Repo law lives in each repo's `AGENTS.md`.
 
 1. **Think before coding.** Say the assumptions you are making and the tradeoff you picked; when

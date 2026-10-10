@@ -74,8 +74,8 @@
       provenance: "stated",
       text:
         "This box is configured by ficciones (~/projects/ficciones): a Nix flake with home-manager on Garuda " <>
-          "Arch, using pacman's nix (Determinate segfaults here). It wires tlon in by path — the service unit, " <>
-          "pi's models and this seed. `mise run check` is its gate; `mise run home:switch` applies it and is " <>
+          "Arch, using pacman's nix (Determinate segfaults here). It wires tlon in by path — the service unit " <>
+          "and this seed. `mise run check` is its gate; `mise run home:switch` applies it and is " <>
           "the operator's to run, never an agent's."
     },
     %{
