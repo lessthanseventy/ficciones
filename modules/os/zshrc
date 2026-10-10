@@ -263,6 +263,14 @@ alias ua-update-all='export TMPFILE="$(mktemp)"; \
       && sudo mv $TMPFILE /etc/pacman.d/mirrorlist \
       && ua-drop-caches \
       && paru -Syyu --noconfirm'
+# everything: Arch (paru), then the flake's pins (committed, flake.lock alone, when they moved) and
+# the home-manager profile; the tlon server is left as it was (machine:update would restart it)
+alias upall='ua-update-all \
+  && mise --cd ~/projects/ficciones run flake:bump \
+  && { git -C ~/projects/ficciones diff --quiet -- flake.lock \
+       || git -C ~/projects/ficciones commit -q -m "flake: bump inputs (upall)" -- flake.lock; } \
+  && mise --cd ~/projects/ficciones run home:switch \
+  && mise --cd ~/projects/ficciones run shell:restart'
 
 # HSTR configuration - add this to ~/.zshrc
 alias hh=hstr                    # hh to be alias for hstr
