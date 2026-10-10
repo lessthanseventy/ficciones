@@ -9,7 +9,6 @@
   tlonRepo,
   astalShell,
   hyprexpo,
-  pi,
   ...
 }:
 
@@ -94,7 +93,6 @@ in
   # by the shell (design §7), ghostty is $TERMINAL there. No hyprpaper: the shell's backdrop
   # is the wallpaper.
   environment.systemPackages = with pkgs; [
-    pi # the agent harness — the bun binary nix-ld loads (below)
     ghostty
     hypridle
     hyprlock
@@ -132,10 +130,9 @@ in
     };
   };
 
-  # ---- the pi bun binary + mise-installed toolchains -----------------------------------------
-  # A `bun build --compile` ELF must not be patchelf'd (flake.nix); nix-ld gives it a loader
-  # without touching its bytes. The same loader serves mise's erlang/elixir/node downloads,
-  # which are plain dynamic binaries. pi is on the system path above so the VM proves the loader.
+  # ---- unpatched prebuilt binaries + mise-installed toolchains -------------------------------
+  # nix-ld gives a loader to the binaries the flake keeps byte-for-byte (dbx's CLI) and to mise's
+  # erlang/elixir/node downloads, which are plain dynamic binaries.
   programs.nix-ld.enable = true;
   programs.nix-ld.libraries = with pkgs; [ stdenv.cc.cc zlib openssl ncurses libxcrypt-legacy ];
 

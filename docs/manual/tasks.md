@@ -14,13 +14,13 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 
 | verb | does |
 |---|---|
-| `check:names` | names-exist gate: every mise task a guide names, and every ~/.pi/agent file tlon's adapters read, must exist (grep, offline, fast) |
+| `check:names` | names-exist gate: every mise task a guide names must exist (grep, offline, fast) |
 
 ## flake
 
 | verb | does |
 |---|---|
-| `flake:bump` | machine: nix flake update (inputs) + nix-update over the hand-pinned packages (pi, expert: version + hash from upstream releases) |
+| `flake:bump` | machine: nix flake update (inputs) + nix-update over the hand-pinned packages (expert: version + hash from upstream releases) |
 | `flake:check` | machine: nix flake check + build both closures — the machine-level gate |
 
 ## home

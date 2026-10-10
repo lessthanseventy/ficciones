@@ -22,10 +22,9 @@ pids="$(pgrep -f "[w]atchexec.*--project-origin $root" || true)"
 if [ -n "$pids" ]; then echo "stopping watchexec: $pids"; kill $pids; else echo "no ficciones watchers running"; fi
 '''
 
-# The seams no compiler covers: a mise task a guide names but no toml defines, a pi config file
-# tlon's adapters read but the flake stopped writing.
+# The seam no compiler covers: a mise task a guide names but no toml defines.
 ["check:names"]
-description = "names-exist gate: every mise task a guide names, and every ~/.pi/agent file tlon's adapters read, must exist (grep, offline, fast)"
+description = "names-exist gate: every mise task a guide names must exist (grep, offline, fast)"
 run = "scripts/check-names.sh"
 
 ["check"]

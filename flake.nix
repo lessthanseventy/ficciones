@@ -54,12 +54,8 @@
       # Hardcoded, not `self`: consumers load the REAL files so a dev edit is picked up,
       # not a stale store snapshot. Single-user machine, fixed home dir.
       repo = "/home/andrew/projects/ficciones";
-      # menard — standalone repo (github.com/lessthanseventy/menard). Its pi adapter
-      # (pi/extension.ts) ships from there, not here; ficciones only points at it. On a
-      # box without ficciones, menard's own `install:pi` task does the same wiring.
-      menardRepo = "/home/andrew/projects/menard";
-      # tlon — its own repo: the server, the office and the pi/Claude Code adapters. The flake
-      # runs the service from its release and points pi at its adapters, as it does for menard.
+      # tlon — its own repo: the server, the office and the Claude Code adapters. The flake
+      # runs the service from its release.
       tlonRepo = "/home/andrew/projects/tlon";
 
       # The desktop shell (modules/desktop/shell). Built here once and handed to home-manager
@@ -69,58 +65,13 @@
         tlon = inputs.tlon;
       };
 
-      # pi (github.com/earendil-works/pi) — the agent harness adapters plugs into; a program
-      # the human runs (not a build toolchain), so Nix owns it in the home profile. No
-      # nixpkgs package/flake, so we wrap the prebuilt bun-compiled linux-x64 tarball whole
-      # (ELF + sibling node_modules native addons + theme + wasm) and symlink bin/pi.
-      #
-      # CRITICAL: a `bun build --compile` binary appends its app bundle as a trailer AFTER
-      # the ELF, found by byte offset. patchelf/strip rewrite the ELF and displace that
-      # trailer, so bun stops detecting the embedded app and degrades to the bare bun CLI
-      # (observed: `pi` printed bun's help) — never patch or strip it. Arch's system glibc
-      # loader runs it as-is; a NixOS box has no such loader and would need a wrapper that
-      # invokes the store ld-linux without touching the bytes: modules/os/default.nix enables
-      # programs.nix-ld, which does exactly that (verified in the VM, 2026-09-06).
-      pi = pkgs.stdenv.mkDerivation rec {
-        pname = "pi-coding-agent";
-        version = "0.87.1";
-
-        src = pkgs.fetchurl {
-          url = "https://github.com/earendil-works/pi/releases/download/v${version}/pi-linux-x64.tar.gz";
-          hash = "sha256-gNeN1i1QBJoAa5gdmUxhJVvMEOcwsMJ41OoKdVkJdkw=";
-        };
-
-        sourceRoot = "pi";
-
-        # Keep the bun binary byte-for-byte: no strip, no ELF rewrite, no shebang munging.
-        dontStrip = true;
-        dontPatchELF = true;
-        dontPatchShebangs = true;
-
-        installPhase = ''
-          runHook preInstall
-          mkdir -p $out/libexec/pi $out/bin
-          cp -r . $out/libexec/pi
-          ln -s $out/libexec/pi/pi $out/bin/pi
-          runHook postInstall
-        '';
-
-        meta = {
-          description = "pi — the AI coding-agent harness (prebuilt bun-compiled release binary, unpatched)";
-          homepage = "https://github.com/earendil-works/pi";
-          platforms = [ "x86_64-linux" ];
-          sourceProvenance = [ pkgs.lib.sourceTypes.binaryNativeCode ];
-          mainProgram = "pi";
-        };
-      };
-
       # Expert, from its flake input (above).
       expert = inputs.expert.packages.${system}.expert;
 
       # dbx (github.com/t8y2/dbx) — the database GUI, plus its CLI (same store, for agents).
       # Its own flake builds Tauri from source with no binary cache, so the prebuilt AppImage is
       # wrapped instead; the CLI is the prebuilt binary from its npm platform package, kept
-      # unpatched like pi (Arch's loader runs it; the VM has nix-ld).
+      # unpatched (Arch's loader runs it; the VM has nix-ld).
       dbxVersion = "0.6.28";
       dbxAppImageSrc = pkgs.fetchurl {
         url = "https://github.com/t8y2/dbx/releases/download/v${dbxVersion}/DBX_${dbxVersion}_amd64.AppImage";
@@ -191,8 +142,7 @@
             save_password = false;
           }
         ];
-        # ollama.com over its OpenAI-compatible endpoint, bearer = the same key pi uses; the model
-        # is pi's cloud fallback (piModelsJson below).
+        # ollama.com over its OpenAI-compatible endpoint, bearer = the agenix ollama-api-key.
         ai = {
           id = "ficciones-ollama-cloud";
           name = "ollama.com";
@@ -245,11 +195,11 @@
       };
     in
     {
-      # Exposed as a build target so it can be verified (`nix build .#pi`) without touching
+      # Exposed as build targets so they can be verified (`nix build .#dbx`) without touching
       # the system — the same way server' package will be. home-manager consumes the same
       # derivation below.
       packages.${system} = {
-        inherit pi expert astalShell dbx;
+        inherit expert astalShell dbx;
         astal-shell = astalShell;
       };
 
@@ -302,7 +252,7 @@
       # (modules/os/vm.nix). `ivysaur` lands when the laptop leaves Arch.
       nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo tlonRepo astalShell hyprexpo pi; };
+        specialArgs = { inherit repo tlonRepo astalShell hyprexpo; };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os
@@ -313,7 +263,7 @@
       # (docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md).
       nixosConfigurations.ivysaur = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo tlonRepo astalShell hyprexpo pi; };
+        specialArgs = { inherit repo tlonRepo astalShell hyprexpo; };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os
@@ -322,8 +272,7 @@
       };
 
       # The gradual-adoption path: home-manager on the existing Arch install, applied
-      # without touching the OS. Carries pi + the adapters wiring that makes a pi session a
-      # server citizen.
+      # without touching the OS. Carries the tlon service and the Claude Code wiring.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         extraSpecialArgs = { inherit repo tlonRepo astalShell; };
@@ -336,299 +285,11 @@
           (
             { config, lib, ... }:
             let
-              adaptersExtension = "${tlonRepo}/adapters/pi/src/extension.ts";
-              # consult — /consult and /fresh: delegate a question to a different model
-              # (e.g. a text-only model delegating a screenshot to minimax-m3) and return
-              # the answer.
-              consultExtension = "${tlonRepo}/adapters/consult/src/extension.ts";
-              # menard — the guard (block raw edits on Elixir modules) + format-on-save, as a pi
-              # extension menard ships from its own repo. Replaces adapters/fmt (bare mix format):
-              # menard's formatter runs in its own VM and works on a broken host. See menard's
-              # docs/adapters.md. The extension self-locates bin/menard via import.meta.dir.
-              menardExtension = "${menardRepo}/pi/extension.ts";
-              # lsp — LSP-backed agent tools over Expert/tsserver/nil/bash-ls/json-ls;
-              # servers installed via home.packages below so the next box gets them. See
-              # tlon's adapters/lsp/AGENTS.md.
-              lspExtension = "${tlonRepo}/adapters/lsp/src/extension.ts";
-              # reload — restart the pi harness in place and resume the session, so an agent
-              # that edited its own tooling picks up the new code. See tlon's adapters/reload.
-              reloadExtension = "${tlonRepo}/adapters/reload/src/extension.ts";
-              # footer — a dense 2-line statusline (model, context bar, I/O, branch, statuses).
-              # A generic footer, NOT a server concern, so it's its OWN package (not adapters/pi,
-              # which the Tlön coworker profile drops) and loads for every pi. See tlon's adapters/footer.
-              footerExtension = "${tlonRepo}/adapters/footer/src/footer.ts";
-              adaptersSkillsGlob = "${tlonRepo}/adapters/skills/*";
-              # menard's verb reference — shipped from its own repo, wired here as a pi skill.
-              menardSkill = "${menardRepo}/skills/menard";
-
               # server' self-contained release, built in tlon's `.release` checkout at its release
               # pointer (tlon's `release:cut` task moves it; a merge to main deploys nothing). The
               # service below runs it headless; `server:console`/`:restart` drive the same
               # bin/server, so node + cookie agree via the release's own env.sh.
               serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
-
-              # server' MCP server for pi-mcp-adapter. Auth header is a `!command`
-              # (pi-mcp-adapter §headers): tlon-cli.sh bearer mints a FRESH token per
-              # connect against TLON_MCP_URL's /mint, so it survives a restart/model
-              # change/secret regen — no frozen TLON_TOKEN. pi-scoped path avoids
-              # colliding with a global ~/.config/mcp/mcp.json.
-              serverMcpJson = builtins.toJSON {
-                mcpServers.tlon = {
-                  url = "\${TLON_MCP_URL}";
-                  headers.Authorization = "!${tlonRepo}/scripts/tlon-cli.sh bearer";
-                  directTools = [ "post_message" "bank_fact" "raise_issue" "record_done" "get_dossier" "consult_peer" ];
-                  excludeTools = [ "register" ];
-                };
-                # menard — the AST verbs over stdio MCP. No MENARD_ROOT: pi spawns stdio
-                # servers with the project as cwd, and menard's root falls back to that.
-                mcpServers.menard = {
-                  command = "${menardRepo}/bin/menard";
-                  args = [ "mcp" ];
-                };
-              };
-
-              # pi's provider config (~/.pi/agent/models.json) — SEEDED, not owned. pi writes
-              # this file when an account provider is added (a Kimi coding account did exactly
-              # that), so a store symlink here loses that write on every switch and leaves a
-              # models.json.backup behind. models-store.json only absorbs UI-added *models*,
-              # not providers. The seed below is the starting catalog for a fresh box; once the
-              # file exists pi owns it. Two OpenAI-compatible providers: ollama (local daemon, apiKey
-              # "ollama" is a placeholder the daemon ignores) and ollama-cloud (apiKey
-              # env-interpolated by pi as \${OLLAMA_API_KEY} so the secret never lands in
-              # the nix store; cloud model ids are BARE — no ":cloud" suffix, that's only
-              # for the local-daemon signin path). The ollama-cloud model list is the one part
-              # OWNED: piPluginSeeds rewrites it in the live file on every switch, so a model
-              # ollama.com stops serving leaves pi's picker with the next switch.
-              piCloudModels = [
-                { id = "deepseek-v4.1-flash"; }
-                { id = "glm-5.2"; }
-                { id = "glm-5.3"; }
-                { id = "glm-5.3-flash"; }
-                { id = "deepseek-v4-pro"; }
-                { id = "kimi-k2.6"; }
-                { id = "kimi-k2.7-code"; }
-                { id = "minimax-m2.7"; }
-                # kimi-k3 excluded: ollama.com bills it as EXTRA usage (HTTP 402), not
-                # covered by the plan — kept out so it can't be selected by accident.
-                # minimax-m3: the one cloud model taking images (`input` declared) — the
-                # vision target for /consult (text-only models delegate screenshots here).
-                { id = "minimax-m3"; input = [ "text" "image" ]; }
-              ];
-              piModelsJson = builtins.toJSON {
-                providers = {
-                  ollama = {
-                    baseUrl = "http://localhost:11434/v1";
-                    api = "openai-completions";
-                    apiKey = "ollama";
-                    models = [ { id = "qwen3-coder"; } ];
-                  };
-                  "ollama-cloud" = {
-                    baseUrl = "https://ollama.com/v1";
-                    api = "openai-completions";
-                    apiKey = "\${OLLAMA_API_KEY}";
-                    models = piCloudModels;
-                  };
-                };
-              };
-
-              # server total-recall's knobs (design: server-total-recall). Owned like the other pi
-              # config; the adapter defaults if absent.
-              #   correctionDetection — a user message that reads as a correction ("don't do that",
-              #     "use X instead") is proposed as a PENDING server habit to review in the Tlön panel
-              #     (never auto-applied).
-              #   boundaryCapture — every `captureEveryTurns` turns, and at compaction/shutdown,
-              #     adapters/pi extracts durable facts from ONLY the delta since the last capture (a
-              #     cheap out-of-band model call — bounded input, never the full context) and banks
-              #     them DERIVED. Set false to disable all automatic fact capture.
-              #   captureModel — the out-of-band extractor. deepseek-v4.1-flash (ollama.com cloud)
-              #     by default; point at a LOCAL daemon model (e.g. qwen3-coder) to keep capture
-              #     deltas off the wire entirely — they are secret-redacted before egress either
-              #     way, but local means zero egress and zero cloud budget.
-              piRecallJson = builtins.toJSON {
-                correctionDetection = true;
-                boundaryCapture = true;
-                captureEveryTurns = 8;
-                captureModel = "deepseek-v4.1-flash";
-              };
-
-              # pi's keybindings (~/.pi/agent/keybindings.json) — owned like mcp.json; pi
-              # only reads it (user config, applied by `/reload`). Andrew never model-cycles, so
-              # reclaim Ctrl+P/N — pi binds them to app.model.cycleForward / app.session filters
-              # by default. Two contexts, both wanted ("Both"):
-              #   * In the editor, Ctrl+P/N walk prompt history (readline reflex). pi's docs give
-              #     this exact remap as THE way to override model-cycling in-editor without
-              #     touching Ctrl+P inside selectors (keybindings.md §"TUI Editor Cursor Movement").
-              #   * In a list/selector (the `/` command palette, model picker), Ctrl+P/N alias
-              #     Up/Down so the same fingers move the selection. Arrows stay bound too.
-              piKeybindingsJson = builtins.toJSON {
-                "tui.editor.historyPrevious" = "ctrl+p";
-                "tui.editor.historyNext" = "ctrl+n";
-                "tui.select.up" = [ "up" "ctrl+p" ];
-                "tui.select.down" = [ "down" "ctrl+n" ];
-              };
-
-              # ---- Seeded (write-once) pi plugin configs. The fable deep review found two
-              # plugins silently active on baked-in defaults; these make the machine policy
-              # explicit. Seeded, NOT owned as home.file symlinks: each of these files is
-              # runtime-writable by its plugin (/sandbox-allow persists grants, the permission
-              # TUI persists session rules, /unipi:notify-settings edits its own file), so a
-              # read-only store symlink would break those flows. The seed lands only when the
-              # file is absent; delete a file + home:switch to re-seed it. EXCEPT sandbox.json,
-              # which is force-installed on every switch (see the activation script for why) — it
-              # is still a real file, not a symlink, so /sandbox-allow can write to it; it just
-              # doesn't survive a switch, and project/session grants are the supported path.
-
-              # pi-sandbox: was ENABLED with built-in defaults (enabled=true is baked into the
-              # extension even with no sandbox.json). Explicit policy instead, modeled on the
-              # Tlön coworker sandbox (Server.Profiles): unix sockets + local binding so
-              # adapters-lspd/tmux/agent-browser work, writes scoped to the projects tree + caches,
-              # the repo host allowlist, secret files deny-listed (denyWrite is a hard block).
-              piSandboxSeed = pkgs.writeText "pi-sandbox-seed.json" (builtins.toJSON {
-                enabled = true;
-                network = {
-                  allowLocalBinding = true;
-                  allowAllUnixSockets = true;
-                  # Derived from real Claude + pi session history — the dev-infra hosts this machine's
-                  # agents actually reach. An allowlist (not "*") stays the network fence; extend it
-                  # from the transcripts when a new infra host appears.
-                  allowedDomains = [
-                    # source control + package registries
-                    "github.com"
-                    "*.github.com"
-                    "*.githubusercontent.com"
-                    "hex.pm"
-                    "*.hex.pm"
-                    "hexdocs.pm"
-                    "*.hexdocs.pm"
-                    "registry.npmjs.org"
-                    "www.npmjs.com"
-                    "*.npmjs.com"
-                    "crates.io"
-                    "static.crates.io"
-                    "index.crates.io"
-                    # toolchains + system package infra
-                    "*.jdx.dev"
-                    "sh.rustup.rs"
-                    "static.rust-lang.org"
-                    "cache.nixos.org"
-                    "channels.nixos.org"
-                    "nixos.org"
-                    # AI / agent infra
-                    "anthropic.com"
-                    "*.anthropic.com"
-                    "claude.com"
-                    "*.claude.com"
-                    "claude.ai"
-                    "ollama.com"
-                    "*.ollama.com"
-                    "registry.ollama.ai"
-                    "pi.dev"
-                    "modelcontextprotocol.io"
-                    "*.huggingface.co"
-                    # language + framework + tool docs
-                    "elixirforum.com"
-                    "www.phoenixframework.org"
-                    "expert-lsp.org"
-                    "www.typescriptlang.org"
-                    "react.dev"
-                    "pnpm.io"
-                    "playwright.dev"
-                    "ghostty.org"
-                    "agent-browser.dev"
-                    # docs / badges / assets / a11y
-                    "img.shields.io"
-                    "deepwiki.com"
-                    "www.w3.org"
-                    "dequeuniversity.com"
-                    "fonts.googleapis.com"
-                    "fonts.gstatic.com"
-                    # notifications
-                    "ntfy.sh"
-                    "herdr.dev"
-                    # andrew's own app (Phoenix LiveView)
-                    "myelin.us"
-                    "www.myelin.us"
-                  ];
-                };
-                filesystem = {
-                  allowWrite = [ "/home/andrew/projects" "/tmp" "$XDG_RUNTIME_DIR" "~/.pi" "~/.cache" "~/.local" ];
-                  allowRead = [
-                    "/home/andrew/projects"
-                    "/nix/store"
-                    "~/.nix-profile"
-                    "~/.config"
-                    "~/.local"
-                    "~/.pi"
-                    "~/.cache"
-                  ];
-                  # Keep the upstream deny-/home posture: anything in home OUTSIDE the
-                  # allowRead carve-outs prompts (grantable), it does not silently pass.
-                  denyRead = [ "/home" ];
-                  denyWrite = [ ".env" ".env.*" "*.pem" "*.key" ];
-                };
-              });
-
-              # pi-permission-system: with NO config every surface defaults to `ask` (least
-              # privilege) — a wall of prompts on a single-owner box. Policy: allow by default,
-              # hard path-denies on credential files (the path surface gates ALL tools + bash +
-              # MCP and cannot be overridden per-tool), sudo asks. pi-sandbox above stays the
-              # actual isolation layer; this layer is the credential tripwire.
-              piPermissionSeed = pkgs.writeText "pi-permission-seed.json" (builtins.toJSON {
-                permission = {
-                  "*" = "allow";
-                  path = {
-                    "*" = "allow";
-                    "*.env" = "deny";
-                    "*.env.*" = "deny";
-                    "*.env.example" = "allow";
-                    "*.pem" = "deny";
-                    "*.key" = "deny";
-                    "~/.ssh/*" = "deny";
-                    "~/.aws/*" = "deny";
-                    "~/.pi/agent/auth.json" = "deny";
-                  };
-                  # Routine bash runs; the interactive agent ASKS on sudo (a human is here to answer).
-                  # The catastrophic-and-never-legitimate commands are DENY (terminal) — a deterministic
-                  # floor under the adapters bash-judge link that reviews the nuanced middle. Deliberately
-                  # narrow; the judge, not this list, is the real coverage for novel commands.
-                  bash = {
-                    "*" = "allow";
-                    "sudo *" = "ask";
-                    "rm -rf /" = "deny";
-                    "rm -rf /*" = "deny";
-                    "rm -rf --no-preserve-root*" = "deny";
-                    "mkfs*" = "deny";
-                    "dd of=/dev/*" = "deny";
-                    "dd if=* of=/dev/*" = "deny";
-                    ":(){*" = "deny";
-                    "chmod -R 777 /*" = "deny";
-                    "chown -R * /" = "deny";
-                    "curl * | sh" = "deny";
-                    "curl * | bash" = "deny";
-                    "wget * | sh" = "deny";
-                    "wget * | bash" = "deny";
-                  };
-                  external_directory = "allow";
-                };
-              });
-
-              # pi-interactive-shell: defer=true keeps its large tool schema out of every
-              # system prompt until enable_interactive_shell is called — context is the scarce
-              # resource on the Claude bucket. The tlon server owns coworker spawning; this tool stays
-              # for vim/psql/ssh overlays.
-              piInteractiveShellSeed = pkgs.writeText "pi-interactive-shell-seed.json" (builtins.toJSON {
-                defer = true;
-              });
-
-              # @pi-unipi/notify: suppress native toasts while the pi window is focused (you
-              # are already looking at it). Event toggles (permission_request etc.) stay with
-              # /unipi:notify-settings — the plugin edits this same file.
-              unipiNotifySeed = pkgs.writeText "unipi-notify-seed.json" (builtins.toJSON {
-                native = {
-                  enabled = true;
-                  suppressWhenFocused = true;
-                };
-              });
             in
             {
               home.username = "andrew";
@@ -639,9 +300,8 @@
               # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
               # repo): mouse, extended-keys, resurrect+continuum (ANDREW's session persistence
               # — coworkers run on their own `-L tlon-workspace-<id>` servers with a persistence-
-              # free config, see Server.Profiles), yank, tmux-thumbs. Dropped the status-script
-              # chrome (gitmux/cpu/battery) that churned alongside embedded pi. Old file backed
-              # up on `home:switch` via the -b flag.
+              # free config, see Server.Profiles), yank, tmux-thumbs. No status-script chrome
+              # (gitmux/cpu/battery). Old file backed up on `home:switch` via the -b flag.
               programs.tmux = {
                 enable = true;
                 shortcut = "b"; # Ctrl+B prefix
@@ -654,8 +314,8 @@
                 extraConfig = ''
                   # Extended keys so shift+enter etc. round-trip to apps under tmux (the kitty-
                   # protocol gap the worklist flagged). Apps negotiate their own encoding above this.
-                  # csi-u format: pi decodes CSI-u most reliably and probes for it at startup
-                  # (warns on tmux's `xterm` default). Requires tmux 3.5+; this box runs 3.7b.
+                  # csi-u format: the most reliably decoded encoding for the agent TUIs.
+                  # Requires tmux 3.5+; this box runs 3.7b.
                   set -s extended-keys on
                   set -g extended-keys-format csi-u
                   set -as terminal-features 'xterm*:extkeys'
@@ -667,7 +327,7 @@
                   bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "wl-copy"
 
                   # Lean status bar — session + window tabs, NO script churn (gitmux/cpu/battery
-                  # dropped). Load-bearing in Tlön: this is how the pi⇄claude windows show/click.
+                  # dropped). Load-bearing in Tlön: this is how the coworker windows show/click.
                   set -g status-position top
                   set -g status-interval 15
                   set -g status-left " #S "
@@ -679,7 +339,7 @@
                   source-file ~/.config/ficciones/theme/tmux.conf
 
                   # Splits + pane nav (prefix chords — the alt- bindings dropped, they clash with
-                  # terminal apps like pi/nvim and aren't worth the surface; re-add if you miss them).
+                  # terminal apps like claude/nvim and aren't worth the surface; re-add if you miss them).
                   bind | split-window -h -c "#{pane_current_path}"
                   bind - split-window -v -c "#{pane_current_path}"
                   bind h select-pane -L
@@ -688,7 +348,7 @@
                   bind l select-pane -R
                   bind r source-file ~/.config/tmux/tmux.conf \; display "Config reloaded!"
 
-                  # Persistence is for ANDREW's tmux only. Coworkers (Tlön's pi, future ones) run on
+                  # Persistence is for ANDREW's tmux only. Coworkers (Tlön's Claude Code seats) run on
                   # their own per-workspace tmux servers (tmux -L tlon-workspace-<id>, persistence-free
                   # config from Server.Profiles) and come up FRESH every rebuild — agent harnesses are
                   # deliberately NOT in @resurrect-processes: auto-relaunching an agent at restore
@@ -721,15 +381,13 @@
                 };
               };
 
-              # pi (byte-preserved bun binary, above). watchexec backs scripts/watch.sh's
-              # change-triggered test runner. LSP servers for adapters/lsp
-              # (hover/definition/references/diagnostics as pi tools) — ALL flake-managed now so
-              # the next box gets them, including Expert (the Elixir LSP, expert-lsp.org — NOT
+              # watchexec backs scripts/watch.sh's change-triggered test runner. LSP servers for
+              # tlon's adapters/lsp (hover/definition/references/diagnostics as agent tools) — all
+              # flake-managed so the next box gets them, including Expert (the Elixir LSP, expert-lsp.org — NOT
               # elixir-ls; built from its own flake input, since it's not
               # in nixpkgs). The adapter registry in tlon's adapters/lspd/src/adapters.ts spawns these
               # by name — adding a language is an adapter object + usually a package here.
               home.packages = [
-                pi
                 expert
                 dbx
                 pkgs.watchexec
@@ -739,6 +397,11 @@
                 # shell lint, for agents and for bash-language-server's diagnostics
                 pkgs.shellcheck
                 pkgs.vscode-json-languageserver
+                pkgs.marksman
+                pkgs.taplo
+                pkgs.yaml-language-server
+                # markdown lint, for agents
+                pkgs.markdownlint-cli2
                 # `agenix -e secrets/<name>.age` to create/edit a secret; decryption at switch is
                 # handled by the agenix module (age.secrets below).
                 agenix.packages.${system}.default
@@ -758,21 +421,8 @@
                 dbx-connections.file = ./secrets/dbx-connections.age;
               };
 
-              # server' channel config — we own this file; pi only reads it.
-              home.file.".pi/agent/mcp.json".text = serverMcpJson;
-
-
-              # server total-recall's noise knob (correction→habit proposals) — owned; adapter reads it.
-              home.file.".pi/agent/server-recall.json".text = piRecallJson;
-
-              # pi keybindings — owned like mcp.json (pi reads, never writes it). Reclaims
-              # Ctrl+P/N from model-cycling for history + selector nav; see piKeybindingsJson.
-              home.file.".pi/agent/keybindings.json".text = piKeybindingsJson;
-
-              # The four working rules, global for every harness (modules/agents/how-to-work.md):
-              # Claude Code's global CLAUDE.md and pi's global AGENTS.md are the SAME file.
+              # The four working rules (modules/agents/how-to-work.md), as Claude Code's global CLAUDE.md.
               home.file.".claude/CLAUDE.md".source = ./modules/agents/how-to-work.md;
-              home.file.".pi/agent/AGENTS.md".source = ./modules/agents/how-to-work.md;
 
               # the interactive shell's rc: ls and cat are eza and bat at a terminal, the plain tools
               # for anything that reads their output (an agent's Bash)
@@ -782,146 +432,6 @@
               # the workflow every repo here keeps (linear history: rebase, fast-forward, stacks); git
               # reads this beside ~/.gitconfig, which stays the machine's (identity, credentials)
               home.file.".config/git/config".source = ./modules/os/gitconfig;
-
-              # adapters into pi's settings.json — MERGED, not owned: pi writes this file (auth,
-              # model choice), so a read-only symlink would break it. jq unions our keys in
-              # idempotently, seeding {} if absent.
-              #
-              # `.extensions` and `.skills` are PRUNE-then-add, not pure union: every path under tlon's
-              # adapters/ or ficciones' modules/ (where adapters used to live) is ours, so dropping every
-              # such entry before re-adding the current set
-              # makes a renamed/removed extension self-heal — a plain `+ [...] | unique` union
-              # would leave pi loading a dead path on every subsequent home:switch.
-              #
-              # The other defaults use `//=` (set-only-if-absent). defaultModel and enabledModels
-              # are OWNED (`=`): bare `pi` starts on ollama-cloud/deepseek-v4.1-flash, the
-              # contract tlon's AGENTS.md states — the efficient MoE default drains the short
-              # rate-limit window slower than a reasoning model (glm-5.2's thinking tokens trip
-              # it mid-session; tlon's `ollama:usage` task watches this), and the pi:* launchers
-              # pin any other. pi persists a runtime model switch into this file; the next
-              # switch puts the default back. enabledModels is the Ctrl+P cycle ring: every
-              # piCloudModels id plus the local qwen3-coder, so a model ollama.com stops serving
-              # leaves the ring with the list.
-              home.activation.manosWiring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-                PI_DIR="$HOME/.pi/agent"
-                SETTINGS="$PI_DIR/settings.json"
-                run mkdir -p "$PI_DIR"
-                [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
-                run ${pkgs.jq}/bin/jq \
-                  --arg ext "${adaptersExtension}" \
-                  --arg ext2 "${consultExtension}" \
-                  --arg ext3 "${menardExtension}" \
-                  --arg ext4 "${lspExtension}" \
-                  --arg ext5 "${reloadExtension}" \
-                  --arg ext6 "${footerExtension}" \
-                  --arg adaptersDir "${tlonRepo}/adapters/" \
-                  --arg ficcionesModules "${repo}/modules/" \
-                  --arg skills "${adaptersSkillsGlob}" \
-                  --arg menardDir "${menardRepo}/pi/" \
-                  --arg menardRepo "${menardRepo}" \
-                  --arg menardSkill "${menardSkill}" \
-                  --argjson ring '${builtins.toJSON (map (m: m.id) piCloudModels ++ [ "qwen3-coder" ])}' \
-                  '.extensions = (((.extensions // []) | map(select(startswith($adaptersDir) | not) | select(startswith($ficcionesModules) | not) | select(startswith($menardDir) | not)))
-                       + [$ext, $ext2, $ext3, $ext4, $ext5, $ext6] | unique)
-                   | .skills = (((.skills // []) | map(select(startswith($menardRepo + "/skills/") | not) | select(startswith($adaptersDir) | not) | select(startswith($ficcionesModules) | not))) + [$skills, $menardSkill] | unique)
-                   # .packages is likewise PRUNE-then-add: a pure union (the old form) can add
-                   # a package but never remove one, so dropping pi-cc-header from the array
-                   # below did not un-install it from an already-switched machine — it just
-                   # sat in settings.json forever. Strip known-retired packages by name before
-                   # re-adding the current set, so retiring a package here actually retires it.
-                   | .packages = (((.packages // []) | map(select(. != "npm:pi-cc-header" and . != "pi-cc-header" and . != "npm:pi-multi-account" and . != "pi-multi-account")))
-                       # pi auto-installs these npm extensions on launch. The npm: prefix
-                       # matches what `pi install` persists, so `unique` dedupes against a
-                       # hand-installed copy instead of doubling it.
-                       #   web-search        → the Ollama search API (reuses OLLAMA_API_KEY, the
-                       #                       ollama.com plan we already pay for).
-                       #   agent-browser     → browser-automation tool (may want a system
-                       #                       chromium — see verify note).
-                       #   permission-system → tool-permission enforcement (pairs with sandbox).
-                       #   pi-sandbox        → sandboxed bash; installed by hand, captured here.
-                       #   cc-header         → Claude-Code-style startup banner + status line.
-                       #   pi-research       → local deep-research (stealth browser + KB); needs
-                       #                       a residential IP and a 100k-context model.
-                       #   interactive-shell → real-PTY tool so pi can drive iex/psql/REPLs and
-                       #                       long builds without non-interactive-tty trip-ups;
-                       #                       Monitor/Hands-free modes can retire the brittle
-                       #                       parts of scripts/watch.sh. Self-installs its skill;
-                       #                       test it inside a coworker pane, and note its
-                       #                       spawn/PTY tools may need sandbox/permission allowlisting.
-                       #   pi-retry          → zero-dep stall-watchdog + transient-error retry,
-                       #                       stronger than settings.retry.enabled alone; matters
-                       #                       over flaky ollama.com cloud + multi-provider failover.
-                       #   notify            → "agent waiting on you" notifications (agent_settled /
-                       #                       ask_user_prompt / permission_request, all default-OFF —
-                       #                       enable via /unipi:notify-settings). Uses notify-send on
-                       #                       Linux, so it needs a notification daemon (mako on
-                       #                       Hyprland); NOT the OSC-9/777-through-ghostty path yet.
-                       + ["npm:pi-mcp-adapter","npm:pi-sandbox","npm:@ollama/pi-web-search","npm:pi-agent-browser-native","npm:@gotgenes/pi-permission-system","npm:@lincoln504/pi-research","npm:pi-interactive-shell","npm:@narumitw/pi-retry","npm:@pi-unipi/notify"] | unique)
-                       # pi-cc-header dropped: its startup logo animation races the pi-tui
-                       # first-paint (differential renderer establishes cursor/scroll state
-                       # while the animation repaints above it), leaving the composer border
-                       # and footer blank until a later full redraw. The extension author
-                       # already guards this for reload/resume/--session launches
-                       # (skipAnimation in pi-cc-header.ts) but not a plain fresh launch, and
-                       # ships no setting to disable just the animation — bisected 2026-08-18.
-                   | .defaultProvider //= "ollama-cloud"
-                   | .defaultModel = "deepseek-v4.1-flash"
-                   | .defaultThinkingLevel //= "medium"
-                   | .retry.enabled //= true
-                   # per-provider retries at the SDK default: nothing switches accounts, so a
-                   # transient error retries in place. (No apostrophes in this comment: it rides
-                   # inside a bash single-quoted jq string; one would close the quote.)
-                   | del(.retry.provider.maxRetries)
-                   | .enabledModels = $ring' \
-                  "$SETTINGS" > "$SETTINGS.tmp" && run mv "$SETTINGS.tmp" "$SETTINGS"
-              '';
-
-              # Seed the runtime-writable plugin configs (see the *Seed bindings above): install
-              # only when absent, so plugin-persisted grants/settings are never stomped.
-              home.activation.piPluginSeeds = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-                seed() {
-                  if [ ! -f "$2" ]; then
-                    run mkdir -p "$(dirname "$2")"
-                    run install -m 0644 "$1" "$2"
-                    echo "piPluginSeeds: seeded $2"
-                  fi
-                }
-                # sandbox.json is OWNED, not seeded — it is the one config whose absence BREAKS pi's
-                # bash tool outright rather than degrading it. pi-sandbox's DEFAULT_CONFIG denies
-                # /home and its allowRead is only ["." "~/.config" "~/.local" "Library"] — which does
-                # NOT cover ~/.pi, where pi installs the extension's own node_modules. With a falsy
-                # allowLocalBinding (also unset in the defaults) sandbox-runtime enforces bind() via
-                # `vendor/seccomp/<arch>/apply-seccomp`, but that helper lives under ~/.pi, so it is
-                # never bind-mounted into the namespace and exec fails ENOENT even though the binary
-                # is present and fine on disk. Net: an absent file is not "unconfigured", it is
-                # "configured to a profile that cannot run here" — every bash call dies with a bare
-                # `apply-seccomp: No such file or directory` (127) naming nothing about sandboxing.
-                # The allowRead below carries ~/.pi, which is what keeps this working. Write-once
-                # seeding also let this file silently drift to a 12-domain ancestor of the list below
-                # (which broke `mise` installs: sh.rustup.rs had dropped out). Grants have their own
-                # homes, so stomping this one costs nothing: at a sandbox prompt choose "Allow for
-                # this project" (-> ./.pi/sandbox.json, merged over this file) or session, NOT "Allow
-                # for all projects" (-> here, overwritten on the next home:switch).
-                force() {
-                  run mkdir -p "$(dirname "$2")"
-                  run install -m 0644 "$1" "$2"
-                  echo "piPluginSeeds: installed (owned) $2"
-                }
-                force ${piSandboxSeed} "$HOME/.pi/agent/sandbox.json"
-                seed ${pkgs.writeText "pi-models-seed.json" piModelsJson} "$HOME/.pi/agent/models.json"
-                # the ollama-cloud model list is owned (piCloudModels); the rest of the file stays pi's,
-                # and stays 0600 (pi may have written an account key into it)
-                MODELS="$HOME/.pi/agent/models.json"
-                if [ -f "$MODELS" ]; then
-                  ${pkgs.jq}/bin/jq --argjson models '${builtins.toJSON piCloudModels}' \
-                    '.providers["ollama-cloud"].models = $models' "$MODELS" > "$MODELS.tmp" \
-                    && run install -m 0600 "$MODELS.tmp" "$MODELS"
-                  rm -f "$MODELS.tmp"
-                fi
-                seed ${piPermissionSeed} "$HOME/.pi/agent/extensions/pi-permission-system/config.json"
-                seed ${piInteractiveShellSeed} "$HOME/.pi/agent/interactive-shell.json"
-                seed ${unipiNotifySeed} "$HOME/.unipi/config/notify/config.json"
-              '';
 
               # The node cookie the service and its remote shells share (rel/env.sh.eex reads it into
               # RELEASE_COOKIE; `server:console`, `server:dev` and tlon-cli.sh rpc use it): written once, 0600, never
@@ -975,7 +485,7 @@
                   # The switchboard runs here too — delivery bookkeeping only until an arbiter
                   # exists.
                   Environment = [
-                    # The service shells tmux/claude/pi (all profile-owned) — a boot-time start
+                    # The service shells tmux/claude (both profile-owned) — a boot-time start
                     # inherits the manager's PATH before the session imports the profile, and the
                     # staffing pass died on `tmux: enoent` for 31 h (2026-09-23).
                     "PATH=${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin"

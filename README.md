@@ -18,7 +18,7 @@ knobs) and, through use, it becomes real work in your actual repo. The fiction o
 
 The AI stack — the server, the office TUI (launched as `tlon`) and the agent adapters — is its own
 repo, `~/projects/tlon`, so it runs on boxes that are not this one. This machine runs it: the flake
-starts its server as a `systemd --user` service and points pi and Claude Code at its adapters.
+starts its server as a `systemd --user` service and points Claude Code at its adapters.
 
 ## Layout
 

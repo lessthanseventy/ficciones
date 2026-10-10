@@ -7,8 +7,8 @@
 #   scripts/watch.sh -w modules/desktop/shell -- mise run shell:check
 #   scripts/watch.sh bun test path/to/thing.test.ts     # a narrower scope
 #
-# For an AGENT: run it in the background (Claude Code: Bash run_in_background; pi: run it
-# in a pane). Edit, and you're pinged red/green. Kill it when done. Knobs pass through to
+# For an AGENT: run it in the background (Claude Code: Bash run_in_background). Edit, and
+# you're pinged red/green. Kill it when done. Knobs pass through to
 # cap (CAP_TAIL, CAP_SIGNAL).
 #
 # Uses watchexec when present (declared in the flake): debounces, restarts a run

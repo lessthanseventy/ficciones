@@ -9,7 +9,7 @@ TRASH-FILES.md
 
 **/.claude/settings.local.json
 
-# Phantoms: an agent's sandbox (Claude Code's, pi-sandbox) mounts /dev/null over these paths so the
+# Phantoms: an agent's sandbox (Claude Code's) mounts /dev/null over these paths so the
 # agent cannot create them, and git in its shell then lists them as untracked and `git add -A` fails
 # on them ("can only add regular files"). Tracked files are unaffected; a new one needs `git add -f`
 # (`git submodule add` still writes .gitmodules, tried).
