@@ -10,6 +10,7 @@ import { For, With, createState, createComputed, onCleanup } from "ags"
 import { timeout } from "ags/time"
 import { Panel } from "../lib/tui"
 import { setting } from "../lib/settings"
+import { putsAway } from "../lib/alerts-core"
 import { openThread, alarms, banner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -99,7 +100,7 @@ export function Stickies() {
           <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-sticky"]} spacing={4}>
             <label cssClasses={["summary"]} label={a.thread_id ? `#${a.thread_id} ${a.title}` : a.title} xalign={0} wrap maxWidthChars={44} />
             <label cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={48} />
-            <Actions a={a} extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Dismiss", run: () => dismiss(a) }]} />
+            <Actions a={a} extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
           </Panel>
         )}
       </For>

@@ -12,6 +12,10 @@ export type Kept = { dismissed: string[]; snoozed: Record<string, number> }
 export const showing = (as: Alert[], k: Kept, t: number) =>
   as.filter((a) => !k.dismissed.includes(a.key) && !((k.snoozed[a.key] ?? 0) > t))
 
+/** Whether the server can put `a` away itself — then that, not the desktop's own Dismiss, clears it,
+ * so the desktop and the office inbox never disagree. */
+export const putsAway = (a: Alert) => a.actions.some((x) => x.path === "/api/office/needs/dismiss")
+
 export const ofLevel = (as: Alert[], level: Alert["level"]) => as.filter((a) => a.level === level)
 
 /** The operator-API call an action makes, `text` filling its `input` field; null when it makes none. */
