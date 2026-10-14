@@ -101,8 +101,8 @@ export function Stickies() {
       <For each={stickies} id={(a) => a.key}>
         {(a: Alert) => (
           <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-sticky"]} spacing={4}>
-            <label cssClasses={["summary"]} label={a.thread_id ? `#${a.thread_id} ${a.title}` : a.title} xalign={0} wrap maxWidthChars={44} />
-            <label cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={48} />
+            <label selectable cssClasses={["summary"]} label={a.thread_id ? `#${a.thread_id} ${a.title}` : a.title} xalign={0} wrap maxWidthChars={44} />
+            <label selectable cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={48} />
             <Actions a={a} host="toasts" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
           </Panel>
         )}
@@ -118,7 +118,7 @@ function Info({ a }: { a: Alert }) {
   onCleanup(() => t.cancel())
   return (
     <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-info"]} spacing={4}>
-      <label cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={44} />
+      <label selectable cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={44} />
       <box cssClasses={["actions"]} spacing={8} visible={!!a.thread_id}>
         <button cssClasses={["act", "dim"]} onClicked={() => { dismiss(a); void openThread(a.thread_id!) }}><label label="Open" /></button>
       </box>
@@ -157,8 +157,8 @@ export function DecisionBanner() {
         {(a: Alert | null) =>
           a && (
             <Panel title={`⚑ tlön needs a decision${a.thread_id ? ` · #${a.thread_id}` : ""}`} cssClasses={["alert-banner"]} spacing={6}>
-              <label cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={70} />
-              <label cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={80} />
+              <label selectable cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={70} />
+              <label selectable cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={80} />
               <Actions a={a} host="banner" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }]} />
             </Panel>
           )
