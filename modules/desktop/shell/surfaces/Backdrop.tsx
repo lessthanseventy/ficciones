@@ -12,7 +12,10 @@ import { CharGrid } from "../lib/chargrid"
 import { makeModes, FAST_HZ, SLOW_HZ } from "../lib/ambient"
 import { wallpaper } from "../lib/wallpaper"
 import Gio from "gi://Gio"
-import Cairo from "cairo"
+import GLib from "gi://GLib?version=2.0"
+import GObject from "gi://GObject?version=2.0"
+import Graphene from "gi://Graphene?version=1.0"
+import Gsk from "gi://Gsk?version=4.0"
 import { showText } from "./Osd"
 import { closeAny } from "./Clickaway"
 import { loadHacks, haveHacks, startHack, stopHack, pauseHack } from "../lib/xscreensaver"
@@ -24,6 +27,38 @@ const TICK_MS = 1000 / FAST_HZ
 const switchTicks = () => Math.round((Math.max(10, setting("backdrop.rotateSeconds").peek()) * 1000) / TICK_MS)
 // braille bit layout: left column bits 0,1,2,6 ; right column bits 3,4,5,7
 const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 2], [0x40, 0, 3], [0x08, 1, 0], [0x10, 1, 1], [0x20, 1, 2], [0x80, 1, 3]]
+const DOTS_W = COLS * 2, DOTS_H = ROWS * 4
+
+/** The dot field, drawn as GPU nodes: a cairo DrawingArea would clear and upload a
+ * monitor-sized image every step (~35% of a core with an ambient up); this uploads a texel a dot. */
+const DotField = GObject.registerClass(
+  { GTypeName: "FiccionesDotField" },
+  class DotField extends Gtk.Widget {
+    paint: ((s: Gtk.Snapshot, w: number, h: number) => void) | null = null
+    override vfunc_snapshot(s: Gtk.Snapshot) { this.paint?.(s, this.get_width(), this.get_height()) }
+  },
+)
+
+/** Where every dot may light: each a rect 0.64 of its dot cell (the field reads quieter than
+ * at 0.7), rounded to whole pixels, as alpha. Built once per size; scaled NEAREST over it, a texture of one texel per dot colours
+ * each rect whole, since a rect never leaves its dot's cell. */
+let mask: { w: number; h: number; tex: Gdk.Texture } | null = null
+function dotMask(w: number, h: number): Gdk.Texture {
+  if (mask?.w === w && mask.h === h) return mask.tex
+  const dw = w / DOTS_W, dh = h / DOTS_H
+  const rw = Math.max(1, Math.round(dw * 0.64)), rh = Math.max(1, Math.round(dh * 0.64))
+  const ox = (dw - rw) / 2, oy = (dh - rh) / 2
+  const a = new Uint8Array(w * h)
+  for (let Y = 0; Y < DOTS_H; Y++) {
+    const y0 = Math.round(Y * dh + oy)
+    for (let X = 0; X < DOTS_W; X++) {
+      const x0 = Math.round(X * dw + ox)
+      for (let y = y0; y < Math.min(h, y0 + rh); y++) a.fill(255, y * w + x0, y * w + Math.min(w, x0 + rw))
+    }
+  }
+  mask = { w, h, tex: Gdk.MemoryTexture.new(w, h, Gdk.MemoryFormat.A8, new GLib.Bytes(a), w) }
+  return mask.tex
+}
 
 export const [zen, setZen] = createState(false)
 /** What the backdrop shows: a named ambient held, "random" (the modes rotate), or the photo. */
@@ -44,8 +79,8 @@ class Canvas {
   // relayout of 64×210 glyphs × 2 monitors at 8 fps was the shell's idle CPU)
   rows = this.grid.lines().map((l) => createState(l))
   timer: Timer | null = null
-  /** the dot canvas (cairo), told to redraw each step; text modes go through the labels */
-  area: Gtk.DrawingArea | null = null
+  /** the dot field, told to redraw each step; text modes go through the labels */
+  area: Gtk.Widget | null = null
   textMode = createState(false)
   /** every other turn is an xscreensaver hack (lib/xscreensaver.ts), drawn under this window,
    * which steps aside for it; `monitor` and `win` are set once the window is up */
@@ -91,8 +126,8 @@ class Canvas {
     if (!m.smooth && (this.ticks - 1) % (FAST_HZ / SLOW_HZ)) return
     m.step(this.grid)
     // a text mode (babel) is glyphs and goes through Pango; a dot mode is drawn straight onto
-    // the canvas — 64 rows × 210 glyphs of colour-span markup relaid out 8× a second per
-    // monitor was ~35% of a core (2026-09-07); the same dots as cairo rects is a few ms
+    // the dot field — 64 rows × 210 glyphs of colour-span markup relaid out 8× a second per
+    // monitor was ~35% of a core
     const text = !!m.text
     if (this.textMode[0].peek() !== text) this.textMode[1](text)
     if (text) {
@@ -100,32 +135,34 @@ class Canvas {
       for (let r = 0; r < ROWS; r++) this.rows[r][1](ls[r] ?? "")
     } else this.area?.queue_draw()
   }
-  /** the dot field: every lit dot a small rect in its cell's hue. One fill per hue (≤5), not
-   * one per cell — 13k fills a frame was most of the cost; no antialiasing on the dots. Lit
-   * cells are bucketed by hue in one pass (five full-grid scans before, 2026-09-11). */
-  draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number, h: number) => {
-    const g = this.grid
-    const cw = w / COLS, ch = h / ROWS, dw = cw / 2, dh = ch / 4
-    // 0.64 of a dot's cell (0.7 first): the field reads ~10% quieter
-    const rw = Math.max(1, Math.round(dw * 0.64)), rh = Math.max(1, Math.round(dh * 0.64))
-    const ox = (dw - rw) / 2, oy = (dh - rh) / 2
-    cr.setAntialias(Cairo.Antialias.NONE)
-    const byHue = new Map<number, number[]>()
+  /** one texel per dot, its hue or clear; reused frame to frame */
+  private texels = new Uint32Array(DOTS_W * DOTS_H)
+  /** the dot field: the dot mask (dotMask) over this step's texels, both scaled NEAREST */
+  paint = (s: Gtk.Snapshot, w: number, h: number) => {
+    if (!w || !h) return
+    const g = this.grid, px = this.texels
+    px.fill(0)
+    const rgba = new Map<number, number>()
     for (let i = 0; i < g.dots.length; i++) {
-      if (!g.dots[i]) continue
-      let cells = byHue.get(g.hue[i])
-      if (!cells) byHue.set(g.hue[i], (cells = []))
-      cells.push(i)
-    }
-    for (const [hue, cells] of byHue) {
-      const x = g.colour(hue).replace("#", "")
-      cr.setSourceRGB(parseInt(x.slice(0, 2), 16) / 255, parseInt(x.slice(2, 4), 16) / 255, parseInt(x.slice(4, 6), 16) / 255)
-      for (const i of cells) {
-        const r = (i / COLS) | 0, x0 = (i - r * COLS) * cw, y0 = r * ch, d = g.dots[i]
-        for (const [bit, dx, dy] of BITS) if (d & bit) cr.rectangle(Math.round(x0 + dx * dw + ox), Math.round(y0 + dy * dh + oy), rw, rh)
+      const d = g.dots[i]
+      if (!d) continue
+      let c = rgba.get(g.hue[i])
+      if (c === undefined) {
+        const x = g.colour(g.hue[i]).replace("#", "")
+        // R8G8B8A8 bytes as a little-endian word
+        c = (0xff000000 | (parseInt(x.slice(4, 6), 16) << 16) | (parseInt(x.slice(2, 4), 16) << 8) | parseInt(x.slice(0, 2), 16)) >>> 0
+        rgba.set(g.hue[i], c)
       }
-      cr.fill()
+      const r = (i / COLS) | 0, at = r * 4 * DOTS_W + (i - r * COLS) * 2
+      for (const [bit, dx, dy] of BITS) if (d & bit) px[at + dy * DOTS_W + dx] = c
     }
+    const field = Gdk.MemoryTexture.new(DOTS_W, DOTS_H, Gdk.MemoryFormat.R8G8B8A8, new GLib.Bytes(new Uint8Array(px.buffer)), DOTS_W * 4)
+    const bounds = new Graphene.Rect().init(0, 0, w, h)
+    s.push_mask(Gsk.MaskMode.ALPHA)
+    s.append_scaled_texture(dotMask(w, h), Gsk.ScalingFilter.NEAREST, bounds)
+    s.pop()
+    s.append_scaled_texture(field, Gsk.ScalingFilter.NEAREST, bounds)
+    s.pop()
   }
   /** Jump to a mode by name and hold it for a full cycle. */
   jump(name: string) {
@@ -234,11 +271,11 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           <box orientation={Gtk.Orientation.VERTICAL} visible={canvas.textMode[0]}>
             {canvas.rows.map(([line]) => <label cssClasses={["gl"]} useMarkup label={line} xalign={0} />)}
           </box>
-          <Gtk.DrawingArea
+          <DotField
             visible={canvas.textMode[0]((t) => !t)}
             widthRequest={COLS * 9}
             heightRequest={ROWS * 18}
-            $={(self) => { canvas.area = self; self.set_draw_func(canvas.draw) }}
+            $={(self) => { canvas.area = self; self.paint = canvas.paint }}
           />
         </box>
         <box
