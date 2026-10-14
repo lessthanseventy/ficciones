@@ -81,8 +81,9 @@ export async function openThread(tid: number) {
   // ghostty puts a 🔔 before the title when the TUI rings, so the end is what names it
   const tui = hypr.get_clients().find((c) => c.title.endsWith("tlon office"))
   if (!tui) return openInOffice(tid)
-  await fetch(`${API}/api/office/focus`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ thread_id: tid }) }).catch(() => {})
+  // the window first, whatever the network does; the TUI opens the thread when the request lands
   dispatchNow(`hl.dsp.focus({ window = "address:0x${tui.address.replace(/^0x/, "")}" })`)
+  void fetch(`${API}/api/office/focus`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ thread_id: tid }) }).catch(() => {})
 }
 
 /** the doc the reader sheet shows (surfaces/DocReader.tsx), or null when it is closed */
