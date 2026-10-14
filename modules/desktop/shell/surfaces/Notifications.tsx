@@ -155,7 +155,7 @@ export default function Notifications() {
       name="notifications"
       layer={Astal.Layer.OVERLAY}
       exclusivity={Astal.Exclusivity.IGNORE}
-      keymode={replyKeymode}
+      keymode={replyKeymode("toasts")}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
       marginTop={44}
       marginRight={8}

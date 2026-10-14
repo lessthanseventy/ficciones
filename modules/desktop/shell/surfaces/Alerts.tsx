@@ -23,10 +23,12 @@ const until = (iso: string) => {
 // layer surface that takes keys on demand can be handed the keyboard just by appearing, and then
 // every toast steals the operator's typing until they switch away and back. While one is open the
 // keys are its outright, so Esc works at once; Esc, Enter or any of the card's buttons closes it
-// and gives them back
-const [replies, setReplies] = createState(0)
-/** the keymode for a window holding alert cards: the keyboard only while a reply is being written */
-export const replyKeymode = replies((n) => (n > 0 ? Astal.Keymode.EXCLUSIVE : Astal.Keymode.NONE))
+// and gives them back. Counted per window: two overlay layers both exclusive fight over the
+// keyboard, and a redraw of one takes it from a reply open in the other
+export type Host = "toasts" | "banner"
+const replies = { toasts: createState(0), banner: createState(0) }
+/** the keymode for a window holding alert cards: the keyboard only while a reply is being written in it */
+export const replyKeymode = (host: Host) => replies[host][0]((n) => (n > 0 ? Astal.Keymode.EXCLUSIVE : Astal.Keymode.NONE))
 
 /** the shell's line keys in a text box: Ctrl+A/E start and end of line, Ctrl+U/K delete to them,
  * Ctrl+W the word before the cursor. True when it took the key. */
@@ -48,7 +50,8 @@ function readline(b: Gtk.TextBuffer, kv: number): boolean {
 
 /** an alert's actions as buttons; one taking text opens a box that grows as you write — Enter
  * sends, Shift+Enter a new line, Esc cancels, and the line keys (`readline`) edit */
-function Actions({ a, extra = [] }: { a: Alert; extra?: { label: string; run: () => void }[] }) {
+function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { label: string; run: () => void }[] }) {
+  const setReplies = replies[host][1]
   const [asking, setAsking] = createState<Action | null>(null)
   let open = false
   const unsub = asking.subscribe(() => {
@@ -100,7 +103,7 @@ export function Stickies() {
           <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-sticky"]} spacing={4}>
             <label cssClasses={["summary"]} label={a.thread_id ? `#${a.thread_id} ${a.title}` : a.title} xalign={0} wrap maxWidthChars={44} />
             <label cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={48} />
-            <Actions a={a} extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
+            <Actions a={a} host="toasts" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
           </Panel>
         )}
       </For>
@@ -145,7 +148,7 @@ export function DecisionBanner() {
       name="decision"
       layer={Astal.Layer.OVERLAY}
       exclusivity={Astal.Exclusivity.IGNORE}
-      keymode={replyKeymode}
+      keymode={replyKeymode("banner")}
       anchor={Astal.WindowAnchor.TOP}
       marginTop={44}
       application={app}
@@ -156,7 +159,7 @@ export function DecisionBanner() {
             <Panel title={`⚑ tlön needs a decision${a.thread_id ? ` · #${a.thread_id}` : ""}`} cssClasses={["alert-banner"]} spacing={6}>
               <label cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={70} />
               <label cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={80} />
-              <Actions a={a} extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }]} />
+              <Actions a={a} host="banner" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }]} />
             </Panel>
           )
         }
