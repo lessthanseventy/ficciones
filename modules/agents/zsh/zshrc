@@ -1,4 +1,5 @@
-# ~/.claude/zsh/.zshrc: a lean interactive rc for Claude Code's shells.
+# ~/.claude/zsh/.zshrc: a lean interactive rc for Claude Code's shells. Claude Code sources ~/.zshrc
+# by path, not this file; ~/.zshrc's first lines hand over here when ZDOTDIR is ~/.claude/zsh.
 #
 # Claude Code snapshots an interactive zsh's functions, aliases and options and re-sources that
 # snapshot on every Bash tool call. With ~/.zshrc it is ~14k lines (oh-my-zsh, starship, navi,

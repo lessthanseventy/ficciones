@@ -1,3 +1,10 @@
+# Claude Code sources ~/.zshrc by path for its shell snapshot, whatever ZDOTDIR says; its shells
+# carry ZDOTDIR=~/.claude/zsh (settings.json), so hand them the lean rc there instead of this one.
+if [[ $ZDOTDIR == "$HOME/.claude/zsh" && -r $ZDOTDIR/.zshrc ]]; then
+  source "$ZDOTDIR/.zshrc"
+  return
+fi
+
 # Auto-attach to tmux in regular ghostty windows (disabled — conflicts with agent-deck/csq nesting)
 # if [[ -z "$TMUX" && "$TERM" == "xterm-ghostty" ]]; then
 #   window_class=$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // empty')
