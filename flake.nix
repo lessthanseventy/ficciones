@@ -428,6 +428,24 @@
               home.file.".claude/zsh/.zshenv".source = ./modules/agents/zsh/zshenv;
               home.file.".claude/zsh/.zprofile".source = ./modules/agents/zsh/zprofile;
               home.file.".claude/zsh/.zshrc".source = ./modules/agents/zsh/zshrc;
+              # ...and the env they need, merged into settings.json (Claude Code rewrites that file, so
+              # it stays mutable): ZDOTDIR above, and nothing that waits on a human; the shell snapshot
+              # keeps only PATH, so these cannot live in the rc. No EDITOR: Claude Code's ctrl+g uses it.
+              home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                cfg="$HOME/.claude/settings.json"
+                if [ -f "$cfg" ]; then
+                  tmp=$(mktemp)
+                  if ${pkgs.jq}/bin/jq '.env += {
+                       ZDOTDIR: (env.HOME + "/.claude/zsh"),
+                       GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
+                       GIT_TERMINAL_PROMPT: "0" }' "$cfg" > "$tmp"; then
+                    run chmod 600 "$tmp"
+                    run mv -f "$tmp" "$cfg"
+                  else
+                    rm -f "$tmp"
+                  fi
+                fi
+              '';
 
               # the interactive shell's rc: ls and cat are eza and bat at a terminal, the plain tools
               # for anything that reads their output (an agent's Bash)
