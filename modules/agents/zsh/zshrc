@@ -1,0 +1,31 @@
+# ~/.claude/zsh/.zshrc: a lean interactive rc for Claude Code's shells.
+#
+# Claude Code snapshots an interactive zsh's functions, aliases and options and re-sources that
+# snapshot on every Bash tool call. With ~/.zshrc it is ~14k lines (oh-my-zsh, starship, navi,
+# fzf-tab...), none of which helps an agent. This keeps only what commands need: PATH, toolchains,
+# the env vars that change tool behaviour.
+
+# --- toolchains ------------------------------------------------------------------------------------
+# full activation, not just the shims from .zshenv: it also exports mise's [env] vars
+# (e.g. OLLAMA_API_KEY from ~/.config/mise/config.toml), as ~/.zshrc does
+(( $+commands[mise] )) && eval "$(mise activate zsh)"
+
+# --- PATH (same precedence as ~/.zshrc) ------------------------------------------------------------
+typeset -U path
+export BUN_INSTALL="$HOME/.bun"
+export PNPM_HOME="$HOME/.local/share/pnpm"
+path=("$PNPM_HOME" "$BUN_INSTALL/bin" "$HOME/.cargo/bin" "$HOME/.local/bin" $path)
+
+# --- environment that changes tool behaviour -------------------------------------------------------
+# nothing may wait on a human: no editor, no pager, no git credential prompt; any of them would
+# hang the tool call
+export EDITOR=true VISUAL=true GIT_EDITOR=true
+export PAGER=cat GIT_PAGER=cat MANPAGER=cat
+export GIT_TERMINAL_PROMPT=0
+export DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0
+export KERL_BUILD_DOCS=yes
+export CHROME_PATH=/usr/bin/chromium
+export PLAYWRIGHT_BROWSERS_PATH="$HOME/.cache/ms-playwright"
+
+# --- options ---------------------------------------------------------------------------------------
+setopt INTERACTIVE_COMMENTS

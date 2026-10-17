@@ -423,6 +423,11 @@
 
               # The four working rules (modules/agents/how-to-work.md), as Claude Code's global CLAUDE.md.
               home.file.".claude/CLAUDE.md".source = ./modules/agents/how-to-work.md;
+              # Claude Code's shells read these (settings.json: env.ZDOTDIR = ~/.claude/zsh): the user's
+              # .zshenv and .zprofile, then a lean rc in place of ~/.zshrc's ~14k-line snapshot
+              home.file.".claude/zsh/.zshenv".source = ./modules/agents/zsh/zshenv;
+              home.file.".claude/zsh/.zprofile".source = ./modules/agents/zsh/zprofile;
+              home.file.".claude/zsh/.zshrc".source = ./modules/agents/zsh/zshrc;
 
               # the interactive shell's rc: ls and cat are eza and bat at a terminal, the plain tools
               # for anything that reads their output (an agent's Bash)

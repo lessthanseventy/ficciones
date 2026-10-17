@@ -1,0 +1,6 @@
+# ~/.claude/zsh/.zshenv: Claude Code's shells (settings.json sets ZDOTDIR=~/.claude/zsh).
+# The user's .zshenv (mise shims) first, then options that make zsh read commands the way an agent
+# writes them: bash-style word splitting, unmatched globs passed through instead of aborting the
+# command, and `!` as a plain character rather than history expansion.
+[[ -r "$HOME/.zshenv" ]] && source "$HOME/.zshenv"
+setopt SH_WORD_SPLIT NO_NOMATCH NO_BANG_HIST

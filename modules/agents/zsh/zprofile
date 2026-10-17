@@ -1,0 +1,2 @@
+# ~/.claude/zsh/.zprofile: the user's login profile, unchanged (~/.local/bin, the desktop env).
+[[ -r "$HOME/.zprofile" ]] && source "$HOME/.zprofile"
