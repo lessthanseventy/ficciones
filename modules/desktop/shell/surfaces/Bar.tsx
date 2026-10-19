@@ -49,8 +49,17 @@ function Windows({ connector }: { connector: string }) {
     const x = (c: Hyprland.Client) => live.get(c.address.replace(/^0x/, "")) ?? c.x
     return cs.filter((c) => ws && c.workspace?.id === ws.id && c.mapped).sort((a, b) => x(a) - x(b))
   })
+  // Stops at the ends, no wrap — same as the rail's wheel.
+  const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
+  scroll.connect("scroll", (_, __, dy) => {
+    const cs = clients.peek()
+    const i = cs.findIndex((c) => c.address === focusedClient()?.address)
+    const next = cs[i + (dy > 0 ? 1 : -1)]
+    if (i >= 0 && next) dispatch(L.focusWindow(addr(next)))
+    return true
+  })
   return (
-    <box cssClasses={["windows"]} hexpand={false}>
+    <box cssClasses={["windows"]} hexpand={false} $={(self) => self.add_controller(scroll)}>
       <For each={clients}>
         {(c) => {
           const focused = focusedClient((f) => f?.address === c.address)
