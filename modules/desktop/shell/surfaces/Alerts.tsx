@@ -9,6 +9,7 @@ import Gdk from "gi://Gdk?version=4.0"
 import { For, With, createState, createComputed, onCleanup } from "ags"
 import { timeout } from "ags/time"
 import { Panel } from "../lib/tui"
+import { closeKeys } from "../lib/keys"
 import { setting } from "../lib/settings"
 import { putsAway } from "../lib/alerts-core"
 import { openThread, alarms, banner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
@@ -78,12 +79,10 @@ function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { labe
             acceptsTab={false}
             $={(self) => {
               input = self
-              const keys = new Gtk.EventControllerKey()
-              keys.connect("key-pressed", (_, kv, _code, mods) => {
-                if (kv === Gdk.KEY_Escape) { setAsking(null); return true }
+              const keys = closeKeys({ close: () => setAsking(null), onKey: (kv, mods) => {
                 if ((kv === Gdk.KEY_Return || kv === Gdk.KEY_KP_Enter) && !(mods & Gdk.ModifierType.SHIFT_MASK)) { send(); return true }
                 return (mods & Gdk.ModifierType.CONTROL_MASK) !== 0 && readline(self.buffer, kv)
-              })
+              } })
               self.add_controller(keys)
               asking.subscribe(() => { if (asking.peek()) { self.buffer.set_text("", 0); self.grab_focus() } })
             }}
@@ -189,9 +188,7 @@ function Alarm({ gdkmonitor, a }: { gdkmonitor: Gdk.Monitor; a: Alert }) {
     <window
       $={(self) => {
         win = self
-        const keys = new Gtk.EventControllerKey()
-        keys.connect("key-pressed", (_, kv) => { if (kv === Gdk.KEY_Escape) { dismiss(a); return true } return false })
-        self.add_controller(keys)
+        self.add_controller(closeKeys({ close: () => dismiss(a) }))
       }}
       visible
       gdkmonitor={gdkmonitor}

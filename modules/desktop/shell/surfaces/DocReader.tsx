@@ -3,15 +3,14 @@
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
-import Gdk from "gi://Gdk?version=4.0"
 import { Panel } from "../lib/tui"
 import { doc, closeDoc } from "../lib/alerts"
 import { markdownToPango } from "../lib/markdown"
 import { ROLE } from "../lib/palette"
+import { closeKeys } from "../lib/keys"
 
 export default function DocReader() {
-  const keys = new Gtk.EventControllerKey()
-  keys.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape || kv === Gdk.KEY_q ? (closeDoc(), true) : false))
+  const keys = closeKeys({ close: closeDoc, q: true })
   return (
     <window
       $={(self) => self.add_controller(keys)}

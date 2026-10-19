@@ -13,6 +13,7 @@ import Hyprland from "gi://AstalHyprland"
 import { For, createBinding, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer as T } from "ags/time"
 import { Panel } from "../lib/tui"
+import { closeKeys } from "../lib/keys"
 import { VList } from "../lib/vlist"
 import { log, hhmm, logEvent, type Entry, type Src } from "../lib/log"
 import { execAsync } from "ags/process"
@@ -273,14 +274,12 @@ export default function Deck() {
   // (LOG: copy the line; AGENTS: pick the row), 1–6 pick a log source, 0 or a = all.
   // CAPTURE: the list widget under the pointer owns GTK focus and would swallow Tab, the
   // arrows and Enter before a bubble-phase handler on the window ever saw them
-  const keys = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
   const K = Gdk
   // FILTERS is the chip row (all + the sources): h/l along it, Enter picks the chip
   const count = () => { const f = focus.peek(); return f === "FILTERS" ? SRCS.length + 1 : f === "LOG" ? logShown.peek().length : threads.peek().length }
   const horizontal = () => focus.peek() === "FILTERS"
-  keys.connect("key-pressed", (_, kv, __, mods) => {
+  const keys = closeKeys({ close: hideDeck, q: true, capture: true, onKey: (kv, mods) => {
     const shift = !!(mods & Gdk.ModifierType.SHIFT_MASK)
-    if (kv === K.KEY_Escape || kv === K.KEY_q) { hideDeck(); return true }
     if (kv === K.KEY_Tab || kv === K.KEY_ISO_Left_Tab) { cycleFocus(kv === K.KEY_ISO_Left_Tab || shift ? -1 : 1); return true }
     const fwd = horizontal() ? [K.KEY_l, K.KEY_Right] : [K.KEY_j, K.KEY_Down]
     const back = horizontal() ? [K.KEY_h, K.KEY_Left] : [K.KEY_k, K.KEY_Up]
@@ -302,7 +301,7 @@ export default function Deck() {
       return true
     }
     return false
-  })
+  } })
   return (
     <window
       $={(self) => {

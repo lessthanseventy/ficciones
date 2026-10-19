@@ -8,6 +8,7 @@ import Hyprland from "gi://AstalHyprland"
 import { createState, For } from "ags"
 import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
+import { closeKeys } from "../lib/keys"
 
 type Bind = { modmask: number; key: string; dispatcher: string; arg: string; description: string; submap: string; mouse: boolean }
 type Row = { keys: string; what: string }
@@ -97,9 +98,7 @@ export default function Cheatsheet() {
     <window
       $={(self) => {
         win = self
-        const k = new Gtk.EventControllerKey()
-        k.connect("key-pressed", () => ((self.visible = false), true))
-        self.add_controller(k)
+        self.add_controller(closeKeys({ close: () => (self.visible = false), any: true }))
         const g = new Gtk.GestureClick()
         g.connect("pressed", () => (self.visible = false))
         self.add_controller(g)

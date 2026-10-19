@@ -20,6 +20,7 @@ import { busiest, viewOf } from "../office/kit/crew"
 import { theme } from "../lib/theme"
 import { ROLE } from "../lib/palette"
 import { Panel } from "../lib/tui"
+import { closeKeys } from "../lib/keys"
 import { Brief } from "../panes/Agents"
 import { armClickaway, closeAny, disarmClickaway } from "./Clickaway"
 
@@ -746,17 +747,18 @@ function stepPerson(d: 1 | -1) {
 export default function Office() {
   // CAPTURE, so the keys reach us before a focused button eats them; a focused entry keeps its
   // typing — only Esc gets through it
-  const keys = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
-  keys.connect("key-pressed", (_, kv) => {
+  const keys = closeKeys({
+    close: hideOffice,
+    capture: true,
     // the worker's terminal, focused, is theirs: every key goes to it, Esc too (Claude Code needs it)
-    if (officeWin?.get_focus() instanceof Vte.Terminal) return false
-    if (kv === Gdk.KEY_Escape) {
-      // back out one step at a time: the open action, then the picked thread, then the office
+    skip: () => officeWin?.get_focus() instanceof Vte.Terminal,
+    // back out one step at a time: the open action, then the picked thread, then the office
+    onEsc: () => {
       if (mode.peek().kind !== "none") setMode({ kind: "none" })
       else if (picked.peek() !== null) setPicked(null)
       else hideOffice()
-      return true
-    }
+    },
+    onKey: (kv) => {
     if (officeWin?.get_focus() instanceof Gtk.Text) return false
     switch (kv) {
       case Gdk.KEY_j: case Gdk.KEY_Down: stepPerson(1); return true
@@ -770,7 +772,7 @@ export default function Office() {
         return false
     }
     return false
-  })
+  } })
   // a fresh brief on every poll, so a reply's answer shows up while the rail is open
   agents.subscribe(() => { if (officeWin?.visible) loadBrief() })
   return (

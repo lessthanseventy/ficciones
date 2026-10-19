@@ -6,7 +6,6 @@ import { L, dispatch } from "../lib/hyprlua"
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
-import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
@@ -22,6 +21,7 @@ import { NetCard } from "../panes/Net"
 import { LogPane } from "./Deck"
 import { WorkspacesCard } from "../panes/Workspaces"
 import { RuleV } from "../lib/tui"
+import { closeKeys } from "../lib/keys"
 import { tier } from "../lib/perf"
 import { meter, spark } from "../lib/format"
 
@@ -170,9 +170,7 @@ export default function Dashboard() {
     <window
       $={(self) => {
         win = self
-        const k = new Gtk.EventControllerKey()
-        k.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape || kv === Gdk.KEY_q ? (hideDashboard(), true) : false))
-        self.add_controller(k)
+        self.add_controller(closeKeys({ close: hideDashboard, q: true }))
       }}
       cssClasses={["dashboard"]}
       namespace="astal-shell-dashboard"

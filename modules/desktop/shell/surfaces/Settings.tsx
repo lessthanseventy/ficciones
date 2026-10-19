@@ -4,10 +4,10 @@
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
-import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import { createState, createComputed, createRoot, type Accessor } from "ags"
 import { Panel } from "../lib/tui"
+import { closeKeys } from "../lib/keys"
 import { setting, setSetting, PATH, type NumberKey, type BoolKey } from "../lib/settings"
 import { hackNames } from "../lib/xscreensaver"
 import { MODE_NAMES } from "./Backdrop"
@@ -230,9 +230,7 @@ export default function Settings() {
       $={(self) => {
         win = self
         // capture: Esc closes before the focused filter can take it
-        const k = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
-        k.connect("key-pressed", (_c, key) => (key === Gdk.KEY_Escape ? ((self.visible = false), true) : false))
-        self.add_controller(k)
+        self.add_controller(closeKeys({ close: () => (self.visible = false), capture: true }))
       }}
       visible={false}
       cssClasses={["settings"]}

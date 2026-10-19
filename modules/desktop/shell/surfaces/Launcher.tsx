@@ -7,6 +7,7 @@ import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
+import { closeKeys } from "../lib/keys"
 import GLib from "gi://GLib?version=2.0"
 import Apps from "gi://AstalApps"
 import Hyprland from "gi://AstalHyprland"
@@ -158,10 +159,9 @@ const prompt: Record<Mode, string> = { apps: ">", calc: "=", files: "/", shell: 
 const hint: Record<Mode, string> = { apps: "apps · =calc · /files · :shell · >verbs", calc: "qalc · Enter copies", files: "fd from ~ · Enter opens", shell: "Enter runs", clip: "Enter copies", verbs: "mise tasks · Enter runs in a window" }
 
 export default function Launcher() {
-  const onKey = (_: Gtk.EventControllerKey, kv: number, __: number, state: number) => {
+  const onKey = (kv: number, state: number) => {
     const ctrl = state & Gdk.ModifierType.CONTROL_MASK
     const n = items.peek().length
-    if (kv === Gdk.KEY_Escape) return hide(), true
     if (kv === Gdk.KEY_Down || (ctrl && kv === Gdk.KEY_j) || kv === Gdk.KEY_Tab) return setSel((s) => (n ? (s + 1) % n : 0)), true
     if (kv === Gdk.KEY_Up || (ctrl && kv === Gdk.KEY_k) || kv === Gdk.KEY_ISO_Left_Tab) return setSel((s) => (n ? (s + n - 1) % n : 0)), true
     if (kv === Gdk.KEY_Return || kv === Gdk.KEY_KP_Enter) return activate(), true
@@ -171,9 +171,7 @@ export default function Launcher() {
     <window
       $={(self) => {
         win = self
-        const k = new Gtk.EventControllerKey({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
-        k.connect("key-pressed", onKey)
-        self.add_controller(k)
+        self.add_controller(closeKeys({ close: hide, capture: true, onKey }))
       }}
       visible={false}
       cssClasses={["launcher"]}
