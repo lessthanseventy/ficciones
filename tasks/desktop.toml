@@ -12,11 +12,8 @@ description = "theme: check BOTH palettes against the WCAG floors in contrast.ni
 run = "nix build --no-link --print-build-logs .#checks.x86_64-linux.palette-contrast"
 
 ["flake:bump"]
-description = "machine: nix flake update (inputs) + nix-update over the hand-pinned packages (expert: version + hash from upstream releases)"
-run = [
-  "nix flake update",
-  "nix run nixpkgs#nix-update -- --flake expert",
-]
+description = "machine: nix flake update — every input, Expert included (it builds from its own flake)"
+run = "nix flake update"
 
 ["flake:check"]
 description = "machine: nix flake check + build both closures — the machine-level gate"

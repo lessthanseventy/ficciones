@@ -20,7 +20,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 
 | verb | does |
 |---|---|
-| `flake:bump` | machine: nix flake update (inputs) + nix-update over the hand-pinned packages (expert: version + hash from upstream releases) |
+| `flake:bump` | machine: nix flake update — every input, Expert included (it builds from its own flake) |
 | `flake:check` | machine: nix flake check + build both closures — the machine-level gate |
 
 ## home
