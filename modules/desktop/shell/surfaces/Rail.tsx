@@ -1,3 +1,4 @@
+import { setting } from "../lib/settings"
 import { L, dispatch } from "../lib/hyprlua"
 import { iconFor } from "../lib/icons"
 import app from "ags/gtk4/app"
@@ -59,8 +60,8 @@ function Workspaces({ connector }: { connector: string }) {
               cssClasses={classes}
               direction={Gtk.ArrowType.RIGHT}
               halign={Gtk.Align.CENTER}
-              // opens on Super+hover after the shared dwell (feel.hoverDwellMs); the showing workspace's thumbs refresh first
-              $={(self) => { watchThumbs(self.popover as Gtk.Popover); wsPops.set(ws.id, hoverPopover(self, "rail", () => dispatch(L.workspace(String(ws.id))), { hover: () => superHeld.peek(), onShow: () => captureShowing() })) }}
+              // opens on Super+hover after feel.superHoverMs; the showing workspace's thumbs refresh first
+              $={(self) => { watchThumbs(self.popover as Gtk.Popover); wsPops.set(ws.id, hoverPopover(self, "rail", () => dispatch(L.workspace(String(ws.id))), { hover: () => superHeld.peek(), dwell: () => setting("feel.superHoverMs").peek(), onShow: () => captureShowing() })) }}
             >
               {/* the last active window's icon; the number when empty, or while Super is held */}
               {(() => {

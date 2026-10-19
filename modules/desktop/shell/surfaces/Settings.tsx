@@ -209,8 +209,11 @@ function Feel() {
   return (
     <Panel title="FEEL" cssClasses={["set-section"]} spacing={10} visible={section((s) => s === "feel")}>
       <Row label="stay awake" hint="no idle lock, screen-off or suspend"><OnOff k="power.awake" /></Row>
-      <Row label="hover to open" hint="resting on a bar item, or on the rail with Super held, before its card opens">
+      <Row label="hover to open" hint="resting on a bar item before its card opens">
         <Stepper k="feel.hoverDwellMs" stops={range(0, 1500, 100)} fmt={ms} />
+      </Row>
+      <Row label="Super+hover" hint="resting on a rail workspace with Super held before its windows show">
+        <Stepper k="feel.superHoverMs" stops={range(0, 1500, 50)} fmt={ms} />
       </Row>
       <Row label="card grace" hint="a card stays this long after the pointer leaves">
         <Stepper k="feel.hoverGraceMs" stops={range(0, 1500, 50)} fmt={ms} />

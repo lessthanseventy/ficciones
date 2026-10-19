@@ -42,6 +42,8 @@ const DEFAULTS = {
   "sound.vizBars": 24,
   /** how long the pointer rests on a bar item before its card opens */
   "feel.hoverDwellMs": 500,
+  /** how long the pointer rests on a rail workspace, Super held, before its windows show */
+  "feel.superHoverMs": 250,
   /** how long a card stays after the pointer leaves it */
   "feel.hoverGraceMs": 350,
   "feel.osdHoldMs": 1400,
