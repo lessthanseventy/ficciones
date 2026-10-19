@@ -46,4 +46,5 @@ The dwell, the grace after the pointer leaves and the hot edge are in Settings, 
 landing lands, and when a deck timer or pomodoro phase ends (`lib/sfx.ts`, through `pw-play`).
 Setting `sound.sfx` (Settings, "sound effects"; on by default) turns it off, and do-not-disturb
 mutes it, as it mutes toasts. The WAVs live in `modules/desktop/shell/assets/sfx/`; the landing
-chime is the same one the Claude Code plugin plays.
+chime is the same one the Claude Code plugin plays, and the landing toast says what the plugin's
+does: the server's own alert row (`#<id> landed — <title>`).

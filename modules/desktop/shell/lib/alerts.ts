@@ -14,7 +14,7 @@ import { play } from "./sfx"
 import { openInOffice } from "./agents"
 import { hypr } from "./hypr"
 import { dispatchNow } from "./hyprlua"
-import { showing as up, ofLevel, request, arrived, type Action, type Alert, type Kept } from "./alerts-core"
+import { showing as up, ofLevel, request, arrived, soundFor, type Action, type Alert, type Kept } from "./alerts-core"
 
 export type { Action, Alert }
 
@@ -61,7 +61,7 @@ export async function refreshAlerts() {
     const fresh = (await res.json()) as Alert[]
     const prev = all.peek(), was = new Map(prev.map((a) => [a.key, a]))
     for (const a of fresh) if (!was.has(a.key)) logEvent("agent", `${a.level}: ${a.title}`, a.level === "sticky" || a.level === "info" ? "normal" : "warn")
-    if (heard && arrived(fresh, heard, kept.peek()).some((a) => a.level === "decision")) play("decision")
+    if (heard) for (const name of new Set(arrived(fresh, heard, kept.peek()).map(soundFor))) if (name) play(name)
     heard = new Set(fresh.map((a) => a.key))
     // an unchanged alert keeps its object: the banner's <With> rebuilds on a new one, which every
     // poll would otherwise do under the pointer — eating a click, wiping a half-typed reply
