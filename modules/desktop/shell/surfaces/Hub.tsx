@@ -19,6 +19,7 @@ import { deckVisible } from "./Deck"
 import { officeVisible } from "./Office"
 import { armClickaway, disarmClickaway } from "./Clickaway"
 import { setting } from "../lib/settings"
+import { closeKeys } from "../lib/keys"
 
 const notifd = Notifd.get_default()
 
@@ -108,8 +109,7 @@ export function startHotEdge() {
 }
 
 export default function Hub() {
-  const keys = new Gtk.EventControllerKey()
-  keys.connect("key-pressed", (_, kv) => (kv === Gdk.KEY_Escape || kv === Gdk.KEY_q ? (hideHub(), true) : false))
+  const keys = closeKeys({ close: hideHub, q: true })
   return (
     <window
       $={(self) => {
