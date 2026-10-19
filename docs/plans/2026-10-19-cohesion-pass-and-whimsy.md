@@ -1,7 +1,7 @@
 # Cohesion pass and whimsy — a hand-off plan for Sonnet subagents
 
 **Date:** 2026-10-19
-**Status:** proposed by Fable 5.1 from four read-only audits of ficciones, tlon's office, tlon's server
+**Status:** decided with Andrew 2026-10-19 (§10); built by Fable 5.1 from four read-only audits of ficciones, tlon's office, tlon's server
 and adapters, and the live store (58 open tickets, all in the Machine workspace). Nothing here is built.
 **Asked:** Andrew: *"go through this whole ficciones/tlon stack and look for improvements/fun/whimsical
 things to add. make a plan i can hand off to some sonnet subagents"* and *"a general bug hunt/missing
@@ -178,3 +178,20 @@ Lanes run in parallel, one Sonnet each at most two at a time per repo (the check
 machine in tlon). Inside a lane: A2 → A3 → A4; A6 ⊃ A8; B1 → B2 → B3; C1 and C2 first in C; D1 after
 B4 and C1 land (it describes them). E7, E8, E3 are the three to hand out first if the point is to see
 something fun land today.
+
+## 10 · Decided (Andrew, 2026-10-19)
+
+- **Dispatch:** Sonnet subagents spawned from the planning session, one worktree each, PRs Andrew
+  lands. Not through the office's worklines this time.
+- **Order:** cohesion first, in lane order; whimsy after.
+- **B3:** the screen is **the room** (`ctrl+] room`); the standing thread is **the front desk**; a
+  coworker's home window is **at their desk**.
+- **B2:** **one meaning per key, strict.** R reload, S settings, d dismiss/delete; review → `V`,
+  docs → `D`, save → `⏎` on the card. Hints never need a mode to read.
+- **Sandbox play keys** move to **shifted letters** (`D E T F N W P C`) so no card key is shadowed;
+  the help line and `playable()` follow, and the README's key list is updated in the same commit.
+- **B4:** wire **both** dials: `souls` gates rivalries and soul voices; `weirdness` picks the door's
+  curated visitors vs the server's generated pool through a new `GET /api/office/toys/:ws`.
+- **C6:** life rows answer to the operator's own sessions and to seats on the home workspace whose
+  archetype is `assistant`; every other seat gets `{:error, :not_yours}`.
+- **E4:** sound effects **on by default**, silenced by do-not-disturb.
