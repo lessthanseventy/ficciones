@@ -23,4 +23,4 @@ TIMER. Media left the bar's popover and the dashboard; agents left the dashboard
 "9pm"), pomodoro (25/5 with a 15 every fourth, or "pomo 50/10"). Typed into the launcher or
 the timer cell. The end is a critical notice.
 
-Not done: a nav focus model for the drawer's panes (Tab cycling), keyboard on the log.
+Built since: a nav focus model for the drawer's panes (Tab cycles FILTERS, LOG, AGENTS; `lib/nav.ts`) and keyboard on the log (j/k, Enter copies a line).

@@ -5,6 +5,7 @@ import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { interval, type Timer as T } from "ags/time"
 import { logEvent } from "./log"
+import { duration } from "./format"
 
 export type Kind = "countdown" | "alarm" | "pomodoro"
 export type Timer = {
@@ -22,12 +23,6 @@ export const [timer, setTimer] = createState<Timer | null>(null)
 export const [left, setLeft] = createState(0)
 
 let tick: T | null = null
-
-export const fmtLeft = (s: number) => {
-  s = Math.max(0, Math.round(s))
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
-  return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`
-}
 
 /** "25m" "1h10" "1h 10m" "90s" → seconds; null if it is not a duration ("1:30" is a clock time) */
 export function parseDuration(s: string): number | null {
@@ -61,7 +56,7 @@ export function parseSpec(q: string): { title: string; start: () => void } | nul
   const pomo = s.match(/^pomo(?:doro)?(?:\s+(\d+)\s*\/\s*(\d+))?$/)
   if (pomo) { const w = Number(pomo[1] ?? 25), r = Number(pomo[2] ?? 5); return { title: `pomodoro ${w}/${r}`, start: () => startPomodoro(w, r) } }
   const d = parseDuration(s)
-  if (d) return { title: `timer ${fmtLeft(d)}`, start: () => startCountdown(d, s) }
+  if (d) return { title: `timer ${duration(d)}`, start: () => startCountdown(d, s) }
   const at = parseClock(s)
   if (at) return { title: `alarm at ${new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, start: () => startAlarm(at) }
   return null
@@ -99,8 +94,8 @@ function fire(t: Timer) {
   stopTimer(true)
 }
 
-export function startCountdown(seconds: number, label = fmtLeft(seconds)) {
-  logEvent("shell", `timer ${fmtLeft(seconds)}`)
+export function startCountdown(seconds: number, label = duration(seconds)) {
+  logEvent("shell", `timer ${duration(seconds)}`)
   run({ kind: "countdown", label, endsAt: Date.now() + seconds * 1000 })
 }
 export function startAlarm(at: number) {

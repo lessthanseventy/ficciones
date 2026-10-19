@@ -10,8 +10,8 @@ import { pct } from "../lib/format"
 import { quietOsd } from "./Osd"
 
 // Intel names every codec endpoint "Raptor Lake-P/U/H cAVS <thing>"; the thing is the name.
-const clean = (s: string) => s.replace(/^.*?cAVS\s+/, "")
-const short = (s: string, n = 28) => { const c = clean(s); return c.length > n ? c.slice(0, n - 1) + "…" : c }
+const stripDevicePrefix = (s: string) => s.replace(/^.*?cAVS\s+/, "")
+const short = (s: string, n = 28) => { const c = stripDevicePrefix(s); return c.length > n ? c.slice(0, n - 1) + "…" : c }
 // speech-dispatcher (TTS for Orca / Firefox reader) parks idle streams that never play
 const HIDDEN = /^speech-dispatcher/i
 
@@ -75,7 +75,7 @@ export default function Audio() {
   const wp = Wp.get_default()!
   const audio = wp.audio
   // sorted by (cleaned) name with numeric collation, so HDMI 1/2/3 sit in order
-  const byName = (a: Wp.Endpoint, b: Wp.Endpoint) => clean(a.description ?? "").localeCompare(clean(b.description ?? ""), undefined, { numeric: true })
+  const byName = (a: Wp.Endpoint, b: Wp.Endpoint) => stripDevicePrefix(a.description ?? "").localeCompare(stripDevicePrefix(b.description ?? ""), undefined, { numeric: true })
   const speakers = createBinding(audio, "speakers")((s) => [...(s ?? [])].sort(byName))
   const mics = createBinding(audio, "microphones")((s) => [...(s ?? [])].sort(byName))
   const streams = createBinding(audio, "streams")
