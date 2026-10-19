@@ -10,8 +10,14 @@ import { Babel, ensureBooks } from "./babel"
  * `smooth` steps at FAST_HZ, each step `dt` of a SLOW_HZ one; the rest step at SLOW_HZ. */
 export type Mode = { name: string; colour: string; smooth?: true; init(g: CharGrid): void; step(g: CharGrid): void; poke?(g: CharGrid, x: number, y: number): void; text?(): string[] }
 
-export const FAST_HZ = 15, SLOW_HZ = 5
-const dt = SLOW_HZ / FAST_HZ
+export const SLOW_HZ = 5
+export let FAST_HZ = 15
+let dt = SLOW_HZ / FAST_HZ
+/** FAST_HZ must be a whole multiple of SLOW_HZ: the slow modes skip FAST_HZ / SLOW_HZ ticks */
+export function setFastHz(hz: number) {
+  FAST_HZ = Math.max(SLOW_HZ, Math.round(hz / SLOW_HZ) * SLOW_HZ)
+  dt = SLOW_HZ / FAST_HZ
+}
 /** a SLOW_HZ step's decay as one smooth step's, so a trail fades as fast at either rate */
 const fade = (p: number) => 1 - (1 - p) ** dt
 

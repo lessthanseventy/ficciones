@@ -37,3 +37,9 @@ test("the CLI's text becomes the default's type", () => {
   assert.ok(parseCli(true, "maybe") instanceof Error)
   assert.ok(parseCli(90, "fast") instanceof Error)
 })
+
+test("the numeric tuning settings load as numbers and fall back on a wrong type", () => {
+  const T = { "backdrop.smoothHz": 15, "sound.vizBars": 24, "feel.hoverDwellMs": 500 }
+  assert.deepEqual(load(T, JSON.stringify({ "backdrop.smoothHz": 30, "sound.vizBars": 12 })).values, { "backdrop.smoothHz": 30, "sound.vizBars": 12, "feel.hoverDwellMs": 500 })
+  assert.deepEqual(load(T, JSON.stringify({ "backdrop.smoothHz": "fast", "sound.vizBars": null })).values, T)
+})

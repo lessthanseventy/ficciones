@@ -30,3 +30,14 @@ The scroll wheel means one thing per place, and the same thing wherever it appea
 | the rail's volume item | volume | 2 %, capped at 100 % |
 | the deck's now-playing cell | volume (the same function) | 2 %, capped at 100 % |
 | anywhere else | nothing; the office canvas and the launcher have no wheel on purpose | |
+
+## What opens on hover, what on click
+
+| Cell | Opens on | Notes |
+|---|---|---|
+| the rail's workspace strip | Super held + hover, after `feel.hoverDwellMs` | a plain click goes to that workspace |
+| every other bar and rail cell (clock, weather, volume, network, perf...) | click | sliding to a neighbour while one is open swaps at once |
+| the deck's now-playing title | click | the media card |
+| the deck's log, the Aleph | click | toggles the drawer, the dashboard |
+
+The dwell, the grace after the pointer leaves and the hot edge are in Settings, under FEEL.

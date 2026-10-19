@@ -9,7 +9,7 @@ import { createState, onCleanup, type Accessor } from "ags"
 import Gdk from "gi://Gdk?version=4.0"
 import { interval, type Timer } from "ags/time"
 import { CharGrid } from "../lib/chargrid"
-import { makeModes, FAST_HZ, SLOW_HZ } from "../lib/ambient"
+import { makeModes, FAST_HZ, SLOW_HZ, setFastHz } from "../lib/ambient"
 import { wallpaper } from "../lib/wallpaper"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib?version=2.0"
@@ -23,8 +23,9 @@ import { fullscreenMonitors } from "../lib/hypr"
 import { setting } from "../lib/settings"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
-const TICK_MS = 1000 / FAST_HZ
-const switchTicks = () => Math.round((Math.max(10, setting("backdrop.rotateSeconds").peek()) * 1000) / TICK_MS)
+setFastHz(setting("backdrop.smoothHz").peek())
+const tickMs = () => 1000 / FAST_HZ
+const switchTicks = () => Math.round((Math.max(10, setting("backdrop.rotateSeconds").peek()) * 1000) / tickMs())
 // braille bit layout: left column bits 0,1,2,6 ; right column bits 3,4,5,7
 const BITS: [number, number, number][] = [[0x01, 0, 0], [0x02, 0, 1], [0x04, 0, 2], [0x40, 0, 3], [0x08, 1, 0], [0x10, 1, 1], [0x20, 1, 2], [0x80, 1, 3]]
 const DOTS_W = COLS * 2, DOTS_H = ROWS * 4
@@ -180,7 +181,7 @@ class Canvas {
   run(on: boolean) {
     this.timer?.cancel(); this.timer = null
     this.endHack()
-    if (on) { this.ticks = 0; this.timer = interval(TICK_MS, this.step) }
+    if (on) { this.ticks = 0; this.timer = interval(tickMs(), this.step) }
   }
 }
 
@@ -201,6 +202,11 @@ const offNow = () => {
     if (c.hack ? !hacksOn || hacksOff.includes(c.hack) : !c.hold && ambientsOff.includes(c.modes[c.idx].name)) c.ticks = 0
   }
 }
+// the new rate re-times every running canvas; the step counter carries on
+setting("backdrop.smoothHz").subscribe(() => {
+  setFastHz(setting("backdrop.smoothHz").peek())
+  for (const c of canvases.values()) if (c.timer) { c.timer.cancel(); c.timer = interval(tickMs(), c.step) }
+})
 for (const k of ["backdrop.hacks", "backdrop.hacksOff", "backdrop.ambientsOff"] as const) setting(k).subscribe(offNow)
 
 const ORDER: BackdropMode[] = [...MODE_NAMES, "random", "photo"]

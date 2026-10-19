@@ -18,6 +18,8 @@ const DEFAULTS = {
   "backdrop.hacksOff": [] as string[],
   /** hacks draw at this fraction of the monitor, stretched to fit: smaller is smoother and softer */
   "backdrop.hackScale": 0.5,
+  /** how often the smooth ambients step; a multiple of 5 (the slow ones' rate) */
+  "backdrop.smoothHz": 15,
   /** the photo backdrop picks a new image this often */
   "wallpaper.rotateMinutes": 5,
   "look.glass": true,
@@ -36,6 +38,8 @@ const DEFAULTS = {
   "notify.dnd": false,
   /** the rail's audio bars; the visualiser's whole CPU cost while sound plays */
   "sound.vizFps": 30,
+  /** bars per channel in the rail's visualiser */
+  "sound.vizBars": 24,
   /** how long the pointer rests on a bar item before its card opens */
   "feel.hoverDwellMs": 500,
   /** how long a card stays after the pointer leaves it */

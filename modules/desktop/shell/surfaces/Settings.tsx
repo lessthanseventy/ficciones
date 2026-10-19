@@ -134,6 +134,9 @@ function Backdrop() {
       <Row label="hack sharpness" hint="drawn at this size, stretched; smaller is smoother, softer">
         <Stepper k="backdrop.hackScale" stops={[0.25, 0.33, 0.5, 0.67, 0.75, 1]} fmt={(n) => `${Math.round(n * 100)} %`} />
       </Row>
+      <Row label="ambient smoothness" hint="how often the smooth ambients step; costs CPU">
+        <Stepper k="backdrop.smoothHz" stops={[10, 15, 20, 25, 30]} fmt={(n) => `${n} Hz`} />
+      </Row>
       <Row label="hacks" hint="which ones the hack turns draw from">
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
           <box spacing={8} cssClasses={["prompt", "set-search"]}>
@@ -206,7 +209,7 @@ function Feel() {
   return (
     <Panel title="FEEL" cssClasses={["set-section"]} spacing={10} visible={section((s) => s === "feel")}>
       <Row label="stay awake" hint="no idle lock, screen-off or suspend"><OnOff k="power.awake" /></Row>
-      <Row label="hover to open" hint="resting on a bar item before its card opens">
+      <Row label="hover to open" hint="resting on a bar item, or on the rail with Super held, before its card opens">
         <Stepper k="feel.hoverDwellMs" stops={range(0, 1500, 100)} fmt={ms} />
       </Row>
       <Row label="card grace" hint="a card stays this long after the pointer leaves">
@@ -220,6 +223,9 @@ function Feel() {
       </Row>
       <Row label="audio bars" hint="the rail's visualiser while sound plays; its whole CPU cost">
         <Stepper k="sound.vizFps" stops={[5, 10, 15, 20, 30, 45, 60]} fmt={(n) => `${n} fps`} />
+      </Row>
+      <Row label="bar count" hint="bars per channel in the visualiser">
+        <Stepper k="sound.vizBars" stops={[8, 12, 16, 24, 32, 48]} fmt={(n) => `${n}`} />
       </Row>
     </Panel>
   )
