@@ -22,6 +22,8 @@ import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
 import { WorkspacePop } from "../panes/Workspaces"
 import { captureShowing, watchThumbs } from "../lib/thumbs"
+import { railLines } from "../lib/clock-core"
+import { clockFace } from "../office/kit/eggs"
 
 /** Debug: `astal-shell pop ws <id>` opens that number's strip without a hover. */
 const wsPops = new Map<number, HoverPop>()
@@ -129,8 +131,8 @@ function Clock({ connector }: { connector: string }) {
   return (
     <menubutton cssClasses={["clock", "keep-open"]} direction={Gtk.ArrowType.RIGHT} $={(self) => clockPops.set(connector, hoverPopover(self, "rail"))}>
       <box orientation={Gtk.Orientation.VERTICAL}>
-        <label cssClasses={["hh"]} label={now((d) => d.format("%H")!)} />
-        <label cssClasses={["mm"]} label={now((d) => d.format("%M")!)} />
+        <label cssClasses={["hh"]} label={now((d) => railLines(clockFace(new Date(d.to_unix() * 1000)))[0])} />
+        <label cssClasses={["mm"]} label={now((d) => railLines(clockFace(new Date(d.to_unix() * 1000)))[1])} />
         <label cssClasses={["dow"]} label={now((d) => d.format("%a")!)} />
         <label cssClasses={["day"]} label={now((d) => d.format("%d")!)} />
         <label cssClasses={["mon"]} label={now((d) => d.format("%b")!)} />
