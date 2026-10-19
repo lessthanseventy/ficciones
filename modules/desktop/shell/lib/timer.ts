@@ -6,6 +6,7 @@ import { execAsync } from "ags/process"
 import { interval, type Timer as T } from "ags/time"
 import { logEvent } from "./log"
 import { duration } from "./format"
+import { play } from "./sfx"
 
 export type Kind = "countdown" | "alarm" | "pomodoro"
 export type Timer = {
@@ -80,6 +81,7 @@ function notify(summary: string, body: string, critical = true) {
 }
 
 function fire(t: Timer) {
+  play("timer")
   if (t.kind === "pomodoro") {
     const next: Timer = t.phase === "work"
       ? { ...t, phase: "break", endsAt: Date.now() + (t.round! % 4 === 0 ? 15 : t.rest!) * 60_000 }

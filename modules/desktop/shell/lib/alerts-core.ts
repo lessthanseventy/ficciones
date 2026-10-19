@@ -16,6 +16,11 @@ export const showing = (as: Alert[], k: Kept, t: number) =>
  * so the desktop and the office inbox never disagree. */
 export const putsAway = (a: Alert) => a.actions.some((x) => x.path === "/api/office/needs/dismiss")
 
+/** The alerts in `fresh` this shell has not heard before and has not dismissed: what earns a sound,
+ * once per key (`heard` is every key seen so far, the first poll's included, so a restart is quiet). */
+export const arrived = (fresh: Alert[], heard: Set<string>, k: Kept) =>
+  fresh.filter((a) => !heard.has(a.key) && !k.dismissed.includes(a.key))
+
 export const ofLevel = (as: Alert[], level: Alert["level"]) => as.filter((a) => a.level === level)
 
 /** The operator-API call an action makes, `text` filling its `input` field; null when it makes none. */

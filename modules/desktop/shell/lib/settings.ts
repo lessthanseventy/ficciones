@@ -40,6 +40,8 @@ const DEFAULTS = {
   "sound.vizFps": 30,
   /** bars per channel in the rail's visualiser */
   "sound.vizBars": 24,
+  /** a short sound for a decision alert, a landing, a timer's end; do-not-disturb mutes it */
+  "sound.sfx": true,
   /** how long the pointer rests on a bar item before its card opens */
   "feel.hoverDwellMs": 500,
   /** how long the pointer rests on a rail workspace, Super held, before its windows show */
