@@ -123,6 +123,8 @@ rec {
   };
 
   # The palette as JSON — the shell loads the theme's copy at runtime for its Pango markup.
+  wallpapersJson = builtins.toJSON (p.wallpapers or [ ]);
+
   paletteJson = let h = p.hue; in builtins.toJSON {
     amber = hex h.amber; green = hex h.green; pink = hex h.pink; cyan = hex h.cyan;
     lilac = hex h.violet; chip = hex h.chip; red = hex h.red; dim = hex h.dim;
