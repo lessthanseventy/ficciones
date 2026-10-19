@@ -8,6 +8,7 @@ import Hyprland from "gi://AstalHyprland"
 import { createState, createComputed, createRoot, type Accessor } from "ags"
 import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
+import { clickawayField } from "./Clickaway"
 import { setting, setSetting, PATH, type NumberKey, type BoolKey } from "../lib/settings"
 import { hackNames } from "../lib/xscreensaver"
 import { MODE_NAMES } from "./Backdrop"
@@ -239,10 +240,12 @@ export default function Settings() {
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.EXCLUSIVE}
       exclusivity={Astal.Exclusivity.IGNORE}
-      anchor={Astal.WindowAnchor.TOP}
-      marginTop={60}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.RIGHT}
       application={app}
     >
+      <overlay>
+        <box cssClasses={["clickaway-field"]} hexpand vexpand $={(self) => clickawayField(self, () => (win!.visible = false))} />
+        <box $type="overlay" halign={Gtk.Align.CENTER} valign={Gtk.Align.START} marginTop={60}>
       <Panel title={`SETTINGS · ${PATH.replace(/^\/home\/[^/]+/, "~")}`} cssClasses={["settings-pane", "focused"]}>
         <box spacing={16}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["set-nav"]} valign={Gtk.Align.START}>
@@ -256,6 +259,8 @@ export default function Settings() {
           </box>
         </box>
       </Panel>
+        </box>
+      </overlay>
     </window>
   )
 }

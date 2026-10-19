@@ -17,7 +17,7 @@ import { Toggles } from "../panes/Toggles"
 import { isFullscreen } from "../lib/hypr"
 import { deckVisible } from "./Deck"
 import { officeVisible } from "./Office"
-import { armClickaway, disarmClickaway } from "./Clickaway"
+import { armClickaway, disarmClickaway, clickawayField } from "./Clickaway"
 import { setting } from "../lib/settings"
 import { closeKeys } from "../lib/keys"
 
@@ -134,11 +134,7 @@ export default function Hub() {
         cssClasses={["clickaway-field"]}
         hexpand
         vexpand
-        $={(self) => {
-          const g = new Gtk.GestureClick({ button: 0 })
-          g.connect("pressed", () => hideHub())
-          self.add_controller(g)
-        }}
+        $={(self) => clickawayField(self, hideHub)}
       />
       <box cssClasses={["sheet", "right"]} orientation={Gtk.Orientation.VERTICAL} widthRequest={420} hexpand={false} halign={Gtk.Align.END}>
         <Panel title={"\u{f009a}  NOTIFICATIONS"} cssClasses={["card", "card-notices"]}><History /></Panel>

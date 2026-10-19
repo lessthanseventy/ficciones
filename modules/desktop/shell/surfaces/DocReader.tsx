@@ -8,6 +8,7 @@ import { doc, closeDoc } from "../lib/alerts"
 import { markdownToPango } from "../lib/markdown"
 import { ROLE } from "../lib/palette"
 import { closeKeys } from "../lib/keys"
+import { clickawayField } from "./Clickaway"
 
 export default function DocReader() {
   const keys = closeKeys({ close: closeDoc, q: true })
@@ -31,11 +32,7 @@ export default function DocReader() {
           cssClasses={["clickaway-field"]}
           hexpand
           vexpand
-          $={(self) => {
-            const g = new Gtk.GestureClick({ button: 0 })
-            g.connect("pressed", () => closeDoc())
-            self.add_controller(g)
-          }}
+          $={(self) => clickawayField(self, closeDoc)}
         />
         <box $type="overlay" halign={Gtk.Align.CENTER} valign={Gtk.Align.FILL} marginTop={24} marginBottom={48}>
           <Panel title={doc((d) => d?.title ?? "")} cssClasses={["doc-sheet"]}>
