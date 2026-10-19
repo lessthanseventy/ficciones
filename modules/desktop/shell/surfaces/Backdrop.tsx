@@ -263,6 +263,7 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           visible={zen}
           $={(self) => {
             // clicks on the bare desktop reach the backdrop: close what's open, poke whatever is running
+            // any button, deliberately: every other gesture is primary-only
             const g = new Gtk.GestureClick({ button: 0 })
             g.connect("pressed", (_, __, x, y) => { closeAny(); canvas.poke(x, y, self.get_width(), self.get_height()) })
             self.add_controller(g)

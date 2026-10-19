@@ -12,9 +12,9 @@ export function disarmClickaway() { closer = null }
 /** Close whatever panel is open, if one is. */
 export function closeAny() { const c = closer; closer = null; c?.() }
 
-/** Make `widget` a click-away field: a press on it runs `close`. */
+/** Make `widget` a click-away field: a primary press on it runs `close`. */
 export function clickawayField(widget: Gtk.Widget, close: () => void) {
-  const g = new Gtk.GestureClick({ button: 0 })
+  const g = new Gtk.GestureClick({ button: 1 })
   g.connect("pressed", () => close())
   widget.add_controller(g)
 }
@@ -25,7 +25,7 @@ export function clickawayField(widget: Gtk.Widget, close: () => void) {
  * close and reopen in one click.
  */
 export function closeOnPress(widget: Gtk.Widget) {
-  const g = new Gtk.GestureClick({ button: 0, propagationPhase: Gtk.PropagationPhase.CAPTURE })
+  const g = new Gtk.GestureClick({ button: 1, propagationPhase: Gtk.PropagationPhase.CAPTURE })
   g.connect("pressed", (_, _n, x, y) => {
     if (!closer) return
     // cells with the keep-open class toggle on their own; closing here too would close-then-reopen
