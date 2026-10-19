@@ -1,7 +1,7 @@
 // node --test lib/alerts-core.test.mjs (mise shell:test): the pure half of lib/alerts.ts.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { showing, ofLevel, request, putsAway } from "./alerts-core.ts"
+import { showing, ofLevel, request, putsAway, arrived } from "./alerts-core.ts"
 
 const alert = (key, level, actions = []) =>
   ({ key, level, kind: "k", title: key, body: null, at: "2026-10-08T00:00:00Z", thread_id: 198, link: null, actions })
@@ -43,4 +43,11 @@ test("an alert the server can put away offers that, not the desktop's own Dismis
   const away = { label: "Put away", method: "POST", path: "/api/office/needs/dismiss", body: { key: "mention:1" } }
   assert.equal(putsAway(alert("mention:1", "sticky", [away])), true)
   assert.equal(putsAway(alert("verify_failed:1", "sticky", [{ label: "Run verify again", path: "/api/threads/1/verify" }])), false)
+})
+
+test("an alert arrives once per key, never for a dismissed one", () => {
+  const fresh = [alert("a", "decision"), alert("b", "decision"), alert("c", "info")]
+  const kept = { dismissed: ["b"], snoozed: {} }
+  assert.deepEqual(arrived(fresh, new Set(["c"]), kept).map((a) => a.key), ["a"])
+  assert.deepEqual(arrived(fresh, new Set(["a", "b", "c"]), kept), [])
 })

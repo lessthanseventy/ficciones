@@ -224,6 +224,7 @@ function Feel() {
       <Row label="osd" hint="how long volume and brightness stay on screen">
         <Stepper k="feel.osdHoldMs" stops={range(400, 4000, 200)} fmt={ms} />
       </Row>
+      <Row label="sound effects" hint="a short sound for a decision, a landing, a timer's end; do not disturb mutes it"><OnOff k="sound.sfx" /></Row>
       <Row label="audio bars" hint="the rail's visualiser while sound plays; its whole CPU cost">
         <Stepper k="sound.vizFps" stops={[5, 10, 15, 20, 30, 45, 60]} fmt={(n) => `${n} fps`} />
       </Row>

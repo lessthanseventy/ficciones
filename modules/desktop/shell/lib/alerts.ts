@@ -10,10 +10,11 @@ import { execAsync } from "ags/process"
 import { fetch } from "ags/fetch"
 import GLib from "gi://GLib?version=2.0"
 import { logEvent } from "./log"
+import { play } from "./sfx"
 import { openInOffice } from "./agents"
 import { hypr } from "./hypr"
 import { dispatchNow } from "./hyprlua"
-import { showing as up, ofLevel, request, type Action, type Alert, type Kept } from "./alerts-core"
+import { showing as up, ofLevel, request, arrived, type Action, type Alert, type Kept } from "./alerts-core"
 
 export type { Action, Alert }
 
@@ -37,6 +38,7 @@ function save(k: Kept) {
   } catch (e) { console.error("alerts state:", String(e)) }
 }
 
+let heard: Set<string> | null = null
 const [all, setAll] = createState<Alert[]>([])
 const [now, setNow] = createState(Date.now() / 1000)
 /** decisions folded into the bar's pill ("later") — only for this session */
@@ -59,6 +61,8 @@ export async function refreshAlerts() {
     const fresh = (await res.json()) as Alert[]
     const prev = all.peek(), was = new Map(prev.map((a) => [a.key, a]))
     for (const a of fresh) if (!was.has(a.key)) logEvent("agent", `${a.level}: ${a.title}`, a.level === "sticky" || a.level === "info" ? "normal" : "warn")
+    if (heard && arrived(fresh, heard, kept.peek()).some((a) => a.level === "decision")) play("decision")
+    heard = new Set(fresh.map((a) => a.key))
     // an unchanged alert keeps its object: the banner's <With> rebuilds on a new one, which every
     // poll would otherwise do under the pointer — eating a click, wiping a half-typed reply
     const next = fresh.map((a) => { const p = was.get(a.key); return p && JSON.stringify(p) === JSON.stringify(a) ? p : a })

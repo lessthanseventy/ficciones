@@ -41,3 +41,9 @@ The scroll wheel means one thing per place, and the same thing wherever it appea
 | the deck's log, the Aleph | click | toggles the drawer, the dashboard |
 
 The dwell, the grace after the pointer leaves and the hot edge are in Settings, under FEEL.
+
+**The shell makes sound.** A short effect plays when a decision alert arrives, when a tlon
+landing lands, and when a deck timer or pomodoro phase ends (`lib/sfx.ts`, through `pw-play`).
+Setting `sound.sfx` (Settings, "sound effects"; on by default) turns it off, and do-not-disturb
+mutes it, as it mutes toasts. The WAVs live in `modules/desktop/shell/assets/sfx/`; the landing
+chime is the same one the Claude Code plugin plays.
