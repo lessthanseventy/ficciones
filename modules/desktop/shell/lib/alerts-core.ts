@@ -1,4 +1,5 @@
 // The pure half of lib/alerts.ts — no gi imports, so node can test it (lib/alerts-core.test.mjs).
+import type { Sfx } from "./sfx-core"
 
 export type Action = { label: string; method?: string; path?: string; body?: Record<string, unknown> | null; input?: string; open?: string; read?: string }
 export type Alert = {
@@ -20,6 +21,9 @@ export const putsAway = (a: Alert) => a.actions.some((x) => x.path === "/api/off
  * once per key (`heard` is every key seen so far, the first poll's included, so a restart is quiet). */
 export const arrived = (fresh: Alert[], heard: Set<string>, k: Kept) =>
   fresh.filter((a) => !heard.has(a.key) && !k.dismissed.includes(a.key))
+
+/** the sound an arriving alert earns: a decision, or a landing (an info row of kind `landed`) */
+export const soundFor = (a: Alert): Sfx | null => (a.level === "decision" ? "decision" : a.kind === "landed" ? "landing" : null)
 
 export const ofLevel = (as: Alert[], level: Alert["level"]) => as.filter((a) => a.level === level)
 
