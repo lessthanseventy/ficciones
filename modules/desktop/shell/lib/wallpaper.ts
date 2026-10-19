@@ -1,13 +1,15 @@
 // The photo under the zen grid: a random image per monitor from the wallpaper directory,
 // rotated every wallpaper.rotateMinutes (a setting). Drawn by the shell's own background layer (Backdrop.tsx), so no
 // hyprpaper — the one wallpaper path that works nix-built on Arch and on NixOS alike.
-// Directory: "wallpapers" in ~/.config/astal-shell/config.json (home-manager writes it),
-// default ~/Pictures/Wallpapers.
+// The live palette's `wallpapers` (files or directories, ~/.config/ficciones/theme/wallpapers.json)
+// win; a palette naming none falls back to the shared directory: "wallpapers" in
+// ~/.config/astal-shell/config.json (home-manager writes it), default ~/Pictures/Wallpapers.
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
 import { timeout, type Timer } from "ags/time"
 import { setting } from "./settings"
+import { theme } from "./theme"
 
 const EXT = /\.(jpe?g|png|webp|avif)$/i
 
@@ -20,18 +22,33 @@ function dir(): string {
   return `${GLib.get_home_dir()}/Pictures/Wallpapers`
 }
 
+function sources(): string[] {
+  try {
+    const [ok, bytes] = GLib.file_get_contents(`${GLib.get_user_config_dir()}/ficciones/theme/wallpapers.json`)
+    const list = ok ? JSON.parse(new TextDecoder().decode(bytes)) : []
+    if (Array.isArray(list) && list.length) return list.map((p: string) => p.replace(/^~/, GLib.get_home_dir()))
+  } catch {}
+  return [dir()]
+}
+
 let pool: string[] | null = null
 function files(): string[] {
   if (pool) return pool
   pool = []
-  try {
-    const d = Gio.File.new_for_path(dir())
-    const en = d.enumerate_children("standard::name,standard::type", Gio.FileQueryInfoFlags.NONE, null)
-    let info: Gio.FileInfo | null
-    while ((info = en.next_file(null))) {
-      if (info.get_file_type() === Gio.FileType.REGULAR && EXT.test(info.get_name())) pool.push(`${dir()}/${info.get_name()}`)
-    }
-  } catch {}
+  for (const src of sources()) {
+    try {
+      const f = Gio.File.new_for_path(src)
+      if (f.query_file_type(Gio.FileQueryInfoFlags.NONE, null) !== Gio.FileType.DIRECTORY) {
+        if (EXT.test(src)) pool.push(src)
+        continue
+      }
+      const en = f.enumerate_children("standard::name,standard::type", Gio.FileQueryInfoFlags.NONE, null)
+      let info: Gio.FileInfo | null
+      while ((info = en.next_file(null))) {
+        if (info.get_file_type() === Gio.FileType.REGULAR && EXT.test(info.get_name())) pool.push(`${src}/${info.get_name()}`)
+      }
+    } catch {}
+  }
   return pool
 }
 
@@ -56,6 +73,8 @@ export function wallpaper() {
     setFile(n)
   }
   next()
+  // a palette switch swaps the pool and redraws now
+  theme.subscribe(() => { pool = null; next() })
   // re-armed from the setting each time, so a new interval applies from now
   let t: Timer | null = null
   const arm = () => { t?.cancel(); t = timeout(Math.max(1, setting("wallpaper.rotateMinutes").peek()) * 60_000, () => { next(); arm() }) }

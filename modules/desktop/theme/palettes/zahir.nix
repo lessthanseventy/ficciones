@@ -7,6 +7,10 @@
 #
 # Hex without '#', uppercase, so each renderer adds the syntax its target wants.
 rec {
+  # Files or directories (~ expands) the shell's photo backdrop draws from while this palette
+  # is live; empty falls back to the shared wallpapers directory (shell config.json).
+  wallpapers = [ ];
+
   font = {
     family = "ComicShannsMono Nerd Font";
     mono = "ComicShannsMono Nerd Font Mono";

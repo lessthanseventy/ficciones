@@ -45,6 +45,7 @@ let
     "tmux.conf" = r.tmuxStyle;
     "palette.sh" = r.envSh;
     "shell-palette.json" = r.paletteJson;
+    "wallpapers.json" = r.wallpapersJson;
     "claude-powerline.json" = r.claudePowerlineJson;
     "web.css" = r.webCss;
     "floorp-userChrome.css" = r.floorpUserChrome;
