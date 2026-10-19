@@ -195,3 +195,47 @@ something fun land today.
 - **C6:** life rows answer to the operator's own sessions and to seats on the home workspace whose
   archetype is `assistant`; every other seat gets `{:error, :not_yours}`.
 - **E4:** sound effects **on by default**, silenced by do-not-disturb.
+
+## 11 · Built — the PRs and the order to land them (2026-10-19)
+
+Every task in §2–§6 is built as a PR, each with its gate green; nothing is merged. Stacks are
+listed bottom first; land a stack bottom-up (each lands rebased onto main, then the next one's base
+becomes main).
+
+**tlon, land first:**
+
+1. **#439** — the office kit's souls file read the disk with `node:fs`, which the desktop bundles;
+   ficciones' `shell:check` is red on main until it lands, and every ficciones PR below was gated
+   against it.
+2. **#462** — scratch worktrees build the formatter plugins (menard wrote unformatted files without).
+
+**tlon, server (independent of each other, any order):** #438 glossary + gate · #440 → #443
+operator handle and accessor · #446 stalled Need · #450 → #460 tmux down is an error, then settles
+prompts · #453 life privacy · #455 diary credits everyone · #456 toys route · #457 release notes ·
+#458 canvas holidays · #459 one landed alert · #461 seat status (also the glance's crew rows and the
+web glyphs).
+
+**tlon, the plugin:** #440 → #468 seat glyphs → #469 landing toast wording.
+
+**tlon, the office stack** (one chain): #441 key table → #442 one meaning per key → #444 the room →
+#445 balloon `(v)` → #447 look-editor keys → #448 Scharlach's desk → #449 rivals → #451 found lines →
+#452 stereo bpm → #463 sandbox world → #464 esc/drafts/status → #465 finder → #466 ellipsis and labels
+→ #467 cards → #470 save key → #471 read failures per card → #472 drive clicks → #473 stalled keys →
+#474 seat status → #475 dials → #476 release on the TV → #477 holidays → #478 casual keeps souls,
+board lights are shapes. The office halves read server fields from #446, #456, #457 and #461 and
+tolerate an older server, so order against the server PRs is free.
+
+**Conflicts to expect:** #439 and #441 edit one import line in `office/tui/main.ts`. #446 also put
+inbox keys straight into `main.ts`; the stack re-does them through the key table (#473), so where
+#446's office hunk conflicts, keep the stack's side.
+
+**ficciones** (after the tlon pin includes #439, and #451 for #33): #25 → #26 → #28 → #29 → #30 →
+#31 → #32 the shell lane · #27 wallpaper per palette · #33 Babel found line · #34 → #35 sound effects
+and the landing chime · #36 the 404 clock. #30, #31, #34 and #36 each append to
+`docs/manual/surfaces.md`; the second to land takes a one-hunk rebase. Then `flake:bump` for the new
+tlon pin, `home:switch`.
+
+**Andrew's to eyeball** (no agent drives the live desktop): the bar's window wheel; Settings'
+click-away; right-click doing nothing; the deck's volume wheel; Super+hover on the rail at 250 ms; the
+three sounds; the 404 clock at 4:04; a palette switch with a wallpaper list; the office's new keys
+(the old→new table is in #442's body; about fifteen rare actions moved to symbols such as `@ # $ |`).
