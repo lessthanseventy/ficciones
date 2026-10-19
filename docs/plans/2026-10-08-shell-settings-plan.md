@@ -71,8 +71,9 @@ Built: the store and `get`/`set`; the Settings surface with Backdrop (incl. the 
 Look, Notifications and Feel (incl. stay awake and the audio bars' rate); jank items 1, 2, 4, 5, 6
 and 7. Item 3 is covered by `look.nightFollowsSun` (off, a manual toggle sticks); a manual toggle
 with the schedule on still lasts until the next sunset or sunrise, as designed, and is not kept
-across a restart. Open: the menu's clicks, typing and Super+Shift+click are unverified by hand;
-`backdrop.smoothHz` and the hack draw scale are still constants.
+across a restart. `backdrop.smoothHz`, `sound.vizBars` and the rail's Super+hover dwell
+(`feel.hoverDwellMs`) are settings now, with a Settings row each; the hack draw scale was already
+`backdrop.hackScale`. Open: the menu's clicks, typing and Super+Shift+click are unverified by hand.
 
 ## Slices
 

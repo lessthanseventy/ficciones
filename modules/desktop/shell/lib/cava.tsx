@@ -7,19 +7,18 @@ import Gtk from "gi://Gtk?version=4.0"
 import { onCleanup } from "ags"
 import { soundRunning } from "./sound"
 
-const BARS = 24 // per channel
-
 let inst: Cava.Cava | null | undefined
 function cava() {
   if (inst === undefined) {
     inst = Cava.get_default()
     // 30 fps (sound.vizFps) is plenty for block glyphs and halves the shell's own CPU
     if (inst) {
-      inst.bars = BARS * 2; inst.set_stereo(true); inst.framerate = setting("sound.vizFps").peek()
+      inst.bars = setting("sound.vizBars").peek() * 2; inst.set_stereo(true); inst.framerate = setting("sound.vizFps").peek()
       // silence is not free: libcava resamples and FFTs it at 30 fps regardless (~3% of a core
       // at idle, measured). Run only while sound actually plays (lib/sound).
       const c = inst
       setting("sound.vizFps").subscribe(() => { c.framerate = Math.min(60, Math.max(5, setting("sound.vizFps").peek())) })
+      setting("sound.vizBars").subscribe(() => { c.bars = Math.max(1, setting("sound.vizBars").peek()) * 2 })
       soundRunning.subscribe(() => { const want = soundRunning.peek(); if (c.active !== want) c.active = want })
       c.active = soundRunning.peek()
     }
