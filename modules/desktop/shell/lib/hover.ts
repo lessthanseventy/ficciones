@@ -75,7 +75,7 @@ export function hoverPopover(mb: Gtk.MenuButton, group: string, onClick?: () => 
   }, () => { dwell?.cancel(); armClose() })
   inPop = watch(pop, () => grace?.cancel(), armClose)
   // CAPTURE + claimed: the menubutton never sees the press, so this is the one click path
-  const click = new Gtk.GestureClick({ propagationPhase: Gtk.PropagationPhase.CAPTURE })
+  const click = new Gtk.GestureClick({ button: 1, propagationPhase: Gtk.PropagationPhase.CAPTURE })
   click.connect("pressed", () => {
     click.set_state(Gtk.EventSequenceState.CLAIMED)
     const more = onClick?.()
