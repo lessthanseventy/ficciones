@@ -29,3 +29,20 @@ export function spark(values: number[], width: number): string {
   }
   return out
 }
+
+/** `HH:MM`, 24 h, in local time, from a timestamp (ms), an ISO string or a Date; "" when it is not a date */
+export function hhmm(t: number | string | Date): string {
+  const d = new Date(t)
+  return isNaN(d.getTime()) ? "" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}
+
+/**
+ * A span of seconds. "clock" (a countdown): `4:05`, `1:02:03`. "words" (a setting's value):
+ * `45 s`, `2 m 5 s`, `3 min`.
+ */
+export function duration(seconds: number, style: "clock" | "words" = "clock"): string {
+  const s = Math.max(0, Math.round(seconds))
+  if (style === "words") return s < 60 ? `${s} s` : s % 60 ? `${Math.floor(s / 60)} m ${s % 60} s` : `${s / 60} min`
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`
+}

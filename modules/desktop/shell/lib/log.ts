@@ -41,11 +41,6 @@ export function logAt(t: number, src: Src, text: string, level: Level = "normal"
 /** journal identifiers can be paths (/usr/lib/xdg-desktop-portal-…): the last segment */
 export const unitName = (u: string) => u.replace(/\.service$/, "").split("/").pop() || u
 
-export const hhmm = (t: number) => {
-  const d = new Date(t)
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-}
-
 // ── Hyprland: only what is rare and worth a line — monitors and config. Workspace switches
 // and window open/close were tried and drowned the row (2026-09-07).
 hypr.connect("event", (_, ev: string, args: string) => {

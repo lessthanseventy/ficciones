@@ -20,6 +20,7 @@ import { busiest, viewOf } from "../office/kit/crew"
 import { theme } from "../lib/theme"
 import { ROLE } from "../lib/palette"
 import { Panel } from "../lib/tui"
+import { hhmm } from "../lib/format"
 import { closeKeys } from "../lib/keys"
 import { Brief } from "../panes/Agents"
 import { armClickaway, closeAny, disarmClickaway, clickawayField } from "./Clickaway"
@@ -601,7 +602,6 @@ function attachTerminal(ws: number, window: string) {
 
 /** the wide view's second column: the picked thread's actions, its worker's live terminal, its conversation */
 function ThreadPane() {
-  const hhmm = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }
   let convo: Gtk.ScrolledWindow | null = null
   // the newest message in view: scroll to the bottom whenever the conversation changes
   tview.subscribe(() => setTimeout(() => { const v = convo?.get_vadjustment(); if (v) v.set_value(v.get_upper()) }, 50))

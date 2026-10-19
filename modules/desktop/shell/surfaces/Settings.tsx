@@ -7,6 +7,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
 import { createState, createComputed, createRoot, type Accessor } from "ags"
 import { Panel } from "../lib/tui"
+import { duration } from "../lib/format"
 import { closeKeys } from "../lib/keys"
 import { clickawayField } from "./Clickaway"
 import { setting, setSetting, PATH, type NumberKey, type BoolKey } from "../lib/settings"
@@ -90,7 +91,6 @@ const OnOff = ({ k }: { k: BoolKey }) => (
     <Chip label={setting(k)((v) => (v ? "on" : "off"))} on={setting(k)} onClicked={() => setSetting(k, !setting(k).peek())} />
   </box>
 )
-const fmtTurn = (s: number) => (s < 60 ? `${s} s` : s % 60 ? `${Math.floor(s / 60)} m ${s % 60} s` : `${s / 60} min`)
 
 /** The hack chips, built once the list has loaded (it comes after startup, from xss-host); in a
  * root of their own, as they are made outside the surface's render. */
@@ -122,7 +122,7 @@ function Backdrop() {
     <Panel title="BACKDROP" cssClasses={["set-section"]} spacing={10} visible={section((s) => s === "backdrop")}>
       <Row label="at login" hint="photo, the rotation, or one ambient held">{flow(startChips)}</Row>
       <Row label="turn length" hint="each ambient or hack, then the next">
-        <Stepper k="backdrop.rotateSeconds" stops={[10, 30, 60, 90, 120, 300, 600, 1800]} fmt={fmtTurn} />
+        <Stepper k="backdrop.rotateSeconds" stops={[10, 30, 60, 90, 120, 300, 600, 1800]} fmt={(n) => duration(n, "words")} />
       </Row>
       <Row label="photo changes" hint="a new wallpaper this often">
         <Stepper k="wallpaper.rotateMinutes" stops={[1, 2, 5, 10, 15, 30, 60, 120, 240]} fmt={(n) => (n < 60 ? `${n} min` : `${n / 60} h`)} />

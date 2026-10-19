@@ -6,6 +6,7 @@ import { For, createComputed, createState, type Accessor } from "ags"
 import { agents, dossier, type Dossier, type Thread } from "../lib/agents"
 import { cursorOf, select } from "../lib/nav"
 import { RuleH } from "../lib/tui"
+import { hhmm } from "../lib/format"
 
 export const roster = agents((a) => a.roster)
 export const threads = agents((a) => a.threads)
@@ -23,7 +24,6 @@ export async function loadBrief(i: number) {
 // the cursor's row is the brief shown: any move re-fetches (cheap: one rpc)
 cursorOf("AGENTS").subscribe(() => { loadBrief(cursorOf("AGENTS").peek()) })
 
-const hhmm = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }
 const line = (x: { text?: string; title?: string }) => x.text ?? x.title ?? ""
 
 export function AgentsCard() {

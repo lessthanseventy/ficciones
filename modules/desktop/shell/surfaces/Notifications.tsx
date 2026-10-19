@@ -15,6 +15,7 @@ import { For, createState, createComputed, createBinding, onCleanup, type Access
 import { hubOpen } from "./Hub"
 import { timeout, type Timer } from "ags/time"
 import { Panel } from "../lib/tui"
+import { hhmm } from "../lib/format"
 import { isFullscreen, fullscreenMonitors } from "../lib/hypr"
 import { logEvent } from "../lib/log"
 import { Stickies, Infos, replyKeymode } from "./Alerts"
@@ -24,7 +25,7 @@ import { setting, setSetting } from "../lib/settings"
 export const urgencyOf = (n: Notifd.Notification) =>
   n.urgency === Notifd.Urgency.CRITICAL ? "critical" : n.urgency === Notifd.Urgency.LOW ? "low" : "normal"
 
-const clean = (s: string | null | undefined) => (s ?? "").replace(/<[^>]+>/g, "").trim()
+const stripMarkup = (s: string | null | undefined) => (s ?? "").replace(/<[^>]+>/g, "").trim()
 
 /** Identical notices folded into one: the newest is the head, `ids` are every member. */
 export type Group = { key: string; head: Notifd.Notification; count: number; ids: number[] }
@@ -34,7 +35,7 @@ export function groupNotices(ns: Notifd.Notification[]): Group[] {
   const out: Group[] = []
   const byKey = new Map<string, Group>()
   for (const n of ns) {
-    const key = `${n.appName} ${n.summary} ${clean(n.body)}`
+    const key = `${n.appName} ${n.summary} ${stripMarkup(n.body)}`
     const g = byKey.get(key)
     if (g) { g.count++; g.ids.push(n.id) }
     else { const ng = { key, head: n, count: 1, ids: [n.id] }; byKey.set(key, ng); out.push(ng) }
@@ -58,8 +59,6 @@ export function dismissGroup(g: Group) {
   for (const id of g.ids) notifd.get_notification(id)?.dismiss()
 }
 
-const timeOf = (n: Notifd.Notification) => new Date(n.time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-
 /**
  * The notice as a pane: app name inset (with ×N when folded), urgency on the border, summary,
  * body, actions. Takes a static group or an accessor to one — the toasts hand in the latter so
@@ -70,8 +69,8 @@ export function NoticeCard({ g }: { g: Group | Accessor<Group> }) {
   const first = live ? live.peek() : (g as Group)
   const n = first.head // summary/body/app are the group's key, so the first head's are final
   const urgency = urgencyOf(n)
-  const body = clean(n.body)
-  const title = (x: Group) => `${x.head.appName || "notice"} · ${timeOf(x.head)}${x.count > 1 ? `  ×${x.count}` : ""}`
+  const body = stripMarkup(n.body)
+  const title = (x: Group) => `${x.head.appName || "notice"} · ${hhmm(x.head.time * 1000)}${x.count > 1 ? `  ×${x.count}` : ""}`
   const dismiss = () => dismissGroup(live ? live.peek() : first)
   // freedesktop's "default" action is the click on the notice itself, and a label-less action
   // (Claude Code sends one) has no button to be — the empty outlined box (2026-09-07)

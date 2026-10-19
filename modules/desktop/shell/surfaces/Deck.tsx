@@ -15,9 +15,10 @@ import { interval, type Timer as T } from "ags/time"
 import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
 import { VList } from "../lib/vlist"
-import { log, hhmm, logEvent, type Entry, type Src } from "../lib/log"
+import { log, logEvent, type Entry, type Src } from "../lib/log"
+import { hhmm, duration } from "../lib/format"
 import { execAsync } from "ags/process"
-import { timer, left, fmtLeft, stopTimer, startCountdown, startPomodoro, parseSpec } from "../lib/timer"
+import { timer, left, stopTimer, startCountdown, startPomodoro, parseSpec } from "../lib/timer"
 import { agents } from "../lib/agents"
 import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
 import { fullscreenMonitors } from "../lib/hypr"
@@ -163,7 +164,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         <menubutton cssClasses={["cell", "deck-timer", "clickable"]} direction={Gtk.ArrowType.UP} $={(self) => hoverPopover(self, "deck")}>
           <box spacing={6}>
             <label cssClasses={timer((t) => (t ? ["cyan"] : ["dim"]))} label={timer((t) => (t?.kind === "pomodoro" ? (t.phase === "work" ? "\u{f0a3d}" : "\u{f0a3b}") : t?.kind === "alarm" ? "\u{f0021}" : "\u{f051b}"))} />
-            <label cssClasses={timer((t) => (t ? ["cyan"] : ["dim"]))} label={createComputed(() => { const t = timer(), s = left(); return t ? `${fmtLeft(s)}${t.kind === "pomodoro" ? ` ${t.phase} ${t.round}` : ""}` : "timer" })} />
+            <label cssClasses={timer((t) => (t ? ["cyan"] : ["dim"]))} label={createComputed(() => { const t = timer(), s = left(); return t ? `${duration(s)}${t.kind === "pomodoro" ? ` ${t.phase} ${t.round}` : ""}` : "timer" })} />
           </box>
           <popover cssClasses={["pop", "pop-timer", "timerpop"]}>
             <Panel title={"\u{f051b}  TIMER"} cssClasses={["card", "card-timer"]}><TimerPane /></Panel>
@@ -245,7 +246,7 @@ function TimerPane() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <box spacing={8} visible={timer((t) => !!t)}>
-        <label cssClasses={["big", "cyan"]} label={left((s) => fmtLeft(s))} />
+        <label cssClasses={["big", "cyan"]} label={left((s) => duration(s))} />
         <box orientation={Gtk.Orientation.VERTICAL} hexpand>
           <label cssClasses={["amber"]} label={timer((t) => (t ? (t.kind === "pomodoro" ? `${t.phase} · round ${t.round}` : t.kind) : ""))} xalign={0} />
           <label cssClasses={["dim", "sm"]} label={timer((t) => t?.label ?? "")} xalign={0} />
