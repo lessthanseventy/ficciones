@@ -9,6 +9,7 @@ import { createState, For } from "ags"
 import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
+import { clickawayField } from "./Clickaway"
 
 type Bind = { modmask: number; key: string; dispatcher: string; arg: string; description: string; submap: string; mouse: boolean }
 type Row = { keys: string; what: string }
@@ -99,9 +100,7 @@ export default function Cheatsheet() {
       $={(self) => {
         win = self
         self.add_controller(closeKeys({ close: () => (self.visible = false), any: true }))
-        const g = new Gtk.GestureClick()
-        g.connect("pressed", () => (self.visible = false))
-        self.add_controller(g)
+        clickawayField(self, () => (self.visible = false))
       }}
       visible={false}
       cssClasses={["cheatsheet"]}

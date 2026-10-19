@@ -24,7 +24,7 @@ import { fullscreenMonitors } from "../lib/hypr"
 import { MediaCard } from "../panes/Media"
 import { soundPids, playerSounding } from "../lib/sound"
 import { AgentsCard } from "../panes/Agents"
-import { armClickaway, disarmClickaway, closeOnPress, closeAny } from "./Clickaway"
+import { armClickaway, disarmClickaway, closeOnPress, closeAny, clickawayField } from "./Clickaway"
 import { focus, focused, cursor, cursorOf, cycleFocus, move, jump, select } from "../lib/nav"
 import { threads } from "../panes/Agents"
 import { hoverPopover } from "../lib/hover"
@@ -143,7 +143,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         </button>
         </box>
         {/* the log's tail, newest on the right */}
-        <box cssClasses={["deck-log"]} spacing={14} hexpand $={(self) => self.add_controller(click)}>
+        <box cssClasses={["deck-log", "keep-open"]} spacing={14} hexpand $={(self) => self.add_controller(click)}>
           <For each={tail} id={(e) => e.id}>{(e) => <Line e={e} />}</For>
         </box>
         {/* ambient cells */}
@@ -329,7 +329,7 @@ export default function Deck() {
           cssClasses={["clickaway-field"]}
           hexpand
           vexpand
-          $={(self) => { const g = new Gtk.GestureClick({ button: 0 }); g.connect("pressed", () => hideDeck()); self.add_controller(g) }}
+          $={(self) => clickawayField(self, hideDeck)}
         />
         <box cssClasses={["sheet", "bottom"]} spacing={12} heightRequest={400} vexpand={false} valign={Gtk.Align.END}>
           <Panel title={"\u{f0a0d}  LOG"} cssClasses={focused("LOG")((f) => ["card", "card-log", ...(f ? ["focused"] : [])])} hexpand><LogPane /></Panel>
@@ -338,7 +338,7 @@ export default function Deck() {
         <box cssClasses={["keys", "deck-keys"]} spacing={12}>
           <label label="Tab pane" /><label label="j/k move · h/l along the chips" /><label label="Enter act" /><label label="Esc close" />
         </box>
-        <box cssClasses={["clickaway-field", "deck-rowfield"]} heightRequest={36} $={(self) => { const g = new Gtk.GestureClick({ button: 0 }); g.connect("pressed", () => hideDeck()); self.add_controller(g) }} />
+        <box cssClasses={["clickaway-field", "deck-rowfield"]} heightRequest={36} $={(self) => clickawayField(self, hideDeck)} />
       </box>
     </window>
   )

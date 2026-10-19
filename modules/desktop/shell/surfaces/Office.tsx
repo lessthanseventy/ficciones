@@ -22,7 +22,7 @@ import { ROLE } from "../lib/palette"
 import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
 import { Brief } from "../panes/Agents"
-import { armClickaway, closeAny, disarmClickaway } from "./Clickaway"
+import { armClickaway, closeAny, disarmClickaway, clickawayField } from "./Clickaway"
 
 const needsYou = (t?: Thread) => !!t && (!!t.awaiting || !!t.prompt)
 
@@ -807,11 +807,7 @@ export default function Office() {
         cssClasses={["clickaway-field"]}
         hexpand
         vexpand
-        $={(self) => {
-          const g = new Gtk.GestureClick({ button: 0 })
-          g.connect("pressed", () => hideOffice())
-          self.add_controller(g)
-        }}
+        $={(self) => clickawayField(self, hideOffice)}
       />
       <scrolledwindow cssClasses={["sheet", "right", "office-sheet"]} hexpand={false} halign={Gtk.Align.END} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}>
         <box orientation={Gtk.Orientation.VERTICAL}>

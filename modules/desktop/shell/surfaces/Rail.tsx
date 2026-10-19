@@ -126,7 +126,7 @@ export const toggleWeatherPop = () => onFocused(weatherPops)?.toggle()
 function Clock({ connector }: { connector: string }) {
   const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
   return (
-    <menubutton cssClasses={["clock"]} direction={Gtk.ArrowType.RIGHT} $={(self) => clockPops.set(connector, hoverPopover(self, "rail"))}>
+    <menubutton cssClasses={["clock", "keep-open"]} direction={Gtk.ArrowType.RIGHT} $={(self) => clockPops.set(connector, hoverPopover(self, "rail"))}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["hh"]} label={now((d) => d.format("%H")!)} />
         <label cssClasses={["mm"]} label={now((d) => d.format("%M")!)} />
@@ -145,7 +145,7 @@ function Clock({ connector }: { connector: string }) {
 function Weather({ connector }: { connector: string }) {
   const g = weather((w) => (w.ok ? glyph(w.code) : "\u{f0590}"))
   const t = weather((w) => (w.ok ? `${Math.round(w.temp!)}°` : "—"))
-  const cls = weather((w) => ["item", "wx", ...(w.ok ? [] : ["dim"])])
+  const cls = weather((w) => ["item", "wx", "keep-open", ...(w.ok ? [] : ["dim"])])
   return (
     <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} $={(self) => weatherPops.set(connector, hoverPopover(self, "rail"))}>
       <box orientation={Gtk.Orientation.VERTICAL}>

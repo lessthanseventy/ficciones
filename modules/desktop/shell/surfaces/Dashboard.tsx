@@ -22,6 +22,7 @@ import { LogPane } from "./Deck"
 import { WorkspacesCard } from "../panes/Workspaces"
 import { RuleV } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
+import { clickawayField } from "./Clickaway"
 import { tier } from "../lib/perf"
 import { meter, spark } from "../lib/format"
 
@@ -191,11 +192,7 @@ export default function Dashboard() {
           cssClasses={["clickaway-field"]}
           hexpand
           vexpand
-          $={(self) => {
-            const g = new Gtk.GestureClick({ button: 0 })
-            g.connect("pressed", () => hideDashboard())
-            self.add_controller(g)
-          }}
+          $={(self) => clickawayField(self, hideDashboard)}
         />
         <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={16} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={36 + 8} marginBottom={36 + 8} marginStart={54 + 8} marginEnd={8}>
           {/* three rows, packed to fit 1920×1080 with the rail and bar; one 16px gap between every

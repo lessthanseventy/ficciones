@@ -8,6 +8,7 @@ import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import { closeKeys } from "../lib/keys"
+import { clickawayField } from "./Clickaway"
 import GLib from "gi://GLib?version=2.0"
 import Apps from "gi://AstalApps"
 import Hyprland from "gi://AstalHyprland"
@@ -186,7 +187,7 @@ export default function Launcher() {
       application={app}
     >
       <overlay>
-        <box cssClasses={["clickaway-field"]} hexpand vexpand $={(self) => { const g = new Gtk.GestureClick({ button: 0 }); g.connect("pressed", () => hide()); self.add_controller(g) }} />
+        <box cssClasses={["clickaway-field"]} hexpand vexpand $={(self) => clickawayField(self, hide)} />
       <box $type="overlay" halign={Gtk.Align.CENTER} valign={Gtk.Align.START} marginTop={180}>
       <Panel title={mode((m) => (m === "clip" ? "CLIPBOARD" : "RUN"))} cssClasses={["launch-pane", "focused"]} spacing={4}>
         <box cssClasses={["prompt"]} spacing={8}>
