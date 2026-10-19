@@ -17,3 +17,16 @@ it from any surface; from a shell, `mise run server:dossier -- <id>` and `server
 **Rule of thumb.** If it is about *one thread's work* (read it, reply, review the diff, watch
 the coworker), you are in Neovim. If it is *everything at once*, the office. If it is *the
 machine* (volume, workspace, a verb, a toast), the shell.
+
+## The shell's wheel
+
+The scroll wheel means one thing per place, and the same thing wherever it appears.
+
+| Over | The wheel does | Step |
+|---|---|---|
+| the rail's workspace strip | switch workspace | one per notch |
+| the bar's window strip | focus the next or previous window in the strip, stopping at the ends | one per notch |
+| the bar's battery cell | brightness | 5 % |
+| the rail's volume item | volume | 2 %, capped at 100 % |
+| the deck's now-playing cell | volume (the same function) | 2 %, capped at 100 % |
+| anywhere else | nothing; the office canvas and the launcher have no wheel on purpose | |

@@ -3,6 +3,8 @@
 // site sat on Paused with the audio live (2026-09-07) — and AstalWp's stream state never
 // leaves CREATING here, so this is the one honest signal. Per process, so a player can be
 // matched to its stream (its Mpris bus name → pid, through the bus).
+import Gtk from "gi://Gtk?version=4.0"
+import Wp from "gi://AstalWp"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { interval } from "ags/time"
@@ -40,3 +42,18 @@ export function playerPid(busName: string | null | undefined): number {
 }
 /** the player's process has a running output stream */
 export const playerSounding = (busName: string | null | undefined, pids: Set<number>) => pids.has(playerPid(busName))
+
+/**
+ * The wheel's volume: 2 % a notch on the default speaker, capped at 100 % (the keys go to 150 %;
+ * the wheel is for nudging). The OSD shows it. Every surface whose wheel means volume attaches this.
+ */
+export function volumeWheel(): Gtk.EventControllerScroll {
+  const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
+  scroll.connect("scroll", (_, __, dy) => {
+    const speaker = Wp.get_default()?.defaultSpeaker
+    if (!speaker) return false
+    speaker.set_volume(Math.max(0, Math.min(1, speaker.volume + (dy > 0 ? -0.02 : 0.02))))
+    return true
+  })
+  return scroll
+}
