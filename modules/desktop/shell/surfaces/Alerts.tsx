@@ -63,14 +63,22 @@ function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { labe
   let input: Gtk.TextView | null = null
   const typed = () => { const b = input?.buffer; return b ? b.get_text(b.get_start_iter(), b.get_end_iter(), false) : "" }
   const send = () => { const x = asking.peek(); if (x) void act(a, x, typed()); setAsking(null) }
+  // a coworker's own option and the server's built-in action can carry the same label: one button
+  const seen = new Set<string>()
+  const answers = a.actions.filter((x) => { const k = x.label.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
+  const extras = extra.filter((e) => !seen.has(e.label.toLowerCase()))
+  const extraButton = (e: { label: string; run: () => void }) => <button cssClasses={["act", "dim"]} onClicked={() => { setAsking(null); e.run() }}><label label={e.label} /></button>
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-      <box cssClasses={["actions"]} spacing={8}>
-        {a.actions.map((x) => (
-          <button cssClasses={["act"]} onClicked={() => { if (x.input) setAsking(x); else { setAsking(null); void act(a, x) } }}><label label={x.label} /></button>
+      <box cssClasses={["actions"]} spacing={8} orientation={host === "banner" ? Gtk.Orientation.VERTICAL : Gtk.Orientation.HORIZONTAL}>
+        {answers.map((x) => (
+          <button cssClasses={["act"]} onClicked={() => { if (x.input) setAsking(x); else { setAsking(null); void act(a, x) } }}>
+            <label label={x.label} wrap={host === "banner"} maxWidthChars={host === "banner" ? 76 : -1} xalign={0} />
+          </button>
         ))}
-        {extra.map((e) => <button cssClasses={["act", "dim"]} onClicked={() => { setAsking(null); e.run() }}><label label={e.label} /></button>)}
+        {host === "banner" ? null : extras.map(extraButton)}
       </box>
+      {host === "banner" ? <box cssClasses={["actions"]} spacing={8}>{extras.map(extraButton)}</box> : null}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={asking((x) => x !== null)}>
         <label cssClasses={["dim", "sm"]} xalign={0} label={asking((x) => (x ? `${x.label.replace("…", "")} — Enter sends · Shift+Enter new line · Esc cancels · Ctrl+A/E/U/K/W` : ""))} />
         <scrolledwindow cssClasses={["alert-input"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} propagateNaturalHeight maxContentHeight={240}>
