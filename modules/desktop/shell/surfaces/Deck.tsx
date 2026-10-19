@@ -22,7 +22,7 @@ import { agents } from "../lib/agents"
 import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
 import { fullscreenMonitors } from "../lib/hypr"
 import { MediaCard } from "../panes/Media"
-import { soundPids, playerSounding } from "../lib/sound"
+import { soundPids, playerSounding, volumeWheel } from "../lib/sound"
 import { AgentsCard } from "../panes/Agents"
 import { armClickaway, disarmClickaway, closeOnPress, closeAny, clickawayField } from "./Clickaway"
 import { focus, focused, cursor, cursorOf, cycleFocus, move, jump, select } from "../lib/nav"
@@ -148,7 +148,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
         </box>
         {/* ambient cells */}
         {/* now playing: transport in the cell, the title marquees when long, the media card in a popover */}
-        <box cssClasses={["cell", "deck-media"]} spacing={6} visible={nowPlaying((p) => !!p)}>
+        <box cssClasses={["cell", "deck-media"]} spacing={6} visible={nowPlaying((p) => !!p)} $={(self) => self.add_controller(volumeWheel())}>
           <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.previous()} visible={nowPlaying((n) => !!n?.p.canGoPrevious)}><label label={"\uf048"} /></button>
           <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.play_pause()}><label label={nowPlaying((p) => (p?.playing ? "\uf04c" : "\uf04b"))} /></button>
           <button cssClasses={["tp"]} onClicked={() => nowPlaying.peek()?.p.next()} visible={nowPlaying((n) => !!n?.p.canGoNext)}><label label={"\uf051"} /></button>

@@ -17,6 +17,7 @@ import { meter, pct } from "../lib/format"
 import { Panel, RuleH } from "../lib/tui"
 import { hoverPopover, cards, type HoverPop } from "../lib/hover"
 import { volumeGlyph, iconFor } from "../lib/icons"
+import { volumeWheel } from "../lib/sound"
 import { hypr, focusedWorkspace } from "../lib/hypr"
 import Pango from "gi://Pango?version=1.0"
 import { vpn, mullvad, mullvadToggle, wgConfigs, wgToggle } from "../lib/vpn"
@@ -180,15 +181,8 @@ function Vol() {
   const mute = createBinding(speaker, "mute")
   const icon = createComputed(() => { const v = vol(), m = mute(); return volumeGlyph(v, m) })
   const cls = mute((m) => ["item", "vol", ...(m ? ["dim"] : [])])
-  // wheel over the icon: 2 % a notch, capped at 100 % (the keys go to 150 %; the wheel is for
-  // nudging). The OSD shows it — the popover is closed while you scroll.
-  const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
-  scroll.connect("scroll", (_, __, dy) => {
-    speaker.set_volume(Math.max(0, Math.min(1, speaker.volume + (dy > 0 ? -0.02 : 0.02))))
-    return true
-  })
   return (
-    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} tooltipText={createComputed(() => { const v = vol(), m = mute(); return (m ? "muted" : pct(v)) })} $={(self) => { hoverPopover(self, "rail"); self.add_controller(scroll) }}>
+    <menubutton cssClasses={cls} direction={Gtk.ArrowType.RIGHT} tooltipText={createComputed(() => { const v = vol(), m = mute(); return (m ? "muted" : pct(v)) })} $={(self) => { hoverPopover(self, "rail"); self.add_controller(volumeWheel()) }}>
       <box orientation={Gtk.Orientation.VERTICAL}>
         <label cssClasses={["icon"]} label={icon} />
         {/* a five-block meter like the wifi item's; the percentage is the tooltip and the OSD */}
