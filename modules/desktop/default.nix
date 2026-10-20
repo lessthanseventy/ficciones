@@ -171,6 +171,7 @@ in
       claude-code codex uv libation piper-tts
       # the tlon office's arcade cabinets: it lists whichever of these it finds on PATH
       ninvaders myman moon-buggy nsnake bastet _2048-in-terminal freesweep nudoku tty-solitaire
+      (import ./doom.nix { inherit pkgs; })
       # screenshots: flameshot is Super+Shift+S only (hypr/scripts/shot-region.sh); the card is grim (shell/lib/capture.ts)
       flameshot
       # the clipboard history behind the rail's clipboard card and Super+V (hyprland.lua's
