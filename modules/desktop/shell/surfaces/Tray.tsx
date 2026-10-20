@@ -23,7 +23,7 @@ import Pango from "gi://Pango?version=1.0"
 import { vpn, mullvad, mullvadToggle, wgConfigs, wgToggle } from "../lib/vpn"
 import { createPoll, timeout } from "ags/time"
 import { toggleLauncher } from "./Launcher"
-import { screenshot, startRecording, stopRecording, recording, lastRegion, type Target } from "../lib/capture"
+import { screenshot, annotate, startRecording, stopRecording, recording, lastRegion, type Target } from "../lib/capture"
 
 function Net() {
   const net = Network.get_default()
@@ -383,6 +383,7 @@ function CaptureItem() {
             <Head label="SCREENSHOT" />
             <Shot glyph={"\u{f065}"} label="region" what="region" />
             <Shot glyph={"\u{f0e2}"} label="last region" what="last" visible={lastRegion((r) => r !== null)} />
+            <Row glyph={"\u{f040}"} label="annotate region (arrows, boxes, text)" on={() => annotate("region")} />
             <Shot glyph={"\u{f108}"} label="monitor" what="monitor" />
             <Windows />
             <Help rows={[["saved to", "~/Pictures/Screenshots"], ["region", "slurp picks it"]]} />

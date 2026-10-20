@@ -283,6 +283,9 @@ hl.window_rule({
     rounding = 0,
 })
 
+-- satty (the capture card's annotate): fullscreen, so the rail and bar don't cover the canvas
+hl.window_rule({ name = "satty-annotate", match = { class = "^(com\\.gabm\\.satty)$" }, fullscreen = true })
+
 -- fzf-picker
 hl.window_rule({ name = "fzf-picker", match = { class = "^(fzf-picker)$" }, float = true, size = { 800, 600 } })
 

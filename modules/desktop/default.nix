@@ -181,6 +181,8 @@ in
       # shell's thumbnails, capture card and `mise shot:*` are grim); zoxide/sesh/cliamp were
       # tmux's dependents; aplay/amixer for the terminal
       grim slurp zoxide sesh cliamp alsa-utils
+      # the capture card's annotate: a region shot opened to draw arrows, boxes and text on (shell/lib/capture.ts)
+      satty
       # the agent sandbox's Linux deps (bubblewrap + socat); bwrap is pacman's today, owned here too
       socat bubblewrap
       # the last pacman-only user tools (survey 2026-09-08); yq-go is what pacman called go-yq

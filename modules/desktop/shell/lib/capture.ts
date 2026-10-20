@@ -76,6 +76,21 @@ export async function screenshot(what: Target, sink: Sink = "both", address?: st
   } catch (e) { notify("screenshot failed", String(e), "dialog-error-symbolic") }
 }
 
+/** a region shot opened in satty to mark up: Enter saves it to ~/Pictures/Screenshots, Ctrl+C copies it */
+export async function annotate(what: Target = "region") {
+  GLib.mkdir_with_parents(shotsDir(), 0o755)
+  try {
+    const g = await geometry(what)
+    if (!g) return
+    const raw = `${GLib.get_tmp_dir()}/shot-${stamp()}.png`
+    await execAsync(["grim", "-g", g, raw])
+    logEvent("shell", `screenshot (${what}) → annotate`)
+    await execAsync(["satty", "--filename", raw, "--output-filename", `${shotsDir()}/${stamp()}-marked.png`,
+      "--copy-command", "wl-copy", "--initial-tool", "arrow", "--actions-on-enter", "save-to-file,exit", "--early-exit"])
+    GLib.unlink(raw)
+  } catch (e) { notify("annotate failed", String(e), "dialog-error-symbolic") }
+}
+
 let rec: Process | null = null
 let recFile = ""
 export const [recording, setRecording] = createState<string | null>(null)
