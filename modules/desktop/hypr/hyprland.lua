@@ -268,13 +268,15 @@ hl.window_rule({
 -- Two windows carry the title: the monitor-picker dialog and the overlay. The move expression
 -- centres on the MONITOR (move is monitor-absolute; `center` and a bare float both use the work
 -- area, i.e. shoved over by the shell's reserved rail/bar). stay_focused lifts it above other
--- pinned windows (PiP), which stack by focus.
+-- pinned windows (PiP), which stack by focus. fullscreen is what puts it above the shell's TOP
+-- layers (rail, bar, deck): a floating window always renders beneath them, a fullscreen one above.
 hl.window_rule({
     name = "flameshot-overlay",
     match = { class = "^(flameshot)?$", title = "^(flameshot)$" },
     float = true,
     pin = true,
     stay_focused = true,
+    fullscreen = true,
     move = "monitor_w/2-window_w/2 monitor_h/2-window_h/2",
     no_anim = true,
     border_size = 0,

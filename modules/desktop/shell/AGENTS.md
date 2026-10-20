@@ -19,6 +19,22 @@ where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
 - `nix build .#astal-shell` — the store package the VM and home-manager install.
 - In the NixOS VM the unit is `astal-shell.service`; `mise shell:logs` / `shell:restart`.
 
+## Layer law
+
+Hyprland stacks BACKGROUND < windows < TOP < fullscreen windows < OVERLAY. A surface that omits
+`layer` is TOP.
+
+- BACKGROUND: `backdrop`.
+- TOP (exclusive zones; a floating window cannot cover them): `rail`, `bar`, `deck`, the clickaway
+  fields, and the sidecar.
+- OVERLAY (must show over a fullscreen app): `osd`, `decision` banner, `alarm`, notifications, and
+  the summoned panels (launcher, hub, dashboard, settings, cheatsheet, docreader, office, deck
+  drawer). A panel is only up while summoned, so covering a capture tool then is intended.
+- A capture tool that must sit above the rails is made FULLSCREEN by a window rule (flameshot's
+  `flameshot-overlay` in `hypr/hyprland.lua`), not by hiding the rails. A new overlay-style window
+  (satty, hyprpicker's picker is already an OVERLAY layer, slurp likewise) needs the same rule if
+  it is an ordinary toplevel. hyprlock is a session-lock surface above everything.
+
 ## Rules
 
 - **No hex in components, and name a ROLE, not a colour.** `style/_palette.scss` is GENERATED from
