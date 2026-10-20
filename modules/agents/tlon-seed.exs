@@ -42,8 +42,7 @@
     %{
       name: "Accessibility",
       projects: [
-        %{name: "excessibility", repos: ["~/projects/excessibility"]},
-        %{name: "a11y-with-phoenix-guide", repos: ["~/projects/a11y-with-phoenix-guide"]}
+        %{name: "excessibility", repos: ["~/projects/excessibility"]}
       ]
     },
     %{
