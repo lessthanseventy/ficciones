@@ -312,7 +312,9 @@ function ClipItem() {
 /** Screenshots and recordings: the card closes first, so slurp's overlay is not under it. */
 function CaptureItem() {
   let pop: HoverPop | null = null
-  const go = (fn: () => void) => { pop?.close(); timeout(180, fn) }
+  // the card fades out as a layer (hyprland.lua's layersOut: 150 ms, linear) after GTK unmaps it: a
+  // shot taken inside that took the half-faded card into the picture, so it waits the fade out and more
+  const go = (fn: () => void) => { pop?.close(); timeout(400, fn) }
   const Row = ({ glyph, label, on }: { glyph: string; label: string; on: () => void }) => (
     <button cssClasses={["row", "cap-row"]} onClicked={() => go(on)}>
       <box spacing={8}><label cssClasses={["cap-glyph"]} label={glyph} widthChars={2} /><label label={label} xalign={0} hexpand /></box>
