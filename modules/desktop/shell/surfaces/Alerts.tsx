@@ -12,6 +12,7 @@ import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
 import { setting } from "../lib/settings"
 import { putsAway } from "../lib/alerts-core"
+import { logEvent } from "../lib/log"
 import { openThread, alarms, banner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -59,7 +60,8 @@ function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { labe
     const now = asking.peek() !== null
     if (now !== open) { open = now; setReplies((n) => n + (now ? 1 : -1)) }
   })
-  onCleanup(() => { unsub(); if (open) setReplies((n) => n - 1) })
+  // a reply that vanishes or goes deaf mid-word is logged with its card, so the next one says why
+  onCleanup(() => { unsub(); if (open) { setReplies((n) => n - 1); logEvent("shell", `reply box closed by a redraw (${host}): ${a.title}`, "warn") } })
   let input: Gtk.TextView | null = null
   const typed = () => { const b = input?.buffer; return b ? b.get_text(b.get_start_iter(), b.get_end_iter(), false) : "" }
   const send = () => { const x = asking.peek(); if (x) void act(a, x, typed()); setAsking(null) }
@@ -92,6 +94,9 @@ function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { labe
                 return (mods & Gdk.ModifierType.CONTROL_MASK) !== 0 && readline(self.buffer, kv)
               } })
               self.add_controller(keys)
+              const focus = new Gtk.EventControllerFocus()
+              focus.connect("leave", () => { if (asking.peek()) logEvent("shell", `reply box lost the keyboard (${host}): ${a.title}`, "warn") })
+              self.add_controller(focus)
               asking.subscribe(() => { if (asking.peek()) { self.buffer.set_text("", 0); self.grab_focus() } })
             }}
           />
@@ -110,7 +115,7 @@ export function Stickies() {
           <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-sticky"]} spacing={4}>
             <label selectable cssClasses={["summary"]} label={a.thread_id ? `#${a.thread_id} ${a.title}` : a.title} xalign={0} wrap maxWidthChars={44} />
             <label selectable cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={48} />
-            <Actions a={a} host="toasts" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
+            <Actions a={a} host="toasts" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }, ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
           </Panel>
         )}
       </For>

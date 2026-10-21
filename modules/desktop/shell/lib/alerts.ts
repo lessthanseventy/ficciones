@@ -41,18 +41,20 @@ function save(k: Kept) {
 let heard: Set<string> | null = null
 const [all, setAll] = createState<Alert[]>([])
 const [now, setNow] = createState(Date.now() / 1000)
-/** decisions folded into the bar's pill ("later") — only for this session */
+/** decisions and sticky cards folded into the bar's pill ("later") — only for this session */
 const [later, setLater] = createState<string[]>([])
 
 const showing = createComputed(() => up(all(), kept(), now()))
 export const alarms = showing((as) => ofLevel(as, "alarm"))
 export const decisions = showing((as) => ofLevel(as, "decision"))
-export const stickies = showing((as) => ofLevel(as, "sticky"))
+export const stickies = createComputed(() => ofLevel(showing(), "sticky").filter((a) => !later().includes(a.key)))
 export const infos = showing((as) => ofLevel(as, "info"))
 /** the decision on the banner: the first not folded away */
 export const banner = createComputed(() => decisions().find((a) => !later().includes(a.key)) ?? null)
-/** how many decisions are folded into the pill */
-export const folded = createComputed(() => decisions().filter((a) => later().includes(a.key)).length)
+/** how many decisions and sticky cards are folded into the pill */
+export const folded = createComputed(
+  () => showing().filter((a) => (a.level === "decision" || a.level === "sticky") && later().includes(a.key)).length,
+)
 
 export async function refreshAlerts() {
   try {
