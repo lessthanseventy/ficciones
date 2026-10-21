@@ -78,15 +78,16 @@
           "the operator's to run, never an agent's."
     },
     %{
-      intent: "machine:fix-or-file",
+      intent: "machine:fix-or-file:2",
       kind: "constraint",
       provenance: "stated",
       text:
         "Never just note a problem. Every fault you hit gets one fate in the same session: fixed now (reproduced " <>
-          "first by a test that goes red, then its own small commit), or filed — a Tlön ticket when it is small and " <>
-          "later, a new Tlön thread on its project when it needs a conversation. A workaround is not a fix: when the " <>
-          "code fights you, fix the code. A report says what was fixed and which ticket or thread each deferred " <>
-          "thing went to."
+          "first by a test that goes red, then its own small commit), or filed. File only what someone would act " <>
+          "on within a week, and look first: file_ticket and raise_issue show the open items that look like it, " <>
+          "and the same fault again is seen_again on that item, never a new one. A nit is a line on the thread, " <>
+          "not a ticket. A workaround is not a fix: when the code fights you, fix the code. Closing a ticket takes " <>
+          "its evidence: the commit that fixed it, or why it closes without one."
     }
   ]
 }
