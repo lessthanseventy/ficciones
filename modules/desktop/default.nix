@@ -36,11 +36,26 @@ let
       ls "$hacks" | grep -vxE 'xscreensaver-.*|webcollage.*|vidwhacker|blitspin|bumps|carousel|decayscreen|distort|flipscreen3d|gleidescope|glslideshow|jigsaw|mirrorblob|photopile|ripples|rotzoomer|slidescreen|spotlight|twang|zoom|xanalogtv|esper|glitchpeg|mapscroller.*|xshadertoy|xsublim'
       exit 0
     fi
-    # W×H is the size the hack draws at, not the monitor's (the shell scales it: backdrop.hackScale)
-    out=$1 d=$2 w=$3 h=$4 hack=$5
     export __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json
     export __GLX_VENDOR_LIBRARY_NAME=mesa LIBGL_DRIVERS_PATH=${pkgs.mesa}/lib/dri
     export GBM_BACKENDS_PATH=${pkgs.mesa}/lib/gbm LD_LIBRARY_PATH=${pkgs.mesa}/lib
+    # `--preview D DIR W H HACK`: the settings picker's preview, on a headless X server that keeps
+    # its screen in DIR/Xvfb_screen0 (an XWD file, mmapped), which the shell reads as frames
+    if [ "$1" = --preview ]; then
+      d=$2 dir=$3 w=$4 h=$5 hack=$6
+      ${pkgs.xvfb}/bin/Xvfb ":$d" -screen 0 "''${w}x''${h}x24" -fbdir "$dir" -nolisten tcp 2>/dev/null &
+      host=$!
+      trap 'kill $run $watch $host 2>/dev/null; wait' EXIT TERM INT
+      (while kill -0 $PPID 2>/dev/null; do sleep 2; done; kill $$) &
+      watch=$!
+      for _ in $(seq 50); do [ -S "/tmp/.X11-unix/X$d" ] && break; sleep 0.1; done
+      DISPLAY=":$d" LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe LP_NUM_THREADS=1 nice -n 19 "$hacks/$hack" -root &
+      run=$!
+      wait $run
+      exit 0
+    fi
+    # W×H is the size the hack draws at, not the monitor's (the shell scales it: backdrop.hackScale)
+    out=$1 d=$2 w=$3 h=$4 hack=$5
     # stretched to the monitor by the compositor (rootful -fullscreen scales through the
     # viewporter): software GL is fill-bound, so half size is 2–3× the frames for no more CPU
     ${pkgs.windowtolayer}/bin/windowtolayer -l background --output-name "$out" -m -- \
