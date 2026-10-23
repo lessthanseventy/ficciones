@@ -11,18 +11,34 @@ import { duration } from "../lib/format"
 import { closeKeys } from "../lib/keys"
 import { clickawayField } from "./Clickaway"
 import { setting, setSetting, PATH, type NumberKey, type BoolKey } from "../lib/settings"
-import { hackNames } from "../lib/xscreensaver"
+import { hackNames, startPreview, stopPreview } from "../lib/xscreensaver"
 import { MODE_NAMES } from "./Backdrop"
 import { theme, setTheme, THEMES } from "../lib/theme"
 import { crt, setCrt, MODES as CRT_MODES } from "../lib/crt"
 
 let win: Astal.Window | null = null
-let hackGrid: Gtk.FlowBox | null = null
+let hackList: Gtk.Box | null = null
+let shot: Gtk.Picture | null = null
 let search: Gtk.Entry | null = null
-const [query, setQuery] = createState("")
 const [hacks, setHacks] = createState<string[]>([])
+const [picked, setPicked] = createState<string | null>(null)
 const SECTIONS = ["backdrop", "look", "notifications", "feel"] as const
 const [section, setSection] = createState<(typeof SECTIONS)[number]>("backdrop")
+const PREVIEW_W = 440, PREVIEW_H = 330
+
+/** The picked hack runs in the preview while it can be seen, and nothing runs while it cannot. */
+function syncPreview() {
+  const name = picked.peek()
+  if (!win?.visible || section.peek() !== "backdrop" || !name) return stopPreview()
+  startPreview(name, PREVIEW_W, PREVIEW_H, (t) => shot?.set_paintable(t))
+}
+section.subscribe(syncPreview)
+const pick = (name: string) => {
+  if (picked.peek() === name) return
+  shot?.set_paintable(null)
+  setPicked(name)
+  syncPreview()
+}
 
 /** Open (on `sec` when named) or close the surface. */
 export function toggleSettings(sec?: string) {
@@ -92,20 +108,35 @@ const OnOff = ({ k }: { k: BoolKey }) => (
   </box>
 )
 
-/** The hack chips, built once the list has loaded (it comes after startup, from xss-host); in a
- * root of their own, as they are made outside the surface's render. */
+/** The hack rows, built once the list has loaded (it comes after startup, from xss-host); in a
+ * root of their own, as they are made outside the surface's render. A row is its mark (in the
+ * rotation or not) and its name, which picks it for the preview. */
 function fillHacks() {
-  if (!hackGrid || hackGrid.get_first_child() || !hackNames().length) return
-  const grid = hackGrid, off = setting("backdrop.hacksOff")
+  if (!hackList || hackList.get_first_child() || !hackNames().length) return
+  const list = hackList, off = setting("backdrop.hacksOff")
   setHacks(hackNames())
   createRoot(() => {
     for (const name of hackNames())
-      grid.append(<Chip label={name} on={off((o) => !o.includes(name))} onClicked={() => toggleIn("backdrop.hacksOff", name)} /> as Gtk.Widget)
+      list.append(
+        <box spacing={4} name={name}>
+          <button
+            cssClasses={off((o) => ["toggle", "set-mark", ...(o.includes(name) ? [] : ["chip"])])}
+            tooltipText="in the rotation"
+            onClicked={() => toggleIn("backdrop.hacksOff", name)}
+          >
+            <label cssClasses={["sm"]} label={off((o) => (o.includes(name) ? " " : "✓"))} />
+          </button>
+          <button hexpand cssClasses={picked((p) => ["toggle", "set-hack", ...(p === name ? ["tab"] : [])])} onClicked={() => pick(name)}>
+            <label cssClasses={["sm"]} label={name} xalign={0} />
+          </button>
+        </box> as Gtk.Widget,
+      )
   })
-  hackGrid.set_filter_func((child) => {
-    const q = query.peek().trim().toLowerCase()
-    return !q || ((child.get_child() as Gtk.Button)?.get_child() as Gtk.Label)?.get_label().includes(q)
-  })
+}
+
+function filterHacks(q: string) {
+  q = q.trim().toLowerCase()
+  for (let row = hackList?.get_first_child(); row; row = row.get_next_sibling()) row.visible = !q || row.name.includes(q)
 }
 
 function Backdrop() {
@@ -137,31 +168,38 @@ function Backdrop() {
       <Row label="ambient smoothness" hint="how often the smooth ambients step; costs CPU">
         <Stepper k="backdrop.smoothHz" stops={[10, 15, 20, 25, 30]} fmt={(n) => `${n} Hz`} />
       </Row>
-      <Row label="hacks" hint="which ones the hack turns draw from">
+      <Row label="hacks" hint="pick one to watch it; ✓ puts it in the hack turns">
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
           <box spacing={8} cssClasses={["prompt", "set-search"]}>
             <label cssClasses={["ps"]} label="/" />
             <entry
               hexpand
               placeholderText="filter"
-              $={(self) => { search = self; self.connect("changed", () => { setQuery(self.text); hackGrid?.invalidate_filter() }) }}
+              $={(self) => { search = self; self.connect("changed", () => filterHacks(self.text)) }}
             />
             <label cssClasses={["dim", "sm"]} label={createComputed(() => `${hacks().filter((x) => !hacksOff().includes(x)).length} of ${hacks().length} on`)} />
             <button cssClasses={["toggle", "set-step"]} onClicked={() => setSetting("backdrop.hacksOff", [])}><label cssClasses={["sm"]} label="all" /></button>
             <button cssClasses={["toggle", "set-step"]} onClicked={() => setSetting("backdrop.hacksOff", [...hackNames()])}><label cssClasses={["sm"]} label="none" /></button>
           </box>
-          <Gtk.ScrolledWindow cssClasses={["set-hacks"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} minContentHeight={300} maxContentHeight={300}>
-            <Gtk.FlowBox
-              selectionMode={Gtk.SelectionMode.NONE}
-              maxChildrenPerLine={6}
-              minChildrenPerLine={1}
-              columnSpacing={4}
-              rowSpacing={4}
-              homogeneous
-              valign={Gtk.Align.START}
-              $={(self) => { hackGrid = self }}
-            />
-          </Gtk.ScrolledWindow>
+          <box spacing={12} cssClasses={["set-hacks"]}>
+            <Gtk.ScrolledWindow hexpand hscrollbarPolicy={Gtk.PolicyType.NEVER} minContentHeight={PREVIEW_H + 40} maxContentHeight={PREVIEW_H + 40}>
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={2} valign={Gtk.Align.START} $={(self) => { hackList = self }} />
+            </Gtk.ScrolledWindow>
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={6} valign={Gtk.Align.START}>
+              <overlay cssClasses={["set-preview"]}>
+                <Gtk.Picture widthRequest={PREVIEW_W} heightRequest={PREVIEW_H} canShrink contentFit={Gtk.ContentFit.FILL} $={(self) => { shot = self }} />
+                <label $type="overlay" cssClasses={["dim", "sm"]} label="pick a hack to watch it" visible={picked((p) => !p)} />
+              </overlay>
+              <box spacing={8} visible={picked((p) => !!p)}>
+                <label cssClasses={["k"]} hexpand xalign={0} label={picked((p) => p ?? "")} />
+                <Chip
+                  label={createComputed(() => (hacksOff().includes(picked() ?? "") ? "not in the rotation" : "in the rotation"))}
+                  on={createComputed(() => !hacksOff().includes(picked() ?? ""))}
+                  onClicked={() => { const p = picked.peek(); if (p) toggleIn("backdrop.hacksOff", p) }}
+                />
+              </box>
+            </box>
+          </box>
         </box>
       </Row>
     </Panel>
@@ -240,6 +278,7 @@ export default function Settings() {
     <window
       $={(self) => {
         win = self
+        self.connect("notify::visible", syncPreview)
         // capture: Esc closes before the focused filter can take it
         self.add_controller(closeKeys({ close: () => (self.visible = false), capture: true }))
       }}
