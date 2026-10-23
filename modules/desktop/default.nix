@@ -21,6 +21,12 @@
 let
   cfg = config.ficciones.desktop;
 
+  # sonar pings through a Linux ping socket (unprivileged under net.ipv4.ping_group_range)
+  # instead of needing setuid root, which a store path cannot be
+  xscreensaver = pkgs.xscreensaver.overrideAttrs (o: {
+    patches = (o.patches or [ ]) ++ [ ./patches/xscreensaver-sonar-ping-socket.patch ];
+  });
+
   # The old xscreensaver hacks as the desktop's background, unported: each runs on a rootful
   # Xwayland whose window windowtolayer turns into OUTPUT's background layer (the shell's backdrop
   # rotation starts and stops them, shell/lib/xscreensaver.ts). GL needs a driver the nix mesa
@@ -31,7 +37,7 @@ let
   # the X server they grab from is empty, so they show black. So are the ones that die on start:
   # mapscroller (its .pl helper is not on PATH), xshadertoy (wants --program), xsublim (no -root).
   xssHost = pkgs.writeShellScriptBin "xss-host" ''
-    hacks=${pkgs.xscreensaver}/libexec/xscreensaver
+    hacks=${xscreensaver}/libexec/xscreensaver
     if [ "''${1:-}" = --list ]; then
       ls "$hacks" | grep -vxE 'xscreensaver-.*|webcollage.*|vidwhacker|blitspin|bumps|carousel|decayscreen|distort|flipscreen3d|gleidescope|glslideshow|jigsaw|mirrorblob|photopile|ripples|rotzoomer|slidescreen|spotlight|twang|zoom|xanalogtv|esper|glitchpeg|mapscroller.*|xshadertoy|xsublim'
       exit 0
