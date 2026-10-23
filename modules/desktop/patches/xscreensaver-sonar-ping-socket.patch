@@ -1,0 +1,34 @@
+--- a/hacks/glx/sonar-icmp.c
++++ b/hacks/glx/sonar-icmp.c
+@@ -1141,7 +1141,9 @@
+           gettimeofday(&now);
+ # endif
+           ip = (struct ip *) packet;
+-          iphdrlen = IP_HDRLEN(ip) << 2;
++          /* A raw socket hands back the IP header; a Linux ping socket
++             (SOCK_DGRAM, net.ipv4.ping_group_range) starts at the ICMP. */
++          iphdrlen = (packet[0] >> 4) == 4 ? IP_HDRLEN(ip) << 2 : 0;
+           icmph = (struct ICMP *) &packet[iphdrlen];
+            /* struct timeval data in packet is not aligned, move the data to
+               the aligned buffer
+@@ -1153,8 +1155,9 @@
+           if (ICMP_TYPE(icmph) != ICMP_ECHOREPLY) 
+             continue;
+ 
+-          /* Ignore packets not set from us */
+-          if (ICMP_ID(icmph) != pd->pid)
++          /* Ignore packets not set from us.  A ping socket's kernel rewrites
++             the id and only delivers replies to the socket that sent them. */
++          if (iphdrlen && ICMP_ID(icmph) != pd->pid)
+ 	    continue;
+ 
+           /* Find the bogie in 'targets' that corresponds to this packet
+@@ -1731,7 +1734,7 @@
+         fprintf (stderr, "%s: re-using icmp socket\n", progname);
+ 
+     } 
+-# if (defined(__APPLE__) && defined(__MACH__)) || defined(HAVE_ANDROID)
++# if (defined(__APPLE__) && defined(__MACH__)) || defined(HAVE_ANDROID) || defined(__linux__)
+   /* As of Debian 11.1 (kernel 5.10) this call *succeeds* but no ping
+      responses are received, even when sonar is setuid root.  Previously,
+      this call would fail on Linux, and would only succeed on macOS, and
