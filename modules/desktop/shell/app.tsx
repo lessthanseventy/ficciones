@@ -22,6 +22,7 @@ import { screenshot, startRecording, stopRecording } from "./lib/capture"
 import Launcher, { toggleLauncher } from "./surfaces/Launcher"
 import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import Settings, { toggleSettings } from "./surfaces/Settings"
+import { sendToOtherScreen } from "./lib/display"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
 import Backdrop, { setBackdrop, MODE_NAMES, type BackdropMode } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Deck"
@@ -152,6 +153,10 @@ app.start({
       sidecarVerb(what, tab)
       return res("ok")
     }
+    if (verb === "display" && what === "send") {
+      void sendToOtherScreen()
+      return res("ok")
+    }
     if (verb === "theme") {
       setTheme(what && (THEMES as readonly string[]).includes(what) ? (what as Theme) : "toggle")
       return res("ok")
@@ -168,7 +173,7 @@ app.start({
     }
     if (verb === "get") return res(getCli(what))
     if (verb === "set") return res(setCli(what, argv.slice(2).join(" ")))
-    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | toggle drawer|hub|deck|office|dashboard|settings [backdrop|look|notifications|feel]|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents] | pop ws N | pop card NAME | quake | super down|up")
+    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | toggle drawer|hub|deck|office|dashboard|settings [backdrop|look|notifications|feel]|launcher|clipboard|cheatsheet|weather | crt [off|subtle|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | display send | theme [uqbar|zahir] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents] | pop ws N | pop card NAME | quake | super down|up")
   },
   main() {
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;

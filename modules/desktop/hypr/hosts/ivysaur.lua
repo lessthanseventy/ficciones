@@ -27,8 +27,33 @@ end
 
 local external = "desc:Samsung Electric Company LS27D36xG"
 
+-- Mirror is decided once a session: the first load reads display.mirror from the shell's settings
+-- (on unless false) and writes the answer to this instance's runtime dir; reloads read it back.
+-- Turning a mirror on in a running session crashed Hyprland 0.56.2; the shell only ever breaks
+-- one, by writing "separate" there and reloading (shell/lib/display.ts).
+local function screens()
+    local path = os.getenv("XDG_RUNTIME_DIR") .. "/hypr/" .. os.getenv("HYPRLAND_INSTANCE_SIGNATURE") .. "/ficciones-screens"
+    local f = io.open(path)
+    if f then
+        local v = f:read("*l")
+        f:close()
+        return v
+    end
+    local s = io.open(os.getenv("HOME") .. "/.config/ficciones/shell.json")
+    local text = s and s:read("*a") or ""
+    if s then s:close() end
+    -- a string match, not a JSON parse: the file is the shell's own one-key-a-line dump
+    local v = text:match('"display%.mirror"%s*:%s*false') and "separate" or "mirror"
+    f = io.open(path, "w")
+    if f then
+        f:write(v, "\n")
+        f:close()
+    end
+    return v
+end
+
 hl.monitor({ output = "eDP-1", mode = "1920x1200@59.95", position = "0x0", scale = 1 })
-hl.monitor({ output = external, mode = "preferred", position = "auto", scale = "auto" })
+hl.monitor({ output = external, mode = "preferred", position = "auto", scale = "auto", mirror = screens() == "mirror" and "eDP-1" or nil })
 
 -- Persistent workspaces (eDP-1 owns 1, external owns 2-10)
 hl.workspace_rule({ workspace = "1", monitor = "eDP-1", persistent = true, default = true })

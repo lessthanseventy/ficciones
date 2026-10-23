@@ -486,6 +486,8 @@ bind("CTRL + " .. M .. " + SHIFT + H", move_mon("l"))
 bind("CTRL + " .. M .. " + SHIFT + L", move_mon("r"))
 bind("CTRL + " .. M .. " + SHIFT + J", follow_ws("r+1"))
 bind("CTRL + " .. M .. " + SHIFT + K", follow_ws("r-1"))
+-- the window to the other screen, breaking a mirror first (shell/lib/display.ts)
+bind("CTRL + " .. M .. " + SHIFT + O", exec(shell .. "/shell-req.sh display send"))
 
 -- Swap column with neighbor
 bind("ALT + " .. M .. " + H", layout("swapcol l"))
