@@ -36,10 +36,12 @@ let
   # `xss-host --list` names the hacks; the ones that distort a grab of the screen are left out —
   # the X server they grab from is empty, so they show black. So are the ones that die on start:
   # mapscroller (its .pl helper is not on PATH), xshadertoy (wants --program), xsublim (no -root).
+  # So are the shader-heavy ones that manage about a frame a second in software (alienbeacon …
+  # universeball): a core each for a slideshow.
   xssHost = pkgs.writeShellScriptBin "xss-host" ''
     hacks=${xscreensaver}/libexec/xscreensaver
     if [ "''${1:-}" = --list ]; then
-      ls "$hacks" | grep -vxE 'xscreensaver-.*|webcollage.*|vidwhacker|blitspin|bumps|carousel|decayscreen|distort|flipscreen3d|gleidescope|glslideshow|jigsaw|mirrorblob|photopile|ripples|rotzoomer|slidescreen|spotlight|twang|zoom|xanalogtv|esper|glitchpeg|mapscroller.*|xshadertoy|xsublim'
+      ls "$hacks" | grep -vxE 'xscreensaver-.*|webcollage.*|vidwhacker|blitspin|bumps|carousel|decayscreen|distort|flipscreen3d|gleidescope|glslideshow|jigsaw|mirrorblob|photopile|ripples|rotzoomer|slidescreen|spotlight|twang|zoom|xanalogtv|esper|glitchpeg|mapscroller.*|xshadertoy|xsublim|alienbeacon|batteredplanet|bestill|bubblecolors|downfall|fluxcore|prococean|rigrekt|skyline|universeball'
       exit 0
     fi
     export __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json
