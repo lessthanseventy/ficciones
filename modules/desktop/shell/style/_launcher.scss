@@ -39,6 +39,9 @@ window.settings { background: transparent; }
 .set-search entry { font-size: $size; }
 .set-nav .toggle.set-chip { min-width: 110px; }
 .set-hacks { border-top: $rule solid $structure; padding-top: $sp-1; }
+.toggle.set-mark { min-height: 26px; min-width: 30px; padding: 0; }
+.toggle.set-hack { min-height: 26px; padding: 0 $sp-2; }
+.set-preview { background: black; border: $rule solid $structure; }
 
 // cheatsheet
 window.cheatsheet { background: transparent; }

@@ -1,9 +1,13 @@
 // The old xscreensaver hacks in the backdrop's rotation: `xss-host` (modules/desktop/default.nix)
 // draws one as a monitor's background layer — a rootful Xwayland made a layer surface — and this
 // starts, stops and freezes it per monitor. The backdrop (surfaces/Backdrop.tsx) hides its own
-// window while a hack has the monitor, and asks for a pause while a film covers it.
+// window while a hack has the monitor, and asks for a pause while a film covers it. The settings
+// picker's preview is a hack on a headless Xvfb instead, its screen read back as frames.
+import GLib from "gi://GLib"
+import Gdk from "gi://Gdk?version=4.0"
 import { execAsync, subprocess, type Process } from "ags/process"
 import { setting } from "./settings"
+import { xwdFrame } from "./xwd-core"
 
 let hacks: string[] = []
 const running = new Map<string, { p: Process; display: number }>() // monitor connector → its xss-host
@@ -50,3 +54,36 @@ export function pauseHack(connector: string, paused: boolean) {
 }
 
 export const stopAll = () => [...running.keys()].forEach(stopHack)
+
+let preview: { p: Process; dir: string; timer: number } | null = null
+
+/** Run `hack` on a headless X server of its own at `w`×`h` and hand `onFrame` its screen ~15 times
+ * a second, until stopPreview; the one already running stops first. */
+export function startPreview(hack: string, w: number, h: number, onFrame: (t: Gdk.Texture) => void) {
+  stopPreview()
+  display = display >= 99 ? 40 : display + 1
+  const dir = GLib.dir_make_tmp("xss-preview-XXXXXX")
+  const screen = `${dir}/Xvfb_screen0`
+  try {
+    const p = subprocess(["xss-host", "--preview", String(display), dir, String(w), String(h), hack], () => {}, () => {})
+    const timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 66, () => {
+      try {
+        const [, b] = GLib.file_get_contents(screen)
+        const f = xwdFrame(b)
+        if (f) onFrame(Gdk.MemoryTexture.new(f.width, f.height, Gdk.MemoryFormat.B8G8R8X8, new GLib.Bytes(b.subarray(f.offset, f.offset + f.stride * f.height)), f.stride))
+      } catch { /* not there yet: the X server is still starting */ }
+      return GLib.SOURCE_CONTINUE
+    })
+    preview = { p, dir, timer }
+  } catch (e) { console.error("xss-host --preview:", String(e)) }
+}
+
+export function stopPreview() {
+  if (!preview) return
+  const { p, dir, timer } = preview
+  preview = null
+  GLib.source_remove(timer)
+  p.signal(15)
+  // after the X server is gone, so it cannot write the file back
+  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => { GLib.unlink(`${dir}/Xvfb_screen0`); GLib.rmdir(dir); return GLib.SOURCE_REMOVE })
+}
