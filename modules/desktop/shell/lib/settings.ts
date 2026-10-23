@@ -22,6 +22,8 @@ const DEFAULTS = {
   "backdrop.smoothHz": 15,
   /** the photo backdrop picks a new image this often */
   "wallpaper.rotateMinutes": 5,
+  /** the external screen shows the laptop's, from the next login (hypr/hosts/<host>.lua reads it) */
+  "display.mirror": true,
   "look.glass": true,
   /** both active and inactive windows: the background is not dimmer than the foreground */
   "look.glassOpacity": 0.9,

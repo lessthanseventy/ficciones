@@ -209,6 +209,11 @@ function Backdrop() {
 function Look() {
   return (
     <Panel title="LOOK" cssClasses={["set-section"]} spacing={10} visible={section((s) => s === "look")}>
+      <Row label="screens" hint="mirror starts at the next login; Ctrl+Super+Shift+O breaks it and sends a window over">
+        {flow([true, false].map((m) => (
+          <Chip label={m ? "mirror" : "separate"} on={setting("display.mirror")((v) => v === m)} onClicked={() => setSetting("display.mirror", m)} />
+        )))}
+      </Row>
       <Row label="theme" hint="uqbar dark, zahir light; every app follows">
         {flow(THEMES.map((t) => <Chip label={t} on={theme((c) => c === t)} onClicked={() => setTheme(t)} />))}
       </Row>
