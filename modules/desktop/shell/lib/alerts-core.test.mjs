@@ -1,7 +1,7 @@
 // node --test lib/alerts-core.test.mjs (mise shell:test): the pure half of lib/alerts.ts.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { showing, ofLevel, request, putsAway, arrived, soundFor } from "./alerts-core.ts"
+import { showing, ofLevel, request, putsAway, arrived, soundFor, onBanner } from "./alerts-core.ts"
 
 const alert = (key, level, actions = []) =>
   ({ key, level, kind: "k", title: key, body: null, at: "2026-10-08T00:00:00Z", thread_id: 198, link: null, actions })
@@ -56,4 +56,13 @@ test("a decision and a landing each earn their sound; other alerts none", () => 
   assert.equal(soundFor(alert("a", "decision")), "decision")
   assert.equal(soundFor({ ...alert("landed:9", "info"), kind: "landed", title: "#9 landed — x" }), "landing")
   assert.equal(soundFor(alert("s", "sticky")), null)
+})
+
+test("the banner stays on the decision being answered, whatever arrives ahead of it", () => {
+  const a = alert("ask:1", "decision"), b = alert("ask:2", "decision")
+  assert.equal(onBanner([a, b], [], null), a)
+  assert.equal(onBanner([b, a], [], "ask:1"), a)
+  assert.equal(onBanner([b], [], "ask:1"), b, "an answered decision lets the banner move on")
+  assert.equal(onBanner([a, b], ["ask:1"], null), b)
+  assert.equal(onBanner([a], ["ask:1"], null), null)
 })
