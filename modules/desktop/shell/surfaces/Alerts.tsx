@@ -8,12 +8,17 @@ import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import { For, With, createState, createComputed, onCleanup } from "ags"
 import { timeout } from "ags/time"
+import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
 import { setting } from "../lib/settings"
 import { putsAway } from "../lib/alerts-core"
 import { logEvent } from "../lib/log"
-import { openThread, alarms, banner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
+import { openThread, alarms, banner, holdBanner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
+
+// a card's window holds no keyboard unless a reply is open (replyKeymode), so Ctrl+C on a selection
+// never reaches it: Copy puts the card's text on the clipboard instead
+const copy = (a: Alert) => ({ label: "Copy", run: () => void execAsync(["wl-copy", a.body ?? a.title]).then(() => logEvent("shell", "alert copied", "dim")).catch(console.error) })
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 const until = (iso: string) => {
@@ -58,10 +63,10 @@ function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { labe
   let open = false
   const unsub = asking.subscribe(() => {
     const now = asking.peek() !== null
-    if (now !== open) { open = now; setReplies((n) => n + (now ? 1 : -1)) }
+    if (now !== open) { open = now; setReplies((n) => n + (now ? 1 : -1)); if (host === "banner") holdBanner(now ? a.key : null) }
   })
   // a reply that vanishes or goes deaf mid-word is logged with its card, so the next one says why
-  onCleanup(() => { unsub(); if (open) { setReplies((n) => n - 1); logEvent("shell", `reply box closed by a redraw (${host}): ${a.title}`, "warn") } })
+  onCleanup(() => { unsub(); if (open) { setReplies((n) => n - 1); if (host === "banner") holdBanner(null); logEvent("shell", `reply box closed by a redraw (${host}): ${a.title}`, "warn") } })
   let input: Gtk.TextView | null = null
   const typed = () => { const b = input?.buffer; return b ? b.get_text(b.get_start_iter(), b.get_end_iter(), false) : "" }
   const send = () => { const x = asking.peek(); if (x) void act(a, x, typed()); setAsking(null) }
@@ -115,7 +120,7 @@ export function Stickies() {
           <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-sticky"]} spacing={4}>
             <label selectable cssClasses={["summary"]} label={a.thread_id ? `#${a.thread_id} ${a.title}` : a.title} xalign={0} wrap maxWidthChars={44} />
             <label selectable cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={48} />
-            <Actions a={a} host="toasts" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }, ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
+            <Actions a={a} host="toasts" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }, copy(a), ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
           </Panel>
         )}
       </For>
@@ -171,7 +176,7 @@ export function DecisionBanner() {
             <Panel title={`⚑ tlön needs a decision${a.thread_id ? ` · #${a.thread_id}` : ""}`} cssClasses={["alert-banner"]} spacing={6}>
               <label selectable cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={70} />
               <label selectable cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={80} />
-              <Actions a={a} host="banner" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }]} />
+              <Actions a={a} host="banner" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }, copy(a)]} />
             </Panel>
           )
         }
