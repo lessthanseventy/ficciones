@@ -79,6 +79,17 @@ in
   # sched_ext LAVD: latency-criticality aware, so the desktop stays snappy under a full office.
   services.scx = { enable = true; scheduler = "scx_lavd"; };
 
+  # keyd merges every keyboard into one virtual device: the Compx receiver splits a key's press and
+  # release across two interfaces, which per-device remappers leave stuck (Shift, caps lock).
+  # On Arch, keyd:install writes this same generated file to /etc.
+  services.keyd = {
+    enable = true;
+    keyboards.default = {
+      ids = [ "*" ];
+      settings.main.capslock = "overload(control, esc)";
+    };
+  };
+
   # ---- graphics: Intel primary, NVIDIA on PRIME offload (EnvyControl "hybrid" mode) ---------
   hardware.graphics = {
     enable = true;

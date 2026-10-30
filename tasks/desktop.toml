@@ -151,6 +151,21 @@ run = "journalctl --user -u astal-shell.service -f"
 description = "machine: apply the home-manager profile"
 run = "nix run github:nix-community/home-manager -- switch --flake .#personalbox -b backup"
 
+# Home-manager can't own a root service on Arch, so the config comes from ivysaur's services.keyd
+# (the one source) and this installs it. Rerun after changing it.
+["keyd:install"]
+description = "machine (sudo): install keyd on Arch with the config from ivysaur's services.keyd, and retire evremap"
+run = '''
+set -euo pipefail
+conf=$(nix build --no-link --print-out-paths '.#nixosConfigurations.ivysaur.config.environment.etc."keyd/default.conf".source')
+sudo pacman -S --needed --noconfirm keyd
+sudo install -Dm644 "$conf" /etc/keyd/default.conf
+sudo systemctl disable --now evremap-pop evremap-internal evremap-compx-keyboard
+sudo rm -f /etc/udev/rules.d/99-evremap-restart.rules
+sudo systemctl enable keyd
+sudo systemctl restart keyd
+'''
+
 # The one update verb (omarchy-update's shape, 2026-09-17): apply THIS checkout to the running
 # machine — profile, shell, server — in the order their dependencies require. Moving the pins is a
 # separate, committable step (flake:bump), not part of applying.
