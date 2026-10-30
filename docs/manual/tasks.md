@@ -45,7 +45,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 
 | verb | does |
 |---|---|
-| `keyd:install` | machine (sudo): install keyd on Arch with the config from ivysaur's services.keyd, and retire evremap |
+| `keyd:install` | machine (sudo): install keyd on Arch with the config from ivysaur's services.keyd |
 
 ## machine
 
