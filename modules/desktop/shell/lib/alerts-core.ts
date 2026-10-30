@@ -27,6 +27,14 @@ export const soundFor = (a: Alert): Sfx | null => (a.level === "decision" ? "dec
 
 export const ofLevel = (as: Alert[], level: Alert["level"]) => as.filter((a) => a.level === level)
 
+/** The decision on the banner: the one being answered (`held`) while it is still up, so a need that
+ * sorts ahead of it cannot swap the card out from under a half-typed reply; else the first not
+ * folded away. */
+export function onBanner(decisions: Alert[], later: string[], held: string | null): Alert | null {
+  const up = decisions.filter((a) => !later.includes(a.key))
+  return up.find((a) => a.key === held) ?? up[0] ?? null
+}
+
 /** The operator-API call an action makes, `text` filling its `input` field; null when it makes none. */
 export function request(x: Action, text?: string): { method: string; path: string; body: Record<string, unknown> } | null {
   if (!x.path) return null

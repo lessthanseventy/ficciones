@@ -14,7 +14,7 @@ import { play } from "./sfx"
 import { openInOffice } from "./agents"
 import { hypr } from "./hypr"
 import { dispatchNow } from "./hyprlua"
-import { showing as up, ofLevel, request, arrived, soundFor, type Action, type Alert, type Kept } from "./alerts-core"
+import { showing as up, ofLevel, onBanner, request, arrived, soundFor, type Action, type Alert, type Kept } from "./alerts-core"
 
 export type { Action, Alert }
 
@@ -49,8 +49,17 @@ export const alarms = showing((as) => ofLevel(as, "alarm"))
 export const decisions = showing((as) => ofLevel(as, "decision"))
 export const stickies = createComputed(() => ofLevel(showing(), "sticky").filter((a) => !later().includes(a.key)))
 export const infos = showing((as) => ofLevel(as, "info"))
-/** the decision on the banner: the first not folded away */
-export const banner = createComputed(() => decisions().find((a) => !later().includes(a.key)) ?? null)
+/** the key of the decision whose reply box is open on the banner (surfaces/Alerts.tsx sets it) */
+const [held, setHeld] = createState<string | null>(null)
+export const holdBanner = setHeld
+let shown: Alert | null = null
+/** the decision on the banner (`onBanner`); while its reply is open it keeps its object, so a poll
+ * that changes one of its fields does not rebuild the card and wipe the reply */
+export const banner = createComputed(() => {
+  const a = onBanner(decisions(), later(), held())
+  shown = a && shown && a.key === shown.key && held() === a.key ? shown : a
+  return shown
+})
 /** how many decisions and sticky cards are folded into the pill */
 export const folded = createComputed(
   () => showing().filter((a) => (a.level === "decision" || a.level === "sticky") && later().includes(a.key)).length,
