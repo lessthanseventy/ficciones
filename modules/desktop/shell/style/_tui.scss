@@ -100,10 +100,10 @@ button {
   * { color: $field-ink; }
 }
 .tab {
-  color: $max-contrast;
+  color: $sel-ink;
   background: $sel-field;
   padding: 0 $sp-2;
-  * { color: $max-contrast; }
+  * { color: $sel-ink; }
 }
 
 // key/value stat: dim key, body value, in one cell

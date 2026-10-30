@@ -41,6 +41,9 @@ window.settings { background: transparent; }
 .set-hacks { border-top: $rule solid $structure; padding-top: $sp-1; }
 .toggle.set-mark { min-height: 26px; min-width: 30px; padding: 0; }
 .toggle.set-hack { min-height: 26px; padding: 0 $sp-2; }
+// .toggle (_drawer, loaded after _tui) clears .tab's field and inks it $meta: restate both
+.toggle.tab { background: $sel-field; border-color: $sel-field; * { color: $sel-ink; }
+  &:hover { background: $sel-field; border-color: $key; * { color: $sel-ink; } } }
 .set-preview { background: black; border: $rule solid $structure; }
 
 // cheatsheet
