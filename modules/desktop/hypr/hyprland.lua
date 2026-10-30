@@ -170,6 +170,9 @@ hl.config({
 
     input = {
         kb_layout = "us",
+        -- evremap grabs one Compx interface by name; the receiver also exposes a "…Keyboard" one it
+        -- misses, whose raw CapsLock would latch caps with no remapped key left to clear it.
+        kb_options = "caps:ctrl_modifier",
         repeat_delay = 250,
         repeat_rate = 35,
         numlock_by_default = true,
