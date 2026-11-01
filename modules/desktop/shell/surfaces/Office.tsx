@@ -145,7 +145,7 @@ function Scene() {
   const draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number) => {
     const m = mode.peek()
     const focus = m.kind === "coworker" ? view.peek().bench.find((c) => c.agent_id === m.agentId)?.name ?? null : null
-    const out = sim().draw(cr, w, view.peek(), picked.peek(), armed.peek(), focus)
+    const out = sim().draw(cr, w, view.peek(), picked.peek(), focus)
     hits = out.hits
     if (area && area.heightRequest !== out.height * S) area.heightRequest = out.height * S
   }

@@ -22,12 +22,12 @@ const FONT = "ComicShannsMono Nerd Font"
 export class OfficeSim extends RailRoom {
   /** paint the room; returns the click targets (widget pixels) and the scene's height (lpx) */
   /** `focus`: the agent whose card is open — the arrow follows them as it follows the picked thread */
-  draw(cr: Cairo.Context, areaW: number, a: Agents, picked: number | null, armed: number | null, focus: string | null = null): { hits: Hit[]; height: number } {
+  draw(cr: Cairo.Context, areaW: number, a: Agents, picked: number | null, focus: string | null = null): { hits: Hit[]; height: number } {
     // the theme can switch under us: the room reads its colours from these on every frame
     useRoles(ROLE)
     const ox = Math.floor((areaW - W * S) / 2)
     cr.selectFontFace(FONT, Cairo.FontSlant.NORMAL, Cairo.FontWeight.NORMAL)
-    const fr = this.render(a, { picked, armed, person: focus }, (s, size) => { cr.setFontSize(size); return cr.textExtents(s).width / S })
+    const fr = this.render(a, { picked, person: focus }, (s, size) => { cr.setFontSize(size); return cr.textExtents(s).width / S })
     paint(cr, fr, ox)
     return { hits: fr.hits.map((h) => ({ ...h, x: ox + h.x * S, y: h.y * S, w: h.w * S, h: h.h * S })), height: fr.height }
   }
