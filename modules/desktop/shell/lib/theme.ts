@@ -1,19 +1,19 @@
-// The live theme: uqbar (dark) or zahir (light). home-manager renders every surface for both
-// under ~/.config/ficciones/themes/<name>/ and each app's fixed path is a link through
-// ~/.config/ficciones/theme — the one mutable link. `astal-shell theme [uqbar|zahir|toggle]`
-// (Super+Shift+P, the toggles card) repoints it, swaps the shell's own stylesheet and Pango
-// palette in place, reloads Hyprland, and asks GTK for the matching light/dark scheme. Under a
-// second, no nix. Apps that only read their config at start (GTK apps already open, Qt, Floorp)
-// follow on their next launch.
+// The live theme: one of THEMES (themes.ts, from palettes/default.nix). home-manager renders every
+// surface for each under ~/.config/ficciones/themes/<name>/ and each app's fixed path is a link
+// through ~/.config/ficciones/theme — the one mutable link. `astal-shell theme [<name>|toggle]`
+// (Super+Shift+P flips to the palette's partner; the settings card picks any) repoints it, swaps
+// the shell's own stylesheet and Pango palette in place, reloads Hyprland, and asks GTK for the
+// matching light/dark scheme. Under a second, no nix. Apps that only read their config at start
+// (GTK apps already open, Qt, Floorp, Firefox) follow on their next launch.
 import GLib from "gi://GLib?version=2.0"
 import Gio from "gi://Gio?version=2.0"
 import app from "ags/gtk4/app"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { PALETTE, ROLE } from "./palette"
+import { THEMES, LIGHT, PARTNER, type Theme } from "./themes"
 
-export const THEMES = ["uqbar", "zahir"] as const
-export type Theme = (typeof THEMES)[number]
+export { THEMES, LIGHT, type Theme }
 const DIR = `${GLib.get_user_config_dir()}/ficciones`
 const LINK = `${DIR}/theme`
 
@@ -52,7 +52,7 @@ export function applyShellTheme() {
 }
 
 export function setTheme(t: Theme | "toggle") {
-  const next: Theme = t === "toggle" ? (currentTheme() === "uqbar" ? "zahir" : "uqbar") : t
+  const next: Theme = t === "toggle" ? PARTNER[currentTheme()] : t
   if (!Gio.File.new_for_path(`${DIR}/themes/${next}`).query_exists(null)) {
     execAsync(["notify-send", "-u", "critical", "-a", "astal-shell", `theme ${next}`, `${DIR}/themes/${next} is not there — home:switch first`]).catch(console.error)
     return
@@ -71,7 +71,7 @@ export function setTheme(t: Theme | "toggle") {
   }
   setThemeState(next)
   applyShellTheme()
-  const scheme = next === "zahir" ? "prefer-light" : "prefer-dark"
+  const scheme = LIGHT[next] ? "prefer-light" : "prefer-dark"
   Promise.allSettled([
     execAsync(["hyprctl", "reload"]),
     execAsync(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme]),

@@ -14,12 +14,12 @@ let
   render = import ./render.nix { inherit lib palette; };
   tpl = name: builtins.readFile (./templates + "/${name}");
 
-  # BOTH palettes rendered at install (2026-09-06): every surface has an uqbar (dark) and a zahir (light) copy
+  # EVERY palette rendered at install: each surface has a copy per palette (palettes/default.nix)
   # under ~/.config/ficciones/themes/<name>/, each app's fixed path is a symlink through
   # ~/.config/ficciones/theme (the one mutable link, made on activation if missing), and the
   # toggle repoints it — no nix, under a second. `palette.nix`/`current` remain the build-time
   # default (the checked-in generated files).
-  palettes = { uqbar = import ./palettes/uqbar.nix; zahir = import ./palettes/zahir.nix; };
+  palettes = import ./palettes;
   renders = lib.mapAttrs (_: p: import ./render.nix { inherit lib; palette = p; }) palettes;
   envLua =
     "hl.env(\"GTK_THEME\", \"${cfg.gtkTheme}\")\n"
@@ -154,7 +154,7 @@ in
     };
 
     xdg.configFile = lib.mkMerge [
-      # every surface, both palettes
+      # every surface, every palette
       (lib.mkMerge (lib.mapAttrsToList (name: r:
         lib.mapAttrs' (file: text: lib.nameValuePair "ficciones/themes/${name}/${file}" { inherit text; }) (themeFiles r)
         // {
@@ -165,10 +165,10 @@ in
           # the `theme` key in settings.json only at startup — so naming a different file per
           # palette, which is what we used to do, could never switch a running session.
           "ficciones/themes/${name}/claude-theme.json".text =
-            r.claudeTheme { name = "ficciones"; light = name == "zahir"; };
+            r.claudeTheme { name = "ficciones"; inherit (palettes.${name}) light; };
           # Neovim (asterion, a sibling repo): roles + base16 as a Lua table, read at startup.
           "ficciones/themes/${name}/nvim-palette.lua".text =
-            r.nvimPalette { inherit name; light = name == "zahir"; };
+            r.nvimPalette { inherit name; inherit (palettes.${name}) light; };
         }) renders))
       {
         # ghostty: the theme file + the config that names it (templates/ghostty.conf is the rest).

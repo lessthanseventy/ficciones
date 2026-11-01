@@ -7,6 +7,9 @@
 #
 # Hex without '#', uppercase, so each renderer adds the syntax its target wants.
 rec {
+  light = true;
+  partner = "uqbar";
+
   # Files or directories (~ expands) the shell's photo backdrop draws from while this palette
   # is live; empty falls back to the shared wallpapers directory (shell config.json).
   wallpapers = [ ];

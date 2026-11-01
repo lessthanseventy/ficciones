@@ -224,20 +224,20 @@
           );
 
         # Andrew has low vision: every foreground/background pair the machine paints has a
-        # declared WCAG floor in modules/desktop/theme/contrast.nix, and BOTH palettes must
+        # declared WCAG floor in modules/desktop/theme/contrast.nix, and EVERY palette must
         # clear it — not just whichever one `current` names. The gate that refuses the next
         # washed-out selection.
         palette-contrast =
           let
-            spec = name: pkgs.writeText "${name}-contrast.json"
-              (builtins.toJSON (import ./modules/desktop/theme/contrast.nix
-                (import (./modules/desktop/theme/palettes + "/${name}.nix"))));
-            run = name: ''
-              ${pkgs.python3}/bin/python3 ${./modules/desktop/theme/contrast.py} ${name} ${spec name}
+            spec = name: palette: pkgs.writeText "${name}-contrast.json"
+              (builtins.toJSON (import ./modules/desktop/theme/contrast.nix palette));
+            run = name: palette: ''
+              ${pkgs.python3}/bin/python3 ${./modules/desktop/theme/contrast.py} ${name} ${spec name palette}
             '';
           in
           pkgs.runCommand "palette-contrast" { } (
-            pkgs.lib.concatMapStrings run [ "uqbar" "zahir" ] + "touch $out\n"
+            pkgs.lib.concatStrings (pkgs.lib.mapAttrsToList run (import ./modules/desktop/theme/palettes))
+            + "touch $out\n"
           );
       };
 

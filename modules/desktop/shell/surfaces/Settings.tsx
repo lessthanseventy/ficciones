@@ -214,7 +214,7 @@ function Look() {
           <Chip label={m ? "mirror" : "separate"} on={setting("display.mirror")((v) => v === m)} onClicked={() => setSetting("display.mirror", m)} />
         )))}
       </Row>
-      <Row label="theme" hint="uqbar dark, zahir light; every app follows">
+      <Row label="theme" hint="every app follows; Super+Shift+P flips light and dark">
         {flow(THEMES.map((t) => <Chip label={t} on={theme((c) => c === t)} onClicked={() => setTheme(t)} />))}
       </Row>
       <Row label="glass" hint="see-through windows; a playing video makes them opaque"><OnOff k="look.glass" /></Row>

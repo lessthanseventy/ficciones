@@ -53,7 +53,7 @@ let
   ags = agsPackages.ags.override { extraPackages = astalLibs ++ extra; };
   # The stylesheet per palette, compiled here so the running shell can swap themes without a
   # rebuild: share/astal-shell/themes/<name>.css (home-manager links them into the theme dirs).
-  palettes = { uqbar = import ../theme/palettes/uqbar.nix; zahir = import ../theme/palettes/zahir.nix; };
+  palettes = import ../theme/palettes;
   compileThemes = lib.concatStrings (
     lib.mapAttrsToList (name: p: ''
       cp -r style themestyle-${name}
