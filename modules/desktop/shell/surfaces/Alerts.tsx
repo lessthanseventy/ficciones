@@ -12,7 +12,7 @@ import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
 import { setting } from "../lib/settings"
-import { putsAway } from "../lib/alerts-core"
+import { putsAway, withNote } from "../lib/alerts-core"
 import { logEvent } from "../lib/log"
 import { openThread, alarms, banner, holdBanner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
 
@@ -79,7 +79,25 @@ function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { labe
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <box cssClasses={["actions"]} spacing={8} orientation={host === "banner" ? Gtk.Orientation.VERTICAL : Gtk.Orientation.HORIZONTAL}>
         {answers.map((x) => (
-          <button cssClasses={["act"]} onClicked={() => { if (x.input) setAsking(x); else { setAsking(null); void act(a, x) } }}>
+          <button
+            cssClasses={["act"]}
+            tooltipText={withNote(x) ? "Ctrl- or Shift-click: answer with a note" : null}
+            onClicked={() => { if (x.input) setAsking(x); else { setAsking(null); void act(a, x) } }}
+            $={(self) => {
+              // a modifier-click is taken before the button sees it and opens the one reply box
+              // for "<key> <note>"; a plain click stays one tap
+              const noted = withNote(x)
+              if (!noted) return
+              const g = new Gtk.GestureClick()
+              g.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+              g.connect("pressed", () => {
+                if (!(g.get_current_event_state() & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK))) return
+                g.set_state(Gtk.EventSequenceState.CLAIMED)
+                setAsking(noted)
+              })
+              self.add_controller(g)
+            }}
+          >
             <label label={x.label} wrap={host === "banner"} maxWidthChars={host === "banner" ? 76 : -1} xalign={0} />
           </button>
         ))}
