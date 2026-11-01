@@ -1,0 +1,62 @@
+
+/* PAPER — appended after userChrome.css for a palette with `paper = true` (render.nix): the CRT
+   goes and a sheet takes its place. Colours stay the palette's (var(--retro-*)); this layer is
+   texture and shape only, so it works on light paper and dark alike. */
+@-moz-document url(chrome://browser/content/browser.xhtml) {
+:root {
+  --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 .14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --paper-radius: 10px;
+}
+
+#sidebar-box::before,
+#nav-bar::before,
+#fullscreen-warning::before,
+.pointerlockfswarning::before {
+  display: none !important;
+}
+
+#navigator-toolbox,
+#nav-bar,
+#TabsToolbar,
+#sidebar-box,
+#bsb-main,
+#browser {
+  background-image: var(--paper-grain) !important;
+  background-blend-mode: soft-light !important;
+}
+
+/* tabs are cards: a pencil outline, and the current one lifted off the page */
+.tabbrowser-tab {
+  border-radius: var(--paper-radius) !important;
+  border: 1px dashed var(--retro-border) !important;
+}
+
+.tabbrowser-tab[visuallyselected="true"] {
+  border-style: solid !important;
+  box-shadow: 3px 3px 0 var(--retro-border) !important;
+}
+
+#urlbar,
+#urlbar-background,
+#searchbar {
+  border-radius: var(--paper-radius) !important;
+  border-style: dashed !important;
+}
+
+#urlbar:focus-within {
+  border-style: solid !important;
+  box-shadow: 3px 3px 0 var(--retro-border) !important;
+}
+
+menupopup,
+panel {
+  --panel-border-radius: var(--paper-radius) !important;
+}
+
+toolbarbutton:hover,
+.subviewbutton:hover,
+.findbar-button:hover,
+.notification-close-button:hover {
+  box-shadow: none !important;
+}
+}

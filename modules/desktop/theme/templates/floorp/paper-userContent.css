@@ -1,0 +1,65 @@
+
+/* PAPER — appended after userContent.css for a palette with `paper = true` (render.nix): the
+   browser's own pages get the sheet too, and the new tab its washi-taped cards. Texture and
+   shape only; the colours are the palette's. */
+:root {
+  --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 .14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+@-moz-document url-prefix("about:home"), url-prefix("about:newtab"), url-prefix("about:preferences"), url-prefix("about:settings"), url-prefix("about:addons"), url-prefix("about:neterror"), url-prefix("about:certerror"), url-prefix("about:blocked"), url-prefix("about:reader") {
+  body {
+    background-image: var(--paper-grain) !important;
+    background-blend-mode: soft-light !important;
+  }
+
+  button:hover {
+    box-shadow: 3px 3px 0 var(--retro-border) !important;
+  }
+}
+
+@-moz-document url-prefix("about:home"), url-prefix("about:newtab") {
+  .search-wrapper input {
+    border-style: dashed !important;
+  }
+
+  .search-wrapper input:focus {
+    border-style: solid !important;
+    box-shadow: 4px 4px 0 var(--retro-border) !important;
+  }
+
+  .top-site-outer {
+    position: relative !important;
+    border: 1px solid var(--retro-border) !important;
+    box-shadow: 3px 3px 0 var(--retro-border) !important;
+  }
+
+  .top-site-outer:hover {
+    box-shadow: 5px 5px 0 var(--retro-border) !important;
+    transform: rotate(-1deg);
+  }
+
+  /* a strip of washi tape holding each card to the page */
+  .top-site-outer::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    width: 46px;
+    height: 14px;
+    transform: translateX(-50%) rotate(-4deg);
+    background-color: var(--retro-pink);
+    opacity: 0.45;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .top-site-outer:nth-child(3n + 2)::before {
+    background-color: var(--retro-cyan);
+    transform: translateX(-50%) rotate(3deg);
+  }
+
+  .top-site-outer:nth-child(3n)::before {
+    background-color: var(--retro-green);
+    transform: translateX(-50%) rotate(-2deg);
+  }
+}

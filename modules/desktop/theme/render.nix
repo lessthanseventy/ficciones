@@ -520,10 +520,12 @@ rec {
       "--retro-pink: ${hex attention};"
       "--retro-red: ${hex alarm};"
     ]));
+  # a `paper` palette appends templates/floorp/paper-<name>: texture and shape over the same roles
   floorpFile = name:
     "/* ${gen} (the :root block); the body is templates/floorp/${name} in the repo. */\n"
     + lib.replaceStrings [ "@ROOT@" "@FONT_STACK@" ] [ floorpRoot fontStack ]
-      (fill (builtins.readFile (./templates/floorp + "/${name}")) templateSubs);
+      (fill (builtins.readFile (./templates/floorp + "/${name}")) templateSubs)
+    + lib.optionalString (p.paper or false) (builtins.readFile (./templates/floorp + "/paper-${name}"));
   floorpUserChrome = floorpFile "userChrome.css";
   # the sites too, not just the chrome: floorp-sites.nix appends @-moz-document blocks
   floorpUserContent = floorpFile "userContent.css" + "\n/* ---- sites (floorp-sites.nix) ---- */\n"
