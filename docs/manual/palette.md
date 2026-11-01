@@ -6,7 +6,7 @@ Font: **ComicShannsMono Nerd Font** everywhere, 11pt base (low vision: sizes bia
 
 ## The law
 
-- **Body text is amber on black** (uqbar) — dark amber on cream in zahir. Cyan = keys, labels, code, links. Lilac = secondary text.
+- **Body text is amber on black** (uqbar) — dark amber on cream in zahir. The paper pair: graphite on notebook paper (babel), chalk on charcoal (hronir); Super+Shift+P flips within a pair. Cyan = keys, labels, code, links. Lilac = secondary text.
 - **Amber field = the CURSOR** (where you are: focused workspace, active tab, list row) as inverse video. **Violet field = the SELECTION** (what you picked and left behind). The test: *if you look away, does it stay?*
 - Green = live/occupied. Pink = agents, the operator, attention. Red = alarm. Ember = warning, one step before red.
 - Every pair clears WCAG AAA (7:1 text, 3:1 bands) in EVERY palette — `mise run theme:contrast` proves it.
@@ -15,47 +15,47 @@ Font: **ComicShannsMono Nerd Font** everywhere, 11pt base (low vision: sizes bia
 
 ## Roles
 
-| role | uqbar | zahir |
-|---|---|---|
-| `accentField` | `#33C7FF` | `#0B556E` |
-| `alarm` | `#FF6969` | `#99201A` |
-| `alarmField` | `#FF6969` | `#99201A` |
-| `assistant` | `#B98AFF` | `#593E9C` |
-| `assistantVoice` | `#FFB000` | `#573900` |
-| `attention` | `#F06CB4` | `#95145D` |
-| `attentionDim` | `#9C4A76` | `#C0699B` |
-| `attentionField` | `#F06CB4` | `#95145D` |
-| `body` | `#FFB000` | `#573900` |
-| `borderActive` | `#FFB000` | `#573900` |
-| `borderActive2` | `#FF6E06` | `#843A00` |
-| `borderInactive` | `#7A5500` | `#A48343` |
-| `borderInactive2` | `#9E3B00` | `#C27645` |
-| `card` | `#0E0E0E` | `#E6DCC6` |
-| `cursorField` | `#FFB000` | `#573900` |
-| `done` | `#62A562` | `#365636` |
-| `edge` | `#2A2A2A` | `#C9B996` |
-| `fieldInk` | `#0A0A0A` | `#FFF7DD` |
-| `ground` | `#000000` | `#F5EFE0` |
-| `hoverGround` | `#100C00` | `#EFE2C4` |
-| `inactive` | `#B8994C` | `#4B4230` |
-| `inputGround` | `#141414` | `#E1D5BB` |
-| `key` | `#33C7FF` | `#0B556E` |
-| `live` | `#33FF00` | `#175917` |
-| `liveField` | `#33FF00` | `#175917` |
-| `maxContrast` | `#FFFFFF` | `#1A1A1A` |
-| `menuGround` | `#332800` | `#DFC88F` |
-| `meta` | `#B4A5D6` | `#483E5D` |
-| `panel` | `#0D0D0D` | `#EDE5D2` |
-| `pressedGround` | `#1A1200` | `#E8D6AE` |
-| `prose` | `#C7C7C7` | `#505050` |
-| `raised` | `#1A1A1A` | `#D6C9AD` |
-| `selField` | `#C7B6E8` | `#4B2E7A` |
-| `selInk` | `#1A0A2E` | `#FFF7DD` |
-| `selSoft` | `#2E0057` | `#D5C4EC` |
-| `structure` | `#B5651D` | `#A86A2A` |
-| `userVoice` | `#33FF00` | `#175917` |
-| `visited` | `#CC8D00` | `#6F480D` |
-| `warn` | `#FF6E06` | `#843A00` |
-| `warnField` | `#FF6E06` | `#843A00` |
+| role | babel | hronir | uqbar | zahir |
+|---|---|---|---|---|
+| `accentField` | `#1D468A` | `#94C6F2` | `#33C7FF` | `#0B556E` |
+| `alarm` | `#961C1C` | `#FF8F86` | `#FF6969` | `#99201A` |
+| `alarmField` | `#961C1C` | `#FF8F86` | `#FF6969` | `#99201A` |
+| `assistant` | `#47358A` | `#BEABF2` | `#B98AFF` | `#593E9C` |
+| `assistantVoice` | `#2C2A33` | `#EDE3CC` | `#FFB000` | `#573900` |
+| `attention` | `#84204F` | `#F2A7C8` | `#F06CB4` | `#95145D` |
+| `attentionDim` | `#AC6488` | `#9C6C82` | `#9C4A76` | `#C0699B` |
+| `attentionField` | `#84204F` | `#F2A7C8` | `#F06CB4` | `#95145D` |
+| `body` | `#2C2A33` | `#EDE3CC` | `#FFB000` | `#573900` |
+| `borderActive` | `#2C2A33` | `#EDE3CC` | `#FFB000` | `#573900` |
+| `borderActive2` | `#1D468A` | `#94C6F2` | `#FF6E06` | `#843A00` |
+| `borderInactive` | `#8F806A` | `#7D7360` | `#7A5500` | `#A48343` |
+| `borderInactive2` | `#BF8A68` | `#93603F` | `#9E3B00` | `#C27645` |
+| `card` | `#E8DEC8` | `#2E2B26` | `#0E0E0E` | `#E6DCC6` |
+| `cursorField` | `#2C2A33` | `#EDE3CC` | `#FFB000` | `#573900` |
+| `done` | `#36502F` | `#98B991` | `#62A562` | `#365636` |
+| `edge` | `#CAB994` | `#4A463D` | `#2A2A2A` | `#C9B996` |
+| `fieldInk` | `#FFF9EC` | `#1C1A17` | `#0A0A0A` | `#FFF7DD` |
+| `ground` | `#F4ECDC` | `#23211D` | `#000000` | `#F5EFE0` |
+| `hoverGround` | `#ECE6DA` | `#2E2A22` | `#100C00` | `#EFE2C4` |
+| `inactive` | `#463F35` | `#CABD9F` | `#B8994C` | `#4B4230` |
+| `inputGround` | `#E2D6BD` | `#34312B` | `#141414` | `#E1D5BB` |
+| `key` | `#1D468A` | `#94C6F2` | `#33C7FF` | `#0B556E` |
+| `live` | `#2A5419` | `#A3D98F` | `#33FF00` | `#175917` |
+| `liveField` | `#2A5419` | `#A3D98F` | `#33FF00` | `#175917` |
+| `maxContrast` | `#1A1A1A` | `#FFFFFF` | `#FFFFFF` | `#1A1A1A` |
+| `menuGround` | `#D6D3CC` | `#463F30` | `#332800` | `#DFC88F` |
+| `meta` | `#463F5C` | `#CBC2DE` | `#B4A5D6` | `#483E5D` |
+| `panel` | `#EEE5D2` | `#292722` | `#0D0D0D` | `#EDE5D2` |
+| `pressedGround` | `#E3DED3` | `#373126` | `#1A1200` | `#E8D6AE` |
+| `prose` | `#4A4A4A` | `#D0CBC1` | `#C7C7C7` | `#505050` |
+| `raised` | `#D8CAAD` | `#3B3831` | `#1A1A1A` | `#D6C9AD` |
+| `selField` | `#3A2F70` | `#CDBDEE` | `#C7B6E8` | `#4B2E7A` |
+| `selInk` | `#FFF9EC` | `#221A33` | `#1A0A2E` | `#FFF7DD` |
+| `selSoft` | `#CCD8EE` | `#3D3554` | `#2E0057` | `#D5C4EC` |
+| `structure` | `#9A7A55` | `#8E7456` | `#B5651D` | `#A86A2A` |
+| `userVoice` | `#2A5419` | `#A3D98F` | `#33FF00` | `#175917` |
+| `visited` | `#4E3470` | `#D8C496` | `#CC8D00` | `#6F480D` |
+| `warn` | `#80300E` | `#EE9A62` | `#FF6E06` | `#843A00` |
+| `warnField` | `#80300E` | `#EE9A62` | `#FF6E06` | `#843A00` |
 
 Surfaces name a ROLE, never a hue — `render.nix` cannot reach `p.hue`. Syntax colouring in Neovim is a CATEGORY tier (base16 slots bound in `render.nix`), the one place hues are bound for code.

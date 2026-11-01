@@ -4,4 +4,6 @@
 {
   uqbar = import ./uqbar.nix;
   zahir = import ./zahir.nix;
+  babel = import ./babel.nix; # light paper
+  hronir = import ./hronir.nix; # dark paper
 }
