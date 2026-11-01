@@ -523,7 +523,7 @@ rec {
   # a `paper` palette appends templates/floorp/paper-<name>: texture and shape over the same roles
   floorpFile = name:
     "/* ${gen} (the :root block); the body is templates/floorp/${name} in the repo. */\n"
-    + lib.replaceStrings [ "@ROOT@" "@FONT_STACK@" ] [ floorpRoot fontStack ]
+    + lib.replaceStrings [ "@ROOT@" "@FONT_STACK@" "@SCHEME@" ] [ floorpRoot fontStack (if p.light then "light" else "dark") ]
       (fill (builtins.readFile (./templates/floorp + "/${name}")) templateSubs)
     + lib.optionalString (p.paper or false) (builtins.readFile (./templates/floorp + "/paper-${name}"));
   floorpUserChrome = floorpFile "userChrome.css";

@@ -28,6 +28,25 @@ NOTE: You can use the userContent.css file without change preferences (about:con
 
 /* Settings/Preferences (about:preferences) */
 @-moz-document url-prefix("about:preferences"), url-prefix("about:settings") {
+  /* Firefox's settings cards and header paint from these light-dark() tokens, not from the
+     elements below: the scheme is the palette's, and the tokens are its roles */
+  :root {
+    color-scheme: @SCHEME@ !important;
+    scrollbar-color: var(--retro-border) var(--retro-bg) !important;
+    --background-color-canvas: var(--retro-bg) !important;
+    --background-color-box: var(--retro-bg-elevated) !important;
+    --text-color: var(--retro-text) !important;
+    --text-color-deemphasized: var(--retro-text-secondary) !important;
+    --border-color: var(--retro-border) !important;
+    --card-border-color: var(--retro-border) !important;
+    --link-color: var(--retro-cyan) !important;
+    --button-background-color: var(--retro-surface) !important;
+    --button-text-color: var(--retro-text) !important;
+    --input-background-color: var(--retro-surface) !important;
+    --input-text-color: var(--retro-text) !important;
+    --input-border-color: var(--retro-border) !important;
+  }
+
   * {
     font-family: var(--retro-font) !important;
   }
