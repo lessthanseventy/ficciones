@@ -101,6 +101,11 @@ in
       default = [ "d0p2n4mq.default-nightly-1725500522201" ];
       description = "Profile directories under ~/.floorp that get userChrome.css/userContent.css.";
     };
+    firefoxProfiles = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ "1ikkcccb.default-release-1775251914567" ];
+      description = "Profile directories under ~/.mozilla/firefox that get the same userChrome.css/userContent.css as floorp.";
+    };
     qtPlatformTheme = lib.mkOption {
       type = lib.types.enum [ "qt6ct" "gtk3" ];
       default = "gtk3";
@@ -228,7 +233,15 @@ in
     } // lib.listToAttrs (lib.concatMap (profile: [
       (lib.nameValuePair ".floorp/${profile}/chrome/userChrome.css" (via "floorp-userChrome.css"))
       (lib.nameValuePair ".floorp/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
-    ]) cfg.floorpProfiles);
+    ]) cfg.floorpProfiles)
+    // lib.listToAttrs (lib.concatMap (profile: [
+      (lib.nameValuePair ".mozilla/firefox/${profile}/chrome/userChrome.css" (via "floorp-userChrome.css"))
+      (lib.nameValuePair ".mozilla/firefox/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
+      # floorp reads chrome/*.css by default; Firefox only with this pref, and user.js is re-applied every start
+      (lib.nameValuePair ".mozilla/firefox/${profile}/user.js" {
+        text = "user_pref(\"toolkit.legacyUserProfileCustomizations.stylesheets\", true);\n";
+      })
+    ]) cfg.firefoxProfiles);
 
     # the one mutable link: made once, then owned by the toggle (astal-shell theme / Super+Shift+P)
     home.activation.ficcionesTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
