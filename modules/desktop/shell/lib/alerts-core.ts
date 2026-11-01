@@ -1,7 +1,7 @@
 // The pure half of lib/alerts.ts — no gi imports, so node can test it (lib/alerts-core.test.mjs).
 import type { Sfx } from "./sfx-core"
 
-export type Action = { label: string; method?: string; path?: string; body?: Record<string, unknown> | null; input?: string; open?: string; read?: string }
+export type Action = { label: string; prefix?: string; method?: string; path?: string; body?: Record<string, unknown> | null; input?: string; open?: string; read?: string }
 export type Alert = {
   key: string; level: "alarm" | "decision" | "sticky" | "info"; kind: string; title: string; body: string | null
   at: string; thread_id: number | null; link: string | null; actions: Action[]
@@ -38,6 +38,14 @@ export function onBanner(decisions: Alert[], later: string[], held: string | nul
 /** The operator-API call an action makes, `text` filling its `input` field; null when it makes none. */
 export function request(x: Action, text?: string): { method: string; path: string; body: Record<string, unknown> } | null {
   if (!x.path) return null
-  const body = x.input ? { ...(x.body ?? {}), [x.input]: text ?? "" } : x.body ?? {}
+  const body = x.input ? { ...(x.body ?? {}), [x.input]: x.prefix ? `${x.prefix} ${text ?? ""}`.trim() : text ?? "" } : x.body ?? {}
   return { method: x.method ?? "POST", path: x.path, body }
+}
+
+/** An answer (a prompt's or ask's option) as one that also takes a note: the server splits the body
+ * "<key> <note>" at its first space, so the note rides with the answer. Null for anything else. */
+export function withNote(x: Action): Action | null {
+  const key = x.body?.key
+  if (!x.path || !/^\/api\/office\/(prompts|asks)\/\d+$/.test(x.path) || typeof key !== "string") return null
+  return { ...x, label: `${x.label} + note`, input: "key", prefix: key }
 }
