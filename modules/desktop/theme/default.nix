@@ -30,6 +30,14 @@ let
     + "hl.env(\"HYPRCURSOR_THEME\", \"${r.desktop.cursor}\")\n"
     + "hl.env(\"QT_QPA_PLATFORMTHEME\", \"${cfg.qtPlatformTheme}\")\n"
     + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "hl.env(\"QT_STYLE_OVERRIDE\", \"kvantum\")\n";
+  # a ruled sheet in the palette's own paper and ink, so a paper palette's backdrop photo is paper
+  paperSheet = { ground, rule, margin }: pkgs.runCommand "paper-${lib.removePrefix "#" ground}.jpg" { nativeBuildInputs = [ pkgs.imagemagick ]; } ''
+    lines=""
+    for y in $(seq 96 56 1440); do lines="$lines line 0,$y 2560,$y"; done
+    magick -size 2560x1440 "xc:${ground}" -attenuate 0.08 +noise Gaussian \
+      -stroke "${rule}" -strokewidth 1 -draw "$lines" \
+      -stroke "${margin}" -draw "line 240,0 240,1440" -quality 88 "$out"
+  '';
   themeFiles = r: {
     "ghostty-theme" = r.ghosttyTheme;
     "ghostty.css" = r.ghosttyCss;
@@ -60,7 +68,8 @@ let
     "tmux.conf" = r.tmuxStyle;
     "palette.sh" = r.envSh;
     "shell-palette.json" = r.paletteJson;
-    "wallpapers.json" = r.wallpapersJson;
+    "wallpapers.json" = if r.desktop.paper then builtins.toJSON [ "${paperSheet r.desktop.sheet}" ] else r.wallpapersJson;
+    "steam.css" = r.steamCss;
     "claude-powerline.json" = r.claudePowerlineJson;
     "web.css" = r.webCss;
     "floorp-userChrome.css" = r.floorpUserChrome;
@@ -94,6 +103,8 @@ let
       EOF
       sed -i 's/^      //' $out/*.conf
     '';
+  # pages get the desktop's light/dark, which the theme switch sets, instead of forced dark
+  followScheme = "user_pref(\"layout.css.prefers-color-scheme.content-override\", 2);\n";
   # an app's fixed path → the theme dir's copy, through the one mutable link
   via = file: { source = config.lib.file.mkOutOfStoreSymlink "${themeDir}/${file}"; };
 in
@@ -205,6 +216,7 @@ in
         "starship.toml" = via "starship.toml";
         "gtk-3.0/settings.ini" = via "gtk3-settings.ini";
         "gtk-4.0/settings.ini" = via "gtk4-settings.ini";
+        "millennium/quick.css" = via "steam.css";
 
         # Qt: qt6ct owns the palette + font, kvantum draws the widgets, the qss covers what neither reaches.
         "qt6ct/qt6ct.conf".text = render.qt6ctConf;
@@ -253,7 +265,7 @@ in
       (lib.nameValuePair ".mozilla/firefox/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
       # floorp reads chrome/*.css by default; Firefox only with this pref, and user.js is re-applied every start
       (lib.nameValuePair ".mozilla/firefox/${profile}/user.js" {
-        text = "user_pref(\"toolkit.legacyUserProfileCustomizations.stylesheets\", true);\n";
+        text = "user_pref(\"toolkit.legacyUserProfileCustomizations.stylesheets\", true);\n${followScheme}";
       })
     ]) cfg.firefoxProfiles);
 
@@ -291,6 +303,14 @@ in
         fi
       fi
     '';
+
+    # floorp's user.js is kept by hand, so only this line is ours
+    home.activation.floorpFollowScheme = lib.hm.dag.entryAfter [ "writeBoundary" ] (lib.concatMapStrings (profile: ''
+      js="$HOME/.floorp/${profile}/user.js"
+      if [ -f "$js" ] && ! grep -q 'prefers-color-scheme.content-override' "$js"; then
+        printf '%s' ${lib.escapeShellArg followScheme} >> "$js"
+      fi
+    '') cfg.floorpProfiles);
 
     # btop rewrites btop.conf on exit, so it stays a real file; only the theme line is ours.
     home.activation.btopTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''

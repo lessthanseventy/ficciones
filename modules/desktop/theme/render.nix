@@ -423,7 +423,19 @@ rec {
     inherit (p) light cursor;
     paper = p.paper or false;
     iconTheme = if p.light then "Papirus-Light" else "Papirus-Dark";
+    sheet = { ground = hex r.ground; rule = hex r.structure; margin = hex r.alarm; };
   };
+  # over the Adwaita-for-Steam variables the active skin sets (Millennium loads quick.css after it)
+  steamCss =
+    let
+      v = name: c: "  --adw-${name}-rgb: ${rgb c} !important;\n";
+      surface = name: bg: v "${name}-bg" bg + v "${name}-fg" r.body;
+    in
+    ''
+      /* ${gen} */
+      :root {
+      ${v "accent-bg" r.accentField}${v "accent-fg" r.fieldInk}${v "accent" r.key}${v "destructive-bg" r.alarmField}${v "destructive-fg" r.fieldInk}${v "destructive" r.alarm}${v "success-bg" r.liveField}${v "success-fg" r.fieldInk}${v "success" r.live}${v "warning-bg" r.warnField}${v "warning-fg" r.fieldInk}${v "warning" r.warn}${v "error-bg" r.alarmField}${v "error-fg" r.fieldInk}${v "error" r.alarm}${surface "window" r.ground}${surface "view" r.ground}${surface "headerbar" r.panel}${v "headerbar-border" r.structure}${v "headerbar-backdrop" r.ground}${surface "sidebar" r.panel}${v "sidebar-backdrop" r.ground}${surface "secondary-sidebar" r.card}${v "secondary-sidebar-backdrop" r.ground}${v "card-bg" r.body}${v "card-fg" r.body}${surface "dialog" r.card}${surface "popover" r.card}${v "thumbnail-bg" r.card}}
+    '';
   gtkSettingsIni = ''
     [Settings]
     gtk-font-name=${f.family} ${toString f.size}

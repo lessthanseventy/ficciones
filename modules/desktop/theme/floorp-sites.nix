@@ -12,6 +12,20 @@ let
   '';
 in
 builtins.concatStringsSep "\n" [
+  # Sidebery's pages, by path: an extension's uuid differs per profile
+  ''
+    @-moz-document regexp("moz-extension://[0-9a-f-]+/(sidebar|page\\.setup|popup\\.[a-z-]+)/.*") {
+      :root, #root {
+        --frame-bg: ${hex r.panel} !important;
+        --frame-fg: ${hex r.body} !important;
+        --toolbar-bg: ${hex r.card} !important;
+        --toolbar-fg: ${hex r.body} !important;
+        --popup-bg: ${hex r.card} !important;
+        --popup-fg: ${hex r.body} !important;
+        --border: ${hex r.structure} !important;
+      }
+    }
+  ''
   # GitHub — primer's design tokens
   (block [ "github.com" ] ''
       :root, [data-color-mode] {
