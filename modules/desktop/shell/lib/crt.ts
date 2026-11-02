@@ -3,6 +3,8 @@
 // is a setting (look.crt), so a shell restart puts back the shader it had rather than claiming off.
 import GLib from "gi://GLib?version=2.0"
 import type { Accessor } from "ags"
+import { timeout } from "ags/time"
+import { hypr } from "./hypr"
 import { keyword } from "./hyprlua"
 import { setting, setSetting } from "./settings"
 
@@ -21,6 +23,8 @@ function apply() {
 }
 setting("look.crt").subscribe(apply)
 apply()
+// a config reload (every theme switch) drops what was set at runtime
+hypr.connect("event", (_, ev: string) => { if (ev === "configreloaded") timeout(200, apply) })
 
 export const setCrt = (m: Crt) => setSetting("look.crt", m)
 export const cycleCrt = () => setCrt(MODES[(MODES.indexOf(crt.peek()) + 1) % MODES.length])
