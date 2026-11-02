@@ -13,6 +13,7 @@ rec {
   light = false; # a dark ground: GTK's colour-scheme, Claude Code's base, Neovim's background
   partner = "zahir"; # the other half of this family: what Super+Shift+P flips to
   cursor = "Bibata-Modern-Amber";
+  blurb = "amber phosphor on black";
 
   # Files or directories (~ expands) the shell's photo backdrop draws from while this palette
   # is live; empty falls back to the shared wallpapers directory (shell config.json).

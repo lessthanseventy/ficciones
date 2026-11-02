@@ -13,11 +13,15 @@ in
   "modules/desktop/shell/lib/palette.ts" = render.paletteTs;
   "modules/desktop/shell/lib/themes.ts" = ''
     // generated from modules/desktop/theme/palettes/default.nix — edit THAT, never this file.
+    import type { Preview } from "./themePreview"
     export const THEMES = [${lib.concatMapStringsSep ", " (n: ''"${n}"'') names}] as const
     export type Theme = (typeof THEMES)[number]
     /** a light ground: GTK's colour-scheme and the toggle's icon follow it */
     export const LIGHT: Record<Theme, boolean> = ${record (p: lib.boolToString p.light)}
     /** the other half of a palette's family: what the toggle flips to */
     export const PARTNER: Record<Theme, Theme> = ${record (p: ''"${p.partner}"'')}
+    /** what a theme's card in Settings draws */
+    export const PREVIEWS: Record<Theme, Preview> = ${record (p: let c = n: ''"#${p.role.${n}}"''; in
+      ''{ blurb: "${p.blurb}", ground: ${c "ground"}, card: ${c "card"}, edge: ${c "structure"}, body: ${c "body"}, key: ${c "key"}, meta: ${c "meta"}, live: ${c "live"}, attention: ${c "attention"}, warn: ${c "warn"}, alarm: ${c "alarm"}, field: ${c "cursorField"}, fieldInk: ${c "fieldInk"} }'')}
   '';
 }

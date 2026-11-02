@@ -10,6 +10,7 @@ rec {
   light = true;
   partner = "hronir";
   cursor = "Bibata-Original-Classic";
+  blurb = "ink and graphite on paper";
   paper = true;
 
   # Files or directories (~ expands) the shell's photo backdrop draws from while this palette

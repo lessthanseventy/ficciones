@@ -14,6 +14,8 @@ import { setting, setSetting, PATH, type NumberKey, type BoolKey } from "../lib/
 import { hackNames, startPreview, stopPreview } from "../lib/xscreensaver"
 import { MODE_NAMES } from "./Backdrop"
 import { theme, setTheme, THEMES } from "../lib/theme"
+import { PREVIEWS } from "../lib/themes"
+import { previewMarkup } from "../lib/themePreview"
 import { crt, setCrt, MODES as CRT_MODES } from "../lib/crt"
 
 let win: Astal.Window | null = null
@@ -215,7 +217,11 @@ function Look() {
         )))}
       </Row>
       <Row label="theme" hint="every app follows; Super+Shift+P flips light and dark">
-        {flow(THEMES.map((t) => <Chip label={t} on={theme((c) => c === t)} onClicked={() => setTheme(t)} />))}
+        {flow(THEMES.map((t) => (
+          <button cssClasses={theme((c) => ["toggle", "set-chip", ...(c === t ? ["chip"] : [])])} onClicked={() => setTheme(t)}>
+            <label useMarkup label={previewMarkup(t, PREVIEWS[t])} />
+          </button>
+        )), 2)}
       </Row>
       <Row label="glass" hint="see-through windows; a playing video makes them opaque"><OnOff k="look.glass" /></Row>
       <Row label="glass opacity" hint="how solid a glass window is">
