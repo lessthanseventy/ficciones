@@ -27,6 +27,7 @@ let
     + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "hl.env(\"QT_STYLE_OVERRIDE\", \"kvantum\")\n";
   themeFiles = r: {
     "ghostty-theme" = r.ghosttyTheme;
+    "ghostty.css" = r.ghosttyCss;
     "kitty-theme.conf" = r.kittyTheme;
     "wezterm.toml" = r.weztermTheme;
     "gtk.css" = r.gtkCss;

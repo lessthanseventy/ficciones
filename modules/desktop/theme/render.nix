@@ -282,7 +282,17 @@ rec {
     # bar kept the colours it booted with while the terminal body had already changed; ghostty
     # re-reads this config on SIGUSR2, which the switch already sends.
     window-theme = ghostty
+    # the GTK theme hard-codes the tab bar's colours; this file sits at user priority, through the
+    # theme link, and ghostty re-reads it with the config
+    gtk-custom-css = ~/.config/ficciones/theme/ghostty.css
     ${template}
+  '';
+  ghosttyCss = ''
+    /* ${gen} */
+    tabbar .box { background-color: ${hex r.panel}; color: ${hex r.body}; }
+    tabbar tab { background-color: ${hex r.panel}; color: ${hex r.body}; }
+    tabbar tab:selected { background-color: ${hex r.card}; color: ${hex r.key}; }
+    tabbar tab:hover { background-color: ${hex r.hoverGround}; color: ${hex r.body}; }
   '';
 
   kittyTheme =
