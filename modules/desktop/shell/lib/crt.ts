@@ -14,12 +14,21 @@ const valid = (m: string): Crt => ((MODES as readonly string[]).includes(m) ? (m
 export const crt: Accessor<Crt> = setting("look.crt")(valid)
 
 const dir = `${GLib.get_user_config_dir()}/hypr/shaders`
+let wasFull = false
 function apply() {
   const m = valid(setting("look.crt").peek())
   keyword("decoration:screen_shader", m === "off" ? "[[EMPTY]]" : `${dir}/crt-${m}.glsl`).catch(console.error)
-  // full reads pixels away from the one it draws, which flickers under partial repaints, so it
-  // repaints the whole monitor on any change; subtle reads in place and keeps partial repaints
-  keyword("debug:damage_tracking", m === "full" ? 1 : 2).catch(console.error)
+  const full = m === "full"
+  // only when full is or was on, so a shell start with it off leaves a host's own cursor setting
+  if (full || wasFull) {
+    // full reads pixels away from the one it draws, which flickers under partial repaints, so it
+    // repaints the whole monitor on any change; subtle reads in place and keeps partial repaints
+    keyword("debug:damage_tracking", full ? 1 : 2).catch(console.error)
+    // a hardware cursor sits on its own plane, straight on top of the curved picture: drawn into
+    // the frame, it bends with what it points at
+    keyword("cursor:no_hardware_cursors", full ? 1 : 2).catch(console.error)
+  }
+  wasFull = full
 }
 setting("look.crt").subscribe(apply)
 apply()
