@@ -63,6 +63,11 @@ toolbar {
   background-color: var(--retro-bg) !important;
 }
 
+/* the rail's icons open and close a panel; its title bar only takes up room */
+#panel-sidebar-header {
+  display: none !important;
+}
+
 /* Sidebar */
 #sidebar-box,
 #sidebar-header,
