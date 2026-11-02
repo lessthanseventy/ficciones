@@ -9,6 +9,7 @@
 rec {
   light = true;
   partner = "uqbar";
+  cursor = "Bibata-Modern-Classic";
 
   # Files or directories (~ expands) the shell's photo backdrop draws from while this palette
   # is live; empty falls back to the shared wallpapers directory (shell config.json).

@@ -418,12 +418,17 @@ rec {
     link, label.link, *:link { color: ${hex r.key}; }
     tooltip { background-color: ${hex r.card}; color: ${hex r.body}; border: 1px solid ${hex r.structure}; }
   '';
+  # what the desktop asks for by name, for the module's env, gsettings and settings.ini
+  desktop = {
+    inherit (p) light cursor;
+    paper = p.paper or false;
+    iconTheme = if p.light then "Papirus-Light" else "Papirus-Dark";
+  };
   gtkSettingsIni = ''
     [Settings]
     gtk-font-name=${f.family} ${toString f.size}
-    gtk-application-prefer-dark-theme=true
-    gtk-icon-theme-name=Papirus-Dark
-    gtk-cursor-theme-name=Bibata-Modern-Classic
+    gtk-icon-theme-name=${desktop.iconTheme}
+    gtk-cursor-theme-name=${p.cursor}
     gtk-cursor-theme-size=24
   '';
 

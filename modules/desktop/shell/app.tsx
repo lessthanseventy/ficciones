@@ -29,7 +29,7 @@ import { popAgents } from "./surfaces/Deck"
 import Office, { toggleOffice } from "./surfaces/Office"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
-import { setTheme, THEMES, applyShellTheme, type Theme } from "./lib/theme"
+import { setTheme, THEMES, applyShellTheme, applyDesktop, type Theme } from "./lib/theme"
 import { sidecarVerb, colresize, focusDir, adoptSidecars } from "./lib/sidecar"
 import { toggleQuake } from "./lib/quake"
 import { setGlass, toggleGlass } from "./lib/glass"
@@ -194,6 +194,7 @@ app.start({
     // source (shell:dev) the bundled css is the working tree's, and the installed one would hide
     // every style change until a home:switch
     if (!GLib.getenv("ASTAL_SHELL_DEV")) applyShellTheme()
+    applyDesktop()
     const start = setting("backdrop.startup").peek()
     setBackdrop(start === "photo" || (MODE_NAMES as readonly string[]).includes(start) ? (start as BackdropMode) : "random")
     initAwake()

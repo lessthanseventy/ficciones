@@ -21,8 +21,13 @@ let
   # default (the checked-in generated files).
   palettes = import ./palettes;
   renders = lib.mapAttrs (_: p: import ./render.nix { inherit lib; palette = p; }) palettes;
-  envLua =
-    "hl.env(\"GTK_THEME\", \"${cfg.gtkTheme}\")\n"
+  # the dark GTK theme hard-codes dark surfaces; a light palette starts from Adwaita
+  gtkThemeOf = r: if r.desktop.light then "Adwaita" else cfg.gtkTheme;
+  cursorThemes = lib.unique (lib.mapAttrsToList (_: r: r.desktop.cursor) renders);
+  envLua = r:
+    "hl.env(\"GTK_THEME\", \"${gtkThemeOf r}\")\n"
+    + "hl.env(\"XCURSOR_THEME\", \"${r.desktop.cursor}\")\n"
+    + "hl.env(\"HYPRCURSOR_THEME\", \"${r.desktop.cursor}\")\n"
     + "hl.env(\"QT_QPA_PLATFORMTHEME\", \"${cfg.qtPlatformTheme}\")\n"
     + lib.optionalString (cfg.qtPlatformTheme == "qt6ct") "hl.env(\"QT_STYLE_OVERRIDE\", \"kvantum\")\n";
   themeFiles = r: {
@@ -36,7 +41,16 @@ let
     "kvantum.kvconfig" = r.kvantumConfig;
     "kvantum.svg" = r.kvantumSvg;
     "btop.theme" = r.btopTheme;
-    "hypr-theme.lua" = r.hyprlandThemeLua + envLua;
+    "hypr-theme.lua" = r.hyprlandThemeLua + envLua r;
+    "desktop.json" = builtins.toJSON {
+      gtkTheme = gtkThemeOf r;
+      inherit (r.desktop) iconTheme;
+      cursorTheme = r.desktop.cursor;
+    };
+    "gtk3-settings.ini" = r.gtkSettingsIni + "gtk-application-prefer-dark-theme=${lib.boolToString (!r.desktop.light)}\ngtk-theme-name=${gtkThemeOf r}\n";
+    # libadwaita refuses gtk-application-prefer-dark-theme (a warning at every shell start); GTK 4
+    # takes the scheme from the portal's color-scheme, which the theme switch sets
+    "gtk4-settings.ini" = r.gtkSettingsIni + "gtk-theme-name=${gtkThemeOf r}\n";
     "hyprlock.conf" = r.hyprlockConf;
     "lazygit.yml" = r.lazygitConfig (tpl "lazygit.yml");
     "starship.toml" = r.starshipConfig (tpl "starship.toml");
@@ -150,12 +164,10 @@ in
     # GTK reads org.gnome.desktop.interface AHEAD of settings.ini on Wayland, and a D-Bus-activated
     # app (gcr-prompter, the portal dialogs) never sees Hyprland's GTK_THEME — a stale
     # `adw-gtk3-dark` here (caelestia's) left every one of those on stock Adwaita light (2026-09-07).
-    # color-scheme is NOT declared: the shell's theme switch owns it live.
+    # color-scheme, gtk-theme, icon-theme and cursor-theme are NOT declared: the shell's theme
+    # switch owns them live, and at its start (lib/theme.ts, from the palette's desktop.json).
     dconf.settings."org/gnome/desktop/interface" = {
-      gtk-theme = cfg.gtkTheme;
       font-name = "${palette.font.family} ${toString palette.font.size}";
-      icon-theme = "Papirus-Dark";
-      cursor-theme = "Bibata-Modern-Classic";
       cursor-size = 24;
     };
 
@@ -191,10 +203,8 @@ in
 
         # starship reads it at every prompt: the switch lands on the next line
         "starship.toml" = via "starship.toml";
-        "gtk-3.0/settings.ini".text = render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
-        # libadwaita refuses gtk-application-prefer-dark-theme (a warning at every shell start); GTK 4
-        # takes the scheme from the portal's color-scheme, which the theme switch sets
-        "gtk-4.0/settings.ini".text = builtins.replaceStrings [ "gtk-application-prefer-dark-theme=true\n" ] [ "" ] render.gtkSettingsIni + "gtk-theme-name=${cfg.gtkTheme}\n";
+        "gtk-3.0/settings.ini" = via "gtk3-settings.ini";
+        "gtk-4.0/settings.ini" = via "gtk4-settings.ini";
 
         # Qt: qt6ct owns the palette + font, kvantum draws the widgets, the qss covers what neither reaches.
         "qt6ct/qt6ct.conf".text = render.qt6ctConf;
@@ -231,7 +241,10 @@ in
       # the statusline (scripts/statusline-box.sh) and its renderer's config, per theme
       ".claude/statusline-box.sh" = { source = ../scripts/statusline-box.sh; executable = true; };
       ".claude/claude-powerline.json" = via "claude-powerline.json";
-    } // lib.listToAttrs (lib.concatMap (profile: [
+    }
+    # in ~/.icons, the path every cursor reader searches, not only those that take XDG_DATA_DIRS
+    // lib.genAttrs (map (c: ".icons/${c}") cursorThemes) (n: { source = "${pkgs.bibata-cursors}/share/icons/${lib.removePrefix ".icons/" n}"; })
+    // lib.listToAttrs (lib.concatMap (profile: [
       (lib.nameValuePair ".floorp/${profile}/chrome/userChrome.css" (via "floorp-userChrome.css"))
       (lib.nameValuePair ".floorp/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
     ]) cfg.floorpProfiles)

@@ -8,6 +8,7 @@
 rec {
   light = false;
   partner = "babel";
+  cursor = "Bibata-Original-Ice";
   paper = true;
 
   # Files or directories (~ expands) the shell's photo backdrop draws from while this palette

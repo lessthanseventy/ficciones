@@ -51,6 +51,20 @@ export function applyShellTheme() {
   } catch (e) { console.error("theme palette:", String(e)) }
 }
 
+/** GTK apps, icons and the pointer take the theme now, from the palette's desktop.json. */
+export function applyDesktop() {
+  try {
+    const [ok, json] = GLib.file_get_contents(`${LINK}/desktop.json`)
+    if (!ok) return
+    const d = JSON.parse(new TextDecoder().decode(json)) as { gtkTheme: string; iconTheme: string; cursorTheme: string }
+    const set = (key: string, value: string) => execAsync(["gsettings", "set", "org.gnome.desktop.interface", key, value]).catch((e) => console.error("theme gsettings:", String(e)))
+    void set("gtk-theme", d.gtkTheme)
+    void set("icon-theme", d.iconTheme)
+    void set("cursor-theme", d.cursorTheme)
+    execAsync(["hyprctl", "setcursor", d.cursorTheme, "24"]).catch((e) => console.error("theme cursor:", String(e)))
+  } catch (e) { console.error("theme desktop:", String(e)) }
+}
+
 export function setTheme(t: Theme | "toggle") {
   const next: Theme = t === "toggle" ? PARTNER[currentTheme()] : t
   if (!Gio.File.new_for_path(`${DIR}/themes/${next}`).query_exists(null)) {
@@ -73,7 +87,8 @@ export function setTheme(t: Theme | "toggle") {
   applyShellTheme()
   const scheme = LIGHT[next] ? "prefer-light" : "prefer-dark"
   Promise.allSettled([
-    execAsync(["hyprctl", "reload"]),
+    // after the reload, whose new env would otherwise put the old cursor's lookup back
+    execAsync(["hyprctl", "reload"]).finally(applyDesktop),
     execAsync(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme]),
     // Claude Code reads `theme` from settings.json once at startup, then WATCHES the theme file
     // for content changes. So the name is constant (custom:ficciones) and we rewrite the file it

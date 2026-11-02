@@ -37,10 +37,8 @@ hl.env("GHOSTTY_ZSH_ZDOTDIR", home)
 -- info, via the shell's env) saw only /usr/share — no LibreOffice, no nix app at all (2026-09-08)
 hl.env("XDG_DATA_DIRS", home .. "/.nix-profile/share:" .. home .. "/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share")
 
--- Cursor
-hl.env("XCURSOR_THEME", "Bibata-Modern-Classic")
+-- Cursor size; the theme is the palette's (theme.lua)
 hl.env("XCURSOR_SIZE", "24")
-hl.env("HYPRCURSOR_THEME", "Bibata-Modern-Classic")
 hl.env("HYPRCURSOR_SIZE", "24")
 
 hl.env("ILLOGICAL_IMPULSE_VIRTUAL_ENV", "~/.local/state/quickshell/.venv")
