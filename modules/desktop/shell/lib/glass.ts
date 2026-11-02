@@ -4,6 +4,8 @@
 // opaque. On/off and the opacity are settings (look.glass, look.glassOpacity).
 import { createState } from "ags"
 import GLib from "gi://GLib?version=2.0"
+import { timeout } from "ags/time"
+import { hypr } from "./hypr"
 import { keyword } from "./hyprlua"
 import { setting, setSetting } from "./settings"
 
@@ -29,6 +31,8 @@ videoPlaying.subscribe(apply)
 glass.subscribe(apply)
 setting("look.glassOpacity").subscribe(apply)
 apply()
+// a config reload (every theme switch) puts back hyprland.lua's login opacity
+hypr.connect("event", (_, ev: string) => { if (ev === "configreloaded") timeout(200, apply) })
 
 export const setGlass = (on: boolean) => setSetting("look.glass", on)
 export const toggleGlass = () => setGlass(!glass.peek())
