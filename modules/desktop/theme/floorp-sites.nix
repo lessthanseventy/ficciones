@@ -13,7 +13,8 @@ let
   '';
 in
 builtins.concatStringsSep "\n" [
-  # Sidebery's pages, by path: an extension's uuid differs per profile
+  # Sidebery's pages, by path: an extension's uuid differs per profile. Sidebery keeps its own
+  # custom CSS in its storage, and only a user sheet's !important beats that.
   ''
     @-moz-document regexp("moz-extension://[0-9a-f-]+/(sidebar|page\\.setup|popup\\.[a-z-]+)/.*") {
       :root, #root {
@@ -24,6 +25,55 @@ builtins.concatStringsSep "\n" [
         --popup-bg: ${hex r.card} !important;
         --popup-fg: ${hex r.body} !important;
         --border: ${hex r.structure} !important;
+        --ctx-menu-bg: ${hex r.card} !important;
+        --ctx-menu-fg: ${hex r.body} !important;
+        --ctx-menu-separator: ${hex r.structure} !important;
+        --notification-bg: ${hex r.card} !important;
+        --notification-fg: ${hex r.body} !important;
+        --windows-popup-window-border: ${hex r.structure} !important;
+        --nav-btn-fg: ${hex r.body} !important;
+        --nav-btn-accent: ${hex r.key} !important;
+        --nav-btn-active-shadow: none !important;
+        --accent: ${hex r.key} !important;
+        --status-active: ${hex r.key} !important;
+        --status-notice: ${hex r.attention} !important;
+        --status-ok: ${hex r.live} !important;
+        --status-err: ${hex r.alarm} !important;
+        --scroll-progress-bg: ${hex r.key} !important;
+        --scroll-color: ${hex r.structure} !important;
+        --frame-scrollbar-color: ${hex r.structure} !important;
+        --toolbar-scrollbar-color: ${hex r.structure} !important;
+        --popup-scrollbar-color: ${hex r.structure} !important;
+        --tabs-normal-bg: transparent !important;
+        --tabs-normal-fg: ${hex r.body} !important;
+        --tabs-activated-bg: ${hex r.cursorField} !important;
+        --tabs-activated-fg: ${hex r.fieldInk} !important;
+        --tabs-activated-shadow: none !important;
+        --tabs-progress-bg: ${hex r.structure} !important;
+        --tabs-discarded-title-opacity: 0.75 !important;
+        --active-el-bg: ${hex r.cursorField} !important;
+        --active-el-fg: ${hex r.fieldInk} !important;
+        --active-el-shadow: none !important;
+        --bookmarks-node-activated-fg: ${hex r.key} !important;
+        --bookmarks-expanded-folder-bg: ${hex r.card} !important;
+        --bookmarks-expanded-folder-shadow: none !important;
+        --ctx-menu-shadow: 0 0 0 1px ${hex r.structure} !important;
+        --popup-shadow: 0 0 0 1px ${hex r.structure} !important;
+        --frame-el-overlay-hover-bg: color-mix(in srgb, ${hex r.body} 10%, transparent) !important;
+        --frame-el-overlay-clicked-bg: color-mix(in srgb, ${hex r.body} 20%, transparent) !important;
+        --frame-el-overlay-selected-bg: ${hex r.selField} !important;
+        --frame-el-overlay-selected-border: ${hex r.selField} !important;
+        --toolbar-el-overlay-hover-bg: color-mix(in srgb, ${hex r.body} 10%, transparent) !important;
+        --toolbar-el-overlay-clicked-bg: color-mix(in srgb, ${hex r.body} 20%, transparent) !important;
+        --toolbar-el-overlay-active-bg: color-mix(in srgb, ${hex r.body} 15%, transparent) !important;
+        --toolbar-el-overlay-active-border: ${hex r.body} !important;
+        --toolbar-el-overlay-selected-bg: ${hex r.selField} !important;
+        --toolbar-el-overlay-selected-border: ${hex r.selField} !important;
+        --active-el-overlay-hover-bg: color-mix(in srgb, ${hex r.fieldInk} 10%, transparent) !important;
+        --active-el-overlay-clicked-bg: color-mix(in srgb, ${hex r.fieldInk} 20%, transparent) !important;
+      }
+      body, #root, .Sidebar, .ScrollBox, .NavigationBar {
+        background-color: ${hex r.panel} !important;
       }
     }
   ''
