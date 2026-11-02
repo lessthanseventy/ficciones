@@ -27,7 +27,7 @@ const DEFAULTS = {
   "look.glass": true,
   /** both active and inactive windows: the background is not dimmer than the foreground */
   "look.glassOpacity": 0.9,
-  /** "off", "subtle" or "full": a screen shader over the whole output */
+  /** "off" or "full": a screen shader over the whole output */
   "look.crt": "off",
   "look.nightKelvin": 4000,
   /** night light on at sunset and off at sunrise; off, only the toggle moves it */

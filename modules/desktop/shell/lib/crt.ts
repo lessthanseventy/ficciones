@@ -8,7 +8,7 @@ import { hypr } from "./hypr"
 import { keyword } from "./hyprlua"
 import { setting, setSetting } from "./settings"
 
-export const MODES = ["off", "subtle", "full"] as const
+export const MODES = ["off", "full"] as const
 export type Crt = (typeof MODES)[number]
 const valid = (m: string): Crt => ((MODES as readonly string[]).includes(m) ? (m as Crt) : "off")
 export const crt: Accessor<Crt> = setting("look.crt")(valid)
@@ -22,7 +22,7 @@ function apply() {
   // only when full is or was on, so a shell start with it off leaves a host's own cursor setting
   if (full || wasFull) {
     // full reads pixels away from the one it draws, which flickers under partial repaints, so it
-    // repaints the whole monitor on any change; subtle reads in place and keeps partial repaints
+    // repaints the whole monitor on any change
     keyword("debug:damage_tracking", full ? 1 : 2).catch(console.error)
     // a hardware cursor sits on its own plane, straight on top of the curved picture: drawn into
     // the frame, it bends with what it points at

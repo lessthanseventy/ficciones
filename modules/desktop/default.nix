@@ -242,7 +242,7 @@ in
 
       # CRT screen shaders, switched by path (hyprctl keyword decoration:screen_shader …).
       "hypr/shaders/crt-full.glsl" = linkTo "shaders/crt-full.glsl";
-      "hypr/shaders/crt-subtle.glsl" = linkTo "shaders/crt-subtle.glsl";
+
 
       # Neovim = asterion, a SIBLING repo (master plan 2026-09-17 §3): the whole config dir as one
       # out-of-store link, so an edit there is live and lazy.nvim owns plugins (lazy-lock.json in
