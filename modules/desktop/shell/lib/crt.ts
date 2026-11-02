@@ -15,6 +15,9 @@ const dir = `${GLib.get_user_config_dir()}/hypr/shaders`
 function apply() {
   const m = valid(setting("look.crt").peek())
   keyword("decoration:screen_shader", m === "off" ? "[[EMPTY]]" : `${dir}/crt-${m}.glsl`).catch(console.error)
+  // full reads pixels away from the one it draws, which flickers under partial repaints, so it
+  // repaints the whole monitor on any change; subtle reads in place and keeps partial repaints
+  keyword("debug:damage_tracking", m === "full" ? 1 : 2).catch(console.error)
 }
 setting("look.crt").subscribe(apply)
 apply()
