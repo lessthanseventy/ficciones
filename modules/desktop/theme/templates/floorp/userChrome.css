@@ -17,6 +17,13 @@ Quote: https://userChrome.org | https://github.com/topics/userchrome
 ************************************************************************************************************************************************************************************************************************************************************/
 
 @charset "UTF-8";
+/* an extension's sidebar wraps it in this document: a title bar the rail's icon already does the job of */
+@-moz-document url(chrome://browser/content/webext-panels.xhtml) {
+  #sidebar-panel-header {
+    display: none !important;
+  }
+}
+
 @-moz-document url(chrome://browser/content/browser.xhtml) {
 /* Please write your custom CSS under this line*/
 
@@ -63,10 +70,6 @@ toolbar {
   background-color: var(--retro-bg) !important;
 }
 
-/* the rail's icons open and close a panel; its title bar only takes up room */
-#panel-sidebar-header {
-  display: none !important;
-}
 
 /* Sidebar */
 #sidebar-box,
