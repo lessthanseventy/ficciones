@@ -1,0 +1,12 @@
+[
+  {
+    "namespace": "ficciones",
+    "events": [
+      {
+        "name": "onTheme",
+        "type": "function",
+        "parameters": [{ "name": "state", "type": "object", "additionalProperties": true }]
+      }
+    ]
+  }
+]

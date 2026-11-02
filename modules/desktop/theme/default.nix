@@ -74,6 +74,7 @@ let
     "web.css" = r.webCss;
     "floorp-userChrome.css" = r.floorpUserChrome;
     "floorp-userContent.css" = r.floorpUserContent;
+    "floorp-page.json" = r.floorpPageJson;
   };
   themeDir = "${config.xdg.configHome}/ficciones/theme";
   fontconfigFiles =
@@ -125,7 +126,7 @@ in
     floorpProfiles = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ "d0p2n4mq.default-nightly-1725500522201" ];
-      description = "Profile directories under ~/.floorp that get userChrome.css/userContent.css.";
+      description = "Profile directories under ~/.floorp that get the floorp-ext extension, which loads the theme's sheets live.";
     };
     firefoxProfiles = lib.mkOption {
       type = lib.types.listOf lib.types.str;
@@ -257,10 +258,6 @@ in
     # in ~/.icons, the path every cursor reader searches, not only those that take XDG_DATA_DIRS
     // lib.genAttrs (map (c: ".icons/${c}") cursorThemes) (n: { source = "${pkgs.bibata-cursors}/share/icons/${lib.removePrefix ".icons/" n}"; })
     // lib.listToAttrs (lib.concatMap (profile: [
-      (lib.nameValuePair ".floorp/${profile}/chrome/userChrome.css" (via "floorp-userChrome.css"))
-      (lib.nameValuePair ".floorp/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
-    ]) cfg.floorpProfiles)
-    // lib.listToAttrs (lib.concatMap (profile: [
       (lib.nameValuePair ".mozilla/firefox/${profile}/chrome/userChrome.css" (via "floorp-userChrome.css"))
       (lib.nameValuePair ".mozilla/firefox/${profile}/chrome/userContent.css" (via "floorp-userContent.css"))
       # floorp reads chrome/*.css by default; Firefox only with this pref, and user.js is re-applied every start
@@ -304,11 +301,18 @@ in
       fi
     '';
 
-    # floorp's user.js is kept by hand, so only this line is ours
-    home.activation.floorpFollowScheme = lib.hm.dag.entryAfter [ "writeBoundary" ] (lib.concatMapStrings (profile: ''
-      js="$HOME/.floorp/${profile}/user.js"
-      if [ -f "$js" ] && ! grep -q 'prefers-color-scheme.content-override' "$js"; then
-        printf '%s' ${lib.escapeShellArg followScheme} >> "$js"
+    # floorp's user.js is kept by hand, so only these lines are ours. The extension is copied, not
+    # linked: floorp notices an update by mtime, and every store path has the same one.
+    home.activation.floorpExtension = lib.hm.dag.entryAfter [ "writeBoundary" ] (lib.concatMapStrings (profile: ''
+      dir="$HOME/.floorp/${profile}"
+      if [ -f "$dir/user.js" ]; then
+        printf '%s' ${lib.escapeShellArg followScheme} | cat - ${./floorp-ext/user.js} | while IFS= read -r line; do
+          grep -qF "$line" "$dir/user.js" || printf '%s\n' "$line" >> "$dir/user.js"
+        done
+        xpi=${pkgs.callPackage ./floorp-ext { }}
+        if ! cmp -s "$xpi" "$dir/extensions/theme@ficciones.xpi"; then
+          run install -Dm644 "$xpi" "$dir/extensions/theme@ficciones.xpi"
+        fi
       fi
     '') cfg.floorpProfiles);
 

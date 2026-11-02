@@ -1,0 +1,15 @@
+{
+  "manifest_version": 2,
+  "name": "Ficciones",
+  "version": "1.0",
+  "description": "The machine's palette, live: the browser's own sheets and every other page.",
+  "browser_specific_settings": { "gecko": { "id": "theme@ficciones" } },
+  "permissions": ["<all_urls>"],
+  "background": { "scripts": ["background.js"] },
+  "experiment_apis": {
+    "ficciones": {
+      "schema": "schema.json",
+      "parent": { "scopes": ["addon_parent"], "paths": [["ficciones"]], "script": "api.js" }
+    }
+  }
+}

@@ -2,7 +2,8 @@
 # appended after the vendored RetroTerminal body. Each entry = the domains and the CSS variables
 # (or selectors) that site exposes for its own theme; the values come from palette.nix so the
 # paper variant restyles them too. Add a site = add an entry; keep to variables where a site
-# has them — selector rules rot with every redesign.
+# has them — selector rules rot with every redesign. On Floorp the floorp-ext extension loads this
+# sheet and leaves every domain() named in it to these rules, recolouring all other pages itself.
 { hex, r, fontStack }:
 let
   block = domains: css: ''

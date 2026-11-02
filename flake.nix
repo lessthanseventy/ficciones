@@ -201,6 +201,7 @@
       packages.${system} = {
         inherit expert astalShell dbx;
         astal-shell = astalShell;
+        floorp-xpi = pkgs.callPackage ./modules/desktop/theme/floorp-ext { };
       };
 
       # The checked-in palette outputs (the shell's scss/ts) must equal what

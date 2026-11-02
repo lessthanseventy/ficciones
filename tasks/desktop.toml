@@ -184,3 +184,7 @@ run = [
   "mise run shell:restart",
   "mise --cd {{env.HOME}}/projects/tlon run server:restart",
 ]
+
+["floorp:e2e"]
+description = "Headless throwaway Floorp: the extension repaints chrome and pages on a theme flip"
+run = "elixir scripts/floorp-e2e.exs \"$(nix build .#floorp-xpi --no-link --print-out-paths)\" modules/desktop/theme/floorp-ext/user.js"
