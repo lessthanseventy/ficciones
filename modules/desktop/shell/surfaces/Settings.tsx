@@ -161,7 +161,7 @@ function Backdrop() {
         <Stepper k="wallpaper.rotateMinutes" stops={[1, 2, 5, 10, 15, 30, 60, 120, 240]} fmt={(n) => (n < 60 ? `${n} min` : `${n / 60} h`)} />
       </Row>
       <Row label="ambients" hint="in the rotation; off ones can still be held">{flow(ambientChips)}</Row>
-      <Row label="hack turns" hint="every other turn, an xscreensaver hack">
+      <Row label="hacks in the pile" hint="the xscreensaver hacks rotate beside the ambients">
         <OnOff k="backdrop.hacks" />
       </Row>
       <Row label="hack sharpness" hint="drawn at this size, stretched; smaller is smoother, softer">
@@ -170,7 +170,7 @@ function Backdrop() {
       <Row label="ambient smoothness" hint="how often the smooth ambients step; costs CPU">
         <Stepper k="backdrop.smoothHz" stops={[10, 15, 20, 25, 30]} fmt={(n) => `${n} Hz`} />
       </Row>
-      <Row label="hacks" hint="pick one to watch it; ✓ puts it in the hack turns">
+      <Row label="hacks" hint="pick one to watch it; ✓ puts it in the rotation">
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
           <box spacing={8} cssClasses={["prompt", "set-search"]}>
             <label cssClasses={["ps"]} label="/" />

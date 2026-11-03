@@ -13,7 +13,7 @@ const DEFAULTS = {
   "backdrop.rotateSeconds": 90,
   /** ambients left out of the random rotation (a named one can still be held) */
   "backdrop.ambientsOff": [] as string[],
-  /** every other rotation turn is an xscreensaver hack */
+  /** the xscreensaver hacks are in the rotation's pile, beside the ambients */
   "backdrop.hacks": true,
   "backdrop.hacksOff": [] as string[],
   /** hacks draw at this fraction of the monitor, stretched to fit: smaller is smoother and softer */

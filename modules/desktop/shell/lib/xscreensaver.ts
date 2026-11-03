@@ -18,26 +18,20 @@ export async function loadHacks() {
   try { hacks = (await execAsync(["xss-host", "--list"])).split("\n").map((s) => s.trim()).filter(Boolean) } catch { hacks = [] }
   return hacks
 }
-export const haveHacks = () => hacks.length > 0
 /** Every hack there is (after loadHacks), switched off or not. */
 export const hackNames = () => hacks
 
-/** Start a random hack (one not switched off) as `connector`'s background; the one already there
- * stops first. Its name, or null when there is none to start. */
-/** `w`×`h` is the monitor; the hack draws at backdrop.hackScale of it, stretched to fit. */
-export function startHack(connector: string, w: number, h: number): string | null {
+/** Start `hack` as `connector`'s background; the one already there stops first. `w`×`h` is the
+ * monitor; the hack draws at backdrop.hackScale of it, stretched to fit. False when it won't start. */
+export function startHack(connector: string, w: number, h: number, hack: string): boolean {
   stopHack(connector)
-  const off = setting("backdrop.hacksOff").peek()
-  const pool = hacks.filter((x) => !off.includes(x))
-  if (!pool.length) return null
-  const hack = pool[Math.floor(Math.random() * pool.length)]
   display = display >= 99 ? 40 : display + 1
   const scale = Math.min(1, Math.max(0.25, setting("backdrop.hackScale").peek()))
   const size = (n: number) => String(Math.round(n * scale))
   try {
     running.set(connector, { p: subprocess(["xss-host", connector, String(display), size(w), size(h), hack], () => {}, () => {}), display })
-    return hack
-  } catch (e) { console.error("xss-host:", String(e)); return null }
+    return true
+  } catch (e) { console.error("xss-host:", String(e)); return false }
 }
 
 export function stopHack(connector: string) {

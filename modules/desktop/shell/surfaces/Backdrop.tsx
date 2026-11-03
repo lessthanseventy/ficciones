@@ -18,7 +18,8 @@ import Graphene from "gi://Graphene?version=1.0"
 import Gsk from "gi://Gsk?version=4.0"
 import { showText } from "./Osd"
 import { closeAny } from "./Clickaway"
-import { loadHacks, haveHacks, startHack, stopHack, pauseHack } from "../lib/xscreensaver"
+import { loadHacks, hackNames, startHack, stopHack, pauseHack } from "../lib/xscreensaver"
+import { pickTurn, type Turn } from "../lib/rotation-core"
 import { fullscreenMonitors } from "../lib/hypr"
 import { setting } from "../lib/settings"
 
@@ -71,7 +72,7 @@ export const [backdropMode, setBackdropMode] = createState<BackdropMode>("photo"
 class Canvas {
   grid = new CharGrid(COLS, ROWS)
   modes = makeModes()
-  idx: number
+  idx = 0
   ticks = 0
   hold = false // a named mode is held: no rotation
   paused = false // a fullscreen window covers the monitor: the tick does nothing, the mode keeps its state
@@ -83,30 +84,32 @@ class Canvas {
   /** the dot field, told to redraw each step; text modes go through the labels */
   area: Gtk.Widget | null = null
   textMode = createState(false)
-  /** every other turn is an xscreensaver hack (lib/xscreensaver.ts), drawn under this window,
-   * which steps aside for it; `monitor` and `win` are set once the window is up */
+  /** an xscreensaver hack's turn (lib/xscreensaver.ts): it draws under this window, which steps
+   * aside for it; `monitor` and `win` are set once the window is up */
   hack: string | null = null
-  turn = 0
   monitor: Gdk.Monitor | null = null
   win: Astal.Window | null = null
-  constructor(start: number) { this.idx = start % this.modes.length; this.turn = start }
+  private showing = (): Turn => (this.hack ? { hack: true, name: this.hack } : { hack: false, name: this.modes[this.idx].name })
   private endHack() {
     if (this.hack && this.monitor?.connector) stopHack(this.monitor.connector)
     this.hack = null
     if (this.win) this.win.visible = true
   }
-  private beginHack(): boolean {
+  private beginHack(name: string): boolean {
     const m = this.monitor, g = m?.get_geometry()
-    if (!m?.connector || !g || !haveHacks() || !setting("backdrop.hacks").peek()) return false
-    this.hack = startHack(m.connector, g.width, g.height)
-    if (this.hack && this.win) this.win.visible = false
-    return !!this.hack
+    if (!m?.connector || !g || !startHack(m.connector, g.width, g.height, name)) return false
+    this.hack = name
+    if (this.win) this.win.visible = false
+    return true
   }
-  /** the next ambient after `i` the rotation may show; with every one switched off, simply the next */
-  private nextOn(i: number) {
-    const off = setting("backdrop.ambientsOff").peek(), n = this.modes.length
-    for (let k = 1; k <= n; k++) if (!off.includes(this.modes[(i + k) % n].name)) return (i + k) % n
-    return (i + 1) % n
+  /** the next turn from the one pile, leaving out what any monitor is showing */
+  private nextTurn() {
+    const ambientsOff = setting("backdrop.ambientsOff").peek(), hacksOff = setting("backdrop.hacksOff").peek()
+    return pickTurn(
+      this.modes.map((m) => m.name).filter((n) => !ambientsOff.includes(n)),
+      setting("backdrop.hacks").peek() ? hackNames().filter((n) => !hacksOff.includes(n)) : [],
+      [...canvases.values()].map((c) => c.showing()),
+    )
   }
   setPaused(p: boolean) {
     this.paused = p
@@ -115,10 +118,11 @@ class Canvas {
   step = () => {
     if (this.paused) return
     if (this.ticks === 0 || (!this.hold && this.ticks % switchTicks() === 0)) {
+      const turn = this.hold ? null : this.nextTurn()
       this.endHack()
-      if (this.ticks) this.turn++
-      if (this.turn % 2 === 1 && this.beginHack()) { this.ticks++; return }
-      if (this.ticks || (!this.hold && setting("backdrop.ambientsOff").peek().includes(this.modes[this.idx].name))) this.idx = this.nextOn(this.idx)
+      if (turn?.hack && this.beginHack(turn.name)) { this.ticks++; return }
+      // with the whole pile switched off, or a hack that would not start, simply the next ambient
+      if (!this.hold) this.idx = turn && !turn.hack ? this.modes.findIndex((m) => m.name === turn.name) : (this.idx + 1) % this.modes.length
       this.modes[this.idx].init(this.grid)
     }
     this.ticks++
@@ -189,9 +193,8 @@ const canvases = new Map<Astal.Window, Canvas>()
 const nexts: (() => void)[] = []
 /** Skip every monitor to its next photo (the dashboard's "next wp"). */
 export const nextWallpaper = () => nexts.forEach((n) => n())
-let created = 0
-// the list comes after the first frames: a monitor already on a hack's turn starts that turn over
-void loadHacks().then(() => { for (const c of canvases.values()) if (c.timer && !c.hack && c.turn % 2 === 1) c.ticks = 0 })
+// the list comes after the first frames: every rotating monitor picks again, from the whole pile
+void loadHacks().then(() => { for (const c of canvases.values()) if (c.timer && !c.hold) c.ticks = 0 })
 // a hack or an ambient switched off while it is up ends its turn now, not at the next rotation
 // (a held ambient stays: holding it was the explicit ask)
 const offNow = () => {
@@ -228,11 +231,11 @@ export function setBackdrop(mode: "zen" | "photo" | "toggle" | "cycle" | Backdro
   }
   setZen(on)
   setBackdropMode(next)
-  if (mode === "cycle") showText("\u{f0e2a}  BACKDROP", next === "random" ? "random — the ambients rotate" : next === "photo" ? "photo" : next)
+  if (mode === "cycle") showText("\u{f0e2a}  BACKDROP", next === "random" ? "random — ambients and hacks, one pile" : next === "photo" ? "photo" : next)
 }
 
 export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
-  const canvas = new Canvas(created++)
+  const canvas = new Canvas()
   const { file, next } = wallpaper()
   nexts.push(next)
   onCleanup(() => { for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
