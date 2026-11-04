@@ -349,6 +349,7 @@
         modules = [
           ./modules/mac
           ./modules/tmux.nix
+          ./modules/write-checks.nix
           {
             home.username = "anmoore";
             home.homeDirectory = "/Users/anmoore";
@@ -367,6 +368,7 @@
           # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
           ./modules/desktop
           ./modules/tmux.nix
+          ./modules/write-checks.nix
           # agenix: decrypt age secrets at activation with the box's ssh key (identityPaths
           # defaults to ~/.ssh/id_ed25519 — ours). See the age.secrets block below.
           agenix.homeManagerModules.default
@@ -416,10 +418,7 @@
                 agentBrowser
                 agentDesktop
                 pkgs.typescript-language-server
-                pkgs.nil
                 pkgs.bash-language-server
-                # shell lint, for agents and for bash-language-server's diagnostics
-                pkgs.shellcheck
                 pkgs.vscode-json-languageserver
                 pkgs.marksman
                 pkgs.taplo

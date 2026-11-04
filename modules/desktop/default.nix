@@ -276,13 +276,9 @@ in
       pamixer
       playerctl
       bluetui
-      # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform formats lua/sh
+      # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform's
+      # stylua and shfmt come from modules/write-checks.nix
       tree-sitter
-      stylua
-      shfmt
-      # menard's write check on .nix (Menard.Lang): the formatter and the linter
-      nixfmt
-      statix
       lazydocker
       lazysql
       lazyjournal
