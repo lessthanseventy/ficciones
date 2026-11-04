@@ -20,7 +20,8 @@ type Queue = { inputs: Input[]; n: number; acked: number; listTop: number; fileC
 const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
   const props = raw as unknown as ViewProps
   const { Box, Text } = surface.elements
-  const queue = surface.state ?? { inputs: [], n: 0, acked: 0, listTop: 0, fileCount: 0, firstFile: 0 }
+  // A remount starts a new queue, while the hook's count of handled inputs carries on.
+  const queue = surface.state ?? { inputs: [], n: props.acked, acked: 0, listTop: 0, fileCount: 0, firstFile: 0 }
   queue.acked = props.acked
   // title row, diff box, divider
   queue.listTop = 1 + props.diffRows + 1

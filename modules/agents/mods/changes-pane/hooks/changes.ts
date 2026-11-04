@@ -19,7 +19,8 @@ export const parseStatus = (z: string): File[] => {
 export const splitDiff = (diff: string): Map<string, string> => {
   const byPath = new Map<string, string>()
   for (const chunk of diff.split(/^(?=diff --git )/m)) {
-    const name = /^\+\+\+ b\/(.*)$/m.exec(chunk)?.[1] ?? /^--- a\/(.*)$/m.exec(chunk)?.[1]
+    // A binary, mode-only or empty file has no ---/+++ lines, and --no-renames keeps both header names equal.
+    const name = /^\+\+\+ b\/(.*)$/m.exec(chunk)?.[1] ?? /^--- a\/(.*)$/m.exec(chunk)?.[1] ?? /^diff --git a\/(.*) b\/\1$/m.exec(chunk)?.[1]
     if (name) byPath.set(name.replace(/\t$/, ''), chunk)
   }
   return byPath
@@ -35,6 +36,12 @@ export const parseDiff = (diff: string): DiffLine[] => {
   return lines
 }
 
+export const emptyDiffNote = (text: string) =>
+  /^Binary files /m.test(text) ? 'binary file, no text to show'
+  : /^old mode /m.test(text) ? 'file mode change only'
+  : /^(new|deleted) file mode /m.test(text) ? 'empty file'
+  : 'no diff to show'
+
 export const countDiff = (lines: DiffLine[]) => ({
   adds: lines.filter(l => l.text[0] === '+').length,
   dels: lines.filter(l => l.text[0] === '-').length,
@@ -47,6 +54,9 @@ export const firstChangedRow = (before: DiffLine[], after: DiffLine[]) => {
   const line = after[Math.min(i, after.length - 1)]
   return line ? Math.min(i, after.length - 1) + line.hunk : 0
 }
+
+// The engine refuses a whole view over one control character, and any file or filename can hold one.
+export const printable = (text: string) => text.replace(/[\x00-\x1f\x7f-\x9f]/g, '·')
 
 // The tail is what tells two paths apart.
 export const tailPath = (path: string, width: number) =>
@@ -128,7 +138,7 @@ export const parseAnsi = (ansi: string, width: number): Run[][] =>
         pushText(runs, style, ' '.repeat(Math.max(0, width - col)))
         col = width
       } else if (!part.startsWith('\x1b[')) {
-        pushText(runs, style, part)
+        pushText(runs, style, printable(part))
         col += [...part].length
       }
     }

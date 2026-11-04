@@ -1,6 +1,7 @@
+import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { firstChangedRow, listStart, parseAnsi, parseDiff, parseStatus, splitDiff, tailPath } from './changes'
+import { emptyDiffNote, firstChangedRow, listStart, parseAnsi, parseDiff, parseStatus, printable, splitDiff, tailPath } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -92,4 +93,97 @@ test('/changes and /diff open the one pane', async ($, on) => {
   await $.command.run({ command: 'changes', args: '' } as never)
   await $.command.run({ command: 'diff', args: '' } as never)
   expect(opened).toEqual(['changes', 'changes'])
+})
+
+const DIFFS = 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\ndiff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -1 +1 @@\n-p\n+q\ndiff --git a/c.ts b/c.ts\n--- a/c.ts\n+++ b/c.ts\n@@ -1 +1 @@\n-m\n+n\n'
+
+const repo = (on: On, diff = DIFFS, status = ' M a.ts\0 M b.ts\0 M c.ts\0') => {
+  const ran: string[] = []
+  on('session.start', async ($, e) => e)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('process.run', async ($, e) => {
+    const line = e.argv.join(' ')
+    ran.push(line)
+    const stdout = line.includes(' status ') ? status : line.startsWith('delta') ? `\n${e.init?.stdin}` : diff
+    return { value: { exitCode: 0, stdout, stderr: '' } } as never
+  })
+  return ran
+}
+
+type Mounted = {
+  unmount: () => Promise<void>
+  key: (k: { key: string }) => Promise<void>
+  find: (q: { text: RegExp; in: string }) => Promise<unknown>
+}
+
+// The engine reuses its cached drawing on a reopen, so no ui.render fires: the test mounts nothing.
+test('a pane opened without a fresh render polls', async ($, on) => {
+  const clock = mock.clock(on)
+  const ran = repo(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.command.run({ command: 'changes', args: '' } as never)
+  await clock.advance(2000)
+  expect(ran.filter(line => line.includes(' status ')).length).toBeGreaterThan(0)
+})
+
+test('a view mounted again still reaches the pane', async ($, on) => {
+  mock.clock(on)
+  repo(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const first = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await first.find({ text: /following/, in: 'changes' })
+  await first.key({ key: 'j' })
+  expect(await first.find({ text: /^b\.ts$/, in: 'changes' })).toBeDefined()
+  await first.unmount()
+  const second = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await second.key({ key: 'j' })
+  expect(await second.find({ text: /^c\.ts$/, in: 'changes' })).toBeDefined()
+})
+
+test('a key the pane does not bind leaves it following', async ($, on) => {
+  mock.clock(on)
+  repo(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await ui.find({ text: /following/, in: 'changes' })
+  await ui.key({ key: 'z' })
+  expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
+})
+
+test('a file with no text diff says why', async ($, on) => {
+  mock.clock(on)
+  repo(on, 'diff --git a/b.bin b/b.bin\nindex 1..2 100644\nBinary files a/b.bin and b/b.bin differ\n', ' M b.bin\0')
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /binary file/, in: 'changes' })).toBeDefined()
+})
+
+test('a diff with no hunks still splits, and the note names it', async () => {
+  const split = splitDiff('diff --git a/b c.bin b/b c.bin\nBinary files a/b c.bin and b/b c.bin differ\ndiff --git a/run b/run\nold mode 100644\nnew mode 100755\n')
+  expect([...split.keys()]).toEqual(['b c.bin', 'run'])
+  expect(emptyDiffNote(split.get('b c.bin')!)).toMatch(/binary/)
+  expect(emptyDiffNote(split.get('run')!)).toMatch(/mode/)
+  expect(emptyDiffNote('diff --git a/e b/e\nnew file mode 100644\nindex 0..0\n')).toMatch(/empty/)
+  expect(emptyDiffNote('')).toMatch(/no diff/)
+})
+
+test('the hint names the way back to the prompt', async ($, on) => {
+  mock.clock(on)
+  repo(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /Esc to prompt/, in: 'changes' })).toBeDefined()
+})
+
+test('a control character in a file or its name cannot break the view', async ($, on) => {
+  expect(parseAnsi('\x1b[31ma\x07b\x7fc\x9bd\x1be\x1b[0m', 9)).toEqual([[{ c: 'red', t: 'a·b·c·d·e' }]])
+  expect(printable('a\nb')).toBe('a·b')
+  mock.clock(on)
+  repo(on, 'diff --git a/a\x07.ts b/a\x07.ts\n--- a/a\x07.ts\n+++ b/a\x07.ts\n@@ -1 +1 @@\n-x\x1b\n+y\x07\n', ' M a\x07.ts\0')
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^a·\.ts$/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /y·/, in: 'changes' })).toBeDefined()
 })

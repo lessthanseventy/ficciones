@@ -1,1 +1,1 @@
-{ "name": "changes-pane", "version": "0.1.0", "description": "A read-only pane of everything uncommitted that follows the latest edit, opened with /changes" }
+{ "name": "changes-pane", "version": "0.1.0", "author": { "name": "Andrew Moore" }, "description": "A read-only pane of everything uncommitted that follows the latest edit, opened with /changes" }

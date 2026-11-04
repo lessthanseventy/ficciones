@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, firstChangedRow, fitRows, listStart, parseAnsi, parseDiff, parseStatus, splitDiff, tailPath } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, listStart, parseAnsi, parseDiff, parseStatus, printable, splitDiff, tailPath } from './changes'
 import type { DiffLine, File, Run } from './changes'
 import type { Input } from './view'
 
@@ -12,7 +12,8 @@ const MAX_LIST_ROWS = 8
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
-const HINT = 'click to hold · j/k file · J/K scroll · L lazygit · send a prompt to follow'
+const HINT = 'click to hold · Esc to prompt · j/k file · J/K scroll · L lazygit · send a prompt to follow'
+const OPEN = { id: PANE, title: 'Changes' }
 
 type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
 
@@ -48,23 +49,30 @@ export const register: Register = on => {
   // Title, divider and hint take one row each.
   const diffRows = () => Math.max(1, size.rows - listRows() - 3)
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
+  // A reopen reuses the engine's cached drawing, so no ui.render fires to say the pane is back.
+  const seated = ({ isPlaced }: { isPlaced: boolean }) => {
+    if (!isPlaced) return
+    isOpen = true
+    void refresh()
+  }
 
   const viewProps = () => {
     const firstFile = listStart(selectedIndex(), files.length, listRows())
     const path = files[selectedIndex()]?.path ?? ''
+    const diff = diffs.get(path)
     return {
-      title: path.split('/').pop() ?? '',
+      title: printable(path.split('/').pop() ?? ''),
       isFollowing,
       rows: fitRows(rows.slice(offset, offset + diffRows())),
       diffRows: diffRows(),
-      note,
+      note: note || (diff?.lines.length === 0 ? emptyDiffNote(diff.text) : ''),
       divider: '─'.repeat(Math.max(0, size.columns)),
       files: files.slice(firstFile, firstFile + listRows()).map((file, i) => {
         const diff = diffs.get(file.path)
         const adds = diff?.adds ? ` +${diff.adds}` : ''
         const dels = diff?.dels ? ` -${diff.dels}` : ''
         const width = Math.max(1, size.columns - adds.length - dels.length)
-        return { label: tailPath(file.path, width).padEnd(width), adds, dels, isSelected: firstFile + i === selectedIndex() }
+        return { label: tailPath(printable(file.path), width).padEnd(width), adds, dels, isSelected: firstFile + i === selectedIndex() }
       }),
       firstFile,
       hint: HINT,
@@ -118,7 +126,7 @@ export const register: Register = on => {
       const key = `${selected}\0${size.columns}\0${text}`
       if (key === renderedKey) return
       renderedKey = key
-      if (text === '') {
+      if (!diffs.get(selected)?.lines.length) {
         rows = []
         return
       }
@@ -157,14 +165,14 @@ export const register: Register = on => {
 
   on('command.run', { command: PANE }, async ($, e) => {
     isDismissed = false
-    await $.ui.open({ id: PANE, title: 'Changes' })
+    seated(await $.ui.open(OPEN))
     return {}
   })
 
   on('command.run', { command: BUILT_IN }, async ($, e, next) => {
     if (!canDraw) return next(e)
     isDismissed = false
-    await $.ui.open({ id: PANE, title: 'Changes' })
+    seated(await $.ui.open(OPEN))
     return {}
   })
 
@@ -174,8 +182,11 @@ export const register: Register = on => {
     const result = await next(e)
     if (isOpen) void refresh()
     else if (canDraw && !isDismissed) {
-      const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1'])
-      if (status.exitCode === 0 && status.stdout !== '') await $.ui.open({ id: PANE, title: 'Changes' })
+      // The tool has already run: a failed look at git must not cost it its result.
+      try {
+        const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1'])
+        if (status.exitCode === 0 && status.stdout !== '') seated(await $.ui.open(OPEN))
+      } catch {}
     }
     return result
   })
@@ -213,7 +224,6 @@ export const register: Register = on => {
     const fresh = inputs.filter(i => i.n > acked)
     if (fresh.length === 0) return {}
     acked = fresh[fresh.length - 1]!.n
-    isFollowing = false
 
     const select = (index: number) => {
       const file = files[clamp(index, 0, files.length - 1)]
@@ -229,6 +239,11 @@ export const register: Register = on => {
       : [{ key: shift && key?.length === 1 ? key.toUpperCase() : key ?? '' }])
 
     for (const { key, row } of typed) {
+      if (key === 'L') {
+        // setsid -f returns at once and leaves a window that outlives this session.
+        await $.process.run(['setsid', '-f', 'ghostty', `--working-directory=${await $.session.cwd()}`, '-e', 'lazygit'])
+        continue
+      }
       if (row !== undefined) select(row)
       else if (key === 'j' || key === 'down') select(selectedIndex() + 1)
       else if (key === 'k' || key === 'up') select(selectedIndex() - 1)
@@ -236,10 +251,8 @@ export const register: Register = on => {
       else if (key === 'K') scrollTo(offset - 1)
       else if (key === 'pagedown') scrollTo(offset + diffRows())
       else if (key === 'pageup') scrollTo(offset - diffRows())
-      else if (key === 'L') {
-        // setsid -f returns at once and leaves a window that outlives this session.
-        await $.process.run(['setsid', '-f', 'ghostty', `--working-directory=${await $.session.cwd()}`, '-e', 'lazygit'])
-      }
+      else continue
+      isFollowing = false
     }
 
     void refresh()
