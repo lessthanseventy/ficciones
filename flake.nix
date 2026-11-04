@@ -392,6 +392,7 @@
                 expert
                 dbx
                 pkgs.watchexec
+                pkgs.worktrunk
                 pkgs.typescript-language-server
                 pkgs.nil
                 pkgs.bash-language-server

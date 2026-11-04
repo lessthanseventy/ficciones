@@ -346,6 +346,7 @@ esac
 # contexts with tool versions; activate additionally exports [env] vars (e.g. OLLAMA_API_KEY
 # from ~/.config/mise/config.toml) so tools launched here inherit them.
 eval "$(mise activate zsh)"
+(( $+commands[wt] )) && eval "$(wt config shell init zsh)"
 
 
 
