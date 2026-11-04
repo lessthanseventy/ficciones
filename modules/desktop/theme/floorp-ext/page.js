@@ -3,27 +3,20 @@
 DarkReader.setFetchMethod(url => fetch(url));
 
 // Dark Reader keeps a page's own hues, which on black are often unreadable blues, and has no say
-// in what a link is. The darkreader class stops it recolouring this sheet.
-function accents(s) {
-  let sheet = document.getElementById("ficciones-accents");
-  if (!sheet) {
-    sheet = document.createElement("style");
-    sheet.id = "ficciones-accents";
-    sheet.className = "darkreader";
-    document.documentElement.append(sheet);
-  }
-  sheet.textContent = `
+// in what a link is. The darkreader class stops it recolouring the <style> these go in.
+const accents = s => `
     a:link:not([role=button]), a:link:not([role=button]) * { color: ${s.link} !important; }
     a:visited:not([role=button]), a:visited:not([role=button]) * { color: ${s.visited} !important; }
     h1, h2, h3 { color: ${s.heading} !important; }
     code, kbd, samp { color: ${s.code} !important; }
     * { scrollbar-color: ${s.body} ${s.ground} !important; }
-  `;
-}
+`;
 
 function paint(s) {
   // enable over an enabled page keeps the first theme's root background
   DarkReader.disable();
+  document.getElementById("ficciones-accents")?.remove();
+  if (s.clear) return;
   DarkReader.enable({
     mode: s.light ? 0 : 1,
     brightness: 100,
@@ -35,7 +28,11 @@ function paint(s) {
     lightSchemeTextColor: s.body,
     selectionColor: s.selection,
   });
-  accents(s);
+  const sheet = document.createElement("style");
+  sheet.id = "ficciones-accents";
+  sheet.className = "darkreader";
+  sheet.textContent = accents(s);
+  document.documentElement.append(sheet);
 }
 
 browser.runtime.onMessage.addListener(paint);

@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        min-width: 280px;
+        margin: 0;
+        padding: 12px;
+        background: var(--ground);
+        color: var(--body);
+        font-size: 16px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        color: var(--heading);
+      }
+      #swatches {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+      #swatches span {
+        flex: 1;
+        height: 12px;
+        border: 1px solid var(--body);
+      }
+      label {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 0;
+      }
+      input {
+        accent-color: var(--body);
+      }
+      #host {
+        color: var(--link);
+        overflow-wrap: anywhere;
+      }
+      #note {
+        color: var(--code);
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ficciones</h1>
+    <div id="swatches"></div>
+    <label id="siteRow"><input type="checkbox" id="site" /> <span>Recolour <span id="host"></span></span></label>
+    <div id="note" hidden></div>
+    <label><input type="checkbox" id="all" /> Recolour all sites</label>
+    <script src="popup.js"></script>
+  </body>
+</html>

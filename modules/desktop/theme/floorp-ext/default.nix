@@ -12,6 +12,8 @@ runCommand "ficciones-floorp.xpi" { nativeBuildInputs = [ zip ]; } ''
   cp ${./api.js} api.js
   cp ${./background.js} background.js
   cp ${./page.js} page.js
+  cp ${./popup.html} popup.html
+  cp ${./popup.js} popup.js
   tar -xzf ${darkreader} --strip-components=1 package/darkreader.js
-  zip -X -q "$out" manifest.json schema.json api.js background.js page.js darkreader.js
+  zip -X -q "$out" manifest.json schema.json api.js background.js page.js popup.html popup.js darkreader.js
 ''

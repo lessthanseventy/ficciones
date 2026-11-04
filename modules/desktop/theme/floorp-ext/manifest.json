@@ -4,7 +4,12 @@
   "version": "1.0",
   "description": "The machine's palette, live: the browser's own sheets and every other page.",
   "browser_specific_settings": { "gecko": { "id": "theme@ficciones" } },
-  "permissions": ["<all_urls>"],
+  "permissions": ["<all_urls>", "storage"],
+  "browser_action": {
+    "default_title": "Ficciones",
+    "default_popup": "popup.html",
+    "default_area": "navbar"
+  },
   "background": { "scripts": ["background.js"] },
   "experiment_apis": {
     "ficciones": {

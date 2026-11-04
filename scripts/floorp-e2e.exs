@@ -57,11 +57,28 @@ page = "http://127.0.0.1:#{http_port}/"
 
 serve = fn serve ->
   {:ok, c} = :gen_tcp.accept(listen)
-  _ = :gen_tcp.recv(c, 0, 5000)
+  {:ok, request} = :gen_tcp.recv(c, 0, 5000)
+
+  {csp, body} =
+    cond do
+      String.starts_with?(request, "GET /csp") ->
+        {"content-security-policy: style-src 'self'\r\n", html}
+
+      String.starts_with?(request, "GET /meta") ->
+        {"",
+         String.replace(
+           html,
+           "<body>",
+           ~s|<head><meta http-equiv="Content-Security-Policy" content="style-src 'self'"></head><body>|
+         )}
+
+      true ->
+        {"", html}
+    end
 
   :gen_tcp.send(
     c,
-    "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\nconnection: close\r\ncontent-length: #{byte_size(html)}\r\n\r\n#{html}"
+    "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\n#{csp}connection: close\r\ncontent-length: #{byte_size(body)}\r\n\r\n#{body}"
   )
 
   :gen_tcp.close(c)
@@ -185,6 +202,76 @@ code =
     M.call(s, "Marionette:SetContext", %{value: "content"})
     M.call(s, "WebDriver:Navigate", %{url: page})
     M.wait("fresh page, under b", "rgb(244, 236, 220)", pageBg)
+
+    M.call(s, "Marionette:SetContext", %{value: "chrome"})
+
+    M.wait(
+      "the button sits on the toolbar",
+      "nav-bar",
+      fn ->
+        M.js(
+          s,
+          ~s|return CustomizableUI.getPlacementOfWidget("theme_ficciones-browser-action")?.area \|\| "no placement"|
+        )
+      end
+    )
+
+    menu =
+      "moz-extension://" <>
+        M.js(
+          s,
+          ~s|return WebExtensionPolicy.getByID("theme@ficciones").mozExtensionHostname|
+        ) <> "/popup.html"
+
+    M.call(s, "Marionette:SetContext", %{value: "content"})
+    pageTab = M.call(s, "WebDriver:GetWindowHandle")["value"]
+    menuTab = M.call(s, "WebDriver:NewWindow", %{type: "tab"})["handle"]
+    switch = fn tab -> M.call(s, "WebDriver:SwitchToWindow", %{handle: tab, focus: true}) end
+
+    switch.(menuTab)
+    M.call(s, "WebDriver:Navigate", %{url: menu})
+
+    M.wait("the menu shows the palette", "7", fn ->
+      "#{M.js(s, ~s|return document.querySelectorAll("#swatches span").length|)}"
+    end)
+
+    M.js(s, ~s|document.getElementById("all").click()|)
+    switch.(pageTab)
+    M.wait("all sites off clears the open page", "rgb(0, 0, 255)", linkInk)
+    switch.(menuTab)
+    M.js(s, ~s|document.getElementById("all").click()|)
+    switch.(pageTab)
+    M.wait("all sites on repaints it", "rgb(44, 42, 51)", linkInk)
+
+    setHost = fn off ->
+      switch.(menuTab)
+
+      M.call(s, "WebDriver:ExecuteAsyncScript", %{
+        script:
+          ~s|const done = arguments[arguments.length - 1]; window.browser.runtime.sendMessage({ host: "127.0.0.1", off: #{off} }).then(() => done(1));|,
+        args: []
+      })
+
+      switch.(pageTab)
+    end
+
+    setHost.(true)
+    M.wait("this site off clears the open page", "rgb(0, 0, 255)", linkInk)
+    M.call(s, "WebDriver:Navigate", %{url: page})
+    M.wait("and it stays off on a fresh load", "rgb(0, 0, 255)", linkInk)
+    setHost.(false)
+    M.wait("this site on repaints it", "rgb(44, 42, 51)", linkInk)
+    M.call(s, "WebDriver:Navigate", %{url: page})
+    M.wait("and a fresh load paints again", "rgb(44, 42, 51)", linkInk)
+
+    M.call(s, "WebDriver:Navigate", %{url: page <> "csp"})
+    M.wait("a page whose policy blocks styles still paints", "rgb(244, 236, 220)", pageBg)
+    M.wait("and its links too", "rgb(44, 42, 51)", linkInk)
+    File.rm!(link)
+    File.ln_s!("themes/a", link)
+    M.wait("and it flips with the theme", "rgb(17, 34, 51)", pageBg)
+    M.call(s, "WebDriver:Navigate", %{url: page <> "meta"})
+    M.wait("a policy in a meta tag too", "rgb(17, 34, 51)", pageBg)
     IO.puts("PASS")
     0
   rescue
