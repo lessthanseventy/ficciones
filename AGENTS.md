@@ -13,7 +13,7 @@ design and every decision behind it.
 The human and any agent drive this repo through the **same mise tasks** (`mise tasks` lists them) — one
 control loop, not two, and no second way to run anything:
 
-- `mise run check` — the names gate, the manual's drift check and the flake; the green-before-commit gate.
+- `mise run check` — the names gate, the cap hook's test, the manual's drift check and the flake; the green-before-commit gate.
 - `mise run flake:check` — the machine-level Nix gate.
 - `mise run home:switch` — install/update this machine into the user profile via home-manager.
 - `mise run machine:update` — apply the checkout to the live machine: home:switch, then restart the shell and tlon's server (the one update verb).
@@ -27,10 +27,11 @@ a task in `tasks/<group>.toml` (mise.toml includes them)** — never a prose ins
 ### Run once, read the log — never re-run to see more
 
 When you run a command whose output you'll inspect — a test suite, a build, a `scratchpad`
-script — run it through **`scripts/cap.sh`** (or `mise run cap -- <cmd>`). It runs the command
+script — run it through **`mise run cap -- <cmd>`**. It runs the command
 **once**, captures all output to a log under `.logs/`, and prints a lean summary: the exit code,
 a test/build-summary line, failure lines on a non-zero exit, and a short tail — plus the exact
-`tail`/`grep` to read more **from the saved log**.
+`tail`/`grep` to read more **from the saved log**. The task always runs from the repo root; to run
+from a subdirectory or another repo, call `scripts/cap.sh` by path, which stays where you are.
 
 The rule this enforces: **do not re-run a command with an escalating `grep … | tail -N` to see
 more of its output.** The full output is already on disk — `grep`/`tail` the log. Re-running
@@ -50,7 +51,7 @@ long lines.
 
 When you're iterating on a change, **register a watcher instead of re-running tests yourself**:
 
-- `scripts/watch.sh <cmd>` (or `mise run watch -- <cmd>`) — watch-and-run anything, any scope
+- `mise run watch -- <cmd>` — watch-and-run anything, any scope
   (one test file, a folder, the whole suite). New test files under a watched dir are picked up.
 
 Run it **in the background** (this harness: `Bash` with `run_in_background` — you're re-invoked
@@ -134,7 +135,7 @@ exists so a reader of the repo knows where the law comes from and edits the one 
 
 ## Verify
 
-`mise run check` is the gate: the names gate, the manual's drift check and `flake:check` (Nix).
+`mise run check` is the gate: the names gate, the cap hook's test, the manual's drift check and `flake:check` (Nix).
 `mise run check:names` (first in it) checks that every mise task a guide, script or `flake.nix` names
 exists — a rename that
 strands a reference fails here instead of at 2am. A claim that something works is backed by the
