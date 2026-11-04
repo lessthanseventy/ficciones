@@ -1,7 +1,0 @@
-# The engine keeps Esc to hand the keyboard back, so lazygit never sees it.
-keybinding:
-  universal:
-    return: <c-g>
-# Claude's edits should show up about as fast as they do in the built-in panel.
-refresher:
-  refreshInterval: 2
