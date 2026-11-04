@@ -284,6 +284,200 @@ builtins.concatStringsSep "\n" [
       [class*="zmail-body__"] a, [class*="zmail-body__"] a * { color: ${hex r.key} !important; }
       ::selection { background: ${hex r.selField} !important; color: ${hex r.selInk} !important; }
   '')
+  # DuckDuckGo — its tokens. Results are links, so the title takes the key and the url recedes.
+  (block [ "duckduckgo.com" ] ''
+      :root, html, body, .dark-bg {
+        color-scheme: ${if light then "light" else "dark"} !important;
+        --ds-surface-canvas: ${hex r.ground} !important; --ds-surface-primary: ${hex r.ground} !important;
+        --ds-surface-secondary: ${hex r.card} !important; --ds-surface-tertiary: ${hex r.inputGround} !important;
+        --ds-text-primary: ${hex r.body} !important; --ds-text-secondary: ${hex r.meta} !important;
+        --ds-text-tertiary: ${hex r.meta} !important;
+        --ds-icons-primary: ${hex r.key} !important; --ds-icons-secondary: ${hex r.key} !important;
+        --ds-icons-tertiary: ${hex r.inactive} !important;
+        --ds-link-primary: ${hex r.key} !important; --ds-link-primary-visited: ${hex r.visited} !important;
+        --ds-link-secondary: ${hex r.meta} !important; --ds-link-secondary-hover: ${hex r.body} !important;
+        --ds-link-header: ${hex r.key} !important;
+        --ds-accent-primary: ${hex r.cursorField} !important; --ds-accent-primary-content-color: ${hex r.fieldInk} !important;
+        --ds-accent-primary-text-color: ${hex r.key} !important;
+        --ds-input-primary-background-color: ${hex r.inputGround} !important;
+        --ds-container-primary-background-color: ${hex r.card} !important;
+        --ds-container-secondary-background-color: ${hex r.card} !important;
+        --ds-container-tertiary-background-color: ${hex r.card} !important;
+        --ds-container-primary-border-color: ${hex r.menuGround} !important;
+        --ds-container-secondary-border-color: ${hex r.menuGround} !important;
+        --ds-container-tertiary-border-color: ${hex r.menuGround} !important;
+        --ds-control-primary-background-color: ${hex r.card} !important;
+        --ds-control-secondary-background-color: ${hex r.card} !important;
+        --ds-control-tertiary-background-color: ${hex r.card} !important;
+        --ds-control-raised-primary-background-color: ${hex r.card} !important;
+        --ds-control-raised-secondary-background-color: ${hex r.card} !important;
+        --ds-control-raised-tertiary-background-color: ${hex r.card} !important;
+        --ds-control-primary-border-color: ${hex r.borderInactive} !important;
+        --ds-control-secondary-border-color: ${hex r.borderInactive} !important;
+        --ds-control-tertiary-border-color: ${hex r.borderInactive} !important;
+        --ds-destructive-primary-text-color: ${hex r.alarm} !important;
+        --sds-color-text-01: ${hex r.body} !important; --sds-color-text-02: ${hex r.meta} !important;
+        --sds-color-text-03: ${hex r.meta} !important; --sds-color-text-04: ${hex r.meta} !important;
+        --sds-color-text-accent-01: ${hex r.key} !important; --sds-color-text-accent-02: ${hex r.body} !important;
+        --sds-color-text-accent-01-alt: ${hex r.key} !important; --sds-color-text-accent-01-state-01: ${hex r.key} !important;
+        --sds-color-text-accent-01-state-02: ${hex r.key} !important; --sds-color-border-accent-01: ${hex r.key} !important;
+        --sds-color-text-link-01: ${hex r.key} !important; --sds-color-text-link-01-visited: ${hex r.visited} !important;
+        --sds-color-text-link-02: ${hex r.meta} !important; --sds-color-text-link-02-hover: ${hex r.body} !important;
+        --sds-color-text-success: ${hex r.live} !important; --sds-color-text-destructive: ${hex r.alarm} !important;
+        --sds-color-text-on-color: ${hex r.fieldInk} !important; --sds-color-text-disabled: ${hex r.inactive} !important;
+        --sds-color-background-01: ${hex r.ground} !important; --sds-color-background-02: ${hex r.card} !important;
+        --sds-color-background-03: ${hex r.inputGround} !important;
+        --sds-color-background-container-01: ${hex r.card} !important; --sds-color-background-container-02: ${hex r.card} !important;
+        --sds-color-background-accent-01: ${hex r.cursorField} !important;
+        --sds-color-background-utility: ${hex r.card} !important;
+        --sds-color-border-01: ${hex r.menuGround} !important; --sds-color-border-02: ${hex r.menuGround} !important;
+        --sds-color-border-03: ${hex r.borderInactive} !important;
+        --theme-col-bg-page: ${hex r.ground} !important; --theme-col-bg-page-transparent: transparent !important;
+        --theme-col-bg-ui: ${hex r.ground} !important; --theme-col-bg-header: ${hex r.ground} !important;
+        --theme-col-bg-header-transparent: transparent !important; --theme-col-header-divider: ${hex r.menuGround} !important;
+        --theme-col-metabar-bg: ${hex r.ground} !important; --theme-col-metabar-transparent: transparent !important;
+        --theme-col-bg-search: ${hex r.inputGround} !important;
+        --theme-col-txt-search-input: ${hex r.body} !important; --theme-col-txt-search-button: ${hex r.key} !important;
+        --theme-col-txt-title: ${hex r.key} !important; --theme-col-bg-modal: ${hex r.card} !important;
+        --theme-col-bg-card: ${hex r.card} !important; --ds-color-gray-0: ${hex r.card} !important;
+        --theme-col-bg-button-primary: ${hex r.cursorField} !important; --theme-col-txt-button-primary: ${hex r.fieldInk} !important;
+        --theme-col-bg-button-qna: ${hex r.card} !important; --theme-col-bg-button-qna-hover: ${hex r.raised} !important;
+        --theme-col-bg-card-header: ${hex r.card} !important; --theme-col-bg-pill: ${hex r.card} !important;
+        --theme-col-bg-ui-active: ${hex r.inputGround} !important; --theme-col-bg-header-modal: ${hex r.card} !important;
+        --theme-col-bg-expandcollapse: ${hex r.card} !important; --theme-col-bg-expandcollapse-hover: ${hex r.raised} !important;
+        --theme-col-bg-ext-dropdown: ${hex r.card} !important; --theme-col-sitefilter-enabled-card-bg: ${hex r.card} !important;
+        --theme-pmenu-expandcollapse-bg: ${hex r.card} !important; --theme-pmenu-mobile-bg: ${hex r.card} !important;
+        --ds-surface-backdrop: ${hex r.ground} !important; --result-item-bg: ${hex r.ground} !important;
+        --theme-assist-bg-chat-system: ${hex r.card} !important; --theme-assist-gradient-stop: ${hex r.card} !important;
+        --theme-assist-bg-opt-in: ${hex r.inputGround} !important; --theme-assist-bg-opt-in-border: ${hex r.menuGround} !important;
+        --theme-assist-btn-bg: ${hex r.card} !important; --theme-assist-bg-icon: ${hex r.card} !important;
+        --theme-assist-button-border-color: ${hex r.borderInactive} !important; --theme-assist-error-bg: ${hex r.card} !important;
+        --theme-assist-txt-link: ${hex r.key} !important; --theme-assist-txt-link-hover: ${hex r.key} !important;
+        --theme-assist-txt-link-active: ${hex r.key} !important;
+      }
+      .nav-menu--slideout { background-color: ${hex r.card} !important; }
+      .footer, .zci-wrap { background-color: ${hex r.ground} !important; }
+      html, body, .site-wrapper, .content-wrap, .header-wrap, .results--main, [data-testid="mainline"], [data-testid="result"] {
+        background-color: ${hex r.ground} !important;
+      }
+      body { color: ${hex r.body} !important; font-family: ${fontStack} !important; }
+      [data-testid="result-title-a"], [data-testid="result-title-a"] * { color: ${hex r.key} !important; }
+      [data-testid="result-title-a"]:visited, [data-testid="result-title-a"]:visited * { color: ${hex r.visited} !important; }
+      [data-testid="result-extras-url-link"], [data-testid="result-extras-url-link"] * { color: ${hex r.live} !important; }
+      [data-result="snippet"], [data-result="snippet"] * { color: ${hex r.body} !important; }
+      [data-result="snippet"] b { color: ${hex r.attention} !important; }
+      [data-testid="search-form-input-wrapper"], [data-testid="search-form-input-wrapper"] input {
+        background-color: ${hex r.inputGround} !important; color: ${hex r.body} !important;
+      }
+  '')
+  # Jira and Confluence — Atlassian's design tokens. A tinted lozenge cannot hold 7:1 on these
+  # grounds, so a subtle accent is its hue as text on the ground and a bold one is inverse video.
+  (block [ "atlassian.net" "jira.atlassian.com" ] (''
+      :root, html, html[data-color-mode], [data-theme] {
+        color-scheme: ${if light then "light" else "dark"} !important;
+        --ds-surface: ${hex r.ground} !important; --ds-elevation-surface-current: ${hex r.ground} !important;
+        --ds-surface-sunken: ${hex r.panel} !important; --ds-surface-raised: ${hex r.card} !important;
+        --ds-surface-overlay: ${hex r.card} !important; --ds-surface-hovered: ${hex r.inputGround} !important;
+        --ds-surface-pressed: ${hex r.raised} !important; --ds-surface-raised-hovered: ${hex r.inputGround} !important;
+        --ds-surface-raised-pressed: ${hex r.raised} !important; --ds-surface-overlay-hovered: ${hex r.inputGround} !important;
+        --ds-surface-overlay-pressed: ${hex r.raised} !important;
+        --ds-text: ${hex r.body} !important; --ds-text-subtle: ${hex r.meta} !important;
+        --ds-text-subtlest: ${hex r.meta} !important; --ds-text-disabled: ${hex r.inactive} !important;
+        --ds-text-inverse: ${hex r.fieldInk} !important; --ds-text-brand: ${hex r.key} !important;
+        --ds-text-selected: ${hex r.selField} !important; --ds-text-information: ${hex r.key} !important;
+        --ds-text-discovery: ${hex r.assistant} !important; --ds-text-success: ${hex r.live} !important;
+        --ds-text-warning: ${hex r.warn} !important; --ds-text-warning-inverse: ${hex r.fieldInk} !important;
+        --ds-text-danger: ${hex r.alarm} !important;
+        --ds-link: ${hex r.key} !important; --ds-link-pressed: ${hex r.key} !important; --ds-link-visited: ${hex r.visited} !important;
+        --ds-icon: ${hex r.key} !important; --ds-icon-subtle: ${hex r.meta} !important;
+        --ds-icon-inverse: ${hex r.fieldInk} !important; --ds-icon-brand: ${hex r.key} !important;
+        --ds-icon-selected: ${hex r.selField} !important; --ds-icon-disabled: ${hex r.inactive} !important;
+        --ds-icon-information: ${hex r.key} !important; --ds-icon-discovery: ${hex r.assistant} !important;
+        --ds-icon-success: ${hex r.live} !important; --ds-icon-warning: ${hex r.warn} !important;
+        --ds-icon-warning-inverse: ${hex r.fieldInk} !important; --ds-icon-danger: ${hex r.alarm} !important;
+        --ds-border: ${hex r.menuGround} !important; --ds-border-bold: ${hex r.borderInactive} !important;
+        --ds-border-input: ${hex r.borderInactive} !important; --ds-border-focused: ${hex r.key} !important;
+        --ds-border-selected: ${hex r.selField} !important; --ds-border-brand: ${hex r.cursorField} !important;
+        --ds-background-input: ${hex r.inputGround} !important; --ds-background-input-hovered: ${hex r.raised} !important;
+        --ds-background-input-pressed: ${hex r.inputGround} !important;
+        --ds-background-neutral: ${hex r.card} !important; --ds-background-neutral-hovered: ${hex r.raised} !important;
+        --ds-background-neutral-pressed: ${hex r.edge} !important; --ds-background-neutral-subtle: transparent !important;
+        --ds-background-neutral-subtle-hovered: ${hex r.inputGround} !important;
+        --ds-background-neutral-subtle-pressed: ${hex r.raised} !important;
+        --ds-background-neutral-bold: ${hex r.body} !important; --ds-background-disabled: ${hex r.raised} !important;
+        --ds-background-brand-bold: ${hex r.cursorField} !important; --ds-background-brand-bold-hovered: ${hex r.cursorField} !important;
+        --ds-background-brand-bold-pressed: ${hex r.cursorField} !important; --ds-background-brand-boldest: ${hex r.cursorField} !important;
+        --ds-background-brand-subtlest: ${hex r.card} !important;
+        --ds-background-selected: ${hex r.selSoft} !important; --ds-background-selected-hovered: ${hex r.selSoft} !important;
+        --ds-background-selected-pressed: ${hex r.selSoft} !important; --ds-background-selected-bold: ${hex r.selField} !important;
+        --ds-background-success: ${hex r.ground} !important; --ds-background-success-bold: ${hex r.liveField} !important;
+        --ds-background-warning: ${hex r.ground} !important; --ds-background-warning-bold: ${hex r.warnField} !important;
+        --ds-background-danger: ${hex r.ground} !important; --ds-background-danger-bold: ${hex r.alarmField} !important;
+        --ds-background-information: ${hex r.ground} !important; --ds-background-information-bold: ${hex r.accentField} !important;
+        --ds-background-discovery: ${hex r.ground} !important; --ds-background-discovery-bold: ${hex r.attentionField} !important;
+        --ds-blanket: ${hex r.ground}cc !important;
+        font-family: ${fontStack} !important;
+  '' + builtins.concatStringsSep "" (map ({ name, hue }: ''
+        --ds-text-accent-${name}: ${hex hue} !important; --ds-text-accent-${name}-bolder: ${hex hue} !important;
+        --ds-icon-accent-${name}: ${hex hue} !important; --ds-border-accent-${name}: ${hex hue} !important;
+        --ds-background-accent-${name}-subtlest: ${hex r.ground} !important; --ds-background-accent-${name}-subtler: ${hex r.ground} !important;
+        --ds-background-accent-${name}-subtle: ${hex r.ground} !important; --ds-background-accent-${name}-bolder: ${hex hue} !important;
+  '') [
+    { name = "blue"; hue = r.key; }
+    { name = "teal"; hue = r.key; }
+    { name = "green"; hue = r.live; }
+    { name = "lime"; hue = r.live; }
+    { name = "yellow"; hue = r.body; }
+    { name = "orange"; hue = r.warn; }
+    { name = "red"; hue = r.alarm; }
+    { name = "magenta"; hue = r.attention; }
+    { name = "purple"; hue = r.assistant; }
+    { name = "gray"; hue = r.meta; }
+  ]) + ''
+      }
+      html, body { background-color: ${hex r.ground} !important; color: ${hex r.body} !important; }
+      body, input, textarea, button, select { font-family: ${fontStack} !important; }
+      h1, h2, h3, h4, h5, h6 { color: ${hex r.attention} !important; }
+      a:link:not([role=button]) { color: ${hex r.key} !important; }
+      a:visited:not([role=button]) { color: ${hex r.visited} !important; }
+      .aui-header { background-color: ${hex r.ground} !important; border-bottom: 1px solid ${hex r.menuGround} !important; }
+      #onetrust-banner-sdk, #onetrust-pc-btn-handler { background-color: ${hex r.card} !important; color: ${hex r.body} !important; }
+      #onetrust-banner-sdk * { color: ${hex r.body} !important; }
+      #onetrust-banner-sdk a { color: ${hex r.key} !important; }
+      #onetrust-accept-btn-handler { background-color: ${hex r.cursorField} !important; color: ${hex r.fieldInk} !important; }
+      #onetrust-pc-sdk, #onetrust-pc-sdk div { background-color: ${hex r.card} !important; color: ${hex r.body} !important; }
+  ''))
+  # Craigslist — no tokens and no dark mode, so its own class names.
+  (block [ "craigslist.org" ] ''
+      :root, html, body { color-scheme: ${if light then "light" else "dark"} !important; background-color: ${hex r.ground} !important; color: ${hex r.body} !important; }
+      * { scrollbar-color: ${hex r.structure} ${hex r.ground}; }
+      a:link { color: ${hex r.key} !important; }
+      a:visited { color: ${hex r.visited} !important; }
+      h1, h2, h3, h4, .heading, a.heading, a.heading:visited { color: ${hex r.attention} !important; background: none !important; }
+      .cl-goto-home { color: ${hex r.attention} !important; }
+      .icon, [class*="icom-"], td { color: ${hex r.key} !important; }
+      svg text { fill: ${hex r.body} !important; }
+      .priceinfo, .price { color: ${hex r.live} !important; }
+      .posting-title .label, .gallery-card a { color: ${hex r.key} !important; }
+      .gallery-card a:visited .label { color: ${hex r.visited} !important; }
+      .cl-header, .cl-footer, .cl-query-bar, .cl-search-filters-panel, .cl-search-toolbar, .cl-horiz-scroller, .priceinfo, .left, .right, .left div, .right div, td,
+      .cl-search-day-paginator-ng, .bd-tab-content, .bd-input, #curtain .cover, .cl-homepage-top-banner, .cl-homepage-top-banner > div {
+        background-color: ${hex r.ground} !important;
+      }
+      span.label { color: ${hex r.key} !important; }
+      td.disabled { color: ${hex r.inactive} !important; }
+      td.today, td.today a { background-color: ${hex r.cursorField} !important; color: ${hex r.fieldInk} !important; }
+      .cl-goto-post { background-color: ${hex r.inputGround} !important; }
+      .meta, .filter-label, .cl-label, .count { color: ${hex r.meta} !important; }
+      .gallery-card, .cl-search-result { background-color: ${hex r.ground} !important; border-color: ${hex r.menuGround} !important; }
+      input, select, textarea, .bd-button, .cl-exec-search, .bd-combo-box {
+        background-color: ${hex r.inputGround} !important; color: ${hex r.body} !important; border-color: ${hex r.borderInactive} !important;
+      }
+      .bd-button.selected, .bd-button.selected *, .bd-button.active, .bd-button.active * {
+        background-color: ${hex r.cursorField} !important; color: ${hex r.fieldInk} !important;
+      }
+      input[type="checkbox"], input[type="radio"] { accent-color: ${hex r.cursorField} !important; }
+  '')
   # YouTube — its tokens (the player stays as it is)
   (block [ "youtube.com" "www.youtube.com" ] ''
       html, html[dark], ytd-app {
