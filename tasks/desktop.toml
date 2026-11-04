@@ -32,6 +32,10 @@ run = [
 description = "theme: photograph the generated hyprlock.conf in a nested Hyprland, per palette — hyprlock has no dry-run and a bad lock config is found while locked out"
 run = "scripts/hyprlock-preview.sh"
 
+["hypr:check"]
+description = "hypr: load hyprland.lua in a nested Hyprland and diff its binds, options and rules against the live one — saving the real file reloads the live compositor, so prove an edit here first. Opens a window, so it stays out of check"
+run = "scripts/hypr-lua-check.sh"
+
 ["ivysaur:build"]
 description = "machine: build the laptop's NixOS system closure to .dev/ivysaur — the runbook's install gate"
 run = "nix build .#nixosConfigurations.ivysaur.config.system.build.toplevel -o .dev/ivysaur"
