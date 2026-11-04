@@ -8,13 +8,15 @@
 #   scripts/cap.sh bash scratchpad/thing.sh
 #   mise run cap -- mise exec -- mix test
 #
-# Knobs (env): CAP_TAIL (tail lines, default 40), CAP_KEEP (logs to retain, default 40).
+# Knobs (env): CAP_TAIL (tail lines, default 40), CAP_KEEP (logs to retain, default 40),
+# CAP_WIDTH (printed line width, default 200; the log keeps whole lines).
 set -uo pipefail
 
 [ "$#" -gt 0 ] || { echo "cap: give me a command to run" >&2; exit 2; }
 
 tail_n="${CAP_TAIL:-40}"
 keep="${CAP_KEEP:-40}"
+width="${CAP_WIDTH:-200}"
 root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 log_dir="${CAP_LOG_DIR:-$root/.logs}"
 mkdir -p "$log_dir"
@@ -61,7 +63,7 @@ else
   fi
   if [ -n "$fails" ]; then
     printf '  ── %s ──\n' "$label"
-    printf '%s\n' "$fails" | sed 's/^/    /'
+    printf '%s\n' "$fails" | cut -c"1-$width" | sed 's/^/    /'
   else
     failblock=0
   fi
@@ -78,7 +80,7 @@ if [ "$failblock" -eq 0 ] && [ "${CAP_TAIL:-}" != all ]; then
   signal="$(grep -vE "$noise_re" "$log" | grep -iE "$sig_re" | awk '!seen[$0]++' | head -"${CAP_SIGNAL:-12}")"
   if [ -n "$signal" ]; then
     printf '  ── signal ──\n'
-    printf '%s\n' "$signal" | sed 's/^/    /'
+    printf '%s\n' "$signal" | cut -c"1-$width" | sed 's/^/    /'
   fi
 fi
 
@@ -87,7 +89,7 @@ if [ "${CAP_TAIL:-}" = all ]; then
   sed 's/^/    /' "$log"
 else
   printf '  ── tail %s ──\n' "$tail_n"
-  tail -n "$tail_n" "$log" | sed 's/^/    /'
+  tail -n "$tail_n" "$log" | cut -c"1-$width" | sed 's/^/    /'
 fi
 printf '  more: tail -n 200 %s   |   grep -nEi PATTERN %s\n' "$rel" "$rel"
 
