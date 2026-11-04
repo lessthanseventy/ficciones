@@ -19,7 +19,7 @@ let
     export __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json
     export GBM_BACKENDS_PATH=${pkgs.mesa}/lib/gbm LIBGL_DRIVERS_PATH=${pkgs.mesa}/lib/dri
     export VK_DRIVER_FILES=${pkgs.mesa}/share/vulkan/icd.d/intel_icd.x86_64.json
-    export GSK_RENDERER=''${GSK_RENDERER:-ngl}
+    export GSK_RENDERER=''${GSK_RENDERER:-gl}
     exec "$@"
   '';
 in
