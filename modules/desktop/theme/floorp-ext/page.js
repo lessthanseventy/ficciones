@@ -2,9 +2,15 @@
 // a content script's fetch carries the extension's host permission, so cross-origin sheets read
 DarkReader.setFetchMethod(url => fetch(url));
 
+// Dark Reader can miss the rule that colours the page itself, and a white body is the worst of what
+// it misses. A frame stays out of it: many are see-through on purpose.
+const pageGround = s =>
+  window === top ? `html, body { background-color: ${s.ground} !important; color: ${s.body} !important; }` : "";
+
 // Dark Reader keeps a page's own hues, which on black are often unreadable blues, and has no say
 // in what a link is. The darkreader class stops it recolouring the <style> these go in.
 const accents = s => `
+    ${pageGround(s)}
     a:link:not([role=button]), a:link:not([role=button]) * { color: ${s.link} !important; }
     a:visited:not([role=button]), a:visited:not([role=button]) * { color: ${s.visited} !important; }
     h1, h2, h3 { color: ${s.heading} !important; }

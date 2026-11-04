@@ -3,7 +3,8 @@
 # (or selectors) that site exposes for its own theme; the values come from palette.nix so the
 # paper variant restyles them too. Add a site = add an entry; keep to variables where a site
 # has them — selector rules rot with every redesign. On Floorp the floorp-ext extension loads this
-# sheet and leaves every domain() named in it to these rules, recolouring all other pages itself.
+# sheet and leaves every domain() named in it to these rules, recolouring all other pages itself,
+# so an entry has to carry every page under that domain or it is worse than none.
 { hex, rgb, r, fontStack, light }:
 let
   block = domains: css: ''
@@ -77,88 +78,6 @@ builtins.concatStringsSep "\n" [
       }
     }
   ''
-  # GitHub — primer's design tokens
-  (block [ "github.com" ] ''
-      :root, [data-color-mode] {
-        --bgColor-default: ${hex r.ground} !important;
-        --bgColor-muted: ${hex r.card} !important;
-        --bgColor-inset: ${hex r.panel} !important;
-        --fgColor-default: ${hex r.body} !important;
-        --fgColor-muted: ${hex r.meta} !important;
-        --fgColor-accent: ${hex r.key} !important;
-        --fgColor-success: ${hex r.live} !important;
-        --fgColor-danger: ${hex r.alarm} !important;
-        --fgColor-attention: ${hex r.cursorField} !important;
-        --borderColor-default: ${hex r.menuGround} !important;
-        --borderColor-muted: ${hex r.pressedGround} !important;
-        --fontStack-monospace: ${fontStack} !important;
-      }
-  '')
-  # claude.ai — its own tokens
-  (block [ "claude.ai" ] ''
-      :root, .dark, .light {
-        --bg-000: ${hex r.card} !important; --bg-100: ${hex r.panel} !important;
-        --bg-200: ${hex r.ground} !important; --bg-300: ${hex r.ground} !important;
-        --text-000: ${hex r.body} !important; --text-100: ${hex r.body} !important;
-        --text-200: ${hex r.body} !important; --text-300: ${hex r.meta} !important;
-        --text-400: ${hex r.inactive} !important; --text-500: ${hex r.inactive} !important;
-        --accent-main-000: ${hex r.attention} !important; --accent-main-100: ${hex r.attention} !important;
-        --accent-main-200: ${hex r.attention} !important;
-        --accent-secondary-100: ${hex r.key} !important;
-        --border-300: ${hex r.menuGround} !important; --border-400: ${hex r.borderInactive} !important;
-        --font-mono: ${fontStack} !important;
-      }
-  '')
-  # Hacker News — tables, no tokens: the few colours it has
-  (block [ "news.ycombinator.com" ] ''
-      body, #hnmain, td, .comment, .default { background: ${hex r.ground} !important; color: ${hex r.body} !important; font-family: ${fontStack} !important; }
-      .pagetop, .pagetop a, td[bgcolor="#ff6600"] { background: ${hex r.cursorField} !important; color: ${hex r.fieldInk} !important; }
-      .titleline a, a:link { color: ${hex r.body} !important; }
-      a:visited, .subtext, .comhead, .comhead a, .subtext a, .age a { color: ${hex r.meta} !important; }
-      .c00, .commtext { color: ${hex r.body} !important; }
-      .votearrow { filter: invert(1) sepia(1) saturate(4) hue-rotate(-10deg) !important; }
-  '')
-  # Reddit (new) — its tokens
-  (block [ "reddit.com" "www.reddit.com" "old.reddit.com" ] ''
-      :root, .theme-dark, .theme-light, body {
-        --color-neutral-background: ${hex r.ground} !important;
-        --color-neutral-background-weak: ${hex r.panel} !important;
-        --color-neutral-background-strong: ${hex r.card} !important;
-        --color-neutral-content: ${hex r.body} !important;
-        --color-neutral-content-strong: ${hex r.body} !important;
-        --color-neutral-content-weak: ${hex r.meta} !important;
-        --color-neutral-border: ${hex r.menuGround} !important;
-        --color-neutral-border-weak: ${hex r.pressedGround} !important;
-        --color-primary-background: ${hex r.attention} !important;
-        --color-secondary-plain: ${hex r.key} !important;
-      }
-      body { background: ${hex r.ground} !important; color: ${hex r.body} !important; }
-      .res-nightmode .md, .md, .thing .title, .entry { color: ${hex r.body} !important; }
-  '')
-  # Wikipedia — the vector skin's night tokens
-  (block [ "wikipedia.org" ] ''
-      :root, html.skin-theme-clientpref-night, html.skin-theme-clientpref-day {
-        --background-color-base: ${hex r.ground} !important;
-        --background-color-neutral: ${hex r.card} !important;
-        --background-color-neutral-subtle: ${hex r.panel} !important;
-        --color-base: ${hex r.body} !important;
-        --color-subtle: ${hex r.meta} !important;
-        --color-emphasized: ${hex r.body} !important;
-        --color-progressive: ${hex r.key} !important;
-        --color-visited: ${hex r.assistant} !important;
-        --border-color-base: ${hex r.menuGround} !important;
-        --border-color-subtle: ${hex r.pressedGround} !important;
-      }
-      body, .mw-body, #content, .vector-header-container, .mw-page-container { background: ${hex r.ground} !important; color: ${hex r.body} !important; }
-  '')
-  # Google search — few stable tokens; the page and the result text
-  (block [ "www.google.com" "google.com" ] ''
-      body, #main, #cnt, .sfbg, .minidiv, .RNNXgb, #searchform { background: ${hex r.ground} !important; color: ${hex r.body} !important; }
-      .RNNXgb, .gLFyf, textarea { background: ${hex r.card} !important; color: ${hex r.body} !important; }
-      h3, .LC20lb { color: ${hex r.key} !important; }
-      .VwiC3b, .yXK7lf, span { color: ${hex r.body}; }
-      cite, .byrV5b, .TbwUpd { color: ${hex r.meta} !important; }
-  '')
   # Zoho Mail — its tokens, set on whichever of these the account's appearance puts on the page.
   # Listing a site takes it off the page recolourer, so message bodies are flattened here: their
   # hand-written colours would otherwise come through white. Its class hashes change with each
@@ -493,17 +412,51 @@ builtins.concatStringsSep "\n" [
       }
       input[type="checkbox"], input[type="radio"] { accent-color: ${hex r.cursorField} !important; }
   '')
-  # YouTube — its tokens (the player stays as it is)
-  (block [ "youtube.com" "www.youtube.com" ] ''
-      html, html[dark], ytd-app {
+  # YouTube's icons never render under the page recolourer. Its tokens are redefined on many
+  # elements, so they are set on all of them; the player stays as it is.
+  (block [ "www.youtube.com" ] ''
+      * {
         --yt-spec-base-background: ${hex r.ground} !important;
         --yt-spec-raised-background: ${hex r.card} !important;
         --yt-spec-menu-background: ${hex r.card} !important;
+        --yt-spec-additive-background: ${hex r.raised} !important;
         --yt-spec-general-background-a: ${hex r.ground} !important;
+        --yt-spec-general-background-b: ${hex r.ground} !important;
+        --yt-spec-general-background-c: ${hex r.panel} !important;
+        --yt-spec-brand-background-solid: ${hex r.ground} !important;
+        --yt-spec-brand-background-primary: ${hex r.ground} !important;
+        --yt-spec-badge-chip-background: ${hex r.raised} !important;
+        --yt-spec-touch-response: ${hex r.body} !important;
         --yt-spec-text-primary: ${hex r.body} !important;
         --yt-spec-text-secondary: ${hex r.meta} !important;
-        --yt-spec-call-to-action: ${hex r.attention} !important;
-        --yt-spec-10-percent-layer: ${hex r.pressedGround} !important;
+        --yt-spec-text-disabled: ${hex r.inactive} !important;
+        --yt-spec-icon-active-other: ${hex r.body} !important;
+        --yt-spec-icon-inactive: ${hex r.meta} !important;
+        --yt-spec-call-to-action: ${hex r.key} !important;
+        --yt-spec-outline: ${hex r.edge} !important;
+        --yt-spec-10-percent-layer: ${hex r.edge} !important;
       }
+      html, body, ytd-app, #masthead-container, ytd-masthead, #background, #guide-content, #guide-inner-content, tp-yt-app-drawer #contentContainer, ytd-mini-guide-renderer, ytd-page-manager, ytd-browse, ytd-watch-flexy {
+        background-color: ${hex r.ground} !important;
+        color: ${hex r.body} !important;
+      }
+      yt-icon, yt-icon *, .yt-icon-shape, .yt-icon-shape * { fill: currentcolor; color: ${hex r.body}; }
+      ytd-app :not(#movie_player, #movie_player *) { color: ${hex r.body} !important; }
+      ytd-app h1:not(#movie_player *), ytd-app h1:not(#movie_player *) *, ytd-app h2:not(#movie_player *), ytd-app h2:not(#movie_player *) *, ytd-app h3:not(#movie_player *), ytd-app h3:not(#movie_player *) * { color: ${hex r.attention} !important; }
+      ytd-app .ytSpecButtonShapeNextFilled:not(#movie_player *), ytd-app .ytSpecButtonShapeNextFilled:not(#movie_player *) * {
+        background-color: ${hex r.cursorField} !important;
+        color: ${hex r.fieldInk} !important;
+      }
+      ytd-feed-nudge-renderer, ytd-feed-nudge-renderer * { background-color: ${hex r.ground} !important; }
+      ytd-mealbar-promo-renderer, tp-yt-paper-dialog, ytd-menu-popup-renderer, ytd-multi-page-menu-renderer, tp-yt-iron-dropdown {
+        background-color: ${hex r.card} !important;
+      }
+      ytd-app .ytSpecButtonShapeNextTonal:not(#movie_player *) { background-color: ${hex r.raised} !important; }
+      input#search, .ytSearchboxComponentInput { color: ${hex r.body} !important; background: transparent !important; }
+      ytd-searchbox #container, .ytSearchboxComponentInputBox, .ytSearchboxComponentSearchButton, #search-icon-legacy {
+        background-color: ${hex r.card} !important;
+        border-color: ${hex r.edge} !important;
+      }
+      * { scrollbar-color: ${hex r.body} ${hex r.ground} !important; }
   '')
 ]
