@@ -1,31 +1,31 @@
 import type { ClientModule, JsonValue } from 'claude-code'
 
-import type { File } from './changes'
+import type { Run } from './changes'
 
-export type Input = { n: number; key?: string; shift?: true; ctrl?: true; row?: number }
+export type Input = { n: number; key?: string; shift?: true; row?: number }
 export type ViewProps = {
-  branch: string
-  rows: { file: File; label: string; isSelected: boolean }[]
-  firstRow: number
   title: string
-  source: string
-  path: string
-  note: string
-  hint: string
+  isFollowing: boolean
+  rows: Run[][]
   diffRows: number
+  note: string
+  divider: string
+  files: { label: string; adds: string; dels: string; isSelected: boolean }[]
+  firstFile: number
+  hint: string
   acked: number
 }
-type Queue = { inputs: Input[]; n: number; acked: number; rowCount: number; firstRow: number }
-
-const HEADER_ROWS = 1
+type Queue = { inputs: Input[]; n: number; acked: number; listTop: number; fileCount: number; firstFile: number }
 
 const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
   const props = raw as unknown as ViewProps
-  const { Box, Text, Code } = surface.elements
-  const queue = surface.state ?? { inputs: [], n: 0, acked: 0, rowCount: 0, firstRow: 0 }
+  const { Box, Text } = surface.elements
+  const queue = surface.state ?? { inputs: [], n: 0, acked: 0, listTop: 0, fileCount: 0, firstFile: 0 }
   queue.acked = props.acked
-  queue.rowCount = props.rows.length
-  queue.firstRow = props.firstRow
+  // title row, diff box, divider
+  queue.listTop = 1 + props.diffRows + 1
+  queue.fileCount = props.files.length
+  queue.firstFile = props.firstFile
 
   if (!surface.state) {
     surface.setState(queue)
@@ -35,31 +35,39 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
       queue.inputs = [...queue.inputs.filter(i => i.n > queue.acked), { ...input, n: queue.n }]
       surface.post({ inputs: queue.inputs } as unknown as JsonValue)
     }
-    surface.onKey(({ key, ctrl, shift }) => send({ key, ...(ctrl && { ctrl }), ...(shift && { shift }) }))
+    surface.onKey(({ key, shift }) => send({ key, ...(shift && { shift }) }))
     surface.onPointer(({ type, y }) => {
-      const row = y - HEADER_ROWS
-      if (type === 'down' && row >= 0 && row < queue.rowCount) send({ row: queue.firstRow + row })
+      const row = y - queue.listTop
+      if (type === 'down' && row >= 0 && row < queue.fileCount) send({ row: queue.firstFile + row })
     })
   }
 
   return (
     <Box flexDirection="column">
       <Box justifyContent="space-between">
-        <Text bold>changes</Text>
-        <Text color="suggestion">{props.branch}</Text>
+        <Text bold wrap="truncate-end">{props.title}</Text>
+        {props.isFollowing ? <Text color="success">● following</Text> : <Text dimColor>○ held</Text>}
       </Box>
-      {props.rows.map(({ file, label, isSelected }) => (
+      <Box height={props.diffRows} overflow="hidden" flexDirection="column">
+        {props.note ? <Text dimColor>{props.note}</Text> : null}
+        {props.rows.map(row => (
+          <Text wrap="truncate-end">
+            {row.map(r => (
+              <Text color={r.c} backgroundColor={r.b} bold={r.bold} dimColor={r.dim} italic={r.it} underline={r.u}>
+                {r.t}
+              </Text>
+            ))}
+          </Text>
+        ))}
+      </Box>
+      <Text dimColor>{props.divider}</Text>
+      {props.files.map(({ label, adds, dels, isSelected }) => (
         <Text inverse={isSelected} wrap="truncate-end">
-          <Text color="success">{file.x}</Text>
-          <Text color="error">{file.y}</Text>
-          {` ${label}`}
+          {label}
+          <Text color="success">{adds}</Text>
+          <Text color="error">{dels}</Text>
         </Text>
       ))}
-      {props.note ? <Text dimColor>{props.note}</Text> : null}
-      <Text dimColor wrap="truncate-end">{props.title}</Text>
-      <Box height={props.diffRows} overflow="hidden" flexDirection="column">
-        {props.source ? <Code source={props.source} path={props.path} format="diff" wrap="truncate-end" /> : <Text dimColor>no diff to show</Text>}
-      </Box>
       <Text dimColor wrap="truncate-end">{props.hint}</Text>
     </Box>
   )

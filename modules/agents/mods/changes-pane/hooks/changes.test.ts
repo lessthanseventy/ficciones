@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { lastOffset, listStart, parseDiff, parseStatus, tailPath, windowDiff } from './changes'
+import { firstChangedRow, listStart, parseAnsi, parseDiff, parseStatus, splitDiff, tailPath } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -8,14 +8,18 @@ const DIFF = [
   '@@ -20,2 +21,1 @@', ' twenty', '-gone',
 ].join('\n')
 
-test('status reads the branch, a rename and a spaced path', async () => {
-  const { branch, files } = parseStatus('## main...origin/main [ahead 1]\0R  new.ts\0old.ts\0 M a b.ts\0?? c.ts\0')
-  expect(branch).toBe('main')
-  expect(files).toEqual([
-    { path: 'new.ts', x: 'R', y: ' ' },
-    { path: 'a b.ts', x: ' ', y: 'M' },
-    { path: 'c.ts', x: '?', y: '?' },
+test('status reads a rename and a spaced path', async () => {
+  expect(parseStatus('R  new.ts\0old.ts\0 M a b.ts\0?? c.ts\0')).toEqual([
+    { path: 'new.ts', isUntracked: false },
+    { path: 'a b.ts', isUntracked: false },
+    { path: 'c.ts', isUntracked: true },
   ])
+})
+
+test('a whole diff splits by file, deletions and spaced paths too', async () => {
+  const split = splitDiff('diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-x\n+y\ndiff --git a/gone b/gone\n--- a/gone\n+++ /dev/null\n@@ -1 +0,0 @@\n-z\ndiff --git a/s p b/s p\n--- a/s p\t\n+++ b/s p\t\n')
+  expect([...split.keys()]).toEqual(['a', 'gone', 's p'])
+  expect(split.get('a')).toContain('+y')
 })
 
 test('a long path keeps its filename', async () => {
@@ -23,20 +27,18 @@ test('a long path keeps its filename', async () => {
   expect(tailPath('short.md', 12)).toBe('short.md')
 })
 
-test('a window re-heads its hunks so it still parses', async () => {
+test('the first changed row counts the blank row between hunks', async () => {
   const lines = parseDiff(DIFF)
   expect(lines).toHaveLength(6)
-  expect(windowDiff(lines, 0, 2)).toBe('@@ -1,1 +1,2 @@\n one\n+two')
-  expect(windowDiff(lines, 2, 4)).toBe('@@ -2,2 +3,2 @@\n three\n four\n@@ -20,1 +21,1 @@\n twenty')
+  const later = parseDiff(DIFF.replace('-gone', '-went'))
+  expect(firstChangedRow(lines, later)).toBe(6)
+  expect(firstChangedRow([], lines)).toBe(0)
+  expect(firstChangedRow(lines, [])).toBe(0)
 })
 
-test('a hunk break costs a row, and the last offset still reaches the end', async () => {
-  const lines = parseDiff(DIFF)
-  expect(windowDiff(lines, 2, 3)).toBe('@@ -2,2 +3,2 @@\n three\n four')
-  expect(lastOffset(lines, 3)).toBe(4)
-  expect(lastOffset(lines, 4)).toBe(3)
-  expect(lastOffset(lines, 100)).toBe(0)
-  expect(lastOffset([], 10)).toBe(0)
+test('ansi becomes runs, and an erase paints to the edge', async () => {
+  expect(parseAnsi('\x1b[38;5;196ma\x1b[48;2;1;2;3mb\x1b[0m\n', 5)).toEqual([[{ c: '#ff0000', t: 'a' }, { c: '#ff0000', b: '#010203', t: 'b' }]])
+  expect(parseAnsi('\x1b[48;2;1;2;3mab\x1b[0K\x1b[0m', 5)).toEqual([[{ b: '#010203', t: 'ab   ' }]])
 })
 
 test('the list follows the selection', async () => {
@@ -52,14 +54,16 @@ const PANE = {
   props: { title: 'diff', isFocused: true, bodyColumns: 50, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, view: {} },
 } as const
 
-test('j moves to the next file and space stages it', async ($, on) => {
+test('a key holds the view, and nothing can stage', async ($, on) => {
   mock.clock(on)
   on('session.start', async ($, e) => e)
   const ran: string[] = []
   on('process.run', async ($, e) => {
     const line = e.argv.join(' ')
     ran.push(line)
-    const stdout = line.includes(' status ') ? '## main\0 M a.ts\0 M b.ts\0' : DIFF
+    const stdout = line.includes(' status ') ? ' M a.ts\0 M b.ts\0'
+      : line.startsWith('delta') ? `\n${e.init?.stdin}`
+      : 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\ndiff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -1 +1 @@\n-p\n+q\n'
     return { value: { exitCode: 0, stdout, stderr: '' } } as never
   })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
@@ -67,8 +71,10 @@ test('j moves to the next file and space stages it', async ($, on) => {
     key: (k: { key: string }) => Promise<void>
     find: (q: { text: RegExp; in: string }) => Promise<unknown>
   }
+  expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
   await ui.key({ key: 'j' })
   await ui.key({ key: ' ' })
-  expect(ran).toContain('git add -- b.ts')
-  expect(await ui.find({ text: /b\.ts  \+1 -1/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^b\.ts$/, in: 'changes' })).toBeDefined()
+  expect(ran.filter(line => /\b(add|reset|commit)\b/.test(line))).toEqual([])
 })

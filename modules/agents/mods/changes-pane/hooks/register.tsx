@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, isFullyStaged, lastOffset, listStart, parseDiff, parseStatus, tailPath, windowDiff } from './changes'
-import type { DiffLine, File } from './changes'
+import { clamp, countDiff, firstChangedRow, fitRows, listStart, parseAnsi, parseDiff, parseStatus, splitDiff, tailPath } from './changes'
+import type { DiffLine, File, Run } from './changes'
 import type { Input } from './view'
 
 // The id the bundled diff panel opens its pane under. Drawing it from here keeps
@@ -9,69 +9,120 @@ import type { Input } from './view'
 const PANE = 'diff'
 const POLL_MS = 2000
 const MAX_LIST_ROWS = 8
-const HINT = 'click for keys · j/k file · J/K scroll · space stage · L lazygit'
+// Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
+const MAX_UNTRACKED_DIFFS = 30
+const CONTEXT_ROWS = 3
+const HINT = 'click to hold · j/k file · J/K scroll · L lazygit · send a prompt to follow'
+
+type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
+
+const deltaArgv = (columns: number) => [
+  'delta', '--no-gitconfig', '--dark', '--true-color=always', `--width=${columns}`, '--line-fill-method=spaces',
+  '--wrap-max-lines=0', '--paging=never', '--line-numbers',
+  '--file-style=omit', '--file-decoration-style=omit', '--hunk-header-style=omit', '--hunk-header-decoration-style=omit',
+  '--minus-style=syntax #3f0001', '--plus-style=syntax #002800',
+]
 
 export const register: Register = on => {
   let size = { columns: 0, rows: 0 }
-  let branch = ''
   let files: File[] = []
+  let diffs = new Map<string, Diff>()
+  let hasBaseline = false
   let note = ''
   let selected = ''
-  let lines: DiffLine[] = []
+  let rows: Run[][] = []
+  let renderedKey = ''
   let offset = 0
   let acked = 0
   let isOpen = false
+  let isFollowing = true
+
   let isRefreshing = false
   let isStale = false
-  let lastSeen = ''
   let refresh: () => Promise<void> = async () => {}
 
   const selectedIndex = () => Math.max(0, files.findIndex(f => f.path === selected))
-
   const listRows = () => clamp(files.length, 1, Math.min(MAX_LIST_ROWS, Math.floor(size.rows / 3)))
-  // Header, title and hint take one row each.
+  // Title, divider and hint take one row each.
   const diffRows = () => Math.max(1, size.rows - listRows() - 3)
-  const scrollTo = (next: number) => { offset = clamp(next, 0, lastOffset(lines, diffRows())) }
+  const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
 
   const viewProps = () => {
-    const firstRow = listStart(selectedIndex(), files.length, listRows())
+    const firstFile = listStart(selectedIndex(), files.length, listRows())
     const path = files[selectedIndex()]?.path ?? ''
-    const { adds, dels } = countDiff(lines)
-    const stats = `${path.split('/').pop()}  +${adds} -${dels}`
-    const labelWidth = Math.max(1, size.columns - 3)
     return {
-      branch,
-      rows: files.slice(firstRow, firstRow + listRows()).map((file, i) => ({
-        file,
-        label: tailPath(file.path, labelWidth).padEnd(labelWidth),
-        isSelected: firstRow + i === selectedIndex(),
-      })),
-      firstRow,
-      title: path ? `${stats} ${'─'.repeat(Math.max(0, size.columns - stats.length - 1))}` : '',
-      source: windowDiff(lines, offset, diffRows()),
-      path,
-      note,
-      hint: HINT,
+      title: path.split('/').pop() ?? '',
+      isFollowing,
+      rows: fitRows(rows.slice(offset, offset + diffRows())),
       diffRows: diffRows(),
+      note,
+      divider: '─'.repeat(Math.max(0, size.columns)),
+      files: files.slice(firstFile, firstFile + listRows()).map((file, i) => {
+        const diff = diffs.get(file.path)
+        const adds = diff?.adds ? ` +${diff.adds}` : ''
+        const dels = diff?.dels ? ` -${diff.dels}` : ''
+        const width = Math.max(1, size.columns - adds.length - dels.length)
+        return { label: tailPath(file.path, width).padEnd(width), adds, dels, isSelected: firstFile + i === selectedIndex() }
+      }),
+      firstFile,
+      hint: HINT,
       acked,
     }
   }
 
   on('session.start', async ($, e, next) => {
+    // status and diff name files from the repo root, whichever folder the session is in.
+    const readDiffs = async (listed: File[]) => {
+      const root = (await $.process.run(['git', 'rev-parse', '--show-toplevel'])).stdout.trim()
+      const tracked = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'diff', 'HEAD', '--no-renames', '--no-color', '--no-ext-diff'])
+      const texts = splitDiff(tracked.stdout)
+      for (const file of listed.filter(f => f.isUntracked).slice(0, MAX_UNTRACKED_DIFFS)) {
+        const untracked = await $.process.run(['git', 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', file.path], { cwd: root })
+        texts.set(file.path, untracked.stdout)
+      }
+      return texts
+    }
+
     const load = async () => {
       // Without --no-optional-locks this poll takes the index lock and can fail Claude's own git commands.
-      const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-z', '-b', '-uall'])
-      if (status.exitCode !== 0) return { z: '', diff: '', note: 'not a git repository' }
-      const parsed = parseStatus(status.stdout)
-      branch = parsed.branch
-      files = parsed.files
-      const file = files[selectedIndex()]
-      selected = file?.path ?? ''
-      if (!file) return { z: status.stdout, diff: '', note: 'nothing changed' }
-      const diff = await $.process.run(file.x === '?'
-        ? ['git', 'diff', '--no-index', '--', '/dev/null', file.path]
-        : ['git', '--no-optional-locks', 'diff', 'HEAD', '--', file.path])
-      return { z: status.stdout, diff: diff.stdout, note: '' }
+      const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-z', '-uall'])
+      if (status.exitCode !== 0) {
+        files = []
+        diffs = new Map()
+        note = 'not a git repository'
+      } else {
+        files = parseStatus(status.stdout)
+        note = files.length === 0 ? 'nothing changed' : ''
+        const texts = await readDiffs(files)
+        const before = diffs
+        diffs = new Map(files.map(({ path }) => {
+          const text = texts.get(path) ?? ''
+          const old = before.get(path)
+          if (old?.text === text) return [path, old]
+          const lines = parseDiff(text)
+          return [path, { text, lines, ...countDiff(lines) }]
+        }))
+
+        const changed = files.filter(({ path }) => before.get(path)?.text !== diffs.get(path)?.text)
+        const latest = changed[changed.length - 1]
+        const moved = hasBaseline && isFollowing && latest
+        if (moved) selected = latest.path
+        selected = files[selectedIndex()]?.path ?? ''
+        hasBaseline = true
+        if (moved) offset = Math.max(0, firstChangedRow(before.get(latest.path)?.lines ?? [], diffs.get(latest.path)?.lines ?? []) - CONTEXT_ROWS)
+      }
+
+      const text = diffs.get(selected)?.text ?? ''
+      const key = `${selected}\0${size.columns}\0${text}`
+      if (key === renderedKey) return
+      renderedKey = key
+      if (text === '') {
+        rows = []
+        return
+      }
+      const drawn = await $.process.run(deltaArgv(size.columns), { stdin: text })
+      // delta leads with the blank row it puts before every hunk.
+      rows = parseAnsi(drawn.stdout, size.columns).slice(1)
     }
 
     refresh = async () => {
@@ -82,18 +133,13 @@ export const register: Register = on => {
       try {
         while (isStale) {
           isStale = false
-          const loaded = await load()
-          if (loaded.note === 'not a git repository') files = []
-          const seen = `${selected}\0${loaded.z}\0${loaded.diff}`
-          if (seen === lastSeen) continue
-          lastSeen = seen
-          note = loaded.note
-          lines = parseDiff(loaded.diff)
+          const seen = JSON.stringify([renderedKey, note, files])
+          await load()
           scrollTo(offset)
-          $.ui.invalidate('ui.render')
+          if (seen !== JSON.stringify([renderedKey, note, files])) $.ui.invalidate('ui.render')
         }
       } catch (error) {
-        note = `git failed: ${error instanceof Error ? error.message : String(error)}`
+        note = `could not read the changes: ${error instanceof Error ? error.message : String(error)}`
         $.ui.invalidate('ui.render')
       } finally {
         isRefreshing = false
@@ -101,6 +147,21 @@ export const register: Register = on => {
     }
 
     $.clock.every(POLL_MS, () => { void refresh() })
+    return next(e)
+  })
+
+  // The poll alone would leave up to two seconds between an edit and the pane following it.
+  on('tool.call', async ($, e, next) => {
+    const result = await next(e)
+    void refresh()
+    return result
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    if (!isFollowing) {
+      isFollowing = true
+      $.ui.invalidate('ui.render')
+    }
     return next(e)
   })
 
@@ -114,8 +175,10 @@ export const register: Register = on => {
     // The other surfaces have no Client, so they keep the bundled panel's own body.
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
     const { Client } = $.ui.resolve(e)
+    const isResized = e.props.bodyColumns !== size.columns
     size = { columns: e.props.bodyColumns, rows: e.props.scroll.bodyRows }
-    if (!isOpen) {
+
+    if (!isOpen || isResized) {
       isOpen = true
       void refresh()
     }
@@ -127,6 +190,7 @@ export const register: Register = on => {
     const fresh = inputs.filter(i => i.n > acked)
     if (fresh.length === 0) return {}
     acked = fresh[fresh.length - 1]!.n
+    isFollowing = false
 
     const select = (index: number) => {
       const file = files[clamp(index, 0, files.length - 1)]
@@ -149,15 +213,7 @@ export const register: Register = on => {
       else if (key === 'K') scrollTo(offset - 1)
       else if (key === 'pagedown') scrollTo(offset + diffRows())
       else if (key === 'pageup') scrollTo(offset - diffRows())
-      else if (key === ' ' || key === 'space') {
-        const file = files[selectedIndex()]
-        if (file) {
-          const staged = await $.process.run(isFullyStaged(file)
-            ? ['git', 'reset', '-q', '--', file.path]
-            : ['git', 'add', '--', file.path])
-          if (staged.exitCode !== 0) await $.ui.toast(staged.stderr.trim() || 'git could not stage that')
-        }
-      } else if (key === 'L') {
+      else if (key === 'L') {
         // setsid -f returns at once and leaves a window that outlives this session.
         await $.process.run(['setsid', '-f', 'ghostty', `--working-directory=${await $.session.cwd()}`, '-e', 'lazygit'])
       }
