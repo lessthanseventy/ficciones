@@ -184,6 +184,10 @@ run = "scripts/manual-gen.sh --check"
 description = "desktop: run a command on a private headless desktop, for agents to act on an app without touching the live one"
 run = "scripts/headless-desktop.sh"
 
+["desktop:headless:test"]
+description = "desktop: prove the private headless desktop starts its own accessibility bus and leaves the live one alone"
+run = "scripts/headless-desktop.test.sh"
+
 ["machine:update"]
 description = "machine: apply the checkout to the live machine — home:switch, then restart the shell and the server"
 run = [
