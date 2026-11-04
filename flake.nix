@@ -521,6 +521,7 @@
               # call re-reads all of it (one week-long session was 40% of a week's tokens at 455k a call).
               # CLAUDE_CODE_PLUGIN_DIRS: the changes pane, which /changes and /diff open, by its store path,
               # since the plugin loader refuses a module reached through a home.file symlink.
+              # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
               home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 cfg="$HOME/.claude/settings.json"
                 if [ -f "$cfg" ]; then
@@ -530,7 +531,8 @@
                        GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
                        GIT_TERMINAL_PROMPT: "0",
                        CLAUDE_CODE_PLUGIN_DIRS: "${./modules/agents/mods/changes-pane}" }
-                     | .autoCompactWindow = 250000' "$cfg" > "$tmp"; then
+                     | .autoCompactWindow = 250000
+                     | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
                     run chmod 600 "$tmp"
                     run mv -f "$tmp" "$cfg"
                   else
