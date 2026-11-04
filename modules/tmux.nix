@@ -2,7 +2,7 @@
 { pkgs, ... }:
 
 let
-  copy = if pkgs.stdenv.isDarwin then "pbcopy" else "wl-copy";
+  copy = if pkgs.stdenv.hostPlatform.isDarwin then "pbcopy" else "wl-copy";
 in
 {
   # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
