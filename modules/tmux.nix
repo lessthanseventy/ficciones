@@ -26,6 +26,13 @@ in
       tmux-thumbs
     ];
     extraConfig = ''
+      # The nix profile on the server's PATH, whatever shell started it: a command a window runs
+      # directly (pram's `claude`) gets this environment and no shell rc, so without it a server
+      # started before the profile existed hides mise and menard's tools for as long as it runs.
+      %if "#{!=:#{m:*:$HOME/.nix-profile/bin:*,:$PATH:},1}"
+      set-environment -g PATH "$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+      %endif
+
       # Extended keys so shift+enter etc. round-trip to apps under tmux (the kitty-
       # protocol gap the worklist flagged). Apps negotiate their own encoding above this.
       # csi-u format: the most reliably decoded encoding for the agent TUIs.
