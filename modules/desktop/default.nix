@@ -229,7 +229,6 @@ in
       zenith
       lnav
       flyctl
-      mise
       # pandoc from the binary cache — pacman's built it locally through ~190 haskell-* packages
       pandoc
       signal-desktop
@@ -277,7 +276,7 @@ in
       playerctl
       bluetui
       # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform's
-      # stylua and shfmt come from modules/write-checks.nix
+      # stylua and shfmt come from modules/menard-host.nix
       tree-sitter
       lazydocker
       lazysql

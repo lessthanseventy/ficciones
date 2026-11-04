@@ -349,7 +349,7 @@
         modules = [
           ./modules/mac
           ./modules/tmux.nix
-          ./modules/write-checks.nix
+          ./modules/menard-host.nix
           {
             home.username = "anmoore";
             home.homeDirectory = "/Users/anmoore";
@@ -368,7 +368,7 @@
           # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
           ./modules/desktop
           ./modules/tmux.nix
-          ./modules/write-checks.nix
+          ./modules/menard-host.nix
           # agenix: decrypt age secrets at activation with the box's ssh key (identityPaths
           # defaults to ~/.ssh/id_ed25519 — ours). See the age.secrets block below.
           agenix.homeManagerModules.default
