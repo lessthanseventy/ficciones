@@ -25,7 +25,7 @@ const switchedOff = url => settings.paused || settings.off.includes(hostOf(url))
 async function repaint(tab, state) {
   const off = switchedOff(tab.url);
   try {
-    await browser.tabs.sendMessage(tab.id, off ? { clear: true } : state);
+    await browser.tabs.sendMessage(tab.id, { ficciones: off ? { clear: true } : state });
   } catch {
     if (off || themedBySheet(tab.url, state.domains)) return;
     const inject = opts => browser.tabs.executeScript(tab.id, { allFrames: true, ...opts });

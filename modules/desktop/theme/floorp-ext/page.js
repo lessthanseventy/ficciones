@@ -45,4 +45,7 @@ function paint(s) {
   document.documentElement.append(sheet);
 }
 
-browser.runtime.onMessage.addListener(paint);
+// Dark Reader hands its own fetch replies to every runtime.onMessage listener on the page
+browser.runtime.onMessage.addListener(message => {
+  if (message.ficciones) paint(message.ficciones);
+});
