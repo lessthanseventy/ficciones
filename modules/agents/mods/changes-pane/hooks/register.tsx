@@ -12,7 +12,7 @@ const MAX_LIST_ROWS = 8
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
-const HINT = 'click to hold · Esc to prompt · j/k file · J/K scroll · L lazygit · send a prompt to follow'
+const HINT = 'click to hold · Esc to prompt · j/k file · J/K scroll · L lazygit · prompt to follow'
 const OPEN = { id: PANE, title: 'Changes' }
 
 type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
