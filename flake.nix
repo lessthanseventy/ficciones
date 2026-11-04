@@ -346,6 +346,7 @@
       # bare `home-manager switch --flake .` there picks it.
       homeConfigurations.anmoore = home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        extraSpecialArgs.expertPackages = inputs.expert.packages;
         modules = [
           ./modules/mac
           ./modules/tmux.nix
@@ -363,7 +364,10 @@
       # without touching the OS. Carries the tlon service and the Claude Code wiring.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        extraSpecialArgs = { inherit repo tlonRepo astalShell; };
+        extraSpecialArgs = {
+          inherit repo tlonRepo astalShell;
+          expertPackages = inputs.expert.packages;
+        };
         modules = [
           # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
           ./modules/desktop
@@ -406,12 +410,10 @@
 
               # watchexec backs scripts/watch.sh's change-triggered test runner. LSP servers for
               # tlon's adapters/lsp (hover/definition/references/diagnostics as agent tools) — all
-              # flake-managed so the next box gets them, including Expert (the Elixir LSP, expert-lsp.org — NOT
-              # elixir-ls; built from its own flake input, since it's not
-              # in nixpkgs). The adapter registry in tlon's adapters/lspd/src/adapters.ts spawns these
-              # by name — adding a language is an adapter object + usually a package here.
+              # flake-managed so the next box gets them (Expert, the Elixir one, comes with
+              # modules/menard-host.nix). The adapter registry in tlon's adapters/lspd/src/adapters.ts
+              # spawns these by name — adding a language is an adapter object + usually a package here.
               home.packages = [
-                expert
                 dbx
                 pkgs.watchexec
                 pkgs.worktrunk
