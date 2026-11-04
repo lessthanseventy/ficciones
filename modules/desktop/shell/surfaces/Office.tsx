@@ -76,10 +76,13 @@ async function loadThreadView() {
   if (my === viewing) setTview(v)
 }
 let loading = 0
+let fetching = 0
 async function loadBrief() {
   const id = picked.peek()
   const my = ++loading
+  fetching++
   const d = id === null ? null : await dossier(id)
+  fetching--
   if (my === loading) setBrief(d)
 }
 picked.subscribe(loadBrief)
@@ -794,7 +797,7 @@ export default function Office() {
     return false
   } })
   // a fresh brief on every poll, so a reply's answer shows up while the rail is open
-  agents.subscribe(() => { if (officeWin?.visible) loadBrief() })
+  agents.subscribe(() => { if (officeWin?.visible && !fetching) loadBrief() })
   return (
     <window
       $={(self) => {
