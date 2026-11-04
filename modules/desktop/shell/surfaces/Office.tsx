@@ -1,9 +1,10 @@
 // The office: a rail on the right (the deck's agents cell toggles it, `astal-shell toggle office`)
-// with one workspace at a glance (what waits on you, who is working, the board's counts), then the
+// with one workspace at a glance (what waits on you, then its floor plan, lib/floor.ts), then the
 // action card (hand a ticket to a coworker, file a ticket, hire) or the picked thread: a prompt's
 // options as buttons, a reply line, its brief. ‹ › walks the workspaces.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
+import Cairo from "cairo"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
@@ -14,7 +15,11 @@ import { execAsync } from "ags/process"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
 import { agents, dossier, threadView, post, ticketRoute, closeThread, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, shiftSwitch, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
-import { COLS, STATUS_ORDER, boardColumns, busiest, crewOf, statusGlyph, viewOf, type BoardItem, type Crew } from "../office/kit/crew"
+import { boardColumns, busiest, crewOf, viewOf, type Act, type BoardItem, type Crew } from "../office/kit/crew"
+import type { Hit } from "../office/kit/canvas"
+import { W, floorSize } from "../lib/floor"
+import { S, paintFloor } from "../lib/floor-paint"
+import { theme } from "../lib/theme"
 import { ROLE } from "../lib/palette"
 import { Panel } from "../lib/tui"
 import { hhmm } from "../lib/format"
@@ -113,7 +118,7 @@ const pickedTitle = createComputed(() => {
 })
 
 /** a click on someone: the one a ticket or a thread is being handed to, else their card and thread */
-function clickPerson(c: Crew) {
+function clickPerson(c: Pick<Crew, "name" | "thread">) {
   const m = mode.peek(), b = view.peek().bench.find((x) => x.name === c.name)
   if (m.kind === "ticket" && b) setMode({ kind: "confirm", id: m.id, agentId: b.agent_id, name: c.name })
   else if (m.kind === "handoff") setMode({ kind: "confirm-handoff", tid: m.tid, name: c.name })
@@ -124,17 +129,48 @@ function clickPerson(c: Crew) {
 }
 const toggle = (next: Mode) => setMode(JSON.stringify(mode.peek()) === JSON.stringify(next) ? { kind: "none" } : next)
 
-/** the rail's fixed top: what waits on you, who is at work, the board's counts */
+function act(x: Act) {
+  if (x.kind === "person") clickPerson({ name: x.name, thread: x.tid })
+  else if (x.kind === "column") toggle({ kind: "column", col: x.col })
+  else if (x.kind === "ticket") toggle({ kind: "ticket", id: x.id })
+  else if (x.kind === "thread") { setMode({ kind: "none" }); setPicked(x.tid) }
+}
+
+/** the floor plan: drawn when the snapshot or what is picked changes, and at no other time */
+function Floor() {
+  let area: Gtk.DrawingArea | null = null
+  let hits: Hit[] = []
+  const hitAt = (x: number, y: number) => hits.find((h) => x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h)
+  const draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number) => {
+    const m = mode.peek(), a = view.peek()
+    const person = m.kind === "coworker" ? a.bench.find((c) => c.agent_id === m.agentId)?.name ?? null : null
+    hits = paintFloor(cr, w, a, wsId.peek(), { picked: picked.peek(), person })
+  }
+  const redraw = () => area?.queue_draw()
+  view.subscribe(redraw); picked.subscribe(redraw); theme.subscribe(redraw); mode.subscribe(redraw)
+  return (
+    <Gtk.DrawingArea
+      widthRequest={W * S}
+      heightRequest={createComputed(() => floorSize(view(), wsId()) * S)}
+      hasTooltip
+      $={(self) => {
+        area = self
+        self.set_draw_func(draw)
+        const click = new Gtk.GestureClick({ button: 1 })
+        // a click on nothing is the way home: whatever was open closes
+        click.connect("pressed", (_, _n, x, y) => { const h = hitAt(x, y); if (h) act(h.act); else { setMode({ kind: "none" }); setPicked(null) } })
+        self.add_controller(click)
+        const motion = new Gtk.EventControllerMotion()
+        motion.connect("motion", (_, x, y) => self.set_cursor_from_name(hitAt(x, y) ? "pointer" : null))
+        self.add_controller(motion)
+        self.connect("query-tooltip", (_, x, y, _kb, tip) => { const h = hitAt(x, y); if (!h) return false; tip.set_text(h.tip); return true })
+      }}
+    />
+  )
+}
+
+/** the rail's fixed top: what waits on you, the floor plan, your desk */
 function Glance() {
-  const crew = view((a) => crewOf(a))
-  const board = view((a) => boardColumns(a))
-  // handing work out needs everyone on the list; otherwise an idle coworker is only a count
-  const shown = createComputed(() => {
-    const everyone = ["ticket", "handoff"].includes(mode().kind)
-    return crew().filter((c) => everyone || c.status === "working" || c.status === "waiting")
-      .sort((x, y) => STATUS_ORDER.indexOf(x.status) - STATUS_ORDER.indexOf(y.status))
-  })
-  const working = crew((l) => l.filter((c) => c.status === "working").length)
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <label cssClasses={inbox((l) => (l.length ? ["pink"] : ["dim"]))} xalign={0} label={inbox((l) => (l.length ? `${l.length} waiting on you` : "nothing waits on you"))} />
@@ -150,33 +186,11 @@ function Glance() {
           )}
         </For>
       </box>
-      <button cssClasses={["row", "thread-row"]} tooltipText="the whole crew" onClicked={() => toggle({ kind: "crew" })}>
-        <label cssClasses={["dim"]} xalign={0} label={createComputed(() => `crew · ${working()} working of ${crew().length}`)} />
-      </button>
-      <box orientation={Gtk.Orientation.VERTICAL}>
-        <For each={shown}>
-          {(c: Crew) => (
-            <button cssClasses={picked((p) => ["row", "thread-row", ...(p !== null && p === c.thread ? ["chip"] : [])])} onClicked={() => clickPerson(c)}>
-              <box spacing={8}>
-                <label cssClasses={[c.status === "working" ? "st-working" : c.status === "waiting" ? "pink" : "dim"]} label={statusGlyph(c.status)} />
-                <label label={c.name} xalign={0} widthChars={9} />
-                <label cssClasses={["dim", "sm"]} label={c.title} xalign={0} hexpand ellipsize={3} maxWidthChars={GLANCE_CHARS - 12} />
-              </box>
-            </button>
-          )}
-        </For>
+      <Floor />
+      <box spacing={6} homogeneous>
+        <button cssClasses={["act"]} tooltipText="the whole crew, as a list" onClicked={() => toggle({ kind: "crew" })}><label label="crew" /></button>
+        <button cssClasses={["act"]} tooltipText="your desk: hire, new ticket, notes, the crew" onClicked={() => toggle({ kind: "boss" })}><label label="desk" /></button>
       </box>
-      <box homogeneous spacing={2}>
-        {COLS.map((name, col) => (
-          <button cssClasses={mode((m) => ["row", "thread-row", ...(m.kind === "column" && m.col === col ? ["chip"] : [])])} onClicked={() => toggle({ kind: "column", col })}>
-            <box orientation={Gtk.Orientation.VERTICAL}>
-              <label label={board((c) => String(c[col]?.items.length ?? 0))} />
-              <label cssClasses={["dim", "sm"]} label={name.toLowerCase()} />
-            </box>
-          </button>
-        ))}
-      </box>
-      <button cssClasses={["act"]} tooltipText="your desk: hire, new ticket, notes, the crew" onClicked={() => toggle({ kind: "boss" })}><label label="desk" /></button>
     </box>
   )
 }

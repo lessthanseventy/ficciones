@@ -137,7 +137,7 @@ export async function refreshAgents() {
     const j: any = await res.json()
     next = {
       ok: true, roster: j.roster ?? [], threads: j.threads ?? [], counts: j.counts ?? {}, awaiting: j.awaiting ?? 0,
-      bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], shifts: j.shifts ?? [], archetypes: j.archetypes ?? [], models: j.models ?? [], notes: j.notes ?? [], visits: j.visits ?? [], triage: j.triage ?? {}, health: j.health ?? null, calendar: j.calendar ?? {},
+      bench: j.bench ?? [], projects: j.projects ?? [], tickets: j.tickets ?? [], workspaces: j.workspaces ?? [], shifts: j.shifts ?? [], archetypes: j.archetypes ?? [], models: j.models ?? [], notes: j.notes ?? [], visits: j.visits ?? [], triage: j.triage ?? {}, health: j.health ?? null, calendar: j.calendar ?? {}, usage: j.usage, pause: j.pause, ticket_open: j.ticket_open, ticket_week: j.ticket_week,
     }
   } catch {
     if (last?.ok) logEvent("agent", "channel down", "warn")
