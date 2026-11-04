@@ -274,7 +274,11 @@ builtins.concatStringsSep "\n" [
       /* a folder with unread mail is occupied; the one you are in is inverse video */
       .zmTreeCount { color: ${hex r.attention} !important; }
       .zmTreeNode .zmBold { color: ${hex r.live} !important; }
+      .zmTreeNode.zmCurTree { background-color: ${hex r.cursorField} !important; }
       .zmTreeNode.zmCurTree, .zmTreeNode.zmCurTree * { color: ${hex r.fieldInk} !important; }
+      .zmNewBtn, .zmNewBtn *, [class*="zmbtn--filled__"][class*="zmbtn--primary__"], [class*="zmbtn--filled__"][class*="zmbtn--primary__"] * {
+        color: ${hex r.fieldInk} !important;
+      }
 
       [class*="zmail-body__"] *, [class*="zmail-body__"] {
         background-color: transparent !important;
@@ -416,12 +420,21 @@ builtins.concatStringsSep "\n" [
         --ds-background-information: ${hex r.ground} !important; --ds-background-information-bold: ${hex r.accentField} !important;
         --ds-background-discovery: ${hex r.ground} !important; --ds-background-discovery-bold: ${hex r.attentionField} !important;
         --ds-blanket: ${hex r.ground}cc !important;
+        --ds-background-information-hovered: ${hex r.raised} !important; --ds-background-information-pressed: ${hex r.edge} !important;
+        --ds-background-discovery-hovered: ${hex r.raised} !important; --ds-background-discovery-pressed: ${hex r.edge} !important;
+        --ds-background-success-hovered: ${hex r.raised} !important; --ds-background-success-pressed: ${hex r.edge} !important;
+        --ds-background-warning-hovered: ${hex r.raised} !important; --ds-background-warning-pressed: ${hex r.edge} !important;
+        --ds-background-danger-hovered: ${hex r.raised} !important; --ds-background-danger-pressed: ${hex r.edge} !important;
+        --ds-background-brand-subtlest-hovered: ${hex r.raised} !important; --ds-background-brand-subtlest-pressed: ${hex r.edge} !important;
         font-family: ${fontStack} !important;
   '' + builtins.concatStringsSep "" (map ({ name, hue }: ''
         --ds-text-accent-${name}: ${hex hue} !important; --ds-text-accent-${name}-bolder: ${hex hue} !important;
         --ds-icon-accent-${name}: ${hex hue} !important; --ds-border-accent-${name}: ${hex hue} !important;
         --ds-background-accent-${name}-subtlest: ${hex r.ground} !important; --ds-background-accent-${name}-subtler: ${hex r.ground} !important;
         --ds-background-accent-${name}-subtle: ${hex r.ground} !important; --ds-background-accent-${name}-bolder: ${hex hue} !important;
+        --ds-background-accent-${name}-subtlest-hovered: ${hex r.raised} !important; --ds-background-accent-${name}-subtlest-pressed: ${hex r.edge} !important;
+        --ds-background-accent-${name}-subtler-hovered: ${hex r.raised} !important; --ds-background-accent-${name}-subtler-pressed: ${hex r.edge} !important;
+        --ds-background-accent-${name}-subtle-hovered: ${hex r.raised} !important; --ds-background-accent-${name}-subtle-pressed: ${hex r.edge} !important;
   '') [
     { name = "blue"; hue = r.key; }
     { name = "teal"; hue = r.key; }
@@ -440,6 +453,8 @@ builtins.concatStringsSep "\n" [
       h1, h2, h3, h4, h5, h6 { color: ${hex r.attention} !important; }
       a:link:not([role=button]) { color: ${hex r.key} !important; }
       a:visited:not([role=button]) { color: ${hex r.visited} !important; }
+      [data-testid*="lozenge" i], [class*="lozenge" i] { background-color: ${hex r.ground} !important; }
+      [data-testid*="lozenge" i], [data-testid*="lozenge" i] *, [class*="lozenge" i], [class*="lozenge" i] * { color: ${hex r.key} !important; }
       .aui-header { background-color: ${hex r.ground} !important; border-bottom: 1px solid ${hex r.menuGround} !important; }
       #onetrust-banner-sdk, #onetrust-pc-btn-handler { background-color: ${hex r.card} !important; color: ${hex r.body} !important; }
       #onetrust-banner-sdk * { color: ${hex r.body} !important; }
