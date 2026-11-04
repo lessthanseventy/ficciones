@@ -188,6 +188,8 @@ in
       glow direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wlrctl wev pamixer playerctl bluetui
       # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform formats lua/sh
       tree-sitter stylua shfmt
+      # menard's write check on .nix (Menard.Lang): the formatter and the linter
+      nixfmt statix
       lazydocker lazysql lazyjournal lazyssh
       # the agent CLIs and their tooling, off pacman (survey 2026-09-07); ollama stays pacman's
       # ollama-cuda (the GPU build), plocate pacman's (its updatedb timer is a system unit)
