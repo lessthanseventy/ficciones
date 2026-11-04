@@ -219,6 +219,14 @@ export const register: Register = on => {
     return <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" />
   })
 
+  // The body never overflows: the view draws its own window of rows, so the wheel moves that.
+  on('ui.scroll', { requestId: PANE }, async ($, e) => {
+    isFollowing = false
+    scrollTo(offset + e.by)
+    $.ui.invalidate('ui.render')
+    return {}
+  })
+
   on('ui.message', { requestId: PANE }, async ($, e) => {
     const { inputs } = e.data as { inputs: Input[] }
     const fresh = inputs.filter(i => i.n > acked)

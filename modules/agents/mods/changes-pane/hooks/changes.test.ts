@@ -187,3 +187,16 @@ test('a control character in a file or its name cannot break the view', async ($
   expect(await ui.find({ text: /^a·\.ts$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /y·/, in: 'changes' })).toBeDefined()
 })
+
+test('the wheel moves the diff under its header, and holds it', async ($, on) => {
+  mock.clock(on)
+  const added = Array.from({ length: 60 }, (_, i) => `+l${i + 1}`).join('\n')
+  repo(on, `diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -0,0 +1,60 @@\n${added}\n`, ' M a.ts\0')
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /\+l1\b/, in: 'changes' })).toBeDefined()
+  await $.ui.scroll({ component: 'Pane', requestId: 'changes', offset: 10, by: 10, bodyRows: 30, contentRows: 30, origin: { kind: 'person' } } as never)
+  expect(await ui.find({ text: /\+l1\b/, in: 'changes' })).toBeUndefined()
+  expect(await ui.find({ text: /\+l20\b/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
+})
