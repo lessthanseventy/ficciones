@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <style>
       body {
-        min-width: 280px;
+        min-width: 340px;
         margin: 0;
         padding: 12px;
         background: var(--ground);
@@ -45,6 +45,53 @@
       [hidden] {
         display: none !important;
       }
+      h2 {
+        margin: 14px 0 4px;
+        padding-top: 10px;
+        border-top: 1px solid var(--body);
+        font-size: 1em;
+        color: var(--heading);
+      }
+      #dials label {
+        display: grid;
+        grid-template-columns: 7em 1fr 3em;
+        gap: 8px;
+        align-items: center;
+      }
+      #dials input {
+        width: 100%;
+        margin: 0;
+      }
+      #dials output {
+        text-align: right;
+      }
+      button {
+        padding: 4px 10px;
+        background: var(--ground);
+        color: var(--link);
+        border: 1px solid var(--link);
+        font: inherit;
+      }
+      ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 0;
+        overflow-wrap: anywhere;
+      }
+      summary {
+        margin-top: 10px;
+        color: var(--link);
+      }
+      [hidden] {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
@@ -53,6 +100,18 @@
     <label id="siteRow"><input type="checkbox" id="site" /> <span>Recolour <span id="host"></span></span></label>
     <div id="note" hidden></div>
     <label><input type="checkbox" id="all" /> Recolour all sites</label>
+    <h2>Adjust</h2>
+    <div id="dials"></div>
+    <label id="justRow"><input type="checkbox" id="just" /> Just for this site</label>
+    <button id="reset">Reset</button>
+    <section id="offSection" hidden>
+      <h2>Switched off</h2>
+      <ul id="offList"></ul>
+    </section>
+    <details>
+      <summary>Sites with their own theme</summary>
+      <ul id="themedList"></ul>
+    </details>
     <script src="popup.js"></script>
   </body>
 </html>

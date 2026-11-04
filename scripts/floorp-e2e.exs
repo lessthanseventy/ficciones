@@ -272,6 +272,89 @@ code =
     M.wait("and it flips with the theme", "rgb(17, 34, 51)", pageBg)
     M.call(s, "WebDriver:Navigate", %{url: page <> "meta"})
     M.wait("a policy in a meta tag too", "rgb(17, 34, 51)", pageBg)
+
+    send = fn message ->
+      switch.(menuTab)
+
+      M.call(s, "WebDriver:ExecuteAsyncScript", %{
+        script:
+          "const done = arguments[arguments.length - 1]; window.browser.runtime.sendMessage(#{JSON.encode!(message)}).then(() => done(1));",
+        args: []
+      })
+
+      M.call(s, "WebDriver:Navigate", %{url: menu})
+    end
+
+    menuSays = fn what, want, script ->
+      switch.(menuTab)
+      M.wait(what, want, fn -> "#{M.js(s, script)}" end)
+    end
+
+    menuSays.(
+      "the menu has every dial",
+      "brightness contrast sepia grayscale textStroke",
+      ~s|return [...document.querySelectorAll("#dials input")].map(i => i.id).join(" ")|
+    )
+
+    full = "rgb(17, 34, 51)"
+    dim = "rgb(9, 17, 26)"
+    other = "http://localhost:#{http_port}/"
+
+    send.(%{tune: %{brightness: 50}})
+    switch.(pageTab)
+    M.wait("the brightness dial dims the open page", dim, pageBg)
+    M.call(s, "WebDriver:Navigate", %{url: other})
+    M.wait("and every other site", dim, pageBg)
+    send.(%{reset: true})
+    switch.(pageTab)
+    M.wait("reset puts it back", full, pageBg)
+
+    send.(%{tune: %{textStroke: 0.5}})
+    switch.(pageTab)
+
+    M.wait("the text weight dial thickens the text", "0.5px", fn ->
+      M.js(
+        s,
+        ~s|return getComputedStyle(document.body).getPropertyValue("-webkit-text-stroke-width")|
+      )
+    end)
+
+    send.(%{reset: true})
+
+    send.(%{host: "localhost", tune: %{brightness: 50}})
+    switch.(pageTab)
+    M.wait("a dial for just this site dims it", dim, pageBg)
+    M.call(s, "WebDriver:Navigate", %{url: page})
+    M.wait("and leaves another site alone", full, pageBg)
+    send.(%{host: "localhost", reset: true})
+
+    send.(%{host: "example.test", off: true})
+    firstOff = ~s|return document.querySelector("#offList button")?.dataset.host \|\| "none"|
+    menuSays.("the menu lists a site switched off", "example.test", firstOff)
+    M.js(s, ~s|document.querySelector("#offList button").click()|)
+    menuSays.("its button turns it back on", "none", firstOff)
+
+    # the menu reads the active tab, so a background menu tab can be pointed at any page
+    showFor = fn tab ->
+      M.call(s, "WebDriver:SwitchToWindow", %{handle: tab, focus: true})
+      M.call(s, "WebDriver:SwitchToWindow", %{handle: menuTab, focus: false})
+      M.js(s, ~s|document.getElementById("all").click(); document.getElementById("all").click()|)
+    end
+
+    showFor.(pageTab)
+
+    M.wait("over a site the menu names it", "127.0.0.1", fn ->
+      M.js(s, ~s|return document.getElementById("host").textContent|)
+    end)
+
+    switch.(pageTab)
+    M.call(s, "WebDriver:Navigate", %{url: "about:blank"})
+    showFor.(pageTab)
+
+    M.wait("over a page it cannot read it still draws", "true", fn ->
+      "#{M.js(s, ~s|return document.getElementById("siteRow").hidden|)}"
+    end)
+
     IO.puts("PASS")
     0
   rescue

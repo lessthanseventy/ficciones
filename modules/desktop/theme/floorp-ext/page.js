@@ -5,7 +5,12 @@ DarkReader.setFetchMethod(url => fetch(url));
 // Dark Reader can miss the rule that colours the page itself, and a white body is the worst of what
 // it misses. A frame stays out of it: many are see-through on purpose.
 const pageGround = s =>
-  window === top ? `html, body { background-color: ${s.ground} !important; color: ${s.body} !important; }` : "";
+  window === top
+    ? `html, body {
+        background-color: var(--darkreader-neutral-background, ${s.ground}) !important;
+        color: var(--darkreader-neutral-text, ${s.body}) !important;
+      }`
+    : "";
 
 // Dark Reader keeps a page's own hues, which on black are often unreadable blues, and has no say
 // in what a link is. The darkreader class stops it recolouring the <style> these go in.
@@ -25,9 +30,8 @@ function paint(s) {
   if (s.clear) return;
   DarkReader.enable({
     mode: s.light ? 0 : 1,
-    brightness: 100,
-    contrast: 100,
-    sepia: 0,
+    ...s.tune,
+    ...s.sites[location.hostname],
     darkSchemeBackgroundColor: s.ground,
     darkSchemeTextColor: s.body,
     lightSchemeBackgroundColor: s.ground,

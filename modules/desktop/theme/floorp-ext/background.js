@@ -1,7 +1,8 @@
 "use strict";
 let registered = null;
 let theme = null;
-let settings = { paused: false, off: [] };
+const NEUTRAL = { brightness: 100, contrast: 100, sepia: 0, grayscale: 0, textStroke: 0 };
+let settings = { paused: false, off: [], tune: NEUTRAL, sites: {} };
 let applying = browser.storage.local.get(settings).then(stored => (settings = stored));
 const FILES = ["darkreader.js", "page.js"];
 
@@ -43,7 +44,7 @@ function setIcon(state) {
 }
 
 async function apply() {
-  const state = theme;
+  const state = { ...theme, tune: settings.tune, sites: settings.sites };
   const old = registered;
   // the palette goes in as code, not a message: a message would arrive after first paint
   registered = settings.paused
@@ -73,10 +74,15 @@ browser.ficciones.onTheme.addListener(state => {
 
 browser.runtime.onMessage.addListener(message => {
   if (message.ask) return Promise.resolve({ theme, ...settings });
+  const { host, tune, reset } = message;
   if ("paused" in message) settings.paused = message.paused;
-  if ("host" in message) {
-    settings.off = settings.off.filter(host => host !== message.host);
-    if (message.off) settings.off.push(message.host);
+  if ("off" in message) {
+    settings.off = settings.off.filter(site => site !== host);
+    if (message.off) settings.off.push(host);
   }
+  if (tune && host) settings.sites[host] = { ...settings.sites[host], ...tune };
+  else if (tune) settings.tune = { ...settings.tune, ...tune };
+  if (reset && host) delete settings.sites[host];
+  else if (reset) settings.tune = NEUTRAL;
   return browser.storage.local.set(settings).then(reapply);
 });
