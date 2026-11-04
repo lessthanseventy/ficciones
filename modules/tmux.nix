@@ -17,6 +17,7 @@ in
     baseIndex = 1;
     historyLimit = 50000;
     mouse = true;
+    focusEvents = true;
     terminal = "tmux-256color";
     plugins = with pkgs.tmuxPlugins; [
       resurrect
