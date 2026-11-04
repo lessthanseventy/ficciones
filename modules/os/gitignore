@@ -6,6 +6,7 @@ assets/.prettierrc.js
 .sisyphus/ 
 TRASH/
 TRASH-FILES.md
+.worktrees/
 
 **/.claude/settings.local.json
 

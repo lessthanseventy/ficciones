@@ -1,0 +1,2 @@
+# Inside the repo, where tlon keeps its threads' checkouts and a sandbox can write; wt's default sibling directory is outside both.
+worktree-path = "{{ repo_path }}/.worktrees/{{ branch | sanitize }}"

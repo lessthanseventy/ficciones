@@ -68,6 +68,31 @@
       # Expert, from its flake input (above).
       expert = inputs.expert.packages.${system}.expert;
 
+      # agent-browser, on the flake's own Chromium so it needs no `agent-browser install` download.
+      agentBrowser = pkgs.writeShellScriptBin "agent-browser" ''
+        export AGENT_BROWSER_EXECUTABLE_PATH="''${AGENT_BROWSER_EXECUTABLE_PATH:-${pkgs.chromium}/bin/chromium}"
+        exec ${pkgs.agent-browser}/bin/agent-browser "$@"
+      '';
+
+      # agent-desktop (github.com/vercel-labs/agent-desktop) is not in nixpkgs. The release binary is
+      # kept unpatched like dbx's CLI, and its clipboard helper has to stay beside it.
+      agentDesktop = pkgs.stdenv.mkDerivation rec {
+        pname = "agent-desktop";
+        version = "1.1.0";
+        src = pkgs.fetchurl {
+          url = "https://github.com/vercel-labs/agent-desktop/releases/download/v${version}/agent-desktop-v${version}-x86_64-unknown-linux-gnu.tar.gz";
+          hash = "sha256-773PTK8QEy5P6RXbHsZDGEyUfGXgURhFrrSDlEXX6kM=";
+        };
+        sourceRoot = ".";
+        dontStrip = true;
+        dontPatchELF = true;
+        installPhase = ''
+          runHook preInstall
+          install -Dm755 -t $out/bin agent-desktop agent-desktop-linux-clipboard-owner
+          runHook postInstall
+        '';
+      };
+
       # dbx (github.com/t8y2/dbx) — the database GUI, plus its CLI (same store, for agents).
       # Its own flake builds Tauri from source with no binary cache, so the prebuilt AppImage is
       # wrapped instead; the CLI is the prebuilt binary from its npm platform package, kept
@@ -393,6 +418,8 @@
                 dbx
                 pkgs.watchexec
                 pkgs.worktrunk
+                agentBrowser
+                agentDesktop
                 pkgs.typescript-language-server
                 pkgs.nil
                 pkgs.bash-language-server
@@ -425,6 +452,9 @@
 
               # The four working rules (modules/agents/how-to-work.md), as Claude Code's global CLAUDE.md.
               home.file.".claude/CLAUDE.md".source = ./modules/agents/how-to-work.md;
+              home.file.".claude/skills/agent-desktop/SKILL.md".source = ./modules/agents/skills/agent-desktop/SKILL.md;
+              home.file.".claude/skills/agent-browser/SKILL.md".source = ./modules/agents/skills/agent-browser/SKILL.md;
+              xdg.configFile."worktrunk/config.toml".source = ./modules/agents/worktrunk.toml;
               # Claude Code's shells read these (settings.json: env.ZDOTDIR = ~/.claude/zsh): the user's
               # .zshenv and .zprofile, then a lean rc in place of ~/.zshrc's ~14k-line snapshot
               home.file.".claude/zsh/.zshenv".source = ./modules/agents/zsh/zshenv;

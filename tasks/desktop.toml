@@ -149,7 +149,10 @@ run = "journalctl --user -u astal-shell.service -f"
 
 ["home:switch"]
 description = "machine: apply the home-manager profile"
-run = "nix run github:nix-community/home-manager -- switch --flake .#personalbox -b backup"
+run = [
+  "nix run github:nix-community/home-manager -- switch --flake .#personalbox -b backup",
+  "scripts/worktrunk-plugin.sh",
+]
 
 # Home-manager can't own a root service on Arch, so the config comes from ivysaur's services.keyd
 # (the one source) and this installs it. Rerun after changing it.
@@ -176,6 +179,10 @@ run = "scripts/manual-gen.sh"
 ["manual:check"]
 description = "manual: fail if a generated manual page drifts from its source (run manual:gen)"
 run = "scripts/manual-gen.sh --check"
+
+["desktop:headless"]
+description = "desktop: run a command on a private headless desktop, for agents to act on an app without touching the live one"
+run = "scripts/headless-desktop.sh"
 
 ["machine:update"]
 description = "machine: apply the checkout to the live machine — home:switch, then restart the shell and the server"
