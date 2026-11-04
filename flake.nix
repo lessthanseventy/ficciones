@@ -522,6 +522,8 @@
               # CLAUDE_CODE_PLUGIN_DIRS: the changes pane, which /changes and /diff open, by its store path,
               # since the plugin loader refuses a module reached through a home.file symlink.
               # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
+              # diffSidebarOpen off, in ~/.claude.json: the app's own diff panel opens on an edit otherwise,
+              # and while it shows the dock gets no columns, so that pane has nowhere to draw.
               home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 cfg="$HOME/.claude/settings.json"
                 if [ -f "$cfg" ]; then
@@ -535,6 +537,16 @@
                      | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
                     run chmod 600 "$tmp"
                     run mv -f "$tmp" "$cfg"
+                  else
+                    rm -f "$tmp"
+                  fi
+                fi
+                state="$HOME/.claude.json"
+                if [ -f "$state" ]; then
+                  tmp=$(mktemp)
+                  if ${pkgs.jq}/bin/jq '.diffSidebarOpen = false' "$state" > "$tmp"; then
+                    run chmod 600 "$tmp"
+                    run mv -f "$tmp" "$state"
                   else
                     rm -f "$tmp"
                   fi
