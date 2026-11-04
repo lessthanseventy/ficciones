@@ -5,6 +5,18 @@
 # talk its way past, not a request in a brief. A human terminal has no TLON_THREAD and is
 # unaffected. Shared by every worktree through core.hooksPath.
 set -u
+
+# A commit touching what the manual is generated from must carry the regenerated pages. Without the
+# tools (a coworker's PATH lacks mise) it stands aside and `mise run check` still catches the drift.
+if git diff --cached --name-only |
+	grep -qE '^(tasks/|mise\.toml$|modules/desktop/hypr/hyprland\.lua$|modules/desktop/theme/palettes/|scripts/manual-gen\.sh$|docs/manual/(keys|tasks|palette)\.md$)' &&
+	command -v mise >/dev/null && command -v python3 >/dev/null && command -v nix >/dev/null; then
+	scripts/manual-gen.sh --check || {
+		echo "pre-commit: run mise run manual:gen and stage docs/manual" >&2
+		exit 1
+	}
+fi
+
 [ -n "${TLON_THREAD:-}" ] || exit 0
 branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || echo DETACHED)"
 case "$branch" in

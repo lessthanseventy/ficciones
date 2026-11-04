@@ -136,6 +136,7 @@ exists so a reader of the repo knows where the law comes from and edits the one 
 ## Verify
 
 `mise run check` is the gate: the names gate, the cap hook's test, the manual's drift check and `flake:check` (Nix).
+The pre-commit hook also refuses a commit that touches the manual's sources while the manual drifts.
 `mise run check:names` (first in it) checks that every mise task a guide, script or `flake.nix` names
 exists — a rename that
 strands a reference fails here instead of at 2am. A claim that something works is backed by the
