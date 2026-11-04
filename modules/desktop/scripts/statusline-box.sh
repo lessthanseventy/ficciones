@@ -9,15 +9,21 @@
 CPL=/home/andrew/.local/share/mise/shims/claude-powerline
 THEME="${XDG_CONFIG_HOME:-$HOME/.config}/ficciones/theme"
 [ -r "$THEME/palette.sh" ] && . "$THEME/palette.sh"
-rgb() { local h="${1#\#}"; printf '\033[38;2;%d;%d;%dm' "0x${h:0:2}" "0x${h:2:2}" "0x${h:4:2}"; }
+rgb() {
+	local h="${1#\#}"
+	printf '\033[38;2;%d;%d;%dm' "0x${h:0:2}" "0x${h:2:2}" "0x${h:4:2}"
+}
 BORDER=$(rgb "${PALETTE_AMBER:-FFB000}")
-LIVE=$(rgb "${PALETTE_GREEN:-33FF00}"); WARM=$(rgb "${PALETTE_CHIP:-FFD000}"); HOT=$(rgb "${PALETTE_RED:-FF5555}"); PINK=$(rgb "${PALETTE_PINK:-E0218A}")
+LIVE=$(rgb "${PALETTE_GREEN:-33FF00}")
+WARM=$(rgb "${PALETTE_CHIP:-FFD000}")
+HOT=$(rgb "${PALETTE_RED:-FF5555}")
+PINK=$(rgb "${PALETTE_PINK:-E0218A}")
 RESET=$'\033[0m'
 
 input=$(cat)
-raw=$(printf '%s' "$input" | "$CPL" 2>/dev/null \
-  | sed -e 's/◔/󰧑  ctx/g' -e 's/◱/⏱  5h/g' -e 's/◑/▦  wk/g')
-mapfile -t L <<< "$raw"
+raw=$(printf '%s' "$input" | "$CPL" 2>/dev/null |
+	sed -e 's/◔/󰧑  ctx/g' -e 's/◱/⏱  5h/g' -e 's/◑/▦  wk/g')
+mapfile -t L <<<"$raw"
 
 # ctx: trust Claude Code's own used_percentage (its compaction popup keys off this); claude-powerline
 # recomputes from raw token counts and under-reads badly (60% shown at the ~90% popup)
@@ -25,20 +31,20 @@ mapfile -t L <<< "$raw"
 # 5h limit, 7d limit) and a greedy sed took the last: ctx showed the weekly number (2026-09-07)
 used=$(printf '%s' "$input" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)
 if [ -n "$used" ] && [ "${#L[@]}" -ge 2 ]; then
-  used=$(printf '%.0f' "$used")
-  L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
+	used=$(printf '%.0f' "$used")
+	L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
 fi
 
 effort=$(printf '%s' "$input" | jq -r '.effort.level // empty' 2>/dev/null)
 if [ -n "$effort" ] && [ "${#L[@]}" -ge 1 ]; then
-  L[0]="${L[0]} ${WARM}◆ ${effort}${RESET}"
+	L[0]="${L[0]} ${WARM}◆ ${effort}${RESET}"
 fi
 
 # background agents: unanswered Agent / background-Bash tool uses in the transcript
 transcript=$(printf '%s' "$input" | sed -n 's/.*"transcript_path":"\([^"]*\)".*/\1/p')
 agents=0
 if [ -r "$transcript" ]; then
-  agents=$(tail -n 400 "$transcript" | python3 -c '
+	agents=$(tail -n 400 "$transcript" | python3 -c '
 import sys, json, re
 started, done = {}, set()
 for line in sys.stdin:
@@ -61,13 +67,13 @@ print(sum(1 for i in started if i not in done))
 ' 2>/dev/null || echo 0)
 fi
 if [ "${agents:-0}" -gt 0 ] && [ "${#L[@]}" -ge 1 ]; then
-  L[0]="${L[0]} ${PINK}⚑ ${agents} agent$([ "$agents" -ne 1 ] && echo s)${RESET}"
+	L[0]="${L[0]} ${PINK}⚑ ${agents} agent$([ "$agents" -ne 1 ] && echo s)${RESET}"
 fi
 
 if [ "${#L[@]}" -ge 2 ]; then
-  L[1]=$(printf '%s' "${L[1]}" \
-    | sed -E 's/\x1b\[[0-9;?]*[a-zA-Z]//g' \
-    | awk -v live="$LIVE" -v warm="$WARM" -v hot="$HOT" '
+	L[1]=$(printf '%s' "${L[1]}" |
+		sed -E 's/\x1b\[[0-9;?]*[a-zA-Z]//g' |
+		awk -v live="$LIVE" -v warm="$WARM" -v hot="$HOT" '
         function pick(p) { if (p+0 >= 80) return hot; else if (p+0 >= 50) return warm; else return live }
         {
           gsub(/󰧑/, "\001󰧑"); gsub(/⏱/, "\001⏱"); gsub(/▦/, "\001▦");

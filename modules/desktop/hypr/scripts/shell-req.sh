@@ -5,4 +5,4 @@
 # 25 s wait held a key's script that long. busctl,
 # not gdbus: the signature is given, so the timeout bounds the whole call (gdbus took ~3 s more).
 exec busctl --user call --timeout=1 io.Astal.astal-shell /io/Astal/Application io.Astal.Application \
-  Request as "$#" "$@" >/dev/null
+	Request as "$#" "$@" >/dev/null

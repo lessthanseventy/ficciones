@@ -33,21 +33,29 @@ let
         hyprland = (prev.hyprland.override { makeWrapper = final.makeBinaryWrapper; }).overrideAttrs (o: {
           patches = (o.patches or [ ]) ++ [ ./patches/hyprland-aquamarine-honours-disable_logs.patch ];
         });
-        glaze-hyprland = (prev.glaze.override { enableSSL = false; enableInterop = false; }).overrideAttrs (_: rec {
-          version = "7.2.0";
-          src = prev.fetchFromGitHub {
-            owner = "stephenberry";
-            repo = "glaze";
-            tag = "v${version}";
-            hash = "sha256-f3NVRi3SXKo42hn0WCw7JsOK3EkdOVJIcuzhPorKjFY=";
-          };
-        });
+        glaze-hyprland =
+          (prev.glaze.override {
+            enableSSL = false;
+            enableInterop = false;
+          }).overrideAttrs
+            (_: rec {
+              version = "7.2.0";
+              src = prev.fetchFromGitHub {
+                owner = "stephenberry";
+                repo = "glaze";
+                tag = "v${version}";
+                hash = "sha256-f3NVRi3SXKo42hn0WCw7JsOK3EkdOVJIcuzhPorKjFY=";
+              };
+            });
       })
     ];
   };
 in
 {
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
   # Nothing else reclaims the store, and on NixOS the store IS the system: without this it only
   # grows (124 GiB on Arch by 2026-09-12, where snapshots pinned it so GC appeared to do nothing).
   # 30d outlives the 20 generations GRUB offers, so every bootable entry keeps its closure.
@@ -66,7 +74,13 @@ in
   users.users.andrew = {
     isNormalUser = true;
     uid = 1000;
-    extraGroups = [ "wheel" "video" "audio" "input" "networkmanager" ];
+    extraGroups = [
+      "wheel"
+      "video"
+      "audio"
+      "input"
+      "networkmanager"
+    ];
     shell = pkgs.zsh;
   };
   programs.zsh.enable = true;
@@ -135,7 +149,13 @@ in
   # nix-ld gives a loader to the binaries the flake keeps byte-for-byte (dbx's CLI) and to mise's
   # erlang/elixir/node downloads, which are plain dynamic binaries.
   programs.nix-ld.enable = true;
-  programs.nix-ld.libraries = with pkgs; [ stdenv.cc.cc zlib openssl ncurses libxcrypt-legacy ];
+  programs.nix-ld.libraries = with pkgs; [
+    stdenv.cc.cc
+    zlib
+    openssl
+    ncurses
+    libxcrypt-legacy
+  ];
 
   home-manager = {
     useGlobalPkgs = true;

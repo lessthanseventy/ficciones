@@ -1,5 +1,9 @@
 # Unsigned: Floorp's nightly channel loads it with the prefs in theme/default.nix.
-{ runCommand, fetchurl, zip }:
+{
+  runCommand,
+  fetchurl,
+  zip,
+}:
 let
   darkreader = fetchurl {
     url = "https://registry.npmjs.org/darkreader/-/darkreader-4.9.134.tgz";

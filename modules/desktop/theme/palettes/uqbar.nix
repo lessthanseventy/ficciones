@@ -155,11 +155,38 @@ rec {
     brightWhite = white;
   };
   ansiList = with ansi; [
-    black red green yellow blue magenta cyan white
-    brightBlack brightRed brightGreen brightYellow brightBlue brightMagenta brightCyan brightWhite
+    black
+    red
+    green
+    yellow
+    blue
+    magenta
+    cyan
+    white
+    brightBlack
+    brightRed
+    brightGreen
+    brightYellow
+    brightBlue
+    brightMagenta
+    brightCyan
+    brightWhite
   ];
 
   # Status tier (office cards + shell cells) and identity tier (coworker archetypes).
-  status = with hue; { working = green; blocked = red; await = pink; open = amber; done = moss; idle = dim; };
-  identity = with hue; { surveyor = cyan; builder = green; reviewer = amber; planner = pink; assistant = violet; };
+  status = with hue; {
+    working = green;
+    blocked = red;
+    await = pink;
+    open = amber;
+    done = moss;
+    idle = dim;
+  };
+  identity = with hue; {
+    surveyor = cyan;
+    builder = green;
+    reviewer = amber;
+    planner = pink;
+    assistant = violet;
+  };
 }

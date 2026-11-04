@@ -2,7 +2,10 @@
 # home-manager module (default.nix) writes these to ~/.config, the shell package bakes the
 # first two into its bundle, and flake `checks.palette-sync` diffs the checked-in copies
 # against them. Add a surface = add a function here; never hand-mirror a hex value.
-{ lib, palette ? import ./palette.nix }:
+{
+  lib,
+  palette ? import ./palette.nix,
+}:
 
 let
   p = palette;
@@ -15,20 +18,44 @@ let
   hex = c: "#${c}";
   low = c: lib.toLower c;
   # rgb triple for formats that want decimals
-  rgb = c:
+  rgb =
+    c:
     let
       n = s: lib.fromHexString s;
     in
-    "${toString (n (builtins.substring 0 2 c))}, ${toString (n (builtins.substring 2 2 c))}, ${toString (n (builtins.substring 4 2 c))}";
+    "${toString (n (builtins.substring 0 2 c))}, ${toString (n (builtins.substring 2 2 c))}, ${
+      toString (n (builtins.substring 4 2 c))
+    }";
   gen = "generated from modules/desktop/theme/palette.nix — edit THAT, never this file";
   fontStack = ''"${f.family}", "${f.mono}", ${f.fallback}'';
-  fill = template: subs: lib.replaceStrings (map (k: "@${k}@") (builtins.attrNames subs)) (map hex (builtins.attrValues subs)) template;
+  fill =
+    template: subs:
+    lib.replaceStrings (map (k: "@${k}@") (builtins.attrNames subs)) (map hex (
+      builtins.attrValues subs
+    )) template;
   # The substitution map the vendored templates (kvantum, qss, floorp) use. Role names, like
   # everything else here: a template that says @body@ keeps working when a palette calls its body
   # colour something other than amber.
   templateSubs = {
-    inherit (r) ground body key live alarm inactive structure visited
-      panel card inputGround raised edge hoverGround pressedGround menuGround borderInactive;
+    inherit (r)
+      ground
+      body
+      key
+      live
+      alarm
+      inactive
+      structure
+      visited
+      panel
+      card
+      inputGround
+      raised
+      edge
+      hoverGround
+      pressedGround
+      menuGround
+      borderInactive
+      ;
   };
 in
 rec {
@@ -116,58 +143,105 @@ rec {
 
   # Roles for the shell's Cairo drawing (the office rail), which CSS cannot reach either.
   shellRoles = lib.mapAttrs (_: hex) {
-    inherit (r) ground panel raised edge structure borderInactive body key meta prose inactive
-      live attention alarm fieldInk;
-    surveyor = p.identity.surveyor; builder = p.identity.builder; reviewer = p.identity.reviewer;
-    planner = p.identity.planner; assistant = p.identity.assistant;
+    inherit (r)
+      ground
+      panel
+      raised
+      edge
+      structure
+      borderInactive
+      body
+      key
+      meta
+      prose
+      inactive
+      live
+      attention
+      alarm
+      fieldInk
+      ;
+    surveyor = p.identity.surveyor;
+    builder = p.identity.builder;
+    reviewer = p.identity.reviewer;
+    planner = p.identity.planner;
+    assistant = p.identity.assistant;
   };
 
   # The palette as JSON — the shell loads the theme's copy at runtime for its Pango markup.
   wallpapersJson = builtins.toJSON (p.wallpapers or [ ]);
 
-  paletteJson = let h = p.hue; in builtins.toJSON {
-    amber = hex h.amber; green = hex h.green; pink = hex h.pink; cyan = hex h.cyan;
-    lilac = hex h.violet; chip = hex h.chip; red = hex h.red; dim = hex h.dim;
-    role = shellRoles;
-  };
+  paletteJson =
+    let
+      h = p.hue;
+    in
+    builtins.toJSON {
+      amber = hex h.amber;
+      green = hex h.green;
+      pink = hex h.pink;
+      cyan = hex h.cyan;
+      lilac = hex h.violet;
+      chip = hex h.chip;
+      red = hex h.red;
+      dim = hex h.dim;
+      role = shellRoles;
+    };
 
-  paletteTs = let h = p.hue; in ''
-    // ${gen}. The palette as JS, for the one place CSS cannot reach: Pango markup in a label.
-    export const PALETTE = {
-      amber: "${hex h.amber}",
-      green: "${hex h.green}",
-      pink: "${hex h.pink}",
-      cyan: "${hex h.cyan}",
-      lilac: "${hex h.violet}",
-      chip: "${hex h.chip}",
-      red: "${hex h.red}",
-      dim: "${hex h.dim}",
-    } as const
-    export type Hue = keyof typeof PALETTE
-    export const HUES: Hue[] = ["amber", "green", "pink", "cyan", "lilac"]
-    /** roles (and coworker archetypes) for Cairo drawing; the live theme swaps them in place */
-    export const ROLE = {
-    ${lib.concatStrings (lib.mapAttrsToList (k: v: "  ${k}: \"${v}\",\n") shellRoles)}} as const
-    export type Role = keyof typeof ROLE
-  '';
+  paletteTs =
+    let
+      h = p.hue;
+    in
+    ''
+      // ${gen}. The palette as JS, for the one place CSS cannot reach: Pango markup in a label.
+      export const PALETTE = {
+        amber: "${hex h.amber}",
+        green: "${hex h.green}",
+        pink: "${hex h.pink}",
+        cyan: "${hex h.cyan}",
+        lilac: "${hex h.violet}",
+        chip: "${hex h.chip}",
+        red: "${hex h.red}",
+        dim: "${hex h.dim}",
+      } as const
+      export type Hue = keyof typeof PALETTE
+      export const HUES: Hue[] = ["amber", "green", "pink", "cyan", "lilac"]
+      /** roles (and coworker archetypes) for Cairo drawing; the live theme swaps them in place */
+      export const ROLE = {
+      ${lib.concatStrings (lib.mapAttrsToList (k: v: "  ${k}: \"${v}\",\n") shellRoles)}} as const
+      export type Role = keyof typeof ROLE
+    '';
 
   # ---- Neovim (asterion): the palette as a Lua table --------------------------------------
   # asterion reads ~/.config/ficciones/theme/nvim-palette.lua at startup and names ROLES; the
   # base16 slots feed base16-nvim for syntax. Syntax hues are a CATEGORY tier (like the shell's
   # `$cat-*`): code needs more distinct colours than the roles carry, so those slots bind hues
   # directly, on purpose, here and nowhere in the editor.
-  nvimPalette = { name, light }:
+  nvimPalette =
+    { name, light }:
     let
       h = p.hue;
-      row = attrs: lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "    ${k} = \"${hex v}\",") attrs);
+      row =
+        attrs: lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "    ${k} = \"${hex v}\",") attrs);
       base16 = {
-        base00 = r.ground; base01 = r.panel; base02 = r.raised; base03 = r.inactive;
-        base04 = r.meta; base05 = r.body; base06 = r.prose; base07 = r.maxContrast;
+        base00 = r.ground;
+        base01 = r.panel;
+        base02 = r.raised;
+        base03 = r.inactive;
+        base04 = r.meta;
+        base05 = r.body;
+        base06 = r.prose;
+        base07 = r.maxContrast;
         # syntax: variables · numbers · types · strings · regex/support · functions · keywords · deprecated
-        base08 = h.lilac; base09 = h.ember; base0A = h.amberSoft; base0B = h.green;
-        base0C = h.cyan; base0D = h.violet; base0E = h.pink; base0F = h.sep;
+        base08 = h.lilac;
+        base09 = h.ember;
+        base0A = h.amberSoft;
+        base0B = h.green;
+        base0C = h.cyan;
+        base0D = h.violet;
+        base0E = h.pink;
+        base0F = h.sep;
       };
-    in ''
+    in
+    ''
       -- ${gen}
       return {
         name = "${name}",
@@ -190,14 +264,77 @@ rec {
   # Kebab-cased role names; the font stack rides along. Roles only — the page names no hue.
   webCss =
     let
-      kebab = k: lib.toLower (lib.replaceStrings [ "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" ] [ "-a" "-b" "-c" "-d" "-e" "-f" "-g" "-h" "-i" "-j" "-k" "-l" "-m" "-n" "-o" "-p" "-q" "-r" "-s" "-t" "-u" "-v" "-w" "-x" "-y" "-z" ] k);
+      kebab =
+        k:
+        lib.toLower (
+          lib.replaceStrings
+            [
+              "A"
+              "B"
+              "C"
+              "D"
+              "E"
+              "F"
+              "G"
+              "H"
+              "I"
+              "J"
+              "K"
+              "L"
+              "M"
+              "N"
+              "O"
+              "P"
+              "Q"
+              "R"
+              "S"
+              "T"
+              "U"
+              "V"
+              "W"
+              "X"
+              "Y"
+              "Z"
+            ]
+            [
+              "-a"
+              "-b"
+              "-c"
+              "-d"
+              "-e"
+              "-f"
+              "-g"
+              "-h"
+              "-i"
+              "-j"
+              "-k"
+              "-l"
+              "-m"
+              "-n"
+              "-o"
+              "-p"
+              "-q"
+              "-r"
+              "-s"
+              "-t"
+              "-u"
+              "-v"
+              "-w"
+              "-x"
+              "-y"
+              "-z"
+            ]
+            k
+        );
       vars = lib.concatStringsSep " " (lib.mapAttrsToList (k: v: "--${kebab k}:${hex v};") r);
-    in "/* ${gen} */\n:root { ${vars} --font:${fontStack}; }\n";
+    in
+    "/* ${gen} */\n:root { ${vars} --font:${fontStack}; }\n";
 
   # ---- Claude Code: a custom theme per palette (~/.claude/themes/<name>.json) -------------
   # The keys are Claude Code's; Andrew's hand-made high-contrast theme was the model (green
   # body text there, on purpose). `light` tells whether the ground is light.
-  claudeTheme = { name, light }:
+  claudeTheme =
+    { name, light }:
     let
       t = c: hex (low c);
       # message grounds: a tint of the hue on the ground, one step off it
@@ -208,27 +345,59 @@ rec {
       inherit name;
       base = if light then "light" else "dark";
       overrides = {
-        text = t r.userVoice; claude = t r.assistantVoice; inverseText = t r.ground; background = t r.ground;
-        subtle = t r.meta; inactive = t r.inactive; suggestion = t r.attention; permission = t r.attention;
-        remember = t r.assistant; success = t r.live; error = t r.alarm; warning = t r.warn;
-        merged = t r.attention; promptBorder = t r.borderActive; planMode = t r.key; autoAccept = t r.cursorField;
-        fastMode = t r.attention; bashBorder = t r.structure; ide = t r.key; thinking = t r.key;
-        toolUse = t r.body; agentsView = t r.live; subagentStatusLine = t r.body;
-        diffAdded = t (if light then "D6EDD6" else "0C2E0C"); diffAddedWord = t (if light then "A8DCA8" else "1B5E1B");
+        text = t r.userVoice;
+        claude = t r.assistantVoice;
+        inverseText = t r.ground;
+        background = t r.ground;
+        subtle = t r.meta;
+        inactive = t r.inactive;
+        suggestion = t r.attention;
+        permission = t r.attention;
+        remember = t r.assistant;
+        success = t r.live;
+        error = t r.alarm;
+        warning = t r.warn;
+        merged = t r.attention;
+        promptBorder = t r.borderActive;
+        planMode = t r.key;
+        autoAccept = t r.cursorField;
+        fastMode = t r.attention;
+        bashBorder = t r.structure;
+        ide = t r.key;
+        thinking = t r.key;
+        toolUse = t r.body;
+        agentsView = t r.live;
+        subagentStatusLine = t r.body;
+        diffAdded = t (if light then "D6EDD6" else "0C2E0C");
+        diffAddedWord = t (if light then "A8DCA8" else "1B5E1B");
         diffAddedDimmed = t (if light then "E6F2E6" else "081F08");
-        diffRemoved = t (if light then "F2D9D9" else "2E0C0C"); diffRemovedWord = t (if light then "E3AFAF" else "5E1B1B");
+        diffRemoved = t (if light then "F2D9D9" else "2E0C0C");
+        diffRemovedWord = t (if light then "E3AFAF" else "5E1B1B");
         diffRemovedDimmed = t (if light then "F7E8E8" else "1F0808");
-        userMessageBackground = t tint; userMessageBackgroundHover = t tint2;
-        bashMessageBackgroundColor = t r.hoverGround; memoryBackgroundColor = t tint;
-        selectionBg = t r.selSoft; composerSidebarBackground = t tint;
-        rate_limit_fill = t r.live; rate_limit_empty = t tint2;
-        briefLabelYou = t r.cursorField; briefLabelClaude = t r.live;
-        claudeShimmer = t r.cursorField; warningShimmer = t r.cursorField; permissionShimmer = t r.attention;
-        promptBorderShimmer = t r.cursorField; inactiveShimmer = t r.inactive; fastModeShimmer = t r.attention;
-        red_FOR_SUBAGENTS_ONLY = t r.alarm; blue_FOR_SUBAGENTS_ONLY = t r.key;
-        green_FOR_SUBAGENTS_ONLY = t r.live; yellow_FOR_SUBAGENTS_ONLY = t r.cursorField;
-        purple_FOR_SUBAGENTS_ONLY = t r.assistant; orange_FOR_SUBAGENTS_ONLY = t r.borderActive2;
-        pink_FOR_SUBAGENTS_ONLY = t r.attention; cyan_FOR_SUBAGENTS_ONLY = t r.key;
+        userMessageBackground = t tint;
+        userMessageBackgroundHover = t tint2;
+        bashMessageBackgroundColor = t r.hoverGround;
+        memoryBackgroundColor = t tint;
+        selectionBg = t r.selSoft;
+        composerSidebarBackground = t tint;
+        rate_limit_fill = t r.live;
+        rate_limit_empty = t tint2;
+        briefLabelYou = t r.cursorField;
+        briefLabelClaude = t r.live;
+        claudeShimmer = t r.cursorField;
+        warningShimmer = t r.cursorField;
+        permissionShimmer = t r.attention;
+        promptBorderShimmer = t r.cursorField;
+        inactiveShimmer = t r.inactive;
+        fastModeShimmer = t r.attention;
+        red_FOR_SUBAGENTS_ONLY = t r.alarm;
+        blue_FOR_SUBAGENTS_ONLY = t r.key;
+        green_FOR_SUBAGENTS_ONLY = t r.live;
+        yellow_FOR_SUBAGENTS_ONLY = t r.cursorField;
+        purple_FOR_SUBAGENTS_ONLY = t r.assistant;
+        orange_FOR_SUBAGENTS_ONLY = t r.borderActive2;
+        pink_FOR_SUBAGENTS_ONLY = t r.attention;
+        cyan_FOR_SUBAGENTS_ONLY = t r.key;
       };
     };
 
@@ -238,12 +407,30 @@ rec {
   claudePowerlineJson =
     let
       colors = builtins.toJSON {
-        directory = { bg = hex r.panel; fg = hex r.assistant; };
-        git = { bg = hex r.panel; fg = hex r.attention; };
-        model = { bg = hex r.panel; fg = hex r.attention; };
-        context = { bg = hex r.panel; fg = hex r.live; };
-        block = { bg = hex r.panel; fg = hex r.cursorField; };
-        weekly = { bg = hex r.panel; fg = hex r.assistant; };
+        directory = {
+          bg = hex r.panel;
+          fg = hex r.assistant;
+        };
+        git = {
+          bg = hex r.panel;
+          fg = hex r.attention;
+        };
+        model = {
+          bg = hex r.panel;
+          fg = hex r.attention;
+        };
+        context = {
+          bg = hex r.panel;
+          fg = hex r.live;
+        };
+        block = {
+          bg = hex r.panel;
+          fg = hex r.cursorField;
+        };
+        weekly = {
+          bg = hex r.panel;
+          fg = hex r.assistant;
+        };
       };
     in
     ''{"theme":"custom","display":{"style":"minimal","charset":"unicode","autoWrap":false,"lines":[''
@@ -297,7 +484,24 @@ rec {
 
   kittyTheme =
     let
-      names = [ "color0" "color1" "color2" "color3" "color4" "color5" "color6" "color7" "color8" "color9" "color10" "color11" "color12" "color13" "color14" "color15" ];
+      names = [
+        "color0"
+        "color1"
+        "color2"
+        "color3"
+        "color4"
+        "color5"
+        "color6"
+        "color7"
+        "color8"
+        "color9"
+        "color10"
+        "color11"
+        "color12"
+        "color13"
+        "color14"
+        "color15"
+      ];
       pal = lib.concatStringsSep "\n" (lib.zipListsWith (n: c: "${n} ${hex c}") names p.ansiList);
     in
     ''
@@ -423,7 +627,11 @@ rec {
     inherit (p) light cursor;
     paper = p.paper or false;
     iconTheme = if p.light then "Papirus-Light" else "Papirus-Dark";
-    sheet = { ground = hex r.ground; rule = hex r.structure; margin = hex r.alarm; };
+    sheet = {
+      ground = hex r.ground;
+      rule = hex r.structure;
+      margin = hex r.alarm;
+    };
   };
   # over the Adwaita-for-Steam variables the active skin sets (Millennium loads quick.css after it)
   steamCss =
@@ -450,12 +658,30 @@ rec {
   # AlternateBase ToolTipBase ToolTipText PlaceholderText Accent.
   qt6ctColors =
     let
-      roles = alpha: with r; [
-        "#${alpha}${body}" "#ff${card}" "#ff${edge}" "#ff${raised}" "#ff${ground}" "#ff${inputGround}"
-        "#${alpha}${body}" "#ff${cursorField}" "#${alpha}${body}" "#ff${ground}" "#ff${panel}" "#ff${ground}"
-        "#ff${cursorField}" "#ff${fieldInk}" "#ff${key}" "#ff${assistant}" "#ff${card}" "#ff${card}"
-        "#ff${body}" "#ff${inactive}" "#ff${body}"
-      ];
+      roles =
+        alpha: with r; [
+          "#${alpha}${body}"
+          "#ff${card}"
+          "#ff${edge}"
+          "#ff${raised}"
+          "#ff${ground}"
+          "#ff${inputGround}"
+          "#${alpha}${body}"
+          "#ff${cursorField}"
+          "#${alpha}${body}"
+          "#ff${ground}"
+          "#ff${panel}"
+          "#ff${ground}"
+          "#ff${cursorField}"
+          "#ff${fieldInk}"
+          "#ff${key}"
+          "#ff${assistant}"
+          "#ff${card}"
+          "#ff${card}"
+          "#ff${body}"
+          "#ff${inactive}"
+          "#ff${body}"
+        ];
       row = alpha: lib.concatStringsSep ", " (map low (roles alpha));
     in
     ''
@@ -503,55 +729,104 @@ rec {
     let
       kv = lib.mapAttrsToList (k: v: "theme[${k}]=${hex v}");
     in
-    "# ${gen}\n" + lib.concatStringsSep "\n" (kv (with r; {
-      main_bg = ground; main_fg = body; title = key; hi_fg = key; selected_bg = cursorField; selected_fg = fieldInk;
-      inactive_fg = inactive; graph_text = meta; meter_bg = raised; proc_misc = meta;
-      cpu_box = structure; mem_box = structure; net_box = structure; proc_box = structure; div_line = borderInactive;
-      # every gauge runs the same ramp: fine, then working, then alarming
-      temp_start = live; temp_mid = body; temp_end = alarm;
-      cpu_start = live; cpu_mid = body; cpu_end = alarm;
-      free_start = live; free_mid = body; free_end = alarm;
-      cached_start = key; cached_mid = assistant; cached_end = attention;
-      available_start = live; available_mid = body; available_end = alarm;
-      used_start = live; used_mid = body; used_end = alarm;
-      download_start = key; download_mid = assistant; download_end = attention;
-      upload_start = live; upload_mid = body; upload_end = alarm;
-      process_start = live; process_mid = body; process_end = alarm;
-    })) + "\n";
+    "# ${gen}\n"
+    + lib.concatStringsSep "\n" (
+      kv (
+        with r;
+        {
+          main_bg = ground;
+          main_fg = body;
+          title = key;
+          hi_fg = key;
+          selected_bg = cursorField;
+          selected_fg = fieldInk;
+          inactive_fg = inactive;
+          graph_text = meta;
+          meter_bg = raised;
+          proc_misc = meta;
+          cpu_box = structure;
+          mem_box = structure;
+          net_box = structure;
+          proc_box = structure;
+          div_line = borderInactive;
+          # every gauge runs the same ramp: fine, then working, then alarming
+          temp_start = live;
+          temp_mid = body;
+          temp_end = alarm;
+          cpu_start = live;
+          cpu_mid = body;
+          cpu_end = alarm;
+          free_start = live;
+          free_mid = body;
+          free_end = alarm;
+          cached_start = key;
+          cached_mid = assistant;
+          cached_end = attention;
+          available_start = live;
+          available_mid = body;
+          available_end = alarm;
+          used_start = live;
+          used_mid = body;
+          used_end = alarm;
+          download_start = key;
+          download_mid = assistant;
+          download_end = attention;
+          upload_start = live;
+          upload_mid = body;
+          upload_end = alarm;
+          process_start = live;
+          process_mid = body;
+          process_end = alarm;
+        }
+      )
+    )
+    + "\n";
 
   # ---- floorp: the vendored RetroTerminal CSS with its :root block generated ----------
   # One :root, not a prefers-color-scheme pair: the flake decides which palette is live, so
   # floorp must not second-guess it with a hand-written light theme that drifts.
-  floorpRoot =
-    lib.concatStringsSep "\n" (map (s: "    " + s) (with r; [
-      "--retro-bg: ${hex ground};"
-      "--retro-bg-elevated: ${hex panel};"
-      "--retro-surface: ${hex inputGround};"
-      "--retro-surface-dim: ${hex card};"
-      "--retro-accent: ${hex accentField};"
-      "--retro-accent-dim: ${hex visited};"
-      "--retro-text: ${hex body};"
-      "--retro-text-secondary: ${hex meta};"
-      "--retro-text-dim: ${hex inactive};"
-      # borders are `structure` like everywhere else — the menu tint was 1.5:1 against the
-      # ground, which is why floorp's menus and popups looked like they had no edge at all
-      "--retro-border: ${hex structure};"
-      "--retro-border-bright: ${hex borderActive};"
-      "--retro-font: ${fontStack};"
-      "--retro-green: ${hex live};"
-      "--retro-chip: ${hex cursorField};"
-      "--retro-ink: ${hex fieldInk};"
-      "--retro-sel: ${hex selField};"
-      "--retro-sel-ink: ${hex selInk};"
-      "--retro-cyan: ${hex key};"
-      "--retro-pink: ${hex attention};"
-      "--retro-red: ${hex alarm};"
-    ]));
+  floorpRoot = lib.concatStringsSep "\n" (
+    map (s: "    " + s) (
+      with r;
+      [
+        "--retro-bg: ${hex ground};"
+        "--retro-bg-elevated: ${hex panel};"
+        "--retro-surface: ${hex inputGround};"
+        "--retro-surface-dim: ${hex card};"
+        "--retro-accent: ${hex accentField};"
+        "--retro-accent-dim: ${hex visited};"
+        "--retro-text: ${hex body};"
+        "--retro-text-secondary: ${hex meta};"
+        "--retro-text-dim: ${hex inactive};"
+        # borders are `structure` like everywhere else — the menu tint was 1.5:1 against the
+        # ground, which is why floorp's menus and popups looked like they had no edge at all
+        "--retro-border: ${hex structure};"
+        "--retro-border-bright: ${hex borderActive};"
+        "--retro-font: ${fontStack};"
+        "--retro-green: ${hex live};"
+        "--retro-chip: ${hex cursorField};"
+        "--retro-ink: ${hex fieldInk};"
+        "--retro-sel: ${hex selField};"
+        "--retro-sel-ink: ${hex selInk};"
+        "--retro-cyan: ${hex key};"
+        "--retro-pink: ${hex attention};"
+        "--retro-red: ${hex alarm};"
+      ]
+    )
+  );
   # a `paper` palette appends templates/floorp/paper-<name>: texture and shape over the same roles
-  floorpFile = name:
+  floorpFile =
+    name:
     "/* ${gen} (the :root block); the body is templates/floorp/${name} in the repo. */\n"
-    + lib.replaceStrings [ "@ROOT@" "@FONT_STACK@" "@SCHEME@" ] [ floorpRoot fontStack (if p.light then "light" else "dark") ]
-      (fill (builtins.readFile (./templates/floorp + "/${name}")) templateSubs)
+    +
+      lib.replaceStrings
+        [ "@ROOT@" "@FONT_STACK@" "@SCHEME@" ]
+        [
+          floorpRoot
+          fontStack
+          (if p.light then "light" else "dark")
+        ]
+        (fill (builtins.readFile (./templates/floorp + "/${name}")) templateSubs)
     + lib.optionalString (p.paper or false) (builtins.readFile (./templates/floorp + "/paper-${name}"));
   floorpUserChrome = floorpFile "userChrome.css";
   # read by the floorp-ext extension, for the page recolourer and the accents laid over it
@@ -566,8 +841,18 @@ rec {
     code = hex r.live;
   };
   # the sites too, not just the chrome: floorp-sites.nix appends @-moz-document blocks
-  floorpUserContent = floorpFile "userContent.css" + "\n/* ---- sites (floorp-sites.nix) ---- */\n"
-    + import ./floorp-sites.nix { inherit hex rgb r fontStack; inherit (p) light; };
+  floorpUserContent =
+    floorpFile "userContent.css"
+    + "\n/* ---- sites (floorp-sites.nix) ---- */\n"
+    + import ./floorp-sites.nix {
+      inherit
+        hex
+        rgb
+        r
+        fontStack
+        ;
+      inherit (p) light;
+    };
 
   # ---- hyprland / hyprlock -------------------------------------------------------------
   # dofile'd as ~/.config/hypr/theme.lua: only the colours live here. Env lines are appended by
@@ -833,28 +1118,47 @@ rec {
   # ---- lazygit / bat / fzf / cava / tmux --------------------------------------------------
   # starship: the prompt's chips are inverse video like the shell's (field = highlight, text = ink).
   # Read at every prompt, so the theme switch reaches the next line with no restart.
-  starshipConfig = template:
-    fill (lib.replaceStrings [ "@GEN@" ] [ gen ] template) { inherit (r) fieldInk key live body assistant alarm; };
+  starshipConfig =
+    template:
+    fill (lib.replaceStrings [ "@GEN@" ] [ gen ] template) {
+      inherit (r)
+        fieldInk
+        key
+        live
+        body
+        assistant
+        alarm
+        ;
+    };
 
-  lazygitConfig = template:
+  lazygitConfig =
+    template:
     let
       # Built line by line: an indented '' string would strip the YAML indentation.
       entry = k: vs: [ "    ${k}:" ] ++ map (v: "      - ${v}") vs;
       q = c: "\"${hex c}\"";
-      theme = lib.concatStringsSep "\n" (lib.concatLists [
-        (entry "activeBorderColor" [ (q r.body) "bold" ])
-        (entry "inactiveBorderColor" [ (q r.borderInactive) ])
-        (entry "searchingActiveBorderColor" [ (q r.key) "bold" ])
-        (entry "optionsTextColor" [ (q r.key) ])
-        (entry "selectedLineBgColor" [ (q r.cursorField) ])
-        (entry "inactiveViewSelectedLineBgColor" [ (q r.raised) ])
-        (entry "cherryPickedCommitBgColor" [ (q r.selField) ])
-        (entry "cherryPickedCommitFgColor" [ (q r.selInk) ])
-        (entry "markedBaseCommitBgColor" [ (q r.selField) ])
-        (entry "markedBaseCommitFgColor" [ (q r.selInk) ])
-        (entry "unstagedChangesColor" [ (q r.alarm) ])
-        (entry "defaultFgColor" [ (q r.body) ])
-      ]);
+      theme = lib.concatStringsSep "\n" (
+        lib.concatLists [
+          (entry "activeBorderColor" [
+            (q r.body)
+            "bold"
+          ])
+          (entry "inactiveBorderColor" [ (q r.borderInactive) ])
+          (entry "searchingActiveBorderColor" [
+            (q r.key)
+            "bold"
+          ])
+          (entry "optionsTextColor" [ (q r.key) ])
+          (entry "selectedLineBgColor" [ (q r.cursorField) ])
+          (entry "inactiveViewSelectedLineBgColor" [ (q r.raised) ])
+          (entry "cherryPickedCommitBgColor" [ (q r.selField) ])
+          (entry "cherryPickedCommitFgColor" [ (q r.selInk) ])
+          (entry "markedBaseCommitBgColor" [ (q r.selField) ])
+          (entry "markedBaseCommitFgColor" [ (q r.selInk) ])
+          (entry "unstagedChangesColor" [ (q r.alarm) ])
+          (entry "defaultFgColor" [ (q r.body) ])
+        ]
+      );
     in
     "# ${gen} (gui.theme); the rest is templates/lazygit.yml in the repo.\n"
     + lib.replaceStrings [ "  theme: @THEME@\n" ] [ "  theme:\n${theme}\n" ] template;
@@ -879,8 +1183,11 @@ rec {
       --color=border:${hex r.structure},label:${hex r.key},query:${hex r.body}"
   '';
 
-  cavaConfig = template:
-    "# ${gen} ([color]); the rest is templates/cava.conf in the repo.\n" + template + ''
+  cavaConfig =
+    template:
+    "# ${gen} ([color]); the rest is templates/cava.conf in the repo.\n"
+    + template
+    + ''
 
       [color]
       gradient = 1
@@ -907,5 +1214,11 @@ rec {
   '';
 
   # Convenience: the palette as shell exports, for scripts that draw.
-  envSh = let h = p.hue; in "# ${gen}\n" + lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "PALETTE_${lib.toUpper k}=${hex v}") h) + "\nPALETTE_FONT=\"${f.family}\"\n";
+  envSh =
+    let
+      h = p.hue;
+    in
+    "# ${gen}\n"
+    + lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "PALETTE_${lib.toUpper k}=${hex v}") h)
+    + "\nPALETTE_FONT=\"${f.family}\"\n";
 }

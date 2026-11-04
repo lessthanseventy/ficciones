@@ -13,7 +13,10 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root" || exit 1
 
 fail=0
-miss() { echo "check-names: $*"; fail=1; }
+miss() {
+	echo "check-names: $*"
+	fail=1
+}
 
 # This file names the patterns it hunts; every other script is an input.
 scripts="$(ls scripts/*.sh | grep -v '/check-names.sh$')"
@@ -26,18 +29,18 @@ known="$(mise tasks ls --json 2>/dev/null | jq -r --arg root "$root/" '.[] | sel
 [ -n "$known" ] || miss "(c) \`mise tasks ls\` lists no task from $root — is mise on PATH and are the task files parseable?"
 n_mise=0
 while IFS=: read -r file line ref; do
-  [ -n "$ref" ] || continue
-  n_mise=$((n_mise + 1))
-  task="${ref#mise run }"
-  task="${task%:}"            # a sentence-final "home:switch:" is the task, not a namespace
-  case "$task" in
-    *\*) grep -q "^${task%\*}" <<<"$known" || miss "(c) $file:$line names \`$ref\` — no task matches that prefix in \`mise tasks ls\`" ;;
-    *) grep -qxF "$task" <<<"$known" || miss "(c) $file:$line names \`$ref\` — not a task \`mise tasks ls\` knows" ;;
-  esac
+	[ -n "$ref" ] || continue
+	n_mise=$((n_mise + 1))
+	task="${ref#mise run }"
+	task="${task%:}" # a sentence-final "home:switch:" is the task, not a namespace
+	case "$task" in
+	*\*) grep -q "^${task%\*}" <<<"$known" || miss "(c) $file:$line names \`$ref\` — no task matches that prefix in \`mise tasks ls\`" ;;
+	*) grep -qxF "$task" <<<"$known" || miss "(c) $file:$line names \`$ref\` — not a task \`mise tasks ls\` knows" ;;
+	esac
 done < <(grep -noE 'mise run [A-Za-z0-9:_*-]+' mise.toml flake.nix $scripts $(guides) 2>/dev/null | sort -u)
 
 if [ "$fail" -ne 0 ]; then
-  echo "check-names: FAILED — a name above points at nothing (rename left a dangling reference)"
-  exit 1
+	echo "check-names: FAILED — a name above points at nothing (rename left a dangling reference)"
+	exit 1
 fi
 echo "check-names: ok — $n_mise mise-task refs all resolve"

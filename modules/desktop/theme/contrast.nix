@@ -12,22 +12,70 @@ let
   AAA = 7.0; # normal-size text
   BAND = 3.0; # a field, border or rule you have to be able to locate
   # text on the ground, and on each surface it is actually painted on
-  onGround = names: map (n: { label = "${n} on the ground"; fg = n; bg = "bg"; min = AAA; }) names;
-  onSurface = surface: names:
-    map (n: { label = "${n} on ${surface}"; fg = n; bg = surface; min = AAA; }) names;
+  onGround =
+    names:
+    map (n: {
+      label = "${n} on the ground";
+      fg = n;
+      bg = "bg";
+      min = AAA;
+    }) names;
+  onSurface =
+    surface: names:
+    map (n: {
+      label = "${n} on ${surface}";
+      fg = n;
+      bg = surface;
+      min = AAA;
+    }) names;
   # inverse video: a filled field and the ink that sits in it
-  field = fg: bg: { label = "${fg} on the ${bg} field"; inherit fg bg; min = AAA; };
-  band = n: { label = "${n} vs the ground"; fg = n; bg = "bg"; min = BAND; };
+  field = fg: bg: {
+    label = "${fg} on the ${bg} field";
+    inherit fg bg;
+    min = AAA;
+  };
+  band = n: {
+    label = "${n} vs the ground";
+    fg = n;
+    bg = "bg";
+    min = BAND;
+  };
   # ANSI names resolve through the same lookup, prefixed
-  ansiPair = fg: bg: { label = "ANSI ${fg} on ${bg}"; fg = "ansi:${fg}"; bg = "ansi:${bg}"; min = AAA; };
+  ansiPair = fg: bg: {
+    label = "ANSI ${fg} on ${bg}";
+    fg = "ansi:${fg}";
+    bg = "ansi:${bg}";
+    min = AAA;
+  };
 in
 {
   # every hue that carries body-weight text
   text =
-    onGround [ "amber" "cyan" "lilac" "green" "pink" "red" "violet" "moss" "grey" "dim" "amberSoft" "ember" ]
+    onGround [
+      "amber"
+      "cyan"
+      "lilac"
+      "green"
+      "pink"
+      "red"
+      "violet"
+      "moss"
+      "grey"
+      "dim"
+      "amberSoft"
+      "ember"
+    ]
     # cards, popovers, dialogs, headerbars — the two surfaces text is set on
-    ++ onSurface "surface0" [ "amber" "lilac" "dim" ]
-    ++ onSurface "surface1" [ "amber" "lilac" "dim" ]
+    ++ onSurface "surface0" [
+      "amber"
+      "lilac"
+      "dim"
+    ]
+    ++ onSurface "surface1" [
+      "amber"
+      "lilac"
+      "dim"
+    ]
     # floorp paints sidebar inputs, hovered tabs and urlbar rows on surface2
     ++ onSurface "surface2" [ "amber" ]
     ++ onSurface "amberTint1" [ "amber" ];
@@ -59,14 +107,23 @@ in
   # surfaces that keep their own text colour (Claude Code sets selectionBg and no
   # foreground). On a ground this dark, a band bright enough to see and text bright enough
   # for 7:1 cannot both exist — so the tint stays dark and the floor here is AA.
-  compromises = map
-    (n: {
-      label = "${n} on selSoft (background-only selection)";
-      fg = n;
-      bg = "selSoft";
-      min = 4.5;
-      why = "Claude Code exposes selectionBg with no paired foreground; see the comment in contrast.nix";
-    }) [ "amber" "cyan" "lilac" "green" "dim" "pink" ];
+  compromises =
+    map
+      (n: {
+        label = "${n} on selSoft (background-only selection)";
+        fg = n;
+        bg = "selSoft";
+        min = 4.5;
+        why = "Claude Code exposes selectionBg with no paired foreground; see the comment in contrast.nix";
+      })
+      [
+        "amber"
+        "cyan"
+        "lilac"
+        "green"
+        "dim"
+        "pink"
+      ];
 
   # The ANSI 16 are a contract, not roles: whichever way round a program pairs the ends of the
   # ramp, it has to be legible. zahir bound brightWhite to the `white` HUE (which on paper is
@@ -84,7 +141,13 @@ in
   # resolved hexes, so the checker needs nothing but this file: hues, ROLES (a pair is often
   # easier to state in the vocabulary the surfaces use), and the ANSI slots under an `ansi:`
   # prefix — all through one map
-  hue = palette.hue // palette.role // (builtins.listToAttrs
-    (map (n: { name = "ansi:${n}"; value = palette.ansi.${n}; })
-      (builtins.attrNames palette.ansi)));
+  hue =
+    palette.hue
+    // palette.role
+    // (builtins.listToAttrs (
+      map (n: {
+        name = "ansi:${n}";
+        value = palette.ansi.${n};
+      }) (builtins.attrNames palette.ansi)
+    ));
 }

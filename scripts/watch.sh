@@ -19,36 +19,50 @@ set -uo pipefail
 
 dirs=()
 while [ "$#" -gt 0 ]; do
-  case "$1" in
-    -w) dirs+=("$2"); shift 2 ;;
-    --) shift; break ;;
-    *) break ;;
-  esac
+	case "$1" in
+	-w)
+		dirs+=("$2")
+		shift 2
+		;;
+	--)
+		shift
+		break
+		;;
+	*) break ;;
+	esac
 done
 [ "${#dirs[@]}" -gt 0 ] || dirs=(.)
-[ "$#" -gt 0 ] || { echo "watch: give me a command to run on change" >&2; exit 2; }
+[ "$#" -gt 0 ] || {
+	echo "watch: give me a command to run on change" >&2
+	exit 2
+}
 cmd=("$@")
 
 root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cap="$root/scripts/cap.sh"
 
 if command -v watchexec >/dev/null 2>&1; then
-  watch_args=()
-  for d in "${dirs[@]}"; do watch_args+=(-w "$d"); done
-  printf 'watch (watchexec): %s   on change in: %s  (ctrl-c to stop)\n' "${cmd[*]}" "${dirs[*]}"
-  exec watchexec --debounce 300ms --restart --project-origin "$root" "${watch_args[@]}" -- "$cap" "${cmd[@]}"
+	watch_args=()
+	for d in "${dirs[@]}"; do watch_args+=(-w "$d"); done
+	printf 'watch (watchexec): %s   on change in: %s  (ctrl-c to stop)\n' "${cmd[*]}" "${dirs[*]}"
+	exec watchexec --debounce 300ms --restart --project-origin "$root" "${watch_args[@]}" -- "$cap" "${cmd[@]}"
 fi
 
 # --- zero-dep fallback: no watchexec present ---
-run() { printf '\n═══ change @ %s ═══\n' "$(date +%H:%M:%S)"; "$cap" "${cmd[@]}"; }
+run() {
+	printf '\n═══ change @ %s ═══\n' "$(date +%H:%M:%S)"
+	"$cap" "${cmd[@]}"
+}
 printf 'watch (poll): %s   on change in: %s  (ctrl-c to stop)\n' "${cmd[*]}" "${dirs[*]}"
 run
-stamp="$(mktemp)"; trap 'rm -f "$stamp"' EXIT
+stamp="$(mktemp)"
+trap 'rm -f "$stamp"' EXIT
 while :; do
-  sleep 1
-  if find "${dirs[@]}" -type f -newer "$stamp" \
-       -not -path '*/.git/*' -not -path '*/_build/*' -not -path '*/deps/*' \
-       -not -path '*/node_modules/*' -not -path '*/.logs/*' -not -path '*/result/*' 2>/dev/null | grep -q .; then
-    touch "$stamp"; run
-  fi
+	sleep 1
+	if find "${dirs[@]}" -type f -newer "$stamp" \
+		-not -path '*/.git/*' -not -path '*/_build/*' -not -path '*/deps/*' \
+		-not -path '*/node_modules/*' -not -path '*/.logs/*' -not -path '*/result/*' 2>/dev/null | grep -q .; then
+		touch "$stamp"
+		run
+	fi
 done

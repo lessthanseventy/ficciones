@@ -44,12 +44,24 @@
   };
 
   outputs =
-    inputs@{ self, nixpkgs, home-manager, agenix, astal, ags, hyprexpo, ... }:
+    inputs@{
+      self,
+      nixpkgs,
+      home-manager,
+      agenix,
+      astal,
+      ags,
+      hyprexpo,
+      ...
+    }:
     let
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
       # imported, not legacyPackages: slack is unfree (the NixOS module allows it on its own side)
-      pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
+      pkgs = import nixpkgs {
+        inherit system;
+        config.allowUnfree = true;
+      };
 
       # Hardcoded, not `self`: consumers load the REAL files so a dev edit is picked up,
       # not a stale store snapshot. Single-user machine, fixed home dir.
@@ -128,63 +140,70 @@
       # (trust auth as this user, so no password) and the two SQLite projects. The AI key and
       # the prod connections are read from agenix files at launch, never from the store.
       dbxDataDir = "$HOME/.local/share/dbx";
-      dbxSeed = pkgs.writeText "dbx-seed.json" (builtins.toJSON {
-        connections = [
-          {
-            id = "ficciones-local-postgres";
-            name = "local postgres";
-            db_type = "postgres";
-            host = "127.0.0.1";
-            port = 5432;
-            username = "andrew";
-            password = "";
-            database = null;
-            ssl = false;
-            save_password = false;
-          }
-          {
-            id = "ficciones-excelsior-sqlite";
-            name = "excelsior (sqlite)";
-            db_type = "sqlite";
-            host = "/home/andrew/projects/excelsior/excelsior_dev.db";
-            port = 0;
-            username = "";
-            password = "";
-            database = null;
-            ssl = false;
-            save_password = false;
-          }
-          {
-            id = "ficciones-ex-ternal-sqlite";
-            name = "ex_ternal (sqlite)";
-            db_type = "sqlite";
-            host = "/home/andrew/projects/ex_ternal/data/ex_ternal_dev.db";
-            port = 0;
-            username = "";
-            password = "";
-            database = null;
-            ssl = false;
-            save_password = false;
-          }
-        ];
-        # ollama.com over its OpenAI-compatible endpoint, bearer = the agenix ollama-api-key.
-        ai = {
-          id = "ficciones-ollama-cloud";
-          name = "ollama.com";
-          config = {
-            provider = "ollama";
-            auth_method = "bearer";
-            endpoint = "https://ollama.com/v1";
-            model = "glm-5.2";
-            api_style = "completions";
+      dbxSeed = pkgs.writeText "dbx-seed.json" (
+        builtins.toJSON {
+          connections = [
+            {
+              id = "ficciones-local-postgres";
+              name = "local postgres";
+              db_type = "postgres";
+              host = "127.0.0.1";
+              port = 5432;
+              username = "andrew";
+              password = "";
+              database = null;
+              ssl = false;
+              save_password = false;
+            }
+            {
+              id = "ficciones-excelsior-sqlite";
+              name = "excelsior (sqlite)";
+              db_type = "sqlite";
+              host = "/home/andrew/projects/excelsior/excelsior_dev.db";
+              port = 0;
+              username = "";
+              password = "";
+              database = null;
+              ssl = false;
+              save_password = false;
+            }
+            {
+              id = "ficciones-ex-ternal-sqlite";
+              name = "ex_ternal (sqlite)";
+              db_type = "sqlite";
+              host = "/home/andrew/projects/ex_ternal/data/ex_ternal_dev.db";
+              port = 0;
+              username = "";
+              password = "";
+              database = null;
+              ssl = false;
+              save_password = false;
+            }
+          ];
+          # ollama.com over its OpenAI-compatible endpoint, bearer = the agenix ollama-api-key.
+          ai = {
+            id = "ficciones-ollama-cloud";
+            name = "ollama.com";
+            config = {
+              provider = "ollama";
+              auth_method = "bearer";
+              endpoint = "https://ollama.com/v1";
+              model = "glm-5.2";
+              api_style = "completions";
+            };
           };
-        };
-        # agenix secret names, resolved under $XDG_RUNTIME_DIR/agenix at launch
-        ai_key_secret = "ollama-api-key";
-        extra_connections_secret = "dbx-connections";
-      });
+          # agenix secret names, resolved under $XDG_RUNTIME_DIR/agenix at launch
+          ai_key_secret = "ollama-api-key";
+          extra_connections_secret = "dbx-connections";
+        }
+      );
       dbxSeedScript = pkgs.writeShellScript "dbx-seed" ''
-        export PATH=${pkgs.lib.makeBinPath [ pkgs.sqlite pkgs.jq ]}:$PATH
+        export PATH=${
+          pkgs.lib.makeBinPath [
+            pkgs.sqlite
+            pkgs.jq
+          ]
+        }:$PATH
         export DBX_DATA_DIR="${dbxDataDir}"
         exec ${pkgs.bash}/bin/bash ${./modules/desktop/scripts/dbx-seed.sh} ${dbxSeed}
       '';
@@ -206,11 +225,20 @@
             icon = "dbx";
             desktopName = "DBX";
             comment = "Database GUI";
-            categories = [ "Development" "Database" ];
+            categories = [
+              "Development"
+              "Database"
+            ];
           })
         ];
         postBuild = ''
-          contents=${pkgs.appimageTools.extract { pname = "dbx-appimage"; version = dbxVersion; src = dbxAppImageSrc; }}
+          contents=${
+            pkgs.appimageTools.extract {
+              pname = "dbx-appimage";
+              version = dbxVersion;
+              src = dbxAppImageSrc;
+            }
+          }
           for png in $contents/usr/share/icons/hicolor/*/apps/*.png; do
             size=$(basename "$(dirname "$(dirname "$png")")")
             mkdir -p $out/share/icons/hicolor/$size/apps
@@ -255,8 +283,11 @@
         # washed-out selection.
         palette-contrast =
           let
-            spec = name: palette: pkgs.writeText "${name}-contrast.json"
-              (builtins.toJSON (import ./modules/desktop/theme/contrast.nix palette));
+            spec =
+              name: palette:
+              pkgs.writeText "${name}-contrast.json" (
+                builtins.toJSON (import ./modules/desktop/theme/contrast.nix palette)
+              );
             run = name: palette: ''
               ${pkgs.python3}/bin/python3 ${./modules/desktop/theme/contrast.py} ${name} ${spec name palette}
             '';
@@ -278,7 +309,14 @@
       # (modules/os/vm.nix). `ivysaur` lands when the laptop leaves Arch.
       nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo tlonRepo astalShell hyprexpo; };
+        specialArgs = {
+          inherit
+            repo
+            tlonRepo
+            astalShell
+            hyprexpo
+            ;
+        };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os
@@ -289,7 +327,14 @@
       # (docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md).
       nixosConfigurations.ivysaur = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit repo tlonRepo astalShell hyprexpo; };
+        specialArgs = {
+          inherit
+            repo
+            tlonRepo
+            astalShell
+            hyprexpo
+            ;
+        };
         modules = [
           home-manager.nixosModules.home-manager
           ./modules/os
@@ -336,7 +381,12 @@
                 historyLimit = 50000;
                 mouse = true;
                 terminal = "tmux-256color";
-                plugins = with pkgs.tmuxPlugins; [ resurrect continuum yank tmux-thumbs ];
+                plugins = with pkgs.tmuxPlugins; [
+                  resurrect
+                  continuum
+                  yank
+                  tmux-thumbs
+                ];
                 extraConfig = ''
                   # Extended keys so shift+enter etc. round-trip to apps under tmux (the kitty-
                   # protocol gap the worklist flagged). Apps negotiate their own encoding above this.
@@ -444,16 +494,20 @@
 
               # age-encrypted secrets, decrypted at home:switch to $XDG_RUNTIME_DIR/agenix/<name>.
               # Gated on pathExists so the flake evaluates before the first secret is created.
-              age.secrets = lib.optionalAttrs (builtins.pathExists ./secrets/ollama-api-key.age) {
-                ollama-api-key.file = ./secrets/ollama-api-key.age;
-              } // lib.optionalAttrs (builtins.pathExists ./secrets/dbx-connections.age) {
-                dbx-connections.file = ./secrets/dbx-connections.age;
-              };
+              age.secrets =
+                lib.optionalAttrs (builtins.pathExists ./secrets/ollama-api-key.age) {
+                  ollama-api-key.file = ./secrets/ollama-api-key.age;
+                }
+                // lib.optionalAttrs (builtins.pathExists ./secrets/dbx-connections.age) {
+                  dbx-connections.file = ./secrets/dbx-connections.age;
+                };
 
               # The four working rules (modules/agents/how-to-work.md), as Claude Code's global CLAUDE.md.
               home.file.".claude/CLAUDE.md".source = ./modules/agents/how-to-work.md;
-              home.file.".claude/skills/agent-desktop/SKILL.md".source = ./modules/agents/skills/agent-desktop/SKILL.md;
-              home.file.".claude/skills/agent-browser/SKILL.md".source = ./modules/agents/skills/agent-browser/SKILL.md;
+              home.file.".claude/skills/agent-desktop/SKILL.md".source =
+                ./modules/agents/skills/agent-desktop/SKILL.md;
+              home.file.".claude/skills/agent-browser/SKILL.md".source =
+                ./modules/agents/skills/agent-browser/SKILL.md;
               xdg.configFile."worktrunk/config.toml".source = ./modules/agents/worktrunk.toml;
               # Claude Code's shells read these (settings.json: env.ZDOTDIR = ~/.claude/zsh): the user's
               # .zshenv and .zprofile, then a lean rc in place of ~/.zshrc's ~14k-line snapshot

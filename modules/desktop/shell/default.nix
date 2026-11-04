@@ -39,7 +39,10 @@ in
     location = lib.mkOption {
       type = lib.types.nullOr (lib.types.attrsOf lib.types.float);
       default = null;
-      example = { lat = 38.8; lon = -104.8; };
+      example = {
+        lat = 38.8;
+        lon = -104.8;
+      };
       description = "lat/lon for the weather pane (open-meteo). null = the pane says so.";
     };
   };

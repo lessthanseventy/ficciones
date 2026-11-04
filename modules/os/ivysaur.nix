@@ -17,7 +17,14 @@ let
   btrfs = subvol: {
     device = "/dev/disk/by-uuid/b0077b04-b5d9-4693-9043-b46b7b28f42f";
     fsType = "btrfs";
-    options = [ "subvol=${subvol}" "noatime" "compress=zstd:3" "ssd" "discard=async" "space_cache=v2" ];
+    options = [
+      "subvol=${subvol}"
+      "noatime"
+      "compress=zstd:3"
+      "ssd"
+      "discard=async"
+      "space_cache=v2"
+    ];
   };
 in
 {
@@ -44,11 +51,23 @@ in
   # kernel bump that outruns the driver breaks the BUILD, not the boot, and flake:check catches
   # it before the ISO does. (2026-09-12)
   boot.kernelPackages = pkgs.linuxPackages_latest;
-  boot.initrd.availableKernelModules = [ "xhci_pci" "thunderbolt" "nvme" "usb_storage" "sd_mod" ];
+  boot.initrd.availableKernelModules = [
+    "xhci_pci"
+    "thunderbolt"
+    "nvme"
+    "usb_storage"
+    "sd_mod"
+  ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.supportedFilesystems = [ "btrfs" ];
   # The Arch cmdline, minus the bits NixOS derives (root, resume, rootflags).
-  boot.kernelParams = [ "quiet" "loglevel=3" "pcie_aspm=force" "intel_pstate=passive" "mem_sleep_default=deep" ];
+  boot.kernelParams = [
+    "quiet"
+    "loglevel=3"
+    "pcie_aspm=force"
+    "intel_pstate=passive"
+    "mem_sleep_default=deep"
+  ];
   boot.resumeDevice = "/dev/disk/by-uuid/dbc5438c-46d0-41b5-9530-2f4e0e907ed8";
 
   # ---- disks: the Garuda layout, unchanged ------------------------------------------------
@@ -63,7 +82,10 @@ in
     "/boot/efi" = {
       device = "/dev/disk/by-uuid/AF10-16B1";
       fsType = "vfat";
-      options = [ "umask=0077" "noatime" ];
+      options = [
+        "umask=0077"
+        "noatime"
+      ];
     };
   };
   swapDevices = [ { device = "/dev/disk/by-uuid/dbc5438c-46d0-41b5-9530-2f4e0e907ed8"; } ];
@@ -73,11 +95,17 @@ in
   # churn (Steam, containers, .cache — ~299 GiB of the 543) until btrfs metadata hit the wall,
   # which is exactly what took the Arch install down on 2026-09-12. /home is backed up
   # off-disk instead; snapshots share the drive and were never that backup. (2026-09-12)
-  services.btrfs.autoScrub = { enable = true; interval = "monthly"; };
+  services.btrfs.autoScrub = {
+    enable = true;
+    interval = "monthly";
+  };
   services.fstrim.enable = true;
 
   # sched_ext LAVD: latency-criticality aware, so the desktop stays snappy under a full office.
-  services.scx = { enable = true; scheduler = "scx_lavd"; };
+  services.scx = {
+    enable = true;
+    scheduler = "scx_lavd";
+  };
 
   # keyd merges every keyboard into one virtual device: the Compx receiver splits a key's press and
   # release across two interfaces, which per-device remappers leave stuck (Shift, caps lock).
@@ -94,7 +122,10 @@ in
   hardware.graphics = {
     enable = true;
     enable32Bit = true; # steam / wine
-    extraPackages = with pkgs; [ intel-media-driver vpl-gpu-rt ];
+    extraPackages = with pkgs; [
+      intel-media-driver
+      vpl-gpu-rt
+    ];
   };
   services.xserver.videoDrivers = [ "nvidia" ];
   hardware.nvidia = {
@@ -118,24 +149,66 @@ in
     powertop
     btrfs-progs
     # Everything hyprland.lua binds or the shell execs, that ./default.nix does not already carry.
-    grim slurp swappy hyprshot hyprpicker tesseract playerctl brightnessctl
-    easyeffects xdg-user-dirs khal
-    kdePackages.dolphin kdePackages.kate pavucontrol
+    grim
+    slurp
+    swappy
+    hyprshot
+    hyprpicker
+    tesseract
+    playerctl
+    brightnessctl
+    easyeffects
+    xdg-user-dirs
+    khal
+    kdePackages.dolphin
+    kdePackages.kate
+    pavucontrol
     # terminals + TUIs the palette themes
-    kitty wezterm btop lazygit bat fzf cava delta diff-so-fancy starship neovim
+    kitty
+    wezterm
+    btop
+    lazygit
+    bat
+    fzf
+    cava
+    delta
+    diff-so-fancy
+    starship
+    neovim
     # GTK/Qt looks (modules/desktop/theme names these)
-    (catppuccin-gtk.override { variant = "mocha"; accents = [ "yellow" ]; })
-    papirus-icon-theme bibata-cursors
-    kdePackages.qt6ct libsForQt5.qt5ct kdePackages.qtstyleplugin-kvantum
+    (catppuccin-gtk.override {
+      variant = "mocha";
+      accents = [ "yellow" ];
+    })
+    papirus-icon-theme
+    bibata-cursors
+    kdePackages.qt6ct
+    libsForQt5.qt5ct
+    kdePackages.qtstyleplugin-kvantum
     # daily apps (the Arch profile; see the runbook §"what has no twin")
     # rustdesk builds from source (a full Rust compile) — runbook §5 TODO, not worth the build
-    zoom-us vesktop signal-desktop slack obsidian libreoffice-stable mpv imv
-    bitwarden-desktop rbw qbittorrent telegram-desktop
-    ripgrep eza zoxide atuin tmuxinator
+    zoom-us
+    vesktop
+    signal-desktop
+    slack
+    obsidian
+    libreoffice-stable
+    mpv
+    imv
+    bitwarden-desktop
+    rbw
+    qbittorrent
+    telegram-desktop
+    ripgrep
+    eza
+    zoxide
+    atuin
+    tmuxinator
     podman-compose
     # browsers: pacman's on Arch (their nixpkgs builds lose VA-API against the host mesa); a
     # migrated box had none declared at all (survey 2026-09-08). theme/floorp-sites.nix styles floorp
-    firefox floorp-bin
+    firefox
+    floorp-bin
   ];
 
   # ---- games ------------------------------------------------------------------------------
@@ -153,11 +226,14 @@ in
   '';
   services.tailscale.enable = true;
   # the rail's VPN card drives the mullvad CLI (shell/lib/vpn.ts); it is in daily use on Arch
-  services.mullvad-vpn.enable = true;   # the daemon + CLI; no GUI (the card is the GUI)
+  services.mullvad-vpn.enable = true; # the daemon + CLI; no GUI (the card is the GUI)
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
   services.openssh.enable = true;
   services.printing.enable = true;
-  services.avahi = { enable = true; nssmdns4 = true; };
+  services.avahi = {
+    enable = true;
+    nssmdns4 = true;
+  };
   services.fwupd.enable = true;
   services.thermald.enable = true;
   services.power-profiles-daemon.enable = true; # the shell's BAT popover drives it
@@ -176,7 +252,11 @@ in
   services.postgresql = {
     enable = true;
     package = pkgs.postgresql_18;
-    extensions = ps: with ps; [ pgvector timescaledb ];
+    extensions =
+      ps: with ps; [
+        pgvector
+        timescaledb
+      ];
     settings.shared_preload_libraries = [ "timescaledb" ];
   };
 

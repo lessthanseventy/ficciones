@@ -12,7 +12,10 @@
 # CAP_WIDTH (printed line width, default 200; the log keeps whole lines).
 set -uo pipefail
 
-[ "$#" -gt 0 ] || { echo "cap: give me a command to run" >&2; exit 2; }
+[ "$#" -gt 0 ] || {
+	echo "cap: give me a command to run" >&2
+	exit 2
+}
 
 tail_n="${CAP_TAIL:-40}"
 keep="${CAP_KEEP:-40}"
@@ -41,55 +44,55 @@ summary="$(grep -nEi '[0-9]+ (tests?|examples?|failures?|errors?|passed|failed|a
 
 failblock=0
 if [ "$rc" -eq 0 ]; then
-  printf '  ✓ exit 0\n'
-  # Tiny by default — override with CAP_TAIL (a number, or `all` for the whole log inline).
-  { [ "${CAP_TAIL:-}" = all ] || [ -n "${CAP_TAIL:-}" ]; } || tail_n=3
+	printf '  ✓ exit 0\n'
+	# Tiny by default — override with CAP_TAIL (a number, or `all` for the whole log inline).
+	{ [ "${CAP_TAIL:-}" = all ] || [ -n "${CAP_TAIL:-}" ]; } || tail_n=3
 else
-  printf '  ✗ exit %s\n' "$rc"
-  { [ "${CAP_TAIL:-}" = all ] || [ -n "${CAP_TAIL:-}" ]; } || tail_n=5
-  failblock=1
+	printf '  ✗ exit %s\n' "$rc"
+	{ [ "${CAP_TAIL:-}" = all ] || [ -n "${CAP_TAIL:-}" ]; } || tail_n=5
+	failblock=1
 
-  # Framework-aware: the real failure blocks, not lines that merely contain "error".
-  # Falls back to a generic grep for anything unrecognized.
-  if grep -qE '^[[:space:]]+[0-9]+\) (test|doctest|property)' "$log"; then
-    label="ExUnit failures"
-    fails="$(awk '/^[[:space:]]+[0-9]+\) (test|doctest|property)/{p=1} p' "$log" | head -80)"
-  elif grep -qiE '\(fail\)|✗ ' "$log"; then
-    label="bun failures"
-    fails="$(grep -nEiA2 '\(fail\)|✗ |expected:|received:' "$log" | head -50)"
-  else
-    label="failure lines"
-    fails="$(grep -nEi 'fail|error|✗|assert|exception|traceback|undefined|panic|refused' "$log" | head -15)"
-  fi
-  if [ -n "$fails" ]; then
-    printf '  ── %s ──\n' "$label"
-    printf '%s\n' "$fails" | cut -c"1-$width" | sed 's/^/    /'
-  else
-    failblock=0
-  fi
+	# Framework-aware: the real failure blocks, not lines that merely contain "error".
+	# Falls back to a generic grep for anything unrecognized.
+	if grep -qE '^[[:space:]]+[0-9]+\) (test|doctest|property)' "$log"; then
+		label="ExUnit failures"
+		fails="$(awk '/^[[:space:]]+[0-9]+\) (test|doctest|property)/{p=1} p' "$log" | head -80)"
+	elif grep -qiE '\(fail\)|✗ ' "$log"; then
+		label="bun failures"
+		fails="$(grep -nEiA2 '\(fail\)|✗ |expected:|received:' "$log" | head -50)"
+	else
+		label="failure lines"
+		fails="$(grep -nEi 'fail|error|✗|assert|exception|traceback|undefined|panic|refused' "$log" | head -15)"
+	fi
+	if [ -n "$fails" ]; then
+		printf '  ── %s ──\n' "$label"
+		printf '%s\n' "$fails" | cut -c"1-$width" | sed 's/^/    /'
+	else
+		failblock=0
+	fi
 fi
 
 # The "good letters" — results, errors, warnings, counts, timings — with install/compile
 # noise dropped. Shown only when there's no failure block (that block IS the signal
 # already). The full log stays on disk untouched; this is only what we PRINT.
 if [ "$failblock" -eq 0 ] && [ "${CAP_TAIL:-}" != all ]; then
-  # Drop the known-noise lines FIRST (DB/debug/SQL chatter), THEN keep the good letters —
-  # otherwise a per-query "idle=0.8ms" debug line reads as a "timing" and floods the view.
-  noise_re='\[(debug|info|notice)\]|QUERY (OK|ERROR)|idle=[0-9]|queue=[0-9]|^[[:space:]]*(SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|begin|commit|RETURNING|FROM|WHERE|VALUES)'
-  sig_re='[0-9]+ (tests?|examples?|failures?|errors?|warnings?|assertions?|passed|failed|skipped)|^(PASS|FAIL|ok |not ok)|✓|✗|✅|❌|⚠|error|warning|fail|exception|panic|fatal|refused|denied|cannot|unable|not found|timeout|finished in|compiling [0-9]+ file|generated |coverage|[0-9]+ (files?|packages?|dependencies|modules?)'
-  signal="$(grep -vE "$noise_re" "$log" | grep -iE "$sig_re" | awk '!seen[$0]++' | head -"${CAP_SIGNAL:-12}")"
-  if [ -n "$signal" ]; then
-    printf '  ── signal ──\n'
-    printf '%s\n' "$signal" | cut -c"1-$width" | sed 's/^/    /'
-  fi
+	# Drop the known-noise lines FIRST (DB/debug/SQL chatter), THEN keep the good letters —
+	# otherwise a per-query "idle=0.8ms" debug line reads as a "timing" and floods the view.
+	noise_re='\[(debug|info|notice)\]|QUERY (OK|ERROR)|idle=[0-9]|queue=[0-9]|^[[:space:]]*(SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|begin|commit|RETURNING|FROM|WHERE|VALUES)'
+	sig_re='[0-9]+ (tests?|examples?|failures?|errors?|warnings?|assertions?|passed|failed|skipped)|^(PASS|FAIL|ok |not ok)|✓|✗|✅|❌|⚠|error|warning|fail|exception|panic|fatal|refused|denied|cannot|unable|not found|timeout|finished in|compiling [0-9]+ file|generated |coverage|[0-9]+ (files?|packages?|dependencies|modules?)'
+	signal="$(grep -vE "$noise_re" "$log" | grep -iE "$sig_re" | awk '!seen[$0]++' | head -"${CAP_SIGNAL:-12}")"
+	if [ -n "$signal" ]; then
+		printf '  ── signal ──\n'
+		printf '%s\n' "$signal" | cut -c"1-$width" | sed 's/^/    /'
+	fi
 fi
 
 if [ "${CAP_TAIL:-}" = all ]; then
-  printf '  ── full log (%s lines) ──\n' "$lines"
-  sed 's/^/    /' "$log"
+	printf '  ── full log (%s lines) ──\n' "$lines"
+	sed 's/^/    /' "$log"
 else
-  printf '  ── tail %s ──\n' "$tail_n"
-  tail -n "$tail_n" "$log" | cut -c"1-$width" | sed 's/^/    /'
+	printf '  ── tail %s ──\n' "$tail_n"
+	tail -n "$tail_n" "$log" | cut -c"1-$width" | sed 's/^/    /'
 fi
 printf '  more: tail -n 200 %s   |   grep -nEi PATTERN %s\n' "$rel" "$rel"
 

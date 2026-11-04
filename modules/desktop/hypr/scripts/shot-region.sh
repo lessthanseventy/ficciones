@@ -11,5 +11,5 @@ args=(gui --raw)
 [[ "${1:-}" == "repeat" ]] && args+=(--last-region)
 tmp=$(mktemp --suffix=.png)
 trap 'rm -f "$tmp"' EXIT
-flameshot "${args[@]}" > "$tmp" || true
-[[ -s "$tmp" ]] && wl-copy --type image/png < "$tmp"   # Esc → empty file → clipboard untouched
+flameshot "${args[@]}" >"$tmp" || true
+[[ -s "$tmp" ]] && wl-copy --type image/png <"$tmp" # Esc → empty file → clipboard untouched

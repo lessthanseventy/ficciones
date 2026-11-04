@@ -82,9 +82,9 @@ let
     run=$!
     wait $run
   '';
-  linkTo =
-    rel:
-    { source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}"; };
+  linkTo = rel: {
+    source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}";
+  };
 
   # Shared by both activation entries: reload every live instance, no-op when none (a headless
   # switch, a VM build). hyprctl is the system's (pacman), so probe rather than name a store path.
@@ -112,7 +112,10 @@ let
   };
 in
 {
-  imports = [ ./shell ./theme ];
+  imports = [
+    ./shell
+    ./theme
+  ];
 
   options.ficciones.desktop.host = lib.mkOption {
     type = lib.types.str;
@@ -125,7 +128,10 @@ in
 
   config = {
     # Home. The weather pane's open-meteo query.
-    ficciones.desktop.shell.location = { lat = 38.7977014100912; lon = -104.80787634502575; };
+    ficciones.desktop.shell.location = {
+      lat = 38.7977014100912;
+      lon = -104.80787634502575;
+    };
 
     # mkDefault so modules/os can still state it outright for NixOS without a conflict.
     ficciones.desktop.shell.autostart = lib.mkDefault true;
@@ -138,16 +144,32 @@ in
       config.lib.file.mkOutOfStoreSymlink "${tlonRepo}/adapters/skills/drive-office";
     # gh finds extensions only in its own dir, not on PATH: `gh stack` (GitHub's stacked PRs)
     home.file.".local/share/gh/extensions/gh-stack/gh-stack".source = "${pkgs.gh-stack}/bin/gh-stack";
-    home.file.".local/bin/sudo-askpass" = { source = ./scripts/sudo-askpass; executable = true; };
+    home.file.".local/bin/sudo-askpass" = {
+      source = ./scripts/sudo-askpass;
+      executable = true;
+    };
     # recolours open ghostty surfaces to the live theme (the switch runs it; see lib/theme.ts)
-    home.file.".local/bin/ficciones-recolor" = { source = ./scripts/ficciones-recolor; executable = true; };
+    home.file.".local/bin/ficciones-recolor" = {
+      source = ./scripts/ficciones-recolor;
+      executable = true;
+    };
     # a stream URL (m3u8/mpd) into mpv, referer and all — what The Stream Detector copies out of
     # a page whose own player lies to Mpris (Ctrl+Super+M plays the clipboard)
-    home.file.".local/bin/mpv-stream" = { source = ./scripts/mpv-stream; executable = true; };
+    home.file.".local/bin/mpv-stream" = {
+      source = ./scripts/mpv-stream;
+      executable = true;
+    };
     programs.mpv = {
       enable = true;
       scripts = [ pkgs.mpvScripts.mpris ]; # real Mpris: the deck's transport and position work
-      config = { gpu-context = "wayland"; hwdec = "auto-safe"; force-window = "yes"; keep-open = "yes"; ytdl = "yes"; osd-font = "ComicShannsMono Nerd Font"; };
+      config = {
+        gpu-context = "wayland";
+        hwdec = "auto-safe";
+        force-window = "yes";
+        keep-open = "yes";
+        ytdl = "yes";
+        osd-font = "ComicShannsMono Nerd Font";
+      };
     };
     home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
 
@@ -157,62 +179,159 @@ in
     #   piper -m ~/.local/share/piper-voices/en_US-lessac-medium.onnx --output-raw < text | aplay
     home.file.".local/share/piper-voices" = {
       recursive = true;
-      source = let
-        base = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0";
-        voice = path: name: hashes: [
-          { name = "${name}.onnx"; path = pkgs.fetchurl { url = "${base}/${path}/${name}.onnx"; hash = builtins.elemAt hashes 0; }; }
-          { name = "${name}.onnx.json"; path = pkgs.fetchurl { url = "${base}/${path}/${name}.onnx.json"; hash = builtins.elemAt hashes 1; }; }
-        ];
-      in pkgs.linkFarm "piper-voices" (
-        voice "en/en_US/lessac/medium" "en_US-lessac-medium" [ "sha256-Xv4J5pkCGHgnr2RuGm6dJp3udp+Yd9F7FrG0buqvAZ8=" "sha256-7+GcQXvtBV8taZCCSMa6ZQ+hNbyGiw5quz2hgdq2kKA=" ]
-        ++ voice "en/en_GB/alan/medium" "en_GB-alan-medium" [ "sha256-CjCWaJMiBedigB8e/Cc2zUsBIDKWIq32K+CeVjOdMzA=" "sha256-wPDRJOWJXADnwDs13MgofzGaaZijZbGC3rXI51LujB4=" ]
-      );
+      source =
+        let
+          base = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0";
+          voice = path: name: hashes: [
+            {
+              name = "${name}.onnx";
+              path = pkgs.fetchurl {
+                url = "${base}/${path}/${name}.onnx";
+                hash = builtins.elemAt hashes 0;
+              };
+            }
+            {
+              name = "${name}.onnx.json";
+              path = pkgs.fetchurl {
+                url = "${base}/${path}/${name}.onnx.json";
+                hash = builtins.elemAt hashes 1;
+              };
+            }
+          ];
+        in
+        pkgs.linkFarm "piper-voices" (
+          voice "en/en_US/lessac/medium" "en_US-lessac-medium" [
+            "sha256-Xv4J5pkCGHgnr2RuGm6dJp3udp+Yd9F7FrG0buqvAZ8="
+            "sha256-7+GcQXvtBV8taZCCSMa6ZQ+hNbyGiw5quz2hgdq2kKA="
+          ]
+          ++ voice "en/en_GB/alan/medium" "en_GB-alan-medium" [
+            "sha256-CjCWaJMiBedigB8e/Cc2zUsBIDKWIq32K+CeVjOdMzA="
+            "sha256-wPDRJOWJXADnwDs13MgofzGaaZijZbGC3rXI51LujB4="
+          ]
+        );
     };
 
     home.packages = with pkgs; [
       # terminal file managers on trial as THE picker (a termfilechooser portal wraps one of them);
       # yazi was pacman's before, lf/vifm are new (2026-09-07)
-      yazi lf vifm
+      yazi
+      lf
+      vifm
       # user-level tools moved off pacman (2026-09-07 survey): the flake owns what the next box
       # needs; pacman keeps the kernel, drivers, Hyprland and its ecosystem until NixOS
       xssHost
-      fastfetch fd lazygit gh rclone tokei zenith lnav flyctl mise
+      fastfetch
+      fd
+      lazygit
+      gh
+      rclone
+      tokei
+      zenith
+      lnav
+      flyctl
+      mise
       # pandoc from the binary cache — pacman's built it locally through ~190 haskell-* packages
       pandoc
-      signal-desktop slack discord podman-desktop audacity strawberry
+      signal-desktop
+      slack
+      discord
+      podman-desktop
+      audacity
+      strawberry
       # the theme module renders configs for these; the binaries were pacman's (survey 2026-09-07)
-      starship bat cava btop kitty wezterm delta
+      starship
+      bat
+      cava
+      btop
+      kitty
+      wezterm
+      delta
       # decided in modules/os/ivysaur.nix, applied to today's profile too
-      libreoffice-stable qbittorrent pavucontrol eza imv hyprpicker brightnessctl diff-so-fancy
+      libreoffice-stable
+      qbittorrent
+      pavucontrol
+      eza
+      imv
+      hyprpicker
+      brightnessctl
+      diff-so-fancy
       # dev / cli
-      glow direnv difftastic tealdeer ugrep procs duf dust ncdu yt-dlp graphviz cloudflared sshfs strace wtype wlrctl wev pamixer playerctl bluetui
+      glow
+      direnv
+      difftastic
+      tealdeer
+      ugrep
+      procs
+      duf
+      dust
+      ncdu
+      yt-dlp
+      graphviz
+      cloudflared
+      sshfs
+      strace
+      wtype
+      wlrctl
+      wev
+      pamixer
+      playerctl
+      bluetui
       # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform formats lua/sh
-      tree-sitter stylua shfmt
+      tree-sitter
+      stylua
+      shfmt
       # menard's write check on .nix (Menard.Lang): the formatter and the linter
-      nixfmt statix
-      lazydocker lazysql lazyjournal lazyssh
+      nixfmt
+      statix
+      lazydocker
+      lazysql
+      lazyjournal
+      lazyssh
       # the agent CLIs and their tooling, off pacman (survey 2026-09-07); ollama stays pacman's
       # ollama-cuda (the GPU build), plocate pacman's (its updatedb timer is a system unit)
-      claude-code codex uv libation piper-tts
+      claude-code
+      codex
+      uv
+      libation
+      piper-tts
       # the tlon office's arcade cabinets: it lists whichever of these it finds on PATH
-      ninvaders myman moon-buggy nsnake bastet _2048-in-terminal freesweep nudoku tty-solitaire
+      ninvaders
+      myman
+      moon-buggy
+      nsnake
+      bastet
+      _2048-in-terminal
+      freesweep
+      nudoku
+      tty-solitaire
       (import ./doom.nix { inherit pkgs; })
       # screenshots: flameshot is Super+Shift+S only (hypr/scripts/shot-region.sh); the card is grim (shell/lib/capture.ts)
       flameshot
       # the clipboard history behind the rail's clipboard card and Super+V (hyprland.lua's
       # wl-paste --watch at start); pacman's went in the 2026-09-07 sweep as a dependency
-      cliphist wl-clipboard
+      cliphist
+      wl-clipboard
       jq
       # more of the 2026-09-08 sweep's collateral: grim + slurp came off as hyprshot's deps (the
       # shell's thumbnails, capture card and `mise shot:*` are grim); zoxide/sesh/cliamp were
       # tmux's dependents; aplay/amixer for the terminal
-      grim slurp zoxide sesh cliamp alsa-utils
+      grim
+      slurp
+      zoxide
+      sesh
+      cliamp
+      alsa-utils
       # the capture card's annotate: a region shot opened to draw arrows, boxes and text on (shell/lib/capture.ts)
       satty
       # the agent sandbox's Linux deps (bubblewrap + socat); bwrap is pacman's today, owned here too
-      socat bubblewrap
+      socat
+      bubblewrap
       # the last pacman-only user tools (survey 2026-09-08); yq-go is what pacman called go-yq
-      ripgrep fzf atuin yq-go sqlite
+      ripgrep
+      fzf
+      atuin
+      yq-go
+      sqlite
       # arithmetic on fractions in a shell (timings: `echo "$end - $start" | bc`); agents reach for it
       # and it was missing (2026-09-26)
       bc
@@ -245,12 +364,13 @@ in
       # CRT screen shaders, switched by path (hyprctl keyword decoration:screen_shader …).
       "hypr/shaders/crt-full.glsl" = linkTo "shaders/crt-full.glsl";
 
-
       # Neovim = asterion, a SIBLING repo (master plan 2026-09-17 §3): the whole config dir as one
       # out-of-store link, so an edit there is live and lazy.nvim owns plugins (lazy-lock.json in
       # that repo). Nix owns only nvim's system deps (below) and the rendered palette file. The
       # December config (claudevim) was moved to ~/projects/claudevim as a quarry.
-      "nvim" = { source = config.lib.file.mkOutOfStoreSymlink "${builtins.dirOf repo}/asterion"; };
+      "nvim" = {
+        source = config.lib.file.mkOutOfStoreSymlink "${builtins.dirOf repo}/asterion";
+      };
     };
 
     # scripts/git-hooks/ holds the hooks (post-checkout/-merge/-rewrite, all one script), so they

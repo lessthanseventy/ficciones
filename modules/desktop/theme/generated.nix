@@ -21,7 +21,14 @@ in
     /** the other half of a palette's family: what the toggle flips to */
     export const PARTNER: Record<Theme, Theme> = ${record (p: ''"${p.partner}"'')}
     /** what a theme's card in Settings draws */
-    export const PREVIEWS: Record<Theme, Preview> = ${record (p: let c = n: ''"#${p.role.${n}}"''; in
-      ''{ blurb: "${p.blurb}", ground: ${c "ground"}, card: ${c "card"}, edge: ${c "structure"}, body: ${c "body"}, key: ${c "key"}, meta: ${c "meta"}, live: ${c "live"}, attention: ${c "attention"}, warn: ${c "warn"}, alarm: ${c "alarm"}, field: ${c "cursorField"}, fieldInk: ${c "fieldInk"} }'')}
+    export const PREVIEWS: Record<Theme, Preview> = ${
+      record (
+        p:
+        let
+          c = n: ''"#${p.role.${n}}"'';
+        in
+        ''{ blurb: "${p.blurb}", ground: ${c "ground"}, card: ${c "card"}, edge: ${c "structure"}, body: ${c "body"}, key: ${c "key"}, meta: ${c "meta"}, live: ${c "live"}, attention: ${c "attention"}, warn: ${c "warn"}, alarm: ${c "alarm"}, field: ${c "cursorField"}, fieldInk: ${c "fieldInk"} }''
+      )
+    }
   '';
 }

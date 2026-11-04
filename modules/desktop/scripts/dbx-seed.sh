@@ -33,12 +33,12 @@ CREATE TABLE IF NOT EXISTS ai_configs (
 SQL
 
 insert_connections() {
-  jq -r '.[] | [.id, (. | tojson)] | @tsv' "$1" | while IFS=$'\t' read -r id json; do
-    sqlite3 "$db" "INSERT OR IGNORE INTO connections (id, config_json) VALUES ('$id', '${json//\'/\'\'}');"
-  done
+	jq -r '.[] | [.id, (. | tojson)] | @tsv' "$1" | while IFS=$'\t' read -r id json; do
+		sqlite3 "$db" "INSERT OR IGNORE INTO connections (id, config_json) VALUES ('$id', '${json//\'/\'\'}');"
+	done
 }
 
-jq '.connections' "$seed" > "$DBX_DATA_DIR/.seed-connections.json"
+jq '.connections' "$seed" >"$DBX_DATA_DIR/.seed-connections.json"
 insert_connections "$DBX_DATA_DIR/.seed-connections.json"
 rm -f "$DBX_DATA_DIR/.seed-connections.json"
 
@@ -49,10 +49,10 @@ extra="$agenix/$(jq -r '.extra_connections_secret' "$seed")"
 # in place (create-if-absent), and dbx needs the bearer token for ollama.com.
 key_file="$agenix/$(jq -r '.ai_key_secret' "$seed")"
 if [ -f "$key_file" ]; then
-  key=$(tr -d '\n' < "$key_file")
-  ai=$(jq -c --arg key "$key" '.ai.config + {api_key: $key}' "$seed")
-  id=$(jq -r '.ai.id' "$seed")
-  name=$(jq -r '.ai.name' "$seed")
-  model=$(jq -r '.ai.config.model' "$seed")
-  sqlite3 "$db" "INSERT OR IGNORE INTO ai_configs (id, name, model, models, config_json, is_default) VALUES ('$id', '$name', '$model', '[]', '${ai//\'/\'\'}', 1);"
+	key=$(tr -d '\n' <"$key_file")
+	ai=$(jq -c --arg key "$key" '.ai.config + {api_key: $key}' "$seed")
+	id=$(jq -r '.ai.id' "$seed")
+	name=$(jq -r '.ai.name' "$seed")
+	model=$(jq -r '.ai.config.model' "$seed")
+	sqlite3 "$db" "INSERT OR IGNORE INTO ai_configs (id, name, model, models, config_json, is_default) VALUES ('$id', '$name', '$model', '[]', '${ai//\'/\'\'}', 1);"
 fi

@@ -12,7 +12,7 @@ trap 'rm -rf "$out"' EXIT
 # hyprctl binds -j only knows a Lua bind as `__lua <n>`, so the SOURCE is the record. Best-effort
 # parse: the first argument is the keys (M = SUPER), the second the action; a trailing `--`
 # comment, when present, is the human line.
-python3 - modules/desktop/hypr/hyprland.lua > "$out/keys.md" <<'PY'
+python3 - modules/desktop/hypr/hyprland.lua >"$out/keys.md" <<'PY'
 import re, sys
 src = open(sys.argv[1], encoding="utf-8").read().splitlines()
 mod = re.search(r'^local M = "(\w+)"', "\n".join(src), re.M)
@@ -64,8 +64,8 @@ for g in order:
 PY
 
 # ---- tasks.md: every mise verb, by group -------------------------------------------------------
-mise tasks ls --json > "$out/tasks.json"
-python3 - "$out/tasks.json" > "$out/tasks.md" <<'PY'
+mise tasks ls --json >"$out/tasks.json"
+python3 - "$out/tasks.json" >"$out/tasks.md" <<'PY'
 import json, sys
 tasks = json.load(open(sys.argv[1]))
 groups = {}
@@ -87,7 +87,7 @@ PY
 roles="$(nix eval --json --impure --expr '
   let ps = import ./modules/desktop/theme/palettes;
   in { roles = builtins.mapAttrs (_: p: p.role) ps; font = ps.uqbar.font; }')"
-python3 - "$roles" > "$out/palette.md" <<'PY'
+python3 - "$roles" >"$out/palette.md" <<'PY'
 import json, sys
 p = json.loads(sys.argv[1])
 print("# Palette\n")
@@ -109,11 +109,15 @@ PY
 
 rc=0
 for f in keys tasks palette; do
-  dst="docs/manual/$f.md"
-  if [ "$mode" = "--check" ]; then
-    if ! diff -u "$dst" "$out/$f.md" >/dev/null 2>&1; then echo "manual:check — $dst drifts from its source (run: mise run manual:gen)"; rc=1; fi
-  else
-    cp "$out/$f.md" "$dst"; echo "manual:gen — wrote $dst"
-  fi
+	dst="docs/manual/$f.md"
+	if [ "$mode" = "--check" ]; then
+		if ! diff -u "$dst" "$out/$f.md" >/dev/null 2>&1; then
+			echo "manual:check — $dst drifts from its source (run: mise run manual:gen)"
+			rc=1
+		fi
+	else
+		cp "$out/$f.md" "$dst"
+		echo "manual:gen — wrote $dst"
+	fi
 done
 exit $rc

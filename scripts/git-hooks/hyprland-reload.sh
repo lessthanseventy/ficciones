@@ -32,14 +32,14 @@ instances=("${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/hypr/*/)
 # Reloading with the file gone is the one thing that must NOT happen: it is precisely what
 # resets the compositor to defaults. Warn instead, and leave the running config alone.
 if [ ! -e "$conf" ]; then
-  echo "hyprland-reload: modules/desktop is not on this commit; ~/.config/hypr/hyprland.lua now dangles." >&2
-  echo "hyprland-reload: the live desktop is untouched, but any reload from here lands on Hyprland defaults." >&2
-  echo "hyprland-reload: return to a commit that carries it, then run 'hyprctl reload'." >&2
-  exit 0
+	echo "hyprland-reload: modules/desktop is not on this commit; ~/.config/hypr/hyprland.lua now dangles." >&2
+	echo "hyprland-reload: the live desktop is untouched, but any reload from here lands on Hyprland defaults." >&2
+	echo "hyprland-reload: return to a commit that carries it, then run 'hyprctl reload'." >&2
+	exit 0
 fi
 
 for inst in "${instances[@]}"; do
-  HYPRLAND_INSTANCE_SIGNATURE="$(basename "$inst")" "$hyprctl" reload >/dev/null 2>&1 || true
+	HYPRLAND_INSTANCE_SIGNATURE="$(basename "$inst")" "$hyprctl" reload >/dev/null 2>&1 || true
 done
 
 exit 0
