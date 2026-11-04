@@ -34,7 +34,8 @@ log="$log_dir/${ts}-${slug}.log"
 rc=${PIPESTATUS[0]}
 
 lines="$(wc -l <"$log" | tr -d ' ')"
-rel="${log#"$root"/}"
+# The paths it prints must open from where it was called, which need not be the repo root.
+rel="${log#"$PWD"/}"
 
 printf '▶ %s\n  log: %s  (%s lines)\n' "$*" "$rel" "$lines"
 
