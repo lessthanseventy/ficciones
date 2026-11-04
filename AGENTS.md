@@ -30,8 +30,8 @@ When you run a command whose output you'll inspect — a test suite, a build, a 
 script — run it through **`mise run cap -- <cmd>`**. It runs the command
 **once**, captures all output to a log under `.logs/`, and prints a lean summary: the exit code,
 a test/build-summary line, failure lines on a non-zero exit, and a short tail — plus the exact
-`tail`/`grep` to read more **from the saved log**. The task always runs from the repo root; to run
-from a subdirectory or another repo, call `scripts/cap.sh` by path, which stays where you are.
+`tail`/`grep` to read more **from the saved log**. It runs in the directory you call it from; in
+another repo, call `scripts/cap.sh` by path.
 
 The rule this enforces: **do not re-run a command with an escalating `grep … | tail -N` to see
 more of its output.** The full output is already on disk — `grep`/`tail` the log. Re-running
