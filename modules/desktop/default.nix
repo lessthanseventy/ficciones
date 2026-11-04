@@ -382,6 +382,7 @@ in
       gitBin="$(command -v git 2>/dev/null || echo /usr/bin/git)"
       if [ -e "${repo}/.git" ] && [ -x "$gitBin" ]; then
         run "$gitBin" -C "${repo}" config --local core.hooksPath "${repo}/scripts/git-hooks"
+        run "$gitBin" -C "${repo}" config --local blame.ignoreRevsFile .git-blame-ignore-revs
       fi
     '';
 
