@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { parseFrame, tmuxKey } from './frame'
+import { fitFrame, parseFrame, tmuxKey } from './frame'
 
 test('colours carry across rows and reset', async () => {
   const [a, b] = parseFrame('\x1b[32mhi\nthere\x1b[0m x', 2)
@@ -16,6 +16,16 @@ test('256 and truecolor', async () => {
 test('cursor inverts its cell, past end of line too', async () => {
   expect(parseFrame('abc', 1, { x: 1, y: 0 })[0]).toEqual([{ t: 'a' }, { inv: true, t: 'b' }, { t: 'c' }])
   expect(parseFrame('a', 1, { x: 2, y: 0 })[0]).toEqual([{ t: 'a ' }, { inv: true, t: ' ' }])
+})
+
+test('an oversized frame keeps its text and drops its styling', async () => {
+  const small = [[{ c: 'red', t: 'x' }]]
+  expect(fitFrame(small)).toBe(small)
+  const busy = Array.from({ length: 60 }, () =>
+    Array.from({ length: 80 }, (_, i) => ({ c: '#ff0000', b: i % 2 ? '#000000' : '#111111', t: 'x' })))
+  const fitted = fitFrame(busy)
+  expect(JSON.stringify(fitted).length).toBeLessThan(90_000)
+  expect(fitted[0]).toEqual([{ t: 'x'.repeat(80) }])
 })
 
 test('keys map to tmux names', async () => {

@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { parseFrame, tmuxKey } from './frame'
+import { fitFrame, parseFrame, tmuxKey } from './frame'
 import type { Key, Run } from './frame'
 
 // The id the bundled diff panel opens its pane under. Drawing it from here keeps
@@ -28,10 +28,12 @@ export const register: Register = (on, options) => {
     const config = `${$.plugin.root}/hooks/lazygit.yml`
     const base = (await run(['lazygit', '--print-config-dir'])).stdout.trim()
 
-    const ensure = async () => {
-      if ((await tmux(run, 'has-session', '-t', session)).exitCode === 0) return
+    // session.end never runs when Claude is killed, so the pane's shell watches Claude's pid itself.
+    // lazygit waits in the background so the HUP trap runs at once: lazygit outlives a hung-up pane.
+    const claudePid = (await run(['sh', '-c', 'echo $PPID'])).stdout.trim()
+    const start = async () => {
       await tmux(run, 'new-session', '-d', '-s', session, '-x', String(size.columns), '-y', String(size.rows), '-c', await $.session.cwd(),
-        `while :; do lazygit --use-config-file='${base}/config.yml,${config}'; sleep 1; done`)
+        `(tail --pid=${claudePid} -f /dev/null; tmux -L ${SOCKET} kill-session -t ${session}) & W=$!; trap 'kill $W $L; exit' HUP TERM; while :; do lazygit --use-config-file='${base}/config.yml,${config}' </dev/tty & L=$!; wait $L; sleep 1; done`)
       await tmux(run, 'set-option', '-t', session, 'status', 'off')
     }
 
@@ -39,14 +41,17 @@ export const register: Register = (on, options) => {
       if (isPolling || size.columns === 0) return
       isPolling = true
       try {
-        await ensure()
-        const { stdout } = await tmux(run, 'capture-pane', '-e', '-p', '-t', session, ';',
+        const { exitCode, stdout } = await tmux(run, 'capture-pane', '-e', '-p', '-t', session, ';',
           'display-message', '-p', '-t', session, '#{cursor_x} #{cursor_y} #{cursor_flag}')
+        if (exitCode !== 0) {
+          if (size.columns !== 0) await start()
+          return
+        }
         if (stdout === lastCapture) return
         lastCapture = stdout
         const lines = stdout.trimEnd().split('\n')
         const [x, y, shown] = (lines.pop() ?? '').split(' ').map(Number)
-        rows = parseFrame(lines.join('\n'), size.rows, shown ? { x: x ?? 0, y: y ?? 0 } : undefined)
+        rows = fitFrame(parseFrame(lines.join('\n'), size.rows, shown ? { x: x ?? 0, y: y ?? 0 } : undefined))
         $.ui.invalidate('ui.render')
       } finally {
         isPolling = false

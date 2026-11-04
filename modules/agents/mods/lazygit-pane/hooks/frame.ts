@@ -90,6 +90,12 @@ export const parseFrame = (capture: string, rows: number, cursor?: { x: number; 
   })
 }
 
+// A Client's props past 100000 characters unmount it, so an oversized frame loses its styling instead.
+const FRAME_LIMIT = 90_000
+
+export const fitFrame = (rows: Run[][]): Run[][] =>
+  JSON.stringify(rows).length <= FRAME_LIMIT ? rows : rows.map(row => [{ t: row.map(r => r.t).join('') }])
+
 const NAMED: Record<string, string> = {
   up: 'Up', down: 'Down', left: 'Left', right: 'Right', return: 'Enter', enter: 'Enter', tab: 'Tab',
   backspace: 'BSpace', delete: 'DC', pageup: 'PPage', pagedown: 'NPage', home: 'Home', end: 'End', space: 'Space',
