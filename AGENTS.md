@@ -41,8 +41,10 @@ loop starts repeating itself.
 
 `cap` prints a distilled **signal** view (results, errors, warnings, counts) and drops the
 install/compile/debug noise; a green suite collapses to a couple of lines. Knobs when you need
-them: `CAP_TAIL=all` (the whole log inline, once), `CAP_TAIL=<n>`, `CAP_SIGNAL=<n>`. `mise run
-cap:clean` sweeps the logs (they self-cap at 40 anyway).
+them: `CAP_TAIL=all` (the whole log inline, once), `CAP_TAIL=<n>`, `CAP_SIGNAL=<n>`,
+`CAP_WIDTH=<n>`. `mise run cap:clean` sweeps the logs (they self-cap at 40 anyway). A hook
+(`scripts/cap-no-pipe.sh`) refuses `cap` piped into a filter: it already captures stderr and clips
+long lines.
 
 ### Let the watcher run the tests — don't spend a turn doing it by hand
 

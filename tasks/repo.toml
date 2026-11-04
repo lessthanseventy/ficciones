@@ -27,6 +27,10 @@ if [ -n "$pids" ]; then echo "stopping watchexec: $pids"; kill $pids; else echo 
 description = "names-exist gate: every mise task a guide names must exist (grep, offline, fast)"
 run = "scripts/check-names.sh"
 
+["check:cap-hook"]
+description = "the hook that refuses cap piped into a filter reaches every verdict it should"
+run = "scripts/cap-no-pipe.test.sh"
+
 ["check"]
-description = "Everything green: the names gate, the manual's drift check, and the flake"
-depends = ["check:names", "manual:check", "flake:check"]
+description = "Everything green: the names gate, the cap hook, the manual's drift check, and the flake"
+depends = ["check:names", "check:cap-hook", "manual:check", "flake:check"]
