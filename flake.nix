@@ -519,6 +519,8 @@
               # keeps only PATH, so these cannot live in the rc. No EDITOR: Claude Code's ctrl+g uses it.
               # autoCompactWindow: a 1M-window session otherwise grows to ~1M before compacting, and every
               # call re-reads all of it (one week-long session was 40% of a week's tokens at 455k a call).
+              # CLAUDE_CODE_PLUGIN_DIRS: lazygit in the built-in diff panel's pane, by its store path,
+              # since the plugin loader refuses a module reached through a home.file symlink.
               home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
                 cfg="$HOME/.claude/settings.json"
                 if [ -f "$cfg" ]; then
@@ -526,7 +528,9 @@
                   if ${pkgs.jq}/bin/jq '.env += {
                        ZDOTDIR: (env.HOME + "/.claude/zsh"),
                        GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
-                       GIT_TERMINAL_PROMPT: "0" } | .autoCompactWindow = 250000' "$cfg" > "$tmp"; then
+                       GIT_TERMINAL_PROMPT: "0",
+                       CLAUDE_CODE_PLUGIN_DIRS: "${./modules/agents/mods/lazygit-pane}" }
+                     | .autoCompactWindow = 250000' "$cfg" > "$tmp"; then
                     run chmod 600 "$tmp"
                     run mv -f "$tmp" "$cfg"
                   else
