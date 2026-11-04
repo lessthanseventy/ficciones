@@ -13,8 +13,8 @@
 #   2. A checkout that REPLACES the file leaves the compositor running the old branch's
 #      config until something happens to reload it.
 #
-# Reload is idempotent and does not re-run exec-once, so reloading unconditionally is cheaper
-# than working out whether modules/desktop/ was part of the diff.
+# Reload does not re-run exec-once, but it clears everything set through hl.config at runtime, so
+# it only fires when the operation changed modules/desktop/hypr. A diff git cannot answer reloads.
 #
 # Never fail the git operation — a hook that breaks checkout is worse than a stale desktop.
 set -u
@@ -37,6 +37,12 @@ if [ ! -e "$conf" ]; then
 	echo "hyprland-reload: return to a commit that carries it, then run 'hyprctl reload'." >&2
 	exit 0
 fi
+
+case "$(basename "$0")" in
+post-checkout) from="$1" to="$2" ;;
+*) from=ORIG_HEAD to=HEAD ;;
+esac
+git -C "$root" diff --quiet "$from" "$to" -- modules/desktop/hypr 2>/dev/null && exit 0
 
 for inst in "${instances[@]}"; do
 	HYPRLAND_INSTANCE_SIGNATURE="$(basename "$inst")" "$hyprctl" reload >/dev/null 2>&1 || true
