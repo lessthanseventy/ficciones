@@ -11,8 +11,11 @@ if [ "${1:-}" != "--inner" ]; then
   [ $# -gt 0 ] || { echo "usage: $0 <command> [args...]" >&2; exit 2; }
   # /tmp, because a Wayland socket path has a length limit the scratch directories exceed
   run="$(mktemp -d /tmp/hd.XXXXXX)"
-  # the session's document portal and gvfs leave FUSE mounts behind
-  trap 'for m in "$run"/doc "$run"/gvfs; do fusermount3 -uz "$m" 2>/dev/null || true; done; rm -rf "$run"' EXIT
+  # What the bus activates outlives the session: dconf-service recreates $run after the rm and keeps
+  # any inherited output pipe open, and the document portal and gvfs leave FUSE mounts. Each holds
+  # session.log, which nothing outside this session can.
+  trap 'fuser -sk "$run/session.log" 2>/dev/null || true
+    for m in "$run"/doc "$run"/gvfs; do fusermount3 -uz "$m" 2>/dev/null || true; done; rm -rf "$run"' EXIT
   nix shell nixpkgs#weston nixpkgs#dbus nixpkgs#at-spi2-core -c bash "$0" --inner "$run" "$@"
   exit $?
 fi
@@ -26,12 +29,14 @@ export XDG_RUNTIME_DIR="$run" HOME="$run/home" XDG_CONFIG_HOME="$run/home/.confi
 unset DISPLAY AT_SPI_BUS_ADDRESS DBUS_SESSION_BUS_ADDRESS
 
 conf="$(dirname "$(dirname "$(readlink -f "$(command -v dbus-daemon)")")")/share/dbus-1/session.conf"
+exec 3>&1 4>&2 >"$run/session.log" 2>&1
 exec dbus-run-session --config-file="$conf" -- bash -c '
-  weston --backend=headless --socket=wl --idle-time=0 >"$XDG_RUNTIME_DIR/weston.log" 2>&1 &
+  weston --backend=headless --socket=wl --idle-time=0 3>&- 4>&- &
   weston=$!
   sleep 2
   rc=0
-  "$@" || rc=$?
+  "$@" >&3 2>&4 3>&- 4>&- || rc=$?
   kill "$weston" 2>/dev/null || true
+  wait "$weston" 2>/dev/null
   exit "$rc"
 ' _ "$@"
