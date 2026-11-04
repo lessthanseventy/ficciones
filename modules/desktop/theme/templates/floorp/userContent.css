@@ -688,7 +688,7 @@ NOTE: You can use the userContent.css file without change preferences (about:con
 /* GLOBAL: Force ComicShannsMono on EVERY website */
 /* Excludes elements that use icon fonts (Material Icons/Symbols, Font Awesome, etc.) */
 @-moz-document regexp(".*") {
-  *:not([class*="material-icon"]):not([class*="material-symbol"]):not([class*="Material"]):not([data-icon]):not([class*="fa "]):not([class*="fa-"]):not([class*="fas "]):not([class*="far "]):not([class*="fab "]):not([class*="fal "]):not([class*="fad "]):not([class*="icon-"]):not([class*="glyphicon"]):not([class*="bi-"]):not([class*="pi-"]):not([class*="mdi-"]):not([class*="lucide"]):not([class*="remixicon"]):not([class*="ri-"]):not([aria-hidden="true"]):not([class*="msi-"]):not([class*="zmci-"]):not([class*="zsci-"]):not([class*="zmipath-"]):not([class*="zmDoubleIcon"]):not([class*="zmei-"]):not([class*="zcf-"]) {
+  *:not([class*="material-icon"]):not([class*="material-symbol"]):not([class*="Material"]):not([data-icon]):not([class*="fa "]):not([class*="fa-"]):not([class*="fas "]):not([class*="far "]):not([class*="fab "]):not([class*="fal "]):not([class*="fad "]):not([class*="icon-"]):not([class*="glyphicon"]):not([class*="bi-"]):not([class*="pi-"]):not([class*="mdi-"]):not([class*="lucide"]):not([class*="remixicon"]):not([class*="ri-"]):not([aria-hidden="true"]):not([class*="msi-"]):not([class*="icom-"]):not([class*="zmci-"]):not([class*="zsci-"]):not([class*="zmipath-"]):not([class*="zmDoubleIcon"]):not([class*="zmei-"]):not([class*="zcf-"]) {
     font-family: @FONT_STACK@ !important;
   }
 
