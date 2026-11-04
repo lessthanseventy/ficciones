@@ -417,6 +417,7 @@ builtins.concatStringsSep "\n" [
       a:visited:not([role=button]) { color: ${hex r.visited} !important; }
       [data-testid*="lozenge" i], [class*="lozenge" i] { background-color: ${hex r.ground} !important; }
       [data-testid*="lozenge" i], [data-testid*="lozenge" i] *, [class*="lozenge" i], [class*="lozenge" i] * { color: ${hex r.key} !important; }
+      :is(td, th)[style*="background" i], :is(td, th)[data-cell-background] { background-color: ${hex r.card} !important; }
       .aui-header { background-color: ${hex r.ground} !important; border-bottom: 1px solid ${hex r.menuGround} !important; }
       #onetrust-banner-sdk, #onetrust-pc-btn-handler { background-color: ${hex r.card} !important; color: ${hex r.body} !important; }
       #onetrust-banner-sdk * { color: ${hex r.body} !important; }
