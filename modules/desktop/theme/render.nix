@@ -554,12 +554,16 @@ rec {
       (fill (builtins.readFile (./templates/floorp + "/${name}")) templateSubs)
     + lib.optionalString (p.paper or false) (builtins.readFile (./templates/floorp + "/paper-${name}"));
   floorpUserChrome = floorpFile "userChrome.css";
-  # read by the floorp-ext extension, whose page recolourer takes these three
+  # read by the floorp-ext extension, for the page recolourer and the accents laid over it
   floorpPageJson = builtins.toJSON {
     inherit (p) light;
     ground = hex r.ground;
     body = hex r.body;
     selection = hex r.selField;
+    link = hex r.key;
+    visited = hex r.visited;
+    heading = hex r.attention;
+    code = hex r.live;
   };
   # the sites too, not just the chrome: floorp-sites.nix appends @-moz-document blocks
   floorpUserContent = floorpFile "userContent.css" + "\n/* ---- sites (floorp-sites.nix) ---- */\n"

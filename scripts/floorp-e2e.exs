@@ -31,7 +31,16 @@ for {name, {ground, body, light}} <- themes do
 
   File.write!(
     Path.join(dir, "floorp-page.json"),
-    JSON.encode!(%{light: light, ground: ground, body: body, selection: "#884488"})
+    JSON.encode!(%{
+      light: light,
+      ground: ground,
+      body: body,
+      selection: "#884488",
+      link: body,
+      visited: body,
+      heading: body,
+      code: body
+    })
   )
 end
 
@@ -39,7 +48,9 @@ link = Path.join(config, "theme")
 File.ln_s!("themes/a", link)
 
 # over http: file:// pages never receive the content script here
-html = "<!doctype html><html><body>plain white page</body></html>"
+html =
+  ~s|<!doctype html><html><body>plain white page <a id="l" href="/x" style="color: #00f">a link</a></body></html>|
+
 {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
 {:ok, http_port} = :inet.port(listen)
 page = "http://127.0.0.1:#{http_port}/"
@@ -155,15 +166,22 @@ code =
       M.js(s, "return getComputedStyle(document.documentElement).backgroundColor")
     end
 
+    linkInk = fn ->
+      M.call(s, "Marionette:SetContext", %{value: "content"})
+      M.js(s, ~s|return getComputedStyle(document.getElementById("l")).color|)
+    end
+
     M.call(s, "WebDriver:Navigate", %{url: page})
 
     M.wait("chrome, theme a", "#112233", chrome)
     M.wait("page open before the extension started", "rgb(17, 34, 51)", pageBg)
+    M.wait("a link takes the theme's accent", "rgb(221, 238, 255)", linkInk)
 
     File.rm!(link)
     File.ln_s!("themes/b", link)
     M.wait("chrome, flipped to b", "#f4ecdc", chrome)
     M.wait("same open page, flipped to b", "rgb(244, 236, 220)", pageBg)
+    M.wait("the link flips with it", "rgb(44, 42, 51)", linkInk)
     M.call(s, "Marionette:SetContext", %{value: "content"})
     M.call(s, "WebDriver:Navigate", %{url: page})
     M.wait("fresh page, under b", "rgb(244, 236, 220)", pageBg)
