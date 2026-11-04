@@ -1,13 +1,12 @@
 // The office: a rail on the right (the deck's agents cell toggles it, `astal-shell toggle office`)
-// with one workspace's Tlön roster as a pixel-art office (lib/office.ts), then the action card
-// (hand a ticket to a coworker, file a ticket, hire), the inbox (threads waiting on you) and the
-// picked thread: a prompt's options as buttons, a reply line, its brief. ‹ › walks the workspaces.
+// with one workspace at a glance (what waits on you, who is working, the board's counts), then the
+// action card (hand a ticket to a coworker, file a ticket, hire) or the picked thread: a prompt's
+// options as buttons, a reply line, its brief. ‹ › walks the workspaces.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
-import Cairo from "cairo"
 import GLib from "gi://GLib?version=2.0"
 import Pango from "gi://Pango?version=1.0"
 import Vte from "gi://Vte?version=3.91"
@@ -15,9 +14,7 @@ import { execAsync } from "ags/process"
 import { For, createComputed, createState, type Accessor } from "ags"
 import { interval, type Timer } from "ags/time"
 import { agents, dossier, threadView, post, ticketRoute, closeThread, fileTicket, startTicket, hire, coworkerSet, workspaceNew, aside, fire, ticketSet, ticketDelete, workspaceDelete, handOff, shiftSwitch, setOpener, type Agents, type Dossier, type Note, type Thread, type ThreadView } from "../lib/agents"
-import { OfficeSim, S, W, boardColumns, crewOf, type BoardItem, type Crew, type Hit } from "../lib/office"
-import { busiest, viewOf } from "../office/kit/crew"
-import { theme } from "../lib/theme"
+import { COLS, STATUS_ORDER, boardColumns, busiest, crewOf, statusGlyph, viewOf, type BoardItem, type Crew } from "../office/kit/crew"
 import { ROLE } from "../lib/palette"
 import { Panel } from "../lib/tui"
 import { hhmm } from "../lib/format"
@@ -61,13 +58,9 @@ function stepWs(d: 1 | -1) {
   choose(list[(i + d + list.length) % list.length].id)
   setMode({ kind: "none" })
 }
-// each workspace keeps its own room, so switching back finds everyone where they were
-const sims = new Map<number, OfficeSim>()
-const sim = () => { const ws = wsId.peek() ?? 0; let s = sims.get(ws); if (!s) sims.set(ws, (s = new OfficeSim())); return s }
 
 const [picked, setPicked] = createState<number | null>(null)
 const [brief, setBrief] = createState<Dossier | null>(null)
-const [frame, setFrame] = createState(0)
 // wide: the picked thread opens beside the office — its conversation and its worker's pane
 const [wide, setWide] = createState(false)
 const [tview, setTview] = createState<ThreadView | null>(null)
@@ -119,57 +112,72 @@ const pickedTitle = createComputed(() => {
   return id === null ? "" : `#${id}  ${title.length > 40 ? `${title.slice(0, 39)}…` : title}`
 })
 
-function act(h: Hit) {
-  const m = mode.peek(), x = h.act
-  if (x.kind === "cat") sim().pet()
-  else if (x.kind === "crew") setMode(m.kind === "crew" ? { kind: "none" } : { kind: "crew" })
-  else if (x.kind === "boss") setMode(m.kind === "boss" ? { kind: "none" } : { kind: "boss" })
-  else if (x.kind === "notes") setMode(m.kind === "notes" ? { kind: "none" } : { kind: "notes" })
-  else if (x.kind === "column") setMode(m.kind === "column" && m.col === x.col ? { kind: "none" } : { kind: "column", col: x.col })
-  else if (x.kind === "pen") setMode({ kind: "new-ticket" })
-  else if (x.kind === "hire") setMode({ kind: "hire" })
-  else if (x.kind === "ticket") setMode(m.kind === "ticket" && m.id === x.id ? { kind: "none" } : { kind: "ticket", id: x.id })
-  else if (x.kind === "person" && m.kind === "ticket" && x.agentId !== null) setMode({ kind: "confirm", id: m.id, agentId: x.agentId, name: x.name })
-  else if (x.kind === "person" && m.kind === "handoff") setMode({ kind: "confirm-handoff", tid: m.tid, name: x.name })
-  else if (x.kind === "person") {
-    if (x.agentId !== null) setMode({ kind: "coworker", agentId: x.agentId })
-    if (x.tid !== null) setPicked(x.tid)
-  } else if (x.kind === "thread") setPicked(x.tid)
-}
-
-function Scene() {
-  let area: Gtk.DrawingArea | null = null
-  let hits: Hit[] = []
-  const hitAt = (x: number, y: number) => hits.find((h) => x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h)
-
-  const draw = (_: Gtk.DrawingArea, cr: Cairo.Context, w: number) => {
-    const m = mode.peek()
-    const focus = m.kind === "coworker" ? view.peek().bench.find((c) => c.agent_id === m.agentId)?.name ?? null : null
-    const out = sim().draw(cr, w, view.peek(), picked.peek(), focus)
-    hits = out.hits
-    if (area && area.heightRequest !== out.height * S) area.heightRequest = out.height * S
+/** a click on someone: the one a ticket or a thread is being handed to, else their card and thread */
+function clickPerson(c: Crew) {
+  const m = mode.peek(), b = view.peek().bench.find((x) => x.name === c.name)
+  if (m.kind === "ticket" && b) setMode({ kind: "confirm", id: m.id, agentId: b.agent_id, name: c.name })
+  else if (m.kind === "handoff") setMode({ kind: "confirm-handoff", tid: m.tid, name: c.name })
+  else {
+    if (b) setMode({ kind: "coworker", agentId: b.agent_id })
+    if (c.thread !== null) setPicked(c.thread)
   }
+}
+const toggle = (next: Mode) => setMode(JSON.stringify(mode.peek()) === JSON.stringify(next) ? { kind: "none" } : next)
 
-  const redraw = () => area?.queue_draw()
-  view.subscribe(redraw); frame.subscribe(redraw); picked.subscribe(redraw); theme.subscribe(redraw); mode.subscribe(redraw)
+/** the rail's fixed top: what waits on you, who is at work, the board's counts */
+function Glance() {
+  const crew = view((a) => crewOf(a))
+  const board = view((a) => boardColumns(a))
+  // handing work out needs everyone on the list; otherwise an idle coworker is only a count
+  const shown = createComputed(() => {
+    const everyone = ["ticket", "handoff"].includes(mode().kind)
+    return crew().filter((c) => everyone || c.status === "working" || c.status === "waiting")
+      .sort((x, y) => STATUS_ORDER.indexOf(x.status) - STATUS_ORDER.indexOf(y.status))
+  })
+  const working = crew((l) => l.filter((c) => c.status === "working").length)
   return (
-    <Gtk.DrawingArea
-      widthRequest={W * S}
-      heightRequest={240 * S}
-      hasTooltip
-      $={(self) => {
-        area = self
-        self.set_draw_func(draw)
-        const click = new Gtk.GestureClick({ button: 1 })
-        // a click on nothing is the way home: whatever was open closes
-        click.connect("pressed", (_, _n, x, y) => { const h = hitAt(x, y); if (h) act(h); else { setMode({ kind: "none" }); setPicked(null) } })
-        self.add_controller(click)
-        const motion = new Gtk.EventControllerMotion()
-        motion.connect("motion", (_, x, y) => self.set_cursor_from_name(hitAt(x, y) ? "pointer" : null))
-        self.add_controller(motion)
-        self.connect("query-tooltip", (_, x, y, _kb, tip) => { const h = hitAt(x, y); if (!h) return false; tip.set_text(h.tip); return true })
-      }}
-    />
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+      <label cssClasses={inbox((l) => (l.length ? ["pink"] : ["dim"]))} xalign={0} label={inbox((l) => (l.length ? `${l.length} waiting on you` : "nothing waits on you"))} />
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <For each={inbox}>
+          {(t: Thread) => (
+            <button cssClasses={picked((p) => ["row", "thread-row", ...(p === t.id ? ["chip"] : [])])} onClicked={() => { setMode({ kind: "none" }); setPicked(t.id) }}>
+              <box orientation={Gtk.Orientation.VERTICAL}>
+                <label label={`#${t.id} ${t.title}`} xalign={0} ellipsize={3} maxWidthChars={GLANCE_CHARS} />
+                <label cssClasses={["pink", "sm"]} label={t.prompt?.summary ?? t.lead ?? ""} xalign={0} ellipsize={3} maxWidthChars={GLANCE_CHARS} />
+              </box>
+            </button>
+          )}
+        </For>
+      </box>
+      <button cssClasses={["row", "thread-row"]} tooltipText="the whole crew" onClicked={() => toggle({ kind: "crew" })}>
+        <label cssClasses={["dim"]} xalign={0} label={createComputed(() => `crew · ${working()} working of ${crew().length}`)} />
+      </button>
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <For each={shown}>
+          {(c: Crew) => (
+            <button cssClasses={picked((p) => ["row", "thread-row", ...(p !== null && p === c.thread ? ["chip"] : [])])} onClicked={() => clickPerson(c)}>
+              <box spacing={8}>
+                <label cssClasses={[c.status === "working" ? "st-working" : c.status === "waiting" ? "pink" : "dim"]} label={statusGlyph(c.status)} />
+                <label label={c.name} xalign={0} widthChars={9} />
+                <label cssClasses={["dim", "sm"]} label={c.title} xalign={0} hexpand ellipsize={3} maxWidthChars={GLANCE_CHARS - 12} />
+              </box>
+            </button>
+          )}
+        </For>
+      </box>
+      <box homogeneous spacing={2}>
+        {COLS.map((name, col) => (
+          <button cssClasses={mode((m) => ["row", "thread-row", ...(m.kind === "column" && m.col === col ? ["chip"] : [])])} onClicked={() => toggle({ kind: "column", col })}>
+            <box orientation={Gtk.Orientation.VERTICAL}>
+              <label label={board((c) => String(c[col]?.items.length ?? 0))} />
+              <label cssClasses={["dim", "sm"]} label={name.toLowerCase()} />
+            </box>
+          </button>
+        ))}
+      </box>
+      <button cssClasses={["act"]} tooltipText="your desk: hire, new ticket, notes, the crew" onClicked={() => toggle({ kind: "boss" })}><label label="desk" /></button>
+    </box>
   )
 }
 
@@ -248,7 +256,7 @@ function Knobs({ model, setModel, effort, setEffort, ask, setAsk }: {
   )
 }
 
-/** the card under the scene for whatever the last click started */
+/** the card under the glance for whatever the last click started */
 function ActionCard() {
   let title: Gtk.Entry, body: Gtk.Entry, name: Gtk.Entry, wsNameEntry: Gtk.Entry, wsRepo: Gtk.Entry
   const [project, setProject] = createState<number | null>(null)
@@ -309,13 +317,11 @@ function ActionCard() {
   // the last thing you said to whoever's card is open, and their answer (null while they think)
   const exchange = createComputed(() => { const c = coworker(); return c ? talks()[c.agent_id] ?? null : null })
   const talkTo = async (q: string) => {
-    const c = coworker.peek(), ws = wsId.peek(), room = sim()
+    const c = coworker.peek(), ws = wsId.peek()
     if (!c || ws === null || !q.trim()) return
     setTalks({ ...talks.peek(), [c.agent_id]: { name: c.name, q: q.trim(), a: null } })
-    room.say(c.name, null)
     const a = await aside(ws, c.agent_id, q.trim())
     setTalks({ ...talks.peek(), [c.agent_id]: { name: c.name, q: q.trim(), a: a || "(no answer)" } })
-    room.say(c.name, a || "...")
   }
   const dismiss = () => {
     const c = coworker.peek()
@@ -428,7 +434,7 @@ function ActionCard() {
           </box>
         </scrolledwindow>
       </box>
-      {/* a whiteboard column as a list: the titles the stickies have no room for */}
+      {/* a board column as a list */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={is("column")}>
         <label cssClasses={["dim"]} label="nothing here" xalign={0} visible={columnItems((l) => l.length === 0)} />
         <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} propagateNaturalHeight maxContentHeight={300}>
@@ -695,10 +701,10 @@ function Reply() {
   )
 }
 
-// the detail box under the room: fixed, so the rail never jumps as cards come and go
+// the detail box under the glance: fixed, so the rail never jumps as cards come and go
 const DETAIL_H = 380
+const GLANCE_CHARS = 34
 let officeWin: Astal.Window | null = null
-let ticker: Timer | null = null
 let peeker: Timer | null = null
 export function showOffice(on?: Gdk.Monitor) {
   if (!officeWin) return
@@ -706,7 +712,7 @@ export function showOffice(on?: Gdk.Monitor) {
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = on ?? app.get_monitors().find((m) => m.connector === name)
   if (mon) officeWin.gdkmonitor = mon
-  if (picked.peek() === null) setPicked(inbox.peek()[0]?.id ?? view.peek().roster[0]?.thread_id ?? null)
+  if (picked.peek() === null) setPicked(inbox.peek()[0]?.id ?? null)
   // the keyboard while it is up, like the hub: it is a click-away sheet, not a place to type past
   officeWin.keymode = Astal.Keymode.EXCLUSIVE
   officeWin.visible = true
@@ -780,10 +786,7 @@ export default function Office() {
       $={(self) => {
         officeWin = self
         self.add_controller(keys)
-        // the animation runs only while someone can see it
         self.connect("notify::visible", () => {
-          ticker?.cancel(); ticker = null
-          if (self.visible) ticker = interval(100, () => { if (sim().step(view.peek())) setFrame((n) => n + 1) })
           peeker?.cancel(); peeker = null
           if (self.visible) peeker = interval(3000, () => { if (wide.peek()) loadThreadView() })
         })
@@ -813,37 +816,17 @@ export default function Office() {
         <box orientation={Gtk.Orientation.VERTICAL}>
           <Panel title={"\u{f06a9}  OFFICE"} cssClasses={["card", "card-agents"]}>
             <Switcher />
-            <Scene />
-            <label cssClasses={["dim", "sm"]} label="j/k people · [ ] workspace · ⏎ talk · n ticket · h hire · esc back" xalign={0} />
+            <Glance />
+            <label cssClasses={["dim", "sm"]} label="j/k people · [ ] workspace · ⏎ talk · n ticket · h hire · esc back" xalign={0} wrap maxWidthChars={GLANCE_CHARS} />
           </Panel>
-          {/* one fixed-size place under the room for whatever you are looking at — an action, the
-              picked thread, or home (what waits on you) — so the rail never jumps */}
-          <box orientation={Gtk.Orientation.VERTICAL} heightRequest={DETAIL_H} vexpand={false}>
+          {/* one fixed-size place under the glance for whatever you are looking at, so the rail never jumps */}
+          <box orientation={Gtk.Orientation.VERTICAL} heightRequest={DETAIL_H} vexpand={false} visible={createComputed(() => mode().kind !== "none" || picked() !== null)}>
             <ActionCard />
             <Panel title={pickedTitle} cssClasses={["card", "card-agents"]} vexpand visible={createComputed(() => mode().kind === "none" && picked() !== null && !wide())}>
               <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
                   <Reply />
                   <Brief brief={brief} />
-                </box>
-              </scrolledwindow>
-            </Panel>
-            <Panel title={inbox((l) => (l.length ? `\u{f0e7e}  WAITING ON YOU · ${l.length}` : "\u{f0e7e}  HOME"))} cssClasses={["card", "card-agents"]} vexpand visible={createComputed(() => mode().kind === "none" && (picked() === null || wide()))}>
-              <scrolledwindow hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} vexpand>
-                <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-                  <For each={inbox}>
-                    {(t: Thread) => (
-                      <button cssClasses={picked((p) => ["row", "thread-row", ...(p === t.id ? ["chip"] : [])])} onClicked={() => setPicked(t.id)}>
-                        <box spacing={8}>
-                          <label cssClasses={["dim", "sm"]} label={`#${t.id}`} widthChars={3} xalign={1} />
-                          <label label={t.title} hexpand xalign={0} ellipsize={3} maxWidthChars={22} />
-                          <label cssClasses={["pink", "sm"]} label={t.prompt?.summary ?? t.lead ?? ""} ellipsize={3} maxWidthChars={18} />
-                        </box>
-                      </button>
-                    )}
-                  </For>
-                  <label cssClasses={["dim"]} wrap maxWidthChars={44} xalign={0}
-                    label={inbox((l) => `${l.length ? "" : "Nothing waits on you. "}Click someone to talk to them, a desk or sticky to open it, yourself for the menu — and empty floor to come back here.`)} />
                 </box>
               </scrolledwindow>
             </Panel>
