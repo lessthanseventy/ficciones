@@ -154,6 +154,10 @@ run = [
   "scripts/worktrunk-plugin.sh",
 ]
 
+["home:switch:mac"]
+description = "machine: apply the work Mac's home-manager profile (modules/mac)"
+run = "nix run github:nix-community/home-manager -- switch --flake .#anmoore -b pre-ficciones"
+
 # Home-manager can't own a root service on Arch, so the config comes from ivysaur's services.keyd
 # (the one source) and this installs it. Rerun after changing it.
 ["keyd:install"]
