@@ -50,8 +50,8 @@ test('the list follows the selection', async () => {
 
 const PANE = {
   component: 'Pane',
-  requestId: 'diff',
-  props: { title: 'diff', isFocused: true, bodyColumns: 50, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, view: {} },
+  requestId: 'changes',
+  props: { title: 'Changes', isFocused: true, bodyColumns: 50, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, view: {} },
 } as const
 
 test('a key holds the view, and nothing can stage', async ($, on) => {
@@ -77,4 +77,19 @@ test('a key holds the view, and nothing can stage', async ($, on) => {
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^b\.ts$/, in: 'changes' })).toBeDefined()
   expect(ran.filter(line => /\b(add|reset|commit)\b/.test(line))).toEqual([])
+})
+
+test('/changes and /diff open the one pane', async ($, on) => {
+  mock.clock(on)
+  on('session.start', async ($, e) => e)
+  const opened: string[] = []
+  on('ui.open', async ($, e) => {
+    opened.push(e.id)
+    return { value: { isPlaced: true } } as never
+  })
+  on('command.register', async () => ({ value: undefined }) as never)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.command.run({ command: 'changes', args: '' } as never)
+  await $.command.run({ command: 'diff', args: '' } as never)
+  expect(opened).toEqual(['changes', 'changes'])
 })

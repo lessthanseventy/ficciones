@@ -4,9 +4,9 @@ import { clamp, countDiff, firstChangedRow, fitRows, listStart, parseAnsi, parse
 import type { DiffLine, File, Run } from './changes'
 import type { Input } from './view'
 
-// The id the bundled diff panel opens its pane under. Drawing it from here keeps
-// that plugin's auto-open, /diff and close behaviour and replaces only the body.
-const PANE = 'diff'
+const PANE = 'changes'
+// Without this, /diff draws the built-in panel beside this one.
+const BUILT_IN = 'diff'
 const POLL_MS = 2000
 const MAX_LIST_ROWS = 8
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
@@ -36,6 +36,8 @@ export const register: Register = on => {
   let acked = 0
   let isOpen = false
   let isFollowing = true
+  let canDraw = false
+  let isDismissed = false
 
   let isRefreshing = false
   let isStale = false
@@ -147,13 +149,34 @@ export const register: Register = on => {
     }
 
     $.clock.every(POLL_MS, () => { void refresh() })
+    // VS Code and mobile have no Client to draw this pane with.
+    canDraw = e.surface === 'terminal' || e.surface === 'desktop'
+    if (canDraw) await $.command.register({ name: PANE, description: 'Show everything uncommitted, following the latest edit', immediate: true })
     return next(e)
   })
+
+  on('command.run', { command: PANE }, async ($, e) => {
+    isDismissed = false
+    await $.ui.open({ id: PANE, title: 'Changes' })
+    return {}
+  })
+
+  on('command.run', { command: BUILT_IN }, async ($, e, next) => {
+    if (!canDraw) return next(e)
+    isDismissed = false
+    await $.ui.open({ id: PANE, title: 'Changes' })
+    return {}
+  })
+
 
   // The poll alone would leave up to two seconds between an edit and the pane following it.
   on('tool.call', async ($, e, next) => {
     const result = await next(e)
-    void refresh()
+    if (isOpen) void refresh()
+    else if (canDraw && !isDismissed) {
+      const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1'])
+      if (status.exitCode === 0 && status.stdout !== '') await $.ui.open({ id: PANE, title: 'Changes' })
+    }
     return result
   })
 
@@ -168,11 +191,11 @@ export const register: Register = on => {
   on('ui.close', { id: PANE }, async ($, e, next) => {
     const closed = await next(e)
     isOpen = false
+    if (e.origin.kind === 'person') isDismissed = true
     return closed
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
-    // The other surfaces have no Client, so they keep the bundled panel's own body.
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
     const { Client } = $.ui.resolve(e)
     const isResized = e.props.bodyColumns !== size.columns
