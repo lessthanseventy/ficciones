@@ -4,7 +4,7 @@
 # paper variant restyles them too. Add a site = add an entry; keep to variables where a site
 # has them — selector rules rot with every redesign. On Floorp the floorp-ext extension loads this
 # sheet and leaves every domain() named in it to these rules, recolouring all other pages itself.
-{ hex, r, fontStack }:
+{ hex, rgb, r, fontStack, light }:
 let
   block = domains: css: ''
     @-moz-document ${builtins.concatStringsSep ", " (map (d: "domain(\"${d}\")") domains)} {
@@ -158,6 +158,131 @@ builtins.concatStringsSep "\n" [
       h3, .LC20lb { color: ${hex r.key} !important; }
       .VwiC3b, .yXK7lf, span { color: ${hex r.body}; }
       cite, .byrV5b, .TbwUpd { color: ${hex r.meta} !important; }
+  '')
+  # Zoho Mail — its tokens, set on whichever of these the account's appearance puts on the page.
+  # Listing a site takes it off the page recolourer, so message bodies are flattened here: their
+  # hand-written colours would otherwise come through white. Its class hashes change with each
+  # build, hence the *= on the double-underscore names.
+  (block [ "mail.zoho.com" ] ''
+      :root, body, [class*="zmApp"], [class*="zmThm"], [class*="zmLHS"], .zwpAppTheme {
+        color-scheme: ${if light then "light" else "dark"} !important;
+        --app-bg: ${hex r.ground} !important; --app-bg-rgb: ${rgb r.ground} !important;
+        --app-box-bg: ${hex r.card} !important; --app-box-border-color: ${hex r.structure} !important;
+        --app-rhsbar-bg: ${hex r.panel} !important; --app-rhsbar-border-color: ${hex r.menuGround} !important;
+        --app-border-color: ${hex r.borderInactive} !important;
+        --app-border-color-light: ${hex r.menuGround} !important;
+        --app-border-color-dark: ${hex r.structure} !important;
+        --app-separator-color: ${hex r.structure} !important;
+        --app-dd-border-color: ${hex r.structure} !important;
+        --app-center-block-border: ${hex r.menuGround} !important;
+        --app-text-color: ${hex r.body} !important; --app-text-color-dark: ${hex r.body} !important;
+        --app-text-color-title: ${hex r.body} !important; --app-text-color-light: ${hex r.meta} !important;
+        --app-text-color-critical: ${hex r.alarm} !important;
+        --app-hyperlink-color: ${hex r.key} !important; --app-action-color: ${hex r.key} !important;
+        --app-icon-color: ${hex r.key} !important; --app-top-bar-icon-color: ${hex r.key} !important;
+        --app-focus-outline-color: ${hex r.key} !important;
+        --app-disabled-color: ${hex r.inactive} !important; --app-disabled-bg: ${hex r.raised} !important;
+        --app-highlight-bg: ${hex r.selSoft} !important;
+        --app-input-box-border-color: ${hex r.borderInactive} !important;
+        --app-input-box-hover-border-color: ${hex r.body} !important;
+        --app-input-box-filled-bg: ${hex r.inputGround} !important;
+        --app-input-box-filled-hover-bg: ${hex r.raised} !important;
+        --app-input-box-placeholder-color: ${hex r.inactive} !important;
+        --app-list-header-bg: ${hex r.ground} !important; --app-list-header-color: ${hex r.key} !important;
+        --app-list-header-border-color: ${hex r.menuGround} !important;
+        --app-list-border-color: ${hex r.pressedGround} !important;
+        --app-list-hover-bg: ${hex r.inputGround} !important; --app-list-hover-bg-dark: ${hex r.raised} !important;
+        --app-list-checked-bg: ${hex r.selSoft} !important;
+        --app-list-archived-bg: ${hex r.ground} !important; --app-list-archived-text-color: ${hex r.inactive} !important;
+        --app-success-color: ${hex r.live} !important; --app-error-color: ${hex r.alarm} !important;
+        --app-info-color: ${hex r.key} !important; --app-warning-color: ${hex r.warn} !important;
+        --app-alert-color: ${hex r.body} !important; --app-alert-default-color: ${hex r.body} !important;
+        --app-standard-success-bg: ${hex r.card} !important; --app-standard-error-bg: ${hex r.card} !important;
+        --app-standard-info-bg: ${hex r.card} !important; --app-standard-warning-bg: ${hex r.card} !important;
+        --app-alert-standard-default-bg: ${hex r.card} !important;
+        --app-skeleton-bg: ${hex r.raised} !important; --app-skeleton-animation-bg: ${hex r.edge} !important;
+
+        --app-grey-10: ${hex r.card} !important; --app-grey-20: ${hex r.inputGround} !important;
+        --app-grey-50: ${hex r.raised} !important; --app-grey-100: ${hex r.edge} !important;
+        --app-grey-200: ${hex r.borderInactive} !important; --app-grey-300: ${hex r.inactive} !important;
+        --app-grey-400: ${hex r.meta} !important; --app-grey-500: ${hex r.meta} !important;
+        --app-grey-600: ${hex r.body} !important; --app-grey-700: ${hex r.body} !important;
+        --app-grey-800: ${hex r.body} !important; --app-grey-900: ${hex r.body} !important;
+
+        --app-theme-color-100: ${hex r.menuGround} !important; --app-theme-color-100-rgb: ${rgb r.menuGround} !important;
+        --app-theme-color-200: ${hex r.menuGround} !important; --app-theme-color-200-rgb: ${rgb r.menuGround} !important;
+        --app-theme-color-300: ${hex r.borderInactive} !important; --app-theme-color-300-rgb: ${rgb r.borderInactive} !important;
+        --app-theme-color-400: ${hex r.visited} !important; --app-theme-color-400-rgb: ${rgb r.visited} !important;
+        --app-theme-color-500: ${hex r.cursorField} !important; --app-theme-color-500-rgb: ${rgb r.cursorField} !important;
+        --app-theme-color-600: ${hex r.cursorField} !important; --app-theme-color-600-rgb: ${rgb r.cursorField} !important;
+        --app-theme-color-700: ${hex r.cursorField} !important; --app-theme-color-700-rgb: ${rgb r.cursorField} !important;
+        --app-theme-color-800: ${hex r.body} !important; --app-theme-color-800-rgb: ${rgb r.body} !important;
+        --app-theme-color-900: ${hex r.body} !important; --app-theme-color-900-rgb: ${rgb r.body} !important;
+        --app-theme-button-text-color: ${hex r.fieldInk} !important;
+        --app-theme-list-hover-bg: ${hex r.inputGround} !important;
+        --app-theme-list-selected-bg: ${hex r.selSoft} !important;
+        --app-theme-list-right-click-bg: ${hex r.raised} !important;
+
+        --app-lhs-bg: ${hex r.ground} !important; --app-lhs-apps-bg: ${hex r.ground} !important;
+        --app-lhs-apps-color: ${hex r.key} !important; --app-lhs-apps-hover-bg: ${hex r.raised} !important;
+        --app-lhs-list-color: ${hex r.body} !important; --app-lhs-list-selected-color: ${hex r.body} !important;
+        --app-lhs-list-hover-bg: ${hex r.raised} !important; --app-lhs-list-selected-bg: ${hex r.cursorField} !important;
+        --app-tab-bg: transparent !important; --app-tab-color: ${hex r.meta} !important;
+        --app-tab-hover-bg: ${hex r.raised} !important; --app-tab-border-color: ${hex r.menuGround} !important;
+        --app-tab-selected-bg: ${hex r.raised} !important; --app-tab-selected-color: ${hex r.body} !important;
+        --app-tab-close-bg: ${hex r.panel} !important;
+
+        --zmdefault-button-bg: ${hex r.card} !important; --zmdefault-button-hover-bg: ${hex r.raised} !important;
+        --zmdefault-button-border-color: ${hex r.borderInactive} !important;
+        --zmdefault-button-text-color: ${hex r.body} !important; --zmdefault-button-hover-text-color: ${hex r.body} !important;
+        --zmdropdown-bg: ${hex r.card} !important; --zmpopover-bg: ${hex r.card} !important;
+        --zmdatepicker-bg: ${hex r.card} !important; --zmdialog-backdrop-color: ${hex r.ground}cc !important;
+        --zmtooltip-bg: ${hex r.card} !important; --zmtooltip-color: ${hex r.body} !important;
+        --zmscrollbar-bg: ${hex r.ground} !important; --zmscrollbar-thumb-bg: ${hex r.structure} !important;
+        --scrollbarbg: ${hex r.ground} !important; --scrolthumbbg: ${hex r.structure} !important;
+        --grid-border-color: ${hex r.menuGround} !important; --grid-text-color: ${hex r.body} !important;
+        --app-zia-text-color: linear-gradient(112deg, ${hex r.attention}, ${hex r.assistant}) !important;
+        --app-zia-border: linear-gradient(112deg, ${hex r.attention}, ${hex r.assistant}) !important;
+        --zmfont-display: ${fontStack} !important;
+      }
+      body, input, textarea, button, select { font-family: ${fontStack} !important; }
+
+      /* read mail recedes to lilac; unread is the one thing here that wants you */
+      .zmLSenderName, [class*="zmail-list-item-sender__"] { color: ${hex r.meta} !important; }
+      .zmLSub, [class*="zmail-list-item-subject__"] { color: ${hex r.body} !important; font-weight: 400 !important; }
+      .zmLDate, .zmLSize, .zmLFolder,
+      [class*="zmail-list-item-date__"], [class*="zmail-list-item-size__"], [class*="zmail-list-item-folder__"] {
+        color: ${hex r.inactive} !important;
+      }
+      .zmLUrd .zmLSenderName,
+      [class*="zmail-list-item--unread"] [class*="zmail-list-item-sender__"] {
+        color: ${hex r.attention} !important; font-weight: 700 !important;
+      }
+      .zmLUrd .zmLSub,
+      [class*="zmail-list-item--unread"] [class*="zmail-list-item-subject__"] {
+        color: ${hex r.body} !important; font-weight: 700 !important;
+      }
+      .zmLUrd .zmLDate, .zmLUrd .zmLSize, .zmLUrd .zmLFolder,
+      [class*="zmail-list-item--unread"] [class*="zmail-list-item-date__"],
+      [class*="zmail-list-item--unread"] [class*="zmail-list-item-size__"],
+      [class*="zmail-list-item--unread"] [class*="zmail-list-item-folder__"] {
+        color: ${hex r.key} !important;
+      }
+      .zmLTicon, .zmLTicon:before, .zmLTicon .path:before { color: ${hex r.inactive} !important; }
+      .zmLUrd .zmLTicon, .zmLUrd .zmLTicon:before, .zmLUrd .zmLTicon .path:before { color: ${hex r.attention} !important; }
+
+      /* a folder with unread mail is occupied; the one you are in is inverse video */
+      .zmTreeCount { color: ${hex r.attention} !important; }
+      .zmTreeNode .zmBold { color: ${hex r.live} !important; }
+      .zmTreeNode.zmCurTree, .zmTreeNode.zmCurTree * { color: ${hex r.fieldInk} !important; }
+
+      [class*="zmail-body__"] *, [class*="zmail-body__"] {
+        background-color: transparent !important;
+        color: ${hex r.body} !important;
+        border-color: ${hex r.structure} !important;
+      }
+      [class*="zmail-body__"] a, [class*="zmail-body__"] a * { color: ${hex r.key} !important; }
+      ::selection { background: ${hex r.selField} !important; color: ${hex r.selInk} !important; }
   '')
   # YouTube — its tokens (the player stays as it is)
   (block [ "youtube.com" "www.youtube.com" ] ''

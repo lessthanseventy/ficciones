@@ -563,7 +563,7 @@ rec {
   };
   # the sites too, not just the chrome: floorp-sites.nix appends @-moz-document blocks
   floorpUserContent = floorpFile "userContent.css" + "\n/* ---- sites (floorp-sites.nix) ---- */\n"
-    + import ./floorp-sites.nix { inherit hex r fontStack; };
+    + import ./floorp-sites.nix { inherit hex rgb r fontStack; inherit (p) light; };
 
   # ---- hyprland / hyprlock -------------------------------------------------------------
   # dofile'd as ~/.config/hypr/theme.lua: only the colours live here. Env lines are appended by
