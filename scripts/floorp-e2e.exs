@@ -416,6 +416,37 @@ code =
       "#{M.js(s, ~s|return document.getElementById("siteRow").hidden|)}"
     end)
 
+    send.(%{host: "example.test", off: true})
+    switch.(pageTab)
+    M.call(s, "WebDriver:Navigate", %{url: page})
+    build = fn -> M.js(s, ~s|return document.documentElement.dataset.build \|\| "none"|) end
+    M.wait("the installed build runs", "none", build)
+
+    {:ok, files} = :zip.extract(String.to_charlist(xpi), [:memory])
+
+    rebuilt =
+      Enum.map(files, fn
+        {~c"page.js", code} ->
+          {~c"page.js", code <> "document.documentElement.dataset.build = 2;\n"}
+
+        file ->
+          file
+      end)
+
+    {:ok, {_, zipped}} = :zip.create(~c"rebuilt.xpi", rebuilt, [:memory])
+    installed = Path.join(profile, "extensions/theme@ficciones.xpi")
+    File.rm!(installed)
+    File.write!(installed, zipped)
+
+    M.wait("a new install reaches the open tab", "2", fn -> "#{build.()}" end, 80)
+    M.wait("which keeps its paint", full, pageBg)
+    M.call(s, "WebDriver:Navigate", %{url: page})
+    M.wait("a fresh page runs it too", "2", fn -> "#{build.()}" end)
+    M.wait("the chrome is themed again", "#112233", chrome)
+    M.call(s, "Marionette:SetContext", %{value: "content"})
+    M.call(s, "WebDriver:Navigate", %{url: menu})
+    M.wait("the settings came through", "example.test", fn -> M.js(s, firstOff) end)
+
     IO.puts("PASS")
     0
   rescue

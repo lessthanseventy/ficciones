@@ -6,6 +6,7 @@
 const { setInterval, clearInterval } = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
 // an experiment's scope has neither of these as globals
 const { IOUtils, console } = Cu.getGlobalForObject(Services);
+const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
 const sss = Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService);
 
 const themeFile = name => {
@@ -21,6 +22,8 @@ this.ficciones = class extends ExtensionAPI {
   seen = "";
   listeners = new Set();
   state = null;
+  installed = null;
+  arriving = null;
 
   async load() {
     const texts = await Promise.all(SHEETS.map(n => IOUtils.readUTF8(themeFile(n).path)));
@@ -53,10 +56,41 @@ this.ficciones = class extends ExtensionAPI {
     this.load().catch(e => this.listeners.forEach(fire => fire({ failed: String(e) })));
   }
 
+  installStamp() {
+    const file = this.extension.rootURI.QueryInterface(Ci.nsIJARURI).JARFile.QueryInterface(Ci.nsIFileURL).file;
+    return { file, stamp: `${file.lastModifiedTime}:${file.fileSize}` };
+  }
+
+  // A running Floorp keeps its old code when the xpi changes at the same version. The stamp must
+  // hold for two polls, or the reload could read a file still being written.
+  watchInstall() {
+    let current;
+    try {
+      current = this.installStamp();
+    } catch (e) {
+      return;
+    }
+    if (current.stamp === this.installed) return;
+    if (current.stamp !== this.arriving) {
+      this.arriving = current.stamp;
+      return;
+    }
+    this.installed = current.stamp;
+    // the extension's own shutdown flushes the content processes' jars, not this one's
+    Services.obs.notifyObservers(current.file, "flush-cache-entry");
+    AddonManager.getAddonByID(this.extension.id)
+      .then(addon => addon.reload())
+      .catch(e => this.listeners.forEach(fire => fire({ failed: String(e) })));
+  }
+
   start() {
     if (this.timer) return;
+    this.installed = this.installStamp().stamp;
     this.poll();
-    this.timer = setInterval(() => this.poll(), 1000);
+    this.timer = setInterval(() => {
+      this.poll();
+      this.watchInstall();
+    }, 1000);
   }
 
   onShutdown() {
