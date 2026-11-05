@@ -19,7 +19,10 @@ const themedBySheet = (url, domains) => {
   return !host || domains.some(d => host === d || host.endsWith(`.${d}`));
 };
 
-const switchedOff = url => settings.paused || settings.off.includes(hostOf(url));
+// dev servers are never recoloured, whatever the popup says: they're judged as they ship
+const NEVER = ["localhost", "127.0.0.1"];
+const switchedOff = url =>
+  settings.paused || [...NEVER, ...settings.off].includes(hostOf(url));
 
 // a tab that loaded before this page started has no content script to answer: restored tabs do
 async function repaint(tab, state) {
@@ -53,7 +56,7 @@ async function apply() {
   const old = registered;
   const excludeMatches = [
     ...state.domains.map(d => `*://*.${d}/*`),
-    ...settings.off.map(host => `*://${host}/*`),
+    ...[...NEVER, ...settings.off].map(host => `*://${host}/*`),
   ];
   // the palette goes in as code, not a message: a message would arrive after first paint
   registered = settings.paused

@@ -46,13 +46,19 @@ async function show() {
 
   const host = hostOf(tab.url);
   const themed = host && theme.domains.some(d => host === d || host.endsWith(`.${d}`));
+  // background.js's NEVER
+  const dev = ["localhost", "127.0.0.1"].includes(host);
   $("all").checked = !paused;
-  $("siteRow").hidden = !host || themed;
+  $("siteRow").hidden = !host || themed || dev;
   $("host").textContent = host;
   $("site").checked = !off.includes(host);
   $("site").disabled = paused;
-  $("note").hidden = !themed && !!host;
-  $("note").textContent = themed ? `${host} has its own theme` : "This page can't be recoloured";
+  $("note").hidden = !themed && !dev && !!host;
+  $("note").textContent = themed
+    ? `${host} has its own theme`
+    : dev
+      ? `${host} is a dev server: never recoloured`
+      : "This page can't be recoloured";
 
   const scope = sites[host] ? { host } : {};
   const values = { ...tune, ...sites[host] };

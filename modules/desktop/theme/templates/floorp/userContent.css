@@ -467,8 +467,9 @@ NOTE: You can use the userContent.css file without change preferences (about:con
   }
 }
 
-/* All about: pages - global fallback */
-@-moz-document url-prefix("about:") {
+/* All about: pages - global fallback. Not about:srcdoc or about:blank: those are frames inside
+   ordinary pages (a storybook's previews on localhost), and their URL says nothing of the page */
+@-moz-document regexp("about:(?!srcdoc|blank).*") {
   * {
     font-family: var(--retro-font) !important;
   }
