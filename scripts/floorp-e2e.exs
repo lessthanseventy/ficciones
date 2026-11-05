@@ -16,7 +16,8 @@ File.write!(
 themes = %{
   "a" => {"#112233", "#ddeeff", false},
   "b" => {"#f4ecdc", "#2c2a33", true},
-  "bare" => {"#223344", "#ddeeff", false}
+  "bare" => {"#223344", "#ddeeff", false},
+  "broken" => {"#334455", "#ddeeff", false}
 }
 
 for {name, {ground, body, light}} <- themes do
@@ -49,6 +50,12 @@ for {name, {ground, body, light}} <- themes do
 end
 
 File.write!(Path.join(config, "themes/bare/floorp-userContent.css"), "")
+
+# contentScripts.register refuses this as a match pattern
+File.write!(
+  Path.join(config, "themes/broken/floorp-userContent.css"),
+  ~s|@-moz-document domain("a*b") { :root { --site: red; } }|
+)
 
 link = Path.join(config, "theme")
 File.ln_s!("themes/a", link)
@@ -216,10 +223,14 @@ code =
     M.call(s, "WebDriver:Navigate", %{url: page})
     M.wait("and a fresh page still paints", "rgb(34, 51, 68)", pageBg)
     File.rm!(link)
+    File.ln_s!("themes/broken", link)
+    M.wait("chrome, a theme the page half refuses", "#334455", chrome)
+    File.rm!(link)
     File.ln_s!("themes/b", link)
     M.wait("back to b", "#f4ecdc", chrome)
     M.call(s, "Marionette:SetContext", %{value: "content"})
     M.call(s, "WebDriver:Navigate", %{url: page})
+    M.wait("the next theme still reaches pages", "rgb(244, 236, 220)", pageBg)
 
     M.call(s, "Marionette:SetContext", %{value: "chrome"})
 

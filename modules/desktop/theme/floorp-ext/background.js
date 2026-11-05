@@ -66,8 +66,9 @@ async function apply() {
   for (const tab of await browser.tabs.query({})) repaint(tab, state);
 }
 
-// one at a time: two overlapping applies would both unregister the same scripts
-const reapply = () => (applying = applying.then(apply));
+// one at a time: two overlapping applies would both unregister the same scripts. A rejected link
+// would skip every apply after it, so a failure stops here and the old scripts stay registered.
+const reapply = () => (applying = applying.then(apply).catch(console.error));
 
 browser.ficciones.onTheme.addListener(state => {
   theme = state;
