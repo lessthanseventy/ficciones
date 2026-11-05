@@ -13,7 +13,11 @@ File.write!(
   File.read!(prefs) <> ~s|user_pref("marionette.port", #{port_n});\n|
 )
 
-themes = %{"a" => {"#112233", "#ddeeff", false}, "b" => {"#f4ecdc", "#2c2a33", true}}
+themes = %{
+  "a" => {"#112233", "#ddeeff", false},
+  "b" => {"#f4ecdc", "#2c2a33", true},
+  "bare" => {"#223344", "#ddeeff", false}
+}
 
 for {name, {ground, body, light}} <- themes do
   dir = Path.join(config, "themes/#{name}")
@@ -43,6 +47,8 @@ for {name, {ground, body, light}} <- themes do
     })
   )
 end
+
+File.write!(Path.join(config, "themes/bare/floorp-userContent.css"), "")
 
 link = Path.join(config, "theme")
 File.ln_s!("themes/a", link)
@@ -202,6 +208,18 @@ code =
     M.call(s, "Marionette:SetContext", %{value: "content"})
     M.call(s, "WebDriver:Navigate", %{url: page})
     M.wait("fresh page, under b", "rgb(244, 236, 220)", pageBg)
+
+    File.rm!(link)
+    File.ln_s!("themes/bare", link)
+    M.wait("chrome, a theme with no site blocks", "#223344", chrome)
+    M.call(s, "Marionette:SetContext", %{value: "content"})
+    M.call(s, "WebDriver:Navigate", %{url: page})
+    M.wait("and a fresh page still paints", "rgb(34, 51, 68)", pageBg)
+    File.rm!(link)
+    File.ln_s!("themes/b", link)
+    M.wait("back to b", "#f4ecdc", chrome)
+    M.call(s, "Marionette:SetContext", %{value: "content"})
+    M.call(s, "WebDriver:Navigate", %{url: page})
 
     M.call(s, "Marionette:SetContext", %{value: "chrome"})
 

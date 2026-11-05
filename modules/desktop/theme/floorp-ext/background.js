@@ -46,15 +46,17 @@ function setIcon(state) {
 async function apply() {
   const state = { ...theme, tune: settings.tune, sites: settings.sites };
   const old = registered;
+  const excludeMatches = [
+    ...state.domains.map(d => `*://*.${d}/*`),
+    ...settings.off.map(host => `*://${host}/*`),
+  ];
   // the palette goes in as code, not a message: a message would arrive after first paint
   registered = settings.paused
     ? null
     : await browser.contentScripts.register({
         matches: ["<all_urls>"],
-        excludeMatches: [
-          ...state.domains.map(d => `*://*.${d}/*`),
-          ...settings.off.map(host => `*://${host}/*`),
-        ],
+        // the schema refuses an empty list
+        excludeMatches: excludeMatches.length ? excludeMatches : undefined,
         allFrames: true,
         runAt: "document_start",
         js: [...FILES.map(file => ({ file })), { code: `paint(${JSON.stringify(state)})` }],
