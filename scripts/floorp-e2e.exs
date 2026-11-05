@@ -17,7 +17,8 @@ themes = %{
   "a" => {"#112233", "#ddeeff", false},
   "b" => {"#f4ecdc", "#2c2a33", true},
   "bare" => {"#223344", "#ddeeff", false},
-  "broken" => {"#334455", "#ddeeff", false}
+  "broken" => {"#334455", "#ddeeff", false},
+  "corrupt" => {"#445566", "#ddeeff", false}
 }
 
 for {name, {ground, body, light}} <- themes do
@@ -50,6 +51,8 @@ for {name, {ground, body, light}} <- themes do
 end
 
 File.write!(Path.join(config, "themes/bare/floorp-userContent.css"), "")
+
+File.write!(Path.join(config, "themes/corrupt/floorp-page.json"), "{")
 
 # contentScripts.register refuses this as a match pattern
 File.write!(
@@ -263,6 +266,35 @@ code =
     M.wait("the menu shows the palette", "7", fn ->
       "#{M.js(s, ~s|return document.querySelectorAll("#swatches span").length|)}"
     end)
+
+    button = fn getter ->
+      M.call(s, "WebDriver:ExecuteAsyncScript", %{
+        script:
+          "const done = arguments[arguments.length - 1]; window.browser.browserAction.#{getter}({}).then(done);",
+        args: []
+      })["value"]
+    end
+
+    flipTo = fn name ->
+      File.rm!(link)
+      File.ln_s!("themes/#{name}", link)
+    end
+
+    M.wait("a healthy theme shows no badge", "", fn -> button.("getBadgeText") end)
+    flipTo.("broken")
+    M.wait("a refused theme badges the button", "!", fn -> button.("getBadgeText") end)
+
+    M.wait("and the button says why", true, fn ->
+      String.starts_with?(button.("getTitle"), "Ficciones: ")
+    end)
+
+    flipTo.("b")
+    M.wait("the next good theme clears the badge", "", fn -> button.("getBadgeText") end)
+    M.wait("and the title", "Ficciones", fn -> button.("getTitle") end)
+    flipTo.("corrupt")
+    M.wait("an unreadable theme badges it too", "!", fn -> button.("getBadgeText") end)
+    flipTo.("b")
+    M.wait("and clears the same way", "", fn -> button.("getBadgeText") end)
 
     M.js(s, ~s|document.getElementById("all").click()|)
     switch.(pageTab)

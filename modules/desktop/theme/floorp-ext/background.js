@@ -43,6 +43,11 @@ function setIcon(state) {
   browser.browserAction.setIcon({ path: `data:image/svg+xml,${encodeURIComponent(svg)}` });
 }
 
+function report(failure) {
+  browser.browserAction.setBadgeText({ text: failure ? "!" : "" });
+  browser.browserAction.setTitle({ title: failure ? `Ficciones: ${failure}` : "Ficciones" });
+}
+
 async function apply() {
   const state = { ...theme, tune: settings.tune, sites: settings.sites };
   const old = registered;
@@ -63,14 +68,16 @@ async function apply() {
       });
   if (old) await old.unregister();
   setIcon(state);
+  report(null);
   for (const tab of await browser.tabs.query({})) repaint(tab, state);
 }
 
 // one at a time: two overlapping applies would both unregister the same scripts. A rejected link
 // would skip every apply after it, so a failure stops here and the old scripts stay registered.
-const reapply = () => (applying = applying.then(apply).catch(console.error));
+const reapply = () => (applying = applying.then(apply).catch(e => report(e.message)));
 
 browser.ficciones.onTheme.addListener(state => {
+  if (state.failed) return report(state.failed);
   theme = state;
   reapply();
 });

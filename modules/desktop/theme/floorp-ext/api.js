@@ -50,7 +50,7 @@ this.ficciones = class extends ExtensionAPI {
     }
     if (now === this.seen) return;
     this.seen = now;
-    this.load().catch(console.error);
+    this.load().catch(e => this.listeners.forEach(fire => fire({ failed: String(e) })));
   }
 
   start() {
