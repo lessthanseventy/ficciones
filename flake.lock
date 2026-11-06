@@ -688,18 +688,18 @@
     "tlon": {
       "flake": false,
       "locked": {
-        "lastModified": 1793146887,
-        "narHash": "sha256-/1UfaDDJyrle9l4UfLCNvleThBg5nTZIaqHAWLWg/tM=",
-        "ref": "live",
-        "rev": "859ddcabbfa612d42b2d0e1d4ae1be4d4e2d1c1f",
-        "revCount": 2606,
-        "type": "git",
-        "url": "file:///home/andrew/projects/tlon"
+        "lastModified": 1793850569,
+        "narHash": "sha256-Cga4Fbe/O175MIlk0XrCACNdaQ9O6tEYj+ASvi9E/2Y=",
+        "owner": "lessthanseventy",
+        "repo": "tlon",
+        "rev": "420acbd19f3de63b0f4d7d1f301c31bf882d8d5e",
+        "type": "github"
       },
       "original": {
+        "owner": "lessthanseventy",
         "ref": "live",
-        "type": "git",
-        "url": "file:///home/andrew/projects/tlon"
+        "repo": "tlon",
+        "type": "github"
       }
     },
     "xdph": {

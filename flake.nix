@@ -37,8 +37,9 @@
     # tlon's office kit and rooms (office/{kit,rooms}) at its release pointer (`live`), baked into the desktop shell's bundle —
     # the shell's office draws tlon's rail room. Pinned like any input: flake:bump moves it; the
     # dev loop (shell:dev) reads the live checkout through modules/desktop/shell/office's links.
+    # From GitHub so every host can lock it; tlon's release:cut pushes `live` there.
     tlon = {
-      url = "git+file:///home/andrew/projects/tlon?ref=live";
+      url = "github:lessthanseventy/tlon/live";
       flake = false;
     };
   };
