@@ -480,7 +480,7 @@
                        GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
                        GIT_TERMINAL_PROMPT: "0",
                        CLAUDE_CODE_PLUGIN_DIRS: "${./modules/agents/mods/changes-pane}" }
-                     | .autoCompactWindow = 250000
+                     | .autoCompactWindow = 400000
                      | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
                     run chmod 600 "$tmp"
                     run mv -f "$tmp" "$cfg"

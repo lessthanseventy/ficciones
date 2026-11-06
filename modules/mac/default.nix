@@ -61,6 +61,7 @@ in
     xdg.enable = true;
 
     home.packages = [
+      pkgs.delta
       (pkgs.writeShellScriptBin "ficciones-theme" (builtins.readFile ./ficciones-theme))
       (pkgs.writeShellScriptBin "ficciones-recolor" (
         builtins.readFile ../desktop/scripts/ficciones-recolor
@@ -127,7 +128,13 @@ in
           f="$HOME/.claude/settings.json"
           if [ -f "$f" ]; then
             tmp=$(mktemp)
-            if ${pkgs.jq}/bin/jq '.theme = "custom:ficciones" | .statusLine = {type: "command", command: "~/.claude/statusline-box.sh"}' "$f" > "$tmp"; then
+            # the Mac's own plugin dirs stay; only the changes pane's store path is swapped in
+            if ${pkgs.jq}/bin/jq --arg pane "${../agents/mods/changes-pane}" '.theme = "custom:ficciones"
+                 | .statusLine = {type: "command", command: "~/.claude/statusline-box.sh"}
+                 | .autoCompactWindow = 400000
+                 | .enabledPlugins["cc-plugin-diff@builtin"] = false
+                 | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
+                     | map(select(. != "" and (endswith("-changes-pane") | not))) + [$pane] | join(":"))' "$f" > "$tmp"; then
               run mv -f "$tmp" "$f"
             else
               rm -f "$tmp"
