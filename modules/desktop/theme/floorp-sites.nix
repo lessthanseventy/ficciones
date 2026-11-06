@@ -411,6 +411,13 @@ builtins.concatStringsSep "\n" [
     + ''
       }
       html, body { background-color: ${hex r.ground} !important; color: ${hex r.body} !important; }
+      #jira-page-layout-main, #jira-page-layout-main::before, #jira-page-layout-main::after,
+      [data-testid*="container-v2-main-wrapper"], [data-testid*="container-v2-main-wrapper"]::before,
+      #jira-page-layout-main div:has([data-vc="FullPageIssueContainer"]),
+      #jira-page-layout-main div:has([data-vc="FullPageIssueContainer"])::before {
+        background: ${hex r.ground} !important;
+        box-shadow: none !important;
+      }
       body, input, textarea, button, select { font-family: ${fontStack} !important; }
       h1, h2, h3, h4, h5, h6 { color: ${hex r.attention} !important; }
       a:link:not([role=button]) { color: ${hex r.key} !important; }
