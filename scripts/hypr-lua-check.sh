@@ -20,7 +20,10 @@ before="$(ls "$XDG_RUNTIME_DIR/hypr")"
 # error overlay. Its watchdog is the child we kill at the end.
 launch=(Hyprland)
 command -v start-hyprland >/dev/null && launch=(start-hyprland --)
-FICCIONES_HYPRDIR="$scratch" FICCIONES_HYPR_NO_AUTOSTART=1 \
+# NO_SD_*: Hyprland 0.57 imports its display into the systemd user env at start and stops
+# graphical-session.target at exit, even nested — which takes the live session's shell, portals
+# and a11y bus down with it.
+FICCIONES_HYPRDIR="$scratch" FICCIONES_HYPR_NO_AUTOSTART=1 HYPRLAND_NO_SD_VARS=1 HYPRLAND_NO_SD_TARGET=1 \
 	"${launch[@]}" --config "$PWD/modules/desktop/hypr/hyprland.lua" >"$scratch/hyprland.log" 2>&1 &
 pid=$!
 nested=""
@@ -39,9 +42,9 @@ n() { HYPRLAND_INSTANCE_SIGNATURE="$nested" hyprctl "$@"; }
 l() { HYPRLAND_INSTANCE_SIGNATURE="$live" hyprctl "$@"; }
 
 # theme.lua sets plugin.hyprexpo.* keys; with autostart off nothing loads the plugin into the
-# nested instance (the live one gets it from hyprpm/modules/os at start), and every key would
+# nested instance (the live one gets it from hyprland.lua's autostart), and every key would
 # read "unknown". Load it, reload, and only then read the errors — which must be none.
-for so in /etc/hypr/plugins/hyprexpo.so "/var/cache/hyprpm/$USER/hyprexpo/hyprexpo.so"; do
+for so in /etc/hypr/plugins/hyprexpo.so ~/.local/share/hypr/plugins/hyprexpo.so; do
 	[ -f "$so" ] && {
 		n plugin load "$so" >/dev/null
 		n reload >/dev/null
