@@ -24,6 +24,11 @@ let
     ];
   };
   portal = pkgsHypr.xdg-desktop-portal-hyprland;
+  # pacman's xdg-desktop-portal stays installed (flatpak and gtk4 need it); these, linked by the
+  # same names, are what runs. The document portal still mounts through Arch's setuid fusermount3.
+  frontend = pkgs.xdg-desktop-portal;
+  gtkPortal = pkgs.xdg-desktop-portal-gtk;
+  share = pkg: rel: { source = "${pkg}/share/${rel}"; };
 in
 {
   home = {
@@ -41,17 +46,39 @@ in
 
   # dbus and systemd look in these user dirs before /usr, and neither reads the nix profile
   xdg.dataFile = {
-    "xdg-desktop-portal/portals/hyprland.portal".source =
-      "${portal}/share/xdg-desktop-portal/portals/hyprland.portal";
-    "dbus-1/services/org.freedesktop.impl.portal.desktop.hyprland.service".source =
-      "${portal}/share/dbus-1/services/org.freedesktop.impl.portal.desktop.hyprland.service";
-    "dbus-1/services/org.hyprland.hyprpolkitagent.service".source =
-      "${pkgsHypr.hyprpolkitagent}/share/dbus-1/services/org.hyprland.hyprpolkitagent.service";
+    "xdg-desktop-portal/portals/hyprland.portal" =
+      share portal "xdg-desktop-portal/portals/hyprland.portal";
+    "xdg-desktop-portal/portals/gtk.portal" = share gtkPortal "xdg-desktop-portal/portals/gtk.portal";
+    "dbus-1/services/org.freedesktop.impl.portal.desktop.hyprland.service" =
+      share portal "dbus-1/services/org.freedesktop.impl.portal.desktop.hyprland.service";
+    "dbus-1/services/org.freedesktop.impl.portal.desktop.gtk.service" =
+      share gtkPortal "dbus-1/services/org.freedesktop.impl.portal.desktop.gtk.service";
+    "dbus-1/services/org.freedesktop.portal.Desktop.service" =
+      share frontend "dbus-1/services/org.freedesktop.portal.Desktop.service";
+    "dbus-1/services/org.freedesktop.portal.Documents.service" =
+      share frontend "dbus-1/services/org.freedesktop.portal.Documents.service";
+    "dbus-1/services/org.freedesktop.impl.portal.PermissionStore.service" =
+      share frontend "dbus-1/services/org.freedesktop.impl.portal.PermissionStore.service";
+    "dbus-1/services/org.hyprland.hyprpolkitagent.service" =
+      share pkgsHypr.hyprpolkitagent "dbus-1/services/org.hyprland.hyprpolkitagent.service";
   };
   xdg.configFile = {
-    "systemd/user/xdg-desktop-portal-hyprland.service".source =
-      "${portal}/share/systemd/user/xdg-desktop-portal-hyprland.service";
-    "systemd/user/hyprpolkitagent.service".source =
-      "${pkgsHypr.hyprpolkitagent}/share/systemd/user/hyprpolkitagent.service";
+    # Hyprland starts it, and it brings up graphical-session.target: the shell, the portals
+    "systemd/user/hyprland-session.target" =
+      share pkgsHypr.hyprland "systemd/user/hyprland-session.target";
+    "systemd/user/xdg-desktop-portal.service" =
+      share frontend "systemd/user/xdg-desktop-portal.service";
+    "systemd/user/xdg-desktop-portal-rewrite-launchers.service" =
+      share frontend "systemd/user/xdg-desktop-portal-rewrite-launchers.service";
+    "systemd/user/xdg-document-portal.service" =
+      share frontend "systemd/user/xdg-document-portal.service";
+    "systemd/user/xdg-permission-store.service" =
+      share frontend "systemd/user/xdg-permission-store.service";
+    "systemd/user/xdg-desktop-portal-gtk.service" =
+      share gtkPortal "systemd/user/xdg-desktop-portal-gtk.service";
+    "systemd/user/xdg-desktop-portal-hyprland.service" =
+      share portal "systemd/user/xdg-desktop-portal-hyprland.service";
+    "systemd/user/hyprpolkitagent.service" =
+      share pkgsHypr.hyprpolkitagent "systemd/user/hyprpolkitagent.service";
   };
 }
