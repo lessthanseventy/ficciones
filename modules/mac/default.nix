@@ -140,6 +140,17 @@ in
               rm -f "$tmp"
             fi
           fi
+          # the built-in diff sidebar opens on an edit otherwise and leaves the changes pane no columns
+          state="$HOME/.claude.json"
+          if [ -f "$state" ]; then
+            tmp=$(mktemp)
+            if ${pkgs.jq}/bin/jq '.diffSidebarOpen = false' "$state" > "$tmp"; then
+              run chmod 600 "$tmp"
+              run mv -f "$tmp" "$state"
+            else
+              rm -f "$tmp"
+            fi
+          fi
         '';
 
     # Floorp keeps its user.js by hand, so only these lines are ours; the xpi is copied (mtime is
