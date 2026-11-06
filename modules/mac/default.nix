@@ -90,7 +90,7 @@ in
         "ghostty/themes/ficciones" = via "ghostty-theme";
         "ghostty/config".text =
           (import (theme + "/render.nix") { inherit lib; palette = import (theme + "/palette.nix"); })
-          .ghosttyConfig (tpl "ghostty.conf");
+          .ghosttyConfig (tpl "ghostty-mac.conf");
         "kitty/theme.conf" = via "kitty-theme.conf";
         "wezterm/colors/ficciones.toml" = via "wezterm.toml";
         "starship.toml" = via "starship.toml";
