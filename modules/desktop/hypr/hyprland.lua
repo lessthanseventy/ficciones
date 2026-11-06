@@ -68,11 +68,9 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         hl.exec_cmd("hyprsunset")
         hl.exec_cmd("easyeffects --hide-window --service-mode")
         hl.exec_cmd("hypridle")
-        -- hyprexpo: on NixOS modules/os puts the .so here; on Arch hyprpm owns it, and nothing
-        -- loads hyprpm's plugins at start unless asked — without this the plugin.hyprexpo.*
-        -- keys in theme.lua are "unknown" until someone runs `hyprpm reload` (2026-09-07)
-        hl.exec_cmd("test -f /etc/hypr/plugins/hyprexpo.so && hyprctl plugin load /etc/hypr/plugins/hyprexpo.so")
-        hl.exec_cmd("test -e /etc/NIXOS || hyprpm reload -n")
+        -- hyprexpo: modules/os puts the .so in /etc on NixOS, modules/arch in ~/.local/share on Arch.
+        -- Until it loads, the plugin.hyprexpo.* keys in theme.lua are "unknown".
+        hl.exec_cmd("for so in /etc/hypr/plugins/hyprexpo.so ~/.local/share/hypr/plugins/hyprexpo.so; do test -f $so && exec hyprctl plugin load $so; done")
         hl.exec_cmd("bash -c 'wl-paste --type text  --watch cliphist store'")
         hl.exec_cmd("bash -c 'wl-paste --type image --watch cliphist store'")
         -- A Hyprland restart takes the socket away: the agent exits, Restart=on-failure respawns
@@ -517,9 +515,7 @@ bind(M .. " + SHIFT + mouse_up", to_ws("r-1"))
 bind(M .. " + Tab", ws("previous"))
 bind("ALT + Tab", hl.dsp.focus({ last = true }))
 -- the workspace overview with LIVE window thumbnails: hyprexpo (github.com/sandwichfarm/hyprexpo),
--- a compositor plugin. NixOS: modules/os puts the .so under /etc/hypr/plugins. Arch: once, by hand —
---   hyprpm update && hyprpm add https://github.com/sandwichfarm/hyprexpo && hyprpm enable hyprexpo
--- (hyprpm installs matching headers under /usr, so it asks for sudo). Until it is loaded the
+-- a compositor plugin, built by the flake beside the Hyprland it loads into. Until it is loaded the
 -- dispatcher is unknown and the bind does nothing.
 -- the plugin's own lua action, not a dispatcher: `hyprctl dispatch hyprexpo:expo` is legacy
 -- syntax and a lua config no longer parses it (2026-09-07)

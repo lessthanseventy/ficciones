@@ -17,8 +17,13 @@ local function card_at(pci)
 end
 local intel = card_at("0000:00:02.0") -- Iris Xe
 local nvidia = card_at("0000:01:00.0") -- RTX 4060 Max-Q
-if intel and nvidia then
+-- Off NixOS the compositor's GL is nix's mesa (modules/arch), which cannot drive the NVIDIA card;
+-- every display port is wired to the Iris Xe, so Arch lists it alone.
+local nixos = io.open("/etc/NIXOS") ~= nil
+if intel and nvidia and nixos then
     hl.env("AQ_DRM_DEVICES", intel .. ":" .. nvidia)
+elseif intel and not nixos then
+    hl.env("AQ_DRM_DEVICES", intel)
 end
 
 -- Hybrid GPU workarounds — uncomment if stable Hyprland still hangs on page-flip.

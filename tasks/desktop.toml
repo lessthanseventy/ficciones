@@ -170,6 +170,18 @@ run = "nix run github:nix-community/home-manager -- switch --flake .#anmoore -b 
 
 # Home-manager can't own a root service on Arch, so the config comes from ivysaur's services.keyd
 # (the one source) and this installs it. Rerun after changing it.
+["hyprland:install"]
+description = "machine (sudo): once on Arch — point /run/opengl-driver at the flake's mesa and give ly a session for the flake's Hyprland (modules/arch)"
+run = '''
+set -euo pipefail
+printf 'L+ /run/opengl-driver - - - - %s\n' "$HOME/.local/share/ficciones/graphics-drivers" |
+	sudo install -Dm644 /dev/stdin /etc/tmpfiles.d/ficciones-graphics.conf
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/ficciones-graphics.conf
+printf '[Desktop Entry]\nName=Hyprland (ficciones)\nExec=%s\nType=Application\nDesktopNames=Hyprland\n' \
+	"$HOME/.config/hypr/scripts/launch_hyprland.sh" |
+	sudo install -Dm644 /dev/stdin /usr/share/wayland-sessions/ficciones.desktop
+'''
+
 ["keyd:install"]
 description = "machine (sudo): install keyd on Arch with the config from ivysaur's services.keyd"
 run = '''

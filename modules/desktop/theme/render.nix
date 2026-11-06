@@ -885,11 +885,9 @@ rec {
         },
     }
 
-    -- hyprexpo registers these keys only when the plugin is LOADED, and "installed" is not the
-    -- same thing. hyprpm keeps its built .so under /var/cache/hyprpm/$USER/ with an ABI hash that
-    -- must match the running Hyprland; a stale one is refused and nothing loads while the file
-    -- sits there (2026-09-12: the plugin was built against aq_0.14, Hyprland wanted aq_0.15).
-    -- So ask the compositor, not the filesystem. At the first parse the IPC socket may not be up,
+    -- hyprexpo registers these keys only when the plugin is LOADED, and a .so on disk is not the
+    -- same thing: one built against another Hyprland is refused. So ask the compositor, not the
+    -- filesystem. At the first parse the IPC socket may not be up,
     -- which answers "no" — correct, since nothing is loaded yet — and hyprland.lua loads the
     -- plugin at start, which re-reads this file with the keys valid.
     local function hyprexpo_loaded()

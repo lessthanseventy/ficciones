@@ -366,12 +366,18 @@
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         extraSpecialArgs = {
-          inherit repo tlonRepo astalShell;
+          inherit
+            repo
+            tlonRepo
+            astalShell
+            hyprexpo
+            ;
           expertPackages = inputs.expert.packages;
         };
         modules = [
           # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
           ./modules/desktop
+          ./modules/arch
           ./modules/tmux.nix
           ./modules/menard-host.nix
           # agenix: decrypt age secrets at activation with the box's ssh key (identityPaths

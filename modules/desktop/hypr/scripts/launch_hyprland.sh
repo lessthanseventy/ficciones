@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# the flake's (modules/arch); ly's PATH has no nix profile on it
+HYPRLAND=~/.nix-profile/bin/Hyprland
+
 # Persistent log (survives reboot — /tmp is tmpfs)
 LOG=~/hypr-startup.log
 mkdir -p "$(dirname "$LOG")"
@@ -10,7 +13,7 @@ mkdir -p "$(dirname "$LOG")"
 	echo "================================================================"
 	echo "=== Hyprland launch attempt: $(date -Iseconds) ==="
 	echo "=== Kernel: $(uname -r) ==="
-	echo "=== Hyprland: $(/usr/bin/Hyprland --version 2>&1 | head -1) ==="
+	echo "=== Hyprland: $("$HYPRLAND" --version 2>&1 | head -1) ==="
 	echo "================================================================"
 } >>"$LOG"
 
@@ -33,7 +36,7 @@ fi
 
 # Launch directly — NOT start-hyprland (that's a restart-loop watchdog that
 # fork-bombs the system + locks the GPU if Hyprland fails immediately).
-exec /usr/bin/Hyprland \
+exec "$HYPRLAND" \
 	--config /home/andrew/.config/hypr/hyprland.lua \
 	"${EXTRA_ARGS[@]}" \
 	>>"$LOG" 2>&1
