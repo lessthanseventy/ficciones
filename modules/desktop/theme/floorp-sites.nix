@@ -415,7 +415,8 @@ builtins.concatStringsSep "\n" [
       h1, h2, h3, h4, h5, h6 { color: ${hex r.attention} !important; }
       a:link:not([role=button]) { color: ${hex r.key} !important; }
       a:visited:not([role=button]) { color: ${hex r.visited} !important; }
-      [data-testid*="lozenge" i], [class*="lozenge" i] { background-color: ${hex r.ground} !important; }
+      [data-testid*="lozenge" i], [class*="lozenge" i] { background-color: ${hex r.ground} !important; border-color: ${hex r.borderInactive} !important; }
+      [data-testid*="lozenge" i] *, [class*="lozenge" i] * { background-color: transparent !important; border-color: ${hex r.borderInactive} !important; }
       [data-testid*="lozenge" i], [data-testid*="lozenge" i] *, [class*="lozenge" i], [class*="lozenge" i] * { color: ${hex r.key} !important; }
       :is(td, th)[style*="background" i], :is(td, th)[data-cell-background] { background-color: ${hex r.card} !important; }
       .aui-header { background-color: ${hex r.ground} !important; border-bottom: 1px solid ${hex r.menuGround} !important; }
