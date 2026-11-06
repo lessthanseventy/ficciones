@@ -14,9 +14,7 @@
 
 let
   # Hyprland + hyprexpo from Hyprland's own overlay on Hyprland's own nixpkgs pin (its deps
-  # are cached against that gcc; ours links a newer libstdc++ and guiutils fails to link),
-  # with glaze held at 7.x: Hyprland 0.56.2's CMake wants `glaze 7...<8`, that nixpkgs has 8,
-  # so the stock flake package falls to a FetchContent git clone the sandbox cannot do. The
+  # are cached against that gcc; ours links a newer libstdc++ and guiutils fails to link). The
   # plugin is built in the same package set, so it loads into the exact binary it was compiled
   # against.
   hyprland = hyprexpo.inputs.hyprland;
@@ -29,24 +27,9 @@ let
       (final: prev: {
         # aquamarine's log connection honours debug:disable_logs (patches/…; upstream 0.56.2 writes
         # every libinput debounce line to hyprland.log regardless — 2026-09-07)
-        # a binary wrapper: NixOS refuses a program whose wrapper is a shell script (ensure-wrapper-integrity)
-        hyprland = (prev.hyprland.override { makeWrapper = final.makeBinaryWrapper; }).overrideAttrs (o: {
+        hyprland = prev.hyprland.overrideAttrs (o: {
           patches = (o.patches or [ ]) ++ [ ./patches/hyprland-aquamarine-honours-disable_logs.patch ];
         });
-        glaze-hyprland =
-          (prev.glaze.override {
-            enableSSL = false;
-            enableInterop = false;
-          }).overrideAttrs
-            (_: rec {
-              version = "7.2.0";
-              src = prev.fetchFromGitHub {
-                owner = "stephenberry";
-                repo = "glaze";
-                tag = "v${version}";
-                hash = "sha256-f3NVRi3SXKo42hn0WCw7JsOK3EkdOVJIcuzhPorKjFY=";
-              };
-            });
       })
     ];
   };
