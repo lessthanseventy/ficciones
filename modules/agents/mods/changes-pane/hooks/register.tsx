@@ -248,8 +248,15 @@ export const register: Register = on => {
 
     for (const { key, row } of typed) {
       if (key === 'L') {
+        const cwd = `--working-directory=${await $.session.cwd()}`
         // setsid -f returns at once and leaves a window that outlives this session.
-        await $.process.run(['setsid', '-f', 'ghostty', `--working-directory=${await $.session.cwd()}`, '-e', 'lazygit'])
+        try {
+          await $.process.run(['setsid', '-f', 'ghostty', cwd, '-e', 'lazygit'])
+        } catch {
+          // macOS has neither setsid nor ghostty on PATH, and the window open starts may lack Homebrew's PATH.
+          const lazygit = (await $.process.run(['which', 'lazygit'])).stdout.trim() || 'lazygit'
+          await $.process.run(['open', '-na', 'Ghostty.app', '--args', cwd, '-e', lazygit])
+        }
         continue
       }
       if (row !== undefined) select(row)

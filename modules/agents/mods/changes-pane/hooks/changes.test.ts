@@ -80,6 +80,27 @@ test('a key holds the view, and nothing can stage', async ($, on) => {
   expect(ran.filter(line => /\b(add|reset|commit)\b/.test(line))).toEqual([])
 })
 
+test('L opens lazygit through Ghostty.app where setsid cannot start', async ($, on) => {
+  mock.clock(on)
+  on('session.start', async ($, e) => e)
+  const ran: string[] = []
+  on('process.run', async ($, e) => {
+    const line = e.argv.join(' ')
+    ran.push(line)
+    if (e.argv[0] === 'setsid') return { deny: 'spawn setsid ENOENT' } as never
+    if (e.argv[0] === 'open') return { value: { exitCode: 0, stdout: '', stderr: '' } } as never
+    const stdout = e.argv[0] === 'which' ? '/opt/homebrew/bin/lazygit\n' : line.includes(' status ') ? ' M a.ts\0' : ''
+    return { value: { exitCode: 0, stdout, stderr: '' } } as never
+  })
+  on('session.cwd', async () => ({ value: '/repo' }) as never)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as {
+    key: (k: { key: string }) => Promise<void>
+  }
+  await ui.key({ key: 'L' })
+  expect(ran).toContain('open -na Ghostty.app --args --working-directory=/repo -e /opt/homebrew/bin/lazygit')
+})
+
 test('/changes and /diff open the one pane', async ($, on) => {
   mock.clock(on)
   on('session.start', async ($, e) => e)
