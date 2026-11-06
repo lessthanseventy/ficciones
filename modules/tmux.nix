@@ -133,21 +133,21 @@ in
       bind r source-file ~/.config/tmux/tmux.conf \; display "Config reloaded!"
 
       # Root-table keys reach no app underneath, so only these Alt chords (they clash with
-      # nvim/claude otherwise) and the F-keys, which ghostty sends for cmd+1…9 on the Mac.
+      # nvim/claude otherwise).
       bind -n M-h previous-window
       bind -n M-l next-window
       bind -n M-H swap-window -t -1
       bind -n M-L swap-window -t +1
       bind -n M-x confirm-before -p "kill #W? (y/n)" kill-window
-      bind -n F1 select-window -t 1
-      bind -n F2 select-window -t 2
-      bind -n F3 select-window -t 3
-      bind -n F4 select-window -t 4
-      bind -n F5 select-window -t 5
-      bind -n F6 select-window -t 6
-      bind -n F7 select-window -t 7
-      bind -n F8 select-window -t 8
-      bind -n F9 select-window -t 9
+      bind -n M-1 select-window -t 1
+      bind -n M-2 select-window -t 2
+      bind -n M-3 select-window -t 3
+      bind -n M-4 select-window -t 4
+      bind -n M-5 select-window -t 5
+      bind -n M-6 select-window -t 6
+      bind -n M-7 select-window -t 7
+      bind -n M-8 select-window -t 8
+      bind -n M-9 select-window -t 9
     '';
   };
 }
