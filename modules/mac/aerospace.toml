@@ -27,64 +27,64 @@ outer.top = 0
 
 [mode.main.binding]
 # See: https://nikitabobko.github.io/AeroSpace/commands#layout
-cmd-slash = 'layout tiles horizontal vertical'
-cmd-comma = 'layout accordion horizontal vertical'
-cmd-enter = 'exec-and-forget open -n /Applications/Ghostty.app'
+cmd-alt-slash = 'layout tiles horizontal vertical'
+cmd-alt-comma = 'layout accordion horizontal vertical'
+cmd-alt-enter = 'exec-and-forget open -n /Applications/Ghostty.app'
 
-cmd-shift-f = 'fullscreen'
+cmd-alt-shift-f = 'fullscreen'
 
-cmd-shift-space = 'layout floating tiling' # 'floating toggle' in i3
+cmd-alt-shift-space = 'layout floating tiling' # 'floating toggle' in i3
 
-cmd-shift-x = 'exec-and-forget /Users/anmoore/.config/flameshot/flameshot-wrapper.sh'
+cmd-alt-shift-x = 'exec-and-forget /Users/anmoore/.config/flameshot/flameshot-wrapper.sh'
 
-cmd-h = 'focus --boundaries all-monitors-outer-frame left'
+cmd-alt-h = 'focus --boundaries all-monitors-outer-frame left'
 alt-down = 'focus --boundaries all-monitors-outer-frame down'
 alt-up = 'focus --boundaries all-monitors-outer-frame up'
-cmd-l = 'focus --boundaries all-monitors-outer-frame right'
+cmd-alt-l = 'focus --boundaries all-monitors-outer-frame right'
 
-cmd-j = 'workspace next'
-cmd-k = 'workspace prev'
-cmd-shift-j = 'move-node-to-workspace next'
-cmd-shift-k = 'move-node-to-workspace prev'
+cmd-alt-j = 'workspace next'
+cmd-alt-k = 'workspace prev'
+cmd-alt-shift-j = 'move-node-to-workspace next'
+cmd-alt-shift-k = 'move-node-to-workspace prev'
 
-ctrl-cmd-h = 'join-with left'
-ctrl-cmd-j = 'join-with down'
-ctrl-cmd-k = 'join-with up'
-ctrl-cmd-l = 'join-with right'
+ctrl-cmd-alt-h = 'join-with left'
+ctrl-cmd-alt-j = 'join-with down'
+ctrl-cmd-alt-k = 'join-with up'
+ctrl-cmd-alt-l = 'join-with right'
 
-cmd-shift-h = 'move left'
+cmd-alt-shift-h = 'move left'
 alt-shift-down = 'move down'
 alt-shift-up = 'move up'
-cmd-shift-l = 'move right'
+cmd-alt-shift-l = 'move right'
 
-cmd-shift-minus = 'resize smart -50'
-cmd-shift-equal = 'resize smart +50'
+cmd-alt-shift-minus = 'resize smart -50'
+cmd-alt-shift-equal = 'resize smart +50'
 
-cmd-1 = 'workspace 1'
-cmd-2 = 'workspace 2'
-cmd-3 = 'workspace 3'
-cmd-4 = 'workspace 4'
-cmd-5 = 'workspace 5'
-cmd-6 = 'workspace 6'
-cmd-7 = 'workspace 7'
-cmd-8 = 'workspace 8'
-cmd-9 = 'workspace 9'
+cmd-alt-1 = 'workspace 1'
+cmd-alt-2 = 'workspace 2'
+cmd-alt-3 = 'workspace 3'
+cmd-alt-4 = 'workspace 4'
+cmd-alt-5 = 'workspace 5'
+cmd-alt-6 = 'workspace 6'
+cmd-alt-7 = 'workspace 7'
+cmd-alt-8 = 'workspace 8'
+cmd-alt-9 = 'workspace 9'
 
-cmd-shift-1 = 'move-node-to-workspace 1'
-cmd-shift-2 = 'move-node-to-workspace 2'
-cmd-shift-3 = 'move-node-to-workspace 3'
-cmd-shift-4 = 'move-node-to-workspace 4'
-cmd-shift-5 = 'move-node-to-workspace 5'
-cmd-shift-6 = 'move-node-to-workspace 6'
-cmd-shift-7 = 'move-node-to-workspace 7'
-cmd-shift-8 = 'move-node-to-workspace 8'
-cmd-shift-9 = 'move-node-to-workspace 9'
+cmd-alt-shift-1 = 'move-node-to-workspace 1'
+cmd-alt-shift-2 = 'move-node-to-workspace 2'
+cmd-alt-shift-3 = 'move-node-to-workspace 3'
+cmd-alt-shift-4 = 'move-node-to-workspace 4'
+cmd-alt-shift-5 = 'move-node-to-workspace 5'
+cmd-alt-shift-6 = 'move-node-to-workspace 6'
+cmd-alt-shift-7 = 'move-node-to-workspace 7'
+cmd-alt-shift-8 = 'move-node-to-workspace 8'
+cmd-alt-shift-9 = 'move-node-to-workspace 9'
 
-cmd-backtick = 'workspace-back-and-forth'
+cmd-alt-backtick = 'workspace-back-and-forth'
 
-cmd-shift-backtick = 'move-workspace-to-monitor --wrap-around next'
+cmd-alt-shift-backtick = 'move-workspace-to-monitor --wrap-around next'
 
-cmd-ctrl-backslash = 'mode service'
+cmd-alt-ctrl-backslash = 'mode service'
 
 [workspace-to-monitor-force-assignment]
 1 = 'main'
