@@ -99,6 +99,9 @@ in
         "btop/themes/ficciones.theme" = via "btop.theme";
         "ficciones/palette.sh" = via "palette.sh";
         "tlon/palette.json" = via "shell-palette.json";
+        "aerospace/aerospace.toml".source = ./aerospace.toml;
+        # Karabiner's settings UI can't save through this read-only link; edit the repo copy.
+        "karabiner/karabiner.json".source = ./karabiner.json;
       }
     ];
 

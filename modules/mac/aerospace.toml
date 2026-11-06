@@ -1,0 +1,189 @@
+# after-login-command = []
+after-startup-command = [
+    'exec-and-forget borders active_color=0xffffb000 inactive_color=0xff78cec1 width=10.0',
+]
+start-at-login = true
+
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+non-empty-workspaces-root-containers-layout-on-startup = 'smart'
+automatically-unhide-macos-hidden-apps = true
+
+accordion-padding = 30
+default-root-container-layout = 'accordion'
+default-root-container-orientation = 'horizontal'
+key-mapping.preset = 'qwerty'
+
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+on-focus-changed = ['move-mouse window-lazy-center']
+
+[gaps]
+inner.horizontal = 3
+inner.vertical = 0
+outer.bottom = 0
+outer.left = 5
+outer.right = 5
+outer.top = 0
+
+[mode.main.binding]
+# See: https://nikitabobko.github.io/AeroSpace/commands#layout
+cmd-slash = 'layout tiles horizontal vertical'
+cmd-comma = 'layout accordion horizontal vertical'
+cmd-enter = 'exec-and-forget open -n /Applications/Ghostty.app'
+
+cmd-shift-f = 'fullscreen'
+
+cmd-shift-space = 'layout floating tiling' # 'floating toggle' in i3
+
+cmd-shift-x = 'exec-and-forget /Users/anmoore/.config/flameshot/flameshot-wrapper.sh'
+
+cmd-h = 'focus --boundaries all-monitors-outer-frame left'
+alt-down = 'focus --boundaries all-monitors-outer-frame down'
+alt-up = 'focus --boundaries all-monitors-outer-frame up'
+cmd-l = 'focus --boundaries all-monitors-outer-frame right'
+
+cmd-j = 'workspace next'
+cmd-k = 'workspace prev'
+cmd-shift-j = 'move-node-to-workspace next'
+cmd-shift-k = 'move-node-to-workspace prev'
+
+ctrl-cmd-h = 'join-with left'
+ctrl-cmd-j = 'join-with down'
+ctrl-cmd-k = 'join-with up'
+ctrl-cmd-l = 'join-with right'
+
+cmd-shift-h = 'move left'
+alt-shift-down = 'move down'
+alt-shift-up = 'move up'
+cmd-shift-l = 'move right'
+
+cmd-shift-minus = 'resize smart -50'
+cmd-shift-equal = 'resize smart +50'
+
+cmd-1 = 'workspace 1'
+cmd-2 = 'workspace 2'
+cmd-3 = 'workspace 3'
+cmd-4 = 'workspace 4'
+cmd-5 = 'workspace 5'
+cmd-6 = 'workspace 6'
+cmd-7 = 'workspace 7'
+cmd-8 = 'workspace 8'
+cmd-9 = 'workspace 9'
+
+cmd-shift-1 = 'move-node-to-workspace 1'
+cmd-shift-2 = 'move-node-to-workspace 2'
+cmd-shift-3 = 'move-node-to-workspace 3'
+cmd-shift-4 = 'move-node-to-workspace 4'
+cmd-shift-5 = 'move-node-to-workspace 5'
+cmd-shift-6 = 'move-node-to-workspace 6'
+cmd-shift-7 = 'move-node-to-workspace 7'
+cmd-shift-8 = 'move-node-to-workspace 8'
+cmd-shift-9 = 'move-node-to-workspace 9'
+
+cmd-backtick = 'workspace-back-and-forth'
+
+cmd-shift-backtick = 'move-workspace-to-monitor --wrap-around next'
+
+cmd-ctrl-backslash = 'mode service'
+
+[workspace-to-monitor-force-assignment]
+1 = 'main'
+2 = 'main'
+3 = 'main'
+4 = 'main'
+5 = 'main'
+6 = 'main'
+7 = 'main'
+
+[mode.service.binding]
+esc = ['reload-config', 'mode main']
+r = ['flatten-workspace-tree', 'mode main']                # reset layout
+f = ['layout floating tiling', 'mode main']
+backspace = ['close-all-windows-but-current', 'mode main']
+
+
+alt-shift-h = ['join-with left', 'mode main']
+alt-shift-j = ['join-with down', 'mode main']
+alt-shift-k = ['join-with up', 'mode main']
+alt-shift-l = ['join-with right', 'mode main']
+
+down = 'volume down'
+up = 'volume up'
+shift-down = ['volume set 0', 'mode main']
+
+[[on-window-detected]]
+if.app-id = 'com.mitchellh.ghostty'
+run = 'move-node-to-workspace 1'
+
+[[on-window-detected]]
+if.app-id = 'com.neovide.neovide'
+run = 'move-node-to-workspace 1'
+
+[[on-window-detected]]
+if.app-id = 'io.beekeeperstudio.desktop'
+run = 'move-node-to-workspace 1'
+
+[[on-window-detected]]
+if.app-id = 'org.mozilla.floorp'
+run = 'move-node-to-workspace 2'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.iCal'
+run = 'move-node-to-workspace 3'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.mail'
+run = 'move-node-to-workspace 3'
+
+[[on-window-detected]]
+if.app-id = 'com.tinyspeck.slackmacgap'
+run = 'move-node-to-workspace 3'
+
+[[on-window-detected]]
+if.app-id = 'com.microsoft.outlook'
+run = 'move-node-to-workspace 3'
+
+[[on-window-detected]]
+if.app-id = 'us.zoom.xos'
+run = 'move-node-to-workspace 3'
+
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = 'move-node-to-workspace 4'
+
+[[on-window-detected]]
+if.app-id = 'org.flameshot.Flameshot'
+if.window-title-regex-substring = '^$'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = 'layout tiling'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+run = 'layout tiling'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.TextEdit'
+run = 'layout tiling'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.ActivityMonitor'
+run = 'layout tiling'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.Console'
+run = 'layout tiling'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.DiskUtility'
+run = 'layout tiling'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.SystemProfiler'
+run = 'layout tiling'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.Terminal'
+run = 'layout tiling'
