@@ -278,6 +278,19 @@
             + "touch $out\n"
           );
 
+        # a broken close shader shows only as a window that closes without burning
+        burn-shader =
+          let
+            render = import ./modules/desktop/theme/render.nix { inherit (pkgs) lib; };
+            frag = pkgs.writeText "burn-close.frag" (
+              render.burnCloseGlsl (builtins.readFile ./modules/desktop/theme/templates/burn-close.glsl)
+            );
+          in
+          pkgs.runCommand "burn-shader" { nativeBuildInputs = [ pkgs.glslang ]; } ''
+            glslangValidator -S frag ${frag}
+            touch $out
+          '';
+
         # Andrew has low vision: every foreground/background pair the machine paints has a
         # declared WCAG floor in modules/desktop/theme/contrast.nix, and EVERY palette must
         # clear it — not just whichever one `current` names. The gate that refuses the next

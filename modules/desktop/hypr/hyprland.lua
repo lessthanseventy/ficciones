@@ -72,6 +72,9 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         -- hyprexpo: modules/os puts the .so in /etc on NixOS, modules/arch in ~/.local/share on Arch.
         -- Until it loads, the plugin.hyprexpo.* keys in theme.lua are "unknown".
         hl.exec_cmd("for so in /etc/hypr/plugins/hyprexpo.so ~/.local/share/hypr/plugins/hyprexpo.so; do test -f $so && exec hyprctl plugin load $so; done")
+        -- HyprWindowShade (the close burn below): same two homes. At start, never at parse time:
+        -- a corrupt .so segfaults in ld.so, and from the parse that kills every boot.
+        hl.exec_cmd("for so in /etc/hypr/plugins/hyprwindowshade.so ~/.local/share/hypr/plugins/hyprwindowshade.so; do test -f $so && exec hyprctl plugin load $so; done")
         hl.exec_cmd("bash -c 'wl-paste --type text  --watch cliphist store'")
         hl.exec_cmd("bash -c 'wl-paste --type image --watch cliphist store'")
         -- A Hyprland restart takes the socket away: the agent exits, Restart=on-failure respawns
@@ -251,6 +254,14 @@ hl.window_rule({
     name = "no-focus-phantom",
     match = { class = "^$", title = "^$", xwayland = true, float = true, fullscreen = false, pin = false },
     no_focus = true,
+})
+
+-- every window burns as it closes (HyprWindowShade; the shader is generated per palette by
+-- theme/render.nix). A tag only, until the plugin loads at start.
+hl.window_rule({
+    name = "burn-on-close",
+    match = { class = ".*" },
+    tag = "+shader_close:" .. os.getenv("HOME") .. "/.config/ficciones/theme/burn-close.glsl",
 })
 
 -- Default opacity (every window starts at 1.0)

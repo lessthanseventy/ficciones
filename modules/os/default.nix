@@ -67,10 +67,12 @@ in
   # the gtk portal answers what hyprland's does not: Settings (the color-scheme GTK 4 reads)
   # and the FileChooser modules/desktop names in hyprland-portals.conf
   xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-  # the plugin at a fixed path; hyprland.lua loads it at start when the file exists (on Arch
-  # hyprpm owns loading, and the path is absent)
-  environment.etc."hypr/plugins/hyprexpo.so".source =
-    "${pkgsHypr.hyprlandPlugins.hyprexpo}/lib/libhyprexpo.so";
+  # the plugins at fixed paths; hyprland.lua loads each at start when its file exists (on Arch,
+  # modules/arch puts them in ~/.local/share/hypr/plugins)
+  environment.etc = {
+    "hypr/plugins/hyprexpo.so".source = "${pkgsHypr.hyprlandPlugins.hyprexpo}/lib/libhyprexpo.so";
+    "hypr/plugins/hyprwindowshade.so".source = "${pkgsHypr.hyprwindowshade}/lib/HyprWindowShade.so";
+  };
   # hyprland.lua's autostart expects these on PATH; hyprlock/hypridle are never replaced
   # by the shell (design §7), ghostty is $TERMINAL there. No hyprpaper: the shell's backdrop
   # is the wallpaper.

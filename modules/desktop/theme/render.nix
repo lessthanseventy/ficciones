@@ -1193,6 +1193,19 @@ rec {
       --color=border:${hex r.structure},label:${hex r.key},query:${hex r.body}"
   '';
 
+  # the close-burn shader (HyprWindowShade, hyprland.lua): the border's amber into violet
+  burnCloseGlsl =
+    template:
+    let
+      vec3 =
+        c:
+        let
+          n = i: toString (lib.fromHexString (builtins.substring i 2 c) / 255.0);
+        in
+        "vec3(${n 0}, ${n 2}, ${n 4})";
+    in
+    lib.replaceStrings [ "@body@" "@assistant@" ] [ (vec3 r.body) (vec3 r.assistant) ] template;
+
   cavaConfig =
     template:
     "# ${gen} ([color]); the rest is templates/cava.conf in the repo.\n"

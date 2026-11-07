@@ -38,10 +38,14 @@ in
       pkgsHypr.hyprsunset
       portal
     ];
-    file.".local/share/ficciones/graphics-drivers".source = graphicsDrivers;
-    # hyprland.lua loads it at start; NixOS has it at /etc/hypr/plugins
-    file.".local/share/hypr/plugins/hyprexpo.so".source =
-      "${pkgsHypr.hyprlandPlugins.hyprexpo}/lib/libhyprexpo.so";
+    file = {
+      ".local/share/ficciones/graphics-drivers".source = graphicsDrivers;
+      # hyprland.lua loads these at start; NixOS has them at /etc/hypr/plugins
+      ".local/share/hypr/plugins/hyprexpo.so".source =
+        "${pkgsHypr.hyprlandPlugins.hyprexpo}/lib/libhyprexpo.so";
+      ".local/share/hypr/plugins/hyprwindowshade.so".source =
+        "${pkgsHypr.hyprwindowshade}/lib/HyprWindowShade.so";
+    };
   };
 
   # dbus and systemd look in these user dirs before /usr, and neither reads the nix profile

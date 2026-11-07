@@ -86,6 +86,7 @@ let
     "bat-config" = r.batConfig;
     "fzf.zsh" = r.fzfTheme;
     "cava.conf" = r.cavaConfig (tpl "cava.conf");
+    "burn-close.glsl" = r.burnCloseGlsl (tpl "burn-close.glsl");
     "tmux.conf" = r.tmuxStyle;
     "palette.sh" = r.envSh;
     "shell-palette.json" = r.paletteJson;
