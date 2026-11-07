@@ -111,8 +111,11 @@ hl.config({
             range = 30,
             render_power = 3,
             offset = { 0, 2 },
-            color = "0x40000000",
+            -- color / color_inactive: theme.lua
         },
+
+        glow = { enabled = true }, -- colours: theme.lua
+        wobble = { enabled = true },
 
         blur = {
             enabled = false,
@@ -209,8 +212,11 @@ hl.curve("easy", { type = "bezier", points = { { 0.05, 0.9 }, { 0.1, 1.05 } } })
 
 hl.animation({ leaf = "global", enabled = true, speed = 10, bezier = "default" })
 hl.animation({ leaf = "border", enabled = true, speed = 5.39, bezier = "easeOutQuint" })
--- spins the active border's gradient; a loop redraws every frame, so it keeps the GPU awake
+-- spin the border, shadow and glow gradients together; a loop redraws every frame, so it keeps
+-- the GPU awake
 hl.animation({ leaf = "borderangle", enabled = true, speed = 60, bezier = "linear", style = "loop" })
+hl.animation({ leaf = "shadowangle", enabled = true, speed = 60, bezier = "linear", style = "loop" })
+hl.animation({ leaf = "glowangle", enabled = true, speed = 60, bezier = "linear", style = "loop" })
 hl.animation({ leaf = "windows", enabled = true, speed = 4.79, bezier = "easy" })
 hl.animation({ leaf = "windowsIn", enabled = true, speed = 4.1, bezier = "easy", style = "popin 87%" })
 hl.animation({ leaf = "windowsOut", enabled = true, speed = 1.49, bezier = "linear", style = "popin 87%" })

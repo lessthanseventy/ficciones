@@ -868,6 +868,17 @@ rec {
                 inactive_border = { colors = { "rgba(${r.borderInactive}ff)", "rgba(${r.borderInactive2}ff)" }, angle = 45 },
             },
         },
+        -- the focused window's shadow and inner glow spin with its border; unfocused ones stay still
+        decoration = {
+            shadow = {
+                color = { colors = { "rgba(${r.body}40)", "rgba(${r.assistant}40)" }, angle = 45 },
+                color_inactive = "rgba(00000040)",
+            },
+            glow = {
+                color = { colors = { "rgba(${r.body}30)", "rgba(${r.assistant}30)" }, angle = 45 },
+                color_inactive = "rgba(00000000)",
+            },
+        },
         group = {
             col = {
                 border_active = "rgba(${r.body}ff)",
