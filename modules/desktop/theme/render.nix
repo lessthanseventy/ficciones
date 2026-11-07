@@ -862,7 +862,9 @@ rec {
     local theme = {
         general = {
             col = {
-                active_border = { colors = { "rgba(${r.body}ff)", "rgba(${r.borderActive2}ff)" }, angle = 45 },
+                -- body into the assistant violet, not borderActive2: the gradient spins
+                -- (hyprland.lua), and a near hue would hide it
+                active_border = { colors = { "rgba(${r.body}ff)", "rgba(${r.assistant}ff)" }, angle = 45 },
                 inactive_border = { colors = { "rgba(${r.borderInactive}ff)", "rgba(${r.borderInactive2}ff)" }, angle = 45 },
             },
         },
