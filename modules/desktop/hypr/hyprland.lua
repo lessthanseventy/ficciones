@@ -148,6 +148,8 @@ hl.config({
         -- fullscreen-only VRR (was 1 = always-on); avoids desktop flicker on the mixed-refresh
         -- dual-monitor setup
         vrr = 2,
+        -- launch_hyprland.sh starts Hyprland without start-hyprland on purpose (see its comment)
+        disable_watchdog_warning = true,
     },
 
     -- Let fullscreen apps (video, games) bypass compositing and go straight to the display

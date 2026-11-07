@@ -34,8 +34,10 @@ if [[ -f ~/.config/hypr/SAFE_MODE ]]; then
 	echo "=== SAFE MODE ENABLED (sentinel ~/.config/hypr/SAFE_MODE exists) ===" >>"$LOG"
 fi
 
-# Launch directly — NOT start-hyprland (that's a restart-loop watchdog that
-# fork-bombs the system + locks the GPU if Hyprland fails immediately).
+# Launch directly, not through start-hyprland: its watchdog restarts Hyprland in safe mode after
+# every unclean exit, so one that dies at start keeps coming back; and off NixOS it decides on
+# its own whether to wrap Hyprland in nixGL. A crash here lands back in ly; SAFE_MODE above is
+# the manual way in. hyprland.lua turns off the warning this earns.
 exec "$HYPRLAND" \
 	--config /home/andrew/.config/hypr/hyprland.lua \
 	"${EXTRA_ARGS[@]}" \
