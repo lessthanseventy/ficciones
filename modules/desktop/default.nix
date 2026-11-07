@@ -87,10 +87,15 @@ let
   };
 
   # Shared by both activation entries: reload every live instance, no-op when none (a headless
-  # switch, a VM build). hyprctl is the system's (pacman), so probe rather than name a store path.
+  # switch, a VM build). Activation's PATH may lack the profiles, so probe them too: Arch's
+  # Hyprland is the user profile's (modules/arch), NixOS's the system's. A store path would name
+  # this nixpkgs' hyprctl, not the running compositor's.
   reloadHyprland = ''
-    hyprctl="$(command -v hyprctl 2>/dev/null || echo /usr/bin/hyprctl)"
-    if [ -x "$hyprctl" ]; then
+    hyprctl=""
+    for c in "$(command -v hyprctl 2>/dev/null)" "$HOME/.nix-profile/bin/hyprctl" /run/current-system/sw/bin/hyprctl; do
+      [ -x "$c" ] && { hyprctl="$c"; break; }
+    done
+    if [ -n "$hyprctl" ]; then
       for inst in "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/hypr/*/; do
         [ -d "$inst" ] || continue
         run env HYPRLAND_INSTANCE_SIGNATURE="$(basename "$inst")" "$hyprctl" reload >/dev/null 2>&1 || true
