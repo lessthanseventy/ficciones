@@ -900,15 +900,14 @@ rec {
 
     -- hyprexpo registers these keys only when the plugin is LOADED, and a .so on disk is not the
     -- same thing: one built against another Hyprland is refused. So ask the compositor, not the
-    -- filesystem. At the first parse the IPC socket may not be up,
-    -- which answers "no" — correct, since nothing is loaded yet — and hyprland.lua loads the
-    -- plugin at start, which re-reads this file with the keys valid.
+    -- filesystem, and in-process: `hyprctl` from here would wait on the compositor busy running
+    -- this file, stalling each reload for hyprctl's 5 s timeout and then answering "no".
+    -- hyprland.lua loads the plugin at start, which re-reads this file with the keys valid.
     local function hyprexpo_loaded()
-        local pipe = io.popen("hyprctl plugin list 2>/dev/null")
-        if not pipe then return false end
-        local out = pipe:read("*a") or ""
-        pipe:close()
-        return out:find("hyprexpo", 1, true) ~= nil
+        for _, plugin in ipairs(hl.get_loaded_plugins()) do
+            if plugin.name == "hyprexpo" then return true end
+        end
+        return false
     end
     if hyprexpo_loaded() then
         theme.plugin = {
