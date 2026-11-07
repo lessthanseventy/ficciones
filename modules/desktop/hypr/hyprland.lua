@@ -158,7 +158,12 @@ hl.config({
 
     -- Never warp the pointer: a focus change (movefocus, the bar's window cells, a new window)
     -- leaves the mouse where the hand left it (Andrew, 2026-09-05).
-    cursor = { no_warps = true, warp_on_change_workspace = false },
+    cursor = {
+        no_warps = true,
+        warp_on_change_workspace = false,
+        inactive_timeout = 3,
+        hide_on_key_press = true,
+    },
 
     binds = {
         allow_workspace_cycles = false,
