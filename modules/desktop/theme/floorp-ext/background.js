@@ -85,7 +85,10 @@ browser.ficciones.onTheme.addListener(state => {
   reapply();
 });
 
-browser.runtime.onMessage.addListener(message => {
+// only the popup speaks here: Dark Reader forwards its own messages from every page, and taking one
+// for a setting reapplied, which repainted every tab, whose Dark Reader sent more — a page flashing forever
+browser.runtime.onMessage.addListener((message, sender) => {
+  if (!sender.url?.startsWith(browser.runtime.getURL(""))) return;
   if (message.ask) return Promise.resolve({ theme, ...settings });
   const { host, tune, reset } = message;
   if ("paused" in message) settings.paused = message.paused;
