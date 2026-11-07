@@ -63,15 +63,19 @@ File.write!(
 link = Path.join(config, "theme")
 File.ln_s!("themes/a", link)
 
-# over http: file:// pages never receive the content script here
+# over http: file:// pages never receive the content script here. On 127.0.0.2: the extension never
+# recolours localhost or 127.0.0.1
 html =
   ~s|<!doctype html><html><body>plain white page <a id="l" href="/x" style="color: #00f">a link</a></body></html>|
 
-{:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+{:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 2}])
 {:ok, http_port} = :inet.port(listen)
-page = "http://127.0.0.1:#{http_port}/"
+page = "http://127.0.0.2:#{http_port}/"
+# another site, for what a setting does beyond the open page's
+{:ok, listen_other} =
+  :gen_tcp.listen(http_port, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 3}])
 
-serve = fn serve ->
+serve = fn serve, listen ->
   {:ok, c} = :gen_tcp.accept(listen)
   {:ok, request} = :gen_tcp.recv(c, 0, 5000)
 
@@ -98,10 +102,11 @@ serve = fn serve ->
   )
 
   :gen_tcp.close(c)
-  serve.(serve)
+  serve.(serve, listen)
 end
 
-spawn_link(fn -> serve.(serve) end)
+spawn_link(fn -> serve.(serve, listen) end)
+spawn_link(fn -> serve.(serve, listen_other) end)
 
 floorp = System.find_executable("floorp")
 
@@ -309,7 +314,7 @@ code =
 
       M.call(s, "WebDriver:ExecuteAsyncScript", %{
         script:
-          ~s|const done = arguments[arguments.length - 1]; window.browser.runtime.sendMessage({ host: "127.0.0.1", off: #{off} }).then(() => done(1));|,
+          ~s|const done = arguments[arguments.length - 1]; window.browser.runtime.sendMessage({ host: "127.0.0.2", off: #{off} }).then(() => done(1));|,
         args: []
       })
 
@@ -359,7 +364,7 @@ code =
 
     full = "rgb(17, 34, 51)"
     dim = "rgb(9, 17, 26)"
-    other = "http://localhost:#{http_port}/"
+    other = "http://127.0.0.3:#{http_port}/"
 
     send.(%{tune: %{brightness: 50}})
     switch.(pageTab)
@@ -382,12 +387,12 @@ code =
 
     send.(%{reset: true})
 
-    send.(%{host: "localhost", tune: %{brightness: 50}})
+    send.(%{host: "127.0.0.3", tune: %{brightness: 50}})
     switch.(pageTab)
     M.wait("a dial for just this site dims it", dim, pageBg)
     M.call(s, "WebDriver:Navigate", %{url: page})
     M.wait("and leaves another site alone", full, pageBg)
-    send.(%{host: "localhost", reset: true})
+    send.(%{host: "127.0.0.3", reset: true})
 
     send.(%{host: "example.test", off: true})
     firstOff = ~s|return document.querySelector("#offList button")?.dataset.host \|\| "none"|
@@ -404,7 +409,7 @@ code =
 
     showFor.(pageTab)
 
-    M.wait("over a site the menu names it", "127.0.0.1", fn ->
+    M.wait("over a site the menu names it", "127.0.0.2", fn ->
       M.js(s, ~s|return document.getElementById("host").textContent|)
     end)
 
