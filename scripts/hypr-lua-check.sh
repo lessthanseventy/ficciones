@@ -6,39 +6,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 host="${1:-ivysaur}"
 scratch="${TMPDIR:-/tmp}/hypr-lua-check"
-rm -rf "$scratch"
-mkdir -p "$scratch"
-cp "modules/desktop/hypr/hosts/$host.lua" "$scratch/host.lua"
-nix eval --raw --impure --expr \
-	'(import ./modules/desktop/theme/render.nix { lib = (builtins.getFlake (toString ./.)).inputs.nixpkgs.lib; }).hyprlandThemeLua' \
-	>"$scratch/theme.lua"
-cp -r modules/desktop/hypr/scripts "$scratch/scripts"
-
 live="$HYPRLAND_INSTANCE_SIGNATURE"
-before="$(ls "$XDG_RUNTIME_DIR/hypr")"
-# start-hyprland (0.56+) is the launcher Hyprland asks for; bare `Hyprland` puts a warning on its
-# error overlay. Its watchdog is the child we kill at the end.
-launch=(Hyprland)
-command -v start-hyprland >/dev/null && launch=(start-hyprland --)
-# NO_SD_*: Hyprland 0.57 imports its display into the systemd user env at start and stops
-# graphical-session.target at exit, even nested — which takes the live session's shell, portals
-# and a11y bus down with it.
-FICCIONES_HYPRDIR="$scratch" FICCIONES_HYPR_NO_AUTOSTART=1 HYPRLAND_NO_SD_VARS=1 HYPRLAND_NO_SD_TARGET=1 \
-	"${launch[@]}" --config "$PWD/modules/desktop/hypr/hyprland.lua" >"$scratch/hyprland.log" 2>&1 &
-pid=$!
-nested=""
-for _ in $(seq 1 40); do
-	sleep 0.5
-	nested="$(comm -13 <(echo "$before") <(ls "$XDG_RUNTIME_DIR/hypr") | head -1 || true)"
-	[ -n "$nested" ] && [ -S "$XDG_RUNTIME_DIR/hypr/$nested/.socket.sock" ] && break
-done
-if [ -z "$nested" ]; then
-	echo "nested Hyprland never came up; log: $scratch/hyprland.log"
-	kill $pid || true
-	exit 1
-fi
-sleep 2
-n() { HYPRLAND_INSTANCE_SIGNATURE="$nested" hyprctl "$@"; }
+# shellcheck source=/dev/null  # linted on its own
+. scripts/hypr-nested.sh
+nested_start "$host"
 l() { HYPRLAND_INSTANCE_SIGNATURE="$live" hyprctl "$@"; }
 
 # theme.lua sets plugin.hyprexpo.* keys; with autostart off nothing loads the plugin into the
@@ -56,8 +27,6 @@ echo "== configerrors (nested)"
 errs="$(n configerrors)"
 if [ -n "$errs" ] && [ "$errs" != "no errors" ]; then
 	echo "$errs"
-	kill $pid
-	wait $pid 2>/dev/null || true
 	exit 1
 fi
 echo "configerrors: none"
@@ -89,6 +58,4 @@ echo "== animations"
 diff <(l animations | sort) <(n animations | sort) && echo "animations: identical"
 echo "== monitors (nested sees the nested window only; listed for the record)"
 n monitors -j | jq -r '.[] | "\(.name) \(.width)x\(.height)"'
-kill $pid
-wait $pid 2>/dev/null || true
 echo "log: $scratch/hyprland.log"
