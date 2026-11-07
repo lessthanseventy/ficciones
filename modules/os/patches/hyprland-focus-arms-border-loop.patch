@@ -1,0 +1,18 @@
+From: ficciones
+Subject: focusing a window arms the gradient-angle loop
+
+Hyprland 0.57.1 attaches the loop's end callback only in onWindowMap, and only when the angle
+animation is enabled at that moment. A window mapped before a reload turned the loop on spins
+one turn per focus and stops. onWindowFocus now arms the same callback.
+
+--- a/src/render/decorations/AnimatedDecorationGradient.cpp
++++ b/src/render/decorations/AnimatedDecorationGradient.cpp
+@@ -72,6 +72,8 @@
+ 
+     m_angleProgress->setValueAndWarp(0.F);
+     *m_angleProgress = 1.F;
++    // a window mapped before a reload turned the loop on never got the callback onWindowMap arms
++    m_angleProgress->setCallbackOnEnd([this](WP<CBaseAnimatedVariable> animation) { onAngleAnimationEnd(animation); }, false);
+ }
+ 
+ void CAnimatedDecorationGradient::onAngleAnimationEnd(WP<CBaseAnimatedVariable> animation) {

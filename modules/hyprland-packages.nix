@@ -13,10 +13,12 @@ import hyprland.inputs.nixpkgs {
     hyprland.overlays.hyprland-packages
     hyprexpo.overlays.default
     (final: prev: {
-      # aquamarine's log connection honours debug:disable_logs (patches/…; upstream 0.56.2 writes
-      # every libinput debounce line to hyprland.log regardless — 2026-09-07)
+      # each patch's header says why it exists
       hyprland = prev.hyprland.overrideAttrs (o: {
-        patches = (o.patches or [ ]) ++ [ ./os/patches/hyprland-aquamarine-honours-disable_logs.patch ];
+        patches = (o.patches or [ ]) ++ [
+          ./os/patches/hyprland-aquamarine-honours-disable_logs.patch
+          ./os/patches/hyprland-focus-arms-border-loop.patch
+        ];
       });
     })
   ];
