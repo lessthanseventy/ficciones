@@ -218,7 +218,7 @@ in
 
     home.packages = with pkgs; [
       # terminal file managers on trial as THE picker (a termfilechooser portal wraps one of them);
-      # yazi was pacman's before, lf/vifm are new (2026-09-07)
+      # yazi was pacman's before, lf/vifm are new
       yazi
       lf
       vifm
@@ -242,7 +242,7 @@ in
       podman-desktop
       audacity
       strawberry
-      # the theme module renders configs for these; the binaries were pacman's (survey 2026-09-07)
+      # the theme module renders configs for these; the binaries were pacman's
       starship
       bat
       cava
@@ -287,7 +287,7 @@ in
       lazysql
       lazyjournal
       lazyssh
-      # the agent CLIs and their tooling, off pacman (survey 2026-09-07); ollama stays pacman's
+      # the agent CLIs and their tooling, off pacman; ollama stays pacman's
       # ollama-cuda (the GPU build), plocate pacman's (its updatedb timer is a system unit)
       claude-code
       codex
@@ -326,14 +326,14 @@ in
       # the agent sandbox's Linux deps (bubblewrap + socat); bwrap is pacman's today, owned here too
       socat
       bubblewrap
-      # the last pacman-only user tools (survey 2026-09-08); yq-go is what pacman called go-yq
+      # the last pacman-only user tools; yq-go is what pacman called go-yq
       ripgrep
       fzf
       atuin
       yq-go
       sqlite
       # arithmetic on fractions in a shell (timings: `echo "$end - $start" | bc`); agents reach for it
-      # and it was missing (2026-09-26)
+      # and it was missing
       bc
     ];
 

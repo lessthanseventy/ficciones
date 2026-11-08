@@ -18,12 +18,12 @@ export const addr = (c: { address: string }) => `address:0x${c.address.replace(/
 
 /**
  * Monitors showing a fullscreen window right now, by connector name. A film on a monitor
- * turns its toasts, hot edge and deck row off (Andrew, 2026-09-06); maximised does not count.
+ * turns its toasts, hot edge and deck row off; maximised does not count.
  * Refreshed on the raw `fullscreen` event (both ways of the toggle) and on whatever moves a
  * fullscreen window on or off a monitor's shown workspace. `workspacev2`, not `workspace`:
  * AstalHyprland re-reads its monitors on the v2 event and emits the v1 one first, so a refresh
- * on v1 saw the OLD active workspace — leave a film's workspace and the deck row stayed hidden
- * (2026-09-07). The second, delayed refresh covers the library's async handlers interleaving.
+ * on v1 saw the OLD active workspace — leave a film's workspace and the deck row stayed hidden.
+ * The second, delayed refresh covers the library's async handlers interleaving.
  */
 const fullscreenOf = () => {
   const out = new Set<string>()
@@ -51,7 +51,7 @@ export const [capture, setCapture] = createState<Capture>({ count: 0, since: 0, 
 async function whoCaptures(owner: string): Promise<string> {
   try {
     // PIPEWIRE_DEBUG=0: pw-dump otherwise journals "no such resource" errors for anything that
-    // vanished mid-dump — every screenshot put a line in the log (2026-09-07)
+    // vanished mid-dump — every screenshot put a line in the log
     const out = await execAsync(["env", "PIPEWIRE_DEBUG=0", "pw-dump"])
     const names = new Set<string>()
     for (const n of JSON.parse(out) as any[]) {

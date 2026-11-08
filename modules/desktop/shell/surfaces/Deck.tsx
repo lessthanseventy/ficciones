@@ -319,7 +319,7 @@ export default function Deck() {
       exclusivity={Astal.Exclusivity.IGNORE}
       // no bottom margin: while the drawer is up Hyprland routes no pointer input to the other
       // layers, so the window reaches down over the row and its clickaway field takes the
-      // press there — a second click on the row closes (2026-09-07)
+      // press there — a second click on the row closes
       anchor={Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.TOP}
       marginTop={36}
       marginLeft={48}

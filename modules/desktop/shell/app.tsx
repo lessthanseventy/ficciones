@@ -44,11 +44,10 @@ import "./lib/opaque"
 // The unit starts it with NO arguments; a verb reaches the instance that unit is running. Either
 // mismatch would degrade quietly, so both refuse:
 //   - a verb with no shell up would become the shell itself, outside the unit and its
-//     restart-on-failure (2026-09-11)
+//     restart-on-failure
 //   - a bare start with a shell already up becomes a CLIENT of the stray, answers its own empty
 //     argv with the usage string and exits 0 — which Restart=on-failure ignores, so the unit sits
-//     dead while the stray paints the screen and `machine:update` still goes green (2026-09-24,
-//     found after a flake bump: the pre-bump shell held the name and the new build never came up)
+//     dead while the stray paints the screen and `machine:update` still goes green
 const [up] = Gio.DBus.session.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner",
   new GLib.Variant("(s)", ["io.Astal.astal-shell"]), null, Gio.DBusCallFlags.NONE, -1, null).deepUnpack() as [boolean]
 if (programArgs.length > 0 && !up) {
@@ -79,7 +78,7 @@ app.start({
       toggleDeck()
       return res("ok")
     }
-    // the drawer and the weather surface are popovers off the rail now (2026-09-05); the
+    // the drawer and the weather surface are popovers off the rail now; the
     // verbs still land
     if (verb === "toggle" && (what === "drawer" || what === "calendar")) {
       toggleCalendarPop()
@@ -167,7 +166,7 @@ app.start({
       return res("ok")
     }
     if (verb === "show" && what === "drawer") {
-      // agents left the info surface for the rail (2026-09-05); the old verb still lands there
+      // agents left the info surface for the rail; the old verb still lands there
       if (tab === "agents") popAgents()
       else toggleCalendarPop()
       return res("ok")

@@ -1,4 +1,4 @@
-// Windows with video playing are opaque under glass (Andrew, 2026-09-06). Hyprland has no
+// Windows with video playing are opaque under glass. Hyprland has no
 // "playing video" state, so it is inferred every 2 s: an idle inhibitor (players ask for one),
 // a process making sound (lib/sound, matched by pid; a multi-window app like
 // the browser also needs a video-ish title, or every window of it would go opaque), a player
@@ -21,8 +21,7 @@ const TERMINAL = /^com\.mitchellh\.ghostty$/
 const termGlass = new Map<string, boolean>() // address → what was last set
 
 // Which processes are making sound: PipeWire's running output streams (lib/sound) — Mpris
-// said Paused for a streaming site with the audio live, and the video window stayed glass
-// (2026-09-07).
+// said Paused for a streaming site with the audio live, and the video window stayed glass.
 function tick() {
   let clients: Client[]
   try { clients = JSON.parse(query("j/clients")) } catch { return }

@@ -169,7 +169,7 @@ export type Tier = "idle" | "busy" | "hot"
  *  are [warm, hot] as fractions; a metric that does not name one gets the CPU's. */
 export const BREAKS = {
   cpu: [0.25, 0.75],
-  /** RAM you paid for is not a problem until it is nearly gone (Andrew, 2026-09-10). */
+  /** RAM you paid for is not a problem until it is nearly gone. */
   mem: [0.5, 0.75],
   /** A throughput gauge is scaled against its own hot mark already, so it reads like a CPU. */
   rate: [0.25, 0.75],

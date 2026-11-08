@@ -59,7 +59,7 @@ function Hours() {
 }
 
 /** Five days: day / sky / low–high with a bar spanning the week's range / rain chance. */
-// The board's weather is a picture, not the popover's table again (Andrew, 2026-09-07): the next
+// The board's weather is a picture, not the popover's table again: the next
 // 24 h as two panels on one time axis — temperature as a line (its high and low labelled, and
 // nothing else), rain chance as thin bars beneath — with now, sunrise and sunset marked.
 // cairo, so it costs nothing at rest (drawn on data change only).

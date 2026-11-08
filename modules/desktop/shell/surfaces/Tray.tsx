@@ -210,7 +210,7 @@ function Sni() {
   }
   return (
     <menubutton cssClasses={items((l) => ["item", "sni", ...(l.length ? ["live"] : [])])} direction={Gtk.ArrowType.RIGHT} hexpand tooltipText={items((l) => (l.length ? `${l.length} in the tray` : "tray: empty"))} $={(self) => hoverPopover(self, "rail")}>
-      {/* no count: the glyph is dim with nothing in the tray, amber with something (Andrew, 2026-09-07) */}
+      {/* no count: the glyph is dim with nothing in the tray, amber with something */}
       <label cssClasses={["icon"]} label={"\u{f00a}"} halign={Gtk.Align.CENTER} xalign={0.5} />
       <popover cssClasses={["pop", "pop-tray"]}>
         <Panel title={"\u{f00a}  TRAY"} cssClasses={["card", "card-tray"]}>
@@ -239,7 +239,7 @@ function Sni() {
  * The clipboard: the last few clips cliphist holds — an image clip is a thumbnail (decoded once
  * into the cache), a text clip its first line with its length — click one to copy it back to
  * the top, with a line to the full picker (the launcher in clip mode). The bar cell names the
- * newest clip's kind: cliphist's count sits at its cap and says nothing (Andrew, 2026-09-08).
+ * newest clip's kind: cliphist's count sits at its cap and says nothing.
  */
 type Clip = { id: string; kind: "text" | "image"; text: string; meta: string; file?: string }
 const CLIP_DIR = `${GLib.get_user_cache_dir()}/astal-shell/clips`
@@ -321,7 +321,7 @@ function CaptureItem() {
     </button>
   )
   const Head = ({ label }: { label: string }) => <label cssClasses={["cap-head"]} label={label} xalign={0} />
-  // help lines sit with their section (Andrew, 2026-09-08): a key column, then the value
+  // help lines sit with their section: a key column, then the value
   const Help = ({ rows }: { rows: string[][] }) => (
     <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["cap-help"]}>
       {rows.map(([k, v]) => (
@@ -329,7 +329,7 @@ function CaptureItem() {
       ))}
     </box>
   )
-  // a shot row: the target, then where it goes — disk or clipboard (Andrew, 2026-09-07)
+  // a shot row: the target, then where it goes — disk or clipboard
   const Shot = ({ glyph, label, what, visible }: { glyph: string; label: string; what: Target; visible?: Accessor<boolean> }) => (
     <box cssClasses={["cap-row", "cap-shot"]} spacing={8} visible={visible ?? true}>
       <label cssClasses={["cap-glyph"]} label={glyph} widthChars={2} />
@@ -461,7 +461,7 @@ export default function TrayPane() {
       <VpnItem />
       <Bt />
       <Vol />
-      {/* the foot: the tray in a square that mirrors the corner at the top (Andrew, 2026-09-07) */}
+      {/* the foot: the tray in a square that mirrors the corner at the top */}
       <box cssClasses={["foot"]} halign={Gtk.Align.FILL}><Sni /></box>
     </box>
   )

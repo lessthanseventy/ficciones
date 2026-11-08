@@ -39,7 +39,7 @@ function bands(vs: number[], side: "left" | "right", rows: number): number[] {
 
 /** One channel as a column of horizontal bars, for the rail. `rows` bars, low freq at the top.
  *  Drawn, not a label per row: 16 labels relaid out at 30 fps was most of the shell's CPU while
- *  sound played (2026-09-11). */
+ *  sound played. */
 export function Channel({ side, rows = 8 }: { side: "left" | "right"; rows?: number }) {
   const c = cava()
   if (!c) return <box />
@@ -57,7 +57,7 @@ export function Channel({ side, rows = 8 }: { side: "left" | "right"; rows?: num
           area = self
           // a full bar is four block glyphs wide, as the labels drew it; a row is 15px, not the
           // font's 18px line box — at 18 the rail's three sections overrun a 1080 monitor and
-          // the foot (the tray) falls off the bottom (2026-09-18)
+          // the foot (the tray) falls off the bottom
           const [gw] = self.create_pango_layout("█").get_pixel_size()
           const rowH = 15
           self.heightRequest = rows * rowH

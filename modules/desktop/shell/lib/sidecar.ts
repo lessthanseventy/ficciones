@@ -1,5 +1,5 @@
 // The sidecar: a window pinned to the LEFT of every workspace on its monitor, with the tiled
-// columns of each workspace laid out beside it (Andrew, 2026-09-05). Hyprland only pins floating
+// columns of each workspace laid out beside it. Hyprland only pins floating
 // windows, so pin = float + size to a left column + pin, and the column is held open by an
 // an invisible layer window on TOP with an EXPLICIT exclusive zone (gtk4-layer-shell), created
 // after the rail and the bar so Hyprland arranges it after them and the bar keeps its width.
@@ -8,9 +8,9 @@
 // input region is empty, so clicks fall through to the pinned window under it. Widening the
 // rail's own zone instead squeezed the bar and did not shrink back on unpin. Unpin reverses
 // all of it. One sidecar per monitor. It should not feel like a special
-// window (Andrew, 2026-09-05): the normal resize keybinds size it and the column follows. It is
+// window: the normal resize keybinds size it and the column follows. It is
 // a regular window with a thicker border (3px, per-window setprop) whose OUTER edge sits where a
-// tiled window's border edge does, and one extra ring around it (Andrew, 2026-09-07).
+// tiled window's border edge does, and one extra ring around it.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Hyprland from "gi://AstalHyprland"
@@ -59,7 +59,7 @@ const sidecars = new Map<string, Sidecar>() // monitor name → sidecar
 
 // Which window is the sidecar outlives the shell too: Hyprland keeps it pinned and floating in
 // its column across a shell restart, but the zone and the ring died with the process, so the
-// tiled columns slid under it and Andrew had to pin it again by hand (2026-09-07). One line per
+// tiled columns slid under it and Andrew had to pin it again by hand. One line per
 // monitor, `name address`; a window address is good for the life of the Hyprland session.
 const PINS = `${GLib.get_user_state_dir()}/astal-shell/sidecar-pinned`
 function savePins() {
@@ -82,7 +82,7 @@ export async function adoptSidecars(tries = 40) {
     if (!(c && c.pinned && c.floating && c.get_monitor()?.name === name)) continue
     // the column and ring are placed inside the monitor's reserved area — the rail and bar's
     // exclusive zones — which is empty until this shell's own layers have mapped: adopted too
-    // early, the ring ran under the rail (Andrew, 2026-09-07)
+    // early, the ring ran under the rail
     const m = await monitorJson(name)
     if (!m || (m.reserved[0] === 0 && m.reserved[1] === 0)) return again()
     pinSidecar(c)
@@ -124,7 +124,7 @@ function makeZone(name: string, col: number): Astal.Window {
 
 // The double border: an outer pink ring the shell draws — a transparent layer window framing
 // the column, always pink: "this is the sidecar" — and Hyprland's own border inside it carrying
-// focus as every window does, amber focused / dim not (Andrew, 2026-09-06). No plugin: borders-plus-plus rings every window and its only per-window
+// focus as every window does, amber focused / dim not. No plugin: borders-plus-plus rings every window and its only per-window
 // switch (`decorate`) would take the shadows off everything else.
 const RING = 2, RING_GAP = 3
 const inset = () => border + RING_GAP + RING
@@ -152,7 +152,7 @@ function makeFrame(name: string, m: MonitorJson, col: number, _address: string):
 }
 
 // set_size_request alone is a MINIMUM: GTK grows the surface to meet a larger one and never
-// shrinks it back, so the ring stayed at its widest after a narrower resize (2026-09-07).
+// shrinks it back, so the ring stayed at its widest after a narrower resize.
 function frameSize(w: Astal.Window, width: number, height: number) {
   w.set_size_request(width, height)
   w.set_default_size(width, height)
@@ -230,7 +230,7 @@ async function relayout() {
   // scrolls the row so the focused column sits flush against the sidecar and the neighbour
   // peeks on the right. Pin-time used to `fit visible` here (2026-09-07: the first tiled column
   // hung under the sidecar under the centred method) — that squeezed every column to an equal
-  // share and cost a wide window its layout (Andrew, 2026-09-08).
+  // share and cost a wide window its layout.
 }
 
 export const isSidecar = (c: Hyprland.Client) => [...sidecars.values()].some((s) => s.address === c.address)
@@ -251,7 +251,7 @@ export async function pinSidecar(c: Hyprland.Client) {
   // a fullscreen or maximised window (hyprscroller's maximise counts) cannot float, and a tiled
   // one cannot pin — Hyprland refused both silently until the batch reported them
   // to the BEGINNING of the row first (a tiled window; a re-pin of a float skips it), so the row
-  // the sidecar leaves behind starts at what was the second window (Andrew, 2026-09-08)
+  // the sidecar leaves behind starts at what was the second window
   const tobeg = c.floating ? [] : [L.focusWindow(a), L.layout("move tobeg")]
   await batch([...tobeg, L.fullscreenState(a, 0, 0), L.float(a, "on"), setBorder(a, true), ...placeCmds(c.address, m, col), ...(c.pinned ? [] : [L.pin(a)])])
   settleUntil = Date.now() + 1200
@@ -377,7 +377,7 @@ hypr.connect("client-removed", (_, address: string) => {
 
 // The layout's fit method follows the pins (hyprland.lua scrolling.focus_fit_method): 1 while
 // any sidecar is up — the focused column flush against it, the neighbour peeking on the right —
-// and 0, centred, when nothing is pinned (Andrew, 2026-09-08). Global, so it is the union
+// and 0, centred, when nothing is pinned. Global, so it is the union
 // over monitors. Also what keeps a resize gap-free: flush-left or centred, never a stray band.
 // a `hyprctl reload` re-applies the config's 0 under a live sidecar: put it back
 hypr.connect("event", (_, ev: string) => { if (ev === "configreloaded") timeout(200, fitMethod) })

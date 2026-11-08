@@ -1,7 +1,7 @@
 // VPN: what is up (wireguard / tun / tailscale interfaces from `ip -j link`), Mullvad's own
 // state through its CLI (installed and logged in here), and the wg-quick configs under
 // /etc/wireguard. The rail's item shows on/off; its card lists them, click to toggle.
-// Nothing here is exercised by tests — a tunnel change is Andrew's to make (2026-09-07).
+// Nothing here is exercised by tests — a tunnel change is Andrew's to make.
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
 import Gio from "gi://Gio?version=2.0"

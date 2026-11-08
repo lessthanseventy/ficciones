@@ -138,7 +138,7 @@ dir = "modules/desktop/shell"
 # filtered; every error in OUR files fails the gate (zero as of 2026-09-07).
 run = [
   # stderr, not just the exit code: sass deprecations and bundler warnings do not fail `ags
-  # bundle`, so three global-builtin nth() calls sat in the output for weeks (2026-09-24). Empty
+  # bundle`, so three global-builtin nth() calls sat in the output for weeks. Empty
   # stderr is the gate; a new deprecation is refused the day it lands, not the day 3.0.0 drops.
   "w=$(ags bundle app.tsx \"$(mktemp -d)/astal-shell\" 2>&1 >/dev/null); if [ -n \"$w\" ]; then echo \"$w\"; echo 'shell:check — bundle wrote to stderr (zero-warning rule)'; exit 1; fi; echo 'shell:check — bundle ok, stderr clean'",
   "ags types -d . -u --ignore Gtk3 --ignore Astal3 >/dev/null",

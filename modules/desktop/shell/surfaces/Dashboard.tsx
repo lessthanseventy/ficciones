@@ -95,7 +95,7 @@ function Shell() {
 
 /** The big clock: time, date, how long the box has been up. */
 /** The mark: the corner's doubled aleph and the name, the machine under it — its own little
- * card above NOW, so the left column fills to the weather card (Andrew, 2026-09-07). */
+ * card above NOW, so the left column fills to the weather card. */
 function MarkCard() {
   return (
     <box cssClasses={["wordmark"]} spacing={12} valign={Gtk.Align.CENTER}>
@@ -208,7 +208,7 @@ export default function Dashboard() {
               <Panel title={"\u{f0771}  WORKSPACES"} cssClasses={["card", "card-workspaces"]}><WorkspacesCard /></Panel>
             </box>
             {/* weather is short (the week as columns) so the calendar column sets row one's height
-                and TODAY, the agenda, takes what is left of it (Andrew, 2026-09-07) */}
+                and TODAY, the agenda, takes what is left of it */}
             <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]} hexpand><WeatherCard compact /></Panel>
           </box>
           <box spacing={16}>
@@ -216,7 +216,7 @@ export default function Dashboard() {
           </box>
           </box>
           {/* the right column spans both rows: the calendar fills down (the agenda goes in it once
-              there are calendars), DISK and NET sit level with PERF's bottom (Andrew, 2026-09-07) */}
+              there are calendars), DISK and NET sit level with PERF's bottom */}
           <box orientation={Gtk.Orientation.VERTICAL} spacing={16}>
             <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]} vexpand><CalendarCard /></Panel>
             <Panel title={"\u{f02ca}  DISK"} cssClasses={["card", "card-disk"]}><DiskCard /></Panel>
@@ -224,7 +224,7 @@ export default function Dashboard() {
           </box>
           </box>
           <box spacing={16} vexpand>
-            {/* the deck's log, filters and all — not the journal alone (Andrew, 2026-09-07) */}
+            {/* the deck's log, filters and all — not the journal alone */}
             <Panel title={"\u{f0a0d}  LOG"} cssClasses={["card", "card-log"]} hexpand vexpand><LogPane /></Panel>
             <Panel title={"\u{f0493}  TOGGLES"} cssClasses={["card", "card-toggles"]}><Toggles perRow={5} omit={["profile"]} /></Panel>
             <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>

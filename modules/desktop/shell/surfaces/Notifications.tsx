@@ -73,7 +73,7 @@ export function NoticeCard({ g }: { g: Group | Accessor<Group> }) {
   const title = (x: Group) => `${x.head.appName || "notice"} · ${hhmm(x.head.time * 1000)}${x.count > 1 ? `  ×${x.count}` : ""}`
   const dismiss = () => dismissGroup(live ? live.peek() : first)
   // freedesktop's "default" action is the click on the notice itself, and a label-less action
-  // (Claude Code sends one) has no button to be — the empty outlined box (2026-09-07)
+  // (Claude Code sends one) has no button to be — the empty outlined box
   const actions = n.get_actions().filter((a) => a.id !== "default" && a.label.trim())
   const dflt = n.get_actions().find((a) => a.id === "default")
   const hit = () => { if (dflt) n.invoke(dflt.id); dismiss() }

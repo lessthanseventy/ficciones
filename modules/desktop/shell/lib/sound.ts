@@ -1,6 +1,6 @@
 // What is actually making sound: PipeWire's output streams in state "running", polled every
 // 2 s (pw-dump). Mpris says PLAYING/Paused as the page feels like it — Floorp on a streaming
-// site sat on Paused with the audio live (2026-09-07) — and AstalWp's stream state never
+// site sat on Paused with the audio live — and AstalWp's stream state never
 // leaves CREATING here, so this is the one honest signal. Per process, so a player can be
 // matched to its stream (its Mpris bus name → pid, through the bus).
 import Gtk from "gi://Gtk?version=4.0"

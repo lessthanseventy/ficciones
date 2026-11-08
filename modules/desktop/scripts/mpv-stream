@@ -5,7 +5,7 @@
 #                                   (The Stream Detector's copy, with its command template set to
 #                                   that) — Ctrl+Super+M plays what you just copied.
 # mpv carries mpv-mpris, so the shell's now-playing (transport, position, title) is real here,
-# unlike a streaming site's page player (2026-09-07).
+# unlike a streaming site's page player.
 set -euo pipefail
 url="${1:-}"; ref="${2:-}"
 if [ -z "$url" ]; then

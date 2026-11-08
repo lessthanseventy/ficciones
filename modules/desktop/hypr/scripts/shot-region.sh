@@ -4,7 +4,7 @@
 #   shot-region.sh          select freely
 #   shot-region.sh repeat   flameshot's last region pre-selected
 # The capture comes out --raw and goes to wl-copy: flameshot (Qt6/Wayland) exits on copy and a
-# Wayland selection dies with its owner, so the clipboard stayed empty (2026-09-08). wl-copy forks
+# Wayland selection dies with its owner, so the clipboard stayed empty. wl-copy forks
 # and holds it; cliphist's watcher stores it as usual.
 set -euo pipefail
 args=(gui --raw)

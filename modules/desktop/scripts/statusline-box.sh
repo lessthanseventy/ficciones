@@ -28,7 +28,7 @@ mapfile -t L <<<"$raw"
 # ctx: trust Claude Code's own used_percentage (its compaction popup keys off this); claude-powerline
 # recomputes from raw token counts and under-reads badly (60% shown at the ~90% popup)
 # the context window's own field — the JSON carries three used_percentage keys (context,
-# 5h limit, 7d limit) and a greedy sed took the last: ctx showed the weekly number (2026-09-07)
+# 5h limit, 7d limit) and a greedy sed took the last: ctx showed the weekly number
 # and it is a share of the model's whole window: with `autoCompactWindow` (400k of a 1M window) the
 # compaction comes at 40%, so ctx is the context's tokens over that budget when it is set
 cap=$(jq -r '.autoCompactWindow // null' "$HOME/.claude/settings.json" 2>/dev/null)

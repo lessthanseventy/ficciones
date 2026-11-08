@@ -1,5 +1,5 @@
 // The toggles: wifi, bt, dnd, awake, night, crt, zen, glass, next wallpaper, power profile.
-// Lived in the hub; now the dashboard's (Andrew, 2026-09-05).
+// Lived in the hub; now the dashboard's.
 import { awake, toggleAwake } from "../lib/awake"
 import Gtk from "gi://Gtk?version=4.0"
 import Notifd from "gi://AstalNotifd"

@@ -95,7 +95,7 @@ window.hub, window.office, window.clickaway { background: transparent; }
 // card wears its own hue on title AND border, so the sections read as sections, not text
 window.dashboard { background: transparent; }
 // a heavy rounded frame in the accent, not amber — the board reads as its own object over
-// the desktop, not more of the same chrome (Andrew, 2026-09-07); 8px of desktop to the bar,
+// the desktop, not more of the same chrome; 8px of desktop to the bar,
 // rail, deck row and screen edge on every side (the margins in Dashboard.tsx)
 .board { background: $ground; border: 3px solid $attention; border-radius: 12px; padding: $sp-4; }
 // the board is the one surface that shows everything at once, so its type steps down a notch
@@ -107,7 +107,7 @@ window.dashboard { background: transparent; }
   .hours .sky { font-size: 15px; } .action .icon { font-size: 16px; }
 }
 // the popover look on the board too: an outer frame outside each card's hued border — "card on
-// a panel" (Andrew, 2026-09-07) — in a palette partner of the inner hue (amber↔violet,
+// a panel" — in a palette partner of the inner hue (amber↔violet,
 // cyan↔amber, green↔pink, pink↔cyan, violet↔green, red↔amber), not one colour for all. GTK
 // paints an outline AFTER the children, so it sits 10px out to clear the title tag's 8px
 // overhang; the margin is exactly that, so the outer frame sits on the card's allocation and
@@ -159,7 +159,7 @@ window.dashboard { background: transparent; }
   padding: $sp-1 $sp-2;
   .aleph { color: $body; font-size: 34px; }
   .name { color: $key; font-size: 20px; letter-spacing: 3px; }
-  // the echo: the same glyphs in pink, dimmer, up and to the RIGHT (Andrew, 2026-09-07)
+  // the echo: the same glyphs in pink, dimmer, up and to the RIGHT
   .hron { color: $attention; opacity: 0.55; margin-left: 5px; margin-bottom: 4px; font-size: 34px; }
   .name.hron { color: $attention; font-size: 20px; margin-left: 3px; margin-bottom: 3px; }
 }

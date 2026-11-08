@@ -2,7 +2,7 @@
 // (the attractor), Life (seeded at random), boids (a flock), rule 30 (falling rows), and the
 // terminal classics: pipes, bonsai, a maze, a starfield, a flow field, Langton's ants, rain.
 // Every mode is a pure `step` over the CharGrid so the backdrop only paces and switches them.
-// Densities sit ~10% under what first shipped: ambient, not wallpaper (Andrew, 2026-09-11).
+// Densities sit ~10% under what first shipped: ambient, not wallpaper.
 import { CharGrid } from "./chargrid"
 import { Babel, ensureBooks } from "./babel"
 

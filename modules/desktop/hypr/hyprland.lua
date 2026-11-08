@@ -34,7 +34,7 @@ hl.env("ZDOTDIR", home)
 hl.env("GHOSTTY_ZSH_ZDOTDIR", home)
 
 -- the nix profile first: the flake owns the GUI apps, and without it the launcher (GIO app
--- info, via the shell's env) saw only /usr/share — no LibreOffice, no nix app at all (2026-09-08)
+-- info, via the shell's env) saw only /usr/share — no LibreOffice, no nix app at all
 hl.env("XDG_DATA_DIRS", home .. "/.nix-profile/share:" .. home .. "/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share")
 
 -- Cursor size; the theme is the palette's (theme.lua)
@@ -141,7 +141,7 @@ hl.config({
         -- (scroll the minimum: the focused column flush against the sidecar, the neighbour
         -- peeking on the right, enough to read and click) while a sidecar is pinned, and back
         -- (lib/sidecar.ts fitMethod). Centring beside a sidecar left a dead band on the left
-        -- and the neighbour off-screen (Andrew, 2026-09-08).
+        -- and the neighbour off-screen.
         focus_fit_method = 0,
         follow_focus = true,
         wrap_focus = false,
@@ -169,7 +169,7 @@ hl.config({
     render = { direct_scanout = 1 },
 
     -- Never warp the pointer: a focus change (movefocus, the bar's window cells, a new window)
-    -- leaves the mouse where the hand left it (Andrew, 2026-09-05).
+    -- leaves the mouse where the hand left it.
     cursor = {
         no_warps = true,
         warp_on_change_workspace = false,
@@ -266,7 +266,7 @@ hl.window_rule({
 
 -- Default opacity (every window starts at 1.0)
 hl.window_rule({ name = "default-opacity", match = { class = ".*" }, opacity = "1" })
--- pinned windows skip glass (Andrew, 2026-09-08): a PiP or share toolbar over other windows is
+-- pinned windows skip glass: a PiP or share toolbar over other windows is
 -- the one thing that should never be see-through
 hl.window_rule({ name = "pinned-opaque", match = { pin = true }, opaque = true })
 -- tlon's office TUI titles its window "tlon office": glass would show the backdrop through the room's art
@@ -295,7 +295,7 @@ hl.window_rule({
 })
 
 -- flameshot's capture overlay arrives with an EMPTY class and a "flameshot" title; tiled, it is
--- a shrunken desktop in a column (2026-09-07). It sizes itself to its --region (the focused
+-- a shrunken desktop in a column. It sizes itself to its --region (the focused
 -- monitor, shot-region.sh), so: float, pin, no chrome, and no animation into place.
 -- Two windows carry the title: the monitor-picker dialog and the overlay. The move expression
 -- centres on the MONITOR (move is monitor-absolute; `center` and a bare float both use the work
@@ -336,7 +336,7 @@ hl.window_rule({
 })
 
 -- Zoom (XWayland, v7.x; every window is class=zoom, told apart by title). A NORMAL app
--- (Andrew, 2026-09-07): the home window, the meeting, the chat, the settings — all TILE like
+--: the home window, the meeting, the chat, the settings — all TILE like
 -- anything else. Only the genuine transients float: menus and dropdowns (at the cursor, no
 -- focus), the share toolbar / annotation bar / share preview strip (no focus, no chrome, NOT
 -- pinned — they stay on the meeting's workspace instead of following you around), the
@@ -353,7 +353,7 @@ hl.window_rule({
 })
 -- the share toolbar ("You are screen sharing · Stop share") and the annotation bar: pinned
 -- after all — Zoom re-creates them constantly and an unpinned one sank under the tiled
--- meeting, where Stop share could not be clicked (2026-09-07); pinned they stay on top and
+-- meeting, where Stop share could not be clicked; pinned they stay on top and
 -- follow the share, which is what they are for
 hl.window_rule({
     name = "zoom-toolbars",
@@ -420,7 +420,7 @@ local function exec(cmd) return hl.dsp.exec_cmd(cmd) end
 local function layout(msg) return hl.dsp.layout(msg) end
 local function ws(w) return hl.dsp.focus({ workspace = w }) end
 -- A pinned window is on every workspace already: the move keys are a no-op on it, never a drag
--- of the sidecar across the row (Andrew, 2026-09-08). A bind takes a function; the guard reads the
+-- of the sidecar across the row. A bind takes a function; the guard reads the
 -- active window at press time.
 local function unless_pinned(d)
     return function()
@@ -552,7 +552,7 @@ bind("ALT + Tab", hl.dsp.focus({ last = true }))
 -- a compositor plugin, built by the flake beside the Hyprland it loads into. Until it is loaded the
 -- dispatcher is unknown and the bind does nothing.
 -- the plugin's own lua action, not a dispatcher: `hyprctl dispatch hyprexpo:expo` is legacy
--- syntax and a lua config no longer parses it (2026-09-07)
+-- syntax and a lua config no longer parses it
 bind(M .. " + O", function() hl.plugin.hyprexpo.expo("toggle") end)
 
 -- ----- Window state -----

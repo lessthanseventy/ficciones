@@ -37,7 +37,7 @@ function Workspaces({ connector }: { connector: string }) {
   })
   const active = () => hypr.get_monitors().find((m) => m.name === connector)?.activeWorkspace
   // Wheel over the pane walks this monitor's workspaces in id order and stops at the ends —
-  // Hyprland's m+1/m-1 wrap around, which Andrew does not want (2026-09-05).
+  // Hyprland's m+1/m-1 wrap around, which Andrew does not want.
   const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
   scroll.connect("scroll", (_, __, dy) => {
     const cur = active()
@@ -99,7 +99,7 @@ function Corner() {
   return (
     // toggles on the PRESS, not GTK's clicked: once the dashboard is up and holds the keyboard
     // the rail loses its pointer crossing state, and a second click on the same spot without a
-    // move never completes as a click (Andrew, 2026-09-07)
+    // move never completes as a click
     <button cssClasses={["corner"]} $={(self) => { const g = new Gtk.GestureClick({ button: 1, propagationPhase: Gtk.PropagationPhase.CAPTURE }); g.connect("pressed", () => {
       // Super+Shift+click opens settings (plain Super+click is Hyprland's window drag)
       const m = g.get_current_event_state(), want = Gdk.ModifierType.SUPER_MASK | Gdk.ModifierType.SHIFT_MASK

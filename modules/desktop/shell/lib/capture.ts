@@ -35,7 +35,7 @@ async function geometry(what: Target): Promise<string | null> {
   return m ? `${m.x},${m.y} ${m.width}x${m.height}` : null
 }
 
-// The card's shots are grim's (Andrew, 2026-09-08): flameshot's gui is Super+Shift+S (the UI he
+// The card's shots are grim's: flameshot's gui is Super+Shift+S (the UI he
 // likes, hypr/scripts/shot-region.sh), but every card button went through it and its Wayland
 // two-monitor picker got in the way of each click. slurp picks a region; a window is its
 // geometry; a monitor is its whole box. The clipboard is wl-copy's — it forks and holds the

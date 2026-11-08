@@ -5,7 +5,7 @@
 # the only way to know a config parses. Doing that on the live session means locking yourself out
 # to find out; a nested instance costs nothing and can be photographed.
 # Its first run caught `$USER @ $HOST` — hyprlock has no $HOST and had been drawing the literal
-# word on the lock screen (2026-09-12).
+# word on the lock screen.
 #
 # Usage: scripts/hyprlock-preview.sh [palette ...]   (default: every palette under theme/palettes)
 # Writes $TMPDIR/hyprlock-preview/<palette>.png and prints the paths.

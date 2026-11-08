@@ -42,7 +42,7 @@ export function logAt(t: number, src: Src, text: string, level: Level = "normal"
 export const unitName = (u: string) => u.replace(/\.service$/, "").split("/").pop() || u
 
 // ── Hyprland: only what is rare and worth a line — monitors and config. Workspace switches
-// and window open/close were tried and drowned the row (2026-09-07).
+// and window open/close were tried and drowned the row.
 hypr.connect("event", (_, ev: string, args: string) => {
   switch (ev) {
     case "monitoradded": logEvent("hypr", `monitor ${args} plugged`); break

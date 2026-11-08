@@ -2,7 +2,7 @@
 # by lamplight. The one palette + the one font, as data. Every themed surface on the machine — the astal
 # shell, ghostty, GTK, Qt, btop, floorp, hyprland, hyprlock, lazygit, bat, fzf,
 # cava, tmux — is GENERATED from this file (render.nix); nothing else carries a hex value.
-# Plan doc §5b. Rule (Andrew, 2026-09-05): body text amber on black; cyan for keys/labels,
+# Plan doc §5b. Rule: body text amber on black; cyan for keys/labels,
 # lilac for secondary text; green/pink/red are semantic highlights; the active thing is
 # inverse video — amber field, black ink; the SELECTED thing is inverse video too, but violet
 # (sel/selInk), so "where I am" and "what I picked" never read alike. "Tasteful unicorn

@@ -221,7 +221,7 @@ in
 
     # GTK reads org.gnome.desktop.interface AHEAD of settings.ini on Wayland, and a D-Bus-activated
     # app (gcr-prompter, the portal dialogs) never sees Hyprland's GTK_THEME — a stale
-    # `adw-gtk3-dark` here (caelestia's) left every one of those on stock Adwaita light (2026-09-07).
+    # `adw-gtk3-dark` here (caelestia's) left every one of those on stock Adwaita light.
     # color-scheme, gtk-theme, icon-theme and cursor-theme are NOT declared: the shell's theme
     # switch owns them live, and at its start (lib/theme.ts, from the palette's desktop.json).
     dconf.settings."org/gnome/desktop/interface" = {

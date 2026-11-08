@@ -165,7 +165,7 @@ export class Babel {
         run += row[x]
       }
       flush()
-      // the whole Library a tenth quieter, one span a row (Andrew, 2026-09-11)
+      // the whole Library a tenth quieter, one span a row
       return `<span fgalpha="90%">${s}</span>`
     })
   }
