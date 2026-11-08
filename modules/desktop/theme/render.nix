@@ -481,6 +481,18 @@ rec {
     tabbar tab:hover { background-color: ${hex r.hoverGround}; color: ${hex r.body}; }
     /* after :hover, which is as specific: the focused tab stays yellow under the pointer */
     tabbar tab:selected { background-color: ${hex r.cursorField}; color: ${hex r.fieldInk}; }
+    /* libadwaita colours and dims a tab's title itself: background tabs' titles in the focused
+       tab's amber, at full opacity */
+    tabbar tab label { color: ${hex r.cursorField}; opacity: 1; font-weight: bold; }
+    tabbar tab:selected label { color: ${hex r.fieldInk}; }
+    /* the close button is a symbolic icon, which takes the button's colour */
+    tabbar tab button, tabbar tab button image { color: ${hex r.cursorField}; opacity: 1; }
+    tabbar tab:selected button, tabbar tab:selected button image { color: ${hex r.fieldInk}; }
+    /* a hovered close button inverts its tab: amber on a background tab, black on the focused one */
+    tabbar tab button:hover { background-color: ${hex r.cursorField}; }
+    tabbar tab button:hover image { color: ${hex r.fieldInk}; }
+    tabbar tab:selected button:hover { background-color: ${hex r.fieldInk}; }
+    tabbar tab:selected button:hover image { color: ${hex r.cursorField}; }
   '';
 
   kittyTheme =
