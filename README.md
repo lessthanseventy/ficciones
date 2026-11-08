@@ -46,6 +46,24 @@ home-manager places symlinks that point back into this working tree for the desk
 an edit to `modules/desktop/hypr/hyprland.lua` is live on `hyprctl reload`. The price is that a
 checkout is a desktop change, which the hooks in `scripts/git-hooks` cover.
 
+## The palettes
+
+Four palettes, one theme: every surface, terminal, prompt, TUI, browser chrome and lock screen is
+generated from `modules/desktop/theme/palettes/<name>.nix`, and `mise run theme:contrast` holds
+each against the WCAG floors. The lock screen, photographed in a nested compositor by
+`mise run hyprlock:preview`:
+
+<table>
+<tr>
+<td><img src="docs/screenshots/lock-babel.png" alt="The babel lock screen: cream background, a clock in near-black, the date in blue, a wine-red frame"></td>
+<td><img src="docs/screenshots/lock-hronir.png" alt="The hronir lock screen: near-black background, a clock in cream, the date in light blue, a pink frame"></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/lock-uqbar.png" alt="The uqbar lock screen: black background, a clock in orange, the date in cyan, a pink frame"></td>
+<td><img src="docs/screenshots/lock-zahir.png" alt="The zahir lock screen: cream background, a clock in brown, the date in teal, a wine-red frame"></td>
+</tr>
+</table>
+
 ## The loop
 
 Every command a human or an agent runs is a mise task, in `tasks/<group>.toml`; `mise tasks`
