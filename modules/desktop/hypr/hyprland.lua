@@ -323,8 +323,8 @@ hl.window_rule({ name = "fzf-picker", match = { class = "^(fzf-picker)$" }, floa
 
 -- Quake dropdown terminal: ghostty (class com.ghostty.quake) on the special:quake workspace,
 -- toggled globally by F12. The shell (shell/lib/quake.ts) sizes, places and slides it, so only
--- float here; no_anim because the slide is the shell's.
-hl.window_rule({ name = "quake-term", match = { class = "^(com\\.ghostty\\.quake)$" }, float = true, no_anim = true })
+-- float here; no_anim because the slide is the shell's, no_wobble because a wobble fights it.
+hl.window_rule({ name = "quake-term", match = { class = "^(com\\.ghostty\\.quake)$" }, float = true, no_anim = true, no_wobble = true })
 
 -- Bitwarden popups
 hl.window_rule({
