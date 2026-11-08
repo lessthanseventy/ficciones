@@ -29,7 +29,13 @@ mapfile -t L <<<"$raw"
 # recomputes from raw token counts and under-reads badly (60% shown at the ~90% popup)
 # the context window's own field — the JSON carries three used_percentage keys (context,
 # 5h limit, 7d limit) and a greedy sed took the last: ctx showed the weekly number (2026-09-07)
-used=$(printf '%s' "$input" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)
+# and it is a share of the model's whole window: with `autoCompactWindow` (400k of a 1M window) the
+# compaction comes at 40%, so ctx is the context's tokens over that budget when it is set
+cap=$(jq -r '.autoCompactWindow // null' "$HOME/.claude/settings.json" 2>/dev/null)
+used=$(printf '%s' "$input" | jq -r --argjson cap "${cap:-null}" '
+  .context_window as $c | ($c.current_usage // {}) as $u
+  | (($u.input_tokens // 0) + ($u.cache_creation_input_tokens // 0) + ($u.cache_read_input_tokens // 0)) as $t
+  | if ($cap | type) == "number" and $t > 0 then $t * 100 / $cap else ($c.used_percentage // empty) end' 2>/dev/null)
 if [ -n "$used" ] && [ "${#L[@]}" -ge 2 ]; then
 	used=$(printf '%.0f' "$used")
 	L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
