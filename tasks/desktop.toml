@@ -114,7 +114,7 @@ q={{arg(name="layer", default="bar")}}
 m=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name')
 # layer x/y are already global compositor coords, which is what grim -g wants
 g=$(hyprctl layers -j | jq -r --arg m "$m" --arg q "$q" '.[$m].levels | to_entries[].value[] | select(.namespace | test($q;"i")) | "\(.x),\(.y) \(.w)x\(.h)"' | head -1)
-[ -n "$g" ] || { echo "no layer matching '$q' on $m — try: $(hyprctl layers -j | jq -r --arg m "$m" '[.[$m].levels | to_entries[].value[].namespace] | join(\", \")')" >&2; exit 1; }
+[ -n "$g" ] || { echo "no layer matching '$q' on $m — try: $(hyprctl layers -j | jq -r --arg m "$m" '[.[$m].levels | to_entries[].value[].namespace] | join(", ")')" >&2; exit 1; }
 f="$d/$(date +%Y-%m-%d_%H.%M.%S)_layer-$q.png"
 grim -g "$g" "$f" && echo "$f"
 '''
