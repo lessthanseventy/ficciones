@@ -2,6 +2,7 @@ import GObject from "gi://GObject?version=2.0"
 import GLib from "gi://GLib?version=2.0"
 import Gio from "gi://Gio?version=2.0"
 import Gdk from "gi://Gdk?version=4.0"
+import Gtk from "gi://Gtk?version=4.0"
 import { exit, programArgs } from "system"
 import app from "ags/gtk4/app"
 import { createBinding, For, This } from "ags"
@@ -180,6 +181,9 @@ app.start({
     // a stock `ags init` project fails the same way), so it is seen through gnim's here
     const gapp = app as unknown as GObject.Object & { monitors: Gdk.Monitor[] }
     const monitors = createBinding(gapp, "monitors")
+    // a selectable label selects all of itself when it takes focus, and an alert card's window
+    // passes focus around as it redraws, so its text flickered highlighted on and off
+    Gtk.Settings.get_default()!.gtkLabelSelectOnFocus = false
     // gnim cannot nest a <For> inside a fragment, so the drawer is created outright and the
     // per-monitor bars come back as the tree.
     Notifications()
