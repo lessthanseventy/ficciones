@@ -15,6 +15,13 @@ nested_start() {
 		'(import ./modules/desktop/theme/render.nix { lib = (builtins.getFlake (toString ./.)).inputs.nixpkgs.lib; }).hyprlandThemeLua' \
 		>"$scratch/theme.lua"
 	cp -r modules/desktop/hypr/scripts "$scratch/scripts"
+	# Hyprland's exec-once launcher imports its display into the systemd/dbus user env whatever
+	# HYPRLAND_NO_SD_VARS says, which points the live shell at a socket gone once this exits.
+	# It calls these by name, so stubs first on its PATH swallow exactly those writes.
+	mkdir -p "$scratch/bin"
+	printf '#!/bin/sh\ncase "$*" in *-environment*) exit 0 ;; esac\nexec %s "$@"\n' "$(command -v systemctl)" >"$scratch/bin/systemctl"
+	printf '#!/bin/sh\nexit 0\n' >"$scratch/bin/dbus-update-activation-environment"
+	chmod +x "$scratch/bin/systemctl" "$scratch/bin/dbus-update-activation-environment"
 
 	before="$(ls "$XDG_RUNTIME_DIR/hypr")"
 	# start-hyprland (0.56+) is the launcher Hyprland asks for; bare `Hyprland` puts a warning on
@@ -25,7 +32,7 @@ nested_start() {
 	# graphical-session.target at exit, even nested — which takes the live session's shell,
 	# portals and a11y bus down with it. setsid: the launcher and the compositor share one
 	# process group, so the trap kills both.
-	FICCIONES_HYPRDIR="$scratch" FICCIONES_HYPR_NO_AUTOSTART=1 HYPRLAND_NO_SD_VARS=1 HYPRLAND_NO_SD_TARGET=1 \
+	PATH="$scratch/bin:$PATH" FICCIONES_HYPRDIR="$scratch" FICCIONES_HYPR_NO_AUTOSTART=1 HYPRLAND_NO_SD_VARS=1 HYPRLAND_NO_SD_TARGET=1 \
 		setsid "${launch[@]}" --config "$PWD/modules/desktop/hypr/hyprland.lua" >"$scratch/hyprland.log" 2>&1 &
 	nested_pid=$!
 	trap 'kill -9 -- -"$nested_pid" 2>/dev/null' EXIT
