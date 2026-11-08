@@ -477,8 +477,8 @@ rec {
   ghosttyCss = ''
     /* ${gen} */
     tabbar .box { background-color: ${hex r.panel}; color: ${hex r.body}; }
-    tabbar tab { background-color: ${hex r.panel}; color: ${hex r.body}; }
-    tabbar tab:selected { background-color: ${hex r.card}; color: ${hex r.key}; }
+    tabbar tab { background-color: ${hex r.panel}; color: ${hex r.body}; border-right: 1px solid ${hex r.borderInactive}; }
+    tabbar tab:selected { background-color: ${hex r.cursorField}; color: ${hex r.fieldInk}; }
     tabbar tab:hover { background-color: ${hex r.hoverGround}; color: ${hex r.body}; }
   '';
 
