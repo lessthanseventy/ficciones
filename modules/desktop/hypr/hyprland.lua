@@ -1,6 +1,5 @@
 -- =============================================================================
 --  Hyprland configuration (Lua — the .conf format is gone in 0.57)
---  Ported 1:1 from hyprland.conf on 2026-09-05; that file lives in git history only.
 --  Reload with: hyprctl reload
 --
 --  Split: ~/.config/hypr/host.lua is hosts/<host>.lua (monitors, persistent workspaces,
@@ -165,7 +164,7 @@ hl.config({
     },
 
     -- Let fullscreen apps (video, games) bypass compositing and go straight to the display
-    -- plane — skips the i915 composite+flip path. Added 2026-07-02.
+    -- plane — skips the i915 composite+flip path.
     render = { direct_scanout = 1 },
 
     -- Never warp the pointer: a focus change (movefocus, the bar's window cells, a new window)
@@ -447,7 +446,7 @@ bind("CTRL + SHIFT + Escape", exec("ghostty -e btop"))
 bind("F12", exec(shell .. "/shell-req.sh quake"))
 
 bind(M .. " + Space", exec("astal-shell toggle launcher"))
--- The astal shell's info panel (caelestia is gone — cutover 2026-09-05).
+-- The astal shell's info panel.
 bind(M .. " + I", exec("astal-shell toggle drawer"))
 bind(M .. " + SHIFT + I", exec("astal-shell toggle drawer"))
 bind(M .. " + N", exec("astal-shell toggle hub"))

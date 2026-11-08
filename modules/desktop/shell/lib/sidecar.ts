@@ -228,9 +228,7 @@ async function relayout() {
   } catch (e) { console.error("sidecar relayout:", String(e)) }
   // The columns keep their own widths: the fit method (1 while a sidecar is up, fitMethod/0)
   // scrolls the row so the focused column sits flush against the sidecar and the neighbour
-  // peeks on the right. Pin-time used to `fit visible` here (2026-09-07: the first tiled column
-  // hung under the sidecar under the centred method) — that squeezed every column to an equal
-  // share and cost a wide window its layout.
+  // peeks on the right.
 }
 
 export const isSidecar = (c: Hyprland.Client) => [...sidecars.values()].some((s) => s.address === c.address)

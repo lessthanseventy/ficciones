@@ -111,8 +111,7 @@ window.dashboard { background: transparent; }
 // cyan↔amber, green↔pink, pink↔cyan, violet↔green, red↔amber), not one colour for all. GTK
 // paints an outline AFTER the children, so it sits 10px out to clear the title tag's 8px
 // overhang; the margin is exactly that, so the outer frame sits on the card's allocation and
-// every gap between frames is the box spacing alone — one $sp-4 everywhere, measured (Andrew,
-// 2026-09-07: the stacked columns had 4px between frames against 18px across).
+// every gap between frames is the box spacing alone — one $sp-4 everywhere.
 .board .card { margin: 11px; outline: $rule solid $structure; outline-offset: 10px; }   // 11: the 1px outline draws just outside the offset
 // 14 over the content: the title tag hangs 9px into the body (12px type, −8px margin), and the
 // first row cleared it by nothing at 8 (Andrew, 2026-09-07: "overlaps its label")
@@ -176,7 +175,7 @@ window.dashboard { background: transparent; }
 // POWER and SHELL are toggle tiles (the design language: a tile is a thing you press); the red
 // ones say so at rest, and every one lights like a toggle on hover
 // 42: these two-row grids set the third row's height, and the board fits 1080 with the card
-// titles cleared only at 42 (2026-09-07; was 56)
+// titles cleared only at 42
 .card-power .toggle, .card-shell .toggle { min-height: 42px; min-width: 84px; }
 .toggle.tile.red { border-color: rgba($alarm, 0.6); * { color: $alarm; } &:hover { border-color: $alarm; * { color: $alarm; } } }
 .action {

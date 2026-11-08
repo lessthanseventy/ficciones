@@ -244,7 +244,7 @@ in
             # Claude Code: ONE theme name, whose contents change with the palette. It watches
             # ~/.claude/themes for content changes (watchCustomThemes/reloadCustomThemes) and reads
             # the `theme` key in settings.json only at startup — so naming a different file per
-            # palette, which is what we used to do, could never switch a running session.
+            # palette could never switch a running session.
             "ficciones/themes/${name}/claude-theme.json".text = r.claudeTheme {
               name = "ficciones";
               inherit (palettes.${name}) light;

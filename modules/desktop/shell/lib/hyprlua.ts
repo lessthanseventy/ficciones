@@ -1,8 +1,7 @@
 // Hyprland under a .lua config takes LUA on the control socket: `hyprctl dispatch <expr>` is
 // `hl.dispatch(<expr>)`, `hyprctl keyword` is gone ("use eval"), and AstalHyprland's
 // Client.focus()/Workspace.focus()/hypr.dispatch() — which still send the legacy words — do
-// nothing (2026-09-07, the morning after the .conf → .lua switch: no focus keys, no rail
-// clicks, no sidecar). Everything the shell asks of the compositor goes through here.
+// nothing. Everything the shell asks of the compositor goes through here.
 import { execAsync } from "ags/process"
 import { query } from "./hyprsock"
 

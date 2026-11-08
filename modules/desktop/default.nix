@@ -142,7 +142,7 @@ in
     ficciones.desktop.shell.autostart = lib.mkDefault true;
 
     # sudo's askpass (scripts/sudo-askpass): random glyphs per keystroke; a tty or a dialog
-    # when stdin is not a terminal (hyprpm and friends used to hang on it).
+    # when stdin is not a terminal (hyprpm and friends hang on it).
     # Claude Code skills tracked in tlon's adapters/skills; an out-of-store link so an edit lands
     # without a switch
     home.file.".claude/skills/drive-office".source =

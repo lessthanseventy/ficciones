@@ -92,7 +92,7 @@ export function setTheme(t: Theme | "toggle") {
     execAsync(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme]),
     // Claude Code reads `theme` from settings.json once at startup, then WATCHES the theme file
     // for content changes. So the name is constant (custom:ficciones) and we rewrite the file it
-    // is already reading — naming a different file per palette, which is what this used to do,
+    // is already reading — naming a different file per palette
     // could never reach a running session.
     Promise.resolve().then(() => {
       const home = GLib.get_home_dir()
