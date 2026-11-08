@@ -42,7 +42,10 @@ trap cleanup EXIT
 
 palettes=("$@")
 if [ ${#palettes[@]} -eq 0 ]; then
-	for f in modules/desktop/theme/palettes/*.nix; do palettes+=("$(basename "$f" .nix)"); done
+	for f in modules/desktop/theme/palettes/*.nix; do
+		n="$(basename "$f" .nix)"
+		[ "$n" = default ] || palettes+=("$n")
+	done
 fi
 
 # one nested compositor for every palette; only hyprlock restarts between them
@@ -83,6 +86,8 @@ for name in "${palettes[@]}"; do
 		echo "  $name: grim failed"
 		status=1
 	}
+	# USR1 unlocks: a killed hyprlock leaves the session locked, and the next palette gets the
+	# compositor's "lockscreen app died" overlay instead of its lock screen
 	# hyprlang prints parse failures here; an unknown property is silent on screen but not in the log
 	if grep -qiE "error|invalid|missing property|unknown" "$log"; then
 		echo "  $name: CONFIG ERRORS"
@@ -91,7 +96,7 @@ for name in "${palettes[@]}"; do
 	else
 		echo "  $name: ok -> $shot"
 	fi
-	kill "$lock_pid" 2>/dev/null || true
+	kill -USR1 "$lock_pid" 2>/dev/null || true
 	wait "$lock_pid" 2>/dev/null || true
 	lock_pid=""
 done
