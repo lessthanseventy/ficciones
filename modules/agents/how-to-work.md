@@ -51,9 +51,7 @@ merging main in. Rewriting history that is already pushed or shared is the human
   - Each run answers one JSON line with every failure's file, line and message: read it, never
     re-run to see more.
 - Every public function you add or change has `@doc` and `@spec`.
-- **Pattern matching over conditionals.** A two-branch `case` is the smell: on a boolean it is an
-  `if`; when it is a whole function's body, it is two function heads; a chain of them over
-  `{:ok, _}`/`{:error, _}` is one `with`. No nested `case` or `if` where a head or a guard says it.
+- Pattern matching over conditionals where appropriate.
 - **Avoid the anti-patterns in Elixir's own guide** (hexdocs.pm/elixir, "Anti-patterns"), above all:
   - assertive code: `map.key` and `%{key: v} = map` for keys that must be there, not `map[:key]` and
     a silent `nil`; match the shape you expect and let anything else crash;
