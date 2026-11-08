@@ -477,9 +477,10 @@ rec {
   ghosttyCss = ''
     /* ${gen} */
     tabbar .box { background-color: ${hex r.panel}; color: ${hex r.body}; }
-    tabbar tab { background-color: ${hex r.panel}; color: ${hex r.body}; border-right: 1px solid ${hex r.borderInactive}; }
-    tabbar tab:selected { background-color: ${hex r.cursorField}; color: ${hex r.fieldInk}; }
+    tabbar tab { background-color: ${hex r.panel}; color: ${hex r.body}; border-right: 1px solid ${hex r.borderInactive}; border-radius: 0; }
     tabbar tab:hover { background-color: ${hex r.hoverGround}; color: ${hex r.body}; }
+    /* after :hover, which is as specific: the focused tab stays yellow under the pointer */
+    tabbar tab:selected { background-color: ${hex r.cursorField}; color: ${hex r.fieldInk}; }
   '';
 
   kittyTheme =
