@@ -74,14 +74,16 @@ async function hide(c: Client) {
   const w = `address:${c.address}`
   disarmClickaway()
   await slide(w, c.at[0], c.at[1], c.at[1] - c.size[1] - 60)
+  // focus back where it was, if that window is still about off the special workspaces (focusing
+  // the quake itself would open special:quake again) — before the move: a focused window leaving
+  // hands focus to Hyprland's own pick for a frame first, and the border flashes there
+  const back = prev && json<Client[]>("clients").some((x) => x.address === prev && !x.workspace.name.startsWith("special"))
   dispatchNow(
+    ...(back ? [L.focusWindow(`address:${prev}`)] : []),
     ...(c.pinned ? [L.pin(w)] : []),
     L.moveToWorkspace(w, "special:quake", false),
     L.setProp(w, "opacity", "1"), L.setProp(w, "opacity_override", "unset"),
   )
-  // focus back where it was, if that window is still about off the special workspaces: focusing
-  // the quake itself would open special:quake again
-  if (prev && json<Client[]>("clients").some((x) => x.address === prev && !x.workspace.name.startsWith("special"))) dispatchNow(L.focusWindow(`address:${prev}`))
   prev = null
   sidecarVerb("ring", "on")
 }
