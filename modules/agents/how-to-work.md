@@ -40,7 +40,8 @@ merging main in. Rewriting history that is already pushed or shared is the human
 
 - **Through menard, not bare mix, sed or grep.** Every Elixir edit and run goes through
   `~/projects/menard/bin/menard` (the same verbs as its MCP tools; `--help` on a verb shows its
-  input). It formats every file it writes, so there is no separate format step.
+  input). It formats every file it writes, so there is no separate format step. Which verb fits
+  which change, and its traps: menard's skill (`skills/menard/SKILL.md`).
   - Several replacements, in one file or many, are one `edit`: each text found exactly once or
     nothing is written; `--then compile`, or `--then test` on the change's last edit.
   - `rename` for a rename across files; `find calls Mod.fun` for callers; `outline` then
