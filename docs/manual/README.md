@@ -1,7 +1,7 @@
 # The ficciones manual
 
-How to drive this machine, today. Omarchy's manual is the bar (master plan piece E): one page
-per thing you would look up, and nothing here that could drift — every list that has a source
+How to drive this machine, today: one page per thing you would look up, and nothing here that
+could drift — every list that has a source
 is **generated from it** by `mise run manual:gen` and checked by `mise run manual:check`
 (a mise gate, not a flake check — the keys page reads the live compositor's config). Hand-written pages are short and say
 *why*; the generated ones say *what*.

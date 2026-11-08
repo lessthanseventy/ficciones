@@ -1,58 +1,77 @@
 # ficciones
 
-One person's computer, as a repository. Dotfiles, installer, desktop, and the AI stack — the whole
-machine declared in one place so it can be rebuilt on any box, or a throwaway VM, and be the same
-machine when it comes back up.
-
-This started life as the `server` specification (the AI stack) and grew outward: if the goal is a
-computing life you can trust and rebuild, the repository has to be the machine, not one program on it.
-
-**The name.** Borges' *Ficciones* is the 1944 collection that gives this repository its name — a
-collection of stories, and this repo a collection of modules. The AI stack it grows is named for one
-story in it: **Tlön**, from "Tlön, Uqbar, Orbis Tertius" (1940), where scholars find an encyclopedia of
-an invented planet and, as they study the fiction, it bleeds into reality and overwrites it. That is
-exactly what the product does — you author a fictional organization (a cast of agents, workspaces,
-knobs) and, through use, it becomes real work in your actual repo. The fiction overwrites reality.
-
-## Tlön
-
-The AI stack — the server, the office TUI (launched as `tlon`) and the agent adapters — is its own
-repo, `~/projects/tlon`, so it runs on boxes that are not this one. This machine runs it: the flake
-starts its server as a `systemd --user` service and points Claude Code at its adapters.
+One person's computer, as a repository: the installer, the desktop, the dotfiles and the agent
+wiring, declared in one place so the machine can be rebuilt on any box or in a throwaway VM and
+come back the same. Named after Borges' *Ficciones*, a collection of stories; this is a collection
+of modules. The programs it runs that are repos of their own, [tlon](https://github.com/lessthanseventy/tlon)
+(the AI office: server, TUI and Claude Code adapters) and [menard](https://github.com/lessthanseventy/menard)
+(Elixir editing for agents), are pinned here by path and wired in, not vendored.
 
 ## Layout
 
 ```
 ficciones/
-  flake.nix            # the installer — Nix + home-manager, adopted gradually (see below)
-  mise.toml            # the shared dev loop — every task the human and the agents run
-  scripts/             # the shell side of that loop (cap, watch, the theme and manual generators)
+  flake.nix              # the machine: NixOS for the VM and the laptop, home-manager for the Arch box and the Mac
+  mise.toml, tasks/      # the dev loop: every verb a human or an agent runs; `mise tasks` lists them
+  scripts/               # the shell side of the loop: cap, watch, the manual and theme generators, the git hooks
   modules/
-    agents/            # the rules every agent on this machine works by
-    desktop/           # hyprland + its stack
-    os/                # the NixOS side
-  secrets/             # agenix-encrypted machine secrets
-  docs/plans/          # design records, most recent first
+    os/                  # the NixOS side: one user, Hyprland, sound, network, fonts; vm.nix and ivysaur.nix add the hardware
+    arch/                # what modules/os gives a NixOS host, for home-manager on the Arch base
+    desktop/             # the Hyprland stack: its config, the astal shell, the theme and both palettes
+    mac/                 # the work Mac: the palette's portable surfaces, no desktop
+    agents/              # the rules, skills, mods and shell every agent on this machine works by
+    menard-host.nix      # what menard needs on a host: mise, Expert, the formatters its write check runs
+    tmux.nix, hyprland-packages.nix
+  secrets/               # agenix-encrypted machine secrets
+  docs/
+    manual/              # how to drive the machine; keys, tasks and palette generated from their sources
+    plans/               # design records, dated
+    research/, reviews/, dogfood/
 ```
 
-The rest of the environment (theme, shell, dotfiles) is pulled over incrementally — Nix makes that
-gradual, so there is no big bang, and empty directories are not created to pretend otherwise: a
-module is born when it has content.
+## The machine
 
-## The installer
+Four targets, one flake:
 
-Nix, on the existing Arch install, adopted the low-blast-radius way: **Nix + home-manager as a flake**
-manages home declaratively while Arch and `mise` stay exactly where they are. A **disposable NixOS VM**
-(`nixos-rebuild build-vm`) is the testbed where full NixOS gets tried before it ever touches metal.
-The reasoning — and why the old "Arch/AUR + mise beats NixOS" verdict was correct until the AI world
-changed one term of it — is in `docs/plans/2026-08-14-machine-v2-and-funes-design.md`.
+- `homeConfigurations.anmoore`: home-manager on the Arch box. Arch keeps what has to match the
+  kernel or run as root (kernel, nvidia, mesa, ly, PAM); Hyprland and the rest of its stack come
+  from here.
+- `homeConfigurations.personalbox`: the work Mac. The same palettes on terminals, prompt, TUIs,
+  Floorp and Claude Code, and no desktop.
+- `nixosConfigurations.vm`: a disposable NixOS VM (`mise run vm:build`, `vm:run`, `vm:ssh`) where
+  full NixOS is tried before it touches metal.
+- `nixosConfigurations.ivysaur`: the laptop, full NixOS.
 
-`mise run flake:check` (evaluate + build the activation package) is fair for anyone, human or
-agent, to run; the system-mutating step — `mise run home:switch` — stays the human's, because
-building the machine is a change the human owns.
+home-manager places symlinks that point back into this working tree for the desktop's config, so
+an edit to `modules/desktop/hypr/hyprland.lua` is live on `hyprctl reload`. The price is that a
+checkout is a desktop change, which the hooks in `scripts/git-hooks` cover.
+
+## The loop
+
+Every command a human or an agent runs is a mise task, in `tasks/<group>.toml`; `mise tasks`
+lists them and `docs/manual/tasks.md` is generated from that list.
+
+- `mise run check`: the names gate, the cap hook's test, the manual's drift check and the flake.
+  Green before a commit.
+- `mise run flake:check`: evaluate and build this host's closures, the machine-level gate.
+- `mise run home:switch` (`home:switch:mac` on the Mac): apply the home-manager profile. The
+  human's to run: building the machine is a change the human owns.
+- `mise run machine:update`: the one update verb. `home:switch`, then restart the shell and tlon's
+  server.
+- `mise run manual:gen` and `manual:check`: regenerate the manual's pages from their sources, and
+  fail when one has drifted.
+- `mise run cap -- CMD`: run a command once, log all of it, print its exit, failures and tail.
+
+## Agents
+
+`modules/agents/how-to-work.md` is installed as `~/.claude/CLAUDE.md`: the four rules and the code
+standards every agent on this machine works by. Beside it live the skills (`agent-browser`,
+`agent-desktop`), the mods (`changes-pane`) and the agents' zsh. Each repo adds its own law in
+`AGENTS.md`; this one's is at the root.
 
 ## Where to start reading
 
-- `docs/plans/2026-08-14-machine-v2-and-funes-design.md` — the machine-level design and every decision behind it.
-- `~/projects/tlon` — the AI stack: its `README.md`, and `server/docs/spec.md`, the specification that
-  is the reason any of this exists.
+- `AGENTS.md`: the boundaries for a session at the repo root, and the loop.
+- `docs/manual/README.md`: the operator's manual.
+- `docs/plans/2026-08-14-machine-v2-and-funes-design.md`: the machine-level design and the
+  decisions behind it; `docs/plans/2026-09-17-ficciones-master-plan.md`: the plan.
