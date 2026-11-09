@@ -76,6 +76,8 @@ in
         ExecStart = "${lib.getExe nixGpu} ${lib.getExe cfg.package}";
         Restart = "on-failure";
         RestartSec = 1;
+        # Wins the CPU over the terminals in app.slice when agents' suites peg every core.
+        CPUWeight = 500;
       };
       Install.WantedBy = [ "graphical-session.target" ];
     };
