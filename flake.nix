@@ -556,12 +556,25 @@
               # processes, so each coworker scope in app.slice was a full peer of the video player.
               # tlon.service, its coworkers' tmux scopes and its redeploys all run here (tlon passes
               # --slice=tlon.slice); the quota keeps 6 of 20 threads (and the fans) free regardless.
-              systemd.user.slices.tlon = {
-                Unit.Description = "tlon — the office's coworkers, server and rebuilds";
-                Slice = {
-                  CPUWeight = 20;
-                  IOWeight = 20;
-                  CPUQuota = "1400%";
+              systemd.user.slices = {
+                tlon = {
+                  Unit.Description = "tlon — the office's coworkers, server and rebuilds";
+                  Slice = {
+                    CPUWeight = 20;
+                    IOWeight = 20;
+                    CPUQuota = "1400%";
+                  };
+                };
+
+                # Claude sessions started by hand (the `claude` function in modules/os/zshrc) and the
+                # suites they run, at the same low weight; apart from tlon.slice so `server:stop`
+                # never takes them down.
+                agents = {
+                  Unit.Description = "agents — Claude sessions started from a terminal";
+                  Slice = {
+                    CPUWeight = 20;
+                    IOWeight = 20;
+                  };
                 };
               };
 
