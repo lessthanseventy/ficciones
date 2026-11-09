@@ -130,25 +130,9 @@ function tt() {
   mix test $1 --color --trace
 }
 
-# Claude Code project resume picker
-function claude-resume() {
-  local project=$(aichat search --json --global 2>/dev/null | jq -r '.cwd' | sort -u | fzf --prompt="Resume Claude project: " --height=40% --border)
-  if [ -n "$project" ] && [ -d "$project" ]; then
-    cd "$project" && aichat resume
-  fi
-}
-
 # A session and everything it runs go in agents.slice, below the desktop under contention.
 function claude() {
   systemd-run --user --scope --quiet --collect --slice=agents.slice -- claude "$@"
-}
-
-# Claude Code project search
-function claude-search() {
-  local project=$(aichat search --json --global 2>/dev/null | jq -r '.cwd' | sort -u | fzf --prompt="Search Claude project: " --height=40% --border)
-  if [ -n "$project" ] && [ -d "$project" ]; then
-    cd "$project" && aichat search
-  fi
 }
 
 export NNN_PLUG='f:fzopen;p:preview-tui;d:diffs;t:nmount;v:imgview'
