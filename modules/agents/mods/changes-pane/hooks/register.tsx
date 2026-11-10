@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Commit, DiffLine, File, Run } from './changes'
 import type { Input, List, Section } from './view'
 
@@ -16,9 +16,9 @@ const MAX_KEPT_COMMITS = 50
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
-const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · f follow · L lazygit'
-// Their result is the diff this pane already shows; ctrl+o still has it.
-const SHOWN_HERE = new Set(['Edit', 'Write', 'NotebookEdit'])
+const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · f follow/hold · L lazygit'
+// Their result is the diff this pane already shows, so the transcript gets its counts; ctrl+o still has it.
+const SHOWN_HERE = new Set(['Edit', 'Write'])
 const OPEN = { id: PANE, title: 'Changes' }
 
 type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
@@ -267,13 +267,6 @@ export const register: Register = on => {
     return result
   })
 
-  on('prompt.submit', async ($, e, next) => {
-    if (!isFollowing) {
-      isFollowing = true
-      $.ui.invalidate('ui.render')
-    }
-    return next(e)
-  })
 
   on('ui.close', { id: PANE }, async (_, e, next) => {
     const closed = await next(e)
@@ -297,8 +290,14 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
     if (!canDraw || !SHOWN_HERE.has(e.props.tool) || e.props.isErrored || e.props.isExpanded) return next(e)
-    const { Box } = $.ui.resolve(e)
-    return <Box />
+    const { Text } = $.ui.resolve(e)
+    const { adds, dels } = patchCounts(e.props.output)
+    return (
+      <Text dimColor>
+        {'  ⎿  '}
+        <Text color="success">+{adds}</Text> <Text color="error">-{dels}</Text>
+      </Text>
+    )
   })
 
   // The body never overflows: the view draws its own windows of rows, so the wheel moves the one
@@ -366,10 +365,13 @@ export const register: Register = on => {
         continue
       }
       if (key === 'f') {
-        isFollowing = true
-        focus = 'files'
-        if (source !== '') pickCommit(0)
-        reveal()
+        isFollowing = !isFollowing
+        // following is of the working tree
+        if (isFollowing) {
+          focus = 'files'
+          pickCommit(0)
+          reveal()
+        }
         continue
       }
       if (row !== undefined) {

@@ -24,6 +24,16 @@ export const parseLog = (out: string): Commit[] =>
     return { sha: line.slice(0, tab), subject: line.slice(tab + 1) }
   })
 
+type Patched = { structuredPatch?: { lines: string[] }[]; type?: string; content?: string }
+
+// What an Edit or a Write did, counted from its own result; a new file has no patch, only content.
+export const patchCounts = (output: unknown): { adds: number; dels: number } => {
+  const { structuredPatch = [], type, content = '' } = (output ?? {}) as Patched
+  const lines = structuredPatch.flatMap(hunk => hunk.lines)
+  if (lines.length === 0 && type === 'create') return { adds: content.replace(/\n$/, '').split('\n').length, dels: 0 }
+  return { adds: lines.filter(line => line.startsWith('+')).length, dels: lines.filter(line => line.startsWith('-')).length }
+}
+
 // `git show` with the message first: what the person reads, and each file's own diff. A session
 // link in a trailer is a click waiting to happen, so those lines are left out.
 export const parseShow = (show: string): { message: string[]; files: Map<string, string> } => {

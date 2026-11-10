@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -208,6 +208,14 @@ test('a commit opens on its message, and its files take the files list', async (
   expect(await ui.find({ text: /● following/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^files · uncommitted/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^a\.ts/, in: 'changes' })).toBeDefined()
+  await ui.key({ key: 'f' })
+  expect(await ui.find({ text: /○ held/, in: 'changes' })).toBeDefined()
+})
+
+test('an edit is counted from its own result', async () => {
+  expect(patchCounts({ structuredPatch: [{ lines: [' a', '-b', '+c', '+d'] }, { lines: ['-e'] }] })).toEqual({ adds: 2, dels: 2 })
+  expect(patchCounts({ type: 'create', structuredPatch: [], content: 'a\nb\n' })).toEqual({ adds: 2, dels: 0 })
+  expect(patchCounts(undefined)).toEqual({ adds: 0, dels: 0 })
 })
 
 test('the wheel over the list moves the list and leaves the diff following', async ($, on) => {
