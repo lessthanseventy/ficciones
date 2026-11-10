@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, callText, menardSaid, parseDiff, parseLog, parseShow, turnLine, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, callText, menardSaid, took, parseDiff, parseLog, parseShow, turnLine, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Call, Commit, DiffLine, File, Run } from './changes'
 import type { Input, List, Section } from './view'
 
@@ -26,6 +26,7 @@ const SUMMARISE = 'Below are the tool calls a coding assistant made in one turn,
 // A turn's summary is drawn under its closing line, which is known by its duration alone.
 const MAX_KEPT_SUMMARIES = 50
 const MAX_GROUP_LINES = 12
+const MAX_KEPT_DURATIONS = 2000
 
 
 // The calls drawn as one line each; any other tool keeps Claude Code's own row.
@@ -35,7 +36,7 @@ type Ui = { ui: { resolve: (e: never) => Record<string, any>; invalidate: (event
 
 // One call's line and, once clicked, the call as it was made and answered under it. A click on
 // the line or anywhere in the opened text folds it: the text is a view of its own (body.tsx).
-function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call, line: string, lead: string) {
+function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call, line: string, lead: string, time: string) {
   const { Box, Text, Button, Client } = $.ui.resolve(e as never)
   const isOpen = opened.has(id)
   const toggle = () => {
@@ -51,6 +52,7 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
         <Button plain key={`call-${id}`} onPress={toggle}>
           <Text color="remember">{space < 0 ? line : line.slice(0, space)}</Text>
           {space < 0 ? '' : line.slice(space)}
+          {time ? <Text color="claude">{`  ${time}`}</Text> : null}
           <Text dimColor>{isOpen ? '  ▾' : '  ▸'}</Text>
         </Button>
         {isOpen ? (
@@ -119,6 +121,7 @@ export const register: Register = on => {
   const opened = new Set<string>()
   const ours = new Set<string>()
   const replies = new Map<string, unknown>()
+  const durations = new Map<string, number>()
   let isRefreshing = false
   let isStale = false
   let refresh: () => Promise<void> = async () => {}
@@ -411,7 +414,14 @@ export const register: Register = on => {
   })
 
   on('tool.call', async ($, e, next) => {
+    const started = Date.now()
     const result = await next(e)
+    const id = (e as { tool_use_id?: string }).tool_use_id
+    if (id !== undefined) {
+      if (durations.size >= MAX_KEPT_DURATIONS) durations.clear()
+      durations.set(id, Date.now() - started)
+      $.ui.invalidate('ui.render')
+    }
     if ((e as { agentId?: string }).agentId === undefined) {
       turnLines = [...turnLines, turnLine({ tool: e.tool, input: e, output: (result as { result?: unknown }).result }, (result as { isError?: boolean }).isError === true)].slice(-MAX_TURN_LINES)
     }
@@ -520,7 +530,7 @@ export const register: Register = on => {
     const call = { ...e.props, output: e.props.output ?? replies.get(id) }
     const line = turnLine(call, e.props.isErrored === true || e.props.isInterrupted === true)
     // a call still being written or waiting on a permission has no arguments to name yet
-    return callRow($, e, opened, id, call, e.props.isRunning || line === e.props.tool ? `${line} …` : line, '  ⎿  ')
+    return callRow($, e, opened, id, call, e.props.isRunning || line === e.props.tool ? `${line} …` : line, '  ⎿  ', took(durations.get(id)))
   })
 
   // A result's own props do not say what ran, so the calls a line was drawn for are kept by id.
@@ -544,7 +554,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {isWhole ? null : await next(e)}
         {calls.slice(0, MAX_GROUP_LINES).map(({ call, id }) =>
-          callRow($, e, opened, id, call, `${turnLine(call, call.isErrored === true)}${call.isRunning || call.input === undefined ? ' …' : ''}`, '  ⎿  '),
+          callRow($, e, opened, id, call, `${turnLine(call, call.isErrored === true)}${call.isRunning || call.input === undefined ? ' …' : ''}`, '  ⎿  ', took(durations.get(id))),
         )}
         {calls.length > MAX_GROUP_LINES ? <Text dimColor>{`  ⎿  … ${calls.length - MAX_GROUP_LINES} more calls`}</Text> : null}
       </Box>

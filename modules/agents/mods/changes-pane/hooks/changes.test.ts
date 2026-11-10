@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { callText, menardSaid, steps, shellEdits, turnLine, emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { callText, lastSaid, menardSaid, steps, took, shellEdits, turnLine, emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -267,6 +267,14 @@ test('a shell command of several steps is named by them', async () => {
   expect(turnLine({ tool: 'Bash', input: { command: 'git add . && git commit -m x' }, output: { stdout: 'ok\n' } }, false)).toBe('Bash git add · git commit → ok')
   const edits = { files: [{ filePath: '/r/a.ts', hunks: [{ lines: ['-a', '+b'] }] }, { filePath: '/r/b.ts', hunks: [{ lines: ['+c'] }] }] }
   expect(turnLine({ tool: 'Bash', input: { command: 'sed -i s/a/b/ a.ts b.ts' }, output: { stdout: 'ok\n', bashEditDiff: edits } }, false)).toBe('Bash sed -i s/a/b/ a.ts b.ts → ok  ✎ a.ts +1 -1, b.ts +1 -0')
+})
+
+test("a command's last word is not its timing, and a call's own time reads short", async () => {
+  expect(lastSaid('Ran 29 tests across 1 file. [3.52s]\n    Finished in 109.53s\n')).toBe('Ran 29 tests across 1 file.')
+  expect(lastSaid('● done\n✻ Cogitated for 3s · done 12:49 AM\n')).toBe('● done')
+  expect(lastSaid('0\t0\n')).toBe('0\t0')
+  expect(lastSaid('real 0m1.2s\n')).toBe('')
+  expect([took(undefined), took(400), took(3400), took(109_530)]).toEqual(['', '', '3s', '1m 50s'])
 })
 
 test('a call on an absolute path is named by the file and its folder', async () => {

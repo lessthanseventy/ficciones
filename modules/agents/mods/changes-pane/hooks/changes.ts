@@ -127,6 +127,23 @@ export const steps = (command: string): string[] => {
 
 const MAX_STEPS = 6
 
+// A line that only says how long something took: the row has the call's own time beside it.
+const TIMING = /^\W*(?:finished|done|took|elapsed|real|user|sys|time|worked|\w+ed for)\b.*\d\s?(?:ms|s|m|min)\b|^\W*\d+(?:\.\d+)?\s?(?:ms|s)\W*$/i
+const TIMED = /\s*[[(]\d+(?:\.\d+)?\s?m?s[\])]/g
+
+// The last thing a command said that is not its timing, less a time in brackets at its end.
+export const lastSaid = (stdout: string): string => {
+  const lines = stdout.split('\n').map(line => line.trim()).filter(Boolean)
+  return (lines.findLast(line => !TIMING.test(line)) ?? '').replace(TIMED, '')
+}
+
+// How long a call took, for a row: nothing under a second.
+export const took = (ms: number | undefined): string => {
+  if (ms === undefined || ms < 1000) return ''
+  const seconds = Math.round(ms / 1000)
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+}
+
 // a call's line fits one row of a transcript: what was run, then how it ended
 const MAX_MADE = 44
 const MAX_LAST = 28
@@ -146,7 +163,7 @@ export const turnLine = (call: Call, isError: boolean): string => {
   const first = Object.values(fields).find((v): v is string => typeof v === 'string' && v !== call.tool) ?? ''
   // a command's last line is where it says how it went
   const stdout = call.tool === 'Bash' ? (call.output as { stdout?: unknown } | undefined)?.stdout : undefined
-  const last = typeof stdout === 'string' ? stdout.trimEnd().split('\n').pop()!.trim().slice(0, MAX_LAST) : ''
+  const last = typeof stdout === 'string' ? lastSaid(stdout).slice(0, MAX_LAST) : ''
   // the steps are joined by dots and the last line may hold some: the files get a mark of their own
   const files = call.tool === 'Bash' ? shellEdits(call.output).map(({ name, adds, dels }) => `${name} +${adds} -${dels}`) : []
   const edited = files.length > 0 ? `  ✎ ${files.join(', ')}` : ''
