@@ -103,18 +103,6 @@ let
     fi
   '';
 
-  # nixpkgs unstable lags Anthropic's releases by days; the package takes its manifest as an
-  # argument, so a newer release is one entry here. Checksum from the release's manifest.zst.json.
-  # Drop this once nixpkgs ships >= this version.
-  claude-code = pkgs.claude-code.override {
-    manifest = {
-      version = "2.1.293";
-      platforms.linux-x64 = {
-        binary = "claude.zst";
-        checksum = "25786da347c30641dc6c50733d090d77cb540f105a61af7e9895b56e39fe16a5";
-      };
-    };
-  };
 in
 {
   imports = [
