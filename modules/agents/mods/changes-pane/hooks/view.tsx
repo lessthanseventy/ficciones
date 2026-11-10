@@ -84,7 +84,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
         within(
           section.isFocused,
           <Text inverse={isSelected && section.isFocused} weight={isSelected && !section.isFocused ? 'bold' : undefined} wrap="truncate-end">
-            <Text color={isAhead ? 'error' : 'warning'}>{lead}</Text>
+            <Text color={isAhead ? 'error' : 'remember'}>{lead}</Text>
             <Text dimColor={!isSelected}>{dim}</Text>
             {label}
             <Text color="success">{adds}</Text>
