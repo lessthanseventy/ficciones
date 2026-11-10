@@ -236,9 +236,9 @@ export function setBackdrop(mode: "zen" | "photo" | "toggle" | "cycle" | Backdro
 
 export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   const canvas = new Canvas()
-  const { file, next } = wallpaper()
+  const { file, next, dispose } = wallpaper()
   nexts.push(next)
-  onCleanup(() => { for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
+  onCleanup(() => { dispose(); nexts.splice(nexts.indexOf(next), 1); for (const [w, c] of canvases) if (c === canvas) { c.run(false); canvases.delete(w); w.destroy() } })
   canvas.monitor = gdkmonitor
   const covered = () => canvas.setPaused(fullscreenMonitors.peek().has(gdkmonitor.connector ?? ""))
   covered()

@@ -10,7 +10,7 @@ import { setting } from "./settings"
 import { xwdFrame } from "./xwd-core"
 
 let hacks: string[] = []
-const running = new Map<string, { p: Process; display: number }>() // monitor connector → its xss-host
+const running = new Map<string, { p: Process; display: number; paused?: boolean }>() // monitor connector → its xss-host
 let display = 40 // an X display per start, so a stopping server never holds the next one's socket
 
 /** The hacks there are, once (empty when xss-host is missing). */
@@ -36,15 +36,23 @@ export function startHack(connector: string, w: number, h: number, hack: string)
 
 export function stopHack(connector: string) {
   const r = running.get(connector)
+  if (!r) return
   running.delete(connector)
-  r?.p.signal(15)
+  // a stopped process holds a TERM until it is continued
+  if (r.paused) void signalChildren(connector, r.display, false).finally(() => r.p.signal(15))
+  else r.p.signal(15)
 }
+
+// the host by its own arguments (connector and display are unique to it), then its children
+const signalChildren = (connector: string, display: number, stop: boolean) =>
+  execAsync(["sh", "-c", `pkill ${stop ? "-STOP" : "-CONT"} -P "$(pgrep -f "xss-host $1 $2 " | head -1)"`, "_", connector, String(display)]).catch(() => {})
 
 /** Freeze or thaw the hack on `connector` (its host's children: the X server and the hack). */
 export function pauseHack(connector: string, paused: boolean) {
   const r = running.get(connector)
-  // the host by its own arguments (connector and display are unique to it), then its children
-  if (r) void execAsync(["sh", "-c", `pkill ${paused ? "-STOP" : "-CONT"} -P "$(pgrep -f "xss-host $1 $2 " | head -1)"`, "_", connector, String(r.display)]).catch(() => {})
+  if (!r) return
+  r.paused = paused
+  void signalChildren(connector, r.display, paused)
 }
 
 export const stopAll = () => [...running.keys()].forEach(stopHack)
@@ -69,7 +77,7 @@ export function startPreview(hack: string, w: number, h: number, onFrame: (t: Gd
       return GLib.SOURCE_CONTINUE
     })
     preview = { p, dir, timer }
-  } catch (e) { console.error("xss-host --preview:", String(e)) }
+  } catch (e) { console.error("xss-host --preview:", String(e)); GLib.rmdir(dir) }
 }
 
 export function stopPreview() {

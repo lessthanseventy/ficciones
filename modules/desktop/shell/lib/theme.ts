@@ -108,6 +108,10 @@ export function setTheme(t: Theme | "toggle") {
     }),
     // ghostty re-reads its config on SIGUSR2 but leaves open surfaces alone (1.3), so they are
     // recoloured through OSC 10/11/4 on their ptys; every other app follows on its next launch
-    execAsync(["pkill", "-USR2", "-x", "ghostty"]).then(() => execAsync([`${GLib.get_home_dir()}/.local/bin/ficciones-recolor`])),
-  ]).finally(() => setSwitching(false))
+    // pkill exits 1 with no ghostty running: nothing to recolour, not a failure
+    execAsync(["pkill", "-USR2", "-x", "ghostty"]).then(() => execAsync([`${GLib.get_home_dir()}/.local/bin/ficciones-recolor`]), () => undefined),
+  ]).then((rs) => {
+    for (const r of rs) if (r.status === "rejected") console.error("theme switch:", String(r.reason))
+    setSwitching(false)
+  })
 }

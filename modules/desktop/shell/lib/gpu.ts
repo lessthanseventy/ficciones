@@ -28,7 +28,8 @@ export const gpu = createPoll<Gpu>(
         "--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,clocks.gr",
         "--format=csv,noheader,nounits",
       ])
-      const [u, mu, mt, t, w, ck] = out.trim().split(",").map((x) => Number(x.trim()))
+      // a field the card does not report reads "[N/A]"
+      const [u, mu, mt, t, w, ck] = out.trim().split(",").map((x) => Number(x.trim()) || 0)
       const util = Math.max(0, Math.min(1, u / 100))
       hist.push(util); if (hist.length > HIST) hist.shift()
       return { ok: true, util, memUsed: mu, memTotal: mt, temp: t, watts: w, clock: ck || 0, hist }

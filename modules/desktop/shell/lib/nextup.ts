@@ -3,17 +3,24 @@
 // today. Polled every minute; the countdown ticks off the same accessor.
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
+import GLib from "gi://GLib?version=2.0"
+import { localDay } from "./format"
 
 export type NextUp = { title: string; at: number } | null
 
+const hasKhal = !!GLib.find_program_in_path("khal")
+// an all-day event's start is a date alone
+const startOf = (s: string) => (/^\d{4}-\d\d-\d\d$/.test(s) ? localDay(s) : Date.parse(s))
+
 export const nextUp = createPoll<NextUp>(null, 60_000, async () => {
+  if (!hasKhal) return null
   try {
     const out = (await execAsync(["khal", "list", "--json", "start", "--json", "title", "now", "1d"])).trim()
     if (!out) return null
     const rows: { start?: string; title?: string }[] = JSON.parse(out.startsWith("[") ? out : `[${out.split("\n").join(",")}]`).flat()
     const now = Date.now()
     const soon = rows
-      .map((r) => ({ title: r.title ?? "", at: Date.parse(r.start ?? "") }))
+      .map((r) => ({ title: r.title ?? "", at: startOf(r.start ?? "") }))
       .filter((r) => r.title && !Number.isNaN(r.at) && r.at > now - 5 * 60_000)
       .sort((a, b) => a.at - b.at)[0]
     return soon ?? null

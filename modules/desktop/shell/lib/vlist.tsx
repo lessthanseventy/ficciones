@@ -67,7 +67,7 @@ export function VList<T>({
   }
   sync(items.peek())
   const unsub = items.subscribe(() => sync(items.peek()))
-  onCleanup(unsub)
+  onCleanup(() => { unsub(); for (const it of byKey.values()) drop(it) })
 
   const factory = new Gtk.SignalListItemFactory()
   factory.connect("setup", (_, o) => { const li = o as Gtk.ListItem; li.child = new Gtk.Box({ hexpand: true }); li.activatable = false; li.selectable = !!cursor })

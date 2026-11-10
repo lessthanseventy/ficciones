@@ -28,17 +28,20 @@ function poll() {
 interval(2000, poll)
 poll()
 
-// an Mpris bus name → its process, cached; 0 while unresolved, -1 when the bus has no answer
-const pidOf = new Map<string, number>()
+// an Mpris bus name → its process; 0 while unresolved, -1 when the bus has no answer. Asked again
+// after a while: a player that restarts keeps its bus name and takes a new pid
+const PID_TTL = 30_000
+const pidOf = new Map<string, { pid: number; at: number }>()
 export function playerPid(busName: string | null | undefined): number {
   if (!busName) return -1
   const known = pidOf.get(busName)
-  if (known !== undefined) return known
-  pidOf.set(busName, 0)
+  if (known && Date.now() - known.at < PID_TTL) return known.pid
+  const put = (pid: number) => pidOf.set(busName, { pid, at: Date.now() })
+  put(known?.pid ?? 0)
   execAsync(["busctl", "--user", "call", "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetConnectionUnixProcessID", "s", busName])
-    .then((out) => pidOf.set(busName, Number(out.trim().split(/\s+/).pop() ?? 0)))
-    .catch(() => pidOf.set(busName, -1))
-  return 0
+    .then((out) => put(Number(out.trim().split(/\s+/).pop() ?? 0)))
+    .catch(() => put(-1))
+  return known?.pid ?? 0
 }
 /** the player's process has a running output stream */
 export const playerSounding = (busName: string | null | undefined, pids: Set<number>) => pids.has(playerPid(busName))

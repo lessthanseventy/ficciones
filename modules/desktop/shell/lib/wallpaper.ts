@@ -74,11 +74,13 @@ export function wallpaper() {
   }
   next()
   // a palette switch swaps the pool and redraws now
-  theme.subscribe(() => { pool = null; next() })
-  // re-armed from the setting each time, so a new interval applies from now
+  const offTheme = theme.subscribe(() => { pool = null; next() })
+  // re-armed from the setting each time, so a new interval applies from now; the folder is read
+  // again each turn, so a picture added to it joins the rotation
   let t: Timer | null = null
-  const arm = () => { t?.cancel(); t = timeout(Math.max(1, setting("wallpaper.rotateMinutes").peek()) * 60_000, () => { next(); arm() }) }
+  const arm = () => { t?.cancel(); t = timeout(Math.max(1, setting("wallpaper.rotateMinutes").peek()) * 60_000, () => { pool = null; next(); arm() }) }
   arm()
-  setting("wallpaper.rotateMinutes").subscribe(arm)
-  return { file, next }
+  const offMinutes = setting("wallpaper.rotateMinutes").subscribe(arm)
+  const dispose = () => { offTheme(); offMinutes(); t?.cancel(); const cur = file.peek(); if (cur) inUse.delete(cur) }
+  return { file, next, dispose }
 }

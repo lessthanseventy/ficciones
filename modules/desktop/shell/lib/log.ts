@@ -74,7 +74,8 @@ function backfill() {
     const lines = out.split("\n").filter((l) => /\[ALPM\] (upgraded|installed|removed) /.test(l)).slice(-30)
     for (const l of lines) {
       const m = l.match(/^\[([^\]]+)\] \[ALPM\] (.*)$/)
-      if (m) logAt(Date.parse(m[1]) || Date.now(), "sys", `pacman: ${m[2]}`, "dim")
+      // pacman writes the offset as -0500, which only the colon form parses everywhere
+      if (m) logAt(Date.parse(m[1].replace(/([+-]\d\d)(\d\d)$/, "$1:$2")) || Date.now(), "sys", `pacman: ${m[2]}`, "dim")
     }
   }).catch(() => {})
 }
@@ -95,8 +96,14 @@ const netTick = () => {
   const now = net.wifi?.ssid ?? null
   if (now !== ssid) { logEvent("sys", now ? `wifi ${now}` : "wifi down", now ? "normal" : "warn"); ssid = now }
 }
-net.connect("notify::wifi", netTick)
-net.wifi?.connect("notify::ssid", netTick)
+// the wifi object arrives after NetworkManager does, and is replaced with the adapter
+let wifi: typeof net.wifi | null = null
+const wifiHook = () => {
+  if (net.wifi && net.wifi !== wifi) { wifi = net.wifi; wifi.connect("notify::ssid", netTick) }
+  netTick()
+}
+net.connect("notify::wifi", wifiHook)
+wifiHook()
 const bt = Bluetooth.get_default()
 const btHook = (d: Bluetooth.Device) => d.connect("notify::connected", () => logEvent("sys", `${d.alias || d.name} ${d.connected ? "connected" : "disconnected"}`, "dim"))
 for (const d of bt.get_devices()) btHook(d)
