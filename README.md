@@ -69,7 +69,7 @@ each against the WCAG floors. The lock screen, photographed in a nested composit
 Every command a human or an agent runs is a mise task, in `tasks/<group>.toml`; `mise tasks`
 lists them and `docs/manual/tasks.md` is generated from that list.
 
-- `mise run check`: the names gate, the cap hook's test, the manual's drift check and the flake.
+- `mise run check`: the names gate, the cap hook's test, the mods' tests, the manual's drift check and the flake.
   Green before a commit.
 - `mise run flake:check`: evaluate and build this host's closures, the machine-level gate.
 - `mise run home:switch` (`home:switch:mac` on the Mac): apply the home-manager profile. The

@@ -34,6 +34,10 @@ run = "scripts/check-names.sh"
 description = "the hook that refuses cap piped into a filter reaches every verdict it should"
 run = "scripts/cap-no-pipe.test.sh"
 
+["check:mods"]
+description = "the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing)"
+run = "command -v claude >/dev/null || { echo 'check:mods — no claude on PATH, not run'; exit 0; }; for m in modules/agents/mods/*/; do claude plugin test \"$m\" || exit 1; done"
+
 ["check"]
-description = "Everything green: the names gate, the cap hook, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "manual:check", "flake:check"]
+description = "Everything green: the names gate, the cap hook, the mods' tests, the manual's drift check, and the flake"
+depends = ["check:names", "check:cap-hook", "check:mods", "manual:check", "flake:check"]

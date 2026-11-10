@@ -13,7 +13,7 @@ design and every decision behind it.
 The human and any agent drive this repo through the **same mise tasks** (`mise tasks` lists them) — one
 control loop, not two, and no second way to run anything:
 
-- `mise run check` — the names gate, the cap hook's test, the manual's drift check and the flake; the green-before-commit gate.
+- `mise run check` — the names gate, the cap hook's test, the mods' tests, the manual's drift check and the flake; the green-before-commit gate.
 - `mise run flake:check` — the machine-level Nix gate.
 - `mise run home:switch` — install/update this machine into the user profile via home-manager.
 - `mise run machine:update` — apply the checkout to the live machine: home:switch, then restart the shell and tlon's server (the one update verb).
@@ -135,7 +135,7 @@ exists so a reader of the repo knows where the law comes from and edits the one 
 
 ## Verify
 
-`mise run check` is the gate: the names gate, the cap hook's test, the manual's drift check and `flake:check` (Nix).
+`mise run check` is the gate: the names gate, the cap hook's test, the mods' tests, the manual's drift check and `flake:check` (Nix).
 The pre-commit hook also refuses a commit that touches the manual's sources while the manual drifts.
 `mise run check:names` (first in it) checks that every mise task a guide, script or `flake.nix` names
 exists — a rename that
