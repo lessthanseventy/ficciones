@@ -313,6 +313,20 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // A session started outside a repository comes up once Claude moves into one.
+  on('classic.CwdChanged', async ($, e, next) => {
+    const result = await next(e)
+    hasBaseline = false
+    if (isOpen) void refresh()
+    else if (canDraw && !isDismissed) {
+      try {
+        const inside = await $.process.run(['git', 'rev-parse', '--is-inside-work-tree'], { cwd: e.new_cwd })
+        if (inside.exitCode === 0) seated(await $.ui.open(OPEN))
+      } catch {}
+    }
+    return result
+  })
+
   on('command.run', { command: PANE }, async $ => {
     isDismissed = isOpen
     if (isOpen) await $.ui.close({ id: PANE })
