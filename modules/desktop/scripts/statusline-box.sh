@@ -41,6 +41,25 @@ if [ -n "$used" ] && [ "${#L[@]}" -ge 2 ]; then
 	L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
 fi
 
+# a model family's own weekly limit (Fable's, beside the all-models one) is not in the input:
+# it is read from the account's usage endpoint, at most every five minutes and behind the
+# repaint; the touch is what keeps a failing read from being tried on every repaint
+usage="${XDG_RUNTIME_DIR:-/tmp}/claude-usage.json"
+if [ -z "$(find "$usage" -mmin -5 2>/dev/null)" ]; then
+	touch "$usage"
+	(
+		tok=$(jq -r '.claudeAiOauth.accessToken // empty' "$HOME/.claude/.credentials.json" 2>/dev/null)
+		[ -n "$tok" ] && curl -sf -m 5 https://api.anthropic.com/api/oauth/usage \
+			-H "Authorization: Bearer $tok" -H 'anthropic-beta: oauth-2025-04-20' -o "$usage.new" &&
+			mv -f "$usage.new" "$usage"
+	) </dev/null >/dev/null 2>&1 &
+fi
+scoped=$(jq -r '[.limits[]? | select(.kind == "weekly_scoped")][0] | select(.)
+  | "\(.scope.model.display_name | ascii_downcase) \(.percent)%"' "$usage" 2>/dev/null)
+if [ -n "$scoped" ] && [ "${#L[@]}" -ge 2 ]; then
+	L[1]="${L[1]}  ✦  ${scoped}"
+fi
+
 effort=$(printf '%s' "$input" | jq -r '.effort.level // empty' 2>/dev/null)
 if [ -n "$effort" ] && [ "${#L[@]}" -ge 1 ]; then
 	L[0]="${L[0]} ${WARM}◆ ${effort}${RESET}"
@@ -82,7 +101,7 @@ if [ "${#L[@]}" -ge 2 ]; then
 		awk -v live="$LIVE" -v warm="$WARM" -v hot="$HOT" '
         function pick(p) { if (p+0 >= 80) return hot; else if (p+0 >= 50) return warm; else return live }
         {
-          gsub(/󰧑/, "\001󰧑"); gsub(/⏱/, "\001⏱"); gsub(/▦/, "\001▦");
+          gsub(/󰧑/, "\001󰧑"); gsub(/⏱/, "\001⏱"); gsub(/▦/, "\001▦"); gsub(/✦/, "\001✦");
           n = split($0, seg, "\001");
           out = seg[1];
           for (i = 2; i <= n; i++) {
