@@ -114,7 +114,7 @@ in
       set -g automatic-rename-format "#{?#{m/r:^[0-9.]+$,#{pane_current_command}},claude,#{pane_current_command}}#{?pane_dead,[dead],}"
       # Colours: the machine palette (modules/desktop/theme), never hex here —
       # the live theme's copy, so a theme switch reaches new tmux servers
-      source-file ~/.config/ficciones/theme/tmux.conf
+      source-file -q ~/.config/ficciones/theme/tmux.conf
 
       bind c new-window -c "#{pane_current_path}"
       bind | split-window -h -c "#{pane_current_path}"

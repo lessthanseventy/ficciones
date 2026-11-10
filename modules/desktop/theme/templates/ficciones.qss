@@ -126,13 +126,13 @@ QScrollBar:vertical, QScrollBar:horizontal {
 }
 
 QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
-    background: rgba(255, 176, 0, 0.3);
+    background: @structure@;
     border-radius: 4px;
     min-height: 30px;
 }
 
 QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
-    background: rgba(255, 176, 0, 0.5);
+    background: @body@;
 }
 
 QScrollBar::add-line, QScrollBar::sub-line,
