@@ -38,7 +38,7 @@ test('a shell command of several steps is named by them', async () => {
   expect(steps('ls src')).toEqual(['ls'])
   expect(turnLine({ tool: 'Bash', input: { command: 'git add . && git commit -m x' }, output: { stdout: 'ok\n' } }, false)).toBe('Bash git add · git commit → ok')
   const edits = { files: [{ filePath: '/r/a.ts', hunks: [{ lines: ['-a', '+b'] }] }, { filePath: '/r/b.ts', hunks: [{ lines: ['+c'] }] }] }
-  expect(turnLine({ tool: 'Bash', input: { command: 'sed -i s/a/b/ a.ts b.ts' }, output: { stdout: 'ok\n', bashEditDiff: edits } }, false)).toBe('Bash sed -i s/a/b/ a.ts b.ts → ok  ✎ a.ts +1 -1, b.ts +1 -0')
+  expect(turnLine({ tool: 'Bash', input: { command: 'sed -i s/a/b/ a.ts b.ts' }, output: { stdout: 'ok\n', bashEditDiff: edits } }, false)).toBe('Bash sed -i s/a/b/ a.ts b.ts → ok')
 })
 
 test("a command's last word is not its timing, and a call's own time reads short", async () => {

@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { callText, menardSaid, took, turnLine } from './calls'
+import { callText, menardSaid, shellEdits, took, turnLine } from './calls'
 import type { Call } from './calls'
 
 // Fewer calls than this and the turn's own rows say it; more lines than the cap and the oldest go.
@@ -28,6 +28,7 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
     $.ui.invalidate('ui.render')
   }
   const space = line.indexOf(' ')
+  const files = call.tool === 'Bash' ? shellEdits(call.output) : []
   // the lead stands in a column of its own, so a line that wraps comes back under its text
   return (
     <Box>
@@ -39,6 +40,19 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
           {time ? <Text color="claude">{`  ${time}`}</Text> : null}
           <Text dimColor>{isOpen ? '  ▾' : '  ▸'}</Text>
         </Button>
+        {files.length > 0 ? (
+          <Box paddingLeft={2}>
+            <Text>
+              <Text dimColor>✎ </Text>
+              {files.map(({ name, adds, dels }, index) => (
+                <Text>
+                  {index > 0 ? <Text dimColor> · </Text> : null}
+                  {name} <Text color="success">+{adds}</Text> <Text color="error">-{dels}</Text>
+                </Text>
+              ))}
+            </Text>
+          </Box>
+        ) : null}
         {isOpen ? (
           <Box paddingLeft={2}>
             <Client key={`body-${id}`} module="./body.tsx" props={{ id, lines: callText(call) }} width="100%" />
@@ -111,7 +125,9 @@ export const register: Register = on => {
       $.ui.invalidate('ui.render')
     }
     if ((e as { agentId?: string }).agentId === undefined) {
-      turnLines = [...turnLines, turnLine({ tool: e.tool, input: e, output: (result as { result?: unknown }).result }, (result as { isError?: boolean }).isError === true)].slice(-MAX_TURN_LINES)
+      const call = { tool: e.tool, input: e, output: (result as { result?: unknown }).result }
+      const edited = shellEdits(call.output).map(({ name, adds, dels }) => ` · ${name} +${adds} -${dels}`).join('')
+      turnLines = [...turnLines, turnLine(call, (result as { isError?: boolean }).isError === true) + edited].slice(-MAX_TURN_LINES)
     }
     return result
   })
