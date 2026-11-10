@@ -303,12 +303,14 @@
                 builtins.toJSON (import ./modules/desktop/theme/contrast.nix palette)
               );
             run = name: palette: ''
-              ${pkgs.python3}/bin/python3 ${./modules/desktop/theme/contrast.py} ${name} ${spec name palette}
+              ${pkgs.python3}/bin/python3 ${./modules/desktop/theme/contrast.py} ${name} ${spec name palette} || rc=1
             '';
           in
+          # every palette is checked before it fails: one run names all of them
           pkgs.runCommand "palette-contrast" { } (
-            pkgs.lib.concatStrings (pkgs.lib.mapAttrsToList run (import ./modules/desktop/theme/palettes))
-            + "touch $out\n"
+            "rc=0\n"
+            + pkgs.lib.concatStrings (pkgs.lib.mapAttrsToList run (import ./modules/desktop/theme/palettes))
+            + "[ $rc = 0 ] && touch $out\n"
           );
       };
 
