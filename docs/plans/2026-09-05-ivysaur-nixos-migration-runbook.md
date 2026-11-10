@@ -105,6 +105,11 @@ All of this from the ISO shell as root. **Nothing before step 3.5 destroys anyth
 - home-manager is a NixOS module here: `modules/desktop` was applied by `nixos-install`. The
   out-of-store symlinks (`~/.config/hypr/hyprland.lua` → the repo) resolve because `@home` is
   the same `/home`.
+- **Not carried over yet: the agent wiring.** tlon's service and slices, agenix and its secrets,
+  `~/.claude/CLAUDE.md` and the skills, the Claude zsh, `.zshrc`, the git config, tmux and menard
+  live in the inline module of `homeConfigurations.personalbox` (flake.nix), which the NixOS
+  hosts do not import: they get `modules/desktop` only. Before leaving Arch, lift that module
+  into a file both import, then prove it in the VM.
 - If it does not boot: reboot, hold the firmware key, pick the USB again, mount as in §3.1, and
   either
   - fix `modules/os/ivysaur.nix` and re-run §3.6 (nothing else needs redoing), or
