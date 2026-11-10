@@ -74,6 +74,9 @@ merging main in. Rewriting history that is already pushed or shared is the human
   returned what you expect (status, non-empty) and stop on the first miss; dry-run the first item.
 - **Verify state before building on it.** A "merged" or "closed" notice is not proof: fetch and look
   for the code on `origin/main`.
+- **A gate is its own call.** Run the check, read its answer, then push in a separate command.
+  Never join a check to a push or a deploy in one command: with `;` the push runs whether it
+  passed or not. Do not discard a tool's own summary to rebuild one with tail.
 - **Wait on notifications, not loops.** Start a long command once in the background and wait for its
   completion; no `sleep`/`until` poll loops (they outlive you, and `pgrep -f` matches the loop
   itself). Before saying nothing is running, check your agents and background shells too.
