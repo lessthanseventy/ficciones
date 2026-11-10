@@ -147,7 +147,9 @@ export const turnLine = (call: Call, isError: boolean): string => {
   // a command's last line is where it says how it went
   const stdout = call.tool === 'Bash' ? (call.output as { stdout?: unknown } | undefined)?.stdout : undefined
   const last = typeof stdout === 'string' ? stdout.trimEnd().split('\n').pop()!.trim().slice(0, MAX_LAST) : ''
-  const edited = call.tool === 'Bash' ? shellEdits(call.output).map(({ name, adds, dels }) => ` · ${name} +${adds} -${dels}`).join('') : ''
+  // the steps are joined by dots and the last line may hold some: the files get a mark of their own
+  const files = call.tool === 'Bash' ? shellEdits(call.output).map(({ name, adds, dels }) => `${name} +${adds} -${dels}`) : []
+  const edited = files.length > 0 ? `  ✎ ${files.join(', ')}` : ''
   // a command of several steps is named by them, one of a single step by its own text
   const ran = call.tool === 'Bash' ? steps(first) : []
   const made = ran.length > 1 ? `${ran.slice(0, MAX_STEPS).join(' · ')}${ran.length > MAX_STEPS ? ` · +${ran.length - MAX_STEPS}` : ''}` : nearby(first.split('\n')[0]!).slice(0, MAX_MADE)
