@@ -33,24 +33,34 @@ const ROWED = new Set(['Bash', 'Read', 'Edit', 'Write', 'Grep', 'Glob'])
 
 type Ui = { ui: { resolve: (e: never) => Record<string, any>; invalidate: (event: string) => void } }
 
-// One call's line and, once clicked, the call as it was made and answered. All of it is the
-// button, so a click anywhere in an opened call folds it.
+// One call's line and, once clicked, the call as it was made and answered under it. The line
+// alone is the button: the pointer inverts a button whole, and a screen of output inverted is
+// unreadable.
 function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call, line: string, lead: string) {
-  const { Text, Button } = $.ui.resolve(e as never)
+  const { Box, Text, Button } = $.ui.resolve(e as never)
   const isOpen = opened.has(id)
   const toggle = () => {
     if (!opened.delete(id)) opened.add(id)
     $.ui.invalidate('ui.render')
   }
   const space = line.indexOf(' ')
+  // the lead stands in a column of its own, so a line that wraps comes back under its text
   return (
-    <Button plain key={`call-${id}`} onPress={toggle}>
-      {lead}
-      <Text color="remember">{space < 0 ? line : line.slice(0, space)}</Text>
-      {space < 0 ? '' : line.slice(space)}
-      <Text dimColor>{isOpen ? '  ▾' : '  ▸'}</Text>
-      {isOpen ? <Text dimColor>{callText(call).map(text => `\n    ${text}`).join('')}</Text> : null}
-    </Button>
+    <Box>
+      <Text dimColor>{lead}</Text>
+      <Box flexShrink={1} flexDirection="column">
+        <Button plain key={`call-${id}`} onPress={toggle}>
+          <Text color="remember">{space < 0 ? line : line.slice(0, space)}</Text>
+          {space < 0 ? '' : line.slice(space)}
+          <Text dimColor>{isOpen ? '  ▾' : '  ▸'}</Text>
+        </Button>
+        {isOpen ? (
+          <Box paddingLeft={2}>
+            <Text dimColor>{callText(call).join('\n')}</Text>
+          </Box>
+        ) : null}
+      </Box>
+    </Box>
   )
 }
 const OPEN = { id: PANE, title: 'Changes' }
@@ -501,8 +511,7 @@ export const register: Register = on => {
   })
 
   // A call is one line of what it was and how it went, in place of the call as typed and its
-  // output; a click opens that one call and folds it again. menard's calls are drawn here too,
-  // over its plugin's own rows, so one module decides every row's order and folding.
+  // output; a click opens that one call and folds it again.
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     const input = e.props.input as { run_in_background?: boolean } | undefined
     const isRowed = ROWED.has(e.props.tool) || menardSaid(e.props) !== null
@@ -527,12 +536,10 @@ export const register: Register = on => {
   // count: this hook answers for the whole run and does not pass it on.
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     if (!canDraw || e.props.isExpanded) return next(e)
-    const all = e.props.calls.map((call, index) => ({ call, id: call.tool_use_id ?? `group-${index}` }))
+    const calls = e.props.calls.map((call, index) => ({ call, id: call.tool_use_id ?? `group-${index}` }))
     // a run that holds more than its calls (a recalled memory, an errored call's row) keeps
-    // Claude Code's line, and under it the rows menard's plugin does not draw
+    // Claude Code's line above the rows
     const isWhole = e.props.isCallsOnly === true
-    const calls = isWhole ? all : all.filter(({ call }) => menardSaid(call) === null)
-    if (calls.length === 0) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">
