@@ -33,8 +33,9 @@ echo "configerrors: none"
 # Lua binds report dispatcher "__lua" + a handle id, so the dispatcher/arg cannot be compared
 # textually; keys, modmasks and flags can (dispatcher equivalence is the by-hand pass after the flip).
 norm='.[] | {modmask, key, locked, mouse, release, repeat} | tostring'
+rc=0
 echo "== binds diff (live vs nested) — key/mods/flags"
-diff <(l binds -j | jq -r "$norm" | sort) <(n binds -j | jq -r "$norm" | sort) && echo "binds: identical ($(n binds -j | jq length) binds)"
+diff <(l binds -j | jq -r "$norm" | sort) <(n binds -j | jq -r "$norm" | sort) && echo "binds: identical ($(n binds -j | jq length) binds)" || rc=1
 echo "== binds: live dispatcher+arg per key (for the by-hand pass)"
 l binds -j | jq -r '.[] | "\(.modmask)\t\(.key)\t\(.dispatcher) \(.arg)"' | sort >"$scratch/live-binds.tsv"
 echo "  $scratch/live-binds.tsv"
@@ -50,12 +51,16 @@ for o in $opts; do
 	canon() { sed -E 's/^(int|bool): (1|true)$/true/; s/^(int|bool): (0|false)$/false/; s/^(custom type|gradient data|css gap data): //'; }
 	a="$(l getoption "$o" 2>&1 | head -1 | canon)"
 	b="$(n getoption "$o" 2>&1 | head -1 | canon)"
-	[ "$a" = "$b" ] && echo "  ok   $o = $a" || echo "  DIFF $o: live[$a] nested[$b]"
+	if [ "$a" = "$b" ]; then echo "  ok   $o = $a"; else
+		echo "  DIFF $o: live[$a] nested[$b]"
+		rc=1
+	fi
 done
 echo "== workspace rules"
-diff <(l workspacerules | sort) <(n workspacerules | sort) && echo "workspacerules: identical"
+diff <(l workspacerules | sort) <(n workspacerules | sort) && echo "workspacerules: identical" || rc=1
 echo "== animations"
-diff <(l animations | sort) <(n animations | sort) && echo "animations: identical"
+diff <(l animations | sort) <(n animations | sort) && echo "animations: identical" || rc=1
 echo "== monitors (nested sees the nested window only; listed for the record)"
 n monitors -j | jq -r '.[] | "\(.name) \(.width)x\(.height)"'
 echo "log: $scratch/hyprland.log"
+exit "$rc"
