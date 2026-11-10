@@ -130,7 +130,7 @@ function tt() {
   mix test $1 --color --trace
 }
 
-# A session and everything it runs go in agents.slice, below the desktop under contention.
+# A session and everything it runs go in agents.slice: one handle on all of them (flake.nix sets its weight).
 function claude() {
   systemd-run --user --scope --quiet --collect --slice=agents.slice -- claude "$@"
 }

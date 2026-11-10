@@ -568,13 +568,14 @@
                 };
 
                 # Claude sessions started by hand (the `claude` function in modules/os/zshrc) and the
-                # suites they run, at the same low weight; apart from tlon.slice so `server:stop`
-                # never takes them down.
+                # suites they run; apart from tlon.slice so `server:stop` never takes them down.
+                # At the default weight, and no quota: the session's own UI is typed into from
+                # inside this cgroup, and a low share made it wait behind every suite in the slice.
                 agents = {
                   Unit.Description = "agents — Claude sessions started from a terminal";
                   Slice = {
-                    CPUWeight = 20;
-                    IOWeight = 20;
+                    CPUWeight = 100;
+                    IOWeight = 100;
                   };
                 };
               };
