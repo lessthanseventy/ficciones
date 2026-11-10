@@ -37,13 +37,13 @@ async function stableIds(): Promise<Map<string, string>> {
   return new Map(cs.map((c) => [c.address.replace(/^0x/, ""), c.stableId]))
 }
 
-let busy = false
+const busy = new Set<number>() // by workspace: each monitor's showing one captures on its own
 /** Capture every window on `ws` (only if it is showing). One grim per window, a quarter scale. */
 export async function capture(ws: Hyprland.Workspace | null | undefined) {
-  if (!ws || busy) return
+  if (!ws || busy.has(ws.id)) return
   const cs = visibleClients(ws)
   if (!cs.length) return
-  busy = true
+  busy.add(ws.id)
   try {
     // full resolution, jpeg; GTK scales the picture down
     const ids = await stableIds()
@@ -52,10 +52,8 @@ export async function capture(ws: Hyprland.Workspace | null | undefined) {
       return id ? execAsync(["grim", "-t", "jpeg", "-q", "70", "-T", id, pathFor(c.address)]).then(() => geom.set(c.address, r)).catch(() => {}) : null
     }))
     setStamp((s) => s + 1)
-  } finally { busy = false }
+  } finally { busy.delete(ws.id) }
 }
-
-export const hasThumb = (address: string) => Gio.File.new_for_path(pathFor(address)).query_exists(null)
 
 /** The thumb as a texture already scaled to `h` px tall — a Picture at natural size then IS the thumbnail. */
 export function texture(address: string, h: number): Gdk.Texture | null {
@@ -75,7 +73,7 @@ hypr.connect("notify::focused-workspace", () => {
   pending = timeout(700, () => capture(hypr.focusedWorkspace))
 })
 // gone windows leave their thumbs; a sweep at start keeps the dir honest
-hypr.connect("client-removed", (_, address: string) => { try { Gio.File.new_for_path(pathFor(address)).delete(null) } catch { /* none */ } })
+hypr.connect("client-removed", (_, address: string) => { geom.delete(address); try { Gio.File.new_for_path(pathFor(address)).delete(null) } catch { /* none */ } })
 // and while a strip is open every showing workspace refreshes every few seconds, so it is
 // never far behind. Not at idle: a capture is a grim per window and every strip's pictures
 // (hidden ones too) decode their jpeg again on the stamp — measured at ~2% of a core all day.

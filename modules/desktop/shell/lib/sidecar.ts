@@ -80,6 +80,8 @@ export async function adoptSidecars(tries = 40) {
     const [name, address] = l.split(" ")
     const c = hypr.get_client(address)
     if (!(c && c.pinned && c.floating && c.get_monitor()?.name === name)) continue
+    // a retry walks every line again: a monitor adopted on an earlier pass would get a second zone and ring
+    if (sidecars.get(name)?.address === c.address) continue
     // the column and ring are placed inside the monitor's reserved area — the rail and bar's
     // exclusive zones — which is empty until this shell's own layers have mapped: adopted too
     // early, the ring ran under the rail
