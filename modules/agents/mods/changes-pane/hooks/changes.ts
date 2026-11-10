@@ -58,6 +58,20 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
   return ok === undefined ? said : `${said}: ${ok === 'true' ? 'ok' : 'failed'}`
 }
 
+// One tool call as a line a model can summarise a turn from: what ran, on what, and how it went.
+export const turnLine = (call: Call, isError: boolean): string => {
+  const fields = (call.input ?? {}) as Record<string, unknown>
+  const failed = isError ? ' (failed)' : ''
+  const said = menardSaid(call)
+  if (said !== null) return `menard ${said}${failed}`
+  if (typeof fields.file_path === 'string' && (call.tool === 'Edit' || call.tool === 'Write')) {
+    const { adds, dels } = patchCounts(call.output)
+    return `${call.tool} ${fields.file_path} +${adds} -${dels}${failed}`
+  }
+  const first = Object.values(fields).find((v): v is string => typeof v === 'string' && v !== call.tool) ?? ''
+  return `${call.tool} ${first.split('\n')[0]!.slice(0, MAX_SAID)}${failed}`.trim()
+}
+
 // `git show` with the message first: what the person reads, and each file's own diff. A session
 // link in a trailer is a click waiting to happen, so those lines are left out.
 export const parseShow = (show: string): { message: string[]; files: Map<string, string> } => {

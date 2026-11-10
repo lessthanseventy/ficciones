@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { menardSaid, emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { menardSaid, turnLine, emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -237,6 +237,12 @@ test('a menard call is named by what it did', async () => {
   expect(menardSaid({ tool: 'mcp__plugin_menard_menard__run', input: { verb: 'test' }, output: '{"ok":false,"failures":[]}' })).toBe('run test: failed')
   expect(menardSaid({ tool: 'Bash', input: { command: 'ls' }, output: {} })).toBeNull()
   expect(menardSaid({ tool: 'Read', input: { file_path: 'menard edit' } })).toBeNull()
+})
+
+test('a call becomes a line a turn can be summarised from', async () => {
+  expect(turnLine({ tool: 'Edit', input: { tool: 'Edit', file_path: 'lib/a.ts' }, output: { structuredPatch: [{ lines: ['-a', '+b', '+c'] }] } }, false)).toBe('Edit lib/a.ts +2 -1')
+  expect(turnLine({ tool: 'Bash', input: { tool: 'Bash', command: 'mise run check\necho done' }, output: {} }, true)).toBe('Bash mise run check (failed)')
+  expect(turnLine({ tool: 'mcp__plugin_menard_menard__run', input: { verb: 'test' }, output: '{"ok":true}' }, false)).toBe('menard run test: ok')
 })
 
 test('an edit is counted from its own result', async () => {

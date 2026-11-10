@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, menardSaid, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, menardSaid, parseDiff, parseLog, parseShow, patchCounts, turnLine, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Commit, DiffLine, File, Run } from './changes'
 import type { Input, List, Section } from './view'
 
@@ -17,6 +17,11 @@ const MAX_KEPT_COMMITS = 50
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
 const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · f follow/hold · L lazygit'
+// Fewer calls than this and the turn's own rows say it; more lines than the cap and the oldest go.
+const MIN_TURN_CALLS = 4
+const MAX_TURN_LINES = 80
+const SUMMARY_MS = 8000
+const SUMMARISE = 'Below are the tool calls a coding assistant made in one turn, in order. Say what was done in ONE plain line of at most 25 words: what changed, what was run and whether it passed. No preamble, no markdown.\n\n'
 const HINT_AWAY = 'keys go to the prompt · click here to browse'
 // Their result is the diff this pane already shows, so the transcript gets its counts; ctrl+o still has it.
 const SHOWN_HERE = new Set(['Edit', 'Write'])
@@ -71,6 +76,7 @@ export const register: Register = on => {
   // Whether the view has the keyboard. The engine says nothing when a click gives it or Escape
   // takes it back, so it is read from where input lands: here, or in the prompt box.
   let hasKeys = false
+  let turnLines: string[] = []
   let isRefreshing = false
   let isStale = false
   let refresh: () => Promise<void> = async () => {}
@@ -317,8 +323,27 @@ export const register: Register = on => {
 
 
   // The poll alone would leave up to two seconds between an edit and the pane following it.
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) turnLines = []
+    return next(e)
+  })
+
+  // One line under a long turn's answer, from a small model, of what the turn's calls came to.
+  on('turn.complete', async ($, e, next) => {
+    const done = await next(e)
+    if (e.agentId !== undefined) return done
+    const lines = turnLines
+    turnLines = []
+    if (!canDraw || e.reason !== 'answer' || lines.length < MIN_TURN_CALLS) return done
+    const reply = await $.model.complete({ model: 'haiku', prompt: SUMMARISE + lines.join('\n'), maxTokens: 120, effort: 'low', timeoutMs: SUMMARY_MS })
+    return reply.isAnswered ? { ...done, text: `↳ ${reply.text.trim().split('\n')[0]}` } : done
+  })
+
   on('tool.call', async ($, e, next) => {
     const result = await next(e)
+    if ((e as { agentId?: string }).agentId === undefined) {
+      turnLines = [...turnLines, turnLine({ tool: e.tool, input: e, output: (result as { result?: unknown }).result }, (result as { isError?: boolean }).isError === true)].slice(-MAX_TURN_LINES)
+    }
     if (isOpen) void refresh()
     else if (canDraw && !isDismissed) {
       // The tool has already run: a failed look at git must not cost it its result.
