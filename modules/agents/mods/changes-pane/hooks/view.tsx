@@ -10,7 +10,7 @@ export type Section = {
   isFocused: boolean
   first: number
   empty: string
-  rows: { lead: string; dim: string; label: string; adds: string; dels: string; isSelected: boolean }[]
+  rows: { lead: string; dim: string; label: string; adds: string; dels: string; isSelected: boolean; isAhead?: boolean }[]
 }
 export type ViewProps = {
   title: string
@@ -80,11 +80,11 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
         <Text {...edge(section.isFocused)}>{section.rule}╮</Text>
       </Box>
       {section.rows.length === 0 ? within(section.isFocused, <Text dimColor wrap="truncate-end">{section.empty}</Text>) : null}
-      {section.rows.map(({ lead, dim, label, adds, dels, isSelected }) =>
+      {section.rows.map(({ lead, dim, label, adds, dels, isSelected, isAhead }) =>
         within(
           section.isFocused,
           <Text inverse={isSelected && section.isFocused} weight={isSelected && !section.isFocused ? 'bold' : undefined} wrap="truncate-end">
-            <Text color="permission">{lead}</Text>
+            <Text color={isAhead ? 'warning' : 'permission'}>{lead}</Text>
             <Text dimColor={!isSelected}>{dim}</Text>
             {label}
             <Text color="success">{adds}</Text>

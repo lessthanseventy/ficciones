@@ -41,6 +41,7 @@ export const register: Register = on => {
   let files: File[] = []
   let diffs = new Map<string, Diff>()
   let commits: Commit[] = []
+  let ahead = new Set<string>()
   let root = ''
   let branch = ''
   let common = ''
@@ -168,7 +169,7 @@ export const register: Register = on => {
       isFocused: hasKeys && focus === 'commits',
       first: firstCommit,
       empty: '',
-      rows: log.slice(firstCommit, firstCommit + commitRows()).map(({ id, lead, label }) => row(lead, label, undefined, id === source, false)),
+      rows: log.slice(firstCommit, firstCommit + commitRows()).map(({ id, lead, label }) => ({ ...row(lead, label, undefined, id === source, false), isAhead: ahead.has(id) })),
     }
     return {
       title,
@@ -224,6 +225,9 @@ export const register: Register = on => {
         ;[root = '', branch = '', common = ''] = (await $.process.run(['git', 'rev-parse', '--show-toplevel', '--abbrev-ref', 'HEAD', '--path-format=absolute', '--git-common-dir'])).stdout.split('\n')
         const log = await $.process.run(['git', '--no-optional-locks', 'log', '-n', String(MAX_COMMITS), '--format=%h%x09%s'])
         commits = log.exitCode === 0 ? parseLog(log.stdout) : []
+        // a branch with no upstream has nothing to be ahead of
+        const unpushed = await $.process.run(['git', '--no-optional-locks', 'log', '-n', String(MAX_COMMITS), '--format=%h', '@{upstream}..HEAD'])
+        ahead = new Set(unpushed.exitCode === 0 ? unpushed.stdout.split('\n').filter(Boolean) : [])
         const texts = await readDiffs(files)
         const before = diffs
         diffs = new Map(files.map(({ path }) => {
