@@ -1,7 +1,12 @@
 // node --test lib/format.test.mjs (mise shell:test): the shell's shared text formats.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { hhmm, duration } from "./format.ts"
+import { hhmm, duration, localDay } from "./format.ts"
+
+test("localDay is that date's own midnight here, not UTC's", () => {
+  const d = new Date(localDay("2026-11-09"))
+  assert.deepEqual([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getDay()], [2026, 10, 9, 0, 1])
+})
 
 test("hhmm is 24 h, zero-padded, from a timestamp, an ISO string or a Date", () => {
   const d = new Date(2026, 0, 2, 9, 5)

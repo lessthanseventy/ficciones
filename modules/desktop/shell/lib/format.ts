@@ -30,6 +30,9 @@ export function spark(values: number[], width: number): string {
   return out
 }
 
+/** Local midnight (epoch ms) of a date-only `YYYY-MM-DD`: `Date.parse` alone reads one as UTC, the evening before west of Greenwich. */
+export const localDay = (date: string): number => Date.parse(`${date}T00:00`)
+
 /** `HH:MM`, 24 h, in local time, from a timestamp (ms), an ISO string or a Date; "" when it is not a date */
 export function hhmm(t: number | string | Date): string {
   const d = new Date(t)

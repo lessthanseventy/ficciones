@@ -4,6 +4,7 @@ import GLib from "gi://GLib?version=2.0"
 import { createPoll } from "ags/time"
 import { readFileAsync, writeFileAsync } from "ags/file"
 import { fetch } from "ags/fetch"
+import { localDay } from "./format"
 
 export type Hour = { t: number; temp: number; code: number; rain: number }        // t = epoch ms
 export type Day = {
@@ -91,7 +92,7 @@ async function fetchWeather(): Promise<Weather> {
       .filter((h: Hour) => h.t >= now - 3600_000)
       .slice(0, 24)
     const days: Day[] = j.daily.time.map((t: string, i: number) => ({
-      t: Date.parse(t), code: j.daily.weather_code[i], high: j.daily.temperature_2m_max[i], low: j.daily.temperature_2m_min[i],
+      t: localDay(t), code: j.daily.weather_code[i], high: j.daily.temperature_2m_max[i], low: j.daily.temperature_2m_min[i],
       rain: j.daily.precipitation_probability_max[i] ?? 0, sunrise: j.daily.sunrise[i], sunset: j.daily.sunset[i], uv: j.daily.uv_index_max[i] ?? 0,
       // hourly comes as 24 rows per day in the query's order, day i at i*24
       skies: Array.from({ length: 8 }, (_, k) => j.hourly.weather_code[i * 24 + k * 3]).filter((c: unknown) => typeof c === "number"),
