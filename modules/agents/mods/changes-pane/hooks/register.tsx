@@ -64,6 +64,7 @@ export const register: Register = on => {
   let isFollowing = true
   let canDraw = false
   let isDismissed = false
+  let cwd = ''
 
   // A terminal sends one notch of the wheel as a burst of events (Ghostty: three); over a list the
   // burst is one step.
@@ -299,6 +300,7 @@ export const register: Register = on => {
       }
     }
 
+    cwd = e.cwd
     $.clock.every(POLL_MS, () => { void refresh() })
     // VS Code and mobile have no Client to draw this pane with.
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
@@ -311,20 +313,6 @@ export const register: Register = on => {
       } catch {}
     }
     return next(e)
-  })
-
-  // A session started outside a repository comes up once Claude moves into one.
-  on('classic.CwdChanged', async ($, e, next) => {
-    const result = await next(e)
-    hasBaseline = false
-    if (isOpen) void refresh()
-    else if (canDraw && !isDismissed) {
-      try {
-        const inside = await $.process.run(['git', 'rev-parse', '--is-inside-work-tree'], { cwd: e.new_cwd })
-        if (inside.exitCode === 0) seated(await $.ui.open(OPEN))
-      } catch {}
-    }
-    return result
   })
 
   on('command.run', { command: PANE }, async $ => {
@@ -349,8 +337,12 @@ export const register: Register = on => {
     else if (canDraw && !isDismissed) {
       // The tool has already run: a failed look at git must not cost it its result.
       try {
+        // Claude's cd moves the session, and a move into a repository opens the pane with nothing uncommitted.
+        const now = await $.session.cwd()
+        const hasMoved = now !== cwd
+        cwd = now
         const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1'])
-        if (status.exitCode === 0 && status.stdout !== '') seated(await $.ui.open(OPEN))
+        if (status.exitCode === 0 && (hasMoved || status.stdout !== '')) seated(await $.ui.open(OPEN))
       } catch {}
     }
     return result

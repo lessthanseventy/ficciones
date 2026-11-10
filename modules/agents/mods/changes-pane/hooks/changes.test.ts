@@ -157,6 +157,29 @@ test('the pane is up from the start in a repository, /changes hides and shows it
   expect(seen).toEqual(['open changes', 'close changes', 'open changes', 'open changes'])
 })
 
+test('a session started outside a repository opens the pane once it moves into one', async ($, on) => {
+  mock.clock(on)
+  on('session.start', async ($, e) => e)
+  const seen: string[] = []
+  on('ui.open', async ($, e) => {
+    seen.push(`open ${e.id}`)
+    return { value: { isPlaced: true } } as never
+  })
+  on('command.register', async () => ({ value: undefined }) as never)
+  let cwd = '/home'
+  on('session.cwd', async () => ({ value: cwd }) as never)
+  on('process.run', async () => ({ value: { exitCode: cwd === '/repo' ? 0 : 128, stdout: '', stderr: '' } }) as never)
+  on('tool.call', () => ({ result: {} }) as never)
+  await $.session.start({ cwd, surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  expect(seen).toEqual([])
+  cwd = '/repo'
+  await $.tool.call({ tool: 'Bash', command: 'cd /repo' } as never)
+  expect(seen).toEqual(['open changes'])
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  expect(seen).toEqual(['open changes'])
+})
+
 const DIFFS = 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\ndiff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -1 +1 @@\n-p\n+q\ndiff --git a/c.ts b/c.ts\n--- a/c.ts\n+++ b/c.ts\n@@ -1 +1 @@\n-m\n+n\n'
 
 const repo = (on: On, diff = DIFFS, status = ' M a.ts\0 M b.ts\0 M c.ts\0') => {
