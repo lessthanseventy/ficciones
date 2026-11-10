@@ -9,6 +9,12 @@
   tlonRepo,
   astalShell,
   hyprexpo,
+  dbx,
+  agentBrowser,
+  agentDesktop,
+  agenixPackage,
+  agenixHome,
+  expertPackages,
   ...
 }:
 
@@ -126,12 +132,45 @@ in
     libxcrypt-legacy
   ];
 
+  # tlon's store: the `tlon` database on the local socket, owned by the user its service runs as
+  services.postgresql = {
+    enable = true;
+    ensureDatabases = [ "tlon" ];
+    ensureUsers = [
+      {
+        name = "andrew";
+        ensureClauses.createdb = true;
+      }
+    ];
+  };
+  systemd.services.postgresql.postStart = lib.mkAfter ''
+    psql -tAc 'ALTER DATABASE tlon OWNER TO andrew'
+  '';
+
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    extraSpecialArgs = { inherit repo tlonRepo astalShell; };
+    extraSpecialArgs = {
+      inherit
+        repo
+        tlonRepo
+        astalShell
+        dbx
+        agentBrowser
+        agentDesktop
+        agenixPackage
+        expertPackages
+        ;
+      pgIsReady = "${config.services.postgresql.package}/bin/pg_isready";
+    };
     users.andrew = {
-      imports = [ ../desktop ];
+      imports = [
+        ../desktop
+        ../tmux.nix
+        ../menard-host.nix
+        agenixHome
+        ../agents
+      ];
       home.stateVersion = "25.11";
       ficciones.desktop.shell.autostart = true;
     };

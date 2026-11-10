@@ -105,12 +105,13 @@ All of this from the ISO shell as root. **Nothing before step 3.5 destroys anyth
 - home-manager is a NixOS module here: `modules/desktop` was applied by `nixos-install`. The
   out-of-store symlinks (`~/.config/hypr/hyprland.lua` → the repo) resolve because `@home` is
   the same `/home`.
-- **Not carried over yet: the agent wiring.** tlon's service and slices, agenix and its secrets,
+- **The agent wiring comes with it.** tlon's service and slices, agenix and its secrets,
   `~/.claude/CLAUDE.md` and the skills, the Claude zsh, `.zshrc`, the git config, tmux and menard
-  live in `modules/agents` (a home-manager module `homeConfigurations.personalbox` imports),
-  which the NixOS hosts do not import yet: they get `modules/desktop` only. Before leaving
-  Arch, import it in `modules/os` with agenix's module and its arguments, give tlon's service
-  a Postgres and a `pg_isready` that are not Arch's `/usr/bin`, then prove it in the VM.
+  are `modules/agents`, `modules/tmux.nix` and `modules/menard-host.nix`, which `modules/os`
+  imports for andrew beside a Postgres holding the `tlon` database. The VM system builds with
+  them; none of it has run on NixOS. What the first boot still owes: `~/.ssh/id_ed25519` in
+  place before the first activation (agenix decrypts with it), tlon's release built in its
+  `.release` checkout (the service's ExecStart), and the Arch database restored into `tlon`.
 - If it does not boot: reboot, hold the firmware key, pick the USB again, mount as in §3.1, and
   either
   - fix `modules/os/ivysaur.nix` and re-run §3.6 (nothing else needs redoing), or

@@ -11,6 +11,7 @@
   agentBrowser,
   agentDesktop,
   agenixPackage,
+  pgIsReady,
   ...
 }:
 let
@@ -233,7 +234,7 @@ in
       # boot it can start before the socket accepts; wait (up to 60 s) instead of
       # failing the migration and leaning on Restart.
       ExecStartPre = [
-        "/bin/sh -c 'for i in $(seq 60); do /usr/bin/pg_isready -q -h /run/postgresql && exit 0; sleep 1; done; exit 1'"
+        "/bin/sh -c 'for i in $(seq 60); do ${pgIsReady} -q -h /run/postgresql && exit 0; sleep 1; done; exit 1'"
         "${serverRel}/bin/server eval Server.Release.migrate()"
       ];
       ExecStart = "${serverRel}/bin/server start";

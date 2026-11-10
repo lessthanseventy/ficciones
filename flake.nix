@@ -331,7 +331,13 @@
             tlonRepo
             astalShell
             hyprexpo
+            dbx
+            agentBrowser
+            agentDesktop
             ;
+          agenixPackage = agenix.packages.${system}.default;
+          agenixHome = agenix.homeManagerModules.default;
+          expertPackages = inputs.expert.packages;
         };
         modules = [
           home-manager.nixosModules.home-manager
@@ -349,7 +355,13 @@
             tlonRepo
             astalShell
             hyprexpo
+            dbx
+            agentBrowser
+            agentDesktop
             ;
+          agenixPackage = agenix.packages.${system}.default;
+          agenixHome = agenix.homeManagerModules.default;
+          expertPackages = inputs.expert.packages;
         };
         modules = [
           home-manager.nixosModules.home-manager
@@ -392,6 +404,8 @@
             ;
           agenixPackage = agenix.packages.${system}.default;
           expertPackages = inputs.expert.packages;
+          # Arch's Postgres is the system's, not this profile's
+          pgIsReady = "/usr/bin/pg_isready";
         };
         modules = [
           # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
