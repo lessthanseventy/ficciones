@@ -173,7 +173,7 @@ export HSTR_CONFIG=hicolor       # get more colors
 
 export PATH="/home/andrew/.local/bin:$PATH"
 export PATH="/home/andrew/.cargo/bin:$PATH"
-export PATH="/home/andrew/.npm-global/lib/node_modules/*:$PATH"
+
 export PATH="$PATH:/home/andrew/.config/Code/User/globalStorage/ms-vscode-remote.remote-containers/cli-bin"
 export PATH="$PATH:/home/andrew/.spicetify"
 
@@ -255,8 +255,8 @@ alias ua-drop-caches='sudo paccache -rk3; paru -Sc --aur --noconfirm'
 alias ua-update-all='export TMPFILE="$(mktemp)"; \
     sudo true; \
     rate-mirrors --save=$TMPFILE arch --max-delay=21600 \
-      && sudo mv /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist-backup \
-      && sudo mv $TMPFILE /etc/pacman.d/mirrorlist \
+      && sudo cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist-backup \
+      && sudo install -m644 $TMPFILE /etc/pacman.d/mirrorlist \
       && ua-drop-caches \
       && paru -Syyu --noconfirm'
 # everything: Arch (paru), then the flake's pins (committed, flake.lock alone, when they moved) and
