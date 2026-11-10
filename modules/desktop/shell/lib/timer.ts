@@ -1,6 +1,8 @@
 // The deck's timer: a countdown ("25m", "1h10", "90s"), an alarm at a clock time ("14:30"),
 // or a pomodoro (work/break rounds, "pomo", "pomo 50/10"). One at a time. The row shows what
-// is left; the end is a critical notice, so it pins to the deck until you click it.
+// is left; the end is a critical notice, so it pins to the deck until you click it. The running
+// one is kept on disk: a shell restart picks it up, and one that ended meanwhile rings at once.
+import GLib from "gi://GLib"
 import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { interval, type Timer as T } from "ags/time"
@@ -24,6 +26,15 @@ export const [timer, setTimer] = createState<Timer | null>(null)
 export const [left, setLeft] = createState(0)
 
 let tick: T | null = null
+
+const STATE = `${GLib.get_user_state_dir()}/astal-shell/timer.json`
+function keep(t: Timer | null) {
+  try {
+    if (!t) return void GLib.unlink(STATE)
+    GLib.mkdir_with_parents(GLib.path_get_dirname(STATE), 0o755)
+    GLib.file_set_contents(STATE, JSON.stringify(t))
+  } catch (e) { console.error("timer state:", String(e)) }
+}
 
 /** "25m" "1h10" "1h 10m" "90s" → seconds; null if it is not a duration ("1:30" is a clock time) */
 export function parseDuration(s: string): number | null {
@@ -65,6 +76,7 @@ export function parseSpec(q: string): { title: string; start: () => void } | nul
 
 function run(t: Timer) {
   setTimer(t)
+  keep(t)
   setLeft((t.endsAt - Date.now()) / 1000)
   tick?.cancel()
   tick = interval(1000, () => {
@@ -114,4 +126,10 @@ export function stopTimer(ended = false) {
   if (t && !ended) logEvent("shell", `${t.kind} stopped`, "dim")
   tick?.cancel(); tick = null
   setTimer(null); setLeft(0)
+  keep(null)
 }
+
+try {
+  const [ok, bytes] = GLib.file_get_contents(STATE)
+  if (ok) run(JSON.parse(new TextDecoder().decode(bytes)))
+} catch { /* none running */ }
