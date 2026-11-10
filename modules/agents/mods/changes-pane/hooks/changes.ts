@@ -47,6 +47,9 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
   const command = tool === 'Bash' && typeof fields.command === 'string' ? fields.command : ''
   const verb = MENARD_TOOL.exec(tool)?.[1] ?? MENARD_SHELL.exec(command)?.[1]
   if (!verb) return null
+  // a shell command that printed more than menard's one line did more than menard's call
+  const stdout = command ? (output as { stdout?: unknown } | undefined)?.stdout : undefined
+  if (typeof stdout === 'string' && !/^\{.*\}$/.test(stdout.trim())) return null
   // the reply is JSON, itself quoted inside the tool's own result
   const reply = (typeof output === 'string' ? output : JSON.stringify(output ?? '')).replace(/\\+"/g, '"')
   const did = /"did":"([^"]*)"/.exec(reply)?.[1]
