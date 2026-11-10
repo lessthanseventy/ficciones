@@ -25,7 +25,7 @@ const SUMMARY_MS = 8000
 const SUMMARISE = 'Below are the tool calls a coding assistant made in one turn, in order, each with how it ended where that is known. Say what was done in one or two plain sentences, 45 words at most: which files changed and how, what was run, and whether it passed. Start each sentence with its verb ("Edited…", "Ran…"), never "I". No preamble, no markdown, no line breaks.\n\n'
 // A turn's summary is drawn under its closing line, which is known by its duration alone.
 const MAX_KEPT_SUMMARIES = 50
-const MAX_GROUP_LINES = 8
+const MAX_GROUP_LINES = 12
 
 
 // The calls drawn as one line each; any other tool keeps Claude Code's own row.
@@ -501,10 +501,12 @@ export const register: Register = on => {
   })
 
   // A call is one line of what it was and how it went, in place of the call as typed and its
-  // output; a click opens that one call and folds it again. menard's plugin draws its own calls.
+  // output; a click opens that one call and folds it again. menard's calls are drawn here too,
+  // over its plugin's own rows, so one module decides every row's order and folding.
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     const input = e.props.input as { run_in_background?: boolean } | undefined
-    if (!canDraw || e.props.isExpanded || !ROWED.has(e.props.tool) || input?.run_in_background === true || menardSaid(e.props) !== null) return next(e)
+    const isRowed = ROWED.has(e.props.tool) || menardSaid(e.props) !== null
+    if (!canDraw || e.props.isExpanded || !isRowed || input?.run_in_background === true) return next(e)
     const id = e.props.tool_use_id
     ours.add(id)
     const call = { ...e.props, output: e.props.output ?? replies.get(id) }
@@ -520,17 +522,24 @@ export const register: Register = on => {
     return <Box />
   })
 
-  // A folded run of calls says only how many there were: each gets its line under the count.
+  // A folded run of calls is a line for each, in the order they were made, in place of the
+  // count: this hook answers for the whole run and does not pass it on.
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     if (!canDraw || e.props.isExpanded) return next(e)
-    const calls = e.props.calls.map((call, index) => ({ call, id: call.tool_use_id ?? `group-${index}` })).filter(({ call }) => menardSaid(call) === null)
+    const all = e.props.calls.map((call, index) => ({ call, id: call.tool_use_id ?? `group-${index}` }))
+    // a run that holds more than its calls (a recalled memory, an errored call's row) keeps
+    // Claude Code's line, and under it the rows menard's plugin does not draw
+    const isWhole = e.props.isCallsOnly === true
+    const calls = isWhole ? all : all.filter(({ call }) => menardSaid(call) === null)
     if (calls.length === 0) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">
-        {await next(e)}
-        {calls.slice(0, MAX_GROUP_LINES).map(({ call, id }) => callRow($, e, opened, id, call, turnLine(call, call.isErrored === true), '  ⎿  '))}
-        {calls.length > MAX_GROUP_LINES ? <Text dimColor>{`  ⎿  … ${calls.length - MAX_GROUP_LINES} more`}</Text> : null}
+        {isWhole ? null : await next(e)}
+        {calls.slice(0, MAX_GROUP_LINES).map(({ call, id }) =>
+          callRow($, e, opened, id, call, `${turnLine(call, call.isErrored === true)}${call.isRunning ? ' …' : ''}`, '  ⎿  '),
+        )}
+        {calls.length > MAX_GROUP_LINES ? <Text dimColor>{`  ⎿  … ${calls.length - MAX_GROUP_LINES} more calls`}</Text> : null}
       </Box>
     )
   })

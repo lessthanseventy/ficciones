@@ -238,6 +238,9 @@ test('a menard call is named by what it did', async () => {
   expect(menardSaid({ tool: 'mcp__plugin_menard_menard__run', input: { verb: 'test' }, output: '{"ok":false,"failures":[]}' })).toBe('run test: failed')
   expect(menardSaid({ tool: 'Bash', input: { command: 'ls' }, output: {} })).toBeNull()
   expect(menardSaid({ tool: 'Bash', input: { command: 'git commit -m "menard said so"' }, output: {} })).toBeNull()
+  expect(menardSaid({ tool: 'Bash', input: { command: "tmux send-keys 'run ~/bin/menard version'; sleep 1" }, output: {} })).toBeNull()
+  expect(menardSaid({ tool: 'Bash', input: { command: 'menard outline lib/a.ex' }, output: { stdout: 'A\n  f/1 3-9\n' } })).toBe('outline lib/a.ex')
+  expect(menardSaid({ tool: 'Bash', input: { command: 'menard edit - && mise run check' }, output: { stdout: '{"did":"edit a.ts: 1 replacement"}\n✓ exit 0' } })).toBeNull()
   expect(menardSaid({ tool: 'Read', input: { file_path: 'menard edit' } })).toBeNull()
 })
 

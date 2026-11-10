@@ -36,11 +36,11 @@ export const patchCounts = (output: unknown): { adds: number; dels: number } => 
 
 export type Call = { tool: string; input: unknown; output?: unknown }
 
-// menardSaid is menard's own (its plugin's hooks/said.ts), kept the same here so the two agree
-// on which calls are menard's: its plugin draws those rows, this one the rest.
 const MENARD_TOOL = /^mcp__plugin_menard_menard__(\w+)$/
 const VERBS = 'edit rename find outline clause stmt block attr directive module write deps run map where version'
-const MENARD_SHELL = new RegExp(`(?:^|[\\s/;&|(])menard\\s+(?:--frozen\\s+)?(${VERBS.replaceAll(' ', '|')})\\b([^\\n;&|<>]*)`)
+// A shell command is menard's when menard is what it runs, after a cd at most: one that names
+// menard further in (a script, a quoted prompt, a commit message) is a shell command.
+const MENARD_SHELL = new RegExp(`^\\s*(?:cd\\s+\\S+\\s*&&\\s*)?(?:\\S*/)?menard\\s+(?:--frozen\\s+)?(${VERBS.replaceAll(' ', '|')})\\b([^\\n;&|<>]*)`)
 const MAX_SAID = 100
 
 // What a menard call did, in menard's own words: a write's reply carries `did`, a run's `ok`.
@@ -51,6 +51,9 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
   const shell = MENARD_SHELL.exec(command)
   const verb = MENARD_TOOL.exec(tool)?.[1] ?? shell?.[1]
   if (!verb) return null
+  // and one that printed more after menard's line of JSON went on to do more
+  const stdout = shell ? (output as { stdout?: unknown } | undefined)?.stdout : undefined
+  if (typeof stdout === 'string' && /^\{.*\}\s*\n\s*\S/.test(stdout.trimStart())) return null
   // the reply is JSON, itself quoted inside the tool's own result
   const reply = (typeof output === 'string' ? output : JSON.stringify(output ?? '')).replace(/\\+"/g, '"')
   const did = /"did":"([^"]*)"/.exec(reply)?.[1]
@@ -66,8 +69,8 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
 
 // One tool call as a line a model can summarise a turn from: what ran, on what, and how it went.
 // a call's line fits one row of a transcript: what was run, then how it ended
-const MAX_MADE = 60
-const MAX_LAST = 40
+const MAX_MADE = 44
+const MAX_LAST = 28
 
 // an absolute path is told apart by its file and the folder it is in
 const nearby = (text: string) => (text.startsWith('/') && !text.includes(' ') ? text.split('/').slice(-2).join('/') : text)
