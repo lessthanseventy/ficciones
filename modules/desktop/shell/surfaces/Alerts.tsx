@@ -13,6 +13,7 @@ import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
 import { setting } from "../lib/settings"
 import { putsAway, withNote } from "../lib/alerts-core"
+import { hhmm } from "../lib/format"
 import { logEvent } from "../lib/log"
 import { openThread, alarms, banner, holdBanner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
 
@@ -20,7 +21,7 @@ import { openThread, alarms, banner, holdBanner, stickies, infos, folded, act, d
 // never reaches it: Copy puts the card's text on the clipboard instead
 const copy = (a: Alert) => ({ label: "Copy", run: () => void execAsync(["wl-copy", a.body ?? a.title]).then(() => logEvent("shell", "alert copied", "dim")).catch(console.error) })
 
-const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+const clock = (iso: string) => hhmm(iso)
 const until = (iso: string) => {
   const m = Math.round((new Date(iso).getTime() - Date.now()) / 60000)
   return m > 0 ? `in ${m} min` : m === 0 ? "now" : `${-m} min ago`
@@ -36,6 +37,36 @@ export type Host = "toasts" | "banner"
 const replies = { toasts: createState(0), banner: createState(0) }
 /** the keymode for a window holding alert cards: the keyboard only while a reply is being written in it */
 export const replyKeymode = (host: Host) => replies[host][0]((n) => (n > 0 ? Astal.Keymode.EXCLUSIVE : Astal.Keymode.NONE))
+
+/** an alert's answers, one per label: a coworker's own option and the server's built-in action can carry the same one */
+function answersOf(a: Alert): Action[] {
+  const seen = new Set<string>()
+  return a.actions.filter((x) => { const k = x.label.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
+}
+
+// the banner takes the keyboard when asked to (`astal-shell decision`, Super+Y), never by appearing:
+// then 1–9 answer, o opens the thread, l puts it away for later, Esc hands the keys back
+const [bannerKeys, setBannerKeys] = createState(false)
+banner.subscribe(() => { if (!banner.peek()) setBannerKeys(false) })
+export function focusDecision(): string {
+  if (!banner.peek()) return "no decision is waiting"
+  setBannerKeys(true)
+  return "ok"
+}
+const bannerKeymode = createComputed(() => (replies.banner[0]() > 0 || bannerKeys() ? Astal.Keymode.EXCLUSIVE : Astal.Keymode.NONE))
+function bannerKey(kv: number): boolean {
+  const a = banner.peek()
+  if (!a) return false
+  const done = (go: () => void) => { setBannerKeys(false); go(); return true }
+  if (kv >= Gdk.KEY_1 && kv <= Gdk.KEY_9) {
+    const x = answersOf(a)[kv - Gdk.KEY_1]
+    // one that takes text is opened with the pointer: its box is the card's own state
+    return x && !x.input ? done(() => void act(a, x)) : false
+  }
+  if (kv === Gdk.KEY_o && a.thread_id) return done(() => void openThread(a.thread_id!))
+  if (kv === Gdk.KEY_l) return done(() => foldAway(a))
+  return false
+}
 
 /** the shell's line keys in a text box: Ctrl+A/E start and end of line, Ctrl+U/K delete to them,
  * Ctrl+W the word before the cursor. True when it took the key. */
@@ -70,9 +101,8 @@ function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { labe
   let input: Gtk.TextView | null = null
   const typed = () => { const b = input?.buffer; return b ? b.get_text(b.get_start_iter(), b.get_end_iter(), false) : "" }
   const send = () => { const x = asking.peek(); if (x) void act(a, x, typed()); setAsking(null) }
-  // a coworker's own option and the server's built-in action can carry the same label: one button
-  const seen = new Set<string>()
-  const answers = a.actions.filter((x) => { const k = x.label.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
+  const seen = new Set(answersOf(a).map((x) => x.label.toLowerCase()))
+  const answers = answersOf(a)
   const extras = extra.filter((e) => !seen.has(e.label.toLowerCase()))
   const extraButton = (e: { label: string; run: () => void }) => <button cssClasses={["act", "dim"]} onClicked={() => { setAsking(null); e.run() }}><label label={e.label} /></button>
   return (
@@ -98,7 +128,7 @@ function Actions({ a, host, extra = [] }: { a: Alert; host: Host; extra?: { labe
               self.add_controller(g)
             }}
           >
-            <label label={x.label} wrap={host === "banner"} maxWidthChars={host === "banner" ? 76 : -1} xalign={0} />
+            <label label={host === "banner" ? `${answers.indexOf(x) + 1}  ${x.label}` : x.label} wrap={host === "banner"} maxWidthChars={host === "banner" ? 76 : -1} xalign={0} />
           </button>
         ))}
         {host === "banner" ? null : extras.map(extraButton)}
@@ -176,14 +206,18 @@ export function DecisionBanner() {
   onCleanup(() => win.destroy())
   return (
     <window
-      $={(self) => (win = self)}
+      $={(self) => {
+        win = self
+        // an open reply box owns every key
+        self.add_controller(closeKeys({ close: () => setBannerKeys(false), skip: () => replies.banner[0].peek() > 0, onKey: bannerKey }))
+      }}
       visible={banner((b) => b !== null)}
-      cssClasses={["alert-banner-win"]}
+      cssClasses={bannerKeys((k) => ["alert-banner-win", ...(k ? ["keys"] : [])])}
       namespace="astal-shell-decision"
       name="decision"
       layer={Astal.Layer.OVERLAY}
       exclusivity={Astal.Exclusivity.IGNORE}
-      keymode={replyKeymode("banner")}
+      keymode={bannerKeymode}
       anchor={Astal.WindowAnchor.TOP}
       marginTop={44}
       application={app}
@@ -195,6 +229,7 @@ export function DecisionBanner() {
               <label selectable cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={70} />
               <label selectable cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={80} />
               <Actions a={a} host="banner" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }, copy(a)]} />
+              <label cssClasses={["hint"]} label={bannerKeys((k) => (k ? "1–9 answer  ·  o open  ·  l later  ·  Esc back" : "Super+Y to answer by key"))} xalign={0} />
             </Panel>
           )
         }
@@ -224,7 +259,11 @@ function Alarm({ gdkmonitor, a }: { gdkmonitor: Gdk.Monitor; a: Alert }) {
     <window
       $={(self) => {
         win = self
-        self.add_controller(closeKeys({ close: () => dismiss(a) }))
+        self.add_controller(closeKeys({ close: () => dismiss(a), onKey: (kv) => {
+          if ((kv === Gdk.KEY_Return || kv === Gdk.KEY_KP_Enter) && a.actions[0]) { void act(a, a.actions[0]); return true }
+          if (kv === Gdk.KEY_s) { snooze(a); return true }
+          return false
+        } }))
       }}
       visible
       gdkmonitor={gdkmonitor}
@@ -241,9 +280,9 @@ function Alarm({ gdkmonitor, a }: { gdkmonitor: Gdk.Monitor; a: Alert }) {
         <label cssClasses={["alarm-title"]} label={a.title} wrap maxWidthChars={40} justify={Gtk.Justification.CENTER} />
         <label cssClasses={["alarm-when"]} label={when} />
         <box cssClasses={["actions"]} spacing={12} halign={Gtk.Align.CENTER}>
-          {a.actions.map((x) => <button cssClasses={["act", "big"]} onClicked={() => void act(a, x)}><label label={x.label} /></button>)}
-          <button cssClasses={["act", "big"]} onClicked={() => snooze(a)}><label label="Snooze 5m" /></button>
-          <button cssClasses={["act", "big", "dim"]} onClicked={() => dismiss(a)}><label label="Dismiss" /></button>
+          {a.actions.map((x, i) => <button cssClasses={["act", "big"]} onClicked={() => void act(a, x)}><label label={i === 0 ? `${x.label}  ⏎` : x.label} /></button>)}
+          <button cssClasses={["act", "big"]} onClicked={() => snooze(a)}><label label="Snooze 5m  s" /></button>
+          <button cssClasses={["act", "big", "dim"]} onClicked={() => dismiss(a)}><label label="Dismiss  Esc" /></button>
         </box>
       </box>
     </window>

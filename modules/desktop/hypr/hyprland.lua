@@ -464,6 +464,7 @@ bind(M .. " + V", exec("astal-shell toggle clipboard"))
 -- Help / hotkey overlay
 bind(M .. " + Slash", exec("astal-shell toggle launcher"))
 bind(M .. " + SHIFT + Slash", exec("astal-shell toggle cheatsheet"))
+bind(M .. " + Y", exec("astal-shell decision")) -- answer the decision banner by key
 bind(M .. " + SHIFT + C", exec("astal-shell crt"))
 bind(M .. " + SHIFT + Z", exec("astal-shell backdrop"))
 -- light/dark within the live palette family, live — ~/.config/ficciones/theme repoints, the shell restyles itself
