@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -55,6 +55,13 @@ test('the log reads a subject with a tab in it', async () => {
     { sha: 'abc1234', subject: 'fix\tthe thing' },
     { sha: 'def5678', subject: 'second' },
   ])
+})
+
+test('a commit splits into its message and its files, without the session link', async () => {
+  const { message, files } = parseShow('Ada · 2 hours ago\n\nfix it\n\nCo-Authored-By: C <c@x>\nClaude-Session: https://claude.ai/code/session_1\n\ndiff --git a/z.ts b/z.ts\n--- a/z.ts\n+++ b/z.ts\n@@ -1 +1 @@\n-a\n+b\n')
+  expect(message).toEqual(['Ada · 2 hours ago', '', 'fix it', '', 'Co-Authored-By: C <c@x>'])
+  expect([...files.keys()]).toEqual(['z.ts'])
+  expect(parseShow('Ada · now\n\nempty\n').files.size).toBe(0)
 })
 
 test('a long row wraps under its text, past the line numbers', async () => {
@@ -166,25 +173,35 @@ type Mounted = {
   find: (q: { text: RegExp; in: string }) => Promise<unknown>
 }
 
-test('the commits sit under the files, and one opens like a file', async ($, on) => {
+test('a commit opens on its message, and its files take the files list', async ($, on) => {
   mock.clock(on)
   on('session.start', async ($, e) => e)
   on('process.run', async ($, e) => {
     const line = e.argv.join(' ')
     const stdout = line.includes(' status ') ? ' M a.ts\0'
       : line.includes(' log ') ? 'abc1234\tfix the thing\n'
-      : line.includes(' show ') ? 'Ada · 2 hours ago\n\nfix the thing\n\ndiff --git a/z.ts b/z.ts\n--- a/z.ts\n+++ b/z.ts\n@@ -1 +1 @@\n-before\n+after\n'
-      : line.startsWith('delta') ? `${line.includes('--file-style=omit') ? '\n' : ''}${e.init?.stdin}`
+      : line.includes(' show ') ? 'Ada · 2 hours ago\n\nfix the thing\n\nClaude-Session: https://claude.ai/code/session_1\n\ndiff --git a/z.ts b/z.ts\n--- a/z.ts\n+++ b/z.ts\n@@ -1 +1 @@\n-before\n+after\n'
+      : line.startsWith('delta') ? `\n${e.init?.stdin}`
       : 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\n'
     return { value: { exitCode: 0, stdout, stderr: '' } } as never
   })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   expect(await ui.find({ text: /^commits/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^files · uncommitted/, in: 'changes' })).toBeDefined()
+  await ui.key({ key: 'tab' })
   await ui.key({ key: 'j' })
   expect(await ui.find({ text: /^abc1234 fix the thing$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /Ada · 2 hours ago/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /Claude-Session/, in: 'changes' })).toBeUndefined()
+  expect(await ui.find({ text: /^files in abc1234/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^a\.ts/, in: 'changes' })).toBeUndefined()
+  await ui.key({ key: 'tab' })
+  await ui.key({ key: 'j' })
+  expect(await ui.find({ text: /^z\.ts$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /\+after/, in: 'changes' })).toBeDefined()
+  await ui.key({ key: 'k' })
+  expect(await ui.find({ text: /Ada · 2 hours ago/, in: 'changes' })).toBeDefined()
 })
 
 test('the wheel over the list moves the list and leaves the diff following', async ($, on) => {
@@ -195,7 +212,7 @@ test('the wheel over the list moves the list and leaves the diff following', asy
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   expect(await ui.find({ text: /^f1\.ts/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeUndefined()
-  // 30 rows: title, 17 of diff, divider, then the list from row 19
+  // 30 rows: title, 18 of diff, the files' head, then seven files from row 20
   await $.ui.scroll({ component: 'Pane', requestId: 'changes', offset: 8, by: 8, bodyRows: 30, contentRows: 30, origin: { kind: 'person' }, pointer: { column: 3, row: 22 } } as never)
   expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()

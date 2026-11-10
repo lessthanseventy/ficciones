@@ -2,31 +2,37 @@ import type { ClientModule, JsonValue } from 'claude-code'
 
 import type { Run } from './changes'
 
-export type Input = { n: number; key?: string; shift?: true; row?: number }
+export type List = 'files' | 'commits'
+export type Input = { n: number; key?: string; shift?: true; row?: number; list?: List }
+export type Section = {
+  head: string
+  isFocused: boolean
+  first: number
+  empty: string
+  rows: { label: string; adds: string; dels: string; isSelected: boolean }[]
+}
 export type ViewProps = {
   title: string
   isFollowing: boolean
   rows: Run[][]
   diffRows: number
   note: string
-  divider: string
-  files: { label: string; adds: string; dels: string; isSelected: boolean; isHead: boolean }[]
-  firstFile: number
+  files: Section
+  commits: Section
   hint: string
   acked: number
 }
-type Queue = { inputs: Input[]; n: number; acked: number; listTop: number; fileCount: number; firstFile: number }
+type Queue = { inputs: Input[]; n: number; acked: number; props: ViewProps }
+
+const shown = (section: Section) => Math.max(1, section.rows.length)
 
 const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
   const props = raw as unknown as ViewProps
   const { Box, Text } = surface.elements
   // A remount starts a new queue, while the hook's count of handled inputs carries on.
-  const queue = surface.state ?? { inputs: [], n: props.acked, acked: 0, listTop: 0, fileCount: 0, firstFile: 0 }
+  const queue = surface.state ?? { inputs: [], n: props.acked, acked: 0, props }
   queue.acked = props.acked
-  // title row, diff box, divider
-  queue.listTop = 1 + props.diffRows + 1
-  queue.fileCount = props.files.length
-  queue.firstFile = props.firstFile
+  queue.props = props
 
   if (!surface.state) {
     surface.setState(queue)
@@ -38,10 +44,29 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
     }
     surface.onKey(({ key, shift }) => send({ key, ...(shift && { shift }) }))
     surface.onPointer(({ type, y }) => {
-      const row = y - queue.listTop
-      if (type === 'down' && row >= 0 && row < queue.fileCount) send({ row: queue.firstFile + row })
+      if (type !== 'down') return
+      const { diffRows, files, commits } = queue.props
+      // title, diff and the files head sit above the files; the commits head follows them
+      const inFiles = y - (diffRows + 2)
+      const inCommits = inFiles - shown(files) - 1
+      if (inFiles >= 0 && inFiles < files.rows.length) send({ list: 'files', row: files.first + inFiles })
+      else if (inCommits >= 0 && inCommits < commits.rows.length) send({ list: 'commits', row: commits.first + inCommits })
     })
   }
+
+  const list = (section: Section) => (
+    <Box flexDirection="column">
+      <Text bold={section.isFocused} dimColor={!section.isFocused} wrap="truncate-end">{section.head}</Text>
+      {section.rows.length === 0 ? <Text dimColor wrap="truncate-end">{section.empty}</Text> : null}
+      {section.rows.map(({ label, adds, dels, isSelected }) => (
+        <Text inverse={isSelected && section.isFocused} bold={isSelected && !section.isFocused} wrap="truncate-end">
+          {label}
+          <Text color="success">{adds}</Text>
+          <Text color="error">{dels}</Text>
+        </Text>
+      ))}
+    </Box>
+  )
 
   return (
     <Box flexDirection="column">
@@ -61,14 +86,8 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
           </Text>
         ))}
       </Box>
-      <Text dimColor>{props.divider}</Text>
-      {props.files.map(({ label, adds, dels, isSelected, isHead }) => (
-        <Text inverse={isSelected} dimColor={isHead} wrap="truncate-end">
-          {label}
-          <Text color="success">{adds}</Text>
-          <Text color="error">{dels}</Text>
-        </Text>
-      ))}
+      {list(props.files)}
+      {list(props.commits)}
       <Text dimColor wrap="truncate-end">{props.hint}</Text>
     </Box>
   )

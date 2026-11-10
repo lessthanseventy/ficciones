@@ -24,6 +24,17 @@ export const parseLog = (out: string): Commit[] =>
     return { sha: line.slice(0, tab), subject: line.slice(tab + 1) }
   })
 
+// `git show` with the message first: what the person reads, and each file's own diff. A session
+// link in a trailer is a click waiting to happen, so those lines are left out.
+export const parseShow = (show: string): { message: string[]; files: Map<string, string> } => {
+  const at = show.search(/^diff --git /m)
+  const head = at < 0 ? show : show.slice(0, at)
+  return {
+    message: head.replace(/\n+$/, '').split('\n').filter(line => !/^Claude-Session:/i.test(line)),
+    files: at < 0 ? new Map() : splitDiff(show.slice(at)),
+  }
+}
+
 export const splitDiff = (diff: string): Map<string, string> => {
   const byPath = new Map<string, string>()
   for (const chunk of diff.split(/^(?=diff --git )/m)) {

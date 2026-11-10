@@ -1,34 +1,36 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Commit, DiffLine, File, Run } from './changes'
-import type { Input } from './view'
+import type { Input, List, Section } from './view'
 
 const PANE = 'changes'
 // Without this, /diff draws the built-in panel beside this one.
 const BUILT_IN = 'diff'
 const POLL_MS = 2000
-const MAX_LIST_ROWS = 10
+const MAX_FILE_ROWS = 8
+const MAX_COMMIT_ROWS = 6
 const MAX_COMMITS = 30
-// A commit never changes, so its diff is read once; the cap keeps a long session's memory flat.
+// A commit never changes, so it is read once; the cap keeps a long session's memory flat.
 const MAX_KEPT_COMMITS = 50
-const COMMIT = 'commit:'
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
-const HINT = 'Esc to prompt · j/k select · J/K scroll · wheel scrolls what it is over · L lazygit · prompt to follow'
+const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · L lazygit · prompt to follow'
 const OPEN = { id: PANE, title: 'Changes' }
 
 type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
-// A head names a section of the list and cannot be selected.
-type Item = { id: string; kind: 'file' | 'commit' | 'head'; label: string }
+type Shown = { message: string[]; diffs: Map<string, Diff> }
 
-// A file's diff needs no file header, the title names it; a commit's several files do.
-const deltaArgv = (columns: number, isCommit: boolean) => [
+const diffOf = (text: string): Diff => {
+  const lines = parseDiff(text)
+  return { text, lines, ...countDiff(lines) }
+}
+
+const deltaArgv = (columns: number) => [
   'delta', '--no-gitconfig', '--dark', '--true-color=always', `--width=${columns}`, '--line-fill-method=spaces',
   '--wrap-max-lines=0', '--paging=never', '--line-numbers',
-  ...(isCommit ? [] : ['--file-style=omit', '--file-decoration-style=omit']),
-  '--hunk-header-style=omit', '--hunk-header-decoration-style=omit',
+  '--file-style=omit', '--file-decoration-style=omit', '--hunk-header-style=omit', '--hunk-header-decoration-style=omit',
   '--minus-style=syntax #3f0001', '--plus-style=syntax #002800',
 ]
 
@@ -37,13 +39,18 @@ export const register: Register = on => {
   let files: File[] = []
   let diffs = new Map<string, Diff>()
   let commits: Commit[] = []
-  const shown = new Map<string, Diff>()
-  let starts: number[] = []
-  let listTop = 0
+  const shown = new Map<string, Shown>()
+  // '' is the working tree; a sha is that commit, and the files list is then the commit's.
+  let source = ''
+  // '' under a commit is the commit itself: its message.
+  let file = ''
+  let focus: List = 'files'
+  let filesTop = 0
+  let commitsTop = 0
   let hasBaseline = false
   let note = ''
-  let selected = ''
   let rows: Run[][] = []
+  let starts: number[] = []
   let renderedKey = ''
   let offset = 0
   let acked = 0
@@ -56,25 +63,19 @@ export const register: Register = on => {
   let isStale = false
   let refresh: () => Promise<void> = async () => {}
 
-  const items = (): Item[] => [
-    ...(files.length > 0
-      ? files.map((f): Item => ({ id: f.path, kind: 'file', label: printable(f.path) }))
-      : [{ id: '', kind: 'head', label: note || 'nothing uncommitted' } as Item]),
-    ...(commits.length > 0
-      ? [{ id: '', kind: 'head', label: 'commits' } as Item, ...commits.map((c): Item => ({ id: COMMIT + c.sha, kind: 'commit', label: `${c.sha} ${printable(c.subject)}` }))]
-      : []),
-  ]
-  const selectedIndex = () => {
-    const all = items()
-    const at = all.findIndex(i => i.kind !== 'head' && i.id === selected)
-    return at >= 0 ? at : Math.max(0, all.findIndex(i => i.kind !== 'head'))
-  }
-  const diffOf = (id: string) => (id.startsWith(COMMIT) ? shown.get(id.slice(COMMIT.length)) : diffs.get(id))
-  const listRows = () => clamp(items().length, 1, Math.min(MAX_LIST_ROWS, Math.floor(size.rows / 3)))
-  const reveal = () => { listTop = revealTop(listTop, selectedIndex(), items().length, listRows()) }
-  // Title, divider and hint take one row each.
-  const diffRows = () => Math.max(1, size.rows - listRows() - 3)
+  const paths = () => (source === '' ? files.map(f => f.path) : [...(shown.get(source)?.diffs.keys() ?? [])])
+  const current = () => (source === '' ? diffs.get(file) : shown.get(source)?.diffs.get(file))
+  // The working tree leads the commits, so a commit's row is one past its place in the log.
+  const commitIndex = () => (source === '' ? 0 : 1 + Math.max(0, commits.findIndex(c => c.sha === source)))
+  const fileRows = () => clamp(paths().length, 1, Math.min(MAX_FILE_ROWS, Math.floor(size.rows / 4)))
+  const commitRows = () => clamp(commits.length + 1, 1, Math.min(MAX_COMMIT_ROWS, Math.floor(size.rows / 5)))
+  // The title, the two section heads and the hint take one row each.
+  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 4)
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
+  const reveal = () => {
+    filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
+    commitsTop = revealTop(commitsTop, commitIndex(), commits.length + 1, commitRows())
+  }
   // A reopen reuses the engine's cached drawing, so no ui.render fires to say the pane is back.
   const seated = ({ isPlaced }: { isPlaced: boolean }) => {
     if (!isPlaced) return
@@ -82,27 +83,46 @@ export const register: Register = on => {
     void refresh()
   }
 
+  const row = (label: string, diff: Diff | undefined, isSelected: boolean, tail: boolean) => {
+    const adds = diff?.adds ? ` +${diff.adds}` : ''
+    const dels = diff?.dels ? ` -${diff.dels}` : ''
+    const width = Math.max(1, size.columns - adds.length - dels.length)
+    return { label: (tail ? tailPath(label, width) : label.slice(0, width)).padEnd(width), adds, dels, isSelected }
+  }
+
   const viewProps = () => {
-    const all = items()
-    const firstFile = clamp(listTop, 0, all.length - listRows())
-    const current = all[selectedIndex()]
-    const diff = diffOf(current?.id ?? '')
+    const all = paths()
+    const firstFile = clamp(filesTop, 0, all.length - fileRows())
+    const firstCommit = clamp(commitsTop, 0, commits.length + 1 - commitRows())
+    const commit = commits.find(c => c.sha === source)
+    const diff = current()
+    const log = [
+      { id: '', label: files.length > 0 ? `uncommitted · ${files.length} file${files.length === 1 ? '' : 's'}` : 'uncommitted · nothing' },
+      ...commits.map(c => ({ id: c.sha, label: `${c.sha} ${printable(c.subject)}` })),
+    ]
+    const filesSection: Section = {
+      head: commit ? `files in ${commit.sha}` : 'files · uncommitted',
+      isFocused: focus === 'files',
+      first: firstFile,
+      empty: source === '' ? 'nothing uncommitted' : 'no files',
+      rows: all.slice(firstFile, firstFile + fileRows()).map(path =>
+        row(printable(path), source === '' ? diffs.get(path) : shown.get(source)?.diffs.get(path), path === file, true)),
+    }
+    const commitsSection: Section = {
+      head: 'commits',
+      isFocused: focus === 'commits',
+      first: firstCommit,
+      empty: '',
+      rows: log.slice(firstCommit, firstCommit + commitRows()).map(({ id, label }) => row(label, undefined, id === source, false)),
+    }
     return {
-      title: current?.kind === 'file' ? printable(current.id.split('/').pop() ?? '') : current?.kind === 'commit' ? current.label : '',
+      title: file !== '' ? printable(file.split('/').pop() ?? '') : commit ? `${commit.sha} ${printable(commit.subject)}` : '',
       isFollowing,
       rows: fitRows(rows.slice(offset, offset + diffRows())),
       diffRows: diffRows(),
-      note: files.length === 0 && commits.length === 0 ? note : current?.kind === 'file' && diff?.lines.length === 0 ? emptyDiffNote(diff.text) : '',
-      divider: '─'.repeat(Math.max(0, size.columns)),
-      files: all.slice(firstFile, firstFile + listRows()).map((item, i) => {
-        const diff = diffOf(item.id)
-        const adds = diff?.adds ? ` +${diff.adds}` : ''
-        const dels = diff?.dels ? ` -${diff.dels}` : ''
-        const width = Math.max(1, size.columns - adds.length - dels.length)
-        const label = item.kind === 'file' ? tailPath(item.label, width) : item.label.slice(0, width)
-        return { label: label.padEnd(width), adds, dels, isSelected: item.kind !== 'head' && firstFile + i === selectedIndex(), isHead: item.kind === 'head' }
-      }),
-      firstFile,
+      note: note || (file !== '' && diff?.lines.length === 0 ? emptyDiffNote(diff.text) : ''),
+      files: filesSection,
+      commits: commitsSection,
       hint: HINT,
       acked,
     }
@@ -114,18 +134,18 @@ export const register: Register = on => {
       const root = (await $.process.run(['git', 'rev-parse', '--show-toplevel'])).stdout.trim()
       const tracked = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'diff', 'HEAD', '--no-renames', '--no-color', '--no-ext-diff'])
       const texts = splitDiff(tracked.stdout)
-      for (const file of listed.filter(f => f.isUntracked).slice(0, MAX_UNTRACKED_DIFFS)) {
-        const untracked = await $.process.run(['git', 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', file.path], { cwd: root })
-        texts.set(file.path, untracked.stdout)
+      for (const untracked of listed.filter(f => f.isUntracked).slice(0, MAX_UNTRACKED_DIFFS)) {
+        const diff = await $.process.run(['git', 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', untracked.path], { cwd: root })
+        texts.set(untracked.path, diff.stdout)
       }
       return texts
     }
 
     const readCommit = async (sha: string) => {
-      const show = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'show', '--no-color', '--no-ext-diff', '--format=%an · %ar%n%n%B', sha])
-      const lines = parseDiff(show.stdout)
+      const show = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'show', '--no-renames', '--no-color', '--no-ext-diff', '--format=%an · %ar%n%n%B', sha])
+      const { message, files: texts } = parseShow(show.stdout)
       if (shown.size >= MAX_KEPT_COMMITS) shown.clear()
-      shown.set(sha, { text: show.stdout, lines, ...countDiff(lines) })
+      shown.set(sha, { message, diffs: new Map([...texts].map(([path, text]) => [path, diffOf(text)])) })
     }
 
     const load = async () => {
@@ -147,38 +167,43 @@ export const register: Register = on => {
         diffs = new Map(files.map(({ path }) => {
           const text = texts.get(path) ?? ''
           const old = before.get(path)
-          if (old?.text === text) return [path, old]
-          const lines = parseDiff(text)
-          return [path, { text, lines, ...countDiff(lines) }]
+          return [path, old?.text === text ? old : diffOf(text)]
         }))
 
         const changed = files.filter(({ path }) => before.get(path)?.text !== diffs.get(path)?.text)
         const latest = changed[changed.length - 1]
         const moved = hasBaseline && isFollowing && latest
-        if (moved) selected = latest.path
-        selected = items()[selectedIndex()]?.id ?? ''
-        hasBaseline = true
         if (moved) {
+          source = ''
+          file = latest.path
           jump = firstChangedRow(before.get(latest.path)?.lines ?? [], diffs.get(latest.path)?.lines ?? [])
-          reveal()
         }
+        hasBaseline = true
       }
 
-      const isCommit = selected.startsWith(COMMIT)
-      if (isCommit && !diffOf(selected)) await readCommit(selected.slice(COMMIT.length))
-      const text = diffOf(selected)?.text ?? ''
-      const key = `${selected}\0${size.columns}\0${text}`
+      // A commit amended or rebased away leaves the working tree.
+      if (source !== '' && !commits.some(c => c.sha === source)) source = ''
+      if (source !== '' && !shown.has(source)) await readCommit(source)
+      if (!paths().includes(file)) file = source === '' ? paths()[0] ?? '' : ''
+      if (jump !== null) reveal()
+
+      const message = source !== '' && file === '' ? shown.get(source)?.message ?? [] : null
+      const text = message ? message.join('\n') : current()?.text ?? ''
+      const key = `${source}\0${file}\0${size.columns}\0${text}`
       if (key === renderedKey) return
       renderedKey = key
-      if (isCommit ? text === '' : !diffOf(selected)?.lines.length) {
+      if (message) {
+        ;({ rows, starts } = wrapRows(message.map(line => [{ t: printable(line) }]), size.columns))
+        return
+      }
+      if (!current()?.lines.length) {
         rows = []
         starts = []
         return
       }
-      const drawn = await $.process.run(deltaArgv(size.columns, isCommit), { stdin: text })
-      // delta leads a file's diff with the blank row it puts before every hunk.
-      const parsed = parseAnsi(drawn.stdout, size.columns)
-      ;({ rows, starts } = wrapRows(isCommit ? parsed : parsed.slice(1), size.columns))
+      const drawn = await $.process.run(deltaArgv(size.columns), { stdin: text })
+      // delta leads with the blank row it puts before every hunk.
+      ;({ rows, starts } = wrapRows(parseAnsi(drawn.stdout, size.columns).slice(1), size.columns))
       if (jump !== null) offset = Math.max(0, (starts[jump] ?? 0) - CONTEXT_ROWS)
     }
 
@@ -206,11 +231,11 @@ export const register: Register = on => {
     $.clock.every(POLL_MS, () => { void refresh() })
     // VS Code and mobile have no Client to draw this pane with.
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
-    if (canDraw) await $.command.register({ name: PANE, description: 'Show everything uncommitted and the recent commits, following the latest edit', immediate: true })
+    if (canDraw) await $.command.register({ name: PANE, description: 'Show what is uncommitted and the recent commits, a file at a time, following the latest edit', immediate: true })
     return next(e)
   })
 
-  on('command.run', { command: PANE }, async ($, e) => {
+  on('command.run', { command: PANE }, async $ => {
     isDismissed = false
     seated(await $.ui.open(OPEN))
     return {}
@@ -246,7 +271,7 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('ui.close', { id: PANE }, async ($, e, next) => {
+  on('ui.close', { id: PANE }, async (_, e, next) => {
     const closed = await next(e)
     isOpen = false
     if (e.origin.kind === 'person') isDismissed = true
@@ -267,11 +292,15 @@ export const register: Register = on => {
   })
 
   // The body never overflows: the view draws its own windows of rows, so the wheel moves the one
-  // it is over. Title, diff and divider sit above the list.
+  // it is over. The title and the diff sit above the files' head, the commits' head under the files.
   on('ui.scroll', { requestId: PANE }, async ($, e) => {
-    if (e.pointer !== undefined && e.pointer.row >= diffRows() + 2) {
-      const last = items().length - listRows()
-      listTop = clamp(clamp(listTop, 0, last) + e.by, 0, last)
+    const at = e.pointer?.row ?? 0
+    if (at >= diffRows() + 2 + fileRows()) {
+      const last = commits.length + 1 - commitRows()
+      commitsTop = clamp(clamp(commitsTop, 0, last) + e.by, 0, last)
+    } else if (at >= diffRows() + 1) {
+      const last = paths().length - fileRows()
+      filesTop = clamp(clamp(filesTop, 0, last) + e.by, 0, last)
     } else {
       isFollowing = false
       scrollTo(offset + e.by)
@@ -286,28 +315,34 @@ export const register: Register = on => {
     if (fresh.length === 0) return {}
     acked = fresh[fresh.length - 1]!.n
 
-    const select = (index: number) => {
-      const item = items()[index]
-      if (!item || item.kind === 'head' || item.id === selected) return
-      selected = item.id
+    const pickFile = (index: number) => {
+      // above a commit's first file is the commit's message
+      const path = index < 0 && source !== '' ? '' : paths()[clamp(index, 0, paths().length - 1)]
+      if (path === undefined || path === file) return
+      file = path
       offset = 0
-      reveal()
     }
-    // j and k step over a section's head.
-    const step = (by: 1 | -1) => {
-      const all = items()
-      let at = selectedIndex() + by
-      while (all[at]?.kind === 'head') at += by
-      select(at)
+    const pickCommit = (index: number) => {
+      const next = index <= 0 ? '' : commits[Math.min(index, commits.length) - 1]?.sha ?? ''
+      if (next === source) return
+      source = next
+      // the working tree opens on its first file, a commit on its message
+      file = ''
+      offset = 0
+      filesTop = 0
+    }
+    const step = (by: number) => {
+      if (focus === 'commits') pickCommit(commitIndex() + by)
+      else pickFile(paths().indexOf(file) + by)
     }
 
     // Keys that reach stdin together arrive as one event, a held j among them.
-    const typed = fresh.flatMap(({ key, shift, row }): { key?: string; row?: number }[] =>
-      row !== undefined ? [{ row }]
+    const typed = fresh.flatMap(({ key, shift, row, list }): { key?: string; row?: number; list?: List }[] =>
+      row !== undefined ? [{ row, list }]
       : key && /^[jkJK]+$/.test(key) ? [...key].map(k => ({ key: shift ? k.toUpperCase() : k }))
       : [{ key: shift && key?.length === 1 ? key.toUpperCase() : key ?? '' }])
 
-    for (const { key, row } of typed) {
+    for (const { key, row, list } of typed) {
       if (key === 'L') {
         const cwd = `--working-directory=${await $.session.cwd()}`
         // setsid -f returns at once and leaves a window that outlives this session.
@@ -320,15 +355,20 @@ export const register: Register = on => {
         }
         continue
       }
-      if (row !== undefined) select(row)
-      else if (key === 'j' || key === 'down') step(1)
+      if (row !== undefined) {
+        focus = list ?? 'files'
+        if (focus === 'commits') pickCommit(row)
+        else pickFile(row)
+      } else if (key === 'j' || key === 'down') step(1)
       else if (key === 'k' || key === 'up') step(-1)
+      else if (key === 'tab' || key === 'h' || key === 'l' || key === 'left' || key === 'right') focus = focus === 'files' ? 'commits' : 'files'
       else if (key === 'J') scrollTo(offset + 1)
       else if (key === 'K') scrollTo(offset - 1)
       else if (key === 'pagedown') scrollTo(offset + diffRows())
       else if (key === 'pageup') scrollTo(offset - diffRows())
       else continue
       isFollowing = false
+      reveal()
     }
 
     void refresh()
