@@ -11,13 +11,11 @@ set -u
 manual='^(tasks/|mise\.toml$|modules/desktop/hypr/hyprland\.lua$|modules/desktop/theme/palettes/|scripts/manual-gen\.sh$|docs/manual/(keys|tasks|palette)\.md$|modules/desktop/shell/assets/keys\.json$)'
 if git diff --cached --name-only | grep -qE "$manual" &&
 	command -v mise >/dev/null && command -v python3 >/dev/null && command -v nix >/dev/null; then
-	# the check reads the working tree, so it only speaks for the commit when the two agree
-	if unstaged="$(git diff --name-only | grep -E "$manual")"; then
-		echo "pre-commit: the manual's sources have unstaged changes — stage or stash them first:" >&2
-		echo "$unstaged" >&2
-		exit 1
-	fi
-	scripts/manual-gen.sh --check || {
+	# against the index, not the working tree: the commit is what has to agree with itself
+	idx="$(mktemp -d)"
+	trap 'rm -rf "$idx"' EXIT
+	git checkout-index -a --prefix="$idx/"
+	(cd "$idx" && MISE_TRUSTED_CONFIG_PATHS="$idx" scripts/manual-gen.sh --check) || {
 		echo "pre-commit: run mise run manual:gen and stage docs/manual" >&2
 		exit 1
 	}
