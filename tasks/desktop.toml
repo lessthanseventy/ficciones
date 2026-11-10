@@ -140,7 +140,7 @@ run = [
   # stderr, not just the exit code: sass deprecations and bundler warnings do not fail `ags
   # bundle`, so three global-builtin nth() calls sat in the output for weeks. Empty
   # stderr is the gate; a new deprecation is refused the day it lands, not the day 3.0.0 drops.
-  "w=$(ags bundle app.tsx \"$(mktemp -d)/astal-shell\" 2>&1 >/dev/null); if [ -n \"$w\" ]; then echo \"$w\"; echo 'shell:check — bundle wrote to stderr (zero-warning rule)'; exit 1; fi; echo 'shell:check — bundle ok, stderr clean'",
+  "w=$(ags bundle app.tsx \"$(mktemp -d)/astal-shell\" 2>&1 >/dev/null) || w=\"${w:-ags bundle failed, nothing on stderr}\"; if [ -n \"$w\" ]; then echo \"$w\"; echo 'shell:check — bundle wrote to stderr (zero-warning rule)'; exit 1; fi; echo 'shell:check — bundle ok, stderr clean'",
   "ags types -d . -u --ignore Gtk3 --ignore Astal3 >/dev/null",
   "out=$(npx --yes -p typescript@5 tsc --noEmit -p . 2>&1 | grep -v '^ ' | grep -v '/nix/store' || true); if [ -n \"$out\" ]; then echo \"$out\"; exit 1; fi; echo 'shell:check — tsc ok'",
   # tsc does not report @deprecated, so gnim's two deprecated forms are refused by grep
