@@ -1,0 +1,1 @@
+{ "name": "transcript-rows", "version": "0.1.0", "author": { "name": "Andrew Moore" }, "description": "Each tool call as one line that a click opens and folds, and a long turn summed up in a box under it" }

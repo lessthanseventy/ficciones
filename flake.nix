@@ -501,7 +501,8 @@
                        GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
                        GIT_TERMINAL_PROMPT: "0" }
                      | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
-                         | map(select(. != "" and (endswith("-changes-pane") | not))) + ["${./modules/agents/mods/changes-pane}"] | join(":"))
+                         | map(select(. != "" and (endswith("-changes-pane") or endswith("-transcript-rows") | not)))
+                           + ["${./modules/agents/mods/changes-pane}", "${./modules/agents/mods/transcript-rows}"] | join(":"))
                      | .autoCompactWindow = 400000
                      | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
                     run chmod 600 "$tmp"
