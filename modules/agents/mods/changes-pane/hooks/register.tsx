@@ -33,11 +33,10 @@ const ROWED = new Set(['Bash', 'Read', 'Edit', 'Write', 'Grep', 'Glob'])
 
 type Ui = { ui: { resolve: (e: never) => Record<string, any>; invalidate: (event: string) => void } }
 
-// One call's line and, once clicked, the call as it was made and answered under it. The line
-// alone is the button: the pointer inverts a button whole, and a screen of output inverted is
-// unreadable.
+// One call's line and, once clicked, the call as it was made and answered under it. A click on
+// the line or anywhere in the opened text folds it: the text is a view of its own (body.tsx).
 function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call, line: string, lead: string) {
-  const { Box, Text, Button } = $.ui.resolve(e as never)
+  const { Box, Text, Button, Client } = $.ui.resolve(e as never)
   const isOpen = opened.has(id)
   const toggle = () => {
     if (!opened.delete(id)) opened.add(id)
@@ -56,7 +55,7 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
         </Button>
         {isOpen ? (
           <Box paddingLeft={2}>
-            <Text dimColor>{callText(call).join('\n')}</Text>
+            <Client key={`body-${id}`} module="./body.tsx" props={{ id, lines: callText(call) }} width="100%" />
           </Box>
         ) : null}
       </Box>
@@ -570,6 +569,15 @@ export const register: Register = on => {
       reveal()
       void refresh()
     }
+    $.ui.invalidate('ui.render')
+    return {}
+  })
+
+  // an opened call's text was clicked
+  on('ui.message', async ($, e, next) => {
+    const fold = (e.data as { fold?: unknown } | null)?.fold
+    if (typeof fold !== 'string') return next(e)
+    opened.delete(fold)
     $.ui.invalidate('ui.render')
     return {}
   })
