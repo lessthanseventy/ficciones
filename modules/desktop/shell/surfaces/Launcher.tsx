@@ -3,6 +3,9 @@
 // below, the selection in inverse video. Prefixes switch mode: apps by default, `=` calc, `>` verbs (mise tasks)
 // (qalc), `/` files (fd from ~), `:` run a shell line. Up/Down or Ctrl+j/k, Enter, Escape.
 import { parseSpec } from "../lib/timer"
+import { L, dispatch, sel as windowSel } from "../lib/hyprlua"
+import { agents } from "../lib/agents"
+import { openThread } from "../lib/alerts"
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -26,6 +29,17 @@ const REPO = `${home}/projects/ficciones`
 /** A verb runs in its own ghostty window from the repo, and the window stays until you dismiss it. */
 const runVerb = (name: string) =>
   execAsync(["ghostty", `--title=mise ${name}`, "-e", "sh", "-c", `cd ${REPO} && mise run ${name}; printf '\n[done — enter to close] '; read _`]).then(() => void 0)
+
+/** What the pointer reaches on the rail, the bar and the dashboard, by name. The two that end the
+ * session stay on the dashboard, where they ask twice. */
+const sh = (...verb: string[]) => ["astal-shell", ...verb]
+const ACTIONS: [string, string[]][] = [
+  ["lock", ["loginctl", "lock-session"]], ["suspend", ["systemctl", "suspend"]],
+  ["theme: light / dark", sh("theme", "toggle")], ["glass", sh("glass")], ["crt scanlines", sh("crt")], ["backdrop: next mode", sh("backdrop")],
+  ["notifications", sh("toggle", "hub")], ["deck", sh("toggle", "deck")], ["office", sh("toggle", "office")], ["dashboard", sh("toggle", "dashboard")],
+  ["settings", sh("toggle", "settings")], ["keys", sh("toggle", "cheatsheet")], ["weather", sh("toggle", "weather")], ["calendar", sh("toggle", "drawer")],
+  ["clipboard", sh("toggle", "clipboard")], ["answer the decision", sh("decision")], ["pin as sidecar", sh("sidecar", "toggle")],
+]
 
 let win: Astal.Window | null = null
 let entry: Gtk.Entry | null = null
@@ -74,13 +88,20 @@ async function search(q: string) {
         out = hits
           .map((a, i) => ({ a, s: score("apps", a.entry) * 10 - i }))
           .sort((x, y) => y.s - x.s)
-          .slice(0, 12)
+          .slice(0, 8)
           .map(({ a }) => ({
             icon: a.iconName || "application-x-executable", title: a.name, sub: times("apps", a.entry) ? `${a.description ?? ""}  · ${times("apps", a.entry)}×` : (a.description ?? ""), key: a.entry, mode: "apps",
             run: () => { a.launch() },
           }))
         // a shell line typed before that starts the same way rides along
         for (const r of recent(3, ["shell"]).filter((r) => r.key.startsWith(body))) { const it = recall(r); if (it) out.push(it) }
+        const needle = body.toLowerCase()
+        // the shell's own actions by name, then an open window or a thread by its title
+        for (const [name, argv] of ACTIONS) if (name.includes(needle)) out.push({ glyph: "\u{f0493}", title: name, sub: "shell", key: `act:${name}`, run: () => execAsync(argv).then(() => void 0) })
+        for (const c of Hyprland.get_default().get_clients().filter((c) => c.mapped && c.title.toLowerCase().includes(needle)).slice(0, 4))
+          out.push({ glyph: "\u{f05af}", title: c.title.slice(0, 70), sub: `window · ws ${c.workspace?.name ?? "?"}`, key: `win:${c.address}`, run: () => dispatch(L.focusWindow(windowSel(c))) })
+        for (const t of agents.peek().threads.filter((t) => t.title.toLowerCase().includes(needle)).slice(0, 4))
+          out.push({ glyph: "\u{f06a9}", title: `#${t.id} ${t.title}`.slice(0, 70), sub: "thread", key: `thread:${t.id}`, run: () => openThread(t.id) })
         if (tm) out.unshift({ glyph: "\u{f051b}", title: tm.title, sub: "timer", key: `timer:${body}`, run: () => { tm.start() } })
       }
     } else if (m === "calc") {
