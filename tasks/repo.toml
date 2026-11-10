@@ -38,6 +38,11 @@ run = "scripts/cap-no-pipe.test.sh"
 description = "the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing), and their list of menard's verbs against menard's"
 run = "scripts/check-menard-verbs.sh || exit 1; command -v claude >/dev/null || { echo 'check:mods — no claude on PATH, not run'; exit 0; }; for m in modules/agents/mods/*/; do claude plugin test \"$m\" || exit 1; done"
 
+# The flake builds the shell's bundle, which checks no types.
+["check:shell"]
+description = "the desktop shell's own gate (shell:check), where ags is installed"
+run = "command -v ags >/dev/null || { echo 'check:shell — no ags on PATH, not run'; exit 0; }; mise run shell:check"
+
 ["check"]
-description = "Everything green: the names gate, the cap hook, the mods' tests, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "check:mods", "manual:check", "flake:check"]
+description = "Everything green: the names gate, the cap hook, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
+depends = ["check:names", "check:cap-hook", "check:mods", "check:shell", "manual:check", "flake:check"]
