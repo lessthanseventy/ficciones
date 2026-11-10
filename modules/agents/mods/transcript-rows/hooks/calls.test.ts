@@ -44,7 +44,8 @@ test('a shell command of several steps is named by them', async () => {
 test("a command's last word is not its timing, and a call's own time reads short", async () => {
   expect(lastSaid('Ran 29 tests across 1 file. [3.52s]\n    Finished in 109.53s\n')).toBe('Ran 29 tests across 1 file.')
   expect(lastSaid('● done\n✻ Cogitated for 3s · done 12:49 AM\n')).toBe('● done')
-  expect(lastSaid('0\t0\n')).toBe('0\t0')
+  expect(lastSaid('0\t0\n')).toBe('0 0')
+  expect(lastSaid('\x1b[38;5;82m●\x1b[39m done\x07\n')).toBe('● done')
   expect(lastSaid('real 0m1.2s\n')).toBe('')
   expect([took(undefined), took(400), took(3400), took(109_530)]).toEqual(['', '', '3s', '1m 50s'])
 })

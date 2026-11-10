@@ -29,6 +29,12 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
   }
   const space = line.indexOf(' ')
   const files = call.tool === 'Bash' ? shellEdits(call.output) : []
+  const body = space < 0 ? '' : line.slice(space)
+  const arrow = body.indexOf(' → ')
+  const made = arrow < 0 ? body : body.slice(0, arrow)
+  const counted = call.tool === 'Edit' || call.tool === 'Write' ? made.match(/^(.*) (\+\d+) (-\d+)(.*)$/) : null
+  const failing = (text: string) =>
+    text.split(' (failed)').flatMap((part, index) => (index > 0 ? [<Text color="error"> (failed)</Text>, part] : [part]))
   // the lead stands in a column of its own, so a line that wraps comes back under its text
   return (
     <Box>
@@ -36,7 +42,11 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
       <Box flexShrink={1} flexDirection="column">
         <Button plain key={`call-${id}`} onPress={toggle}>
           <Text color="remember">{space < 0 ? line : line.slice(0, space)}</Text>
-          {space < 0 ? '' : line.slice(space)}
+          {failing(counted ? counted[1]! : made)}
+          {counted ? <Text color="success">{` ${counted[2]}`}</Text> : null}
+          {counted ? <Text color="error">{` ${counted[3]}`}</Text> : null}
+          {counted ? failing(counted[4]!) : null}
+          {arrow < 0 ? null : <Text color="suggestion">{body.slice(arrow)}</Text>}
           {time ? <Text color="claude">{`  ${time}`}</Text> : null}
           <Text dimColor>{isOpen ? '  ▾' : '  ▸'}</Text>
         </Button>

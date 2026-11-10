@@ -107,7 +107,8 @@ const TIMED = /\s*[[(]\d+(?:\.\d+)?\s?m?s[\])]/g
 
 // The last thing a command said that is not its timing, less a time in brackets at its end.
 export const lastSaid = (stdout: string): string => {
-  const lines = stdout.split('\n').map(line => line.trim()).filter(Boolean)
+  // colour codes and control characters are not words, and the engine refuses a row that holds one
+  const lines = stdout.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/[\x00-\x09\x0b-\x1f\x7f-\x9f]/g, ' ').split('\n').map(line => line.trim()).filter(Boolean)
   return (lines.findLast(line => !TIMING.test(line)) ?? '').replace(TIMED, '')
 }
 
