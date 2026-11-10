@@ -29,7 +29,10 @@ export function startHack(connector: string, w: number, h: number, hack: string)
   const scale = Math.min(1, Math.max(0.25, setting("backdrop.hackScale").peek()))
   const size = (n: number) => String(Math.round(n * scale))
   try {
-    running.set(connector, { p: subprocess(["xss-host", connector, String(display), size(w), size(h), hack], () => {}, () => {}), display })
+    // in backdrop.slice (default.nix): CPU is shared between cgroups before processes, so the
+    // hack's nice only counts inside the shell's own; --scope execs, so the pid is xss-host's
+    const argv = ["systemd-run", "--user", "--scope", "--quiet", "--slice=backdrop.slice", "--", "xss-host", connector, String(display), size(w), size(h), hack]
+    running.set(connector, { p: subprocess(argv, () => {}, () => {}), display })
     return true
   } catch (e) { console.error("xss-host:", String(e)); return false }
 }

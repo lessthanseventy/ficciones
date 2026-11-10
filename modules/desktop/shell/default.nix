@@ -81,5 +81,13 @@ in
       };
       Install.WantedBy = [ "graphical-session.target" ];
     };
+
+    # The backdrop's screensaver hacks (lib/xscreensaver.ts): software GL that takes a core each
+    # if it can have one. Idle, so they draw with what nothing else wants.
+    systemd.user.slices.backdrop = lib.mkIf cfg.autostart {
+      Unit.Description = "backdrop — the wallpaper's screensaver hacks";
+      Unit.X-SwitchMethod = "keep-old";
+      Slice.CPUWeight = "idle";
+    };
   };
 }
