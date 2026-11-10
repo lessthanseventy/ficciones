@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { menardSaid, turnLine, emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { menardSaid, shellEdits, turnLine, emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -245,6 +245,12 @@ test('a call becomes a line a turn can be summarised from', async () => {
   expect(turnLine({ tool: 'mcp__plugin_menard_menard__run', input: { verb: 'test' }, output: '{"ok":true}' }, false)).toBe('menard run test: ok')
 })
 
+test('the files a shell command changed are counted from its result', async () => {
+  const output = { stdout: '', bashEditDiff: { files: [{ filePath: '/repo/lib/a.ts', hunks: [{ lines: [' x', '-a', '+b', '+c'] }] }] } }
+  expect(shellEdits(output)).toEqual([{ name: 'a.ts', adds: 2, dels: 1 }])
+  expect(shellEdits({ stdout: 'ok' })).toEqual([])
+})
+
 test('an edit is counted from its own result', async () => {
   expect(patchCounts({ structuredPatch: [{ lines: [' a', '-b', '+c', '+d'] }, { lines: ['-e'] }] })).toEqual({ adds: 2, dels: 2 })
   expect(patchCounts({ type: 'create', structuredPatch: [], content: 'a\nb\n' })).toEqual({ adds: 2, dels: 0 })
@@ -259,7 +265,7 @@ test('the wheel over a list walks its selection', async ($, on) => {
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   expect(await ui.find({ text: /^f1\.ts/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeUndefined()
-  // 30 rows: the frame, the ruled title, 13 of diff, a blank, the files' head, then seven files from row 18
+  // 30 rows: the diff's box around 15 rows, the files' top edge, then seven files from row 18
   await $.ui.scroll({ component: 'Pane', requestId: 'changes', offset: 8, by: 8, bodyRows: 30, contentRows: 30, origin: { kind: 'person' }, pointer: { column: 3, row: 22 } } as never)
   expect(await ui.find({ text: /^f2\.ts$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()

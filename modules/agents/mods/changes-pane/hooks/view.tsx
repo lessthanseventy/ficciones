@@ -18,7 +18,7 @@ export type ViewProps = {
   adds: string
   dels: string
   rule: string
-  pad: number
+  columns: number
   isFollowing: boolean
   rows: Run[][]
   diffRows: number
@@ -52,58 +52,79 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
     surface.onKey(({ key, shift }) => send({ key, ...(shift && { shift }) }))
     surface.onPointer(({ type, y }) => {
       if (type !== 'down') return
-      const { diffRows, pad, files, commits } = queue.props
-      // the frame, the ruled title, the diff, the padding and the files head sit above the files; padding and the commits head follow them
-      const inFiles = y - (diffRows + 4 + pad)
-      const inCommits = inFiles - shown(files) - 1 - pad
+      const { diffRows, files, commits } = queue.props
+      // the diff's box and the files' top edge sit above the files; their bottom edge and the commits' top follow them
+      const inFiles = y - (diffRows + 3)
+      const inCommits = inFiles - shown(files) - 2
       if (inFiles >= 0 && inFiles < files.rows.length) send({ list: 'files', row: files.first + inFiles })
       else if (inCommits >= 0 && inCommits < commits.rows.length) send({ list: 'commits', row: commits.first + inCommits })
     })
   }
 
-  const list = (section: Section) => (
-    <Box flexDirection="column" paddingTop={props.pad}>
-      <Text wrap="truncate-end">
-        <Text bold color={section.isFocused ? 'claude' : 'remember'}>{section.head}</Text>
-        <Text dimColor>{section.rule}</Text>
-      </Text>
-      {section.rows.length === 0 ? <Text dimColor wrap="truncate-end">{section.empty}</Text> : null}
-      {section.rows.map(({ lead, dim, label, adds, dels, isSelected }) => (
-        <Text inverse={isSelected && section.isFocused} bold={isSelected && !section.isFocused} wrap="truncate-end">
-          <Text color="permission">{lead}</Text>
-          <Text dimColor={!isSelected}>{dim}</Text>
-          {label}
-          <Text color="success">{adds}</Text>
-          <Text color="error">{dels}</Text>
-        </Text>
-      ))}
+  // A box as lazygit draws one: the title in the top edge, and the edge lit when the box has the keys.
+  const edge = (isLit: boolean) => ({ color: isLit ? 'claude' : undefined, dimColor: !isLit, bold: isLit })
+  const bottom = `╰${'─'.repeat(props.columns)}╯`
+  const within = (isLit: boolean, content: unknown) => (
+    <Box>
+      <Text {...edge(isLit)}>│</Text>
+      <Box width={props.columns}>{content}</Box>
+      <Text {...edge(isLit)}>│</Text>
     </Box>
   )
 
-  return (
-    <Box flexDirection="column" borderStyle={props.hasKeys ? 'bold' : 'single'} borderColor={props.hasKeys ? 'claude' : undefined} borderDimColor={!props.hasKeys}>
-      <Box justifyContent="space-between">
-        <Box flexShrink={1}>
-          <Text bold color="claude" wrap="truncate-end">{props.title}</Text>
-          <Text dimColor wrap="truncate-start">{props.where}</Text>
-          <Text color="success">{props.adds}</Text>
-          <Text color="error">{props.dels}</Text>
-        </Box>
-        {props.isFollowing ? <Text color="success">● following</Text> : <Text dimColor>○ held</Text>}
+  const list = (section: Section) => (
+    <Box flexDirection="column">
+      <Box>
+        <Text {...edge(section.isFocused)}>╭─ </Text>
+        <Text bold color={section.isFocused ? 'claude' : 'remember'}>{section.head}</Text>
+        <Text {...edge(section.isFocused)}>{section.rule}╮</Text>
       </Box>
-      <Text dimColor wrap="truncate-end">{props.rule}</Text>
-      <Box height={props.diffRows} overflow="hidden" flexDirection="column">
-        {props.note ? <Text dimColor>{props.note}</Text> : null}
-        {props.rows.map(row => (
+      {section.rows.length === 0 ? within(section.isFocused, <Text dimColor wrap="truncate-end">{section.empty}</Text>) : null}
+      {section.rows.map(({ lead, dim, label, adds, dels, isSelected }) =>
+        within(
+          section.isFocused,
+          <Text inverse={isSelected && section.isFocused} bold={isSelected && !section.isFocused} wrap="truncate-end">
+            <Text color="permission">{lead}</Text>
+            <Text dimColor={!isSelected}>{dim}</Text>
+            {label}
+            <Text color="success">{adds}</Text>
+            <Text color="error">{dels}</Text>
+          </Text>,
+        ),
+      )}
+      <Text {...edge(section.isFocused)}>{bottom}</Text>
+    </Box>
+  )
+
+  const blank = Math.max(0, props.diffRows - props.rows.length - (props.note ? 1 : 0))
+
+  return (
+    <Box flexDirection="column">
+      <Box>
+        <Text dimColor>╭─ </Text>
+        <Text bold color="claude">{props.title}</Text>
+        <Text dimColor>{props.where}</Text>
+        <Text color="success">{props.adds}</Text>
+        <Text color="error">{props.dels}</Text>
+        <Text dimColor>{props.rule}</Text>
+        {props.isFollowing ? <Text color="success"> ● following </Text> : <Text dimColor> ○ held </Text>}
+        <Text dimColor>╮</Text>
+      </Box>
+      {props.note ? within(false, <Text dimColor wrap="truncate-end">{props.note}</Text>) : null}
+      {props.rows.map(row =>
+        within(
+          false,
           <Text wrap="truncate-end">
             {row.map(r => (
               <Text color={r.c} backgroundColor={r.b} bold={r.bold} dimColor={r.dim} italic={r.it} underline={r.u}>
                 {r.t}
               </Text>
             ))}
-          </Text>
-        ))}
-      </Box>
+          </Text>,
+        ),
+      )}
+      {Array.from({ length: blank }, () => within(false, <Text> </Text>))}
+      <Text dimColor>{bottom}</Text>
       {list(props.files)}
       {list(props.commits)}
       {props.hasKeys ? (

@@ -72,6 +72,15 @@ export const turnLine = (call: Call, isError: boolean): string => {
   return `${call.tool} ${first.split('\n')[0]!.slice(0, MAX_SAID)}${failed}`.trim()
 }
 
+type ShellEdits = { bashEditDiff?: { files?: { filePath: string; hunks: { lines: string[] }[] }[] } }
+
+// The files a shell command changed, as its result lists them, each with its counts.
+export const shellEdits = (output: unknown): { name: string; adds: number; dels: number }[] =>
+  ((output ?? {}) as ShellEdits).bashEditDiff?.files?.map(({ filePath, hunks }) => ({
+    name: filePath.split('/').pop() ?? filePath,
+    ...patchCounts({ structuredPatch: hunks }),
+  })) ?? []
+
 // `git show` with the message first: what the person reads, and each file's own diff. A session
 // link in a trailer is a click waiting to happen, so those lines are left out.
 export const parseShow = (show: string): { message: string[]; files: Map<string, string> } => {

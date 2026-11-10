@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, menardSaid, parseDiff, parseLog, parseShow, patchCounts, turnLine, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, menardSaid, parseDiff, parseLog, parseShow, patchCounts, shellEdits, turnLine, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Commit, DiffLine, File, Run } from './changes'
 import type { Input, List, Section } from './view'
 
@@ -87,10 +87,8 @@ export const register: Register = on => {
   const commitIndex = () => (source === '' ? 0 : 1 + Math.max(0, commits.findIndex(c => c.sha === source)))
   const fileRows = () => clamp(paths().length, 1, Math.min(MAX_FILE_ROWS, Math.floor(size.rows / 4)))
   const commitRows = () => clamp(commits.length + 1, 1, Math.min(MAX_COMMIT_ROWS, Math.floor(size.rows / 5)))
-  // The frame's two rows, the title and its rule, the two section heads and the hint.
-  // a blank row above each list, where the pane is tall enough to spare two
-  const pad = () => (size.rows >= 24 ? 1 : 0)
-  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 7 - 2 * pad())
+  // Three boxes' top and bottom edges, and the hint.
+  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 7)
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
   const reveal = () => {
     filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
@@ -144,13 +142,19 @@ export const register: Register = on => {
       ...commits.map(c => ({ id: c.sha, lead: `${c.sha} `, label: printable(c.subject) })),
     ]
     // a head doubles as the line between two sections
-    const rule = (taken: number) => ` ${'─'.repeat(Math.max(0, size.columns - taken - 1))}`
-    const filesHead = commit ? `files in ${commit.sha}` : 'files · uncommitted'
-    const commitsHead = ['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · ')
-    const title = file !== '' ? printable(file.split('/').pop() ?? '') : commit ? `${commit.sha} ${printable(commit.subject)}` : ''
-    const where = file.includes('/') ? `  ${printable(file.slice(0, file.lastIndexOf('/')))}` : ''
+    // A box's top edge holds its title: a corner and a dash before it, the rule after it to the far corner.
+    const room = Math.max(0, size.columns - 3)
+    const rule = (taken: number) => '─'.repeat(Math.max(0, room - taken))
+    const filesHead = (commit ? `files in ${commit.sha}` : 'files · uncommitted').slice(0, room)
+    const commitsHead = ['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · ').slice(0, room)
+    // the following mark sits in the edge too, a space each side of it
+    const mark = isFollowing ? 13 : 8
     const adds = file !== '' && diff?.adds ? `  +${diff.adds}` : ''
     const dels = file !== '' && diff?.dels ? ` -${diff.dels}` : ''
+    const left = Math.max(0, room - mark - adds.length - dels.length)
+    const title = (file !== '' ? printable(file.split('/').pop() ?? '') : commit ? `${commit.sha} ${printable(commit.subject)}` : '').slice(0, left)
+    const folder = file.includes('/') ? `  ${printable(file.slice(0, file.lastIndexOf('/')))}` : ''
+    const where = title.length + folder.length <= left ? folder : ''
 
     const filesSection: Section = {
       head: filesHead,
@@ -174,8 +178,8 @@ export const register: Register = on => {
       where,
       adds,
       dels,
-      rule: '─'.repeat(size.columns),
-      pad: pad(),
+      rule: rule(title.length + where.length + adds.length + dels.length + mark),
+      columns: size.columns,
       isFollowing,
       rows: fitRows(rows.slice(offset, offset + diffRows())),
       diffRows: diffRows(),
@@ -382,7 +386,7 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
     const { Client } = $.ui.resolve(e)
-    // the view's frame takes a column each side
+    // a box's edges take a column each side
     const columns = Math.max(1, e.props.bodyColumns - 2)
     const isResized = columns !== size.columns
     size = { columns, rows: e.props.scroll.bodyRows }
@@ -395,7 +399,27 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
-    if (!canDraw || !SHOWN_HERE.has(e.props.tool) || e.props.isErrored || e.props.isExpanded) return next(e)
+    if (!canDraw || e.props.isErrored || e.props.isExpanded) return next(e)
+    const edited = e.props.tool === 'Bash' ? shellEdits(e.props.output) : []
+    if (edited.length > 0) {
+      // A shell command's result carries the diff of each file it changed: the row keeps the
+      // command's own output, and the diffs become their counts. The key is left out, not set
+      // undefined, which the engine's row cannot draw.
+      const { bashEditDiff: _, ...output } = e.props.output as Record<string, unknown>
+      const { Box, Text } = $.ui.resolve(e)
+      return (
+        <Box flexDirection="column">
+          {await next({ ...e, props: { ...e.props, output } })}
+          {edited.map(({ name, adds, dels }) => (
+            <Text dimColor>
+              {'  ⎿  '}
+              {name} <Text color="success">+{adds}</Text> <Text color="error">-{dels}</Text>
+            </Text>
+          ))}
+        </Box>
+      )
+    }
+    if (!SHOWN_HERE.has(e.props.tool)) return next(e)
     const { Text } = $.ui.resolve(e)
     const { adds, dels } = patchCounts(e.props.output)
     return (
@@ -427,14 +451,14 @@ export const register: Register = on => {
   })
 
   // The body never overflows: the view draws its own windows of rows, so the wheel acts on the one
-  // it is over. The ruled title and the diff sit above the files' head, the commits' head under the files.
+  // it is over: the diff's box, then the files' box, then the commits'.
   on('ui.scroll', { requestId: PANE }, async ($, e) => {
     const at = e.pointer?.row ?? 0
     isFollowing = false
-    if (at < diffRows() + 3) scrollTo(offset + e.by)
+    if (at < diffRows() + 2) scrollTo(offset + e.by)
     else {
       // over a list the wheel walks its selection, which a list that fits can show too
-      focus = at >= diffRows() + 4 + pad() + fileRows() ? 'commits' : 'files'
+      focus = at >= diffRows() + 4 + fileRows() ? 'commits' : 'files'
       const now = Date.now()
       const by = Math.sign(e.by)
       const isSameNotch = by === wheeled.by && now - wheeled.at < NOTCH_MS
