@@ -137,6 +137,9 @@ defmodule M do
       _ when tries > 0 ->
         Process.sleep(500)
         connect(p, tries - 1)
+
+      _ ->
+        :error
     end
   end
 
@@ -185,7 +188,18 @@ drain = fn drain, acc ->
   end
 end
 
-s = M.connect(port_n)
+s =
+  case M.connect(port_n) do
+    :error ->
+      IO.puts("floorp never opened marionette:\n" <> String.slice(drain.(drain, ""), -3000, 3000))
+      System.cmd("kill", ["#{os_pid}"])
+      File.rm_rf(root)
+      System.halt(1)
+
+    s ->
+      s
+  end
+
 M.call(s, "WebDriver:NewSession", %{})
 
 code =
