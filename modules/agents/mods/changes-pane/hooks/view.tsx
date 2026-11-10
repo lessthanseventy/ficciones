@@ -6,16 +6,19 @@ export type List = 'files' | 'commits'
 export type Input = { n: number; key?: string; shift?: true; row?: number; list?: List }
 export type Section = {
   head: string
+  rule: string
   isFocused: boolean
   first: number
   empty: string
-  rows: { lead: string; label: string; adds: string; dels: string; isSelected: boolean }[]
+  rows: { lead: string; dim: string; label: string; adds: string; dels: string; isSelected: boolean }[]
 }
 export type ViewProps = {
   title: string
   where: string
   adds: string
   dels: string
+  rule: string
+  pad: number
   isFollowing: boolean
   rows: Run[][]
   diffRows: number
@@ -48,22 +51,26 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
     surface.onKey(({ key, shift }) => send({ key, ...(shift && { shift }) }))
     surface.onPointer(({ type, y }) => {
       if (type !== 'down') return
-      const { diffRows, files, commits } = queue.props
-      // title, diff and the files head sit above the files; the commits head follows them
-      const inFiles = y - (diffRows + 2)
-      const inCommits = inFiles - shown(files) - 1
+      const { diffRows, pad, files, commits } = queue.props
+      // title, diff, the padding and the files head sit above the files; padding and the commits head follow them
+      const inFiles = y - (diffRows + 2 + pad)
+      const inCommits = inFiles - shown(files) - 1 - pad
       if (inFiles >= 0 && inFiles < files.rows.length) send({ list: 'files', row: files.first + inFiles })
       else if (inCommits >= 0 && inCommits < commits.rows.length) send({ list: 'commits', row: commits.first + inCommits })
     })
   }
 
   const list = (section: Section) => (
-    <Box flexDirection="column">
-      <Text bold={section.isFocused} color={section.isFocused ? 'claude' : 'remember'} wrap="truncate-end">{section.head}</Text>
+    <Box flexDirection="column" paddingTop={props.pad}>
+      <Text wrap="truncate-end">
+        <Text bold color={section.isFocused ? 'claude' : 'remember'}>{section.head}</Text>
+        <Text dimColor>{section.rule}</Text>
+      </Text>
       {section.rows.length === 0 ? <Text dimColor wrap="truncate-end">{section.empty}</Text> : null}
-      {section.rows.map(({ lead, label, adds, dels, isSelected }) => (
+      {section.rows.map(({ lead, dim, label, adds, dels, isSelected }) => (
         <Text inverse={isSelected && section.isFocused} bold={isSelected && !section.isFocused} wrap="truncate-end">
           <Text color="permission">{lead}</Text>
+          <Text dimColor={!isSelected}>{dim}</Text>
           {label}
           <Text color="success">{adds}</Text>
           <Text color="error">{dels}</Text>
@@ -80,6 +87,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
           <Text dimColor wrap="truncate-start">{props.where}</Text>
           <Text color="success">{props.adds}</Text>
           <Text color="error">{props.dels}</Text>
+          <Text dimColor>{props.rule}</Text>
         </Box>
         {props.isFollowing ? <Text color="success">● following</Text> : <Text dimColor>○ held</Text>}
       </Box>

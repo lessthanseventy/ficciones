@@ -74,7 +74,9 @@ export const register: Register = on => {
   const fileRows = () => clamp(paths().length, 1, Math.min(MAX_FILE_ROWS, Math.floor(size.rows / 4)))
   const commitRows = () => clamp(commits.length + 1, 1, Math.min(MAX_COMMIT_ROWS, Math.floor(size.rows / 5)))
   // The title, the two section heads and the hint take one row each.
-  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 4)
+  // a blank row above each list, where the pane is tall enough to spare two
+  const pad = () => (size.rows >= 24 ? 1 : 0)
+  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 4 - 2 * pad())
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
   const reveal = () => {
     filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
@@ -107,11 +109,14 @@ export const register: Register = on => {
     void refresh()
   }
 
-  const row = (lead: string, label: string, diff: Diff | undefined, isSelected: boolean, tail: boolean) => {
+  const row = (lead: string, label: string, diff: Diff | undefined, isSelected: boolean, isPath: boolean) => {
     const adds = diff?.adds ? ` +${diff.adds}` : ''
     const dels = diff?.dels ? ` -${diff.dels}` : ''
     const width = Math.max(1, size.columns - lead.length - adds.length - dels.length)
-    return { lead, label: (tail ? tailPath(label, width) : label.slice(0, width)).padEnd(width), adds, dels, isSelected }
+    const text = (isPath ? tailPath(label, width) : label.slice(0, width)).padEnd(width)
+    // a path's folders are drawn dim, so the name is what the eye lands on
+    const cut = isPath ? text.lastIndexOf('/') + 1 : 0
+    return { lead, dim: text.slice(0, cut), label: text.slice(cut), adds, dels, isSelected }
   }
 
   const viewProps = () => {
@@ -125,9 +130,18 @@ export const register: Register = on => {
       ...commits.map(c => ({ id: c.sha, lead: `${c.sha} `, label: printable(c.subject) })),
     ]
     // a head doubles as the line between two sections
-    const ruled = (head: string) => `${head} ${'─'.repeat(Math.max(0, size.columns - head.length - 1))}`
+    const rule = (taken: number) => ` ${'─'.repeat(Math.max(0, size.columns - taken - 1))}`
+    const filesHead = commit ? `files in ${commit.sha}` : 'files · uncommitted'
+    const commitsHead = ['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · ')
+    const title = file !== '' ? printable(file.split('/').pop() ?? '') : commit ? `${commit.sha} ${printable(commit.subject)}` : ''
+    const where = file.includes('/') ? `  ${printable(file.slice(0, file.lastIndexOf('/')))}` : ''
+    const adds = file !== '' && diff?.adds ? `  +${diff.adds}` : ''
+    const dels = file !== '' && diff?.dels ? ` -${diff.dels}` : ''
+    // the rule stops a cell short of the following mark at the row's end
+    const mark = isFollowing ? 12 : 7
     const filesSection: Section = {
-      head: ruled(commit ? `files in ${commit.sha}` : 'files · uncommitted'),
+      head: filesHead,
+      rule: rule(filesHead.length),
       isFocused: focus === 'files',
       first: firstFile,
       empty: source === '' ? 'nothing uncommitted' : 'no files',
@@ -135,17 +149,20 @@ export const register: Register = on => {
         row('', printable(path), source === '' ? diffs.get(path) : shown.get(source)?.diffs.get(path), path === file, true)),
     }
     const commitsSection: Section = {
-      head: ruled(['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · ')),
+      head: commitsHead,
+      rule: rule(commitsHead.length),
       isFocused: focus === 'commits',
       first: firstCommit,
       empty: '',
       rows: log.slice(firstCommit, firstCommit + commitRows()).map(({ id, lead, label }) => row(lead, label, undefined, id === source, false)),
     }
     return {
-      title: file !== '' ? printable(file.split('/').pop() ?? '') : commit ? `${commit.sha} ${printable(commit.subject)}` : '',
-      where: file.includes('/') ? `  ${printable(file.slice(0, file.lastIndexOf('/')))}` : '',
-      adds: file !== '' && diff?.adds ? `  +${diff.adds}` : '',
-      dels: file !== '' && diff?.dels ? ` -${diff.dels}` : '',
+      title,
+      where,
+      adds,
+      dels,
+      rule: rule(title.length + where.length + adds.length + dels.length + mark),
+      pad: pad(),
       isFollowing,
       rows: fitRows(rows.slice(offset, offset + diffRows())),
       diffRows: diffRows(),
@@ -222,7 +239,12 @@ export const register: Register = on => {
       if (key === renderedKey) return
       renderedKey = key
       if (message) {
-        ;({ rows, starts } = wrapRows(message.map(line => [{ t: printable(line) }]), size.columns))
+        // who and when, then the subject, the body, and the trailers
+        const styled = message.map((line, i): Run[] => [{
+          t: printable(line),
+          ...(i === 0 || /^[A-Z][\w-]+-by: /i.test(line) ? { dim: true as const } : i === 2 ? { bold: true as const } : {}),
+        }])
+        ;({ rows, starts } = wrapRows(styled, size.columns))
         return
       }
       if (!current()?.lines.length) {
@@ -333,8 +355,8 @@ export const register: Register = on => {
     if (at < diffRows() + 1) scrollTo(offset + e.by)
     else {
       // over a list the wheel walks its selection, which a list that fits can show too
-      focus = at >= diffRows() + 2 + fileRows() ? 'commits' : 'files'
-      step(e.by)
+      focus = at >= diffRows() + 2 + pad() + fileRows() ? 'commits' : 'files'
+      step(Math.sign(e.by))
       reveal()
       void refresh()
     }
