@@ -54,6 +54,8 @@
     forwardPorts = [
       {
         from = "host";
+        # loopback only: the guest takes a password login with sudo, and mounts this checkout read-write
+        host.address = "127.0.0.1";
         host.port = 2222;
         guest.port = 22;
       }

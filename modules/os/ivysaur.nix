@@ -228,7 +228,11 @@ in
   # the rail's VPN card drives the mullvad CLI (shell/lib/vpn.ts); it is in daily use on Arch
   services.mullvad-vpn.enable = true; # the daemon + CLI; no GUI (the card is the GUI)
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
-  services.openssh.enable = true;
+  services.openssh = {
+    enable = true;
+    # wheel has passwordless sudo: keys only
+    settings.PasswordAuthentication = false;
+  };
   services.printing.enable = true;
   services.avahi = {
     enable = true;
