@@ -278,6 +278,7 @@ $card-hues: (
 .cap-wins { margin-left: $sp-4; label { color: $meta; } }
 
 // the bar's centre and its state glyphs
+.cell.waiting { padding: 0 $sp-3; background: $attention; label { color: $field-ink; } }
 .cell.nextup { padding: 0 $sp-3; .nextup-glyph { color: $key; } .nextup-text { color: $body; } &.soon .nextup-glyph, &.soon .nextup-text { color: $attention; } }
 // state glyphs: the gauges' icon size, one framed cell for the group
 .statecell { padding: 0 6px 0 2px; }   // measured: the glyphs ink 1.5px right of their slots

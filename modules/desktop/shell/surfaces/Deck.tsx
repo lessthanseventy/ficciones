@@ -171,10 +171,15 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           </popover>
         </menubutton>
         {/* the Tlön roster: warm/total, pink with a ! when someone awaits you; toggles the office rail */}
-        <button cssClasses={agents((a) => ["cell", "deck-agents", "clickable", ...(a.awaiting > 0 ? ["await"] : [])])} onClicked={() => toggleOffice(gdkmonitor)}>
+        <button cssClasses={agents((a) => ["cell", "deck-agents", "clickable", ...(a.awaiting > 0 ? ["await"] : !a.ok && a.note !== "…" ? ["down"] : [])])} onClicked={() => toggleOffice(gdkmonitor)}>
           <box spacing={6}>
             <label cssClasses={["pink"]} label={"\u{f06a9}"} />
-            <label cssClasses={["pink"]} label={agents((a) => (!a.ok ? "down" : a.awaiting > 0 ? `${a.awaiting}!` : `${a.roster.filter((r) => r.warm).length}/${a.roster.length}`))} />
+            <label cssClasses={["pink"]} label={agents((a) => {
+              if (!a.ok) return a.note === "…" ? "…" : "tlön down"
+              if (a.awaiting > 0) return `${a.awaiting} waiting`
+              const working = a.roster.filter((r) => r.thinking).length
+              return `${working} working · ${a.roster.length - working} idle`
+            })} />
           </box>
         </button>
       </box>

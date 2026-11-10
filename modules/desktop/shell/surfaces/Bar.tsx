@@ -24,7 +24,9 @@ import { METRICS, MetricDetail } from "../panes/Perf"
 import { Panel } from "../lib/tui"
 import { iconFor } from "../lib/icons"
 import { RuleV, RuleH } from "../lib/tui"
-import { pct, spark } from "../lib/format"
+import { pct, spark, hhmm } from "../lib/format"
+import { agents } from "../lib/agents"
+import { openThread } from "../lib/alerts"
 import { tier } from "../lib/perf"
 import { quietOsd } from "./Osd"
 import { query } from "../lib/hyprsock"
@@ -244,13 +246,29 @@ function RecCell() {
 }
 
 /** The next calendar event and the time to it — the bar's centre; pink inside ten minutes. */
+/** Who waits on you, in words, where the eye rests: the first thread and what it asks; a click opens it. */
+function WaitingCell() {
+  const first = agents((a) => a.threads.find((t) => t.awaiting) ?? null)
+  const text = agents((a) => {
+    const t = a.threads.find((x) => x.awaiting)
+    if (!t) return ""
+    const more = a.threads.filter((x) => x.awaiting).length - 1
+    return `#${t.id} ${t.title} — ${t.prompt?.summary ?? t.awaiting}${more > 0 ? `  +${more}` : ""}`
+  })
+  return (
+    <button cssClasses={["cell", "waiting", "clickable"]} visible={first((t) => !!t)} onClicked={() => { const t = first.peek(); if (t) void openThread(t.id) }}>
+      <label label={text} ellipsize={3} maxWidthChars={70} />
+    </button>
+  )
+}
+
 function NextUpCell() {
   const [now, setNow] = createState(Date.now())
   interval(15_000, () => setNow(Date.now()))
   const text = createComputed(() => { const n = nextUp(), t = now(); return (n ? `${n.title}  ·  ${untilText(n.at, t)}` : "") })
   const cls = createComputed(() => { const n = nextUp(), t = now(); return ["cell", "nextup", ...(n && n.at - t < 10 * 60_000 ? ["soon"] : [])] })
   return (
-    <box cssClasses={cls} spacing={6} visible={nextUp((n) => !!n)} tooltipText={nextUp((n) => (n ? new Date(n.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""))}>
+    <box cssClasses={cls} spacing={6} visible={nextUp((n) => !!n)} tooltipText={nextUp((n) => (n ? hhmm(n.at) : ""))}>
       <label cssClasses={["nextup-glyph"]} label={"\u{f00ed}"} />
       <label cssClasses={["nextup-text"]} label={text} ellipsize={3} maxWidthChars={40} />
     </box>
@@ -308,6 +326,7 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <box>
         <Windows connector={gdkmonitor.connector ?? ""} />
         <box hexpand />
+        <WaitingCell />
         <NextUpCell />
         <box hexpand />
         <StateCells />
