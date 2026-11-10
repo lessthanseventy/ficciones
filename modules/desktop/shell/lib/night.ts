@@ -18,12 +18,14 @@ function apply(on: boolean) {
   execAsync(["hyprctl", "hyprsunset", ...(on ? ["temperature", String(setting("look.nightKelvin").peek())] : ["identity"])]).catch(console.error)
 }
 
-/** Is it after sunset or before sunrise, per today's forecast? null when unknown. */
+/** Is it after sunset or before sunrise? By the forecast's times of day, not its date: offline the
+ * forecast is a cached one from another day, and the sun moves a minute or two a day. null when unknown. */
 function isDark(): boolean | null {
   const d = weather.peek().days?.[0]
   if (!d) return null
-  const now = Date.now()
-  return now < Date.parse(d.sunrise) || now >= Date.parse(d.sunset)
+  const mins = (t: Date) => t.getHours() * 60 + t.getMinutes()
+  const now = mins(new Date())
+  return now < mins(new Date(d.sunrise)) || now >= mins(new Date(d.sunset))
 }
 
 let lastDark: boolean | null = null

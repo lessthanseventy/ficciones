@@ -107,6 +107,8 @@ const monitor = Gio.File.new_for_path(PATH).monitor_file(Gio.FileMonitorFlags.NO
 monitor.connect("changed", () => {
   const text = read()
   if (text === written) return
+  // no longer ours: an edit back to what we last wrote is a change again
+  written = null
   const r = load(DEFAULTS, text)
   // a half-saved edit keeps what is running rather than snapping everything back to the defaults
   if (r.error) return console.error(`settings: ${PATH}: ${r.error}; keeping the current settings`)

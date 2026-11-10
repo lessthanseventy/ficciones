@@ -18,7 +18,7 @@ const VIDEO_TITLE = /youtube|cineby|netflix|plex|jellyfin|twitch|vimeo|hulu|disn
 const opaque = new Set<string>()
 // a terminal is glass whenever glass is on, whatever the global opacity: its own value, absolute
 const TERMINAL = /^com\.mitchellh\.ghostty$/
-const termGlass = new Map<string, boolean>() // address → what was last set
+const termGlass = new Map<string, string>() // address → the opacity last set, "off" without glass
 
 // Which processes are making sound: PipeWire's running output streams (lib/sound) — Mpris
 // said Paused for a streaming site with the audio live, and the video window stayed glass.
@@ -32,7 +32,8 @@ function tick() {
   for (const c of clients) {
     if (!c.mapped) continue
     const sound = pids.has(c.pid) && ((perPid.get(c.pid) ?? 0) === 1 || VIDEO_TITLE.test(c.title))
-    if (c.inhibitingIdle || c.fullscreen > 0 || PLAYERS.test(c.class) || sound) want.add(c.address)
+    // 1 is maximised, which is not a film
+    if (c.inhibitingIdle || c.fullscreen >= 2 || PLAYERS.test(c.class) || sound) want.add(c.address)
   }
   const cmds: string[] = []
   for (const a of want) if (!opaque.has(a)) { opaque.add(a); cmds.push(L.setProp(`address:${a}`, "opaque", "1")) }
@@ -41,12 +42,12 @@ function tick() {
     if (clients.some((c) => c.address === a)) cmds.push(L.setProp(`address:${a}`, "opaque", "unset"))
   }
   if (playingChanged(want)) setVideoPlaying(want.size > 0)
-  const on = glass.peek()
+  const on = glass.peek() ? glassOpacity() : "off"
   for (const c of clients) {
     if (!c.mapped || !TERMINAL.test(c.class) || c.title.endsWith("tlon office") || termGlass.get(c.address) === on) continue
     termGlass.set(c.address, on)
     const w = `address:${c.address}`
-    cmds.push(...(on ? [L.setProp(w, "opacity_override", "1"), L.setProp(w, "opacity", glassOpacity())] : [L.setProp(w, "opacity", "1"), L.setProp(w, "opacity_override", "unset")]))
+    cmds.push(...(on !== "off" ? [L.setProp(w, "opacity_override", "1"), L.setProp(w, "opacity", on)] : [L.setProp(w, "opacity", "1"), L.setProp(w, "opacity_override", "unset")]))
   }
   for (const a of [...termGlass.keys()]) if (!clients.some((c) => c.address === a)) termGlass.delete(a)
   if (cmds.length) dispatch(...cmds)
