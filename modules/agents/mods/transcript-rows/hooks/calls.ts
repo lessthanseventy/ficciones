@@ -25,6 +25,8 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
   const shell = MENARD_SHELL.exec(command)
   const verb = MENARD_TOOL.exec(tool)?.[1] ?? shell?.[1]
   if (!verb) return null
+  // a command that goes on to other steps is a shell command, known before it has printed a thing
+  if (shell && steps(command).length > 1) return null
   // and one that printed more after menard's line of JSON went on to do more
   const stdout = shell ? (output as { stdout?: unknown } | undefined)?.stdout : undefined
   if (typeof stdout === 'string' && /^\{.*\}\s*\n\s*\S/.test(stdout.trimStart())) return null
@@ -35,7 +37,7 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
   const edits = Array.isArray(fields.edits) ? (fields.edits as { file?: unknown }[]).map(edit => edit.file) : []
   // from the shell, what follows the verb on its line, less a redirect's descriptor (`2>&1`)
   const given = shell ? shell[2]!.replace(/\s\d$/, '').trim().split(/\s+/) : [...edits, ...Object.values(fields).flat()]
-  const targets = given.filter((v): v is string => typeof v === 'string' && v.length <= 60 && !v.includes('\n'))
+  const targets = given.filter((v): v is string => typeof v === 'string' && v !== '-' && v.length <= 60 && !v.includes('\n'))
   const ok = /"ok":(true|false)/.exec(reply)?.[1]
   const said = [verb, ...new Set(targets)].join(' ').slice(0, MAX_SAID)
   return ok === undefined ? said : `${said}: ${ok === 'true' ? 'ok' : 'failed'}`

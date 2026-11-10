@@ -14,7 +14,7 @@ const Body: ClientModule<JsonValue, true> = (raw, surface) => {
     })
   }
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" paddingLeft={2}>
       {props.lines.map(line => (
         <Text dimColor>{line === '' ? ' ' : line}</Text>
       ))}

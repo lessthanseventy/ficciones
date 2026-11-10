@@ -16,6 +16,12 @@ test('a menard call is named by what it did', async () => {
   expect(menardSaid({ tool: 'Read', input: { file_path: 'menard edit' } })).toBeNull()
 })
 
+test('a command that starts with menard and goes on is a shell command from the start', async () => {
+  const edit = "cd /r && menard edit - <<'EOF'\na.ex\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\nEOF"
+  expect(menardSaid({ tool: 'Bash', input: { command: edit } })).toBe('edit')
+  expect(menardSaid({ tool: 'Bash', input: { command: `${edit}\ngit add . && git commit -m x` } })).toBeNull()
+})
+
 test('a call becomes a line a turn can be summarised from', async () => {
   expect(turnLine({ tool: 'Edit', input: { tool: 'Edit', file_path: 'lib/a.ts' }, output: { structuredPatch: [{ lines: ['-a', '+b', '+c'] }] } }, false)).toBe('Edit lib/a.ts +2 -1')
   expect(turnLine({ tool: 'Bash', input: { tool: 'Bash', command: 'mise run check\necho done' }, output: { stdout: 'building\n 3 fail\n' } }, true)).toBe('Bash mise run check (failed) → 3 fail')

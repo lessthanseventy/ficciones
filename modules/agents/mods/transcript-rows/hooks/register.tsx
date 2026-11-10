@@ -63,11 +63,7 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
             </Text>
           </Box>
         ) : null}
-        {isOpen ? (
-          <Box paddingLeft={2}>
-            <Client key={`body-${id}`} module="./body.tsx" props={{ id, lines: callText(call) }} width="100%" />
-          </Box>
-        ) : null}
+        {isOpen ? <Client key={`body-${id}`} module="./body.tsx" props={{ id, lines: callText(call) }} width="100%" /> : null}
       </Box>
     </Box>
   )
