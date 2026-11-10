@@ -47,6 +47,11 @@ test('a shell command of several steps is named by them', async () => {
   expect(turnLine({ tool: 'Bash', input: { command: 'sed -i s/a/b/ a.ts b.ts' }, output: { stdout: 'ok\n', bashEditDiff: edits } }, false)).toBe('Bash sed -i s/a/b/ a.ts b.ts → ok')
 })
 
+test('a variable set from a command names that command, and a lone step drops its cd', async () => {
+  expect(steps('a=$(grep -n "x" flake.nix | cut -d: -f1) && sed -i "${a}d" flake.nix')).toEqual(['grep', 'sed'])
+  expect(turnLine({ tool: 'Bash', input: { command: 'cd ~/projects/tlon && grep -rn x lib' } }, false)).toBe('Bash grep -rn x lib')
+})
+
 test("a command's last word is not its timing, and a call's own time reads short", async () => {
   expect(lastSaid('Ran 29 tests across 1 file. [3.52s]\n    Finished in 109.53s\n')).toBe('Ran 29 tests across 1 file.')
   expect(lastSaid('● done\n✻ Cogitated for 3s · done 12:49 AM\n')).toBe('● done')

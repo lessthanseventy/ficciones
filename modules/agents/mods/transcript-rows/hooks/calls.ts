@@ -87,14 +87,15 @@ export const steps = (command: string): string[] => {
   const names = parts.flatMap(raw => {
     // a wrapper may wrap a wrapper (systemd-run … -- mise run cap -- …)
     const bare = raw.split(/\s\|\s/)[0]!.trim().replace(WRAPPER, '').replace(WRAPPER, '')
-    const words = bare.replace(/^(?:\w+=\S*(?:\s+|$))+/, '').split(/\s+/).filter(Boolean)
+    // a variable set from a command (`n=$(grep …)`) is that command's step
+    const words = bare.replace(/^\w+=\$\(/, '').replace(/^(?:\w+=\S*(?:\s+|$))+/, '').split(/\s+/).filter(Boolean)
     const program = words[0]?.split('/').pop() ?? ''
     // a function the command defines for itself is its own plumbing, as are its calls
     if (words[1] === '()' || program.endsWith('()')) {
       own.add(program.replace(/\(\)$/, ''))
       return []
     }
-    if (!/^[\w.-]+$/.test(program) || QUIET.has(program) || own.has(program)) return []
+    if (!/^\w[\w.-]*$/.test(program) || QUIET.has(program) || own.has(program)) return []
     const verbs = HAS_VERB.has(program) ? words.slice(1, program === 'mise' && words[1] === 'run' ? 3 : 2).filter(word => /^[a-z][\w:-]*$/.test(word)) : []
     return [[program, ...verbs].join(' ')]
   })
@@ -144,7 +145,7 @@ export const turnLine = (call: Call, isError: boolean): string => {
   const last = typeof stdout === 'string' ? lastSaid(stdout).slice(0, MAX_LAST) : ''
   // a command of several steps is named by them, one of a single step by its own text
   const ran = call.tool === 'Bash' ? steps(first) : []
-  const made = ran.length > 1 ? `${ran.slice(0, MAX_STEPS).join(' · ')}${ran.length > MAX_STEPS ? ` · +${ran.length - MAX_STEPS}` : ''}` : nearby(first.split('\n')[0]!).slice(0, MAX_MADE)
+  const made = ran.length > 1 ? `${ran.slice(0, MAX_STEPS).join(' · ')}${ran.length > MAX_STEPS ? ` · +${ran.length - MAX_STEPS}` : ''}` : nearby(first.split('\n')[0]!.replace(/^\s*cd\s+\S+\s*(?:&&|;)\s*/, '')).slice(0, MAX_MADE)
   return `${call.tool} ${made}${failed}${last ? ` → ${last}` : ''}`.trim()
 }
 
