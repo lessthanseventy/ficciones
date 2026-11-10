@@ -246,6 +246,10 @@ test('a call becomes a line a turn can be summarised from', async () => {
   expect(turnLine({ tool: 'mcp__plugin_menard_menard__run', input: { verb: 'test' }, output: '{"ok":true}' }, false)).toBe('menard run test: ok')
 })
 
+test('a call on an absolute path is named by the file and its folder', async () => {
+  expect(turnLine({ tool: 'Read', input: { file_path: '/home/a/repo/lib/cart.ex' } }, false)).toBe('Read lib/cart.ex')
+})
+
 test('the files a shell command changed are counted from its result', async () => {
   const output = { stdout: '', bashEditDiff: { files: [{ filePath: '/repo/lib/a.ts', hunks: [{ lines: [' x', '-a', '+b', '+c'] }] }] } }
   expect(shellEdits(output)).toEqual([{ name: 'a.ts', adds: 2, dels: 1 }])

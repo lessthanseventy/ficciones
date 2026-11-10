@@ -55,13 +55,16 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
   const did = /"did":"([^"]*)"/.exec(reply)?.[1]
   if (did) return did.slice(0, MAX_SAID)
   const edits = Array.isArray(fields.edits) ? (fields.edits as { file?: unknown }[]).map(edit => edit.file) : []
-  const targets = [...edits, ...Object.values(fields)].filter((v): v is string => typeof v === 'string' && v.length <= 60 && !v.includes('\n'))
+  const targets = [...edits, ...Object.values(fields).flat()].filter((v): v is string => typeof v === 'string' && v.length <= 60 && !v.includes('\n'))
   const ok = /"ok":(true|false)/.exec(reply)?.[1]
   const said = [verb, ...new Set(targets)].join(' ').slice(0, MAX_SAID)
   return ok === undefined ? said : `${said}: ${ok === 'true' ? 'ok' : 'failed'}`
 }
 
 // One tool call as a line a model can summarise a turn from: what ran, on what, and how it went.
+// an absolute path is told apart by its file and the folder it is in
+const nearby = (text: string) => (text.startsWith('/') && !text.includes(' ') ? text.split('/').slice(-2).join('/') : text)
+
 export const turnLine = (call: Call, isError: boolean): string => {
   const fields = (call.input ?? {}) as Record<string, unknown>
   const failed = isError ? ' (failed)' : ''
@@ -69,13 +72,13 @@ export const turnLine = (call: Call, isError: boolean): string => {
   if (said !== null) return `menard ${said}${failed}`
   if (typeof fields.file_path === 'string' && (call.tool === 'Edit' || call.tool === 'Write')) {
     const { adds, dels } = patchCounts(call.output)
-    return `${call.tool} ${fields.file_path} +${adds} -${dels}${failed}`
+    return `${call.tool} ${nearby(fields.file_path)} +${adds} -${dels}${failed}`
   }
   const first = Object.values(fields).find((v): v is string => typeof v === 'string' && v !== call.tool) ?? ''
   // a command's last line is where it says how it went
   const stdout = call.tool === 'Bash' ? (call.output as { stdout?: unknown } | undefined)?.stdout : undefined
   const last = typeof stdout === 'string' ? stdout.trimEnd().split('\n').pop()!.trim().slice(0, MAX_SAID) : ''
-  return `${call.tool} ${first.split('\n')[0]!.slice(0, MAX_SAID)}${failed}${last ? ` → ${last}` : ''}`.trim()
+  return `${call.tool} ${nearby(first.split('\n')[0]!).slice(0, MAX_SAID)}${failed}${last ? ` → ${last}` : ''}`.trim()
 }
 
 type ShellEdits = { bashEditDiff?: { files?: { filePath: string; hunks: { lines: string[] }[] }[] } }

@@ -62,7 +62,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
   }
 
   // A box as lazygit draws one: the title in the top edge, and the edge lit when the box has the keys.
-  const edge = (isLit: boolean) => ({ color: isLit ? 'claude' : undefined, dimColor: !isLit, bold: isLit })
+  const edge = (isLit: boolean) => ({ color: isLit ? 'claude' : undefined, dimColor: !isLit, weight: isLit ? ('bold' as const) : undefined })
   const bottom = `╰${'─'.repeat(props.columns)}╯`
   const within = (isLit: boolean, content: unknown) => (
     <Box>
@@ -76,14 +76,14 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
     <Box flexDirection="column">
       <Box>
         <Text {...edge(section.isFocused)}>╭─ </Text>
-        <Text bold color={section.isFocused ? 'claude' : 'remember'}>{section.head}</Text>
+        <Text weight="bold" color={section.isFocused ? 'claude' : 'remember'}>{section.head}</Text>
         <Text {...edge(section.isFocused)}>{section.rule}╮</Text>
       </Box>
       {section.rows.length === 0 ? within(section.isFocused, <Text dimColor wrap="truncate-end">{section.empty}</Text>) : null}
       {section.rows.map(({ lead, dim, label, adds, dels, isSelected }) =>
         within(
           section.isFocused,
-          <Text inverse={isSelected && section.isFocused} bold={isSelected && !section.isFocused} wrap="truncate-end">
+          <Text inverse={isSelected && section.isFocused} weight={isSelected && !section.isFocused ? 'bold' : undefined} wrap="truncate-end">
             <Text color="permission">{lead}</Text>
             <Text dimColor={!isSelected}>{dim}</Text>
             {label}
@@ -102,7 +102,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
     <Box flexDirection="column">
       <Box>
         <Text dimColor>╭─ </Text>
-        <Text bold color="claude">{props.title}</Text>
+        <Text weight="bold" color="claude">{props.title}</Text>
         <Text dimColor>{props.where}</Text>
         <Text color="success">{props.adds}</Text>
         <Text color="error">{props.dels}</Text>
@@ -116,7 +116,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
           false,
           <Text wrap="truncate-end">
             {row.map(r => (
-              <Text color={r.c} backgroundColor={r.b} bold={r.bold} dimColor={r.dim} italic={r.it} underline={r.u}>
+              <Text color={r.c} backgroundColor={r.b} weight={r.bold ? 'bold' : undefined} dimColor={r.dim} italic={r.it} underline={r.u}>
                 {r.t}
               </Text>
             ))}
@@ -129,7 +129,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
       {list(props.commits)}
       {props.hasKeys ? (
         <Text wrap="truncate-end">
-          <Text inverse bold color="claude"> CHANGES </Text>
+          <Text inverse weight="bold" color="claude"> CHANGES </Text>
           <Text color="claude"> {props.hint}</Text>
         </Text>
       ) : (

@@ -24,6 +24,8 @@ const SUMMARY_MS = 8000
 const SUMMARISE = 'Below are the tool calls a coding assistant made in one turn, in order, each with how it ended where that is known. Say what was done in one or two plain sentences, 45 words at most: which files changed and how, what was run, and whether it passed. Start each sentence with its verb ("Edited…", "Ran…"), never "I". No preamble, no markdown, no line breaks.\n\n'
 // A turn's summary is drawn under its closing line, which is known by its duration alone.
 const MAX_KEPT_SUMMARIES = 50
+const MAX_GROUP_LINES = 8
+
 const HINT_AWAY = 'keys go to the prompt · click here to browse'
 // Their result is the diff this pane already shows, so the transcript gets its counts; ctrl+o still has it.
 const SHOWN_HERE = new Set(['Edit', 'Write'])
@@ -359,10 +361,10 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {await next(e)}
-        <Text>
-          {'  '}
-          <Text inverse bold color="remember"> TURN </Text> <Text color="suggestion">{summary}</Text>
-        </Text>
+        <Box flexDirection="column" borderStyle="round" borderColor="remember" borderDimColor paddingX={1} marginLeft={2}>
+          <Text weight="bold" color="remember">turn</Text>
+          <Text color="suggestion">{summary}</Text>
+        </Box>
       </Box>
     )
   })
@@ -454,22 +456,24 @@ export const register: Register = on => {
     )
   })
 
-  // A folded run of calls says only how many there were; menard's are named by what each did.
+  // A folded run of calls says only how many there were: each gets a line of what it was.
+  // menard's plugin draws the lines of its own calls.
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     if (!canDraw || e.props.isExpanded) return next(e)
-    const said = e.props.calls.map(menardSaid).filter((line): line is string => line !== null)
-    if (said.length === 0) return next(e)
+    const lines = e.props.calls.filter(call => menardSaid(call) === null).map(call => turnLine(call, call.isErrored === true))
+    if (lines.length === 0) return next(e)
     const { Box, Text } = $.ui.resolve(e)
-    const isAllSaid = said.length === e.props.calls.length && e.props.isCallsOnly === true
     return (
       <Box flexDirection="column">
-        {isAllSaid ? null : await next(e)}
-        {said.map(line => (
+        {await next(e)}
+        {lines.slice(0, MAX_GROUP_LINES).map(line => (
           <Text dimColor wrap="truncate-end">
-            {isAllSaid ? '  ' : '  ⎿  '}
-            <Text color="remember">menard</Text> {line}
+            {'  ⎿  '}
+            <Text color="remember">{line.split(' ')[0]}</Text>
+            {line.slice(line.indexOf(' '))}
           </Text>
         ))}
+        {lines.length > MAX_GROUP_LINES ? <Text dimColor>{`  ⎿  … ${lines.length - MAX_GROUP_LINES} more`}</Text> : null}
       </Box>
     )
   })
