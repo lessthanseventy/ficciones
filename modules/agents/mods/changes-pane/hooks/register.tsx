@@ -144,7 +144,7 @@ export const register: Register = on => {
     // a head doubles as the line between two sections
     // A box's top edge holds its title: a corner and a dash before it, the rule after it to the far corner.
     const room = Math.max(0, size.columns - 3)
-    const rule = (taken: number) => '─'.repeat(Math.max(0, room - taken))
+    const rule = (taken: number) => (room > taken ? ` ${'─'.repeat(room - taken - 1)}` : '')
     const filesHead = (commit ? `files in ${commit.sha}` : 'files · uncommitted').slice(0, room)
     const commitsHead = ['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · ').slice(0, room)
     // the following mark sits in the edge too, a space each side of it
