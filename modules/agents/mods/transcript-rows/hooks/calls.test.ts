@@ -6,6 +6,7 @@ test('a menard call is named by what it did', async () => {
   const reply = [{ type: 'text', text: '{"did":"edit cart.ex: 2 replacements","changed":[]}' }]
   expect(menardSaid({ tool: 'mcp__plugin_menard_menard__edit', input: { edits: [{ file: 'lib/cart.ex' }] }, output: reply })).toBe('edit cart.ex: 2 replacements')
   expect(menardSaid({ tool: 'mcp__plugin_menard_menard__edit', input: { edits: [{ file: 'lib/cart.ex', old: 'a', new: 'b' }] } })).toBe('edit lib/cart.ex')
+  expect(menardSaid({ tool: 'mcp__plugin_menard_menard__edit', input: { edits: [{ file: '/home/u/repo/lib/menard/run/lock.ex' }, { file: 'lib/a.ex' }], then: 'compile' } })).toBe('edit run/lock.ex lib/a.ex · then compile')
   expect(menardSaid({ tool: 'Bash', input: { command: "cd x && ~/projects/menard/bin/menard edit - <<'EOF'\n…" }, output: { stdout: '{"did":"edit a.ts: 1 replacement"}' } })).toBe('edit a.ts: 1 replacement')
   expect(menardSaid({ tool: 'mcp__plugin_menard_menard__run', input: { verb: 'test' }, output: '{"ok":false,"failures":[]}' })).toBe('run test: failed')
   expect(menardSaid({ tool: 'Bash', input: { command: 'ls' }, output: {} })).toBeNull()

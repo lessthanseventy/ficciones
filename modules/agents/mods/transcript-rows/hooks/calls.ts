@@ -34,12 +34,15 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
   const reply = (typeof output === 'string' ? output : JSON.stringify(output ?? '')).replace(/\\+"/g, '"')
   const did = /"did":"([^"]*)"/.exec(reply)?.[1]
   if (did) return did.slice(0, MAX_SAID)
-  const edits = Array.isArray(fields.edits) ? (fields.edits as { file?: unknown }[]).map(edit => edit.file) : []
+  const { then, ...rest } = fields
+  const edits = Array.isArray(rest.edits) ? (rest.edits as { file?: unknown }[]).map(edit => edit.file) : []
   // from the shell, what follows the verb on its line, less a redirect's descriptor (`2>&1`)
-  const given = shell ? shell[2]!.replace(/\s\d$/, '').trim().split(/\s+/) : [...edits, ...Object.values(fields).flat()]
-  const targets = given.filter((v): v is string => typeof v === 'string' && v !== '-' && v.length <= 60 && !v.includes('\n'))
+  const given = shell ? shell[2]!.replace(/\s\d$/, '').trim().split(/\s+/) : [...edits, ...Object.values(rest).flat()]
+  const targets = given.filter((v): v is string => typeof v === 'string' && v !== '-' && !v.includes('\n')).map(nearby)
   const ok = /"ok":(true|false)/.exec(reply)?.[1]
-  const said = [verb, ...new Set(targets)].join(' ').slice(0, MAX_SAID)
+  // what runs after the write is no target of it
+  const after = typeof then === 'string' && then !== '' ? ` · then ${then}` : ''
+  const said = [verb, ...new Set(targets.filter(v => v.length <= 60))].join(' ').slice(0, MAX_SAID) + after
   return ok === undefined ? said : `${said}: ${ok === 'true' ? 'ok' : 'failed'}`
 }
 
