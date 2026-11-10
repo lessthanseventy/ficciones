@@ -16,7 +16,9 @@ const MAX_KEPT_COMMITS = 50
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
-const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · L lazygit · prompt to follow'
+const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · f follow · L lazygit'
+// Their result is the diff this pane already shows; ctrl+o still has it.
+const SHOWN_HERE = new Set(['Edit', 'Write', 'NotebookEdit'])
 const OPEN = { id: PANE, title: 'Changes' }
 
 type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
@@ -293,6 +295,12 @@ export const register: Register = on => {
     return <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" />
   })
 
+  on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
+    if (!canDraw || !SHOWN_HERE.has(e.props.tool) || e.props.isErrored || e.props.isExpanded) return next(e)
+    const { Box } = $.ui.resolve(e)
+    return <Box />
+  })
+
   // The body never overflows: the view draws its own windows of rows, so the wheel moves the one
   // it is over. The title and the diff sit above the files' head, the commits' head under the files.
   on('ui.scroll', { requestId: PANE }, async ($, e) => {
@@ -355,6 +363,13 @@ export const register: Register = on => {
           const lazygit = (await $.process.run(['which', 'lazygit'])).stdout.trim() || 'lazygit'
           await $.process.run(['open', '-na', 'Ghostty.app', '--args', cwd, '-e', lazygit])
         }
+        continue
+      }
+      if (key === 'f') {
+        isFollowing = true
+        focus = 'files'
+        if (source !== '') pickCommit(0)
+        reveal()
         continue
       }
       if (row !== undefined) {

@@ -203,6 +203,11 @@ test('a commit opens on its message, and its files take the files list', async (
   expect(await ui.find({ text: /\+after/, in: 'changes' })).toBeDefined()
   await ui.key({ key: 'k' })
   expect(await ui.find({ text: /Ada · 2 hours ago/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /○ held/, in: 'changes' })).toBeDefined()
+  await ui.key({ key: 'f' })
+  expect(await ui.find({ text: /● following/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^files · uncommitted/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^a\.ts/, in: 'changes' })).toBeDefined()
 })
 
 test('the wheel over the list moves the list and leaves the diff following', async ($, on) => {
