@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { callText, lastSaid, menardSaid, patchCounts, shellEdits, steps, took, turnLine } from './calls'
+import { callText, lastSaid, menardSaid, patchCounts, shellEdits, steps, took, turnLine, whyFailed } from './calls'
 
 test('a menard call is named by what it did', async () => {
   const reply = [{ type: 'text', text: '{"did":"edit cart.ex: 2 replacements","changed":[]}' }]
@@ -52,12 +52,19 @@ test('a variable set from a command names that command, and a lone step drops it
   expect(turnLine({ tool: 'Bash', input: { command: 'cd ~/projects/tlon && grep -rn x lib' } }, false)).toBe('Bash grep -rn x lib')
 })
 
+test('a failed call says why in its first words', async () => {
+  expect(whyFailed('Error: File does not exist. Note: your cwd is /r.\nmore')).toBe('Error: File does not exist. Note: your cwd is /r.')
+  expect(whyFailed({ stdout: '', stderr: '\nls: cannot access x\n' })).toBe('ls: cannot access x')
+  expect(whyFailed(undefined)).toBe('')
+})
+
 test("a command's last word is not its timing, and a call's own time reads short", async () => {
   expect(lastSaid('Ran 29 tests across 1 file. [3.52s]\n    Finished in 109.53s\n')).toBe('Ran 29 tests across 1 file.')
   expect(lastSaid('● done\n✻ Cogitated for 3s · done 12:49 AM\n')).toBe('● done')
   expect(lastSaid('0\t0\n')).toBe('0 0')
   expect(lastSaid('\x1b[38;5;82m●\x1b[39m done\x07\n')).toBe('● done')
   expect(lastSaid('real 0m1.2s\n')).toBe('')
+  expect(lastSaid('  ✓ exit 0\n  more: tail -n 200 .logs/x.log\n')).toBe('✓ exit 0')
   expect(lastSaid('557:              xdg.config\n          )\n')).toBe('557: xdg.config')
   expect([took(undefined), took(400), took(3400), took(109_530)]).toEqual(['', '', '3s', '1m 50s'])
 })

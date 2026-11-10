@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { callText, menardSaid, shellEdits, took, turnLine } from './calls'
+import { callText, menardSaid, shellEdits, took, turnLine, whyFailed } from './calls'
 import type { Call } from './calls'
 
 // Fewer calls than this and the turn's own rows say it; more lines than the cap and the oldest go.
@@ -29,6 +29,7 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
   }
   const space = line.indexOf(' ')
   const files = call.tool === 'Bash' ? shellEdits(call.output) : []
+  const why = line.includes(' (failed)') ? whyFailed(call.output) : ''
   const body = space < 0 ? '' : line.slice(space)
   const arrow = body.indexOf(' → ')
   const made = arrow < 0 ? body : body.slice(0, arrow)
@@ -55,6 +56,11 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
           {arrow < 0 ? null : <Text color="suggestion">{body.slice(arrow)}</Text>}
           {time ? <Text color="claude">{`  ${time}`}</Text> : null}
         </Button>
+        {why ? (
+          <Box paddingLeft={2}>
+            <Text color="error">{why}</Text>
+          </Box>
+        ) : null}
         {files.length > 0 ? (
           <Box paddingLeft={2}>
             <Text>
@@ -86,6 +92,9 @@ export const register: Register = on => {
   // VS Code and mobile draw a call their own way
   on('session.start', async ($, e, next) => {
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
+    // a resumed session draws its old turns again, each still known by its duration
+    const kept = await $.store.get('summaries')
+    if (Array.isArray(kept)) for (const [durationMs, text] of kept as [number, string][]) summaries.set(durationMs, text)
     return next(e)
   })
 
@@ -106,6 +115,7 @@ export const register: Register = on => {
       if (!reply.isAnswered) return
       if (summaries.size >= MAX_KEPT_SUMMARIES) summaries.clear()
       summaries.set(e.durationMs, reply.text.trim().replace(/\s+/g, ' '))
+      void $.store.set('summaries', [...summaries])
       $.ui.invalidate('ui.render')
     })
     return done
@@ -170,9 +180,9 @@ export const register: Register = on => {
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     if (!canDraw || e.props.isExpanded) return next(e)
     const calls = e.props.calls.map((call, index) => ({ call, id: call.tool_use_id ?? `group-${index}` }))
-    // a run that holds more than its calls (a recalled memory, an errored call's row) keeps
-    // Claude Code's line above the rows
-    const isWhole = e.props.isCallsOnly === true
+    // a run that holds more than its calls (a recalled memory) keeps Claude Code's line above
+    // the rows; when the more is a failed call's own lines, its row here says it
+    const isWhole = e.props.isCallsOnly === true || calls.some(({ call }) => call.isErrored === true)
     const { Box, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">

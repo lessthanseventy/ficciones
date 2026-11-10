@@ -106,6 +106,8 @@ const MAX_STEPS = 6
 
 // A line that only says how long something took: the row has the call's own time beside it.
 const TIMING = /^\W*(?:finished|done|took|elapsed|real|user|sys|time|worked|\w+ed for)\b.*\d\s?(?:ms|s|m|min)\b|^\W*\d+(?:\.\d+)?\s?(?:ms|s)\W*$/i
+// cap's closing line says how to read its log, not how the command went
+const HINT = /^more: /
 const TIMED = /\s*[[(]\d+(?:\.\d+)?\s?m?s[\])]/g
 
 // The last thing a command said that is not its timing, less a time in brackets at its end.
@@ -113,7 +115,7 @@ export const lastSaid = (stdout: string): string => {
   // colour codes and control characters are not words, and the engine refuses a row that holds one
   const lines = stdout.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/[\x00-\x09\x0b-\x1f\x7f-\x9f]/g, ' ').split('\n').map(line => line.trim()).filter(Boolean)
   // a closing bracket or a rule says nothing, and a table's padding is not worth its columns
-  return (lines.findLast(line => /[\p{L}\p{N}]/u.test(line) && !TIMING.test(line)) ?? '').replace(TIMED, '').replace(/\s+/g, ' ')
+  return (lines.findLast(line => /[\p{L}\p{N}]/u.test(line) && !TIMING.test(line) && !HINT.test(line)) ?? '').replace(TIMED, '').replace(/\s+/g, ' ')
 }
 
 // How long a call took, for a row: nothing under a second.
@@ -123,9 +125,9 @@ export const took = (ms: number | undefined): string => {
   return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
 }
 
-// a call's line fits one row of a transcript: what was run, then how it ended
-const MAX_MADE = 44
-const MAX_LAST = 28
+// a call's line is what was run, then how it ended; a long one wraps under itself
+const MAX_MADE = 120
+const MAX_LAST = 100
 
 // an absolute path is told apart by its file and the folder it is in
 const nearby = (text: string) => (text.startsWith('/') && !text.includes(' ') ? text.split('/').slice(-2).join('/') : text)
@@ -166,6 +168,12 @@ const replyText = (output: unknown): string => {
 
 // A call as it was made and answered, for a line clicked open: the command or the tool's
 // arguments, then the reply, each cut to a screen's worth.
+const MAX_WHY = 200
+
+// Why a call failed or was refused, in its reply's first words.
+export const whyFailed = (output: unknown): string =>
+  (lastSaid(replyText(output).split('\n').find(line => /[\p{L}\p{N}]/u.test(line)) ?? '')).slice(0, MAX_WHY)
+
 export const callText = ({ input, output }: Call): string[] => {
   const fields = (input ?? {}) as Record<string, unknown>
   // an edit is its path and the lines it changed
