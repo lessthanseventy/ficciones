@@ -111,7 +111,8 @@ const TIMED = /\s*[[(]\d+(?:\.\d+)?\s?m?s[\])]/g
 export const lastSaid = (stdout: string): string => {
   // colour codes and control characters are not words, and the engine refuses a row that holds one
   const lines = stdout.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/[\x00-\x09\x0b-\x1f\x7f-\x9f]/g, ' ').split('\n').map(line => line.trim()).filter(Boolean)
-  return (lines.findLast(line => !TIMING.test(line)) ?? '').replace(TIMED, '')
+  // a closing bracket or a rule says nothing, and a table's padding is not worth its columns
+  return (lines.findLast(line => /[\p{L}\p{N}]/u.test(line) && !TIMING.test(line)) ?? '').replace(TIMED, '').replace(/\s+/g, ' ')
 }
 
 // How long a call took, for a row: nothing under a second.

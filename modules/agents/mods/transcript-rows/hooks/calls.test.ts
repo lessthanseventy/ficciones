@@ -53,6 +53,7 @@ test("a command's last word is not its timing, and a call's own time reads short
   expect(lastSaid('0\t0\n')).toBe('0 0')
   expect(lastSaid('\x1b[38;5;82m●\x1b[39m done\x07\n')).toBe('● done')
   expect(lastSaid('real 0m1.2s\n')).toBe('')
+  expect(lastSaid('557:              xdg.config\n          )\n')).toBe('557: xdg.config')
   expect([took(undefined), took(400), took(3400), took(109_530)]).toEqual(['', '', '3s', '1m 50s'])
 })
 
