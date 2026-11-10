@@ -53,7 +53,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `SHIFT+Print` | `shell/shell-req.sh capture rec monitor` |
 | `CTRL+SHIFT+Print` | `shell/shell-req.sh capture stop` |
 | `SUPER+P` | `hyprpicker -a` |
-| `SUPER+SHIFT+X` | `[[bash -c 'grim -g "$(slurp)" /tmp/ocr.png && tesseract /tmp` |
+| `SUPER+SHIFT+X` | `[[bash -c 'f=$(mktemp --suffix=.png) && grim -g "$(slurp)" "` |
 | `XF86AudioRaiseVolume` | `exec("wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 2%+"), { ` |
 | `XF86AudioLowerVolume` | `exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"), { locked ` |
 | `XF86AudioMute` | `exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked` |
@@ -67,7 +67,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `XF86AudioPause` | `exec("playerctl play-pause"), { locked = true }` |
 | `XF86AudioNext` | `exec("playerctl next"), { locked = true }` |
 | `XF86AudioPrev` | `exec("playerctl previous"), { locked = true }` |
-| `CTRL+ALT+L` | `hyprlock` |
+| `CTRL+ALT+L` | `loginctl lock-session` |
 | `CTRL+SUPER+R` | `sh -c 'pkill -x gjs; systemctl --user reset-failed astal-she` |
 | `CTRL+SHIFT+ALT+SUPER+Delete` | `systemctl poweroff` |
 

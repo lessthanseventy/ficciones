@@ -40,7 +40,6 @@ hl.env("XDG_DATA_DIRS", home .. "/.nix-profile/share:" .. home .. "/.local/share
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 
-hl.env("ILLOGICAL_IMPULSE_VIRTUAL_ENV", "~/.local/state/quickshell/.venv")
 
 -- Per-host lines (monitors, persistent workspaces, AQ_DRM_DEVICES): a monitor that does not
 -- exist is harmless, but a wrong AQ_DRM_DEVICES is a compositor that never starts.
@@ -454,7 +453,7 @@ bind(M .. " + C", exec(shell .. "/shell-req.sh toggle deck"))
 -- Super alone, down and up: the rail's workspace cells show numbers while it is held (the
 -- shell). non_consuming: every Super+key bind still fires
 hl.bind("SUPER_L", function() hl.exec_cmd(shell .. "/shell-req.sh super down") end, { non_consuming = true })
-hl.bind("SUPER_L", function() hl.exec_cmd(shell .. "/shell-req.sh super up") end, { non_consuming = true, release = true })   -- the bottom deck: log, media, agents, timer
+hl.bind("SUPER_L", function() hl.exec_cmd(shell .. "/shell-req.sh super up") end, { non_consuming = true, release = true })
 bind(M .. " + U", exec("astal-shell show drawer agents"))
 bind(M .. " + B", exec("astal-shell show drawer calendar"))
 bind("ALT + Space", exec("astal-shell toggle launcher"))
@@ -618,7 +617,7 @@ bind("CTRL + SHIFT + Print", exec(shell .. "/shell-req.sh capture stop"))
 
 -- ----- Color picker / OCR -----
 bind(M .. " + P", exec("hyprpicker -a"))
-bind(M .. " + SHIFT + X", exec([[bash -c 'grim -g "$(slurp)" /tmp/ocr.png && tesseract /tmp/ocr.png - | wl-copy && rm /tmp/ocr.png']]))
+bind(M .. " + SHIFT + X", exec([[bash -c 'f=$(mktemp --suffix=.png) && grim -g "$(slurp)" "$f" && tesseract "$f" - | wl-copy; rm -f "$f"']]))
 
 -- ----- Audio (locked + repeating = the old bindle; locked = bindl) -----
 bind("XF86AudioRaiseVolume", exec("wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 2%+"), { locked = true, repeating = true })
@@ -641,7 +640,8 @@ bind("XF86AudioNext", exec("playerctl next"), { locked = true })
 bind("XF86AudioPrev", exec("playerctl previous"), { locked = true })
 
 -- ----- System -----
-bind("CTRL + ALT + L", exec("hyprlock"))
+-- through hypridle's lock_cmd, which starts hyprlock only once: a second one over a lock is a hang
+bind("CTRL + ALT + L", exec("loginctl lock-session"))
 -- through the unit: a bare `astal-shell &` races the unit's own restart for the dbus name, and
 -- whichever loses exits, so it took a second press
 bind("CTRL + " .. M .. " + R", exec("sh -c 'pkill -x gjs; systemctl --user reset-failed astal-shell; systemctl --user restart astal-shell'"))
