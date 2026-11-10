@@ -42,7 +42,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `CTRL+SUPER+P` | `shell/shell-req.sh sidecar toggle` |
 | `SUPER+Semicolon` | `shell/shell-req.sh colresize narrower` |
 | `SUPER+Apostrophe` | `shell/shell-req.sh colresize wider` |
-| `SUPER+SUPERinus` | `shell/shell-req.sh colresize narrower` |
+| `SUPER+Minus` | `shell/shell-req.sh colresize narrower` |
 | `SUPER+Equal` | `shell/shell-req.sh colresize wider` |
 | `SUPER+SHIFT+S` | `shell/shot-region.sh` |
 | `CTRL+SUPER+S` | `shell/shot-region.sh repeat` |
@@ -56,13 +56,13 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `SUPER+SHIFT+X` | `[[bash -c 'grim -g "$(slurp)" /tmp/ocr.png && tesseract /tmp` |
 | `XF86AudioRaiseVolume` | `exec("wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 2%+"), { ` |
 | `XF86AudioLowerVolume` | `exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"), { locked ` |
-| `XF86AudioSUPERute` | `exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked` |
-| `XF86AudioSUPERicSUPERute` | `exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { lock` |
-| `SUPER+SHIFT+SUPER` | `wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle` |
-| `CTRL+SUPER+SUPER` | `mpv-stream` |
-| `ALT+SUPER+SUPER` | `wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle` |
-| `XF86SUPERonBrightnessUp` | `exec("brightnessctl set 5%+"), { locked = true, repeating = ` |
-| `XF86SUPERonBrightnessDown` | `exec("brightnessctl set 5%-"), { locked = true, repeating = ` |
+| `XF86AudioMute` | `exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked` |
+| `XF86AudioMicMute` | `exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { lock` |
+| `SUPER+SHIFT+M` | `wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle` |
+| `CTRL+SUPER+M` | `mpv-stream` |
+| `ALT+SUPER+M` | `wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle` |
+| `XF86MonBrightnessUp` | `exec("brightnessctl set 5%+"), { locked = true, repeating = ` |
+| `XF86MonBrightnessDown` | `exec("brightnessctl set 5%-"), { locked = true, repeating = ` |
 | `XF86AudioPlay` | `exec("playerctl play-pause"), { locked = true }` |
 | `XF86AudioPause` | `exec("playerctl play-pause"), { locked = true }` |
 | `XF86AudioNext` | `exec("playerctl next"), { locked = true }` |
@@ -93,7 +93,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `CTRL+SUPER+SHIFT+L` | `move_mon("r")` |
 | `SUPER+SHIFT+Semicolon` | `resize(0, -100)` |
 | `SUPER+SHIFT+Apostrophe` | `resize(0, 100)` |
-| `SUPER+SHIFT+SUPERinus` | `resize(0, -100)` |
+| `SUPER+SHIFT+Minus` | `resize(0, -100)` |
 | `SUPER+SHIFT+Equal` | `resize(0, 100)` |
 | `SUPER+R` | `layout("colresize +conf")` |
 | `SUPER+SHIFT+R` | `layout("colresize -conf")` |

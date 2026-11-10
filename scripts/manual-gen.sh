@@ -30,7 +30,7 @@ for line in src:
         elif ch == "," and depth == 0: cut = i; break
     if cut is None: continue
     keys_expr, action = inner[:cut], inner[cut+1:].strip()
-    keys = keys_expr.replace("M", M).replace("..", "").replace('"', "").strip()
+    keys = "".join(M if p.strip() == "M" else p.strip().strip('"') for p in keys_expr.split(".."))
     keys = re.sub(r"\s*\+\s*", "+", keys)
     mouse = "{ mouse = true }" in action
     action = re.sub(r",\s*\{\s*mouse = true\s*\}\s*$", "", action).strip()
