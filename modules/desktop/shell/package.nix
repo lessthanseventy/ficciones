@@ -21,7 +21,11 @@ let
   astalLibs = with agsPackages; [
     io
     astal4
-    hyprland
+    # Hyprland 0.57 gives a special workspace an address and no id; unpatched, every sync
+    # logs a Json-CRITICAL per special workspace and files them all under id 0.
+    (hyprland.overrideAttrs (o: {
+      patches = (o.patches or [ ]) ++ [ ../patches/astal-hyprland-workspace-address.patch ];
+    }))
     battery
     network
     wireplumber
