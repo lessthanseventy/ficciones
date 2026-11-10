@@ -54,9 +54,9 @@ run() {
 	"$cap" "${cmd[@]}"
 }
 printf 'watch (poll): %s   on change in: %s  (ctrl-c to stop)\n' "${cmd[*]}" "${dirs[*]}"
-run
 stamp="$(mktemp)"
 trap 'rm -f "$stamp"' EXIT
+run
 while :; do
 	sleep 1
 	if find "${dirs[@]}" -type f -newer "$stamp" \
