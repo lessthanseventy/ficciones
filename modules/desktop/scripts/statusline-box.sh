@@ -21,8 +21,7 @@ PINK=$(rgb "${PALETTE_PINK:-E0218A}")
 RESET=$'\033[0m'
 
 input=$(cat)
-# the folder shown is the session's project, not wherever a shell command last cd'd to
-raw=$(printf '%s' "$input" | jq -c 'if .workspace.project_dir then .workspace.current_dir = .workspace.project_dir | .cwd = .workspace.project_dir else . end' | "$CPL" 2>/dev/null |
+raw=$(printf '%s' "$input" | "$CPL" 2>/dev/null |
 	sed -e 's/◔/󰧑  ctx/g' -e 's/◱/⏱  5h/g' -e 's/◑/▦  wk/g')
 mapfile -t L <<<"$raw"
 
