@@ -36,7 +36,7 @@ exec 3>&1 4>&2 >"$run/session.log" 2>&1
 exec dbus-run-session --config-file="$conf" -- bash -c '
   weston --backend=headless --socket=wl --idle-time=0 3>&- 4>&- &
   weston=$!
-  sleep 2
+  for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/wl" ] && break; sleep 0.1; done
   rc=0
   "$@" >&3 2>&4 3>&- 4>&- || rc=$?
   kill "$weston" 2>/dev/null || true
