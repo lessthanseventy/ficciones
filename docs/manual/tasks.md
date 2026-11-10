@@ -15,7 +15,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 | verb | does |
 |---|---|
 | `check:cap-hook` | the hook that refuses cap piped into a filter reaches every verdict it should |
-| `check:mods` | the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing) |
+| `check:mods` | the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing), and their list of menard's verbs against menard's |
 | `check:names` | names-exist gate: every mise task a guide names must exist (grep, offline, fast) |
 
 ## desktop
