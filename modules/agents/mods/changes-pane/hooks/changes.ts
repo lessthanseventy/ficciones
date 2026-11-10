@@ -1,4 +1,5 @@
 export type File = { path: string; isUntracked: boolean }
+export type Commit = { sha: string; subject: string }
 export type DiffLine = { text: string; hunk: number }
 export type Run = { t: string; c?: string; b?: string; bold?: true; dim?: true; it?: true; u?: true }
 
@@ -15,6 +16,13 @@ export const parseStatus = (z: string): File[] => {
   }
   return files
 }
+
+// One `sha<TAB>subject` line per commit.
+export const parseLog = (out: string): Commit[] =>
+  out.split('\n').filter(line => line.includes('\t')).map(line => {
+    const tab = line.indexOf('\t')
+    return { sha: line.slice(0, tab), subject: line.slice(tab + 1) }
+  })
 
 export const splitDiff = (diff: string): Map<string, string> => {
   const byPath = new Map<string, string>()
@@ -62,10 +70,11 @@ export const printable = (text: string) => text.replace(/[\x00-\x1f\x7f-\x9f]/g,
 export const tailPath = (path: string, width: number) =>
   path.length <= width ? path : `…${path.slice(path.length - Math.max(0, width - 1))}`
 
-export const listStart = (selected: number, count: number, rows: number) =>
-  Math.max(0, Math.min(selected - Math.floor(rows / 2), count - rows))
-
 export const clamp = (n: number, low: number, high: number) => Math.max(low, Math.min(n, Math.max(low, high)))
+
+// The list's window moves only as far as it takes to show the selection.
+export const revealTop = (top: number, selected: number, count: number, rows: number) =>
+  clamp(selected < top ? selected : selected >= top + rows ? selected - rows + 1 : top, 0, count - rows)
 
 const ANSI = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
 
@@ -144,6 +153,50 @@ export const parseAnsi = (ansi: string, width: number): Run[][] =>
     }
     return runs
   })
+
+const MIN_WRAPPED_TEXT = 8
+// How far back a row looks for a space to break at before it cuts the word.
+const MAX_WORD = 24
+
+// delta draws one row per diff line. A longer one continues on rows of its own, under its text and
+// past the line numbers; `starts` is where each delta row landed.
+export const wrapRows = (rows: Run[][], width: number): { rows: Run[][]; starts: number[] } => {
+  const wrapped: Run[][] = []
+  const starts: number[] = []
+  for (const row of rows) {
+    starts.push(wrapped.length)
+    const text = row.map(r => r.t).join('')
+    const gutter = [...text.slice(0, text.lastIndexOf('│', 24) + 1)].length
+    if ([...text].length <= width || width - gutter < MIN_WRAPPED_TEXT) {
+      wrapped.push(row)
+      continue
+    }
+    const cells = row.flatMap(run => [...run.t].map(ch => ({ ch, run })))
+    for (let start = 0; start < cells.length; ) {
+      const room = start === 0 ? width : width - gutter
+      let end = Math.min(cells.length, start + room)
+      if (end < cells.length && cells[end]!.ch !== ' ') {
+        // never back into the line numbers, whose padding is spaces too
+        const low = Math.max(start, start === 0 ? gutter : 0, end - MAX_WORD)
+        const space = cells.slice(low, end).map(c => c.ch).lastIndexOf(' ')
+        if (space >= 0) end = low + space + 1
+      }
+      const line: Run[] = start > 0 && gutter ? [{ t: ' '.repeat(gutter) }] : []
+      let from = start
+      for (let i = start + 1; i <= end; i++) {
+        if (i < end && cells[i]!.run === cells[from]!.run) continue
+        line.push({ ...cells[from]!.run, t: cells.slice(from, i).map(c => c.ch).join('') })
+        from = i
+      }
+      const fill = cells[end - 1]!.run.b
+      if (fill && end - start < room) line.push({ b: fill, t: ' '.repeat(room - (end - start)) })
+      wrapped.push(line)
+      // the space a row broke before would only indent the next one
+      start = cells[end]?.ch === ' ' ? end + 1 : end
+    }
+  }
+  return { rows: wrapped, starts }
+}
 
 // A Client's props past 100000 characters unmount it, so an oversized view loses its styling instead.
 const VIEW_LIMIT = 80_000

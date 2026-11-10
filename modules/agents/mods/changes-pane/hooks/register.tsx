@@ -1,26 +1,34 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, listStart, parseAnsi, parseDiff, parseStatus, printable, splitDiff, tailPath } from './changes'
-import type { DiffLine, File, Run } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import type { Commit, DiffLine, File, Run } from './changes'
 import type { Input } from './view'
 
 const PANE = 'changes'
 // Without this, /diff draws the built-in panel beside this one.
 const BUILT_IN = 'diff'
 const POLL_MS = 2000
-const MAX_LIST_ROWS = 8
+const MAX_LIST_ROWS = 10
+const MAX_COMMITS = 30
+// A commit never changes, so its diff is read once; the cap keeps a long session's memory flat.
+const MAX_KEPT_COMMITS = 50
+const COMMIT = 'commit:'
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
-const HINT = 'click to hold · Esc to prompt · j/k file · J/K scroll · L lazygit · prompt to follow'
+const HINT = 'Esc to prompt · j/k select · J/K scroll · wheel scrolls what it is over · L lazygit · prompt to follow'
 const OPEN = { id: PANE, title: 'Changes' }
 
 type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
+// A head names a section of the list and cannot be selected.
+type Item = { id: string; kind: 'file' | 'commit' | 'head'; label: string }
 
-const deltaArgv = (columns: number) => [
+// A file's diff needs no file header, the title names it; a commit's several files do.
+const deltaArgv = (columns: number, isCommit: boolean) => [
   'delta', '--no-gitconfig', '--dark', '--true-color=always', `--width=${columns}`, '--line-fill-method=spaces',
   '--wrap-max-lines=0', '--paging=never', '--line-numbers',
-  '--file-style=omit', '--file-decoration-style=omit', '--hunk-header-style=omit', '--hunk-header-decoration-style=omit',
+  ...(isCommit ? [] : ['--file-style=omit', '--file-decoration-style=omit']),
+  '--hunk-header-style=omit', '--hunk-header-decoration-style=omit',
   '--minus-style=syntax #3f0001', '--plus-style=syntax #002800',
 ]
 
@@ -28,6 +36,10 @@ export const register: Register = on => {
   let size = { columns: 0, rows: 0 }
   let files: File[] = []
   let diffs = new Map<string, Diff>()
+  let commits: Commit[] = []
+  const shown = new Map<string, Diff>()
+  let starts: number[] = []
+  let listTop = 0
   let hasBaseline = false
   let note = ''
   let selected = ''
@@ -44,8 +56,22 @@ export const register: Register = on => {
   let isStale = false
   let refresh: () => Promise<void> = async () => {}
 
-  const selectedIndex = () => Math.max(0, files.findIndex(f => f.path === selected))
-  const listRows = () => clamp(files.length, 1, Math.min(MAX_LIST_ROWS, Math.floor(size.rows / 3)))
+  const items = (): Item[] => [
+    ...(files.length > 0
+      ? files.map((f): Item => ({ id: f.path, kind: 'file', label: printable(f.path) }))
+      : [{ id: '', kind: 'head', label: note || 'nothing uncommitted' } as Item]),
+    ...(commits.length > 0
+      ? [{ id: '', kind: 'head', label: 'commits' } as Item, ...commits.map((c): Item => ({ id: COMMIT + c.sha, kind: 'commit', label: `${c.sha} ${printable(c.subject)}` }))]
+      : []),
+  ]
+  const selectedIndex = () => {
+    const all = items()
+    const at = all.findIndex(i => i.kind !== 'head' && i.id === selected)
+    return at >= 0 ? at : Math.max(0, all.findIndex(i => i.kind !== 'head'))
+  }
+  const diffOf = (id: string) => (id.startsWith(COMMIT) ? shown.get(id.slice(COMMIT.length)) : diffs.get(id))
+  const listRows = () => clamp(items().length, 1, Math.min(MAX_LIST_ROWS, Math.floor(size.rows / 3)))
+  const reveal = () => { listTop = revealTop(listTop, selectedIndex(), items().length, listRows()) }
   // Title, divider and hint take one row each.
   const diffRows = () => Math.max(1, size.rows - listRows() - 3)
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
@@ -57,22 +83,24 @@ export const register: Register = on => {
   }
 
   const viewProps = () => {
-    const firstFile = listStart(selectedIndex(), files.length, listRows())
-    const path = files[selectedIndex()]?.path ?? ''
-    const diff = diffs.get(path)
+    const all = items()
+    const firstFile = clamp(listTop, 0, all.length - listRows())
+    const current = all[selectedIndex()]
+    const diff = diffOf(current?.id ?? '')
     return {
-      title: printable(path.split('/').pop() ?? ''),
+      title: current?.kind === 'file' ? printable(current.id.split('/').pop() ?? '') : current?.kind === 'commit' ? current.label : '',
       isFollowing,
       rows: fitRows(rows.slice(offset, offset + diffRows())),
       diffRows: diffRows(),
-      note: note || (diff?.lines.length === 0 ? emptyDiffNote(diff.text) : ''),
+      note: files.length === 0 && commits.length === 0 ? note : current?.kind === 'file' && diff?.lines.length === 0 ? emptyDiffNote(diff.text) : '',
       divider: '─'.repeat(Math.max(0, size.columns)),
-      files: files.slice(firstFile, firstFile + listRows()).map((file, i) => {
-        const diff = diffs.get(file.path)
+      files: all.slice(firstFile, firstFile + listRows()).map((item, i) => {
+        const diff = diffOf(item.id)
         const adds = diff?.adds ? ` +${diff.adds}` : ''
         const dels = diff?.dels ? ` -${diff.dels}` : ''
         const width = Math.max(1, size.columns - adds.length - dels.length)
-        return { label: tailPath(printable(file.path), width).padEnd(width), adds, dels, isSelected: firstFile + i === selectedIndex() }
+        const label = item.kind === 'file' ? tailPath(item.label, width) : item.label.slice(0, width)
+        return { label: label.padEnd(width), adds, dels, isSelected: item.kind !== 'head' && firstFile + i === selectedIndex(), isHead: item.kind === 'head' }
       }),
       firstFile,
       hint: HINT,
@@ -93,16 +121,27 @@ export const register: Register = on => {
       return texts
     }
 
+    const readCommit = async (sha: string) => {
+      const show = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'show', '--no-color', '--no-ext-diff', '--format=%an · %ar%n%n%B', sha])
+      const lines = parseDiff(show.stdout)
+      if (shown.size >= MAX_KEPT_COMMITS) shown.clear()
+      shown.set(sha, { text: show.stdout, lines, ...countDiff(lines) })
+    }
+
     const load = async () => {
+      let jump: number | null = null
       // Without --no-optional-locks this poll takes the index lock and can fail Claude's own git commands.
       const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-z', '-uall'])
       if (status.exitCode !== 0) {
         files = []
         diffs = new Map()
+        commits = []
         note = 'not a git repository'
       } else {
         files = parseStatus(status.stdout)
-        note = files.length === 0 ? 'nothing changed' : ''
+        note = ''
+        const log = await $.process.run(['git', '--no-optional-locks', 'log', '-n', String(MAX_COMMITS), '--format=%h%x09%s'])
+        commits = log.exitCode === 0 ? parseLog(log.stdout) : []
         const texts = await readDiffs(files)
         const before = diffs
         diffs = new Map(files.map(({ path }) => {
@@ -117,22 +156,30 @@ export const register: Register = on => {
         const latest = changed[changed.length - 1]
         const moved = hasBaseline && isFollowing && latest
         if (moved) selected = latest.path
-        selected = files[selectedIndex()]?.path ?? ''
+        selected = items()[selectedIndex()]?.id ?? ''
         hasBaseline = true
-        if (moved) offset = Math.max(0, firstChangedRow(before.get(latest.path)?.lines ?? [], diffs.get(latest.path)?.lines ?? []) - CONTEXT_ROWS)
+        if (moved) {
+          jump = firstChangedRow(before.get(latest.path)?.lines ?? [], diffs.get(latest.path)?.lines ?? [])
+          reveal()
+        }
       }
 
-      const text = diffs.get(selected)?.text ?? ''
+      const isCommit = selected.startsWith(COMMIT)
+      if (isCommit && !diffOf(selected)) await readCommit(selected.slice(COMMIT.length))
+      const text = diffOf(selected)?.text ?? ''
       const key = `${selected}\0${size.columns}\0${text}`
       if (key === renderedKey) return
       renderedKey = key
-      if (!diffs.get(selected)?.lines.length) {
+      if (isCommit ? text === '' : !diffOf(selected)?.lines.length) {
         rows = []
+        starts = []
         return
       }
-      const drawn = await $.process.run(deltaArgv(size.columns), { stdin: text })
-      // delta leads with the blank row it puts before every hunk.
-      rows = parseAnsi(drawn.stdout, size.columns).slice(1)
+      const drawn = await $.process.run(deltaArgv(size.columns, isCommit), { stdin: text })
+      // delta leads a file's diff with the blank row it puts before every hunk.
+      const parsed = parseAnsi(drawn.stdout, size.columns)
+      ;({ rows, starts } = wrapRows(isCommit ? parsed : parsed.slice(1), size.columns))
+      if (jump !== null) offset = Math.max(0, (starts[jump] ?? 0) - CONTEXT_ROWS)
     }
 
     refresh = async () => {
@@ -143,10 +190,10 @@ export const register: Register = on => {
       try {
         while (isStale) {
           isStale = false
-          const seen = JSON.stringify([renderedKey, note, files])
+          const seen = JSON.stringify([renderedKey, note, files, commits])
           await load()
           scrollTo(offset)
-          if (seen !== JSON.stringify([renderedKey, note, files])) $.ui.invalidate('ui.render')
+          if (seen !== JSON.stringify([renderedKey, note, files, commits])) $.ui.invalidate('ui.render')
         }
       } catch (error) {
         note = `could not read the changes: ${error instanceof Error ? error.message : String(error)}`
@@ -159,7 +206,7 @@ export const register: Register = on => {
     $.clock.every(POLL_MS, () => { void refresh() })
     // VS Code and mobile have no Client to draw this pane with.
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
-    if (canDraw) await $.command.register({ name: PANE, description: 'Show everything uncommitted, following the latest edit', immediate: true })
+    if (canDraw) await $.command.register({ name: PANE, description: 'Show everything uncommitted and the recent commits, following the latest edit', immediate: true })
     return next(e)
   })
 
@@ -219,10 +266,16 @@ export const register: Register = on => {
     return <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" />
   })
 
-  // The body never overflows: the view draws its own window of rows, so the wheel moves that.
+  // The body never overflows: the view draws its own windows of rows, so the wheel moves the one
+  // it is over. Title, diff and divider sit above the list.
   on('ui.scroll', { requestId: PANE }, async ($, e) => {
-    isFollowing = false
-    scrollTo(offset + e.by)
+    if (e.pointer !== undefined && e.pointer.row >= diffRows() + 2) {
+      const last = items().length - listRows()
+      listTop = clamp(clamp(listTop, 0, last) + e.by, 0, last)
+    } else {
+      isFollowing = false
+      scrollTo(offset + e.by)
+    }
     $.ui.invalidate('ui.render')
     return {}
   })
@@ -234,10 +287,18 @@ export const register: Register = on => {
     acked = fresh[fresh.length - 1]!.n
 
     const select = (index: number) => {
-      const file = files[clamp(index, 0, files.length - 1)]
-      if (!file || file.path === selected) return
-      selected = file.path
+      const item = items()[index]
+      if (!item || item.kind === 'head' || item.id === selected) return
+      selected = item.id
       offset = 0
+      reveal()
+    }
+    // j and k step over a section's head.
+    const step = (by: 1 | -1) => {
+      const all = items()
+      let at = selectedIndex() + by
+      while (all[at]?.kind === 'head') at += by
+      select(at)
     }
 
     // Keys that reach stdin together arrive as one event, a held j among them.
@@ -260,8 +321,8 @@ export const register: Register = on => {
         continue
       }
       if (row !== undefined) select(row)
-      else if (key === 'j' || key === 'down') select(selectedIndex() + 1)
-      else if (key === 'k' || key === 'up') select(selectedIndex() - 1)
+      else if (key === 'j' || key === 'down') step(1)
+      else if (key === 'k' || key === 'up') step(-1)
       else if (key === 'J') scrollTo(offset + 1)
       else if (key === 'K') scrollTo(offset - 1)
       else if (key === 'pagedown') scrollTo(offset + diffRows())

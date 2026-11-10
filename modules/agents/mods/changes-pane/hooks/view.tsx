@@ -10,7 +10,7 @@ export type ViewProps = {
   diffRows: number
   note: string
   divider: string
-  files: { label: string; adds: string; dels: string; isSelected: boolean }[]
+  files: { label: string; adds: string; dels: string; isSelected: boolean; isHead: boolean }[]
   firstFile: number
   hint: string
   acked: number
@@ -62,8 +62,8 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
         ))}
       </Box>
       <Text dimColor>{props.divider}</Text>
-      {props.files.map(({ label, adds, dels, isSelected }) => (
-        <Text inverse={isSelected} wrap="truncate-end">
+      {props.files.map(({ label, adds, dels, isSelected, isHead }) => (
+        <Text inverse={isSelected} dimColor={isHead} wrap="truncate-end">
           {label}
           <Text color="success">{adds}</Text>
           <Text color="error">{dels}</Text>

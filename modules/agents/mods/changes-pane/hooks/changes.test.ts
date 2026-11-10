@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { emptyDiffNote, firstChangedRow, listStart, parseAnsi, parseDiff, parseStatus, printable, splitDiff, tailPath } from './changes'
+import { emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -42,11 +42,39 @@ test('ansi becomes runs, and an erase paints to the edge', async () => {
   expect(parseAnsi('\x1b[48;2;1;2;3mab\x1b[0K\x1b[0m', 5)).toEqual([[{ b: '#010203', t: 'ab   ' }]])
 })
 
-test('the list follows the selection', async () => {
-  expect(listStart(0, 20, 5)).toBe(0)
-  expect(listStart(10, 20, 5)).toBe(8)
-  expect(listStart(19, 20, 5)).toBe(15)
-  expect(listStart(0, 2, 5)).toBe(0)
+test('the list moves only as far as shows the selection', async () => {
+  expect(revealTop(0, 3, 20, 5)).toBe(0)
+  expect(revealTop(0, 7, 20, 5)).toBe(3)
+  expect(revealTop(10, 4, 20, 5)).toBe(4)
+  expect(revealTop(18, 19, 20, 5)).toBe(15)
+  expect(revealTop(3, 0, 2, 5)).toBe(0)
+})
+
+test('the log reads a subject with a tab in it', async () => {
+  expect(parseLog('abc1234\tfix\tthe thing\ndef5678\tsecond\n')).toEqual([
+    { sha: 'abc1234', subject: 'fix\tthe thing' },
+    { sha: 'def5678', subject: 'second' },
+  ])
+})
+
+test('a long row wraps under its text, past the line numbers', async () => {
+  const short = [{ t: ' 1 ⋮ 1 │one' }]
+  const long = [{ t: ' 2 ⋮   │' }, { b: '#3f0001', t: 'abcdefghijklmnopqrstuvwxyz' }]
+  const { rows, starts } = wrapRows([short, long, short], 20)
+  expect(starts).toEqual([0, 1, 4])
+  expect(rows.map(row => row.map(r => r.t).join(''))).toEqual([
+    ' 1 ⋮ 1 │one',
+    ' 2 ⋮   │abcdefghijkl',
+    '        mnopqrstuvwx',
+    '        yz          ',
+    ' 1 ⋮ 1 │one',
+  ])
+  expect(rows[3]![2]).toEqual({ b: '#3f0001', t: ' '.repeat(10) })
+})
+
+test('a wrapped row breaks at a space, across runs', async () => {
+  const { rows } = wrapRows([[{ t: 'const ' }, { c: 'red', t: 'answer' }, { t: ' = compute(the, thing)' }]], 16)
+  expect(rows.map(row => row.map(r => r.t).join(''))).toEqual(['const answer = ', 'compute(the, ', 'thing)'])
 })
 
 const PANE = {
@@ -137,6 +165,41 @@ type Mounted = {
   key: (k: { key: string }) => Promise<void>
   find: (q: { text: RegExp; in: string }) => Promise<unknown>
 }
+
+test('the commits sit under the files, and one opens like a file', async ($, on) => {
+  mock.clock(on)
+  on('session.start', async ($, e) => e)
+  on('process.run', async ($, e) => {
+    const line = e.argv.join(' ')
+    const stdout = line.includes(' status ') ? ' M a.ts\0'
+      : line.includes(' log ') ? 'abc1234\tfix the thing\n'
+      : line.includes(' show ') ? 'Ada · 2 hours ago\n\nfix the thing\n\ndiff --git a/z.ts b/z.ts\n--- a/z.ts\n+++ b/z.ts\n@@ -1 +1 @@\n-before\n+after\n'
+      : line.startsWith('delta') ? `${line.includes('--file-style=omit') ? '\n' : ''}${e.init?.stdin}`
+      : 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\n'
+    return { value: { exitCode: 0, stdout, stderr: '' } } as never
+  })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /^commits/, in: 'changes' })).toBeDefined()
+  await ui.key({ key: 'j' })
+  expect(await ui.find({ text: /^abc1234 fix the thing$/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /Ada · 2 hours ago/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /\+after/, in: 'changes' })).toBeDefined()
+})
+
+test('the wheel over the list moves the list and leaves the diff following', async ($, on) => {
+  mock.clock(on)
+  const names = Array.from({ length: 20 }, (_, i) => `f${i + 1}.ts`)
+  repo(on, names.map(n => `diff --git a/${n} b/${n}\n--- a/${n}\n+++ b/${n}\n@@ -1 +1 @@\n-x\n+y\n`).join(''), names.map(n => ` M ${n}\0`).join(''))
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /^f1\.ts/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeUndefined()
+  // 30 rows: title, 17 of diff, divider, then the list from row 19
+  await $.ui.scroll({ component: 'Pane', requestId: 'changes', offset: 8, by: 8, bodyRows: 30, contentRows: 30, origin: { kind: 'person' }, pointer: { column: 3, row: 22 } } as never)
+  expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
+})
 
 // The engine reuses its cached drawing on a reopen, so no ui.render fires: the test mounts nothing.
 test('a pane opened without a fresh render polls', async ($, on) => {
