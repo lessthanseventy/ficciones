@@ -65,6 +65,10 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
 }
 
 // One tool call as a line a model can summarise a turn from: what ran, on what, and how it went.
+// a call's line fits one row of a transcript: what was run, then how it ended
+const MAX_MADE = 60
+const MAX_LAST = 40
+
 // an absolute path is told apart by its file and the folder it is in
 const nearby = (text: string) => (text.startsWith('/') && !text.includes(' ') ? text.split('/').slice(-2).join('/') : text)
 
@@ -80,9 +84,9 @@ export const turnLine = (call: Call, isError: boolean): string => {
   const first = Object.values(fields).find((v): v is string => typeof v === 'string' && v !== call.tool) ?? ''
   // a command's last line is where it says how it went
   const stdout = call.tool === 'Bash' ? (call.output as { stdout?: unknown } | undefined)?.stdout : undefined
-  const last = typeof stdout === 'string' ? stdout.trimEnd().split('\n').pop()!.trim().slice(0, MAX_SAID) : ''
+  const last = typeof stdout === 'string' ? stdout.trimEnd().split('\n').pop()!.trim().slice(0, MAX_LAST) : ''
   const edited = call.tool === 'Bash' ? shellEdits(call.output).map(({ name, adds, dels }) => ` · ${name} +${adds} -${dels}`).join('') : ''
-  return `${call.tool} ${nearby(first.split('\n')[0]!).slice(0, MAX_SAID)}${failed}${last ? ` → ${last}` : ''}${edited}`.trim()
+  return `${call.tool} ${nearby(first.split('\n')[0]!).slice(0, MAX_MADE)}${failed}${last ? ` → ${last}` : ''}${edited}`.trim()
 }
 
 const MAX_CALL_LINES = 30

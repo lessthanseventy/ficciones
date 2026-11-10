@@ -509,7 +509,7 @@ export const register: Register = on => {
     ours.add(id)
     const call = { ...e.props, output: e.props.output ?? replies.get(id) }
     const line = turnLine(call, e.props.isErrored === true || e.props.isInterrupted === true)
-    return callRow($, e, opened, id, call, e.props.isRunning ? `${line} …` : line, '● ')
+    return callRow($, e, opened, id, call, e.props.isRunning ? `${line} …` : line, '  ⎿  ')
   })
 
   // A result's own props do not say what ran, so the calls a line was drawn for are kept by id.
