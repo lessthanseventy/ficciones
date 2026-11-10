@@ -2,7 +2,8 @@
 # The names-exist gate: every name the glue points at must exist in what it points at. Nothing
 # compiles these seams, so a rename fails silently at 2am — this catches it at commit time.
 #
-#   (c) `mise run <task>` in any AGENTS.md / README.md, mise.toml, scripts, flake.nix
+#   (c) `mise run <task>` in any AGENTS.md / README.md, mise.toml, tasks/, scripts, git hooks,
+#       flake.nix and the zshrc (there as `mise --cd …/ficciones run <task>`)
 #       →  a task `mise tasks ls` knows (`<prefix>:*` is a glob: some task must match)
 #
 # grep only, offline, a few hundred ms. One line per miss; exit 1 if any. docs/ is not an
@@ -19,8 +20,10 @@ miss() {
 }
 
 # This file names the patterns it hunts; every other script is an input.
-scripts="$(ls scripts/*.sh | grep -v '/check-names.sh$')"
-guides() { find . -path '*/node_modules' -prune -o -path ./.worktrees -prune -o -path ./.git -prune -o -path ./docs -prune -o \( -name AGENTS.md -o -name README.md \) -print; }
+mapfile -t inputs < <(
+	find scripts -maxdepth 1 -name '*.sh' ! -name check-names.sh
+	find . -path '*/node_modules' -prune -o -path ./.worktrees -prune -o -path ./.git -prune -o -path ./docs -prune -o \( -name AGENTS.md -o -name README.md \) -print
+)
 
 # ---- (c) mise tasks ---------------------------------------------------------------------------
 # Only tasks THIS repo defines: mise merges every mise.toml up the directory tree, so a parent's
@@ -31,13 +34,13 @@ n_mise=0
 while IFS=: read -r file line ref; do
 	[ -n "$ref" ] || continue
 	n_mise=$((n_mise + 1))
-	task="${ref#mise run }"
+	task="${ref##* run }"
 	task="${task%:}" # a sentence-final "home:switch:" is the task, not a namespace
 	case "$task" in
 	*\*) grep -q "^${task%\*}" <<<"$known" || miss "(c) $file:$line names \`$ref\` — no task matches that prefix in \`mise tasks ls\`" ;;
 	*) grep -qxF "$task" <<<"$known" || miss "(c) $file:$line names \`$ref\` — not a task \`mise tasks ls\` knows" ;;
 	esac
-done < <(grep -noE 'mise run [A-Za-z0-9:_*-]+' mise.toml flake.nix $scripts $(guides) 2>/dev/null | sort -u)
+done < <(grep -noE 'mise (--cd [^ ]*/ficciones )?run [A-Za-z0-9:_*-]+' mise.toml tasks/*.toml flake.nix modules/os/zshrc scripts/git-hooks/* "${inputs[@]}" 2>/dev/null | sort -u)
 
 if [ "$fail" -ne 0 ]; then
 	echo "check-names: FAILED — a name above points at nothing (rename left a dangling reference)"
