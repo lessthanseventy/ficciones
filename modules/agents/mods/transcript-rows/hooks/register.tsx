@@ -20,7 +20,7 @@ type Ui = { ui: { resolve: (e: never) => Record<string, any>; invalidate: (event
 
 // One call's line and, once clicked, the call as it was made and answered under it. A click on
 // the line or anywhere in the opened text folds it: the text is a view of its own (body.tsx).
-function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call, line: string, lead: string, time: string) {
+function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call, line: string, time: string) {
   const { Box, Text, Button, Client } = $.ui.resolve(e as never)
   const isOpen = opened.has(id)
   const toggle = () => {
@@ -34,11 +34,17 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
   const made = arrow < 0 ? body : body.slice(0, arrow)
   const counted = call.tool === 'Edit' || call.tool === 'Write' ? made.match(/^(.*) (\+\d+) (-\d+)(.*)$/) : null
   const failing = (text: string) =>
-    text.split(' (failed)').flatMap((part, index) => (index > 0 ? [<Text color="error"> (failed)</Text>, part] : [part]))
+    text.split(/( \((?:failed|running)\))/).map(part =>
+      part === ' (failed)' ? <Text color="error">{part}</Text> : part === ' (running)' ? <Text color="warning">{part}</Text> : part,
+    )
   // the lead stands in a column of its own, so a line that wraps comes back under its text
   return (
     <Box>
-      <Text dimColor>{lead}</Text>
+      <Text>{'  '}</Text>
+      <Button plain key={`fold-${id}`} onPress={toggle}>
+        <Text color="claude">{isOpen ? '▼' : '▶'}</Text>
+      </Button>
+      <Text>{'  '}</Text>
       <Box flexShrink={1} flexDirection="column">
         <Button plain key={`call-${id}`} onPress={toggle}>
           <Text color="remember">{space < 0 ? line : line.slice(0, space)}</Text>
@@ -48,7 +54,6 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
           {counted ? failing(counted[4]!) : null}
           {arrow < 0 ? null : <Text color="suggestion">{body.slice(arrow)}</Text>}
           {time ? <Text color="claude">{`  ${time}`}</Text> : null}
-          <Text dimColor>{isOpen ? '  ▾' : '  ▸'}</Text>
         </Button>
         {files.length > 0 ? (
           <Box paddingLeft={2}>
@@ -149,7 +154,7 @@ export const register: Register = on => {
     const call = { ...e.props, output: e.props.output ?? replies.get(id) }
     const line = turnLine(call, e.props.isErrored === true || e.props.isInterrupted === true)
     // a call still being written or waiting on a permission has no arguments to name yet
-    return callRow($, e, opened, id, call, e.props.isRunning || line === e.props.tool ? `${line} …` : line, '  ⎿  ', took(durations.get(id)))
+    return callRow($, e, opened, id, call, e.props.isRunning || line === e.props.tool ? `${line} (running)` : line, took(durations.get(id)))
   })
 
   // A result's own props do not say what ran, so the calls a line was drawn for are kept by id.
@@ -173,9 +178,9 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {isWhole ? null : await next(e)}
         {calls.slice(0, MAX_GROUP_LINES).map(({ call, id }) =>
-          callRow($, e, opened, id, call, `${turnLine(call, call.isErrored === true)}${call.isRunning || call.input === undefined ? ' …' : ''}`, '  ⎿  ', took(durations.get(id))),
+          callRow($, e, opened, id, call, `${turnLine(call, call.isErrored === true)}${call.isRunning || call.input === undefined ? ' (running)' : ''}`, took(durations.get(id))),
         )}
-        {calls.length > MAX_GROUP_LINES ? <Text dimColor>{`  ⎿  … ${calls.length - MAX_GROUP_LINES} more calls`}</Text> : null}
+        {calls.length > MAX_GROUP_LINES ? <Text dimColor>{`     … ${calls.length - MAX_GROUP_LINES} more calls`}</Text> : null}
       </Box>
     )
   })
