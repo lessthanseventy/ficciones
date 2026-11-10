@@ -128,14 +128,17 @@ export default function Notifications() {
     if (!n) return
     const u = urgencyOf(n)
     logEvent("notice", `${n.appName || "notice"}: ${n.summary}`, u === "critical" ? "crit" : u === "low" ? "dim" : "normal")
-    // critical notices pin to the deck's row instead of a sticky toast
-    if (notifd.dontDisturb || u === "critical") return
     // toasts go to an external monitor whenever one is plugged in, wherever the pointer is; the
     // laptop panel only when it is the only screen. A film on it means none at all (the notice
     // still lands in the hub's history)
     const names = Hyprland.get_default().get_monitors().map((m) => m.name)
     const externals = names.filter((m) => !m.startsWith("eDP"))
-    const name = (externals.length ? externals : names).find((m) => !isFullscreen(m))
+    const pool = externals.length ? externals : names
+    // critical notices pin to the deck's row instead of a sticky toast; with a film on every
+    // screen there is no row, so that one goes over the film
+    const overFilm = u === "critical" && names.every(isFullscreen)
+    if (!overFilm && (notifd.dontDisturb || u === "critical")) return
+    const name = overFilm ? pool[0] : pool.find((m) => !isFullscreen(m))
     const mon = app.get_monitors().find((m) => m.connector === name)
     if (!mon) return
     win.gdkmonitor = mon
@@ -148,7 +151,7 @@ export default function Notifications() {
     <window
       $={(self) => (win = self)}
       // a film starting under a toast hides it too
-      visible={createComputed(() => { const l = list(), s = stickies(), i = infos(), h = hubOpen(), fs = fullscreenMonitors(); return (l.length > 0 || s.length > 0 || i.length > 0) && !h && !fs.has(win?.gdkmonitor?.connector ?? "") })}
+      visible={createComputed(() => { const l = list(), s = stickies(), i = infos(), h = hubOpen(), fs = fullscreenMonitors(); return (l.length > 0 || s.length > 0 || i.length > 0) && !h && (!fs.has(win?.gdkmonitor?.connector ?? "") || l.some((n) => urgencyOf(n) === "critical")) })}
       cssClasses={["notifications"]}
       namespace="astal-shell-notifications"
       name="notifications"
