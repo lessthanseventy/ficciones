@@ -5,6 +5,8 @@ import { weather, glyph, describe, type Day } from "../lib/weather"
 import { RuleH } from "../lib/tui"
 import Cairo from "cairo"
 import { PALETTE } from "../lib/palette"
+import { theme } from "../lib/theme"
+import { interval } from "ags/time"
 
 const hh = (ms: number) => {
   const h = new Date(ms).getHours()
@@ -118,7 +120,10 @@ function Chart() {
     set(PALETTE.dim); cr.setFontSize(10)
     cr.moveTo(2, top + 4); cr.showText(`${Math.round(hi)}°`); cr.moveTo(2, top + tempH); cr.showText(`${Math.round(lo)}°`)
   }
+  // the palette is swapped in place on a theme change, and the "now" upright moves with the clock
   weather.subscribe(() => area?.queue_draw())
+  theme.subscribe(() => area?.queue_draw())
+  interval(60_000, () => area?.queue_draw())
   return <Gtk.DrawingArea heightRequest={130} hexpand $={(self) => { area = self; self.set_draw_func(draw) }} />
 }
 

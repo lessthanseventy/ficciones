@@ -51,11 +51,12 @@ function Workspaces({ connector }: { connector: string }) {
     <box cssClasses={["workspaces"]} orientation={Gtk.Orientation.VERTICAL} spacing={2} $={(self) => self.add_controller(scroll)}>
       <For each={mine}>
         {(ws) => {
-          const classes = focusedWorkspace(() => [
+          // clients too: a window opening on a workspace you are not on changes no focus
+          const classes = createComputed(() => { focusedWorkspace(); clients(); return [
             "ws",
             ...(active()?.id === ws.id ? ["focused"] : []),
             ...(ws.get_clients().length > 0 ? ["occupied"] : []),
-          ])
+          ] })
           // Super held + hover shows the workspace's windows off to the right; a click goes there
           return (
             <menubutton

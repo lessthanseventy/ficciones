@@ -92,7 +92,8 @@ export function startHotEdge() {
     // open: nothing here — the hub and the deck close on Esc or a click outside, not on the
     // pointer leaving. The office rail lies along this same edge, so the
     // edge is quiet while it is open too
-    if (hubWin?.visible || deckVisible() || officeVisible()) { since = 0; return }
+    // spent while open, as after a dwell: closed with the pointer still parked on the edge, it stays closed
+    if (hubWin?.visible || deckVisible() || officeVisible()) { since = Date.now() + 1e9; return }
     // the right edge only: the deck opens on a click (Andrew, 2026-09-07: no hover for it)
     const mons = Hyprland.get_default().get_monitors()
     const mon = mons.find(

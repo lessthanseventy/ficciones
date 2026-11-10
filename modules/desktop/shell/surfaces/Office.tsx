@@ -73,7 +73,9 @@ let viewing = 0
 async function loadThreadView() {
   const id = picked.peek(), my = ++viewing
   const v = id === null || !wide.peek() ? null : await threadView(id)
-  if (my === viewing) setTview(v)
+  // the 3 s refresh hands back an equal view most times: setting it would rebuild every message
+  // and scroll the conversation back to its end under the reader
+  if (my === viewing && JSON.stringify(v) !== JSON.stringify(tview.peek())) setTview(v)
 }
 let loading = 0
 let fetching = 0
@@ -782,7 +784,9 @@ export default function Office() {
       else hideOffice()
     },
     onKey: (kv) => {
-    if (officeWin?.get_focus() instanceof Gtk.Text) return false
+    const focus = officeWin?.get_focus()
+    // a focused button takes its own Enter
+    if (focus instanceof Gtk.Text || (focus instanceof Gtk.Button && (kv === Gdk.KEY_Return || kv === Gdk.KEY_KP_Enter))) return false
     switch (kv) {
       case Gdk.KEY_j: case Gdk.KEY_Down: stepPerson(1); return true
       case Gdk.KEY_k: case Gdk.KEY_Up: stepPerson(-1); return true

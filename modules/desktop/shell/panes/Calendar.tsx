@@ -3,7 +3,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import GLib from "gi://GLib?version=2.0"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
-import { For, With, createState } from "ags"
+import { For, With, createState, createComputed } from "ags"
 import { RuleH } from "../lib/tui"
 
 /**
@@ -56,6 +56,10 @@ export function CalendarCard() {
     setView({ year: d.get_year(), month: d.get_month() })
   }
   const home = () => { const t = GLib.DateTime.new_now_local(); setView({ year: t.get_year(), month: t.get_month() }) }
+  // the card is built once and lives for days: a new day moves the chip, and the month with it
+  const day = createPoll("", 60_000, () => GLib.DateTime.new_now_local().format("%F")!)
+  day.subscribe(home)
+  const shown = createComputed(() => { day(); return view() })
   const clock = createPoll("", 1000, () => GLib.DateTime.new_now_local().format("%A %d %B · %H:%M:%S")!)
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
@@ -70,7 +74,7 @@ export function CalendarCard() {
       <box cssClasses={["cal-head"]} homogeneous hexpand>
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => <label label={d} hexpand />)}
       </box>
-      <With value={view}>
+      <With value={shown}>
         {(v) => {
           const t = GLib.DateTime.new_now_local()
           const today = v.year === t.get_year() && v.month === t.get_month() ? t.get_day_of_month() : -1

@@ -15,6 +15,8 @@ import { mediaShown } from "../surfaces/Deck"
 const [curSel, setCurSel] = createState(0)
 
 const players = createBinding(Mpris.get_default(), "players")
+// the picked player quit: fall back to the last one left, or the card shows nothing at all
+players.subscribe(() => { const n = players.peek().length; if (curSel.peek() >= n) setCurSel(Math.max(0, n - 1)) })
 
 /**
  * The picture of what plays: a live capture of the player's window while the media popover is

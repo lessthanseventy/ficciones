@@ -11,7 +11,8 @@ import { quietOsd } from "./Osd"
 
 // Intel names every codec endpoint "Raptor Lake-P/U/H cAVS <thing>"; the thing is the name.
 const stripDevicePrefix = (s: string) => s.replace(/^.*?cAVS\s+/, "")
-const short = (s: string, n = 28) => { const c = stripDevicePrefix(s); return c.length > n ? c.slice(0, n - 1) + "…" : c }
+// cut in the middle: sinks that differ only at the end ("… (HDMI 2)") stay apart
+const short = (s: string, n = 28) => { const c = stripDevicePrefix(s); return c.length > n ? `${c.slice(0, n - 8)}…${c.slice(-7)}` : c }
 // speech-dispatcher (TTS for Orca / Firefox reader) parks idle streams that never play
 const HIDDEN = /^speech-dispatcher/i
 

@@ -219,10 +219,14 @@ function RecCell() {
   // a clock for the elapsed time, ticking only while a capture runs
   const [now, setNow] = createState(Date.now())
   let t: Timer | null = null
-  capture.subscribe(() => {
+  const tick = () => {
     if (capture.peek().count && !t) t = interval(1000, () => setNow(Date.now()))
     if (!capture.peek().count && t) { t.cancel(); t = null }
-  })
+  }
+  // now too: a bar built mid-recording (a monitor plugged in) hears no change
+  tick()
+  const off = capture.subscribe(tick)
+  onCleanup(() => { off(); t?.cancel() })
   const elapsed = createComputed(() => {
     const c = capture(), n = now()
     if (!c.since) return ""
