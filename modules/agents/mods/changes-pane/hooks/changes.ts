@@ -34,10 +34,13 @@ export const patchCounts = (output: unknown): { adds: number; dels: number } => 
   return { adds: lines.filter(line => line.startsWith('+')).length, dels: lines.filter(line => line.startsWith('-')).length }
 }
 
-type Call = { tool: string; input: unknown; output?: unknown }
+export type Call = { tool: string; input: unknown; output?: unknown }
 
+// menardSaid is menard's own (its plugin's hooks/said.ts), kept the same here so the two agree
+// on which calls are menard's: its plugin draws those rows, this one the rest.
 const MENARD_TOOL = /^mcp__plugin_menard_menard__(\w+)$/
-const MENARD_SHELL = /(?:^|[\s/;&|(])menard\s+(\w+)/
+const VERBS = 'edit rename find outline clause stmt block attr directive module write deps run map where version'
+const MENARD_SHELL = new RegExp(`(?:^|[\\s/;&|(])menard\\s+(?:--frozen\\s+)?(${VERBS.replaceAll(' ', '|')})\\b([^\\n;&|<>]*)`)
 const MAX_SAID = 100
 
 // What a menard call did, in menard's own words: a write's reply carries `did`, a run's `ok`.
@@ -45,17 +48,17 @@ const MAX_SAID = 100
 export const menardSaid = ({ tool, input, output }: Call): string | null => {
   const fields = (input ?? {}) as Record<string, unknown>
   const command = tool === 'Bash' && typeof fields.command === 'string' ? fields.command : ''
-  const verb = MENARD_TOOL.exec(tool)?.[1] ?? MENARD_SHELL.exec(command)?.[1]
+  const shell = MENARD_SHELL.exec(command)
+  const verb = MENARD_TOOL.exec(tool)?.[1] ?? shell?.[1]
   if (!verb) return null
-  // a shell command that printed more than menard's one line did more than menard's call
-  const stdout = command ? (output as { stdout?: unknown } | undefined)?.stdout : undefined
-  if (typeof stdout === 'string' && !/^\{.*\}$/.test(stdout.trim())) return null
   // the reply is JSON, itself quoted inside the tool's own result
   const reply = (typeof output === 'string' ? output : JSON.stringify(output ?? '')).replace(/\\+"/g, '"')
   const did = /"did":"([^"]*)"/.exec(reply)?.[1]
   if (did) return did.slice(0, MAX_SAID)
   const edits = Array.isArray(fields.edits) ? (fields.edits as { file?: unknown }[]).map(edit => edit.file) : []
-  const targets = [...edits, ...Object.values(fields).flat()].filter((v): v is string => typeof v === 'string' && v.length <= 60 && !v.includes('\n'))
+  // from the shell, what follows the verb on its line, less a redirect's descriptor (`2>&1`)
+  const given = shell ? shell[2]!.replace(/\s\d$/, '').trim().split(/\s+/) : [...edits, ...Object.values(fields).flat()]
+  const targets = given.filter((v): v is string => typeof v === 'string' && v.length <= 60 && !v.includes('\n'))
   const ok = /"ok":(true|false)/.exec(reply)?.[1]
   const said = [verb, ...new Set(targets)].join(' ').slice(0, MAX_SAID)
   return ok === undefined ? said : `${said}: ${ok === 'true' ? 'ok' : 'failed'}`
@@ -78,7 +81,35 @@ export const turnLine = (call: Call, isError: boolean): string => {
   // a command's last line is where it says how it went
   const stdout = call.tool === 'Bash' ? (call.output as { stdout?: unknown } | undefined)?.stdout : undefined
   const last = typeof stdout === 'string' ? stdout.trimEnd().split('\n').pop()!.trim().slice(0, MAX_SAID) : ''
-  return `${call.tool} ${nearby(first.split('\n')[0]!).slice(0, MAX_SAID)}${failed}${last ? ` → ${last}` : ''}`.trim()
+  const edited = call.tool === 'Bash' ? shellEdits(call.output).map(({ name, adds, dels }) => ` · ${name} +${adds} -${dels}`).join('') : ''
+  return `${call.tool} ${nearby(first.split('\n')[0]!).slice(0, MAX_SAID)}${failed}${last ? ` → ${last}` : ''}${edited}`.trim()
+}
+
+const MAX_CALL_LINES = 30
+
+const cut = (text: string): string[] => {
+  const all = text.replace(/\n+$/, '').split('\n')
+  return all.length > MAX_CALL_LINES ? [...all.slice(0, MAX_CALL_LINES), `… +${all.length - MAX_CALL_LINES} lines`] : all
+}
+
+const replyText = (output: unknown): string => {
+  if (typeof output === 'string') return output
+  if (Array.isArray(output)) return output.map(block => (typeof block?.text === 'string' ? block.text : JSON.stringify(block))).join('\n')
+  const shell = output as { stdout?: unknown; stderr?: unknown } | null
+  if (typeof shell?.stdout === 'string') return [shell.stdout, typeof shell.stderr === 'string' ? shell.stderr : ''].filter(Boolean).join('\n')
+  return output === undefined ? '' : JSON.stringify(output, null, 2)
+}
+
+// A call as it was made and answered, for a line clicked open: the command or the tool's
+// arguments, then the reply, each cut to a screen's worth.
+export const callText = ({ input, output }: Call): string[] => {
+  const fields = (input ?? {}) as Record<string, unknown>
+  // an edit is its path and the lines it changed
+  const patch = (output as { structuredPatch?: { lines: string[] }[] } | undefined)?.structuredPatch
+  if (typeof fields.file_path === 'string' && Array.isArray(patch) && patch.length > 0) return [fields.file_path, ...cut(patch.flatMap(hunk => hunk.lines).join('\n'))]
+  const made = typeof fields.command === 'string' ? `$ ${fields.command}` : JSON.stringify(input ?? {}, null, 2)
+  const reply = replyText(output)
+  return reply === '' ? cut(made) : [...cut(made), ...cut(reply)]
 }
 
 type ShellEdits = { bashEditDiff?: { files?: { filePath: string; hunks: { lines: string[] }[] }[] } }

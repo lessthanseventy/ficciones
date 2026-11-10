@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { menardSaid, shellEdits, turnLine, emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { callText, menardSaid, shellEdits, turnLine, emptyDiffNote, firstChangedRow, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 
 const DIFF = [
   'diff --git a/x b/x', '--- a/x', '+++ b/x',
@@ -236,7 +236,7 @@ test('a menard call is named by what it did', async () => {
   expect(menardSaid({ tool: 'Bash', input: { command: "cd x && ~/projects/menard/bin/menard edit - <<'EOF'\n…" }, output: { stdout: '{"did":"edit a.ts: 1 replacement"}' } })).toBe('edit a.ts: 1 replacement')
   expect(menardSaid({ tool: 'mcp__plugin_menard_menard__run', input: { verb: 'test' }, output: '{"ok":false,"failures":[]}' })).toBe('run test: failed')
   expect(menardSaid({ tool: 'Bash', input: { command: 'ls' }, output: {} })).toBeNull()
-  expect(menardSaid({ tool: 'Bash', input: { command: 'menard edit - && mise run check' }, output: { stdout: '{"did":"edit a.ts: 1 replacement"}\n✓ exit 0' } })).toBeNull()
+  expect(menardSaid({ tool: 'Bash', input: { command: 'git commit -m "menard said so"' }, output: {} })).toBeNull()
   expect(menardSaid({ tool: 'Read', input: { file_path: 'menard edit' } })).toBeNull()
 })
 
@@ -248,6 +248,13 @@ test('a call becomes a line a turn can be summarised from', async () => {
 
 test('a call on an absolute path is named by the file and its folder', async () => {
   expect(turnLine({ tool: 'Read', input: { file_path: '/home/a/repo/lib/cart.ex' } }, false)).toBe('Read lib/cart.ex')
+})
+
+test('a call clicked open is its command and its reply, each cut to a screen', async () => {
+  expect(callText({ tool: 'Bash', input: { command: 'ls' }, output: { stdout: 'a\nb\n', stderr: '' } })).toEqual(['$ ls', 'a', 'b'])
+  expect(callText({ tool: 'Edit', input: { file_path: '/r/a.ts', old_string: 'a' }, output: { structuredPatch: [{ lines: ['-a', '+b'] }] } })).toEqual(['/r/a.ts', '-a', '+b'])
+  const long = Array.from({ length: 40 }, (_, i) => `l${i}`).join('\n')
+  expect(callText({ tool: 'Bash', input: { command: 'x' }, output: long }).at(-1)).toBe('… +10 lines')
 })
 
 test('the files a shell command changed are counted from its result', async () => {

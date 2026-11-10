@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, menardSaid, parseDiff, parseLog, parseShow, patchCounts, shellEdits, turnLine, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
-import type { Commit, DiffLine, File, Run } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, callText, menardSaid, parseDiff, parseLog, parseShow, turnLine, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import type { Call, Commit, DiffLine, File, Run } from './changes'
 import type { Input, List, Section } from './view'
 
 const PANE = 'changes'
@@ -27,8 +27,31 @@ const MAX_KEPT_SUMMARIES = 50
 const MAX_GROUP_LINES = 8
 
 const HINT_AWAY = 'keys go to the prompt · click here to browse'
-// Their result is the diff this pane already shows, so the transcript gets its counts; ctrl+o still has it.
-const SHOWN_HERE = new Set(['Edit', 'Write'])
+// The calls drawn as one line each; any other tool keeps Claude Code's own row.
+const ROWED = new Set(['Bash', 'Read', 'Edit', 'Write', 'Grep', 'Glob'])
+
+type Ui = { ui: { resolve: (e: never) => Record<string, any>; invalidate: (event: string) => void } }
+
+// One call's line and, once clicked, the call as it was made and answered. All of it is the
+// button, so a click anywhere in an opened call folds it.
+function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call, line: string, lead: string) {
+  const { Text, Button } = $.ui.resolve(e as never)
+  const isOpen = opened.has(id)
+  const toggle = () => {
+    if (!opened.delete(id)) opened.add(id)
+    $.ui.invalidate('ui.render')
+  }
+  const space = line.indexOf(' ')
+  return (
+    <Button plain key={`call-${id}`} onPress={toggle}>
+      {lead}
+      <Text color="remember">{space < 0 ? line : line.slice(0, space)}</Text>
+      {space < 0 ? '' : line.slice(space)}
+      <Text dimColor>{isOpen ? '  ▾' : '  ▸'}</Text>
+      {isOpen ? <Text dimColor>{callText(call).map(text => `\n    ${text}`).join('')}</Text> : null}
+    </Button>
+  )
+}
 const OPEN = { id: PANE, title: 'Changes' }
 
 type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
@@ -82,6 +105,9 @@ export const register: Register = on => {
   let hasKeys = false
   let turnLines: string[] = []
   const summaries = new Map<number, string>()
+  const opened = new Set<string>()
+  const ours = new Set<string>()
+  const replies = new Map<string, unknown>()
   let isRefreshing = false
   let isStale = false
   let refresh: () => Promise<void> = async () => {}
@@ -424,56 +450,37 @@ export const register: Register = on => {
     return <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" />
   })
 
-  on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
-    if (!canDraw || e.props.isErrored || e.props.isExpanded) return next(e)
-    const edited = e.props.tool === 'Bash' ? shellEdits(e.props.output) : []
-    if (edited.length > 0) {
-      // A shell command's result carries the diff of each file it changed: the row keeps the
-      // command's own output, and the diffs become their counts. The key is left out, not set
-      // undefined, which the engine's row cannot draw.
-      const { bashEditDiff: _, ...output } = e.props.output as Record<string, unknown>
-      const { Box, Text } = $.ui.resolve(e)
-      return (
-        <Box flexDirection="column">
-          {await next({ ...e, props: { ...e.props, output } })}
-          {edited.map(({ name, adds, dels }) => (
-            <Text dimColor>
-              {'  ⎿  '}
-              {name} <Text color="success">+{adds}</Text> <Text color="error">-{dels}</Text>
-            </Text>
-          ))}
-        </Box>
-      )
-    }
-    if (!SHOWN_HERE.has(e.props.tool)) return next(e)
-    const { Text } = $.ui.resolve(e)
-    const { adds, dels } = patchCounts(e.props.output)
-    return (
-      <Text dimColor>
-        {'  ⎿  '}
-        <Text color="success">+{adds}</Text> <Text color="error">-{dels}</Text>
-      </Text>
-    )
+  // A call is one line of what it was and how it went, in place of the call as typed and its
+  // output; a click opens that one call and folds it again. menard's plugin draws its own calls.
+  on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    const input = e.props.input as { run_in_background?: boolean } | undefined
+    if (!canDraw || e.props.isExpanded || !ROWED.has(e.props.tool) || input?.run_in_background === true || menardSaid(e.props) !== null) return next(e)
+    const id = e.props.tool_use_id
+    ours.add(id)
+    const call = { ...e.props, output: e.props.output ?? replies.get(id) }
+    const line = turnLine(call, e.props.isErrored === true || e.props.isInterrupted === true)
+    return callRow($, e, opened, id, call, e.props.isRunning ? `${line} …` : line, '● ')
   })
 
-  // A folded run of calls says only how many there were: each gets a line of what it was.
-  // menard's plugin draws the lines of its own calls.
+  // A result's own props do not say what ran, so the calls a line was drawn for are kept by id.
+  on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
+    if (!canDraw || e.props.isExpanded || !ours.has(e.props.tool_use_id)) return next(e)
+    replies.set(e.props.tool_use_id, e.props.output)
+    const { Box } = $.ui.resolve(e)
+    return <Box />
+  })
+
+  // A folded run of calls says only how many there were: each gets its line under the count.
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     if (!canDraw || e.props.isExpanded) return next(e)
-    const lines = e.props.calls.filter(call => menardSaid(call) === null).map(call => turnLine(call, call.isErrored === true))
-    if (lines.length === 0) return next(e)
+    const calls = e.props.calls.map((call, index) => ({ call, id: call.tool_use_id ?? `group-${index}` })).filter(({ call }) => menardSaid(call) === null)
+    if (calls.length === 0) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">
         {await next(e)}
-        {lines.slice(0, MAX_GROUP_LINES).map(line => (
-          <Text dimColor wrap="truncate-end">
-            {'  ⎿  '}
-            <Text color="remember">{line.split(' ')[0]}</Text>
-            {line.slice(line.indexOf(' '))}
-          </Text>
-        ))}
-        {lines.length > MAX_GROUP_LINES ? <Text dimColor>{`  ⎿  … ${lines.length - MAX_GROUP_LINES} more`}</Text> : null}
+        {calls.slice(0, MAX_GROUP_LINES).map(({ call, id }) => callRow($, e, opened, id, call, turnLine(call, call.isErrored === true), '  ⎿  '))}
+        {calls.length > MAX_GROUP_LINES ? <Text dimColor>{`  ⎿  … ${calls.length - MAX_GROUP_LINES} more`}</Text> : null}
       </Box>
     )
   })
