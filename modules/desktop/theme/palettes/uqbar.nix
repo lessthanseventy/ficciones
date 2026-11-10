@@ -33,12 +33,12 @@ rec {
     amber = "FFB000"; # body text AND chrome
     chip = "FFB000"; # the inverse-video field: the active/current thing. IS the body amber —
     # a separate brighter yellow read as "not my amber", and black on this is already 10.7:1
-    ember = "FF6E06"; # the hotter phosphor: active border partner AND the warning field
+    ember = "FF720D"; # the hotter phosphor: active border partner AND the warning field
     amberDim = "7A5500"; # half-bright amber: inactive border, structure at low emphasis
     emberDim = "9E3B00";
     green = "33FF00"; # live / ok / occupied / charging
     moss = "62A562"; # done: a green that recedes
-    pink = "F06CB4"; # agents, the operator, attention
+    pink = "F06FB6"; # agents, the operator, attention
     pinkDim = "9C4A76"; # pink receded: a locked-but-unfocused group border
     cyan = "33C7FF"; # keys, labels, code
     lilac = "B4A5D6"; # secondary text
@@ -46,8 +46,8 @@ rec {
     sel = "C7B6E8"; # the SELECTED thing: inverse video too, but violet, so "selected" and "active" never read alike
     selInk = "1A0A2E"; # the ink inside the violet selection field
     selSoft = "2E0057"; # selection where we cannot set the ink (Claude Code's selectionBg): dark, so bright text survives
-    red = "FF6969"; # alarm
-    dim = "B8994C"; # inactive text
+    red = "FF7575"; # alarm
+    dim = "BB9D53"; # inactive text
     sep = "B5651D"; # structure: borders, rules (burnt orange)
     grey = "C7C7C7"; # italic / muted prose
     white = "FFFFFF";
@@ -61,7 +61,7 @@ rec {
     amberTint0 = "100C00";
     amberTint1 = "1A1200";
     amberTint2 = "332800";
-    amberSoft = "CC8D00"; # inactive highlight, visited link
+    amberSoft = "D09614"; # inactive highlight, visited link
   };
 
   # THE MEANING MAP. Surfaces name a role; only this block names a colour. That is what makes two

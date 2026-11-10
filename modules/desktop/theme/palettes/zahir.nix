@@ -27,25 +27,25 @@ rec {
   hue = {
     bg = "F5EFE0";
     ink = "FFF7DD"; # chip text — cream on the dark field
-    amber = "573900"; # body text AND chrome — amber gone to ink
-    chip = "573900"; # the inverse-video field: the body amber, cream ink on top
-    ember = "843A00"; # the hotter phosphor: active border partner AND the warning field
+    amber = "4E3300"; # body text AND chrome — amber gone to ink
+    chip = "4E3300"; # the inverse-video field: the body amber, cream ink on top
+    ember = "733200"; # the hotter phosphor: active border partner AND the warning field
     amberDim = "A48343"; # half-bright amber: inactive border, structure at low emphasis
     emberDim = "C27645";
-    green = "175917"; # live / ok / occupied / charging
+    green = "144C14"; # live / ok / occupied / charging
     moss = "365636"; # done: a green that recedes
-    pink = "95145D"; # agents, the operator, attention
+    pink = "831252"; # agents, the operator, attention
     pinkDim = "C0699B"; # pink receded: a locked-but-unfocused group border
-    cyan = "0B556E"; # keys, labels, code
-    lilac = "483E5D"; # secondary text
-    violet = "593E9C"; # assistant identity, terminal blue
+    cyan = "09465A"; # keys, labels, code
+    lilac = "3D354F"; # secondary text
+    violet = "4D3586"; # assistant identity, terminal blue
     sel = "4B2E7A"; # the SELECTED thing: inverse video too, but violet, so "selected" and "active" never read alike
     selInk = "FFF7DD"; # the ink inside the violet selection field
     selSoft = "D5C4EC"; # selection where we cannot set the ink (Claude Code's selectionBg): light, so dark text survives
-    red = "99201A"; # alarm
-    dim = "4B4230"; # inactive text
+    red = "7D1A15"; # alarm
+    dim = "483F2E"; # inactive text
     sep = "A86A2A"; # structure: borders, rules (burnt orange)
-    grey = "505050"; # italic / muted prose
+    grey = "4A4A4A"; # italic / muted prose
     white = "1A1A1A";
     # Elevations for toolkit chrome (GTK/Qt/floorp): black stays the ground, panels lift.
     surface0 = "EDE5D2";
@@ -57,7 +57,7 @@ rec {
     amberTint0 = "EFE2C4";
     amberTint1 = "E8D6AE";
     amberTint2 = "DFC88F";
-    amberSoft = "6F480D"; # inactive highlight, visited link
+    amberSoft = "5A3A0B"; # inactive highlight, visited link
   };
 
   # THE MEANING MAP. Surfaces name a role; only this block names a colour. That is what makes two

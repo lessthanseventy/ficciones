@@ -29,7 +29,7 @@ rec {
     ink = "1C1A17"; # chip text — charcoal on the chalk field (never pure 0: termbox's sentinel)
     amber = "EDE3CC"; # body text AND chrome — chalk
     chip = "EDE3CC";
-    ember = "EE9A62"; # warning: an orange pencil
+    ember = "F0A776"; # warning: an orange pencil
     amberDim = "7D7360"; # inactive border, structure at low emphasis
     emberDim = "93603F";
     green = "A3D98F"; # live / ok
@@ -37,13 +37,13 @@ rec {
     pink = "F2A7C8"; # agents, the operator, attention
     pinkDim = "9C6C82";
     cyan = "94C6F2"; # keys, labels, code, links — the blue pencil
-    lilac = "CBC2DE"; # secondary text
-    violet = "BEABF2"; # assistant identity, terminal blue
+    lilac = "CEC5E0"; # secondary text
+    violet = "BFADF2"; # assistant identity, terminal blue
     sel = "CDBDEE"; # the SELECTED thing: a lavender field, so "selected" and "active" never read alike
     selInk = "221A33";
     selSoft = "3D3554"; # selection where we cannot set the ink: dark, so the chalk survives
-    red = "FF8F86"; # alarm
-    dim = "CABD9F"; # inactive text
+    red = "FFA9A2"; # alarm
+    dim = "CBBEA0"; # inactive text
     sep = "8E7456"; # structure: borders, rules
     grey = "D0CBC1"; # italic / muted prose
     white = "FFFFFF";

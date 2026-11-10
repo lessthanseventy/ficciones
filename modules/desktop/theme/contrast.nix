@@ -80,6 +80,99 @@ in
     ++ onSurface "surface2" [ "amber" ]
     ++ onSurface "amberTint1" [ "amber" ];
 
+  # Every text ROLE on every raised ground a renderer sets it on (GTK cards and headerbars, the
+  # Qt window, floorp's inputs and site cards, lazygit's inactive selection). A pair no renderer
+  # paints is left out on purpose: nothing sets text on menuGround, and `done` only meets the ground.
+  roles =
+    builtins.concatMap
+      (
+        g:
+        map (n: {
+          label = "${n} on ${g.on}";
+          fg = n;
+          bg = g.on;
+          min = AAA;
+        }) g.text
+      )
+      [
+        {
+          on = "panel";
+          text = [
+            "body"
+            "key"
+            "meta"
+            "prose"
+            "inactive"
+            "assistant"
+            "live"
+            "attention"
+            "alarm"
+          ];
+        }
+        {
+          on = "card";
+          text = [
+            "body"
+            "key"
+            "meta"
+            "inactive"
+            "visited"
+            "assistant"
+            "live"
+            "attention"
+            "warn"
+            "alarm"
+          ];
+        }
+        {
+          on = "inputGround";
+          text = [
+            "body"
+            "key"
+            "meta"
+            "inactive"
+            "visited"
+            "alarm"
+          ];
+        }
+        {
+          on = "raised";
+          text = [
+            "body"
+            "meta"
+          ];
+        }
+        {
+          on = "hoverGround";
+          text = [
+            "body"
+            "live"
+          ];
+        }
+        {
+          on = "pressedGround";
+          text = [
+            "body"
+            "live"
+          ];
+        }
+      ]
+    # btop draws its gauges over the meter ground: marks you find, not words you read
+    ++
+      map
+        (n: {
+          label = "${n} gauge on raised";
+          fg = n;
+          bg = "raised";
+          min = BAND;
+        })
+        [
+          "live"
+          "assistant"
+          "attention"
+          "alarm"
+        ];
+
   # the filled fields: chip = the active/current thing, sel = the selected thing,
   # and the semantic fills GTK/Qt paint buttons with
   fields = [
