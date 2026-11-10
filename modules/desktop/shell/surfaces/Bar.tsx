@@ -8,6 +8,7 @@ import app from "ags/gtk4/app"
 import { closeOnPress } from "./Clickaway"
 import { AlertPill } from "./Alerts"
 import Astal from "gi://Astal?version=4.0"
+import GLib from "gi://GLib"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import Hyprland from "gi://AstalHyprland"
@@ -162,12 +163,24 @@ function Backlight() {
   )
 }
 
+/** The kernel's charge limit as a fraction; 1 where the battery has none. */
+function chargeLimit(): number {
+  for (const b of ["BAT0", "BAT1"]) {
+    try {
+      const [ok, bytes] = GLib.file_get_contents(`/sys/class/power_supply/${b}/charge_control_end_threshold`)
+      const n = Number(new TextDecoder().decode(bytes))
+      if (ok && n > 0) return n / 100
+    } catch { /* no limit on this one */ }
+  }
+  return 1
+}
+
 function BatteryCell() {
   const bat = Battery.get_default()
   if (!bat.isPresent) return <box />
   const profiles = PowerProfiles.get_default()
-  // The charge limit is 80%, so the bar shows charge as a share of the cap: 80% reads 100%.
-  const CAP = 0.8
+  // The bar shows charge as a share of the charge limit: at an 80% limit, 80% reads 100%.
+  const CAP = chargeLimit()
   const pctA = createBinding(bat, "percentage")((p) => Math.min(1, p / CAP))
   const chg = createBinding(bat, "charging")
   // Same traffic light as the perf cells: green from 50, amber to 20, red below; charging
