@@ -3,7 +3,7 @@ import type { ClientModule, JsonValue } from 'claude-code'
 import type { Run } from './changes'
 
 export type List = 'files' | 'commits'
-export type Input = { n: number; key?: string; shift?: true; row?: number; list?: List }
+export type Input = { n: number; row?: number; list?: List }
 export type Section = {
   head: string
   rule: string
@@ -25,8 +25,6 @@ export type ViewProps = {
   note: string
   files: Section
   commits: Section
-  hint: string
-  hasKeys: boolean
   acked: number
 }
 type Queue = { inputs: Input[]; n: number; acked: number; props: ViewProps }
@@ -49,7 +47,8 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
       queue.inputs = [...queue.inputs.filter(i => i.n > queue.acked), { ...input, n: queue.n }]
       surface.post({ inputs: queue.inputs } as unknown as JsonValue)
     }
-    surface.onKey(({ key, shift }) => send({ key, ...(shift && { shift }) }))
+    // No key listener: the pane's keys are its buttons', under the focus Claude Code keeps, and a
+    // click anywhere here asks for that focus.
     surface.onPointer(({ type, y }) => {
       if (type !== 'down') return
       const { diffRows, files, commits } = queue.props
@@ -58,6 +57,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
       const inCommits = inFiles - shown(files) - 2
       if (inFiles >= 0 && inFiles < files.rows.length) send({ list: 'files', row: files.first + inFiles })
       else if (inCommits >= 0 && inCommits < commits.rows.length) send({ list: 'commits', row: commits.first + inCommits })
+      else send({})
     })
   }
 
@@ -101,7 +101,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
   return (
     <Box flexDirection="column">
       <Box>
-        <Text dimColor>╭─ </Text>
+        <Text dimColor>{props.title === '' ? '╭──' : '╭─ '}</Text>
         <Text weight="bold" color="claude">{props.title}</Text>
         <Text dimColor>{props.where}</Text>
         <Text color="success">{props.adds}</Text>
@@ -127,14 +127,6 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
       <Text dimColor>{bottom}</Text>
       {list(props.files)}
       {list(props.commits)}
-      {props.hasKeys ? (
-        <Text wrap="truncate-end">
-          <Text inverse weight="bold" color="claude"> CHANGES </Text>
-          <Text color="claude"> {props.hint}</Text>
-        </Text>
-      ) : (
-        <Text dimColor wrap="truncate-end">{props.hint}</Text>
-      )}
     </Box>
   )
 }

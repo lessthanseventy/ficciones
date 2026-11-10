@@ -104,18 +104,17 @@ test('a key holds the view, and nothing can stage', async ($, on) => {
   })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as {
-    key: (k: { key: string }) => Promise<void>
+    press: (k: { key: string }) => Promise<void>
     find: (q: { text: RegExp; in: string }) => Promise<unknown>
   }
   expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
-  await ui.key({ key: 'j' })
-  await ui.key({ key: ' ' })
+  await ui.press({ key: 'key-j' })
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^b\.ts$/, in: 'changes' })).toBeDefined()
   expect(ran.filter(line => /\b(add|reset|commit)\b/.test(line))).toEqual([])
 })
 
-test('L opens lazygit through Ghostty.app where setsid cannot start', async ($, on) => {
+test('l opens lazygit through Ghostty.app where setsid cannot start', async ($, on) => {
   mock.clock(on)
   on('session.start', async ($, e) => e)
   const ran: string[] = []
@@ -130,9 +129,9 @@ test('L opens lazygit through Ghostty.app where setsid cannot start', async ($, 
   on('session.cwd', async () => ({ value: '/repo' }) as never)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as {
-    key: (k: { key: string }) => Promise<void>
+    press: (k: { key: string }) => Promise<void>
   }
-  await ui.key({ key: 'L' })
+  await ui.press({ key: 'key-l' })
   expect(ran).toContain('open -na Ghostty.app --args --working-directory=/repo -e /opt/homebrew/bin/lazygit')
 })
 
@@ -176,7 +175,7 @@ const repo = (on: On, diff = DIFFS, status = ' M a.ts\0 M b.ts\0 M c.ts\0') => {
 
 type Mounted = {
   unmount: () => Promise<void>
-  key: (k: { key: string }) => Promise<void>
+  press: (k: { key: string }) => Promise<void>
   find: (q: { text: RegExp; in: string }) => Promise<unknown>
 }
 
@@ -187,7 +186,7 @@ test('a commit opens on its message, and its files take the files list', async (
     const line = e.argv.join(' ')
     const stdout = line.includes(' status ') ? ' M a.ts\0'
       : line.includes(' log ') ? 'abc1234\tfix the thing\n'
-      : line.includes('rev-parse') ? '/home/ada/trees/e4\nfix/thing\n'
+      : line.includes('rev-parse') ? '/home/ada/trees/e4\nfix/thing\n/home/ada/app/.git\n'
       : line.includes(' show ') ? 'Ada · 2 hours ago\n\nfix the thing\n\nClaude-Session: https://claude.ai/code/session_1\n\ndiff --git a/z.ts b/z.ts\n--- a/z.ts\n+++ b/z.ts\n@@ -1 +1 @@\n-before\n+after\n'
       : line.startsWith('delta') ? `\n${e.init?.stdin}`
       : 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\n'
@@ -195,38 +194,40 @@ test('a commit opens on its message, and its files take the files list', async (
   })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
-  expect(await ui.find({ text: /^commits · fix\/thing · e4/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^commits · fix\/thing · app ⑂ worktree e4/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^files · uncommitted/, in: 'changes' })).toBeDefined()
-  await ui.key({ key: 'tab' })
-  await ui.key({ key: 'j' })
+  await ui.press({ key: 'key-t' })
+  await ui.press({ key: 'key-j' })
   expect(await ui.find({ text: /^abc1234 fix the thing$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /Ada · 2 hours ago/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /Claude-Session/, in: 'changes' })).toBeUndefined()
   expect(await ui.find({ text: /^files in abc1234/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^a\.ts/, in: 'changes' })).toBeUndefined()
-  await ui.key({ key: 'tab' })
-  await ui.key({ key: 'j' })
+  await ui.press({ key: 'key-t' })
+  await ui.press({ key: 'key-j' })
   expect(await ui.find({ text: /^z\.ts$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /\+after/, in: 'changes' })).toBeDefined()
-  await ui.key({ key: 'k' })
+  await ui.press({ key: 'key-k' })
   expect(await ui.find({ text: /Ada · 2 hours ago/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /○ held/, in: 'changes' })).toBeDefined()
-  await ui.key({ key: 'f' })
+  await ui.press({ key: 'key-f' })
   expect(await ui.find({ text: /● following/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^files · uncommitted/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^a\.ts/, in: 'changes' })).toBeDefined()
-  await ui.key({ key: 'f' })
+  await ui.press({ key: 'key-f' })
   expect(await ui.find({ text: /○ held/, in: 'changes' })).toBeDefined()
 })
 
-test('the hint says who has the keyboard', async ($, on) => {
+test('the key row says who has the keyboard', async ($, on) => {
   mock.clock(on)
   repo(on, 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\n', ' M a.ts\0')
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
-  expect(await ui.find({ text: /keys go to the prompt/, in: 'changes' })).toBeDefined()
-  await ui.key({ key: 'j' })
-  expect(await ui.find({ text: /CHANGES/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /CHANGES/ })).toBeDefined()
+  await ui.unmount()
+  const away = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE, props: { ...PANE.props, isFocused: false } } as never) as never as Mounted
+  expect(await away.find({ text: /○ click/ })).toBeDefined()
+  expect(await away.find({ text: /CHANGES/ })).toBeUndefined()
 })
 
 test('a menard call is named by what it did', async () => {
@@ -298,23 +299,14 @@ test('a view mounted again still reaches the pane', async ($, on) => {
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const first = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   await first.find({ text: /following/, in: 'changes' })
-  await first.key({ key: 'j' })
+  await first.press({ key: 'key-j' })
   expect(await first.find({ text: /^b\.ts$/, in: 'changes' })).toBeDefined()
   await first.unmount()
   const second = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
-  await second.key({ key: 'j' })
+  await second.press({ key: 'key-j' })
   expect(await second.find({ text: /^c\.ts$/, in: 'changes' })).toBeDefined()
 })
 
-test('a key the pane does not bind leaves it following', async ($, on) => {
-  mock.clock(on)
-  repo(on)
-  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
-  await ui.find({ text: /following/, in: 'changes' })
-  await ui.key({ key: 'z' })
-  expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
-})
 
 test('a file with no text diff says why', async ($, on) => {
   mock.clock(on)
@@ -333,14 +325,6 @@ test('a diff with no hunks still splits, and the note names it', async () => {
   expect(emptyDiffNote('')).toMatch(/no diff/)
 })
 
-test('the hint names the way back to the prompt', async ($, on) => {
-  mock.clock(on)
-  repo(on)
-  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
-  await ui.key({ key: 'j' })
-  expect(await ui.find({ text: /Esc to prompt/, in: 'changes' })).toBeDefined()
-})
 
 test('a control character in a file or its name cannot break the view', async ($, on) => {
   expect(parseAnsi('\x1b[31ma\x07b\x7fc\x9bd\x1be\x1b[0m', 9)).toEqual([[{ c: 'red', t: 'a·b·c·d·e' }]])

@@ -16,7 +16,8 @@ const MAX_KEPT_COMMITS = 50
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
-const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · f follow/hold · L lazygit'
+// The pane's keys, each a button under its lists: a hotkey is one lowercase letter.
+const KEYS = [['j', 'next'], ['k', 'prev'], ['t', 'list'], ['d', 'diff↓'], ['u', 'diff↑'], ['f', 'follow'], ['l', 'git']] as const
 // Fewer calls than this and the turn's own rows say it; more lines than the cap and the oldest go.
 const MIN_TURN_CALLS = 4
 const MAX_TURN_LINES = 80
@@ -26,7 +27,7 @@ const SUMMARISE = 'Below are the tool calls a coding assistant made in one turn,
 const MAX_KEPT_SUMMARIES = 50
 const MAX_GROUP_LINES = 8
 
-const HINT_AWAY = 'keys go to the prompt · click here to browse'
+
 // The calls drawn as one line each; any other tool keeps Claude Code's own row.
 const ROWED = new Set(['Bash', 'Read', 'Edit', 'Write', 'Grep', 'Glob'])
 
@@ -76,6 +77,7 @@ export const register: Register = on => {
   let commits: Commit[] = []
   let root = ''
   let branch = ''
+  let common = ''
   const shown = new Map<string, Shown>()
   // '' is the working tree; a sha is that commit, and the files list is then the commit's.
   let source = ''
@@ -177,7 +179,10 @@ export const register: Register = on => {
     const room = Math.max(0, size.columns - 3)
     const rule = (taken: number) => (room > taken ? ` ${'─'.repeat(room - taken - 1)}` : '')
     const filesHead = (commit ? `files in ${commit.sha}` : 'files · uncommitted').slice(0, room)
-    const commitsHead = ['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · ').slice(0, room)
+    const main = common.endsWith('/.git') ? common.slice(0, -5) : root
+    const tree = root.split('/').pop() ?? ''
+    const checkout = main === root || main === '' ? tree : `${main.split('/').pop()} ⑂ worktree ${tree}`
+    const commitsHead = ['commits', branch === 'HEAD' ? 'detached' : branch, checkout].filter(Boolean).map(printable).join(' · ').slice(0, room)
     // the following mark sits in the edge too, a space each side of it
     const mark = isFollowing ? 13 : 8
     const adds = file !== '' && diff?.adds ? `  +${diff.adds}` : ''
@@ -209,7 +214,8 @@ export const register: Register = on => {
       where,
       adds,
       dels,
-      rule: rule(title.length + where.length + adds.length + dels.length + mark),
+      // with nothing to title the box, the edge runs unbroken to the mark
+      rule: title === '' ? '─'.repeat(Math.max(0, room - mark)) : rule(title.length + where.length + adds.length + dels.length + mark),
       columns: size.columns,
       isFollowing,
       rows: fitRows(rows.slice(offset, offset + diffRows())),
@@ -217,8 +223,7 @@ export const register: Register = on => {
       note: note || (file !== '' && diff?.lines.length === 0 ? emptyDiffNote(diff.text) : ''),
       files: filesSection,
       commits: commitsSection,
-      hint: hasKeys ? HINT : HINT_AWAY,
-      hasKeys,
+
       acked,
     }
   }
@@ -254,7 +259,8 @@ export const register: Register = on => {
       } else {
         files = parseStatus(status.stdout)
         note = ''
-        ;[root = '', branch = ''] = (await $.process.run(['git', 'rev-parse', '--show-toplevel', '--abbrev-ref', 'HEAD'])).stdout.split('\n')
+        // the common git directory sits in the main checkout, which a linked worktree is not
+        ;[root = '', branch = '', common = ''] = (await $.process.run(['git', 'rev-parse', '--show-toplevel', '--abbrev-ref', 'HEAD', '--path-format=absolute', '--git-common-dir'])).stdout.split('\n')
         const log = await $.process.run(['git', '--no-optional-locks', 'log', '-n', String(MAX_COMMITS), '--format=%h%x09%s'])
         commits = log.exitCode === 0 ? parseLog(log.stdout) : []
         const texts = await readDiffs(files)
@@ -412,21 +418,25 @@ export const register: Register = on => {
   })
 
 
-  on('prompt.edit', async ($, e, next) => {
-    if (hasKeys) {
-      hasKeys = false
-      $.ui.invalidate('ui.render')
+  const act = (key: string) => {
+    if (key === 'f') {
+      isFollowing = !isFollowing
+      // following is of the working tree
+      if (isFollowing) {
+        focus = 'files'
+        pickCommit(0)
+        reveal()
+      }
+      return
     }
-    return next(e)
-  })
-
-  on('prompt.submit', async ($, e, next) => {
-    if (hasKeys) {
-      hasKeys = false
-      $.ui.invalidate('ui.render')
-    }
-    return next(e)
-  })
+    if (key === 'j') step(1)
+    else if (key === 'k') step(-1)
+    else if (key === 't') focus = focus === 'files' ? 'commits' : 'files'
+    else if (key === 'd') scrollTo(offset + 1)
+    else if (key === 'u') scrollTo(offset - 1)
+    isFollowing = false
+    reveal()
+  }
 
   on('ui.close', { id: PANE }, async (_, e, next) => {
     const closed = await next(e)
@@ -437,7 +447,11 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
-    const { Client } = $.ui.resolve(e)
+    const { Client, Box, Text, Button } = $.ui.resolve(e)
+    if (hasKeys !== e.props.isFocused) {
+      hasKeys = e.props.isFocused
+      void refresh()
+    }
     // a box's edges take a column each side
     const columns = Math.max(1, e.props.bodyColumns - 2)
     const isResized = columns !== size.columns
@@ -447,7 +461,43 @@ export const register: Register = on => {
       isOpen = true
       void refresh()
     }
-    return <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" />
+    return (
+      <Box flexDirection="column">
+        <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" />
+        <Box>
+          {hasKeys ? <Text inverse weight="bold" color="claude"> CHANGES </Text> : <Text dimColor>○ click</Text>}
+          {KEYS.map(([hotkey, label]) => (
+            <Box marginLeft={2}>
+              <Button
+                plain
+                dimColor={!hasKeys}
+                key={`key-${hotkey}`}
+                hotkey={hotkey}
+                label={label}
+                onPress={async () => {
+                  if (hotkey === 'l') {
+                    const cwd = `--working-directory=${await $.session.cwd()}`
+                    // setsid -f returns at once and leaves a window that outlives this session.
+                    try {
+                      await $.process.run(['setsid', '-f', 'ghostty', cwd, '-e', 'lazygit'])
+                    } catch {
+                      // macOS has neither setsid nor ghostty on PATH, and the window open starts may lack Homebrew's PATH.
+                      const lazygit = (await $.process.run(['which', 'lazygit'])).stdout.trim() || 'lazygit'
+                      await $.process.run(['open', '-na', 'Ghostty.app', '--args', cwd, '-e', lazygit])
+                    }
+                    return
+                  }
+                  act(hotkey)
+                  await refresh()
+                  // a key that changes no git state (follow, hold) still changes the drawing
+                  $.ui.invalidate('ui.render')
+                }}
+              />
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    )
   })
 
   // A call is one line of what it was and how it went, in place of the call as typed and its
@@ -512,51 +562,15 @@ export const register: Register = on => {
     const fresh = inputs.filter(i => i.n > acked)
     if (fresh.length === 0) return {}
     acked = fresh[fresh.length - 1]!.n
-    hasKeys = true
+    // A click here is the person asking for the pane's keys: with Claude Code's own focus the
+    // pane hears when Escape, or a key it does not bind, hands them back.
+    await $.ui.open({ ...OPEN, focus: true })
 
-
-
-    // Keys that reach stdin together arrive as one event, a held j among them.
-    const typed = fresh.flatMap(({ key, shift, row, list }): { key?: string; row?: number; list?: List }[] =>
-      row !== undefined ? [{ row, list }]
-      : key && /^[jkJK]+$/.test(key) ? [...key].map(k => ({ key: shift ? k.toUpperCase() : k }))
-      : [{ key: shift && key?.length === 1 ? key.toUpperCase() : key ?? '' }])
-
-    for (const { key, row, list } of typed) {
-      if (key === 'L') {
-        const cwd = `--working-directory=${await $.session.cwd()}`
-        // setsid -f returns at once and leaves a window that outlives this session.
-        try {
-          await $.process.run(['setsid', '-f', 'ghostty', cwd, '-e', 'lazygit'])
-        } catch {
-          // macOS has neither setsid nor ghostty on PATH, and the window open starts may lack Homebrew's PATH.
-          const lazygit = (await $.process.run(['which', 'lazygit'])).stdout.trim() || 'lazygit'
-          await $.process.run(['open', '-na', 'Ghostty.app', '--args', cwd, '-e', lazygit])
-        }
-        continue
-      }
-      if (key === 'f') {
-        isFollowing = !isFollowing
-        // following is of the working tree
-        if (isFollowing) {
-          focus = 'files'
-          pickCommit(0)
-          reveal()
-        }
-        continue
-      }
-      if (row !== undefined) {
-        focus = list ?? 'files'
-        if (focus === 'commits') pickCommit(row)
-        else pickFile(row)
-      } else if (key === 'j' || key === 'down') step(1)
-      else if (key === 'k' || key === 'up') step(-1)
-      else if (key === 'tab' || key === 'h' || key === 'l' || key === 'left' || key === 'right') focus = focus === 'files' ? 'commits' : 'files'
-      else if (key === 'J') scrollTo(offset + 1)
-      else if (key === 'K') scrollTo(offset - 1)
-      else if (key === 'pagedown') scrollTo(offset + diffRows())
-      else if (key === 'pageup') scrollTo(offset - diffRows())
-      else continue
+    for (const { row, list } of fresh) {
+      if (row === undefined) continue
+      focus = list ?? 'files'
+      if (focus === 'commits') pickCommit(row)
+      else pickFile(row)
       isFollowing = false
       reveal()
     }
