@@ -136,19 +136,26 @@ test('L opens lazygit through Ghostty.app where setsid cannot start', async ($, 
   expect(ran).toContain('open -na Ghostty.app --args --working-directory=/repo -e /opt/homebrew/bin/lazygit')
 })
 
-test('/changes and /diff open the one pane', async ($, on) => {
+test('the pane is up from the start in a repository, /changes hides and shows it, /diff shows it', async ($, on) => {
   mock.clock(on)
   on('session.start', async ($, e) => e)
-  const opened: string[] = []
+  const seen: string[] = []
   on('ui.open', async ($, e) => {
-    opened.push(e.id)
+    seen.push(`open ${e.id}`)
     return { value: { isPlaced: true } } as never
   })
+  on('ui.close', async ($, e) => {
+    seen.push(`close ${e.id}`)
+    return { value: undefined } as never
+  })
   on('command.register', async () => ({ value: undefined }) as never)
+  on('process.run', async () => ({ value: { exitCode: 0, stdout: '', stderr: '' } }) as never)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  expect(seen).toEqual(['open changes'])
+  await $.command.run({ command: 'changes', args: '' } as never)
   await $.command.run({ command: 'changes', args: '' } as never)
   await $.command.run({ command: 'diff', args: '' } as never)
-  expect(opened).toEqual(['changes', 'changes'])
+  expect(seen).toEqual(['open changes', 'close changes', 'open changes', 'open changes'])
 })
 
 const DIFFS = 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\ndiff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -1 +1 @@\n-p\n+q\ndiff --git a/c.ts b/c.ts\n--- a/c.ts\n+++ b/c.ts\n@@ -1 +1 @@\n-m\n+n\n'
@@ -247,7 +254,6 @@ test('a pane opened without a fresh render polls', async ($, on) => {
   const clock = mock.clock(on)
   const ran = repo(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  await $.command.run({ command: 'changes', args: '' } as never)
   await clock.advance(2000)
   expect(ran.filter(line => line.includes(' status ')).length).toBeGreaterThan(0)
 })

@@ -290,13 +290,21 @@ export const register: Register = on => {
     $.clock.every(POLL_MS, () => { void refresh() })
     // VS Code and mobile have no Client to draw this pane with.
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
-    if (canDraw) await $.command.register({ name: PANE, description: 'Show what is uncommitted and the recent commits, a file at a time, following the latest edit', immediate: true })
+    if (canDraw) {
+      await $.command.register({ name: PANE, description: 'Show or hide what is uncommitted and the recent commits, a file at a time, following the latest edit', immediate: true })
+      // In a repository the pane is up from the start; a session must still start where it cannot open.
+      try {
+        const inside = await $.process.run(['git', 'rev-parse', '--is-inside-work-tree'])
+        if (inside.exitCode === 0) seated(await $.ui.open(OPEN))
+      } catch {}
+    }
     return next(e)
   })
 
   on('command.run', { command: PANE }, async $ => {
-    isDismissed = false
-    seated(await $.ui.open(OPEN))
+    isDismissed = isOpen
+    if (isOpen) await $.ui.close({ id: PANE })
+    else seated(await $.ui.open(OPEN))
     return {}
   })
 
