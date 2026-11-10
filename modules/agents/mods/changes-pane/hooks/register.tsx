@@ -511,7 +511,8 @@ export const register: Register = on => {
     ours.add(id)
     const call = { ...e.props, output: e.props.output ?? replies.get(id) }
     const line = turnLine(call, e.props.isErrored === true || e.props.isInterrupted === true)
-    return callRow($, e, opened, id, call, e.props.isRunning ? `${line} …` : line, '  ⎿  ')
+    // a call still being written or waiting on a permission has no arguments to name yet
+    return callRow($, e, opened, id, call, e.props.isRunning || line === e.props.tool ? `${line} …` : line, '  ⎿  ')
   })
 
   // A result's own props do not say what ran, so the calls a line was drawn for are kept by id.
@@ -537,7 +538,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {isWhole ? null : await next(e)}
         {calls.slice(0, MAX_GROUP_LINES).map(({ call, id }) =>
-          callRow($, e, opened, id, call, `${turnLine(call, call.isErrored === true)}${call.isRunning ? ' …' : ''}`, '  ⎿  '),
+          callRow($, e, opened, id, call, `${turnLine(call, call.isErrored === true)}${call.isRunning || call.input === undefined ? ' …' : ''}`, '  ⎿  '),
         )}
         {calls.length > MAX_GROUP_LINES ? <Text dimColor>{`  ⎿  … ${calls.length - MAX_GROUP_LINES} more calls`}</Text> : null}
       </Box>
