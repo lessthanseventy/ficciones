@@ -1,13 +1,14 @@
-// What is actually making sound: PipeWire's output streams in state "running", polled every
-// 2 s (pw-dump). Mpris says PLAYING/Paused as the page feels like it — Floorp on a streaming
+// What is actually making sound: PipeWire's output streams in state "running" (pw-dump), read
+// when PulseAudio's event stream names a stream and every 10 s besides: a stream that goes
+// idle without being corked says nothing. Mpris says PLAYING/Paused as the page feels like it — Floorp on a streaming
 // site sat on Paused with the audio live — and AstalWp's stream state never
 // leaves CREATING here, so this is the one honest signal. Per process, so a player can be
 // matched to its stream (its Mpris bus name → pid, through the bus).
 import Gtk from "gi://Gtk?version=4.0"
 import Wp from "gi://AstalWp"
 import { createState } from "ags"
-import { execAsync } from "ags/process"
-import { interval } from "ags/time"
+import { execAsync, subprocess } from "ags/process"
+import { interval, timeout, type Timer } from "ags/time"
 
 /** pids with a running output stream */
 export const [soundPids, setSoundPids] = createState<Set<number>>(new Set())
@@ -25,7 +26,16 @@ function poll() {
     if (cur.size !== pids.size || [...pids].some((x) => !cur.has(x))) setSoundPids(pids)
   }).catch(() => {})
 }
-interval(2000, poll)
+// one read per burst: a track change is several events
+let soon: Timer | null = null
+const onEvent = (line: string) => {
+  if (!line.includes("sink-input") || soon) return
+  soon = timeout(150, () => { soon = null; poll() })
+}
+// without pactl (no pipewire-pulse) the old pace is the only signal there is
+let evented = true
+try { subprocess(["pactl", "subscribe"], onEvent, () => {}) } catch { evented = false }
+interval(evented ? 10_000 : 2000, poll)
 poll()
 
 // an Mpris bus name → its process; 0 while unresolved, -1 when the bus has no answer. Asked again
