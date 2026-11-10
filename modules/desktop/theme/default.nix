@@ -159,7 +159,7 @@ in
       type = lib.types.attrs;
       default = render;
       readOnly = true;
-      description = "The rendered surfaces (render.nix): flake.nix splices tmuxStyle from here.";
+      description = "The rendered surfaces (render.nix): tmuxStyle is written to the theme dir's tmux.conf, which modules/tmux.nix sources.";
     };
     floorpProfiles = lib.mkOption {
       type = lib.types.listOf lib.types.str;

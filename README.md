@@ -17,7 +17,7 @@ ficciones/
   modules/
     os/                  # the NixOS side: one user, Hyprland, sound, network, fonts; vm.nix and ivysaur.nix add the hardware
     arch/                # what modules/os gives a NixOS host, for home-manager on the Arch base
-    desktop/             # the Hyprland stack: its config, the astal shell, the theme and both palettes
+    desktop/             # the Hyprland stack: its config, the astal shell, the theme and its four palettes
     mac/                 # the work Mac: the palette's portable surfaces, no desktop
     agents/              # the rules, skills, mods and shell every agent on this machine works by
     menard-host.nix      # what menard needs on a host: mise, Expert, the formatters its write check runs
@@ -33,10 +33,10 @@ ficciones/
 
 Four targets, one flake:
 
-- `homeConfigurations.anmoore`: home-manager on the Arch box. Arch keeps what has to match the
+- `homeConfigurations.personalbox`: home-manager on the Arch box. Arch keeps what has to match the
   kernel or run as root (kernel, nvidia, mesa, ly, PAM); Hyprland and the rest of its stack come
   from here.
-- `homeConfigurations.personalbox`: the work Mac. The same palettes on terminals, prompt, TUIs,
+- `homeConfigurations.anmoore`: the work Mac. The same palettes on terminals, prompt, TUIs,
   Floorp and Claude Code, and no desktop.
 - `nixosConfigurations.vm`: a disposable NixOS VM (`mise run vm:build`, `vm:run`, `vm:ssh`) where
   full NixOS is tried before it touches metal.

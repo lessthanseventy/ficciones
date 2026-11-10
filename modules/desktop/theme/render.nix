@@ -1236,7 +1236,7 @@ rec {
       gradient_color_6 = '${hex r.alarm}'
     '';
 
-  # The status-line lines flake.nix's programs.tmux.extraConfig splices in.
+  # The status-line lines: the theme dir's tmux.conf, sourced by modules/tmux.nix.
   tmuxStyle = ''
     set -g status-style "bg=default,fg=${hex r.body}"
     set -g window-status-current-style "fg=${hex r.fieldInk},bg=${hex r.body},bold"
