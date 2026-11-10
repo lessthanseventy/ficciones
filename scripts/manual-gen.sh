@@ -64,7 +64,8 @@ for g in order:
 PY
 
 # ---- tasks.md: every mise verb, by group -------------------------------------------------------
-mise tasks ls --json >"$out/tasks.json"
+# only this repo's: mise merges every mise.toml up the tree, and the page must not vary by machine
+mise tasks ls --json | jq --arg root "$PWD/" '[.[] | select(.source | startswith($root))]' >"$out/tasks.json"
 python3 - "$out/tasks.json" >"$out/tasks.md" <<'PY'
 import json, sys
 tasks = json.load(open(sys.argv[1]))

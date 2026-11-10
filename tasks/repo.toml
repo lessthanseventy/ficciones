@@ -6,8 +6,9 @@ dir = "{{cwd}}"
 run = "{{config_root}}/scripts/cap.sh"
 
 ["cap:clean"]
-description = "Sweep all captured run logs (.logs/) — they self-cap at CAP_KEEP (40), this clears them now"
-run = "rm -rf .logs && echo 'swept .logs/'"
+description = "Sweep the captured run logs (.logs/) of the repo you call it from — they self-cap at CAP_KEEP (40), this clears them now"
+dir = "{{cwd}}"
+run = "rm -rf \"$(git rev-parse --show-toplevel)/.logs\" && echo 'swept .logs/'"
 
 ["watch"]
 description = "Re-run a command on every file change, printing cap's signal — register in the background, edit, get pass/fail automatically (see AGENTS.md)"

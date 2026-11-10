@@ -8,7 +8,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 
 | verb | does |
 |---|---|
-| `cap:clean` | Sweep all captured run logs (.logs/) — they self-cap at CAP_KEEP (40), this clears them now |
+| `cap:clean` | Sweep the captured run logs (.logs/) of the repo you call it from — they self-cap at CAP_KEEP (40), this clears them now |
 
 ## check
 
