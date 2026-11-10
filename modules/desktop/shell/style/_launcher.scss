@@ -49,9 +49,9 @@ window.settings { background: transparent; }
 // cheatsheet
 window.cheatsheet { background: transparent; }
 .sheet-pane { background: $ground; .panel-body { padding: $sp-3; } }
-.columns .col { min-width: 330px; }
-.columns .keys { color: $body; font-size: 12px; }
-.columns .what { color: $meta; font-size: 12px; }
+.columns .col { min-width: 420px; }
+.columns .keys { color: $key; font-size: $size; }
+.columns .what { color: $body; font-size: $size; }
 
 // zen backdrop
 window.backdrop { background: $ground; }

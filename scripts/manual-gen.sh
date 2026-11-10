@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Write the generated manual pages (docs/manual/{keys,tasks,palette}.md) from their sources.
+# Write the generated manual pages (docs/manual/{keys,tasks,palette}.md) from their sources, and
+# the keys again as the shell's cheatsheet data (modules/desktop/shell/assets/keys.json).
 # `--check` only diffs, exit 1 on drift — `mise run manual:check`. Same rule as theme-gen.sh:
 # a page with a source is never edited by hand.
 set -euo pipefail
@@ -12,8 +13,8 @@ trap 'rm -rf "$out"' EXIT
 # hyprctl binds -j only knows a Lua bind as `__lua <n>`, so the SOURCE is the record. Best-effort
 # parse: the first argument is the keys (M = SUPER), the second the action; a trailing `--`
 # comment, when present, is the human line.
-python3 - modules/desktop/hypr/hyprland.lua >"$out/keys.md" <<'PY'
-import re, sys
+python3 - modules/desktop/hypr/hyprland.lua "$out/keys.json" >"$out/keys.md" <<'PY'
+import json, re, sys
 src = open(sys.argv[1], encoding="utf-8").read().splitlines()
 mod = re.search(r'^local M = "(\w+)"', "\n".join(src), re.M)
 M = mod.group(1) if mod else "SUPER"
@@ -52,6 +53,10 @@ for line in src:
         return "`" + a[:60] + "`"
     rows.append(("mouse" if mouse else group(action), keys, what(action, comment)))
 order = ["launch", "focus", "move & size", "layout", "workspaces", "window", "mouse", "other"]
+# the same rows for the shell's cheatsheet: one parse, two readers
+with open(sys.argv[2], "w", encoding="utf-8") as f:
+    json.dump([{"group": g, "keys": k, "does": w.strip("`")} for g in order for (rg, k, w) in rows if rg == g], f, ensure_ascii=False, indent=1)
+    f.write("\n")
 print("# Keys\n")
 print("Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — edit THAT, never this file.")
 print(f"{len(rows)} binds. `{M}` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).\n")
@@ -109,15 +114,16 @@ print("Surfaces name a ROLE, never a hue — `render.nix` cannot reach `p.hue`. 
 PY
 
 rc=0
-for f in keys tasks palette; do
-	dst="docs/manual/$f.md"
+for f in keys.md tasks.md palette.md keys.json; do
+	dst="docs/manual/$f"
+	[ "$f" = keys.json ] && dst="modules/desktop/shell/assets/keys.json"
 	if [ "$mode" = "--check" ]; then
-		if ! diff -u "$dst" "$out/$f.md" >/dev/null 2>&1; then
+		if ! diff -u "$dst" "$out/$f" >/dev/null 2>&1; then
 			echo "manual:check — $dst drifts from its source (run: mise run manual:gen)"
 			rc=1
 		fi
 	else
-		cp "$out/$f.md" "$dst"
+		cp "$out/$f" "$dst"
 		echo "manual:gen — wrote $dst"
 	fi
 done

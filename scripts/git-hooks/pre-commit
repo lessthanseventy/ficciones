@@ -9,7 +9,7 @@ set -u
 # A commit touching what the manual is generated from must carry the regenerated pages. Without the
 # tools (a coworker's PATH lacks mise) it stands aside and `mise run check` still catches the drift.
 if git diff --cached --name-only |
-	grep -qE '^(tasks/|mise\.toml$|modules/desktop/hypr/hyprland\.lua$|modules/desktop/theme/palettes/|scripts/manual-gen\.sh$|docs/manual/(keys|tasks|palette)\.md$)' &&
+	grep -qE '^(tasks/|mise\.toml$|modules/desktop/hypr/hyprland\.lua$|modules/desktop/theme/palettes/|scripts/manual-gen\.sh$|docs/manual/(keys|tasks|palette)\.md$|modules/desktop/shell/assets/keys\.json$)' &&
 	command -v mise >/dev/null && command -v python3 >/dev/null && command -v nix >/dev/null; then
 	scripts/manual-gen.sh --check || {
 		echo "pre-commit: run mise run manual:gen and stage docs/manual" >&2
