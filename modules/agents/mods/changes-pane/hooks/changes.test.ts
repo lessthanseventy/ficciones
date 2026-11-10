@@ -218,7 +218,7 @@ test('an edit is counted from its own result', async () => {
   expect(patchCounts(undefined)).toEqual({ adds: 0, dels: 0 })
 })
 
-test('the wheel over the list moves the list and leaves the diff following', async ($, on) => {
+test('the wheel over a list walks its selection', async ($, on) => {
   mock.clock(on)
   const names = Array.from({ length: 20 }, (_, i) => `f${i + 1}.ts`)
   repo(on, names.map(n => `diff --git a/${n} b/${n}\n--- a/${n}\n+++ b/${n}\n@@ -1 +1 @@\n-x\n+y\n`).join(''), names.map(n => ` M ${n}\0`).join(''))
@@ -228,8 +228,9 @@ test('the wheel over the list moves the list and leaves the diff following', asy
   expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeUndefined()
   // 30 rows: title, 18 of diff, the files' head, then seven files from row 20
   await $.ui.scroll({ component: 'Pane', requestId: 'changes', offset: 8, by: 8, bodyRows: 30, contentRows: 30, origin: { kind: 'person' }, pointer: { column: 3, row: 22 } } as never)
-  expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeDefined()
-  expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^f9\.ts$/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^f1\.ts/, in: 'changes' })).toBeUndefined()
+  expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
 })
 
 // The engine reuses its cached drawing on a reopen, so no ui.render fires: the test mounts nothing.

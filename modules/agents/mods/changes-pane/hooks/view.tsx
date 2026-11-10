@@ -9,10 +9,13 @@ export type Section = {
   isFocused: boolean
   first: number
   empty: string
-  rows: { label: string; adds: string; dels: string; isSelected: boolean }[]
+  rows: { lead: string; label: string; adds: string; dels: string; isSelected: boolean }[]
 }
 export type ViewProps = {
   title: string
+  where: string
+  adds: string
+  dels: string
   isFollowing: boolean
   rows: Run[][]
   diffRows: number
@@ -56,10 +59,11 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
 
   const list = (section: Section) => (
     <Box flexDirection="column">
-      <Text bold={section.isFocused} dimColor={!section.isFocused} wrap="truncate-end">{section.head}</Text>
+      <Text bold={section.isFocused} color={section.isFocused ? 'claude' : 'remember'} wrap="truncate-end">{section.head}</Text>
       {section.rows.length === 0 ? <Text dimColor wrap="truncate-end">{section.empty}</Text> : null}
-      {section.rows.map(({ label, adds, dels, isSelected }) => (
+      {section.rows.map(({ lead, label, adds, dels, isSelected }) => (
         <Text inverse={isSelected && section.isFocused} bold={isSelected && !section.isFocused} wrap="truncate-end">
+          <Text color="permission">{lead}</Text>
           {label}
           <Text color="success">{adds}</Text>
           <Text color="error">{dels}</Text>
@@ -71,7 +75,12 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
   return (
     <Box flexDirection="column">
       <Box justifyContent="space-between">
-        <Text bold wrap="truncate-end">{props.title}</Text>
+        <Box flexShrink={1}>
+          <Text bold color="claude" wrap="truncate-end">{props.title}</Text>
+          <Text dimColor wrap="truncate-start">{props.where}</Text>
+          <Text color="success">{props.adds}</Text>
+          <Text color="error">{props.dels}</Text>
+        </Box>
         {props.isFollowing ? <Text color="success">● following</Text> : <Text dimColor>○ held</Text>}
       </Box>
       <Box height={props.diffRows} overflow="hidden" flexDirection="column">

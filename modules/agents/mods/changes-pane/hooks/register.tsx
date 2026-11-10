@@ -80,6 +80,26 @@ export const register: Register = on => {
     filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
     commitsTop = revealTop(commitsTop, commitIndex(), commits.length + 1, commitRows())
   }
+  const pickFile = (index: number) => {
+    // above a commit's first file is the commit's message
+    const path = index < 0 && source !== '' ? '' : paths()[clamp(index, 0, paths().length - 1)]
+    if (path === undefined || path === file) return
+    file = path
+    offset = 0
+  }
+  const pickCommit = (index: number) => {
+    const next = index <= 0 ? '' : commits[Math.min(index, commits.length) - 1]?.sha ?? ''
+    if (next === source) return
+    source = next
+    // the working tree opens on its first file, a commit on its message
+    file = ''
+    offset = 0
+    filesTop = 0
+  }
+  const step = (by: number) => {
+    if (focus === 'commits') pickCommit(commitIndex() + by)
+    else pickFile(paths().indexOf(file) + by)
+  }
   // A reopen reuses the engine's cached drawing, so no ui.render fires to say the pane is back.
   const seated = ({ isPlaced }: { isPlaced: boolean }) => {
     if (!isPlaced) return
@@ -87,11 +107,11 @@ export const register: Register = on => {
     void refresh()
   }
 
-  const row = (label: string, diff: Diff | undefined, isSelected: boolean, tail: boolean) => {
+  const row = (lead: string, label: string, diff: Diff | undefined, isSelected: boolean, tail: boolean) => {
     const adds = diff?.adds ? ` +${diff.adds}` : ''
     const dels = diff?.dels ? ` -${diff.dels}` : ''
-    const width = Math.max(1, size.columns - adds.length - dels.length)
-    return { label: (tail ? tailPath(label, width) : label.slice(0, width)).padEnd(width), adds, dels, isSelected }
+    const width = Math.max(1, size.columns - lead.length - adds.length - dels.length)
+    return { lead, label: (tail ? tailPath(label, width) : label.slice(0, width)).padEnd(width), adds, dels, isSelected }
   }
 
   const viewProps = () => {
@@ -101,26 +121,31 @@ export const register: Register = on => {
     const commit = commits.find(c => c.sha === source)
     const diff = current()
     const log = [
-      { id: '', label: files.length > 0 ? `uncommitted · ${files.length} file${files.length === 1 ? '' : 's'}` : 'uncommitted · nothing' },
-      ...commits.map(c => ({ id: c.sha, label: `${c.sha} ${printable(c.subject)}` })),
+      { id: '', lead: '', label: files.length > 0 ? `uncommitted · ${files.length} file${files.length === 1 ? '' : 's'}` : 'uncommitted · nothing' },
+      ...commits.map(c => ({ id: c.sha, lead: `${c.sha} `, label: printable(c.subject) })),
     ]
+    // a head doubles as the line between two sections
+    const ruled = (head: string) => `${head} ${'─'.repeat(Math.max(0, size.columns - head.length - 1))}`
     const filesSection: Section = {
-      head: commit ? `files in ${commit.sha}` : 'files · uncommitted',
+      head: ruled(commit ? `files in ${commit.sha}` : 'files · uncommitted'),
       isFocused: focus === 'files',
       first: firstFile,
       empty: source === '' ? 'nothing uncommitted' : 'no files',
       rows: all.slice(firstFile, firstFile + fileRows()).map(path =>
-        row(printable(path), source === '' ? diffs.get(path) : shown.get(source)?.diffs.get(path), path === file, true)),
+        row('', printable(path), source === '' ? diffs.get(path) : shown.get(source)?.diffs.get(path), path === file, true)),
     }
     const commitsSection: Section = {
-      head: ['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · '),
+      head: ruled(['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · ')),
       isFocused: focus === 'commits',
       first: firstCommit,
       empty: '',
-      rows: log.slice(firstCommit, firstCommit + commitRows()).map(({ id, label }) => row(label, undefined, id === source, false)),
+      rows: log.slice(firstCommit, firstCommit + commitRows()).map(({ id, lead, label }) => row(lead, label, undefined, id === source, false)),
     }
     return {
       title: file !== '' ? printable(file.split('/').pop() ?? '') : commit ? `${commit.sha} ${printable(commit.subject)}` : '',
+      where: file.includes('/') ? `  ${printable(file.slice(0, file.lastIndexOf('/')))}` : '',
+      adds: file !== '' && diff?.adds ? `  +${diff.adds}` : '',
+      dels: file !== '' && diff?.dels ? ` -${diff.dels}` : '',
       isFollowing,
       rows: fitRows(rows.slice(offset, offset + diffRows())),
       diffRows: diffRows(),
@@ -300,19 +325,18 @@ export const register: Register = on => {
     )
   })
 
-  // The body never overflows: the view draws its own windows of rows, so the wheel moves the one
+  // The body never overflows: the view draws its own windows of rows, so the wheel acts on the one
   // it is over. The title and the diff sit above the files' head, the commits' head under the files.
   on('ui.scroll', { requestId: PANE }, async ($, e) => {
     const at = e.pointer?.row ?? 0
-    if (at >= diffRows() + 2 + fileRows()) {
-      const last = commits.length + 1 - commitRows()
-      commitsTop = clamp(clamp(commitsTop, 0, last) + e.by, 0, last)
-    } else if (at >= diffRows() + 1) {
-      const last = paths().length - fileRows()
-      filesTop = clamp(clamp(filesTop, 0, last) + e.by, 0, last)
-    } else {
-      isFollowing = false
-      scrollTo(offset + e.by)
+    isFollowing = false
+    if (at < diffRows() + 1) scrollTo(offset + e.by)
+    else {
+      // over a list the wheel walks its selection, which a list that fits can show too
+      focus = at >= diffRows() + 2 + fileRows() ? 'commits' : 'files'
+      step(e.by)
+      reveal()
+      void refresh()
     }
     $.ui.invalidate('ui.render')
     return {}
@@ -324,26 +348,7 @@ export const register: Register = on => {
     if (fresh.length === 0) return {}
     acked = fresh[fresh.length - 1]!.n
 
-    const pickFile = (index: number) => {
-      // above a commit's first file is the commit's message
-      const path = index < 0 && source !== '' ? '' : paths()[clamp(index, 0, paths().length - 1)]
-      if (path === undefined || path === file) return
-      file = path
-      offset = 0
-    }
-    const pickCommit = (index: number) => {
-      const next = index <= 0 ? '' : commits[Math.min(index, commits.length) - 1]?.sha ?? ''
-      if (next === source) return
-      source = next
-      // the working tree opens on its first file, a commit on its message
-      file = ''
-      offset = 0
-      filesTop = 0
-    }
-    const step = (by: number) => {
-      if (focus === 'commits') pickCommit(commitIndex() + by)
-      else pickFile(paths().indexOf(file) + by)
-    }
+
 
     // Keys that reach stdin together arrive as one event, a held j among them.
     const typed = fresh.flatMap(({ key, shift, row, list }): { key?: string; row?: number; list?: List }[] =>
