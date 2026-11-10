@@ -65,7 +65,7 @@ function Power() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["tiles"]}>
       <box spacing={4} homogeneous>
-        <Action icon={"\u{f033e}"} label="lock" tile onClick={() => run(["hyprlock"])} />
+        <Action icon={"\u{f033e}"} label="lock" tile onClick={() => run(["loginctl", "lock-session"])} />
         <Action icon={"\u{f04b2}"} label="suspend" tile onClick={() => run(["systemctl", "suspend"])} />
         <Action icon={"\u{f0343}"} label="logout" tile cls={["red"]} onClick={() => dispatch(L.exit())} />
       </box>
@@ -83,7 +83,7 @@ function Shell() {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["tiles"]}>
       <box spacing={4} homogeneous>
         <Action icon={"\u{f030c}"} label="keys" tile onClick={() => { hideDashboard(); toggleCheatsheet() }} />
-        <Action icon={"\u{f0450}"} label="restart" tile onClick={() => run(["bash", "-c", "sleep 0.2; pkill -x gjs; sleep 0.3; astal-shell"])} />
+        <Action icon={"\u{f0450}"} label="restart" tile onClick={() => run(["sh", "-c", "systemctl --user reset-failed astal-shell; systemctl --user restart astal-shell"])} />
       </box>
       <box spacing={4} homogeneous>
         <Action icon={"\u{f0453}"} label="reload hypr" tile onClick={() => run(["hyprctl", "reload"])} />

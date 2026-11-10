@@ -77,6 +77,9 @@ button {
   // a destructive or already-engaged action keeps the button shape, in the alarm colour
   &.red { border-color: rgba($alarm, 0.35); color: $alarm; label { color: $alarm; }
     &:hover { background: rgba($alarm, 0.14); border-color: $alarm; } }
+  // the secondary and the running one: `.act label` above outranks the bare class
+  &.dim { color: $meta; label { color: $meta; } }
+  &.green { color: $live; label { color: $live; } }
 }
 
 // ── text roles ─────────────────────────────────────────────────────────────
