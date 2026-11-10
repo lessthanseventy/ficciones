@@ -63,6 +63,10 @@ export const register: Register = on => {
   let canDraw = false
   let isDismissed = false
 
+  // A terminal sends one notch of the wheel as a burst of events (Ghostty: three); over a list the
+  // burst is one step.
+  const NOTCH_MS = 40
+  let wheeled = { at: 0, by: 0 }
   let isRefreshing = false
   let isStale = false
   let refresh: () => Promise<void> = async () => {}
@@ -73,10 +77,10 @@ export const register: Register = on => {
   const commitIndex = () => (source === '' ? 0 : 1 + Math.max(0, commits.findIndex(c => c.sha === source)))
   const fileRows = () => clamp(paths().length, 1, Math.min(MAX_FILE_ROWS, Math.floor(size.rows / 4)))
   const commitRows = () => clamp(commits.length + 1, 1, Math.min(MAX_COMMIT_ROWS, Math.floor(size.rows / 5)))
-  // The title, the two section heads and the hint take one row each.
+  // The title between its two rules, the two section heads and the hint take one row each.
   // a blank row above each list, where the pane is tall enough to spare two
   const pad = () => (size.rows >= 24 ? 1 : 0)
-  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 4 - 2 * pad())
+  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 6 - 2 * pad())
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
   const reveal = () => {
     filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
@@ -137,8 +141,7 @@ export const register: Register = on => {
     const where = file.includes('/') ? `  ${printable(file.slice(0, file.lastIndexOf('/')))}` : ''
     const adds = file !== '' && diff?.adds ? `  +${diff.adds}` : ''
     const dels = file !== '' && diff?.dels ? ` -${diff.dels}` : ''
-    // the rule stops a cell short of the following mark at the row's end
-    const mark = isFollowing ? 12 : 7
+
     const filesSection: Section = {
       head: filesHead,
       rule: rule(filesHead.length),
@@ -161,7 +164,7 @@ export const register: Register = on => {
       where,
       adds,
       dels,
-      rule: rule(title.length + where.length + adds.length + dels.length + mark),
+      rule: '─'.repeat(size.columns),
       pad: pad(),
       isFollowing,
       rows: fitRows(rows.slice(offset, offset + diffRows())),
@@ -348,15 +351,20 @@ export const register: Register = on => {
   })
 
   // The body never overflows: the view draws its own windows of rows, so the wheel acts on the one
-  // it is over. The title and the diff sit above the files' head, the commits' head under the files.
+  // it is over. The ruled title and the diff sit above the files' head, the commits' head under the files.
   on('ui.scroll', { requestId: PANE }, async ($, e) => {
     const at = e.pointer?.row ?? 0
     isFollowing = false
-    if (at < diffRows() + 1) scrollTo(offset + e.by)
+    if (at < diffRows() + 3) scrollTo(offset + e.by)
     else {
       // over a list the wheel walks its selection, which a list that fits can show too
-      focus = at >= diffRows() + 2 + pad() + fileRows() ? 'commits' : 'files'
-      step(Math.sign(e.by))
+      focus = at >= diffRows() + 4 + pad() + fileRows() ? 'commits' : 'files'
+      const now = Date.now()
+      const by = Math.sign(e.by)
+      const isSameNotch = by === wheeled.by && now - wheeled.at < NOTCH_MS
+      wheeled = { at: now, by }
+      if (isSameNotch) return {}
+      step(by)
       reveal()
       void refresh()
     }

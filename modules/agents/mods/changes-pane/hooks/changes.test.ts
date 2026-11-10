@@ -226,7 +226,7 @@ test('the wheel over a list walks its selection', async ($, on) => {
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   expect(await ui.find({ text: /^f1\.ts/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeUndefined()
-  // 30 rows: title, 16 of diff, a blank, the files' head, then seven files from row 19
+  // 30 rows: the ruled title, 14 of diff, a blank, the files' head, then seven files from row 19
   await $.ui.scroll({ component: 'Pane', requestId: 'changes', offset: 8, by: 8, bodyRows: 30, contentRows: 30, origin: { kind: 'person' }, pointer: { column: 3, row: 22 } } as never)
   expect(await ui.find({ text: /^f2\.ts$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()

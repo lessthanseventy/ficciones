@@ -52,8 +52,8 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
     surface.onPointer(({ type, y }) => {
       if (type !== 'down') return
       const { diffRows, pad, files, commits } = queue.props
-      // title, diff, the padding and the files head sit above the files; padding and the commits head follow them
-      const inFiles = y - (diffRows + 2 + pad)
+      // the ruled title, the diff, the padding and the files head sit above the files; padding and the commits head follow them
+      const inFiles = y - (diffRows + 4 + pad)
       const inCommits = inFiles - shown(files) - 1 - pad
       if (inFiles >= 0 && inFiles < files.rows.length) send({ list: 'files', row: files.first + inFiles })
       else if (inCommits >= 0 && inCommits < commits.rows.length) send({ list: 'commits', row: commits.first + inCommits })
@@ -81,16 +81,17 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
 
   return (
     <Box flexDirection="column">
+      <Text dimColor wrap="truncate-end">{props.rule}</Text>
       <Box justifyContent="space-between">
         <Box flexShrink={1}>
           <Text bold color="claude" wrap="truncate-end">{props.title}</Text>
           <Text dimColor wrap="truncate-start">{props.where}</Text>
           <Text color="success">{props.adds}</Text>
           <Text color="error">{props.dels}</Text>
-          <Text dimColor>{props.rule}</Text>
         </Box>
         {props.isFollowing ? <Text color="success">● following</Text> : <Text dimColor>○ held</Text>}
       </Box>
+      <Text dimColor wrap="truncate-end">{props.rule}</Text>
       <Box height={props.diffRows} overflow="hidden" flexDirection="column">
         {props.note ? <Text dimColor>{props.note}</Text> : null}
         {props.rows.map(row => (
