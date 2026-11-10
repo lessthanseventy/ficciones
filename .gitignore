@@ -57,3 +57,7 @@ HANDOFF.md
 
 # .omc/ — local tool runtime state (sessions, last-tool-error.json); never repo content
 .omc/
+
+# Claude Code writes these into a mod it loads from a folder
+modules/agents/mods/*/tsconfig.json
+modules/agents/mods/*/.claude-plugin/types/

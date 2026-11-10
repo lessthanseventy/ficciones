@@ -180,6 +180,7 @@ test('a commit opens on its message, and its files take the files list', async (
     const line = e.argv.join(' ')
     const stdout = line.includes(' status ') ? ' M a.ts\0'
       : line.includes(' log ') ? 'abc1234\tfix the thing\n'
+      : line.includes('rev-parse') ? '/home/ada/trees/e4\nfix/thing\n'
       : line.includes(' show ') ? 'Ada · 2 hours ago\n\nfix the thing\n\nClaude-Session: https://claude.ai/code/session_1\n\ndiff --git a/z.ts b/z.ts\n--- a/z.ts\n+++ b/z.ts\n@@ -1 +1 @@\n-before\n+after\n'
       : line.startsWith('delta') ? `\n${e.init?.stdin}`
       : 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\n'
@@ -187,7 +188,7 @@ test('a commit opens on its message, and its files take the files list', async (
   })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
-  expect(await ui.find({ text: /^commits/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^commits · fix\/thing · e4/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^files · uncommitted/, in: 'changes' })).toBeDefined()
   await ui.key({ key: 'tab' })
   await ui.key({ key: 'j' })

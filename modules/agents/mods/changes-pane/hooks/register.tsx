@@ -39,6 +39,8 @@ export const register: Register = on => {
   let files: File[] = []
   let diffs = new Map<string, Diff>()
   let commits: Commit[] = []
+  let root = ''
+  let branch = ''
   const shown = new Map<string, Shown>()
   // '' is the working tree; a sha is that commit, and the files list is then the commit's.
   let source = ''
@@ -109,7 +111,7 @@ export const register: Register = on => {
         row(printable(path), source === '' ? diffs.get(path) : shown.get(source)?.diffs.get(path), path === file, true)),
     }
     const commitsSection: Section = {
-      head: 'commits',
+      head: ['commits', branch === 'HEAD' ? 'detached' : branch, root.split('/').pop() ?? ''].filter(Boolean).map(printable).join(' · '),
       isFocused: focus === 'commits',
       first: firstCommit,
       empty: '',
@@ -131,7 +133,6 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     // status and diff name files from the repo root, whichever folder the session is in.
     const readDiffs = async (listed: File[]) => {
-      const root = (await $.process.run(['git', 'rev-parse', '--show-toplevel'])).stdout.trim()
       const tracked = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'diff', 'HEAD', '--no-renames', '--no-color', '--no-ext-diff'])
       const texts = splitDiff(tracked.stdout)
       for (const untracked of listed.filter(f => f.isUntracked).slice(0, MAX_UNTRACKED_DIFFS)) {
@@ -160,6 +161,7 @@ export const register: Register = on => {
       } else {
         files = parseStatus(status.stdout)
         note = ''
+        ;[root = '', branch = ''] = (await $.process.run(['git', 'rev-parse', '--show-toplevel', '--abbrev-ref', 'HEAD'])).stdout.split('\n')
         const log = await $.process.run(['git', '--no-optional-locks', 'log', '-n', String(MAX_COMMITS), '--format=%h%x09%s'])
         commits = log.exitCode === 0 ? parseLog(log.stdout) : []
         const texts = await readDiffs(files)
@@ -215,10 +217,10 @@ export const register: Register = on => {
       try {
         while (isStale) {
           isStale = false
-          const seen = JSON.stringify([renderedKey, note, files, commits])
+          const seen = JSON.stringify([renderedKey, note, files, commits, branch])
           await load()
           scrollTo(offset)
-          if (seen !== JSON.stringify([renderedKey, note, files, commits])) $.ui.invalidate('ui.render')
+          if (seen !== JSON.stringify([renderedKey, note, files, commits, branch])) $.ui.invalidate('ui.render')
         }
       } catch (error) {
         note = `could not read the changes: ${error instanceof Error ? error.message : String(error)}`
