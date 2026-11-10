@@ -11,13 +11,65 @@ trap 'rm -rf "$out"' EXIT
 
 # ---- keys.md: the bind(...) lines of hyprland.lua --------------------------------------------
 # hyprctl binds -j only knows a Lua bind as `__lua <n>`, so the SOURCE is the record. Best-effort
-# parse: the first argument is the keys (M = SUPER), the second the action; a trailing `--`
-# comment, when present, is the human line.
+# parse: the first argument is the keys (M = SUPER), the second the action. The human line is a
+# trailing `--` comment when the bind has one, else the action's entry in WORDS below, else the
+# action itself as code.
 python3 - modules/desktop/hypr/hyprland.lua "$out/keys.json" >"$out/keys.md" <<'PY'
 import json, re, sys
 src = open(sys.argv[1], encoding="utf-8").read().splitlines()
 mod = re.search(r'^local M = "(\w+)"', "\n".join(src), re.M)
 M = mod.group(1) if mod else "SUPER"
+DIR = {"l": "left", "r": "right", "u": "up", "d": "down"}
+WS = {"r+1": "next workspace", "r-1": "previous workspace", "previous": "the workspace you came from", "i": "workspace 1–10"}
+WORDS = {
+    # the shell's verbs (astal-shell … and shell-req.sh …)
+    "toggle launcher": "launcher", "toggle clipboard": "clipboard history", "toggle cheatsheet": "this sheet",
+    "toggle drawer": "calendar drawer", "toggle hub": "notifications", "toggle deck": "deck: log · media · agents · timer",
+    "toggle dashboard": "dashboard", "toggle settings": "settings", "toggle weather": "weather",
+    "show drawer agents": "agents", "show drawer calendar": "calendar", "backdrop": "backdrop: next mode",
+    "theme": "light / dark", "crt": "crt scanlines", "glass": "glass", "sidecar toggle": "pin as sidecar",
+    "colresize narrower": "column narrower", "colresize wider": "column wider", "quake": "drop-down terminal",
+    "focus l": "focus left", "focus r": "focus right", "display send": "window to the other screen",
+    "capture shot monitor": "screenshot: monitor", "capture shot window": "screenshot: window",
+    "capture shot region": "screenshot: region", "capture rec monitor": "record the monitor", "capture stop": "stop recording",
+    "shell/shot-region.sh": "screenshot: region", "shell/shot-region.sh repeat": "screenshot: the same region again",
+    # commands
+    "ghostty": "terminal", "dolphin": "files", "floorp": "browser", "kate": "editor", "pavucontrol": "audio mixer",
+    "ghostty -e btop": "btop", "hyprpicker -a": "colour picker", "loginctl lock-session": "lock",
+    "systemctl poweroff": "power off", "playerctl play-pause": "play / pause", "playerctl next": "next track",
+    "playerctl previous": "previous track", "brightnessctl set 5%+": "brightness up", "brightnessctl set 5%-": "brightness down",
+    "wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 2%+": "volume up", "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-": "volume down",
+    "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle": "mute", "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle": "mute the microphone",
+    # the layout and the compositor
+    'layout("focus u")': "focus up in the column", 'layout("focus d")': "focus down in the column",
+    'layout("move -col")': "scroll one column left", 'layout("move +col")': "scroll one column right",
+    'layout("swapcol l")': "swap column left", 'layout("swapcol r")': "swap column right",
+    'layout("fit active")': "fit the active column", 'layout("fit expand")': "fit: expand", 'layout("fit all")': "fit all columns",
+    'layout("fit visible")': "fit the visible columns", 'layout("fit_into_view")': "bring the column into view",
+    'layout("center")': "centre the column", 'layout("consume")': "pull the next window into the column",
+    'layout("promote")': "window into its own column",
+    'layout("consume_or_expel prev")': "stack / unstack toward the left", 'layout("consume_or_expel next")': "stack / unstack toward the right",
+    'layout("colresize +conf")': "column: next preset width", 'layout("colresize -conf")': "column: previous preset width",
+    "resize(0, -100)": "window shorter", "resize(0, 100)": "window taller",
+    'hl.dsp.focus({ monitor = "l" })': "focus the left monitor", 'hl.dsp.focus({ monitor = "r" })': "focus the right monitor",
+    "hl.dsp.focus({ last = true })": "the window you came from", "hl.dsp.window.close()": "close", "hl.dsp.window.kill()": "kill",
+    "hl.dsp.window.float()": "float / tile", 'hl.dsp.window.fullscreen({ mode = "fullscreen" })': "fullscreen",
+    "hl.dsp.window.fullscreen_state({ internal = 0, client = 3 })": "tell the app it is fullscreen, keep it tiled",
+    "hl.dsp.window.drag()": "drag the window", "hl.dsp.window.resize()": "resize the window", "hl.dsp.exit()": "leave Hyprland",
+    'hl.dsp.dpms({ action = "off" })': "screens off", 'function() hl.plugin.hyprexpo.expo("toggle") end': "overview",
+}
+def words(a):
+    """The action in words, or None."""
+    m = re.match(r'(move|move_mon|ws|to_ws|follow_ws)\("?([^")]+)"?\)$', a)
+    if m:
+        f, x = m.groups()
+        if f == "move": return f"move window {DIR[x]}"
+        if f == "move_mon": return f"column to the {DIR[x]} monitor"
+        return {"ws": "", "to_ws": "window to ", "follow_ws": "follow the window to "}[f] + WS[x]
+    e = re.match(r'exec\((.*)\)$', a)
+    if not e: return WORDS.get(a)
+    cmd = re.sub(r'^shell \.\. "/', "shell/", e.group(1).strip()).strip('"')
+    return WORDS.get(re.sub(r"^(astal-shell|shell/shell-req\.sh) ", "", cmd))
 rows = []
 for line in src:
     m = re.match(r'^\s*bind\((.*)\)\s*(?:--\s*(.*))?$', line)
@@ -33,18 +85,23 @@ for line in src:
     keys_expr, action = inner[:cut], inner[cut+1:].strip()
     keys = "".join(M if p.strip() == "M" else p.strip().strip('"') for p in keys_expr.split(".."))
     keys = re.sub(r"\s*\+\s*", "+", keys)
-    mouse = "{ mouse = true }" in action
-    action = re.sub(r",\s*\{\s*mouse = true\s*\}\s*$", "", action).strip()
+    mouse = "mouse = true" in action
+    action = re.sub(r",\s*\{[^{}]*\}\s*$", "", action).strip()
     def group(a):
+        if a.startswith(("move(", "move_mon(", "resize(")) or "colresize" in a or "sidecar" in a or "display send" in a: return "move & size"
+        if "shell-req.sh focus" in a: return "focus"
+        if "capture " in a or "shot-region" in a or "hyprpicker" in a or "grim " in a: return "capture"
+        if re.search(r"wpctl|playerctl|brightnessctl", a): return "media"
+        if "astal-shell" in a or "shell-req.sh" in a: return "shell"
         if a.startswith("exec("): return "launch"
         if a.startswith(("ws(", "to_ws(", "follow_ws(")): return "workspaces"
-        if a.startswith(("move(", "move_mon(", "resize(")) or "colresize" in a or "sidecar" in a: return "move & size"
         if a.startswith("layout("): return "layout"
         if a.startswith("hl.dsp.focus"): return "focus"
         if a.startswith("hl.dsp.window") or a.startswith("unless_pinned("): return "window"
         return "other"
     def what(a, c):
         if c: return c
+        if words(a): return words(a)
         e = re.match(r'exec\((.*)\)$', a)
         if e:
             arg = e.group(1).strip().strip('"')
@@ -52,7 +109,7 @@ for line in src:
             return "`" + arg[:60] + "`"
         return "`" + a[:60] + "`"
     rows.append(("mouse" if mouse else group(action), keys, what(action, comment)))
-order = ["launch", "focus", "move & size", "layout", "workspaces", "window", "mouse", "other"]
+order = ["launch", "shell", "focus", "move & size", "layout", "workspaces", "window", "capture", "media", "mouse", "other"]
 # the same rows for the shell's cheatsheet: one parse, two readers
 with open(sys.argv[2], "w", encoding="utf-8") as f:
     json.dump([{"group": g, "keys": k, "does": w.strip("`")} for g in order for (rg, k, w) in rows if rg == g], f, ensure_ascii=False, indent=1)

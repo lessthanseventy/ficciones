@@ -2,646 +2,646 @@
  {
   "group": "launch",
   "keys": "SUPER+Return",
-  "does": "ghostty"
+  "does": "terminal"
  },
  {
   "group": "launch",
   "keys": "SUPER+SHIFT+Return",
-  "does": "ghostty --title=AgentDeck --class=com.ghostty.agent-deck -e "
+  "does": "agent deck"
  },
  {
   "group": "launch",
   "keys": "SUPER+E",
-  "does": "dolphin"
+  "does": "files"
  },
  {
   "group": "launch",
   "keys": "SUPER+W",
-  "does": "floorp"
+  "does": "browser"
  },
  {
   "group": "launch",
   "keys": "SUPER+X",
-  "does": "kate"
+  "does": "editor"
  },
  {
   "group": "launch",
   "keys": "CTRL+SUPER+V",
-  "does": "pavucontrol"
+  "does": "audio mixer"
  },
  {
   "group": "launch",
   "keys": "CTRL+SHIFT+Escape",
-  "does": "ghostty -e btop"
- },
- {
-  "group": "launch",
-  "keys": "F12",
-  "does": "shell/shell-req.sh quake"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Space",
-  "does": "astal-shell toggle launcher"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+I",
-  "does": "astal-shell toggle drawer"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+I",
-  "does": "astal-shell toggle drawer"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+N",
-  "does": "astal-shell toggle hub"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+C",
-  "does": "shell/shell-req.sh toggle deck"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+U",
-  "does": "astal-shell show drawer agents"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+B",
-  "does": "astal-shell show drawer calendar"
- },
- {
-  "group": "launch",
-  "keys": "ALT+Space",
-  "does": "astal-shell toggle launcher"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+V",
-  "does": "astal-shell toggle clipboard"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Slash",
-  "does": "astal-shell toggle launcher"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+Slash",
-  "does": "astal-shell toggle cheatsheet"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Y",
-  "does": "answer the decision banner by key"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+C",
-  "does": "astal-shell crt"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+Z",
-  "does": "astal-shell backdrop"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+P",
-  "does": "astal-shell theme"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+T",
-  "does": "astal-shell glass"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+W",
-  "does": "astal-shell toggle weather"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+D",
-  "does": "astal-shell toggle dashboard"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+comma",
-  "does": "astal-shell toggle settings"
+  "does": "btop"
  },
  {
   "group": "launch",
   "keys": "CTRL+SUPER+Slash",
-  "does": "xdg-open \" .. hyprdir .. \"/hyprland.lua"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+H",
-  "does": "shell/shell-req.sh focus l"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+L",
-  "does": "shell/shell-req.sh focus r"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Left",
-  "does": "shell/shell-req.sh focus l"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Right",
-  "does": "shell/shell-req.sh focus r"
- },
- {
-  "group": "launch",
-  "keys": "CTRL+SUPER+SHIFT+O",
-  "does": "shell/shell-req.sh display send"
- },
- {
-  "group": "launch",
-  "keys": "CTRL+SUPER+P",
-  "does": "shell/shell-req.sh sidecar toggle"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Semicolon",
-  "does": "shell/shell-req.sh colresize narrower"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Apostrophe",
-  "does": "shell/shell-req.sh colresize wider"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Minus",
-  "does": "shell/shell-req.sh colresize narrower"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+Equal",
-  "does": "shell/shell-req.sh colresize wider"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+S",
-  "does": "shell/shot-region.sh"
- },
- {
-  "group": "launch",
-  "keys": "CTRL+SUPER+S",
-  "does": "shell/shot-region.sh repeat"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+CTRL+S",
-  "does": "shell/shell-req.sh capture shot monitor"
- },
- {
-  "group": "launch",
-  "keys": "ALT+Print",
-  "does": "shell/shell-req.sh capture shot window"
- },
- {
-  "group": "launch",
-  "keys": "Print",
-  "does": "shell/shell-req.sh capture shot monitor"
- },
- {
-  "group": "launch",
-  "keys": "CTRL+Print",
-  "does": "shell/shell-req.sh capture shot region"
- },
- {
-  "group": "launch",
-  "keys": "SHIFT+Print",
-  "does": "shell/shell-req.sh capture rec monitor"
- },
- {
-  "group": "launch",
-  "keys": "CTRL+SHIFT+Print",
-  "does": "shell/shell-req.sh capture stop"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+P",
-  "does": "hyprpicker -a"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+X",
-  "does": "[[bash -c 'f=$(mktemp --suffix=.png) && grim -g \"$(slurp)\" \""
- },
- {
-  "group": "launch",
-  "keys": "XF86AudioRaiseVolume",
-  "does": "exec(\"wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 2%+\"), { "
- },
- {
-  "group": "launch",
-  "keys": "XF86AudioLowerVolume",
-  "does": "exec(\"wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-\"), { locked "
- },
- {
-  "group": "launch",
-  "keys": "XF86AudioMute",
-  "does": "exec(\"wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle\"), { locked"
- },
- {
-  "group": "launch",
-  "keys": "XF86AudioMicMute",
-  "does": "exec(\"wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle\"), { lock"
- },
- {
-  "group": "launch",
-  "keys": "SUPER+SHIFT+M",
-  "does": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+  "does": "open this config"
  },
  {
   "group": "launch",
   "keys": "CTRL+SUPER+M",
-  "does": "mpv-stream"
- },
- {
-  "group": "launch",
-  "keys": "ALT+SUPER+M",
-  "does": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
- },
- {
-  "group": "launch",
-  "keys": "XF86MonBrightnessUp",
-  "does": "exec(\"brightnessctl set 5%+\"), { locked = true, repeating = "
- },
- {
-  "group": "launch",
-  "keys": "XF86MonBrightnessDown",
-  "does": "exec(\"brightnessctl set 5%-\"), { locked = true, repeating = "
- },
- {
-  "group": "launch",
-  "keys": "XF86AudioPlay",
-  "does": "exec(\"playerctl play-pause\"), { locked = true }"
- },
- {
-  "group": "launch",
-  "keys": "XF86AudioPause",
-  "does": "exec(\"playerctl play-pause\"), { locked = true }"
- },
- {
-  "group": "launch",
-  "keys": "XF86AudioNext",
-  "does": "exec(\"playerctl next\"), { locked = true }"
- },
- {
-  "group": "launch",
-  "keys": "XF86AudioPrev",
-  "does": "exec(\"playerctl previous\"), { locked = true }"
+  "does": "play the stream on the clipboard"
  },
  {
   "group": "launch",
   "keys": "CTRL+ALT+L",
-  "does": "loginctl lock-session"
- },
- {
-  "group": "launch",
-  "keys": "CTRL+SUPER+R",
-  "does": "sh -c 'pkill -x gjs; systemctl --user reset-failed astal-she"
+  "does": "lock"
  },
  {
   "group": "launch",
   "keys": "CTRL+SHIFT+ALT+SUPER+Delete",
-  "does": "systemctl poweroff"
+  "does": "power off"
+ },
+ {
+  "group": "shell",
+  "keys": "F12",
+  "does": "drop-down terminal"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+Space",
+  "does": "launcher"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+I",
+  "does": "calendar drawer"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+SHIFT+I",
+  "does": "calendar drawer"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+N",
+  "does": "notifications"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+C",
+  "does": "deck: log · media · agents · timer"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+U",
+  "does": "agents"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+B",
+  "does": "calendar"
+ },
+ {
+  "group": "shell",
+  "keys": "ALT+Space",
+  "does": "launcher"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+V",
+  "does": "clipboard history"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+Slash",
+  "does": "launcher"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+SHIFT+Slash",
+  "does": "this sheet"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+Y",
+  "does": "answer the decision banner by key"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+SHIFT+C",
+  "does": "crt scanlines"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+SHIFT+Z",
+  "does": "backdrop: next mode"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+SHIFT+P",
+  "does": "light / dark"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+SHIFT+T",
+  "does": "glass"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+SHIFT+W",
+  "does": "weather"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+D",
+  "does": "dashboard"
+ },
+ {
+  "group": "shell",
+  "keys": "SUPER+comma",
+  "does": "settings"
+ },
+ {
+  "group": "shell",
+  "keys": "CTRL+SUPER+R",
+  "does": "restart the shell"
+ },
+ {
+  "group": "focus",
+  "keys": "SUPER+H",
+  "does": "focus left"
+ },
+ {
+  "group": "focus",
+  "keys": "SUPER+L",
+  "does": "focus right"
+ },
+ {
+  "group": "focus",
+  "keys": "SUPER+Left",
+  "does": "focus left"
+ },
+ {
+  "group": "focus",
+  "keys": "SUPER+Right",
+  "does": "focus right"
  },
  {
   "group": "focus",
   "keys": "CTRL+SUPER+H",
-  "does": "hl.dsp.focus({ monitor = \"l\" })"
+  "does": "focus the left monitor"
  },
  {
   "group": "focus",
   "keys": "CTRL+SUPER+L",
-  "does": "hl.dsp.focus({ monitor = \"r\" })"
+  "does": "focus the right monitor"
  },
  {
   "group": "focus",
   "keys": "ALT+Tab",
-  "does": "hl.dsp.focus({ last = true })"
+  "does": "the window you came from"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+H",
-  "does": "move(\"l\")"
+  "does": "move window left"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+L",
-  "does": "move(\"r\")"
+  "does": "move window right"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+Left",
-  "does": "move(\"l\")"
+  "does": "move window left"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+Right",
-  "does": "move(\"r\")"
+  "does": "move window right"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+Up",
-  "does": "move(\"u\")"
+  "does": "move window up"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+Down",
-  "does": "move(\"d\")"
+  "does": "move window down"
  },
  {
   "group": "move & size",
   "keys": "CTRL+SUPER+SHIFT+H",
-  "does": "move_mon(\"l\")"
+  "does": "column to the left monitor"
  },
  {
   "group": "move & size",
   "keys": "CTRL+SUPER+SHIFT+L",
-  "does": "move_mon(\"r\")"
+  "does": "column to the right monitor"
+ },
+ {
+  "group": "move & size",
+  "keys": "CTRL+SUPER+SHIFT+O",
+  "does": "window to the other screen"
+ },
+ {
+  "group": "move & size",
+  "keys": "CTRL+SUPER+P",
+  "does": "pin as sidecar"
+ },
+ {
+  "group": "move & size",
+  "keys": "SUPER+Semicolon",
+  "does": "column narrower"
+ },
+ {
+  "group": "move & size",
+  "keys": "SUPER+Apostrophe",
+  "does": "column wider"
+ },
+ {
+  "group": "move & size",
+  "keys": "SUPER+Minus",
+  "does": "column narrower"
+ },
+ {
+  "group": "move & size",
+  "keys": "SUPER+Equal",
+  "does": "column wider"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+Semicolon",
-  "does": "resize(0, -100)"
+  "does": "window shorter"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+Apostrophe",
-  "does": "resize(0, 100)"
+  "does": "window taller"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+Minus",
-  "does": "resize(0, -100)"
+  "does": "window shorter"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+Equal",
-  "does": "resize(0, 100)"
+  "does": "window taller"
  },
  {
   "group": "move & size",
   "keys": "SUPER+R",
-  "does": "layout(\"colresize +conf\")"
+  "does": "column: next preset width"
  },
  {
   "group": "move & size",
   "keys": "SUPER+SHIFT+R",
-  "does": "layout(\"colresize -conf\")"
+  "does": "column: previous preset width"
  },
  {
   "group": "layout",
   "keys": "SUPER+Up",
-  "does": "layout(\"focus u\")"
+  "does": "focus up in the column"
  },
  {
   "group": "layout",
   "keys": "SUPER+Down",
-  "does": "layout(\"focus d\")"
+  "does": "focus down in the column"
  },
  {
   "group": "layout",
   "keys": "SUPER+bracketleft",
-  "does": "layout(\"move -col\")"
+  "does": "scroll one column left"
  },
  {
   "group": "layout",
   "keys": "SUPER+bracketright",
-  "does": "layout(\"move +col\")"
+  "does": "scroll one column right"
  },
  {
   "group": "layout",
   "keys": "CTRL+SUPER+J",
-  "does": "layout(\"focus d\")"
+  "does": "focus down in the column"
  },
  {
   "group": "layout",
   "keys": "CTRL+SUPER+K",
-  "does": "layout(\"focus u\")"
+  "does": "focus up in the column"
  },
  {
   "group": "layout",
   "keys": "ALT+SUPER+H",
-  "does": "layout(\"swapcol l\")"
+  "does": "swap column left"
  },
  {
   "group": "layout",
   "keys": "ALT+SUPER+L",
-  "does": "layout(\"swapcol r\")"
+  "does": "swap column right"
  },
  {
   "group": "layout",
   "keys": "SUPER+F",
-  "does": "layout(\"fit active\")"
+  "does": "fit the active column"
  },
  {
   "group": "layout",
   "keys": "CTRL+SUPER+C",
-  "does": "layout(\"center\")"
+  "does": "centre the column"
  },
  {
   "group": "layout",
   "keys": "SUPER+SHIFT+comma",
-  "does": "layout(\"consume_or_expel prev\")"
+  "does": "stack / unstack toward the left"
  },
  {
   "group": "layout",
   "keys": "SUPER+SHIFT+period",
-  "does": "layout(\"consume_or_expel next\")"
+  "does": "stack / unstack toward the right"
  },
  {
   "group": "layout",
   "keys": "CTRL+SUPER+comma",
-  "does": "layout(\"consume\")"
+  "does": "pull the next window into the column"
  },
  {
   "group": "layout",
   "keys": "CTRL+SUPER+period",
-  "does": "layout(\"promote\")"
+  "does": "window into its own column"
  },
  {
   "group": "layout",
   "keys": "SUPER+A",
-  "does": "layout(\"fit expand\")"
+  "does": "fit: expand"
  },
  {
   "group": "layout",
   "keys": "SUPER+SHIFT+A",
-  "does": "layout(\"fit all\")"
+  "does": "fit all columns"
  },
  {
   "group": "layout",
   "keys": "SUPER+T",
-  "does": "layout(\"fit visible\")"
+  "does": "fit the visible columns"
  },
  {
   "group": "layout",
   "keys": "SUPER+G",
-  "does": "layout(\"fit_into_view\")"
+  "does": "bring the column into view"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+J",
-  "does": "ws(\"r+1\")"
+  "does": "next workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+K",
-  "does": "ws(\"r-1\")"
+  "does": "previous workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+SHIFT+J",
-  "does": "to_ws(\"r+1\")"
+  "does": "window to next workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+SHIFT+K",
-  "does": "to_ws(\"r-1\")"
+  "does": "window to previous workspace"
  },
  {
   "group": "workspaces",
   "keys": "CTRL+SUPER+SHIFT+J",
-  "does": "follow_ws(\"r+1\")"
+  "does": "follow the window to next workspace"
  },
  {
   "group": "workspaces",
   "keys": "CTRL+SUPER+SHIFT+K",
-  "does": "follow_ws(\"r-1\")"
+  "does": "follow the window to previous workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+key",
-  "does": "ws(i)"
+  "does": "workspace 1–10"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+SHIFT+key",
-  "does": "to_ws(i)"
+  "does": "window to workspace 1–10"
  },
  {
   "group": "workspaces",
   "keys": "CTRL+SUPER+SHIFT+key",
-  "does": "follow_ws(i)"
+  "does": "follow the window to workspace 1–10"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+Page_Up",
-  "does": "ws(\"r-1\")"
+  "does": "previous workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+Page_Down",
-  "does": "ws(\"r+1\")"
+  "does": "next workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+SHIFT+Page_Up",
-  "does": "to_ws(\"r-1\")"
+  "does": "window to previous workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+SHIFT+Page_Down",
-  "does": "to_ws(\"r+1\")"
+  "does": "window to next workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+mouse_down",
-  "does": "ws(\"r+1\")"
+  "does": "next workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+mouse_up",
-  "does": "ws(\"r-1\")"
+  "does": "previous workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+SHIFT+mouse_down",
-  "does": "to_ws(\"r+1\")"
+  "does": "window to next workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+SHIFT+mouse_up",
-  "does": "to_ws(\"r-1\")"
+  "does": "window to previous workspace"
  },
  {
   "group": "workspaces",
   "keys": "SUPER+Tab",
-  "does": "ws(\"previous\")"
+  "does": "the workspace you came from"
  },
  {
   "group": "window",
   "keys": "SUPER+Q",
-  "does": "hl.dsp.window.close()"
+  "does": "close"
  },
  {
   "group": "window",
   "keys": "ALT+F4",
-  "does": "hl.dsp.window.close()"
+  "does": "close"
  },
  {
   "group": "window",
   "keys": "CTRL+SUPER+SHIFT+Q",
-  "does": "hl.dsp.window.kill()"
+  "does": "kill"
  },
  {
   "group": "window",
   "keys": "ALT+SUPER+F",
-  "does": "hl.dsp.window.fullscreen_state({ internal = 0, client = 3 })"
+  "does": "tell the app it is fullscreen, keep it tiled"
  },
  {
   "group": "window",
   "keys": "ALT+SUPER+Space",
-  "does": "hl.dsp.window.float()"
+  "does": "float / tile"
  },
  {
   "group": "window",
   "keys": "SUPER+SHIFT+V",
-  "does": "hl.dsp.window.float()"
+  "does": "float / tile"
  },
  {
   "group": "window",
   "keys": "SUPER+SHIFT+F",
-  "does": "hl.dsp.window.fullscreen({ mode = \"fullscreen\" })"
+  "does": "fullscreen"
+ },
+ {
+  "group": "capture",
+  "keys": "SUPER+SHIFT+S",
+  "does": "screenshot: region"
+ },
+ {
+  "group": "capture",
+  "keys": "CTRL+SUPER+S",
+  "does": "screenshot: the same region again"
+ },
+ {
+  "group": "capture",
+  "keys": "SUPER+SHIFT+CTRL+S",
+  "does": "screenshot: monitor"
+ },
+ {
+  "group": "capture",
+  "keys": "ALT+Print",
+  "does": "screenshot: window"
+ },
+ {
+  "group": "capture",
+  "keys": "Print",
+  "does": "screenshot: monitor"
+ },
+ {
+  "group": "capture",
+  "keys": "CTRL+Print",
+  "does": "screenshot: region"
+ },
+ {
+  "group": "capture",
+  "keys": "SHIFT+Print",
+  "does": "record the monitor"
+ },
+ {
+  "group": "capture",
+  "keys": "CTRL+SHIFT+Print",
+  "does": "stop recording"
+ },
+ {
+  "group": "capture",
+  "keys": "SUPER+P",
+  "does": "colour picker"
+ },
+ {
+  "group": "capture",
+  "keys": "SUPER+SHIFT+X",
+  "does": "read the text in a region to the clipboard"
+ },
+ {
+  "group": "media",
+  "keys": "XF86AudioRaiseVolume",
+  "does": "volume up"
+ },
+ {
+  "group": "media",
+  "keys": "XF86AudioLowerVolume",
+  "does": "volume down"
+ },
+ {
+  "group": "media",
+  "keys": "XF86AudioMute",
+  "does": "mute"
+ },
+ {
+  "group": "media",
+  "keys": "XF86AudioMicMute",
+  "does": "mute the microphone"
+ },
+ {
+  "group": "media",
+  "keys": "SUPER+SHIFT+M",
+  "does": "mute"
+ },
+ {
+  "group": "media",
+  "keys": "ALT+SUPER+M",
+  "does": "mute the microphone"
+ },
+ {
+  "group": "media",
+  "keys": "XF86MonBrightnessUp",
+  "does": "brightness up"
+ },
+ {
+  "group": "media",
+  "keys": "XF86MonBrightnessDown",
+  "does": "brightness down"
+ },
+ {
+  "group": "media",
+  "keys": "XF86AudioPlay",
+  "does": "play / pause"
+ },
+ {
+  "group": "media",
+  "keys": "XF86AudioPause",
+  "does": "play / pause"
+ },
+ {
+  "group": "media",
+  "keys": "XF86AudioNext",
+  "does": "next track"
+ },
+ {
+  "group": "media",
+  "keys": "XF86AudioPrev",
+  "does": "previous track"
  },
  {
   "group": "mouse",
   "keys": "SUPER+mouse:272",
-  "does": "hl.dsp.window.drag()"
+  "does": "drag the window"
  },
  {
   "group": "mouse",
   "keys": "SUPER+mouse:273",
-  "does": "hl.dsp.window.resize()"
+  "does": "resize the window"
  },
  {
   "group": "other",
   "keys": "SUPER+O",
-  "does": "function() hl.plugin.hyprexpo.expo(\"toggle\") end"
+  "does": "overview"
  },
  {
   "group": "other",
   "keys": "CTRL+ALT+Delete",
-  "does": "hl.dsp.exit()"
+  "does": "leave Hyprland"
  },
  {
   "group": "other",
   "keys": "CTRL+SUPER+SHIFT+P",
-  "does": "hl.dsp.dpms({ action = \"off\" })"
+  "does": "screens off"
  }
 ]

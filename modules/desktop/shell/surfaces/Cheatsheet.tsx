@@ -1,6 +1,6 @@
 // The keybind cheatsheet: the binds as scripts/manual-gen.sh reads them out of hyprland.lua
-// (assets/keys.json, the manual's keys page as data). `hyprctl binds -j` knows a Lua bind only as
-// a handle, so the source is the record. Grouped into columns of `MOD+KEY  what`; type to filter,
+// (assets/keys.json, the manual's keys page as data, each bind already in words). `hyprctl binds
+// -j` knows a Lua bind only as a handle, so the source is the record. Columns of `MOD+KEY  what`; type to filter,
 // Esc closes. Super+? or `astal-shell toggle cheatsheet`.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
@@ -15,19 +15,7 @@ import { clickawayField } from "./Clickaway"
 type Key = { group: string; keys: string; does: string }
 type Group = { title: string; rows: Key[] }
 
-/** The shell's own verbs, in words. */
-const SHELL_WORDS: Record<string, string> = {
-  "toggle launcher": "launcher", "toggle clipboard": "clipboard", "toggle cheatsheet": "this sheet",
-  "toggle drawer": "calendar", "toggle hub": "notifications", "toggle deck": "deck: log · media · agents · timer", "toggle dashboard": "dashboard", "toggle settings": "settings",
-  "toggle weather": "weather", "show drawer agents": "agents", "show drawer calendar": "calendar",
-  "backdrop": "backdrop: next mode", "theme": "light / dark", "crt": "crt scanlines", "glass": "glass",
-  "sidecar toggle": "pin as sidecar", "colresize narrower": "column narrower", "colresize wider": "column wider",
-  "quake": "drop-down terminal", "decision": "answer the decision",
-}
-const words = (does: string) => {
-  const m = does.match(/^(?:astal-shell|shell\/shell-req\.sh)\s+(.*)$/)
-  return m ? SHELL_WORDS[m[1].trim()] ?? `shell: ${m[1]}` : does
-}
+
 const keyName = (k: string) => k.replace(/SUPER/g, "Super").replace(/SHIFT/g, "Shift").replace(/CTRL/g, "Ctrl").replace(/ALT/g, "Alt").replace(/XF86Audio/, "").replace(/XF86MonBrightness/, "Brightness")
 
 let win: Astal.Window | null = null
@@ -40,7 +28,7 @@ const src = () => (typeof SRC === "string" ? SRC : ".")
 async function load() {
   try {
     const keys: Key[] = JSON.parse(await readFileAsync(`${src()}/assets/keys.json`))
-    setAll(keys.map((k) => ({ group: k.group, keys: keyName(k.keys), does: words(k.does) })))
+    setAll(keys.map((k) => ({ group: k.group, keys: keyName(k.keys), does: k.does })))
   } catch (e) {
     setAll([{ group: "keys", keys: "!", does: String(e).slice(0, 80) }])
   }

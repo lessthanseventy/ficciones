@@ -327,7 +327,7 @@ hl.window_rule({ name = "quake-term", match = { class = "^(com\\.ghostty\\.quake
 -- Bitwarden popups
 hl.window_rule({
     name = "bitwarden-popup",
-    match = { title = ".*([Bb]itwarden).*" },
+    match = { title = "^(Bitwarden|Extension: \\(Bitwarden.*)$" },
     float = true,
     size = { 500, 700 },
     center = true,
@@ -436,7 +436,7 @@ local shell = hyprdir .. "/scripts"
 
 -- ----- App launchers -----
 bind(M .. " + Return", exec("ghostty"))
-bind(M .. " + SHIFT + Return", exec("ghostty --title=AgentDeck --class=com.ghostty.agent-deck -e agent-deck"))
+bind(M .. " + SHIFT + Return", exec("ghostty --title=AgentDeck --class=com.ghostty.agent-deck -e agent-deck")) -- agent deck
 bind(M .. " + E", exec("dolphin"))
 bind(M .. " + W", exec("floorp"))
 bind(M .. " + X", exec("kate"))
@@ -475,7 +475,7 @@ bind(M .. " + D", exec("astal-shell toggle dashboard"))
 bind(M .. " + comma", exec("astal-shell toggle settings"))
 
 -- Edit configs
-bind("CTRL + " .. M .. " + Slash", exec("xdg-open " .. hyprdir .. "/hyprland.lua"))
+bind("CTRL + " .. M .. " + Slash", exec("xdg-open " .. hyprdir .. "/hyprland.lua")) -- open this config
 
 -- ----- Focus (vim H/L = column, J/K = workspace; arrows = column/window) -----
 -- through the shell (scripts/shell-req.sh, ~15 ms): the sidecar is a floating window the
@@ -618,7 +618,7 @@ bind("CTRL + SHIFT + Print", exec(shell .. "/shell-req.sh capture stop"))
 
 -- ----- Color picker / OCR -----
 bind(M .. " + P", exec("hyprpicker -a"))
-bind(M .. " + SHIFT + X", exec([[bash -c 'f=$(mktemp --suffix=.png) && grim -g "$(slurp)" "$f" && tesseract "$f" - | wl-copy; rm -f "$f"']]))
+bind(M .. " + SHIFT + X", exec([[bash -c 'f=$(mktemp --suffix=.png) && grim -g "$(slurp)" "$f" && tesseract "$f" - | wl-copy; rm -f "$f"']])) -- read the text in a region to the clipboard
 
 -- ----- Audio (locked + repeating = the old bindle; locked = bindl) -----
 bind("XF86AudioRaiseVolume", exec("wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 2%+"), { locked = true, repeating = true })
@@ -627,7 +627,7 @@ bind("XF86AudioMute", exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { lock
 bind("XF86AudioMicMute", exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
 bind(M .. " + SHIFT + M", exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"))
 -- the stream URL on the clipboard (The Stream Detector's copy) into mpv — see scripts/mpv-stream
-bind("CTRL + " .. M .. " + M", exec("mpv-stream"))
+bind("CTRL + " .. M .. " + M", exec("mpv-stream")) -- play the stream on the clipboard
 bind("ALT + " .. M .. " + M", exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"))
 
 -- ----- Brightness -----
@@ -645,7 +645,7 @@ bind("XF86AudioPrev", exec("playerctl previous"), { locked = true })
 bind("CTRL + ALT + L", exec("loginctl lock-session"))
 -- through the unit: a bare `astal-shell &` races the unit's own restart for the dbus name, and
 -- whichever loses exits, so it took a second press
-bind("CTRL + " .. M .. " + R", exec("sh -c 'pkill -x gjs; systemctl --user reset-failed astal-shell; systemctl --user restart astal-shell'"))
+bind("CTRL + " .. M .. " + R", exec("sh -c 'pkill -x gjs; systemctl --user reset-failed astal-shell; systemctl --user restart astal-shell'")) -- restart the shell
 bind("CTRL + ALT + Delete", hl.dsp.exit())
 bind("CTRL + SHIFT + ALT + " .. M .. " + Delete", exec("systemctl poweroff"))
 bind("CTRL + " .. M .. " + SHIFT + P", hl.dsp.dpms({ action = "off" }))

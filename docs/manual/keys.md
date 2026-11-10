@@ -7,168 +7,183 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 
 | keys | does |
 |---|---|
-| `SUPER+Return` | `ghostty` |
-| `SUPER+SHIFT+Return` | `ghostty --title=AgentDeck --class=com.ghostty.agent-deck -e ` |
-| `SUPER+E` | `dolphin` |
-| `SUPER+W` | `floorp` |
-| `SUPER+X` | `kate` |
-| `CTRL+SUPER+V` | `pavucontrol` |
-| `CTRL+SHIFT+Escape` | `ghostty -e btop` |
-| `F12` | `shell/shell-req.sh quake` |
-| `SUPER+Space` | `astal-shell toggle launcher` |
-| `SUPER+I` | `astal-shell toggle drawer` |
-| `SUPER+SHIFT+I` | `astal-shell toggle drawer` |
-| `SUPER+N` | `astal-shell toggle hub` |
-| `SUPER+C` | `shell/shell-req.sh toggle deck` |
-| `SUPER+U` | `astal-shell show drawer agents` |
-| `SUPER+B` | `astal-shell show drawer calendar` |
-| `ALT+Space` | `astal-shell toggle launcher` |
-| `SUPER+V` | `astal-shell toggle clipboard` |
-| `SUPER+Slash` | `astal-shell toggle launcher` |
-| `SUPER+SHIFT+Slash` | `astal-shell toggle cheatsheet` |
+| `SUPER+Return` | terminal |
+| `SUPER+SHIFT+Return` | agent deck |
+| `SUPER+E` | files |
+| `SUPER+W` | browser |
+| `SUPER+X` | editor |
+| `CTRL+SUPER+V` | audio mixer |
+| `CTRL+SHIFT+Escape` | btop |
+| `CTRL+SUPER+Slash` | open this config |
+| `CTRL+SUPER+M` | play the stream on the clipboard |
+| `CTRL+ALT+L` | lock |
+| `CTRL+SHIFT+ALT+SUPER+Delete` | power off |
+
+## shell
+
+| keys | does |
+|---|---|
+| `F12` | drop-down terminal |
+| `SUPER+Space` | launcher |
+| `SUPER+I` | calendar drawer |
+| `SUPER+SHIFT+I` | calendar drawer |
+| `SUPER+N` | notifications |
+| `SUPER+C` | deck: log · media · agents · timer |
+| `SUPER+U` | agents |
+| `SUPER+B` | calendar |
+| `ALT+Space` | launcher |
+| `SUPER+V` | clipboard history |
+| `SUPER+Slash` | launcher |
+| `SUPER+SHIFT+Slash` | this sheet |
 | `SUPER+Y` | answer the decision banner by key |
-| `SUPER+SHIFT+C` | `astal-shell crt` |
-| `SUPER+SHIFT+Z` | `astal-shell backdrop` |
-| `SUPER+SHIFT+P` | `astal-shell theme` |
-| `SUPER+SHIFT+T` | `astal-shell glass` |
-| `SUPER+SHIFT+W` | `astal-shell toggle weather` |
-| `SUPER+D` | `astal-shell toggle dashboard` |
-| `SUPER+comma` | `astal-shell toggle settings` |
-| `CTRL+SUPER+Slash` | `xdg-open " .. hyprdir .. "/hyprland.lua` |
-| `SUPER+H` | `shell/shell-req.sh focus l` |
-| `SUPER+L` | `shell/shell-req.sh focus r` |
-| `SUPER+Left` | `shell/shell-req.sh focus l` |
-| `SUPER+Right` | `shell/shell-req.sh focus r` |
-| `CTRL+SUPER+SHIFT+O` | `shell/shell-req.sh display send` |
-| `CTRL+SUPER+P` | `shell/shell-req.sh sidecar toggle` |
-| `SUPER+Semicolon` | `shell/shell-req.sh colresize narrower` |
-| `SUPER+Apostrophe` | `shell/shell-req.sh colresize wider` |
-| `SUPER+Minus` | `shell/shell-req.sh colresize narrower` |
-| `SUPER+Equal` | `shell/shell-req.sh colresize wider` |
-| `SUPER+SHIFT+S` | `shell/shot-region.sh` |
-| `CTRL+SUPER+S` | `shell/shot-region.sh repeat` |
-| `SUPER+SHIFT+CTRL+S` | `shell/shell-req.sh capture shot monitor` |
-| `ALT+Print` | `shell/shell-req.sh capture shot window` |
-| `Print` | `shell/shell-req.sh capture shot monitor` |
-| `CTRL+Print` | `shell/shell-req.sh capture shot region` |
-| `SHIFT+Print` | `shell/shell-req.sh capture rec monitor` |
-| `CTRL+SHIFT+Print` | `shell/shell-req.sh capture stop` |
-| `SUPER+P` | `hyprpicker -a` |
-| `SUPER+SHIFT+X` | `[[bash -c 'f=$(mktemp --suffix=.png) && grim -g "$(slurp)" "` |
-| `XF86AudioRaiseVolume` | `exec("wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 2%+"), { ` |
-| `XF86AudioLowerVolume` | `exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"), { locked ` |
-| `XF86AudioMute` | `exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked` |
-| `XF86AudioMicMute` | `exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { lock` |
-| `SUPER+SHIFT+M` | `wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle` |
-| `CTRL+SUPER+M` | `mpv-stream` |
-| `ALT+SUPER+M` | `wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle` |
-| `XF86MonBrightnessUp` | `exec("brightnessctl set 5%+"), { locked = true, repeating = ` |
-| `XF86MonBrightnessDown` | `exec("brightnessctl set 5%-"), { locked = true, repeating = ` |
-| `XF86AudioPlay` | `exec("playerctl play-pause"), { locked = true }` |
-| `XF86AudioPause` | `exec("playerctl play-pause"), { locked = true }` |
-| `XF86AudioNext` | `exec("playerctl next"), { locked = true }` |
-| `XF86AudioPrev` | `exec("playerctl previous"), { locked = true }` |
-| `CTRL+ALT+L` | `loginctl lock-session` |
-| `CTRL+SUPER+R` | `sh -c 'pkill -x gjs; systemctl --user reset-failed astal-she` |
-| `CTRL+SHIFT+ALT+SUPER+Delete` | `systemctl poweroff` |
+| `SUPER+SHIFT+C` | crt scanlines |
+| `SUPER+SHIFT+Z` | backdrop: next mode |
+| `SUPER+SHIFT+P` | light / dark |
+| `SUPER+SHIFT+T` | glass |
+| `SUPER+SHIFT+W` | weather |
+| `SUPER+D` | dashboard |
+| `SUPER+comma` | settings |
+| `CTRL+SUPER+R` | restart the shell |
 
 ## focus
 
 | keys | does |
 |---|---|
-| `CTRL+SUPER+H` | `hl.dsp.focus({ monitor = "l" })` |
-| `CTRL+SUPER+L` | `hl.dsp.focus({ monitor = "r" })` |
-| `ALT+Tab` | `hl.dsp.focus({ last = true })` |
+| `SUPER+H` | focus left |
+| `SUPER+L` | focus right |
+| `SUPER+Left` | focus left |
+| `SUPER+Right` | focus right |
+| `CTRL+SUPER+H` | focus the left monitor |
+| `CTRL+SUPER+L` | focus the right monitor |
+| `ALT+Tab` | the window you came from |
 
 ## move & size
 
 | keys | does |
 |---|---|
-| `SUPER+SHIFT+H` | `move("l")` |
-| `SUPER+SHIFT+L` | `move("r")` |
-| `SUPER+SHIFT+Left` | `move("l")` |
-| `SUPER+SHIFT+Right` | `move("r")` |
-| `SUPER+SHIFT+Up` | `move("u")` |
-| `SUPER+SHIFT+Down` | `move("d")` |
-| `CTRL+SUPER+SHIFT+H` | `move_mon("l")` |
-| `CTRL+SUPER+SHIFT+L` | `move_mon("r")` |
-| `SUPER+SHIFT+Semicolon` | `resize(0, -100)` |
-| `SUPER+SHIFT+Apostrophe` | `resize(0, 100)` |
-| `SUPER+SHIFT+Minus` | `resize(0, -100)` |
-| `SUPER+SHIFT+Equal` | `resize(0, 100)` |
-| `SUPER+R` | `layout("colresize +conf")` |
-| `SUPER+SHIFT+R` | `layout("colresize -conf")` |
+| `SUPER+SHIFT+H` | move window left |
+| `SUPER+SHIFT+L` | move window right |
+| `SUPER+SHIFT+Left` | move window left |
+| `SUPER+SHIFT+Right` | move window right |
+| `SUPER+SHIFT+Up` | move window up |
+| `SUPER+SHIFT+Down` | move window down |
+| `CTRL+SUPER+SHIFT+H` | column to the left monitor |
+| `CTRL+SUPER+SHIFT+L` | column to the right monitor |
+| `CTRL+SUPER+SHIFT+O` | window to the other screen |
+| `CTRL+SUPER+P` | pin as sidecar |
+| `SUPER+Semicolon` | column narrower |
+| `SUPER+Apostrophe` | column wider |
+| `SUPER+Minus` | column narrower |
+| `SUPER+Equal` | column wider |
+| `SUPER+SHIFT+Semicolon` | window shorter |
+| `SUPER+SHIFT+Apostrophe` | window taller |
+| `SUPER+SHIFT+Minus` | window shorter |
+| `SUPER+SHIFT+Equal` | window taller |
+| `SUPER+R` | column: next preset width |
+| `SUPER+SHIFT+R` | column: previous preset width |
 
 ## layout
 
 | keys | does |
 |---|---|
-| `SUPER+Up` | `layout("focus u")` |
-| `SUPER+Down` | `layout("focus d")` |
-| `SUPER+bracketleft` | `layout("move -col")` |
-| `SUPER+bracketright` | `layout("move +col")` |
-| `CTRL+SUPER+J` | `layout("focus d")` |
-| `CTRL+SUPER+K` | `layout("focus u")` |
-| `ALT+SUPER+H` | `layout("swapcol l")` |
-| `ALT+SUPER+L` | `layout("swapcol r")` |
-| `SUPER+F` | `layout("fit active")` |
-| `CTRL+SUPER+C` | `layout("center")` |
-| `SUPER+SHIFT+comma` | `layout("consume_or_expel prev")` |
-| `SUPER+SHIFT+period` | `layout("consume_or_expel next")` |
-| `CTRL+SUPER+comma` | `layout("consume")` |
-| `CTRL+SUPER+period` | `layout("promote")` |
-| `SUPER+A` | `layout("fit expand")` |
-| `SUPER+SHIFT+A` | `layout("fit all")` |
-| `SUPER+T` | `layout("fit visible")` |
-| `SUPER+G` | `layout("fit_into_view")` |
+| `SUPER+Up` | focus up in the column |
+| `SUPER+Down` | focus down in the column |
+| `SUPER+bracketleft` | scroll one column left |
+| `SUPER+bracketright` | scroll one column right |
+| `CTRL+SUPER+J` | focus down in the column |
+| `CTRL+SUPER+K` | focus up in the column |
+| `ALT+SUPER+H` | swap column left |
+| `ALT+SUPER+L` | swap column right |
+| `SUPER+F` | fit the active column |
+| `CTRL+SUPER+C` | centre the column |
+| `SUPER+SHIFT+comma` | stack / unstack toward the left |
+| `SUPER+SHIFT+period` | stack / unstack toward the right |
+| `CTRL+SUPER+comma` | pull the next window into the column |
+| `CTRL+SUPER+period` | window into its own column |
+| `SUPER+A` | fit: expand |
+| `SUPER+SHIFT+A` | fit all columns |
+| `SUPER+T` | fit the visible columns |
+| `SUPER+G` | bring the column into view |
 
 ## workspaces
 
 | keys | does |
 |---|---|
-| `SUPER+J` | `ws("r+1")` |
-| `SUPER+K` | `ws("r-1")` |
-| `SUPER+SHIFT+J` | `to_ws("r+1")` |
-| `SUPER+SHIFT+K` | `to_ws("r-1")` |
-| `CTRL+SUPER+SHIFT+J` | `follow_ws("r+1")` |
-| `CTRL+SUPER+SHIFT+K` | `follow_ws("r-1")` |
-| `SUPER+key` | `ws(i)` |
-| `SUPER+SHIFT+key` | `to_ws(i)` |
-| `CTRL+SUPER+SHIFT+key` | `follow_ws(i)` |
-| `SUPER+Page_Up` | `ws("r-1")` |
-| `SUPER+Page_Down` | `ws("r+1")` |
-| `SUPER+SHIFT+Page_Up` | `to_ws("r-1")` |
-| `SUPER+SHIFT+Page_Down` | `to_ws("r+1")` |
-| `SUPER+mouse_down` | `ws("r+1")` |
-| `SUPER+mouse_up` | `ws("r-1")` |
-| `SUPER+SHIFT+mouse_down` | `to_ws("r+1")` |
-| `SUPER+SHIFT+mouse_up` | `to_ws("r-1")` |
-| `SUPER+Tab` | `ws("previous")` |
+| `SUPER+J` | next workspace |
+| `SUPER+K` | previous workspace |
+| `SUPER+SHIFT+J` | window to next workspace |
+| `SUPER+SHIFT+K` | window to previous workspace |
+| `CTRL+SUPER+SHIFT+J` | follow the window to next workspace |
+| `CTRL+SUPER+SHIFT+K` | follow the window to previous workspace |
+| `SUPER+key` | workspace 1–10 |
+| `SUPER+SHIFT+key` | window to workspace 1–10 |
+| `CTRL+SUPER+SHIFT+key` | follow the window to workspace 1–10 |
+| `SUPER+Page_Up` | previous workspace |
+| `SUPER+Page_Down` | next workspace |
+| `SUPER+SHIFT+Page_Up` | window to previous workspace |
+| `SUPER+SHIFT+Page_Down` | window to next workspace |
+| `SUPER+mouse_down` | next workspace |
+| `SUPER+mouse_up` | previous workspace |
+| `SUPER+SHIFT+mouse_down` | window to next workspace |
+| `SUPER+SHIFT+mouse_up` | window to previous workspace |
+| `SUPER+Tab` | the workspace you came from |
 
 ## window
 
 | keys | does |
 |---|---|
-| `SUPER+Q` | `hl.dsp.window.close()` |
-| `ALT+F4` | `hl.dsp.window.close()` |
-| `CTRL+SUPER+SHIFT+Q` | `hl.dsp.window.kill()` |
-| `ALT+SUPER+F` | `hl.dsp.window.fullscreen_state({ internal = 0, client = 3 })` |
-| `ALT+SUPER+Space` | `hl.dsp.window.float()` |
-| `SUPER+SHIFT+V` | `hl.dsp.window.float()` |
-| `SUPER+SHIFT+F` | `hl.dsp.window.fullscreen({ mode = "fullscreen" })` |
+| `SUPER+Q` | close |
+| `ALT+F4` | close |
+| `CTRL+SUPER+SHIFT+Q` | kill |
+| `ALT+SUPER+F` | tell the app it is fullscreen, keep it tiled |
+| `ALT+SUPER+Space` | float / tile |
+| `SUPER+SHIFT+V` | float / tile |
+| `SUPER+SHIFT+F` | fullscreen |
+
+## capture
+
+| keys | does |
+|---|---|
+| `SUPER+SHIFT+S` | screenshot: region |
+| `CTRL+SUPER+S` | screenshot: the same region again |
+| `SUPER+SHIFT+CTRL+S` | screenshot: monitor |
+| `ALT+Print` | screenshot: window |
+| `Print` | screenshot: monitor |
+| `CTRL+Print` | screenshot: region |
+| `SHIFT+Print` | record the monitor |
+| `CTRL+SHIFT+Print` | stop recording |
+| `SUPER+P` | colour picker |
+| `SUPER+SHIFT+X` | read the text in a region to the clipboard |
+
+## media
+
+| keys | does |
+|---|---|
+| `XF86AudioRaiseVolume` | volume up |
+| `XF86AudioLowerVolume` | volume down |
+| `XF86AudioMute` | mute |
+| `XF86AudioMicMute` | mute the microphone |
+| `SUPER+SHIFT+M` | mute |
+| `ALT+SUPER+M` | mute the microphone |
+| `XF86MonBrightnessUp` | brightness up |
+| `XF86MonBrightnessDown` | brightness down |
+| `XF86AudioPlay` | play / pause |
+| `XF86AudioPause` | play / pause |
+| `XF86AudioNext` | next track |
+| `XF86AudioPrev` | previous track |
 
 ## mouse
 
 | keys | does |
 |---|---|
-| `SUPER+mouse:272` | `hl.dsp.window.drag()` |
-| `SUPER+mouse:273` | `hl.dsp.window.resize()` |
+| `SUPER+mouse:272` | drag the window |
+| `SUPER+mouse:273` | resize the window |
 
 ## other
 
 | keys | does |
 |---|---|
-| `SUPER+O` | `function() hl.plugin.hyprexpo.expo("toggle") end` |
-| `CTRL+ALT+Delete` | `hl.dsp.exit()` |
-| `CTRL+SUPER+SHIFT+P` | `hl.dsp.dpms({ action = "off" })` |
+| `SUPER+O` | overview |
+| `CTRL+ALT+Delete` | leave Hyprland |
+| `CTRL+SUPER+SHIFT+P` | screens off |
 
