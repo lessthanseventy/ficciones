@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
+import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, menardSaid, parseDiff, parseLog, parseShow, patchCounts, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Commit, DiffLine, File, Run } from './changes'
 import type { Input, List, Section } from './view'
 
@@ -378,6 +378,26 @@ export const register: Register = on => {
         {'  ⎿  '}
         <Text color="success">+{adds}</Text> <Text color="error">-{dels}</Text>
       </Text>
+    )
+  })
+
+  // A folded run of calls says only how many there were; menard's are named by what each did.
+  on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
+    if (!canDraw || e.props.isExpanded) return next(e)
+    const said = e.props.calls.map(menardSaid).filter((line): line is string => line !== null)
+    if (said.length === 0) return next(e)
+    const { Box, Text } = $.ui.resolve(e)
+    const isAllSaid = said.length === e.props.calls.length && e.props.isCallsOnly === true
+    return (
+      <Box flexDirection="column">
+        {isAllSaid ? null : await next(e)}
+        {said.map(line => (
+          <Text dimColor wrap="truncate-end">
+            {isAllSaid ? '  ' : '  ⎿  '}
+            <Text color="remember">menard</Text> {line}
+          </Text>
+        ))}
+      </Box>
     )
   })
 
