@@ -21,6 +21,15 @@ PINK=$(rgb "${PALETTE_PINK:-E0218A}")
 RESET=$'\033[0m'
 
 input=$(cat)
+# in a linked worktree the folder shown is the main checkout's: which worktree it is belongs to
+# the changes pane
+dir=$(printf '%s' "$input" | jq -r '.workspace.current_dir // empty' 2>/dev/null)
+if [ -n "$dir" ] && top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null); then
+	common=$(git -C "$dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+	if [ "${common##*/}" = .git ] && [ "$common" != "$top/.git" ]; then
+		input=$(printf '%s' "$input" | jq -c --arg d "${common%/.git}${dir#"$top"}" '.workspace.current_dir = $d | .cwd = $d')
+	fi
+fi
 raw=$(printf '%s' "$input" | "$CPL" 2>/dev/null |
 	sed -e 's/◔/󰧑  ctx/g' -e 's/◱/⏱  5h/g' -e 's/◑/▦  wk/g')
 mapfile -t L <<<"$raw"
