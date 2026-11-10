@@ -434,7 +434,7 @@ rec {
       };
     in
     ''{"theme":"custom","display":{"style":"minimal","charset":"unicode","autoWrap":false,"lines":[''
-    + ''{"segments":{"directory":{"enabled":true,"style":"fish"},"git":{"enabled":true},"model":{"enabled":true}}},''
+    + ''{"segments":{"directory":{"enabled":true,"style":"fish"},"model":{"enabled":true}}},''
     + ''{"segments":{"context":{"enabled":true,"percentageMode":"used"},"block":{"enabled":true},"weekly":{"enabled":true}}}''
     + '']},"colors":{"custom":${colors}}}'';
 
