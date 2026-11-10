@@ -557,9 +557,12 @@
               # processes, so each coworker scope in app.slice was a full peer of the video player.
               # tlon.service, its coworkers' tmux scopes and its redeploys all run here (tlon passes
               # --slice=tlon.slice); the quota keeps 6 of 20 threads (and the fans) free regardless.
+              # keep-old on both: restarting a slice stops every scope in it, so a changed weight
+              # would end each coworker pane and Claude session at home:switch.
               systemd.user.slices = {
                 tlon = {
                   Unit.Description = "tlon — the office's coworkers, server and rebuilds";
+                  Unit.X-SwitchMethod = "keep-old";
                   Slice = {
                     CPUWeight = 20;
                     IOWeight = 20;
@@ -573,6 +576,7 @@
                 # inside this cgroup, and a low share made it wait behind every suite in the slice.
                 agents = {
                   Unit.Description = "agents — Claude sessions started from a terminal";
+                  Unit.X-SwitchMethod = "keep-old";
                   Slice = {
                     CPUWeight = 100;
                     IOWeight = 100;
