@@ -29,13 +29,12 @@ const runVerb = (name: string) =>
 
 let win: Astal.Window | null = null
 let entry: Gtk.Entry | null = null
-let modeOverride: Mode | null = null
+const [modeOverride, setModeOverride] = createState<Mode | null>(null)
 
 const [query, setQuery] = createState("")
 const [items, setItems] = createState<Item[]>([])
 const [sel, setSel] = createState(0)
-const mode = query((q): Mode =>
-  modeOverride ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : q.startsWith(">") ? "verbs" : "apps"))
+const mode = createComputed((): Mode => { const o = modeOverride(), q = query(); return o ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : q.startsWith(">") ? "verbs" : "apps") })
 
 /** A remembered thing as an item again: apps relaunch, shell lines rerun, files reopen, sums recopy. */
 function recall(m: Memory): Item | null {
@@ -123,7 +122,7 @@ async function search(q: string) {
         .slice(0, 14)
         .map((e) => ({
           glyph: "\u{f0cea}", title: e.text.replace(/\s+/g, " ").slice(0, 70), key: e.id,
-          run: () => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${e.id}\\t' | cliphist decode | wl-copy`]).then(() => void 0),
+          run: () => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${e.id}\t' | cliphist decode | wl-copy`]).then(() => void 0),
         }))
     }
   } catch (e) {
@@ -145,7 +144,7 @@ function hide() { if (win) win.visible = false }
 
 export function showLauncher(m: Mode | null = null) {
   if (!win) return
-  modeOverride = m
+  setModeOverride(m)
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = app.get_monitors().find((x) => x.connector === name)
   if (mon) win.gdkmonitor = mon
