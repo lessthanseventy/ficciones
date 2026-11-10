@@ -26,6 +26,7 @@ export type ViewProps = {
   files: Section
   commits: Section
   hint: string
+  hasKeys: boolean
   acked: number
 }
 type Queue = { inputs: Input[]; n: number; acked: number; props: ViewProps }
@@ -52,7 +53,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
     surface.onPointer(({ type, y }) => {
       if (type !== 'down') return
       const { diffRows, pad, files, commits } = queue.props
-      // the ruled title, the diff, the padding and the files head sit above the files; padding and the commits head follow them
+      // the frame, the ruled title, the diff, the padding and the files head sit above the files; padding and the commits head follow them
       const inFiles = y - (diffRows + 4 + pad)
       const inCommits = inFiles - shown(files) - 1 - pad
       if (inFiles >= 0 && inFiles < files.rows.length) send({ list: 'files', row: files.first + inFiles })
@@ -80,8 +81,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
   )
 
   return (
-    <Box flexDirection="column">
-      <Text dimColor wrap="truncate-end">{props.rule}</Text>
+    <Box flexDirection="column" borderStyle={props.hasKeys ? 'bold' : 'single'} borderColor={props.hasKeys ? 'claude' : undefined} borderDimColor={!props.hasKeys}>
       <Box justifyContent="space-between">
         <Box flexShrink={1}>
           <Text bold color="claude" wrap="truncate-end">{props.title}</Text>
@@ -106,7 +106,14 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
       </Box>
       {list(props.files)}
       {list(props.commits)}
-      <Text dimColor wrap="truncate-end">{props.hint}</Text>
+      {props.hasKeys ? (
+        <Text wrap="truncate-end">
+          <Text inverse bold color="claude"> CHANGES </Text>
+          <Text color="claude"> {props.hint}</Text>
+        </Text>
+      ) : (
+        <Text dimColor wrap="truncate-end">{props.hint}</Text>
+      )}
     </Box>
   )
 }

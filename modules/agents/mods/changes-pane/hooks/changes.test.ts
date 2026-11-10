@@ -212,6 +212,16 @@ test('a commit opens on its message, and its files take the files list', async (
   expect(await ui.find({ text: /○ held/, in: 'changes' })).toBeDefined()
 })
 
+test('the hint says who has the keyboard', async ($, on) => {
+  mock.clock(on)
+  repo(on, 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\n', ' M a.ts\0')
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /keys go to the prompt/, in: 'changes' })).toBeDefined()
+  await ui.key({ key: 'j' })
+  expect(await ui.find({ text: /CHANGES/, in: 'changes' })).toBeDefined()
+})
+
 test('an edit is counted from its own result', async () => {
   expect(patchCounts({ structuredPatch: [{ lines: [' a', '-b', '+c', '+d'] }, { lines: ['-e'] }] })).toEqual({ adds: 2, dels: 2 })
   expect(patchCounts({ type: 'create', structuredPatch: [], content: 'a\nb\n' })).toEqual({ adds: 2, dels: 0 })
@@ -226,7 +236,7 @@ test('the wheel over a list walks its selection', async ($, on) => {
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   expect(await ui.find({ text: /^f1\.ts/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeUndefined()
-  // 30 rows: the ruled title, 14 of diff, a blank, the files' head, then seven files from row 19
+  // 30 rows: the frame, the ruled title, 13 of diff, a blank, the files' head, then seven files from row 18
   await $.ui.scroll({ component: 'Pane', requestId: 'changes', offset: 8, by: 8, bodyRows: 30, contentRows: 30, origin: { kind: 'person' }, pointer: { column: 3, row: 22 } } as never)
   expect(await ui.find({ text: /^f2\.ts$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
@@ -288,6 +298,7 @@ test('the hint names the way back to the prompt', async ($, on) => {
   repo(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await ui.key({ key: 'j' })
   expect(await ui.find({ text: /Esc to prompt/, in: 'changes' })).toBeDefined()
 })
 

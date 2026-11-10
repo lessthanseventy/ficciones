@@ -17,6 +17,7 @@ const MAX_KEPT_COMMITS = 50
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
 const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · f follow/hold · L lazygit'
+const HINT_AWAY = 'keys go to the prompt · click here to browse'
 // Their result is the diff this pane already shows, so the transcript gets its counts; ctrl+o still has it.
 const SHOWN_HERE = new Set(['Edit', 'Write'])
 const OPEN = { id: PANE, title: 'Changes' }
@@ -67,6 +68,9 @@ export const register: Register = on => {
   // burst is one step.
   const NOTCH_MS = 40
   let wheeled = { at: 0, by: 0 }
+  // Whether the view has the keyboard. The engine says nothing when a click gives it or Escape
+  // takes it back, so it is read from where input lands: here, or in the prompt box.
+  let hasKeys = false
   let isRefreshing = false
   let isStale = false
   let refresh: () => Promise<void> = async () => {}
@@ -77,10 +81,10 @@ export const register: Register = on => {
   const commitIndex = () => (source === '' ? 0 : 1 + Math.max(0, commits.findIndex(c => c.sha === source)))
   const fileRows = () => clamp(paths().length, 1, Math.min(MAX_FILE_ROWS, Math.floor(size.rows / 4)))
   const commitRows = () => clamp(commits.length + 1, 1, Math.min(MAX_COMMIT_ROWS, Math.floor(size.rows / 5)))
-  // The title between its two rules, the two section heads and the hint take one row each.
+  // The frame's two rows, the title and its rule, the two section heads and the hint.
   // a blank row above each list, where the pane is tall enough to spare two
   const pad = () => (size.rows >= 24 ? 1 : 0)
-  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 6 - 2 * pad())
+  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 7 - 2 * pad())
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
   const reveal = () => {
     filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
@@ -145,7 +149,7 @@ export const register: Register = on => {
     const filesSection: Section = {
       head: filesHead,
       rule: rule(filesHead.length),
-      isFocused: focus === 'files',
+      isFocused: hasKeys && focus === 'files',
       first: firstFile,
       empty: source === '' ? 'nothing uncommitted' : 'no files',
       rows: all.slice(firstFile, firstFile + fileRows()).map(path =>
@@ -154,7 +158,7 @@ export const register: Register = on => {
     const commitsSection: Section = {
       head: commitsHead,
       rule: rule(commitsHead.length),
-      isFocused: focus === 'commits',
+      isFocused: hasKeys && focus === 'commits',
       first: firstCommit,
       empty: '',
       rows: log.slice(firstCommit, firstCommit + commitRows()).map(({ id, lead, label }) => row(lead, label, undefined, id === source, false)),
@@ -172,7 +176,8 @@ export const register: Register = on => {
       note: note || (file !== '' && diff?.lines.length === 0 ? emptyDiffNote(diff.text) : ''),
       files: filesSection,
       commits: commitsSection,
-      hint: HINT,
+      hint: hasKeys ? HINT : HINT_AWAY,
+      hasKeys,
       acked,
     }
   }
@@ -318,6 +323,22 @@ export const register: Register = on => {
   })
 
 
+  on('prompt.edit', async ($, e, next) => {
+    if (hasKeys) {
+      hasKeys = false
+      $.ui.invalidate('ui.render')
+    }
+    return next(e)
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    if (hasKeys) {
+      hasKeys = false
+      $.ui.invalidate('ui.render')
+    }
+    return next(e)
+  })
+
   on('ui.close', { id: PANE }, async (_, e, next) => {
     const closed = await next(e)
     isOpen = false
@@ -328,8 +349,10 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
     const { Client } = $.ui.resolve(e)
-    const isResized = e.props.bodyColumns !== size.columns
-    size = { columns: e.props.bodyColumns, rows: e.props.scroll.bodyRows }
+    // the view's frame takes a column each side
+    const columns = Math.max(1, e.props.bodyColumns - 2)
+    const isResized = columns !== size.columns
+    size = { columns, rows: e.props.scroll.bodyRows }
 
     if (!isOpen || isResized) {
       isOpen = true
@@ -377,6 +400,7 @@ export const register: Register = on => {
     const fresh = inputs.filter(i => i.n > acked)
     if (fresh.length === 0) return {}
     acked = fresh[fresh.length - 1]!.n
+    hasKeys = true
 
 
 
