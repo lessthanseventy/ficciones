@@ -5,7 +5,7 @@ import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { interval, type Timer as T } from "ags/time"
 import { logEvent } from "./log"
-import { duration } from "./format"
+import { duration, hhmm } from "./format"
 import { play } from "./sfx"
 
 export type Kind = "countdown" | "alarm" | "pomodoro"
@@ -59,7 +59,7 @@ export function parseSpec(q: string): { title: string; start: () => void } | nul
   const d = parseDuration(s)
   if (d) return { title: `timer ${duration(d)}`, start: () => startCountdown(d, s) }
   const at = parseClock(s)
-  if (at) return { title: `alarm at ${new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, start: () => startAlarm(at) }
+  if (at) return { title: `alarm at ${hhmm(at)}`, start: () => startAlarm(at) }
   return null
 }
 
@@ -101,7 +101,7 @@ export function startCountdown(seconds: number, label = duration(seconds)) {
   run({ kind: "countdown", label, endsAt: Date.now() + seconds * 1000 })
 }
 export function startAlarm(at: number) {
-  const label = new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  const label = hhmm(at)
   logEvent("shell", `alarm at ${label}`)
   run({ kind: "alarm", label, endsAt: at })
 }

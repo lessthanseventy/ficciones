@@ -74,6 +74,8 @@ export function CalendarCard() {
       <box cssClasses={["cal-head"]} homogeneous hexpand>
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => <label label={d} hexpand />)}
       </box>
+      {/* in its own box: a With appends to whatever holds it, and the days landed under the agenda */}
+      <box orientation={Gtk.Orientation.VERTICAL}>
       <With value={shown}>
         {(v) => {
           const t = GLib.DateTime.new_now_local()
@@ -95,6 +97,7 @@ export function CalendarCard() {
           )
         }}
       </With>
+      </box>
       <RuleH />
       <Agenda />
     </box>

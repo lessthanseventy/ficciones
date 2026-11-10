@@ -26,6 +26,8 @@ button {
   transition: background 80ms ease-out;
   &:hover  { background: $hover; }
   &:active { background: $pressed; }
+  // where the keyboard is: Tab and Space work on every button, and nothing showed which
+  &:focus-visible { outline: 2px solid $accent-field; outline-offset: -2px; }
 }
 
 // ── panes ──────────────────────────────────────────────────────────────────

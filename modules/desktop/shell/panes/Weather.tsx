@@ -5,15 +5,13 @@ import { weather, glyph, describe, type Day } from "../lib/weather"
 import { RuleH } from "../lib/tui"
 import Cairo from "cairo"
 import { PALETTE } from "../lib/palette"
+import { hhmm } from "../lib/format"
 import { theme } from "../lib/theme"
 import { interval } from "ags/time"
 
-const hh = (ms: number) => {
-  const h = new Date(ms).getHours()
-  return `${h % 12 || 12}${h < 12 ? "a" : "p"}`
-}
+const hh = (ms: number) => String(new Date(ms).getHours()).padStart(2, "0")
 const dow = (ms: number, i: number) => (i === 0 ? "today" : new Date(ms).toLocaleDateString([], { weekday: "short" }).toLowerCase())
-const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).toLowerCase().replace(" ", "")
+const clock = (iso: string) => hhmm(iso)
 
 function Now() {
   const big = weather((w) => (w.ok ? `${Math.round(w.temp!)}°` : "—"))
@@ -81,7 +79,7 @@ function Chart() {
     const span = Math.max(4, hi - lo)
     const y = (t: number) => top + tempH - ((t - lo) / span) * tempH
     cr.selectFontFace("ComicShannsMono Nerd Font", Cairo.FontSlant.NORMAL, Cairo.FontWeight.NORMAL)
-    cr.setFontSize(11)
+    cr.setFontSize(13)
     // the axis: a recessive baseline and the hour labels every 3 h
     set(PALETTE.dim); cr.setLineWidth(1)
     cr.moveTo(left, top + tempH + 0.5); cr.lineTo(w - right, top + tempH + 0.5); cr.stroke()
@@ -117,7 +115,7 @@ function Chart() {
       cr.moveTo(Math.min(Math.max(left, x(i) - tw / 2), w - right - tw), above ? y(v) - 7 : y(v) + 14); cr.showText(s)
     }
     // the scale: high and low on the left
-    set(PALETTE.dim); cr.setFontSize(10)
+    set(PALETTE.dim); cr.setFontSize(12)
     cr.moveTo(2, top + 4); cr.showText(`${Math.round(hi)}°`); cr.moveTo(2, top + tempH); cr.showText(`${Math.round(lo)}°`)
   }
   // the palette is swapped in place on a theme change, and the "now" upright moves with the clock
@@ -147,7 +145,7 @@ function Days({ wide = false }: { wide?: boolean } = {}) {
       const [a, b] = seg(d[i], range.peek())
       return which === 0 ? "─".repeat(a) : which === 1 ? "━".repeat(b - a) : "─".repeat(W - b)
     })
-  const HOURS = ["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"]
+  const HOURS = ["00", "03", "06", "09", "12", "15", "18", "21"]
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
       {/* the wide rows' header: a label over every column, the hour under each sky cell. The

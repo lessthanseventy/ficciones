@@ -10,7 +10,8 @@ import Hyprland from "gi://AstalHyprland"
 import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
 import GLib from "gi://GLib?version=2.0"
-import { createPoll } from "ags/time"
+import { createPoll, timeout } from "ags/time"
+import { createState, type Accessor } from "ags"
 import { Toggles } from "../panes/Toggles"
 import { toggleCheatsheet } from "./Cheatsheet"
 import { CalendarCard } from "../panes/Calendar"
@@ -41,7 +42,7 @@ export const toggleDashboard = () => (dashboardOpen() ? hideDashboard() : showDa
 const run = (cmd: string[]) => { hideDashboard(); execAsync(cmd).catch(console.error) }
 
 /** An action as a row: icon, then the word. The POWER and SHELL cards are lists of these. */
-function Action({ icon, label, cls = [], onClick, tile = false }: { icon: string; label: string; cls?: string[]; onClick: () => void; tile?: boolean }) {
+function Action({ icon, label, cls = [], onClick, tile = false }: { icon: string; label: string | Accessor<string>; cls?: string[]; onClick: () => void; tile?: boolean }) {
   // a tile: the icon over the word, the toggles' shape — for the rows that must stay narrow
   if (tile) return (
     <button cssClasses={["toggle", "tile", ...cls]} onClicked={onClick}>
@@ -62,16 +63,24 @@ function Action({ icon, label, cls = [], onClick, tile = false }: { icon: string
 }
 
 function Power() {
+  // the three that end the session ask twice: a second click within 2.5 s goes
+  const [armed, setArmed] = createState("")
+  const twice = (name: string, go: () => void) => () => {
+    if (armed.peek() === name) { setArmed(""); return go() }
+    setArmed(name)
+    timeout(2500, () => { if (armed.peek() === name) setArmed("") })
+  }
+  const word = (name: string) => armed((a) => (a === name ? "sure?" : name))
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["tiles"]}>
       <box spacing={4} homogeneous>
         <Action icon={"\u{f033e}"} label="lock" tile onClick={() => run(["loginctl", "lock-session"])} />
         <Action icon={"\u{f04b2}"} label="suspend" tile onClick={() => run(["systemctl", "suspend"])} />
-        <Action icon={"\u{f0343}"} label="logout" tile cls={["red"]} onClick={() => dispatch(L.exit())} />
+        <Action icon={"\u{f0343}"} label={word("logout")} tile cls={["red"]} onClick={twice("logout", () => void dispatch(L.exit()))} />
       </box>
       <box spacing={4} homogeneous>
-        <Action icon={"\u{f0709}"} label="reboot" tile cls={["red"]} onClick={() => run(["systemctl", "reboot"])} />
-        <Action icon={"\u{f0425}"} label="shutdown" tile cls={["red"]} onClick={() => run(["systemctl", "poweroff"])} />
+        <Action icon={"\u{f0709}"} label={word("reboot")} tile cls={["red"]} onClick={twice("reboot", () => run(["systemctl", "reboot"]))} />
+        <Action icon={"\u{f0425}"} label={word("shutdown")} tile cls={["red"]} onClick={twice("shutdown", () => run(["systemctl", "poweroff"]))} />
         <box />
       </box>
     </box>
