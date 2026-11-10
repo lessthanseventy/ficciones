@@ -68,6 +68,65 @@ export const menardSaid = ({ tool, input, output }: Call): string | null => {
 }
 
 // One tool call as a line a model can summarise a turn from: what ran, on what, and how it went.
+// Words that start a step no reader asks after, and wrappers whose own name hides what they run.
+const QUIET = new Set(['cd', 'sleep', 'echo', 'printf', 'export', 'set', 'true', 'do', 'done', 'then', 'else', 'fi', 'for', 'while', 'if', 'local', 'rm', 'mkdir'])
+const WRAPPER = /^(?:mise run cap|mise exec|systemd-run|timeout|env|command|sudo)\b.*?\s--\s+/
+const HAS_VERB = new Set(['git', 'mise', 'menard', 'gh', 'nix', 'npm', 'cargo', 'mix', 'claude', 'tmux', 'systemctl', 'docker', 'make'])
+
+// What a shell command runs, a name for each step: `menard edit · git commit · mise run check`.
+// Heredoc bodies, quoted text and what a pipe feeds are not steps.
+export const steps = (command: string): string[] => {
+  const lines: string[] = []
+  let until = ''
+  for (const line of command.split('\n')) {
+    if (until) {
+      if (line.trim() === until) until = ''
+      continue
+    }
+    until = /<<-?\s*['"]?(\w+)['"]?/.exec(line)?.[1] ?? ''
+    lines.push(line)
+  }
+  const parts: string[] = []
+  let part = ''
+  let quote = ''
+  let depth = 0
+  const text = lines.join('\n')
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!
+    if (quote) {
+      if (c === quote) quote = ''
+    } else if (c === "'" || c === '"') quote = c
+    else if (c === '(' || c === '{') depth += 1
+    else if (c === ')' || c === '}') depth -= 1
+    else if (depth <= 0 && (c === ';' || c === '\n' || ((c === '&' || c === '|') && text[i + 1] === c))) {
+      parts.push(part)
+      part = ''
+      if (c === '&' || c === '|') i += 1
+      continue
+    }
+    part += c
+  }
+  parts.push(part)
+  const own = new Set<string>()
+  const names = parts.flatMap(raw => {
+    // a wrapper may wrap a wrapper (systemd-run … -- mise run cap -- …)
+    const bare = raw.split(/\s\|\s/)[0]!.trim().replace(WRAPPER, '').replace(WRAPPER, '')
+    const words = bare.replace(/^(?:\w+=\S*(?:\s+|$))+/, '').split(/\s+/).filter(Boolean)
+    const program = words[0]?.split('/').pop() ?? ''
+    // a function the command defines for itself is its own plumbing, as are its calls
+    if (words[1] === '()' || program.endsWith('()')) {
+      own.add(program.replace(/\(\)$/, ''))
+      return []
+    }
+    if (!/^[\w.-]+$/.test(program) || QUIET.has(program) || own.has(program)) return []
+    const verbs = HAS_VERB.has(program) ? words.slice(1, program === 'mise' && words[1] === 'run' ? 3 : 2).filter(word => /^[a-z][\w:-]*$/.test(word)) : []
+    return [[program, ...verbs].join(' ')]
+  })
+  return names.filter((name, index) => name !== names[index - 1])
+}
+
+const MAX_STEPS = 6
+
 // a call's line fits one row of a transcript: what was run, then how it ended
 const MAX_MADE = 44
 const MAX_LAST = 28
@@ -89,7 +148,10 @@ export const turnLine = (call: Call, isError: boolean): string => {
   const stdout = call.tool === 'Bash' ? (call.output as { stdout?: unknown } | undefined)?.stdout : undefined
   const last = typeof stdout === 'string' ? stdout.trimEnd().split('\n').pop()!.trim().slice(0, MAX_LAST) : ''
   const edited = call.tool === 'Bash' ? shellEdits(call.output).map(({ name, adds, dels }) => ` · ${name} +${adds} -${dels}`).join('') : ''
-  return `${call.tool} ${nearby(first.split('\n')[0]!).slice(0, MAX_MADE)}${failed}${last ? ` → ${last}` : ''}${edited}`.trim()
+  // a command of several steps is named by them, one of a single step by its own text
+  const ran = call.tool === 'Bash' ? steps(first) : []
+  const made = ran.length > 1 ? `${ran.slice(0, MAX_STEPS).join(' · ')}${ran.length > MAX_STEPS ? ` · +${ran.length - MAX_STEPS}` : ''}` : nearby(first.split('\n')[0]!).slice(0, MAX_MADE)
+  return `${call.tool} ${made}${failed}${last ? ` → ${last}` : ''}${edited}`.trim()
 }
 
 const MAX_CALL_LINES = 30
