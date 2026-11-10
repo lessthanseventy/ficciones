@@ -107,9 +107,10 @@ All of this from the ISO shell as root. **Nothing before step 3.5 destroys anyth
   the same `/home`.
 - **Not carried over yet: the agent wiring.** tlon's service and slices, agenix and its secrets,
   `~/.claude/CLAUDE.md` and the skills, the Claude zsh, `.zshrc`, the git config, tmux and menard
-  live in the inline module of `homeConfigurations.personalbox` (flake.nix), which the NixOS
-  hosts do not import: they get `modules/desktop` only. Before leaving Arch, lift that module
-  into a file both import, then prove it in the VM.
+  live in `modules/agents` (a home-manager module `homeConfigurations.personalbox` imports),
+  which the NixOS hosts do not import yet: they get `modules/desktop` only. Before leaving
+  Arch, import it in `modules/os` with agenix's module and its arguments, give tlon's service
+  a Postgres and a `pg_isready` that are not Arch's `/usr/bin`, then prove it in the VM.
 - If it does not boot: reboot, hold the firmware key, pick the USB again, mount as in §3.1, and
   either
   - fix `modules/os/ivysaur.nix` and re-run §3.6 (nothing else needs redoing), or
