@@ -241,7 +241,7 @@ test('a menard call is named by what it did', async () => {
 
 test('a call becomes a line a turn can be summarised from', async () => {
   expect(turnLine({ tool: 'Edit', input: { tool: 'Edit', file_path: 'lib/a.ts' }, output: { structuredPatch: [{ lines: ['-a', '+b', '+c'] }] } }, false)).toBe('Edit lib/a.ts +2 -1')
-  expect(turnLine({ tool: 'Bash', input: { tool: 'Bash', command: 'mise run check\necho done' }, output: {} }, true)).toBe('Bash mise run check (failed)')
+  expect(turnLine({ tool: 'Bash', input: { tool: 'Bash', command: 'mise run check\necho done' }, output: { stdout: 'building\n 3 fail\n' } }, true)).toBe('Bash mise run check (failed) → 3 fail')
   expect(turnLine({ tool: 'mcp__plugin_menard_menard__run', input: { verb: 'test' }, output: '{"ok":true}' }, false)).toBe('menard run test: ok')
 })
 

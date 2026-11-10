@@ -69,7 +69,10 @@ export const turnLine = (call: Call, isError: boolean): string => {
     return `${call.tool} ${fields.file_path} +${adds} -${dels}${failed}`
   }
   const first = Object.values(fields).find((v): v is string => typeof v === 'string' && v !== call.tool) ?? ''
-  return `${call.tool} ${first.split('\n')[0]!.slice(0, MAX_SAID)}${failed}`.trim()
+  // a command's last line is where it says how it went
+  const stdout = call.tool === 'Bash' ? (call.output as { stdout?: unknown } | undefined)?.stdout : undefined
+  const last = typeof stdout === 'string' ? stdout.trimEnd().split('\n').pop()!.trim().slice(0, MAX_SAID) : ''
+  return `${call.tool} ${first.split('\n')[0]!.slice(0, MAX_SAID)}${failed}${last ? ` → ${last}` : ''}`.trim()
 }
 
 type ShellEdits = { bashEditDiff?: { files?: { filePath: string; hunks: { lines: string[] }[] }[] } }

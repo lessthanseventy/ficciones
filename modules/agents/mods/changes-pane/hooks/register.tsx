@@ -21,7 +21,9 @@ const HINT = 'Esc to prompt · Tab files/commits · j/k select · J/K scroll · 
 const MIN_TURN_CALLS = 4
 const MAX_TURN_LINES = 80
 const SUMMARY_MS = 8000
-const SUMMARISE = 'Below are the tool calls a coding assistant made in one turn, in order. Say what was done in ONE plain line of at most 25 words: what changed, what was run and whether it passed. No preamble, no markdown.\n\n'
+const SUMMARISE = 'Below are the tool calls a coding assistant made in one turn, in order, each with how it ended where that is known. Say what was done in one or two plain sentences, 45 words at most: which files changed and how, what was run, and whether it passed. Start each sentence with its verb ("Edited…", "Ran…"), never "I". No preamble, no markdown, no line breaks.\n\n'
+// A turn's summary is drawn under its closing line, which is known by its duration alone.
+const MAX_KEPT_SUMMARIES = 50
 const HINT_AWAY = 'keys go to the prompt · click here to browse'
 // Their result is the diff this pane already shows, so the transcript gets its counts; ctrl+o still has it.
 const SHOWN_HERE = new Set(['Edit', 'Write'])
@@ -77,6 +79,7 @@ export const register: Register = on => {
   // takes it back, so it is read from where input lands: here, or in the prompt box.
   let hasKeys = false
   let turnLines: string[] = []
+  const summaries = new Map<number, string>()
   let isRefreshing = false
   let isStale = false
   let refresh: () => Promise<void> = async () => {}
@@ -339,8 +342,29 @@ export const register: Register = on => {
     const lines = turnLines
     turnLines = []
     if (!canDraw || e.reason !== 'answer' || lines.length < MIN_TURN_CALLS) return done
-    const reply = await $.model.complete({ model: 'haiku', prompt: SUMMARISE + lines.join('\n'), maxTokens: 120, effort: 'low', timeoutMs: SUMMARY_MS })
-    return reply.isAnswered ? { ...done, text: `↳ ${reply.text.trim().split('\n')[0]}` } : done
+    // not awaited: the turn ends now and the line arrives under it
+    void $.model.complete({ model: 'haiku', prompt: SUMMARISE + lines.join('\n'), maxTokens: 200, effort: 'low', timeoutMs: SUMMARY_MS }).then(reply => {
+      if (!reply.isAnswered) return
+      if (summaries.size >= MAX_KEPT_SUMMARIES) summaries.clear()
+      summaries.set(e.durationMs, reply.text.trim().replace(/\s+/g, ' '))
+      $.ui.invalidate('ui.render')
+    })
+    return done
+  })
+
+  on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
+    const summary = summaries.get(e.props.durationMs)
+    if (summary === undefined) return next(e)
+    const { Box, Text } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="column">
+        {await next(e)}
+        <Text>
+          {'  '}
+          <Text inverse bold color="remember"> TURN </Text> <Text color="suggestion">{summary}</Text>
+        </Text>
+      </Box>
+    )
   })
 
   on('tool.call', async ($, e, next) => {
