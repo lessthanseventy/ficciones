@@ -2,6 +2,8 @@ import type { Register } from 'claude-code'
 
 import { describe, feedRow, graph, modelName, nodeOf } from './activity'
 import type { Entry, NodeId } from './activity'
+import { noteBlock, noteHead } from './review'
+import type { Note } from './review'
 import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Commit, DiffLine, File, Run } from './changes'
 import type { Input, List, Section } from './view'
@@ -19,9 +21,9 @@ const MAX_KEPT_COMMITS = 50
 const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
 // The pane's keys, each a button under its lists: a hotkey is one lowercase letter.
-const KEYS = [['j', 'next'], ['k', 'prev'], ['t', 'list'], ['d', 'diff↓'], ['u', 'diff↑'], ['f', 'follow'], ['l', 'git']] as const
+const KEYS = [['j', 'next'], ['k', 'prev'], ['t', 'list'], ['d', 'down'], ['u', 'up'], ['f', 'follow'], ['l', 'git'], ['n', 'note']] as const
 
-const TABS = [['c', 'changes'], ['a', 'activity']] as const
+const TABS = [['c', 'changes'], ['a', 'activity'], ['r', 'review']] as const
 type Tab = (typeof TABS)[number][1]
 const MAX_ENTRIES = 200
 // Each repository listed costs a git status after every tool call.
@@ -92,6 +94,17 @@ export const register: Register = on => {
       .filter(({ label }) => (room -= label.length + 4) >= 0)
   }
   let tab: Tab = 'changes'
+  // What the person has to say of the diff, kept until a prompt carries it to the model.
+  let notes: Note[] = []
+  // The diff line a click chose, by its row in delta's drawing, and the diff it is a line of.
+  let picked: { of: string; row: number; at: number; code: string } | null = null
+  let isWriting = false
+  const shownDiff = () => `${repo}\0${source}\0${file}`
+  const notedRows = () => new Set(notes
+    .filter(n => n.repo === repo && n.source === source && n.file === file)
+    .map(n => current()?.lines.findIndex(l => l.at === n.at && l.text === n.code) ?? -1)
+    .filter(i => i >= 0)
+    .map(i => starts[i + current()!.lines[i]!.hunk] ?? -1))
   // newest first
   const entries: Entry[] = []
   const counts: Partial<Record<NodeId, number>> = {}
@@ -123,7 +136,7 @@ export const register: Register = on => {
   const fileRows = () => clamp(paths().length, 1, Math.min(MAX_FILE_ROWS, Math.floor(size.rows / 4)))
   const commitRows = () => clamp(commits.length + 1, 1, Math.min(MAX_COMMIT_ROWS, Math.floor(size.rows / 5)))
   // The tabs, three boxes' top and bottom edges, and the hint.
-  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 8 - repoRows())
+  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 8 - repoRows() - (isWriting ? 1 : 0))
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
   const reveal = () => {
     filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
@@ -164,6 +177,25 @@ export const register: Register = on => {
     // a path's folders are drawn dim, so the name is what the eye lands on
     const cut = isPath ? text.lastIndexOf('/') + 1 : 0
     return { lead, dim: text.slice(0, cut), label: text.slice(cut), adds, dels, isSelected }
+  }
+
+  // A line with a note, and the line a click chose, wear a mark in the column delta leaves blank.
+  const marked = (window: Run[][]) => {
+    const noted = notedRows()
+    const chosen = picked?.of === shownDiff() ? starts[picked.row] : undefined
+    return window.map((runs, i) => {
+      const mark: Run | null = offset + i === chosen ? { t: '▶', c: 'claude', bold: true } : noted.has(offset + i) ? { t: '●', c: 'remember' } : null
+      const [first, ...rest] = runs
+      return mark && first ? [mark, { ...first, t: first.t.slice(1) }, ...rest] : runs
+    })
+  }
+
+  // A click on a row of the diff chooses the line it draws.
+  const pick = (viewRow: number) => {
+    const lines = current()?.lines ?? []
+    const row = starts.findLastIndex(start => start <= offset + viewRow)
+    const line = lines.find((l, i) => i + l.hunk === row)
+    picked = line && file !== '' ? { of: shownDiff(), row, at: line.at, code: line.text } : null
   }
 
   const viewProps = () => {
@@ -220,7 +252,7 @@ export const register: Register = on => {
       rule: title === '' ? '─'.repeat(Math.max(0, room - mark)) : rule(title.length + where.length + adds.length + dels.length + mark),
       columns: size.columns,
       isFollowing,
-      rows: fitRows(rows.slice(offset, offset + diffRows())),
+      rows: marked(fitRows(rows.slice(offset, offset + diffRows()))),
       diffRows: diffRows(),
       note: note || (file !== '' && diff?.lines.length === 0 ? emptyDiffNote(diff.text) : ''),
       files: filesSection,
@@ -258,8 +290,11 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     log({ node: 'you', text: 'new message', state: 'done' })
-    if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
-    return next(e)
+    // A slash command's line is not the person's words to the model.
+    const riding = e.command === undefined ? notes : []
+    if (riding.length > 0) notes = []
+    if (isOpen) $.ui.invalidate('ui.render')
+    return next(riding.length > 0 ? { ...e, text: `${e.text}\n\n${noteBlock(riding)}` } : e)
   })
 
   on('turn.start', async ($, e, next) => {
@@ -570,6 +605,10 @@ export const register: Register = on => {
       }
       return
     }
+    if (key === 'n') {
+      isWriting = file !== ''
+      return
+    }
     if (key === 'j') step(1)
     else if (key === 'k') step(-1)
     else if (key === 't') focus = focus === 'files' ? 'commits' : 'files'
@@ -588,9 +627,12 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
-    const { Client, Box, Text, Button } = $.ui.resolve(e)
+    const { Client, Box, Text, Button, Input } = $.ui.resolve(e)
+    const chosen = picked?.of === shownDiff() ? picked : null
     if (hasKeys !== e.props.isFocused) {
       hasKeys = e.props.isFocused
+      // Escape hands the keys back, and a note half written goes with them.
+      if (!hasKeys) isWriting = false
       void refresh()
     }
     // a box's edges take a column each side
@@ -613,9 +655,10 @@ export const register: Register = on => {
                   dimColor={!hasKeys}
                   key={`tab-${id}`}
                   hotkey={hotkey}
-                  label={id}
+                  label={id === 'review' && notes.length > 0 ? `review ${notes.length}` : id}
                   onPress={async () => {
                     tab = id
+                    isWriting = false
                     $.ui.invalidate('ui.render')
                   }}
                 />
@@ -643,7 +686,26 @@ export const register: Register = on => {
             ))}
           </Box>
         ) : null}
-        {tab === 'changes' ? <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" /> : (
+        {tab === 'changes' ? <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" /> : tab === 'review' ? (
+          <Box flexDirection="column">
+            <Text weight="bold">
+              {notes.length === 0 ? 'no notes yet: click a line of a diff, then n' : `${notes.length} note${notes.length === 1 ? '' : 's'}, sent with your next message`}
+            </Text>
+            {notes.slice(0, Math.max(0, Math.floor((size.rows - 3) / 2))).map((note, i) => (
+              <Box flexDirection="column">
+                <Box>
+                  <Button plain key={`drop-${i}`} label="✕" onPress={async () => {
+                    notes = notes.filter(n => n !== note)
+                    $.ui.invalidate('ui.render')
+                  }} />
+                  <Text color="remember" wrap="truncate-end"> {printable(`${note.repo.split('/').pop()} · ${noteHead(note)}`)} </Text>
+                  <Text dimColor wrap="truncate-end">{printable(note.code)}</Text>
+                </Box>
+                <Text wrap="truncate-end">  ↳ {printable(note.note)}</Text>
+              </Box>
+            ))}
+          </Box>
+        ) : (
           <Box flexDirection="column">
             {activity().map(row => (
               <Text wrap="truncate-end">
@@ -652,10 +714,36 @@ export const register: Register = on => {
             ))}
           </Box>
         )}
+        {tab === 'changes' && isWriting ? (
+          <Input
+            key="note"
+            autoFocus
+            label={`note on ${printable(file.split('/').pop() ?? '')}${chosen ? `:${chosen.at}` : ''}`}
+            placeholder="what Claude should know about this line"
+            submitLabel="keep"
+            onSubmit={value => {
+              const note = value.trim()
+              if (note !== '') notes = [...notes, { repo, source, file, at: chosen?.at ?? 0, code: chosen?.code ?? '', note }]
+              isWriting = false
+              picked = null
+              $.ui.invalidate('ui.render')
+            }}
+          />
+        ) : null}
         <Box>
           {hasKeys ? <Text inverse weight="bold" color="claude"> {tab.toUpperCase()} </Text> : <Text dimColor>○ click</Text>}
-          {(tab === 'changes' ? KEYS : []).map(([hotkey, label]) => (
+          {tab === 'review' && notes.length > 0 ? (
             <Box marginLeft={2}>
+              <Button plain dimColor={!hasKeys} key="send" hotkey="s" label="send now" onPress={async () => {
+                const block = noteBlock(notes)
+                notes = []
+                $.ui.invalidate('ui.render')
+                await $.prompt.submit({ text: block, asUser: true })
+              }} />
+            </Box>
+          ) : null}
+          {(tab === 'changes' ? KEYS : []).map(([hotkey, label]) => (
+            <Box marginLeft={1}>
               <Button
                 plain
                 dimColor={!hasKeys}
@@ -725,7 +813,11 @@ export const register: Register = on => {
     // pane hears when Escape, or a key it does not bind, hands them back.
     await $.ui.open({ ...OPEN, focus: true })
 
-    for (const { row, list } of fresh) {
+    for (const { row, list, diff } of fresh) {
+      if (diff !== undefined) {
+        pick(diff)
+        isFollowing = false
+      }
       if (row === undefined) continue
       focus = list ?? 'files'
       if (focus === 'commits') pickCommit(row)

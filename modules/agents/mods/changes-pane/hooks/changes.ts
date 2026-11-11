@@ -1,6 +1,7 @@
 export type File = { path: string; isUntracked: boolean }
 export type Commit = { sha: string; subject: string }
-export type DiffLine = { text: string; hunk: number }
+// `at` is the line's number in the file as it is now, or as it was for a line removed.
+export type DiffLine = { text: string; hunk: number; at: number }
 export type Run = { t: string; c?: string; b?: string; bold?: true; dim?: true; it?: true; u?: true }
 
 export const parseStatus = (z: string): File[] => {
@@ -48,9 +49,19 @@ export const splitDiff = (diff: string): Map<string, string> => {
 export const parseDiff = (diff: string): DiffLine[] => {
   const lines: DiffLine[] = []
   let hunk = -1
+  let was = 0
+  let now = 0
   for (const text of diff.split('\n')) {
-    if (text.startsWith('@@ ')) hunk++
-    else if (hunk >= 0 && /^[ +-]/.test(text)) lines.push({ text, hunk })
+    const head = /^@@ -(\d+)(?:,\d+)? \+(\d+)/.exec(text)
+    if (head) {
+      hunk++
+      was = Number(head[1])
+      now = Number(head[2])
+    } else if (hunk >= 0 && /^[ +-]/.test(text)) {
+      lines.push({ text, hunk, at: text[0] === '-' ? was : now })
+      if (text[0] !== '+') was++
+      if (text[0] !== '-') now++
+    }
   }
   return lines
 }

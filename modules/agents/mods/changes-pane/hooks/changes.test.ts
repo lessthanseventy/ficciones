@@ -31,6 +31,7 @@ test('a long path keeps its filename', async () => {
 test('the first changed row counts the blank row between hunks', async () => {
   const lines = parseDiff(DIFF)
   expect(lines).toHaveLength(6)
+  expect(lines.map(l => `${l.text[0]}${l.at}`)).toEqual([' 1', '+2', ' 3', ' 4', ' 21', '-21'])
   const later = parseDiff(DIFF.replace('-gone', '-went'))
   expect(firstChangedRow(lines, later)).toBe(6)
   expect(firstChangedRow([], lines)).toBe(0)
@@ -376,6 +377,32 @@ const repos = (on: On, at: { cwd: string; run?: () => void }, trees: Record<stri
     return { value: { exitCode: 0, stdout, stderr: '' } } as never
   })
 }
+
+test('a note on a line of the diff rides on the next prompt, once', async ($, on) => {
+  mock.clock(on)
+  repos(on, { cwd: '/w/api' }, { '/w/api': ['a.ts'] })
+  const sent: string[] = []
+  on('prompt.submit', async ($, e) => {
+    sent.push(e.text)
+    return { text: e.text } as never
+  })
+  await $.session.start({ cwd: '/w/api', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted & {
+    input: (q: { key: string; text: string; kind?: 'submit' }) => Promise<unknown>
+    pointer: (e: { type: 'down'; x: number; y: number; in: string }) => Promise<unknown>
+  }
+  await ui.find({ text: /following/, in: 'changes' })
+  // under the box's top edge, the second row of a.ts's diff is the line added
+  await ui.pointer({ type: 'down', x: 3, y: 2, in: 'changes' })
+  await ui.press({ key: 'key-n' })
+  await ui.input({ key: 'note', text: 'why y?', kind: 'submit' })
+  await ui.press({ key: 'tab-review' })
+  expect(await ui.find({ text: /^1 note, sent with your next message$/ })).toBeDefined()
+  expect(await ui.find({ text: /api · a\.ts:1/ })).toBeDefined()
+  await $.prompt.submit({ text: 'look at my note' } as never)
+  await $.prompt.submit({ text: 'and again' } as never)
+  expect(sent).toEqual(['look at my note\n\nReview notes I left on the diff in the changes pane:\n\nIn /w/api:\n- a.ts:1 `+y`: why y?', 'and again'])
+})
 
 test('a cd into another repository leaves the pane on the one being worked in, and an edit there moves it', async ($, on) => {
   mock.clock(on)

@@ -3,7 +3,7 @@ import type { ClientModule, JsonValue, RenderChildren } from 'claude-code'
 import type { Run } from './changes'
 
 export type List = 'files' | 'commits'
-export type Input = { n: number; row?: number; list?: List }
+export type Input = { n: number; row?: number; list?: List; diff?: number }
 export type Section = {
   head: string
   rule: string
@@ -51,11 +51,14 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
     // click anywhere here asks for that focus.
     surface.onPointer(({ type, y }) => {
       if (type !== 'down') return
-      const { diffRows, files, commits } = queue.props
+      const { diffRows, files, commits, rows, note } = queue.props
+      // under the box's top edge, and under the note where there is one
+      const inDiff = y - 1 - (note ? 1 : 0)
       // the diff's box and the files' top edge sit above the files; their bottom edge and the commits' top follow them
       const inFiles = y - (diffRows + 3)
       const inCommits = inFiles - shown(files) - 2
-      if (inFiles >= 0 && inFiles < files.rows.length) send({ list: 'files', row: files.first + inFiles })
+      if (inDiff >= 0 && inDiff < rows.length) send({ diff: inDiff })
+      else if (inFiles >= 0 && inFiles < files.rows.length) send({ list: 'files', row: files.first + inFiles })
       else if (inCommits >= 0 && inCommits < commits.rows.length) send({ list: 'commits', row: commits.first + inCommits })
       else send({})
     })
