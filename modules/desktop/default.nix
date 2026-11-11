@@ -82,6 +82,29 @@ let
     run=$!
     wait $run
   '';
+  # qt6ct + kvantum for Dolphin alone: session-wide, QT_PLUGIN_PATH would put this nixpkgs' Qt
+  # plugins in front of every pacman Qt app, which loads them against its own, newer Qt
+  dolphin = pkgs.symlinkJoin {
+    name = "dolphin-themed";
+    paths = [ pkgs.kdePackages.dolphin ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/dolphin \
+        --set QT_QPA_PLATFORMTHEME qt6ct \
+        --set QT_STYLE_OVERRIDE kvantum \
+        --prefix QT_PLUGIN_PATH : ${
+          lib.makeSearchPath "lib/qt-6/plugins" [
+            pkgs.kdePackages.qt6ct
+            pkgs.kdePackages.qtstyleplugin-kvantum
+          ]
+        }
+      # "show in folder" starts Dolphin from these, by store path
+      for f in share/dbus-1/services/org.kde.dolphin.FileManager1.service share/systemd/user/plasma-dolphin.service; do
+        rm $out/$f
+        substitute ${pkgs.kdePackages.dolphin}/$f $out/$f --replace-fail ${pkgs.kdePackages.dolphin}/bin/dolphin $out/bin/dolphin
+      done
+    '';
+  };
   linkTo = rel: {
     source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}";
   };
@@ -239,6 +262,7 @@ in
       wezterm
       delta
       # decided in modules/os/ivysaur.nix, applied to today's profile too
+      dolphin
       libreoffice-stable
       qbittorrent
       pavucontrol

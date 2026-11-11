@@ -160,7 +160,6 @@ in
     easyeffects
     xdg-user-dirs
     khal
-    kdePackages.dolphin
     kdePackages.kate
     pavucontrol
     # terminals + TUIs the palette themes
