@@ -1,4 +1,4 @@
-import type { ClientModule, JsonValue } from 'claude-code'
+import type { ClientModule, JsonValue, RenderChildren } from 'claude-code'
 
 import type { Run } from './changes'
 
@@ -64,7 +64,7 @@ const View: ClientModule<JsonValue, Queue> = (raw, surface) => {
   // A box as lazygit draws one: the title in the top edge, and the edge lit when the box has the keys.
   const edge = (isLit: boolean) => ({ color: isLit ? 'claude' : undefined, dimColor: !isLit, weight: isLit ? ('bold' as const) : undefined })
   const bottom = `╰${'─'.repeat(props.columns)}╯`
-  const within = (isLit: boolean, content: unknown) => (
+  const within = (isLit: boolean, content: RenderChildren) => (
     <Box>
       <Text {...edge(isLit)}>│</Text>
       <Box width={props.columns}>{content}</Box>

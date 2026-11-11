@@ -199,7 +199,7 @@ const repo = (on: On, diff = DIFFS, status = ' M a.ts\0 M b.ts\0 M c.ts\0') => {
 type Mounted = {
   unmount: () => Promise<void>
   press: (k: { key: string }) => Promise<void>
-  find: (q: { text: RegExp; in: string }) => Promise<unknown>
+  find: (q: { text: RegExp; in?: string }) => Promise<unknown>
 }
 
 test('a commit opens on its message, and its files take the files list', async ($, on) => {
