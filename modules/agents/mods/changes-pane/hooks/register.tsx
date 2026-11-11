@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { agentRow, describe, feedRow, flashingOf, graph, heartbeat, isInTransit, isMoving, level, modelName, nodeOf, pulsesOf, satelliteRows, sharesOf, turnRow } from './activity'
+import { agentRow, describe, feedRow, flashingOf, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, sharesOf, turnRow } from './activity'
 import type { Agent, Entry, NodeId, Turn } from './activity'
 
 import { clamp, countDiff, deltaArgv, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
@@ -104,6 +104,8 @@ export const register: Register = on => {
   // The main loop's turns, newest first, the first of them the one running while `isBusy`.
   let turns: Turn[] = []
   let turnNo = 0
+  // What the prompt that begins the next turn said.
+  let asked = ''
   let frame = 0
   let wake: () => void = () => {}
   // The subagents of the session, newest first; `only` is the one the feed is narrowed to.
@@ -268,9 +270,8 @@ export const register: Register = on => {
     // under the tabs and above the hint
     const room = Math.max(2, size.rows - 2)
     const now = Date.now()
-    const band = satelliteRows(agents.length)
-    // the head and the heartbeat take a row each
-    const graphRows = clamp(room - band - 2 - agentRows() - MIN_LOG_ROWS, MIN_GRAPH_ROWS, MAX_GRAPH_ROWS) + band
+    // the heartbeat takes a row
+    const graphRows = clamp(room - 1 - agentRows() - MIN_LOG_ROWS, MIN_GRAPH_ROWS, MAX_GRAPH_ROWS)
     const spent = sharesOf(entries.filter(e => e.turn === turnNo), now)
     const running = new Set(entries.filter(e => e.state === 'running').map(e => e.node))
     if (agents.some(a => a.state === 'running')) running.add('agents')
@@ -278,18 +279,13 @@ export const register: Register = on => {
     for (const entry of [...entries].reverse()) latest.set(entry.node, entry)
     const failed = new Set([...latest].filter(([, e]) => e.state === 'failed').map(([node]) => node))
     const centre = [percent === undefined ? '' : `ctx ${Math.round(percent)}%`, 'CLAUDE', model]
-    const head: Run[] = model === '' ? [{ t: 'nothing yet this session', dim: true }] : [
-      { t: 'Model ', dim: true },
-      { t: model, c: 'remember', bold: true },
-      { t: ` · step ${stepNo}`, c: 'claude' },
-      ...(percent === undefined ? [] : [{ t: ' · context ', dim: true as const }, { t: `${Math.round(percent)}%`, c: level(percent), bold: true as const }]),
-    ]
+
     // the running ones lead, so a finished one is what leaves when there are too many
     const ordered = [...agents.filter(a => a.state === 'running'), ...agents.filter(a => a.state !== 'running')]
     // The log is the turns that have ended and the one running; narrowed to a subagent, it is that one's calls.
-    const rows = only === null
-      ? turns.map(turn => turnRow(turn.state === 'running' ? { ...turn, shares: spent } : turn, columns, now))
-      : entries.filter(e => e.agentId === only).map(entry => feedRow(entry, columns))
+    const rows = only !== null ? entries.filter(e => e.agentId === only).map(entry => feedRow(entry, columns))
+      : turns.length === 0 ? [[{ t: 'nothing yet this session', dim: true as const }]]
+      : turns.map(turn => turnRow(turn.state === 'running' ? { ...turn, shares: spent } : turn, columns, now))
     const first = clamp(feedTop, 0, rows.length - 1)
     return {
       top: [
@@ -307,13 +303,11 @@ export const register: Register = on => {
           centre,
           percent,
           isBusy,
-          now,
         }),
-        head,
         heartbeat(entries, columns, now),
       ],
       agents: ordered.slice(0, MAX_AGENT_ROWS).map(a => ({ id: a.id, isRunning: a.state === 'running', label: `${a.id === only ? '▶ ' : ''}${agentRow(a, columns - (a.id === only ? 2 : 0), now)}` })),
-      feed: rows.slice(first, first + Math.max(0, room - graphRows - 2 - agentRows())),
+      feed: rows.slice(first, first + Math.max(0, room - graphRows - 1 - agentRows())),
     }
   }
 
@@ -328,7 +322,11 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     // a background agent or shell reporting back is a prompt too, and not the person's
-    log(e.origin?.kind === 'task-notification' ? { node: 'agents', text: 'a task reports back', state: 'done' } : { node: 'you', text: 'new message', state: 'done' })
+    const line = e.text.trim().split('\n')[0] ?? ''
+    // a subagent's message arrives as markup, with no origin to say so
+    const isReport = e.origin?.kind === 'task-notification' || line.startsWith('<')
+    log(isReport ? { node: 'agents', text: 'a task reports back', state: 'done' } : { node: 'you', text: 'new message', state: 'done' })
+    asked = isReport ? 'a task reports back' : printable(line)
     if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
     return next(e)
   })
@@ -337,7 +335,8 @@ export const register: Register = on => {
     if (e.agentId === undefined) {
       isBusy = true
       turnNo += 1
-      turns = [{ n: turnNo, started: Date.now(), steps: 0, calls: 0, failed: 0, state: 'running' as const, shares: {} }, ...turns].slice(0, MAX_TURNS)
+      turns = [{ said: asked, started: Date.now(), calls: 0, failed: 0, state: 'running' as const, shares: {} }, ...turns].slice(0, MAX_TURNS)
+      asked = ''
     } else Object.assign(agentOf(e.agentId), { state: 'running', ms: undefined })
     wake()
     return next(e)
@@ -349,7 +348,7 @@ export const register: Register = on => {
       const turn = turns[0]
       if (turn?.state === 'running') {
         const now = Date.now()
-        Object.assign(turn, { ms: now - turn.started, state: e.reason === 'answer' ? 'done' : 'failed', shares: sharesOf(entries.filter(entry => entry.turn === turn.n), now) })
+        Object.assign(turn, { ms: now - turn.started, state: e.reason === 'answer' ? 'done' : 'failed', shares: sharesOf(entries.filter(entry => entry.turn === turnNo), now) })
       }
     } else {
       const agent = agentOf(e.agentId)
@@ -361,11 +360,10 @@ export const register: Register = on => {
 
   on('turn.step', async function* ($, e, next) {
     const agent = e.agentId === undefined ? null : agentOf(e.agentId)
-    if (agent) Object.assign(agent, { step: e.index + 1, model: agent.model || modelName(e.model), doing: 'thinking', node: 'model' })
+    if (agent) Object.assign(agent, { step: e.index + 1, model: agent.model || modelName(e.model), doing: 'thinking' })
     else {
       model = modelName(e.model)
       stepNo = e.index + 1
-      if (turns[0]?.state === 'running') turns[0].steps += 1
     }
     const entry = log(agent
       ? { node: 'agents', text: `${agent.model} · step ${agent.step}`, state: 'running', agentId: agent.id, agent: agent.name }
@@ -647,7 +645,7 @@ export const register: Register = on => {
     if (canDraw) await sight().catch(() => {})
     const call = e as unknown as { tool: string }
     const agent = e.agentId === undefined ? null : agentOf(e.agentId)
-    if (agent) Object.assign(agent, { doing: describe(call), node: nodeOf(call) })
+    if (agent) agent.doing = describe(call)
     const turn = !agent && turns[0]?.state === 'running' ? turns[0] : null
     if (turn) turn.calls += 1
     const entry = log({ node: nodeOf(call), text: describe(call), state: 'running', ...(agent ? { agentId: agent.id, agent: agent.name } : {}) })

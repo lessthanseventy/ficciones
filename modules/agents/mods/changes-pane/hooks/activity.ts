@@ -10,9 +10,9 @@ export type State = 'running' | 'done' | 'failed'
 // `agentId` and `agent` are the subagent the entry is of and its name; absent on the main loop's.
 // `at` is when it began and `ms` how long it took, absent while it runs; `turn` is the main loop's turn it fell in.
 export type Entry = { node: NodeId; text: string; state: State; at: number; ms?: number; agentId?: string; agent?: string; turn?: number }
-// `node` is what the subagent is using now.
-export type Agent = { id: string; name: string; model: string; state: State; step: number; doing: string; node?: NodeId; started: number; ms?: number }
-export type Turn = { n: number; started: number; ms?: number; steps: number; calls: number; failed: number; state: State; shares: Partial<Record<NodeId, number>> }
+export type Agent = { id: string; name: string; model: string; state: State; step: number; doing: string; started: number; ms?: number }
+// `said` is the first words of the prompt that began it.
+export type Turn = { said: string; started: number; ms?: number; calls: number; failed: number; state: State; shares: Partial<Record<NodeId, number>> }
 export type Graph = {
   counts: Partial<Record<NodeId, number>>
   running: ReadonlySet<NodeId>
@@ -26,13 +26,11 @@ export type Graph = {
   pulses: readonly { node: NodeId; p: number }[]
   // the turn's time by node, for the outer ring
   shares: Partial<Record<NodeId, number>>
-  // the subagents to hang under the wheel, the ones to show first
   agents: readonly Agent[]
   centre: string[]
   // the context's fill, for the inner ring
   percent?: number
   isBusy: boolean
-  now: number
 }
 
 // Each node has a colour of the theme, so that a row of the feed and its spoke read as one thing.
@@ -115,28 +113,37 @@ const shareCells = (shares: Shares, cells: number): (string | undefined)[] => {
   return Array.from({ length: cells }, (_, i) => HUE[ends.find(({ end }) => (i + 0.5) / cells <= end)?.id ?? 'model'])
 }
 
-/** A turn that has ended, or the one running, in one line: how long, how much, and where the time went. */
-export const turnRow = ({ n, started, ms, steps, calls, failed, state, shares }: Turn, columns: number, now: number): Run[] => {
+const two = (n: number) => String(n).padStart(2, '0')
+
+/** A turn that has ended, or the one running, in one line: when it began, what was asked, how long it took, and where the time went. */
+export const turnRow = ({ said, started, ms, calls, failed, state, shares }: Turn, columns: number, now: number): Run[] => {
   const bar = shareCells(shares, 12)
-  const said = `${state === 'running' ? '●' : state === 'failed' ? '✕' : '·'} turn ${n}`.padEnd(10)
-  const took = duration(ms ?? now - started).padStart(8)
-  const counts = `  ${steps} step${steps === 1 ? '' : 's'} · ${calls} call${calls === 1 ? '' : 's'}`
+  const at = new Date(started)
+  const head = `${state === 'running' ? '●' : state === 'failed' ? '✕' : '·'} ${two(at.getHours())}:${two(at.getMinutes())} `
+  const tail = `  ${duration(ms ?? now - started)} · ${calls} call${calls === 1 ? '' : 's'}`
   const bad = failed > 0 ? ` · ${failed} failed` : ''
-  const gap = Math.max(1, columns - said.length - took.length - counts.length - bad.length - bar.length)
+  const room = Math.max(0, columns - head.length - tail.length - bad.length - 1 - bar.length)
   return [
-    { t: said, c: state === 'failed' ? 'error' : state === 'running' ? 'claude' : 'success', ...(state === 'running' ? { bold: true as const } : {}) },
-    { t: took, c: 'claude' },
-    { t: counts, c: 'subtle' },
+    { t: head, c: state === 'failed' ? 'error' : state === 'running' ? 'claude' : 'subtle', ...(state === 'running' ? { bold: true as const } : {}) },
+    { t: cut(said.replace(/\s+/g, ' '), room).padEnd(room), ...(state === 'running' ? { bold: true as const } : {}) },
+    { t: tail, c: 'subtle' },
     { t: bad, c: 'error' },
-    { t: ' '.repeat(gap) },
+    { t: ' ' },
     ...bar.map(c => (c ? { t: '━', c } : { t: '─', dim: true as const })),
   ]
 }
 
-const BARS = '▁▂▃▄▅▆▇█'
+/**
+ * The last minutes as one thin line, labelled with how far back it starts: a cell is a slice of time,
+ * drawn in the colour of the node that was busiest in it, a dot where nothing ran and a cross where a call failed.
+ */
+export const heartbeat = (entries: readonly Entry[], columns: number, now: number, sliceMs = 4000): Run[] => {
+  const cells = Math.max(0, columns - 9)
+  const back = `${Math.max(1, Math.round((cells * sliceMs) / 60_000))}m`.padStart(3)
+  return [{ t: `${back} `, dim: true }, ...beats(entries, cells, now, sliceMs), { t: ' now', dim: true }]
+}
 
-/** The last minutes as one row, a cell a slice of time: its height how busy, its colour the node that was busiest, a cross where a call failed. */
-export const heartbeat = (entries: readonly Entry[], columns: number, now: number, sliceMs = 4000): Run[] =>
+const beats = (entries: readonly Entry[], columns: number, now: number, sliceMs: number): Run[] =>
   Array.from({ length: columns }, (_, k): Run => {
     const from = now - (columns - k) * sliceMs
     const shares: Shares = {}
@@ -151,7 +158,7 @@ export const heartbeat = (entries: readonly Entry[], columns: number, now: numbe
     }
     if (busy <= 0) return { t: '·', dim: true }
     const top = NODES.map(([id]) => id).sort((a, b) => (shares[b] ?? 0) - (shares[a] ?? 0))[0]!
-    return { t: BARS[Math.min(BARS.length - 1, Math.floor((busy / sliceMs) * BARS.length))]!, c: HUE[top] }
+    return { t: '━', c: HUE[top] }
   })
 
 const TRAVEL_MS = 600
@@ -204,17 +211,13 @@ const ring = (x0: number, y0: number, w: number, h: number) => {
   return cells
 }
 
-const SATELLITE_ROWS = 3
-/** How many rows the subagents take under the wheel. */
-export const satelliteRows = (agents: number) => (agents > 0 ? SATELLITE_ROWS : 0)
-
 /**
  * The session as a wheel: the model at the hub, what it reaches around it, and a dot on a spoke for each
  * call out and back. Round the hub, the inner ring fills with the context and the outer is the turn's
- * time by node. The subagents hang under the Agents node, each a small hub with the node it is using.
+ * time by node.
  */
 export const graph = (columns: number, rows: number, g: Graph): Run[][] => {
-  const wheel = rows - satelliteRows(g.agents.length)
+  const wheel = rows
   const cells: Cell[][] = Array.from({ length: rows }, () => Array.from({ length: columns }, () => ({ dots: 0, style: {}, rank: -1 })))
   const write = (x: number, y: number, said: string, style: Style) => {
     ;[...said].forEach((ch, i) => {
@@ -276,7 +279,9 @@ export const graph = (columns: number, rows: number, g: Graph): Run[][] => {
       : g.counts[id] ? { c: HUE[id] }
       : { dim: true }
     const spoke: Style = state === 'idle' ? { ...style, dim: true } : style
-    const count = g.counts[id] ? ` ${g.counts[id]}` : ''
+    const live = g.agents.filter(a => a.state === 'running').length
+    // the subagents at work now, of those the session has started
+    const count = id === 'agents' && live > 0 ? ` ${live}/${g.agents.length}` : g.counts[id] ? ` ${g.counts[id]}` : ''
     const mark = state === 'idle' ? '○' : state === 'lit' ? '●' : '✕'
     const side = Math.cos(angle)
     // a node left of the hub reads towards it, so its mark is the end nearest the spoke
@@ -294,25 +299,6 @@ export const graph = (columns: number, rows: number, g: Graph): Run[][] => {
     if (cell) Object.assign(cell, { t: '●', style: { c: HUE[node], bold: true }, rank: 9 })
   }
 
-  const hung = g.agents.slice(0, Math.max(1, Math.min(3, Math.floor(columns / 25))))
-  const agentsNode = spokes.find(s => s.id === 'agents')!
-  const width = Math.floor(columns / Math.max(1, hung.length))
-  hung.forEach((agent, k) => {
-    const isRunning = agent.state === 'running'
-    const x = 1 + k * width
-    const y = rows - 1
-    const hue: Style = agent.state === 'failed' ? { c: 'error' } : isRunning ? { c: HUE.agents, bold: true } : { c: HUE.agents, dim: true }
-    write(x, y, `◉ ${cut(agent.name, 10)}`, hue)
-    const reach = x + 3 + Math.min(10, agent.name.length)
-    if (isRunning && agent.node) {
-      const dashes = [...'╌╌╌']
-      // the dot takes a step along the dashes each second
-      dashes[Math.floor((g.now - agent.started) / 1000) % dashes.length] = '●'
-      write(reach, y, dashes.join(''), { c: HUE[agent.node], bold: true })
-      write(reach + 4, y, `● ${label(agent.node)}`, { c: HUE[agent.node] })
-    }
-    line([agentsNode.x, agentsNode.y + 1], [x, y - 1], isRunning ? { c: HUE.agents } : { c: HUE.agents, dim: true }, isRunning ? 1 : 0)
-  })
 
   return cells.map(row => {
     const runs: Run[] = []

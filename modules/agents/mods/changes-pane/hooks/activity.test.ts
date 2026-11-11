@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentRow, describe, duration, feedRow, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, satelliteRows, turnRow } from './activity'
+import { agentRow, describe, duration, feedRow, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, turnRow } from './activity'
 
 test('a call lands on the node it reaches', async () => {
   expect(nodeOf({ tool: 'Bash', command: 'ls' })).toBe('shell')
@@ -100,27 +100,29 @@ test('a failed call scars its spoke, and blinks while it is fresh', async () => 
   expect(dark.flat().some(r => r.c === 'error' && r.dim && r.t.includes('Shell'))).toBe(true)
 })
 
-test('the subagents hang under the wheel, each with the node it is using', async () => {
-  const agent = { id: 'a1', name: 'Count the lines', model: 'haiku 5.5', state: 'running' as const, step: 1, doing: 'ls', node: 'shell' as const, started: 0 }
-  const rows = graph(72, 17 + satelliteRows(1), { ...WHEEL, agents: [agent] })
-  expect(rows).toHaveLength(20)
-  expect(drawn(rows)[19]).toMatch(/^ ◉ Count the… [●╌]{3} ● Shell/)
-  expect(satelliteRows(0)).toBe(0)
+test('the subagents at work are counted of those started', async () => {
+  const agent = { id: 'a1', name: 'Count the lines', model: 'haiku 5.5', state: 'running' as const, step: 1, doing: 'ls', started: 0 }
+  const rows = graph(72, 17, { ...WHEEL, counts: { agents: 3 }, agents: [agent, { ...agent, id: 'a2', state: 'done' }, { ...agent, id: 'a3', state: 'done' }] })
+  expect(drawn(rows).join('\n')).toContain('Agents 1/3')
+  expect(drawn(graph(72, 17, { ...WHEEL, counts: { agents: 3 } })).join('\n')).toContain('Agents 3')
 })
 
-test('the heartbeat is the last minutes, a cell a slice: how busy, by which node, and where a call failed', async () => {
+test('the heartbeat is the last minutes as a line: a cell a slice, coloured by its busiest node, a cross where a call failed', async () => {
   const row = heartbeat([
     { node: 'shell', text: 'a', state: 'failed', at: 13_000, ms: 500 },
     { node: 'model', text: 'b', state: 'done', at: 8000, ms: 4000 },
     { node: 'files', text: 'c', state: 'done', at: 5000, ms: 1000 },
-  ], 5, 20_000)
-  expect(row.map(r => r.t).join('')).toBe('·▃█✕·')
-  expect(row.map(r => r.c)).toEqual([undefined, 'claude', 'remember', 'error', undefined])
+  ], 14, 20_000)
+  expect(row.map(r => r.t).join('')).toBe(' 1m ·━━✕· now')
+  expect(row.map(r => r.c)).toEqual([undefined, undefined, 'claude', 'remember', 'error', undefined, undefined])
+  // a pane of 77 columns holds a little under five minutes
+  expect(heartbeat([], 77, 0)[0]!.t).toBe(' 5m ')
 })
 
 test('a turn reads in one line, its time by node at the end of it', async () => {
-  const row = turnRow({ n: 7, started: 0, ms: 134_000, steps: 12, calls: 31, failed: 1, state: 'done', shares: { model: 3, shell: 1 } }, 70, 0)
-  expect(row.map(r => r.t).join('')).toBe(`· turn 7    2m 14s  12 steps · 31 calls · 1 failed${' '.repeat(8)}━━━━━━━━━━━━`)
+  const started = new Date(2026, 10, 10, 23, 4).getTime()
+  const row = turnRow({ said: 'make the missing art, mostly from theirs, and say what is left', started, ms: 134_000, calls: 31, failed: 1, state: 'done', shares: { model: 3, shell: 1 } }, 70, 0)
+  expect(row.map(r => r.t).join('')).toBe('· 23:04 make the missing a…  2m 14s · 31 calls · 1 failed ━━━━━━━━━━━━')
   expect(row.filter(r => r.t === '━').map(r => r.c)).toEqual([...Array(9).fill('remember'), ...Array(3).fill('claude')])
-  expect(turnRow({ n: 8, started: 1000, steps: 1, calls: 0, failed: 0, state: 'running', shares: {} }, 70, 5000).map(r => r.t).join('')).toMatch(/^● turn 8 {5}4\.0 s {2}1 step · 0 calls +─{12}$/)
+  expect(turnRow({ said: 'ls', started, calls: 0, failed: 0, state: 'running', shares: {} }, 40, started + 4000).map(r => r.t).join('')).toBe('● 23:04 ls  4.0 s · 0 calls ────────────')
 })
