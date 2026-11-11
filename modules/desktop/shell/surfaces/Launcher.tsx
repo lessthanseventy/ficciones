@@ -13,17 +13,23 @@ import Gdk from "gi://Gdk?version=4.0"
 import { closeKeys } from "../lib/keys"
 import { clickawayField } from "./Clickaway"
 import GLib from "gi://GLib?version=2.0"
+import Gio from "gi://Gio?version=2.0"
 import Apps from "gi://AstalApps"
 import Hyprland from "gi://AstalHyprland"
 import { For, createState, createComputed } from "ags"
 import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
 import { remember, score, recent, times, type Memory } from "../lib/funes"
+import { order } from "../lib/launcher-core"
 
 type Item = { icon?: string; glyph?: string; title: string; sub?: string; run: () => void | Promise<void>; key: string; mode?: Mode }
 type Mode = "apps" | "calc" | "files" | "shell" | "clip" | "verbs"
 
 const apps = new Apps.Apps()
+// AstalApps reads the desktop entries once; without this an app installed under a running shell is absent.
+// Bracketed: shell:check's grep takes a dotted get() for gnim's deprecated accessor.
+const installed = Gio.AppInfoMonitor["get"]()
+installed.connect("changed", () => apps.reload())
 const home = GLib.get_home_dir()
 const REPO = `${home}/projects/ficciones`
 /** A verb runs in its own ghostty window from the repo, and the window stays until you dismiss it. */
@@ -83,13 +89,9 @@ async function search(q: string) {
           out.push({ icon: a.iconName || "application-x-executable", title: a.name, sub: a.description ?? "", key: a.entry, mode: "apps", run: () => { a.launch() } })
         }
       } else {
-        // fuzzy order, then the remembered ones float: a launcher that learns
-        const hits = apps.fuzzy_query(body).slice(0, 24)
-        out = hits
-          .map((a, i) => ({ a, s: score("apps", a.entry) * 10 - i }))
-          .sort((x, y) => y.s - x.s)
+        out = order(body, apps.get_list(), (a) => ({ name: a.name, exec: a.executable ?? "", words: a.keywords ?? [] }), (a) => score("apps", a.entry))
           .slice(0, 8)
-          .map(({ a }) => ({
+          .map((a) => ({
             icon: a.iconName || "application-x-executable", title: a.name, sub: times("apps", a.entry) ? `${a.description ?? ""}  · ${times("apps", a.entry)}×` : (a.description ?? ""), key: a.entry, mode: "apps",
             run: () => { a.launch() },
           }))
