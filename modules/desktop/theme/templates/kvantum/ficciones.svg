@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="640" height="790">
+<!-- Kvantum reads an interior as <element>-<state> and a frame as eight edge and corner pieces
+     beside it; a state the file lacks falls back to the element's normal one, and an element it
+     lacks to Kvantum's own grey art. Each frame piece is as thick as its frame.* in the kvconfig,
+     so its one-unit line draws one pixel wide. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="960">
   <defs>
     <linearGradient id="amber-glow" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="@body@" stop-opacity="0.9"/>
@@ -13,165 +17,421 @@
       <stop offset="0" stop-color="@pressedGround@"/>
       <stop offset="1" stop-color="@hoverGround@"/>
     </linearGradient>
-    <linearGradient id="button-press" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="@pressedGround@"/>
-      <stop offset="1" stop-color="@pressedGround@"/>
-    </linearGradient>
   </defs>
 
-  <!-- Window background -->
-  <rect id="window-normal-interior" x="0" y="0" width="30" height="30" rx="0" fill="@panel@"/>
-
-  <!-- Button normal -->
-  <rect id="button-normal-interior" x="40" y="0" width="30" height="30" rx="4" fill="url(#button-bg)"/>
-  <rect id="button-normal-frame" x="40" y="0" width="30" height="30" rx="4" fill="none" stroke="@raised@" stroke-width="1"/>
-
-  <!-- Button focused -->
-  <rect id="button-focus-interior" x="80" y="0" width="30" height="30" rx="4" fill="url(#button-focus)"/>
-  <rect id="button-focus-frame" x="80" y="0" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
-
-  <!-- Button pressed -->
-  <rect id="button-press-interior" x="120" y="0" width="30" height="30" rx="4" fill="url(#button-press)"/>
-  <rect id="button-press-frame" x="120" y="0" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.8"/>
-
-  <!-- Button toggled -->
-  <rect id="button-toggle-interior" x="160" y="0" width="30" height="30" rx="4" fill="@hoverGround@"/>
-  <rect id="button-toggle-frame" x="160" y="0" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.5"/>
+  <!-- Button -->
+  <rect id="button-normal" x="4" y="4" width="22" height="22" fill="url(#button-bg)"/>
+  <g id="button-normal-top"><rect x="4" y="0" width="22" height="4" fill="url(#button-bg)"/><rect x="4" y="0" width="22" height="1" fill="@structure@"/></g>
+  <g id="button-normal-bottom"><rect x="4" y="26" width="22" height="4" fill="url(#button-bg)"/><rect x="4" y="29" width="22" height="1" fill="@structure@"/></g>
+  <g id="button-normal-left"><rect x="0" y="4" width="4" height="22" fill="url(#button-bg)"/><rect x="0" y="4" width="1" height="22" fill="@structure@"/></g>
+  <g id="button-normal-right"><rect x="26" y="4" width="4" height="22" fill="url(#button-bg)"/><rect x="29" y="4" width="1" height="22" fill="@structure@"/></g>
+  <g id="button-normal-topleft"><rect x="0" y="0" width="4" height="4" fill="url(#button-bg)"/><rect x="0" y="0" width="4" height="1" fill="@structure@"/><rect x="0" y="0" width="1" height="4" fill="@structure@"/></g>
+  <g id="button-normal-topright"><rect x="26" y="0" width="4" height="4" fill="url(#button-bg)"/><rect x="26" y="0" width="4" height="1" fill="@structure@"/><rect x="29" y="0" width="1" height="4" fill="@structure@"/></g>
+  <g id="button-normal-bottomleft"><rect x="0" y="26" width="4" height="4" fill="url(#button-bg)"/><rect x="0" y="29" width="4" height="1" fill="@structure@"/><rect x="0" y="26" width="1" height="4" fill="@structure@"/></g>
+  <g id="button-normal-bottomright"><rect x="26" y="26" width="4" height="4" fill="url(#button-bg)"/><rect x="26" y="29" width="4" height="1" fill="@structure@"/><rect x="29" y="26" width="1" height="4" fill="@structure@"/></g>
+  <rect id="button-focused" x="44" y="4" width="22" height="22" fill="url(#button-focus)"/>
+  <g id="button-focused-top"><rect x="44" y="0" width="22" height="4" fill="url(#button-focus)"/><rect x="44" y="0" width="22" height="1" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="button-focused-bottom"><rect x="44" y="26" width="22" height="4" fill="url(#button-focus)"/><rect x="44" y="29" width="22" height="1" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="button-focused-left"><rect x="40" y="4" width="4" height="22" fill="url(#button-focus)"/><rect x="40" y="4" width="1" height="22" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="button-focused-right"><rect x="66" y="4" width="4" height="22" fill="url(#button-focus)"/><rect x="69" y="4" width="1" height="22" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="button-focused-topleft"><rect x="40" y="0" width="4" height="4" fill="url(#button-focus)"/><rect x="40" y="0" width="4" height="1" fill="@body@" fill-opacity="0.6"/><rect x="40" y="0" width="1" height="4" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="button-focused-topright"><rect x="66" y="0" width="4" height="4" fill="url(#button-focus)"/><rect x="66" y="0" width="4" height="1" fill="@body@" fill-opacity="0.6"/><rect x="69" y="0" width="1" height="4" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="button-focused-bottomleft"><rect x="40" y="26" width="4" height="4" fill="url(#button-focus)"/><rect x="40" y="29" width="4" height="1" fill="@body@" fill-opacity="0.6"/><rect x="40" y="26" width="1" height="4" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="button-focused-bottomright"><rect x="66" y="26" width="4" height="4" fill="url(#button-focus)"/><rect x="66" y="29" width="4" height="1" fill="@body@" fill-opacity="0.6"/><rect x="69" y="26" width="1" height="4" fill="@body@" fill-opacity="0.6"/></g>
+  <rect id="button-pressed" x="84" y="4" width="22" height="22" fill="@body@"/>
+  <g id="button-pressed-top"><rect x="84" y="0" width="22" height="4" fill="@body@"/><rect x="84" y="0" width="22" height="1" fill="@body@"/></g>
+  <g id="button-pressed-bottom"><rect x="84" y="26" width="22" height="4" fill="@body@"/><rect x="84" y="29" width="22" height="1" fill="@body@"/></g>
+  <g id="button-pressed-left"><rect x="80" y="4" width="4" height="22" fill="@body@"/><rect x="80" y="4" width="1" height="22" fill="@body@"/></g>
+  <g id="button-pressed-right"><rect x="106" y="4" width="4" height="22" fill="@body@"/><rect x="109" y="4" width="1" height="22" fill="@body@"/></g>
+  <g id="button-pressed-topleft"><rect x="80" y="0" width="4" height="4" fill="@body@"/><rect x="80" y="0" width="4" height="1" fill="@body@"/><rect x="80" y="0" width="1" height="4" fill="@body@"/></g>
+  <g id="button-pressed-topright"><rect x="106" y="0" width="4" height="4" fill="@body@"/><rect x="106" y="0" width="4" height="1" fill="@body@"/><rect x="109" y="0" width="1" height="4" fill="@body@"/></g>
+  <g id="button-pressed-bottomleft"><rect x="80" y="26" width="4" height="4" fill="@body@"/><rect x="80" y="29" width="4" height="1" fill="@body@"/><rect x="80" y="26" width="1" height="4" fill="@body@"/></g>
+  <g id="button-pressed-bottomright"><rect x="106" y="26" width="4" height="4" fill="@body@"/><rect x="106" y="29" width="4" height="1" fill="@body@"/><rect x="109" y="26" width="1" height="4" fill="@body@"/></g>
+  <rect id="button-toggled" x="124" y="4" width="22" height="22" fill="@body@"/>
+  <g id="button-toggled-top"><rect x="124" y="0" width="22" height="4" fill="@body@"/><rect x="124" y="0" width="22" height="1" fill="@body@"/></g>
+  <g id="button-toggled-bottom"><rect x="124" y="26" width="22" height="4" fill="@body@"/><rect x="124" y="29" width="22" height="1" fill="@body@"/></g>
+  <g id="button-toggled-left"><rect x="120" y="4" width="4" height="22" fill="@body@"/><rect x="120" y="4" width="1" height="22" fill="@body@"/></g>
+  <g id="button-toggled-right"><rect x="146" y="4" width="4" height="22" fill="@body@"/><rect x="149" y="4" width="1" height="22" fill="@body@"/></g>
+  <g id="button-toggled-topleft"><rect x="120" y="0" width="4" height="4" fill="@body@"/><rect x="120" y="0" width="4" height="1" fill="@body@"/><rect x="120" y="0" width="1" height="4" fill="@body@"/></g>
+  <g id="button-toggled-topright"><rect x="146" y="0" width="4" height="4" fill="@body@"/><rect x="146" y="0" width="4" height="1" fill="@body@"/><rect x="149" y="0" width="1" height="4" fill="@body@"/></g>
+  <g id="button-toggled-bottomleft"><rect x="120" y="26" width="4" height="4" fill="@body@"/><rect x="120" y="29" width="4" height="1" fill="@body@"/><rect x="120" y="26" width="1" height="4" fill="@body@"/></g>
+  <g id="button-toggled-bottomright"><rect x="146" y="26" width="4" height="4" fill="@body@"/><rect x="146" y="29" width="4" height="1" fill="@body@"/><rect x="149" y="26" width="1" height="4" fill="@body@"/></g>
 
   <!-- Toolbar button -->
-  <rect id="tbutton-normal-interior" x="40" y="40" width="30" height="30" rx="4" fill="transparent"/>
-  <rect id="tbutton-normal-frame" x="40" y="40" width="30" height="30" rx="4" fill="none" stroke="transparent"/>
-  <rect id="tbutton-focus-interior" x="80" y="40" width="30" height="30" rx="4" fill="url(#button-focus)"/>
-  <rect id="tbutton-focus-frame" x="80" y="40" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
-  <rect id="tbutton-press-interior" x="120" y="40" width="30" height="30" rx="4" fill="url(#button-press)"/>
-  <rect id="tbutton-press-frame" x="120" y="40" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
-  <rect id="tbutton-toggle-interior" x="160" y="40" width="30" height="30" rx="4" fill="@hoverGround@"/>
-  <rect id="tbutton-toggle-frame" x="160" y="40" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
+  <rect id="tbutton-normal" x="4" y="44" width="22" height="22" fill="#000000" fill-opacity="0"/>
+  <g id="tbutton-normal-top"><rect x="4" y="40" width="22" height="4" fill="#000000" fill-opacity="0"/></g>
+  <g id="tbutton-normal-bottom"><rect x="4" y="66" width="22" height="4" fill="#000000" fill-opacity="0"/></g>
+  <g id="tbutton-normal-left"><rect x="0" y="44" width="4" height="22" fill="#000000" fill-opacity="0"/></g>
+  <g id="tbutton-normal-right"><rect x="26" y="44" width="4" height="22" fill="#000000" fill-opacity="0"/></g>
+  <g id="tbutton-normal-topleft"><rect x="0" y="40" width="4" height="4" fill="#000000" fill-opacity="0"/></g>
+  <g id="tbutton-normal-topright"><rect x="26" y="40" width="4" height="4" fill="#000000" fill-opacity="0"/></g>
+  <g id="tbutton-normal-bottomleft"><rect x="0" y="66" width="4" height="4" fill="#000000" fill-opacity="0"/></g>
+  <g id="tbutton-normal-bottomright"><rect x="26" y="66" width="4" height="4" fill="#000000" fill-opacity="0"/></g>
+  <rect id="tbutton-focused" x="44" y="44" width="22" height="22" fill="url(#button-focus)"/>
+  <g id="tbutton-focused-top"><rect x="44" y="40" width="22" height="4" fill="url(#button-focus)"/><rect x="44" y="40" width="22" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="tbutton-focused-bottom"><rect x="44" y="66" width="22" height="4" fill="url(#button-focus)"/><rect x="44" y="69" width="22" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="tbutton-focused-left"><rect x="40" y="44" width="4" height="22" fill="url(#button-focus)"/><rect x="40" y="44" width="1" height="22" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="tbutton-focused-right"><rect x="66" y="44" width="4" height="22" fill="url(#button-focus)"/><rect x="69" y="44" width="1" height="22" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="tbutton-focused-topleft"><rect x="40" y="40" width="4" height="4" fill="url(#button-focus)"/><rect x="40" y="40" width="4" height="1" fill="@body@" fill-opacity="0.4"/><rect x="40" y="40" width="1" height="4" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="tbutton-focused-topright"><rect x="66" y="40" width="4" height="4" fill="url(#button-focus)"/><rect x="66" y="40" width="4" height="1" fill="@body@" fill-opacity="0.4"/><rect x="69" y="40" width="1" height="4" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="tbutton-focused-bottomleft"><rect x="40" y="66" width="4" height="4" fill="url(#button-focus)"/><rect x="40" y="69" width="4" height="1" fill="@body@" fill-opacity="0.4"/><rect x="40" y="66" width="1" height="4" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="tbutton-focused-bottomright"><rect x="66" y="66" width="4" height="4" fill="url(#button-focus)"/><rect x="66" y="69" width="4" height="1" fill="@body@" fill-opacity="0.4"/><rect x="69" y="66" width="1" height="4" fill="@body@" fill-opacity="0.4"/></g>
+  <rect id="tbutton-pressed" x="84" y="44" width="22" height="22" fill="@body@"/>
+  <g id="tbutton-pressed-top"><rect x="84" y="40" width="22" height="4" fill="@body@"/><rect x="84" y="40" width="22" height="1" fill="@body@"/></g>
+  <g id="tbutton-pressed-bottom"><rect x="84" y="66" width="22" height="4" fill="@body@"/><rect x="84" y="69" width="22" height="1" fill="@body@"/></g>
+  <g id="tbutton-pressed-left"><rect x="80" y="44" width="4" height="22" fill="@body@"/><rect x="80" y="44" width="1" height="22" fill="@body@"/></g>
+  <g id="tbutton-pressed-right"><rect x="106" y="44" width="4" height="22" fill="@body@"/><rect x="109" y="44" width="1" height="22" fill="@body@"/></g>
+  <g id="tbutton-pressed-topleft"><rect x="80" y="40" width="4" height="4" fill="@body@"/><rect x="80" y="40" width="4" height="1" fill="@body@"/><rect x="80" y="40" width="1" height="4" fill="@body@"/></g>
+  <g id="tbutton-pressed-topright"><rect x="106" y="40" width="4" height="4" fill="@body@"/><rect x="106" y="40" width="4" height="1" fill="@body@"/><rect x="109" y="40" width="1" height="4" fill="@body@"/></g>
+  <g id="tbutton-pressed-bottomleft"><rect x="80" y="66" width="4" height="4" fill="@body@"/><rect x="80" y="69" width="4" height="1" fill="@body@"/><rect x="80" y="66" width="1" height="4" fill="@body@"/></g>
+  <g id="tbutton-pressed-bottomright"><rect x="106" y="66" width="4" height="4" fill="@body@"/><rect x="106" y="69" width="4" height="1" fill="@body@"/><rect x="109" y="66" width="1" height="4" fill="@body@"/></g>
+  <rect id="tbutton-toggled" x="124" y="44" width="22" height="22" fill="@body@"/>
+  <g id="tbutton-toggled-top"><rect x="124" y="40" width="22" height="4" fill="@body@"/><rect x="124" y="40" width="22" height="1" fill="@body@"/></g>
+  <g id="tbutton-toggled-bottom"><rect x="124" y="66" width="22" height="4" fill="@body@"/><rect x="124" y="69" width="22" height="1" fill="@body@"/></g>
+  <g id="tbutton-toggled-left"><rect x="120" y="44" width="4" height="22" fill="@body@"/><rect x="120" y="44" width="1" height="22" fill="@body@"/></g>
+  <g id="tbutton-toggled-right"><rect x="146" y="44" width="4" height="22" fill="@body@"/><rect x="149" y="44" width="1" height="22" fill="@body@"/></g>
+  <g id="tbutton-toggled-topleft"><rect x="120" y="40" width="4" height="4" fill="@body@"/><rect x="120" y="40" width="4" height="1" fill="@body@"/><rect x="120" y="40" width="1" height="4" fill="@body@"/></g>
+  <g id="tbutton-toggled-topright"><rect x="146" y="40" width="4" height="4" fill="@body@"/><rect x="146" y="40" width="4" height="1" fill="@body@"/><rect x="149" y="40" width="1" height="4" fill="@body@"/></g>
+  <g id="tbutton-toggled-bottomleft"><rect x="120" y="66" width="4" height="4" fill="@body@"/><rect x="120" y="69" width="4" height="1" fill="@body@"/><rect x="120" y="66" width="1" height="4" fill="@body@"/></g>
+  <g id="tbutton-toggled-bottomright"><rect x="146" y="66" width="4" height="4" fill="@body@"/><rect x="146" y="69" width="4" height="1" fill="@body@"/><rect x="149" y="66" width="1" height="4" fill="@body@"/></g>
 
   <!-- Line edit -->
-  <rect id="lineedit-normal-frame" x="0" y="80" width="30" height="30" rx="4" fill="none" stroke="@raised@" stroke-width="1"/>
-  <rect id="lineedit-normal-interior" x="0" y="80" width="30" height="30" rx="4" fill="@panel@"/>
-  <rect id="lineedit-focus-frame" x="40" y="80" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.7"/>
-  <rect id="lineedit-focus-interior" x="40" y="80" width="30" height="30" rx="4" fill="@hoverGround@"/>
+  <rect id="lineedit-normal" x="2" y="82" width="26" height="26" fill="@panel@"/>
+  <g id="lineedit-normal-top"><rect x="2" y="80" width="26" height="2" fill="@panel@"/><rect x="2" y="80" width="26" height="1" fill="@structure@"/></g>
+  <g id="lineedit-normal-bottom"><rect x="2" y="108" width="26" height="2" fill="@panel@"/><rect x="2" y="109" width="26" height="1" fill="@structure@"/></g>
+  <g id="lineedit-normal-left"><rect x="0" y="82" width="2" height="26" fill="@panel@"/><rect x="0" y="82" width="1" height="26" fill="@structure@"/></g>
+  <g id="lineedit-normal-right"><rect x="28" y="82" width="2" height="26" fill="@panel@"/><rect x="29" y="82" width="1" height="26" fill="@structure@"/></g>
+  <g id="lineedit-normal-topleft"><rect x="0" y="80" width="2" height="2" fill="@panel@"/><rect x="0" y="80" width="2" height="1" fill="@structure@"/><rect x="0" y="80" width="1" height="2" fill="@structure@"/></g>
+  <g id="lineedit-normal-topright"><rect x="28" y="80" width="2" height="2" fill="@panel@"/><rect x="28" y="80" width="2" height="1" fill="@structure@"/><rect x="29" y="80" width="1" height="2" fill="@structure@"/></g>
+  <g id="lineedit-normal-bottomleft"><rect x="0" y="108" width="2" height="2" fill="@panel@"/><rect x="0" y="109" width="2" height="1" fill="@structure@"/><rect x="0" y="108" width="1" height="2" fill="@structure@"/></g>
+  <g id="lineedit-normal-bottomright"><rect x="28" y="108" width="2" height="2" fill="@panel@"/><rect x="28" y="109" width="2" height="1" fill="@structure@"/><rect x="29" y="108" width="1" height="2" fill="@structure@"/></g>
+  <rect id="lineedit-focused" x="42" y="82" width="26" height="26" fill="@hoverGround@"/>
+  <g id="lineedit-focused-top"><rect x="42" y="80" width="26" height="2" fill="@hoverGround@"/><rect x="42" y="80" width="26" height="1" fill="@body@" fill-opacity="0.7"/></g>
+  <g id="lineedit-focused-bottom"><rect x="42" y="108" width="26" height="2" fill="@hoverGround@"/><rect x="42" y="109" width="26" height="1" fill="@body@" fill-opacity="0.7"/></g>
+  <g id="lineedit-focused-left"><rect x="40" y="82" width="2" height="26" fill="@hoverGround@"/><rect x="40" y="82" width="1" height="26" fill="@body@" fill-opacity="0.7"/></g>
+  <g id="lineedit-focused-right"><rect x="68" y="82" width="2" height="26" fill="@hoverGround@"/><rect x="69" y="82" width="1" height="26" fill="@body@" fill-opacity="0.7"/></g>
+  <g id="lineedit-focused-topleft"><rect x="40" y="80" width="2" height="2" fill="@hoverGround@"/><rect x="40" y="80" width="2" height="1" fill="@body@" fill-opacity="0.7"/><rect x="40" y="80" width="1" height="2" fill="@body@" fill-opacity="0.7"/></g>
+  <g id="lineedit-focused-topright"><rect x="68" y="80" width="2" height="2" fill="@hoverGround@"/><rect x="68" y="80" width="2" height="1" fill="@body@" fill-opacity="0.7"/><rect x="69" y="80" width="1" height="2" fill="@body@" fill-opacity="0.7"/></g>
+  <g id="lineedit-focused-bottomleft"><rect x="40" y="108" width="2" height="2" fill="@hoverGround@"/><rect x="40" y="109" width="2" height="1" fill="@body@" fill-opacity="0.7"/><rect x="40" y="108" width="1" height="2" fill="@body@" fill-opacity="0.7"/></g>
+  <g id="lineedit-focused-bottomright"><rect x="68" y="108" width="2" height="2" fill="@hoverGround@"/><rect x="68" y="109" width="2" height="1" fill="@body@" fill-opacity="0.7"/><rect x="69" y="108" width="1" height="2" fill="@body@" fill-opacity="0.7"/></g>
 
   <!-- Combo box -->
-  <rect id="combo-normal-frame" x="0" y="120" width="30" height="30" rx="4" fill="none" stroke="@raised@" stroke-width="1"/>
-  <rect id="combo-normal-interior" x="0" y="120" width="30" height="30" rx="4" fill="@panel@"/>
-  <rect id="combo-focus-frame" x="40" y="120" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
-  <rect id="combo-focus-interior" x="40" y="120" width="30" height="30" rx="4" fill="@hoverGround@"/>
-
-  <!-- Focus frame -->
-  <rect id="focus-normal-frame" x="0" y="160" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.5"/>
+  <rect id="combo-normal" x="2" y="122" width="26" height="26" fill="@panel@"/>
+  <g id="combo-normal-top"><rect x="2" y="120" width="26" height="2" fill="@panel@"/><rect x="2" y="120" width="26" height="1" fill="@structure@"/></g>
+  <g id="combo-normal-bottom"><rect x="2" y="148" width="26" height="2" fill="@panel@"/><rect x="2" y="149" width="26" height="1" fill="@structure@"/></g>
+  <g id="combo-normal-left"><rect x="0" y="122" width="2" height="26" fill="@panel@"/><rect x="0" y="122" width="1" height="26" fill="@structure@"/></g>
+  <g id="combo-normal-right"><rect x="28" y="122" width="2" height="26" fill="@panel@"/><rect x="29" y="122" width="1" height="26" fill="@structure@"/></g>
+  <g id="combo-normal-topleft"><rect x="0" y="120" width="2" height="2" fill="@panel@"/><rect x="0" y="120" width="2" height="1" fill="@structure@"/><rect x="0" y="120" width="1" height="2" fill="@structure@"/></g>
+  <g id="combo-normal-topright"><rect x="28" y="120" width="2" height="2" fill="@panel@"/><rect x="28" y="120" width="2" height="1" fill="@structure@"/><rect x="29" y="120" width="1" height="2" fill="@structure@"/></g>
+  <g id="combo-normal-bottomleft"><rect x="0" y="148" width="2" height="2" fill="@panel@"/><rect x="0" y="149" width="2" height="1" fill="@structure@"/><rect x="0" y="148" width="1" height="2" fill="@structure@"/></g>
+  <g id="combo-normal-bottomright"><rect x="28" y="148" width="2" height="2" fill="@panel@"/><rect x="28" y="149" width="2" height="1" fill="@structure@"/><rect x="29" y="148" width="1" height="2" fill="@structure@"/></g>
+  <rect id="combo-focused" x="42" y="122" width="26" height="26" fill="@hoverGround@"/>
+  <g id="combo-focused-top"><rect x="42" y="120" width="26" height="2" fill="@hoverGround@"/><rect x="42" y="120" width="26" height="1" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="combo-focused-bottom"><rect x="42" y="148" width="26" height="2" fill="@hoverGround@"/><rect x="42" y="149" width="26" height="1" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="combo-focused-left"><rect x="40" y="122" width="2" height="26" fill="@hoverGround@"/><rect x="40" y="122" width="1" height="26" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="combo-focused-right"><rect x="68" y="122" width="2" height="26" fill="@hoverGround@"/><rect x="69" y="122" width="1" height="26" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="combo-focused-topleft"><rect x="40" y="120" width="2" height="2" fill="@hoverGround@"/><rect x="40" y="120" width="2" height="1" fill="@body@" fill-opacity="0.6"/><rect x="40" y="120" width="1" height="2" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="combo-focused-topright"><rect x="68" y="120" width="2" height="2" fill="@hoverGround@"/><rect x="68" y="120" width="2" height="1" fill="@body@" fill-opacity="0.6"/><rect x="69" y="120" width="1" height="2" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="combo-focused-bottomleft"><rect x="40" y="148" width="2" height="2" fill="@hoverGround@"/><rect x="40" y="149" width="2" height="1" fill="@body@" fill-opacity="0.6"/><rect x="40" y="148" width="1" height="2" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="combo-focused-bottomright"><rect x="68" y="148" width="2" height="2" fill="@hoverGround@"/><rect x="68" y="149" width="2" height="1" fill="@body@" fill-opacity="0.6"/><rect x="69" y="148" width="1" height="2" fill="@body@" fill-opacity="0.6"/></g>
 
   <!-- Generic frame -->
-  <rect id="common-normal-frame" x="0" y="200" width="30" height="30" rx="4" fill="none" stroke="@inputGround@" stroke-width="1"/>
+  <rect id="common-normal" x="3" y="163" width="24" height="24" fill="#000000" fill-opacity="0"/>
+  <g id="common-normal-top"><rect x="3" y="160" width="24" height="3" fill="#000000" fill-opacity="0"/><rect x="3" y="160" width="24" height="1" fill="@structure@"/></g>
+  <g id="common-normal-bottom"><rect x="3" y="187" width="24" height="3" fill="#000000" fill-opacity="0"/><rect x="3" y="189" width="24" height="1" fill="@structure@"/></g>
+  <g id="common-normal-left"><rect x="0" y="163" width="3" height="24" fill="#000000" fill-opacity="0"/><rect x="0" y="163" width="1" height="24" fill="@structure@"/></g>
+  <g id="common-normal-right"><rect x="27" y="163" width="3" height="24" fill="#000000" fill-opacity="0"/><rect x="29" y="163" width="1" height="24" fill="@structure@"/></g>
+  <g id="common-normal-topleft"><rect x="0" y="160" width="3" height="3" fill="#000000" fill-opacity="0"/><rect x="0" y="160" width="3" height="1" fill="@structure@"/><rect x="0" y="160" width="1" height="3" fill="@structure@"/></g>
+  <g id="common-normal-topright"><rect x="27" y="160" width="3" height="3" fill="#000000" fill-opacity="0"/><rect x="27" y="160" width="3" height="1" fill="@structure@"/><rect x="29" y="160" width="1" height="3" fill="@structure@"/></g>
+  <g id="common-normal-bottomleft"><rect x="0" y="187" width="3" height="3" fill="#000000" fill-opacity="0"/><rect x="0" y="189" width="3" height="1" fill="@structure@"/><rect x="0" y="187" width="1" height="3" fill="@structure@"/></g>
+  <g id="common-normal-bottomright"><rect x="27" y="187" width="3" height="3" fill="#000000" fill-opacity="0"/><rect x="27" y="189" width="3" height="1" fill="@structure@"/><rect x="29" y="187" width="1" height="3" fill="@structure@"/></g>
 
-  <!-- Tab -->
-  <rect id="tab-normal-interior" x="0" y="240" width="30" height="30" rx="0" fill="@panel@"/>
-  <rect id="tab-normal-frame" x="0" y="240" width="30" height="30" rx="0" fill="none" stroke="transparent"/>
-  <rect id="tab-focus-interior" x="40" y="240" width="30" height="30" rx="0" fill="@panel@"/>
-  <rect id="tab-focus-frame" x="40" y="240" width="30" height="30" rx="0" fill="none" stroke="@body@" stroke-width="0" stroke-opacity="0"/>
-  <rect id="tab-toggle-interior" x="80" y="240" width="30" height="30" rx="0" fill="@panel@"/>
-  <rect id="tab-toggle-frame" x="80" y="240" width="30" height="30" rx="0" fill="none"/>
-  <rect id="tab-normal-indicator" x="0" y="268" width="30" height="2" fill="transparent"/>
-  <rect id="tab-focus-indicator" x="40" y="268" width="30" height="2" fill="@body@" fill-opacity="0.6"/>
-  <rect id="tab-toggle-indicator" x="80" y="268" width="30" height="2" fill="@body@"/>
+  <!-- Tab: the chosen one is underlined -->
+  <rect id="tab-normal" x="2" y="202" width="26" height="26" fill="@panel@"/>
+  <g id="tab-normal-top"><rect x="2" y="200" width="26" height="2" fill="@panel@"/></g>
+  <g id="tab-normal-bottom"><rect x="2" y="228" width="26" height="2" fill="@panel@"/></g>
+  <g id="tab-normal-left"><rect x="0" y="202" width="2" height="26" fill="@panel@"/></g>
+  <g id="tab-normal-right"><rect x="28" y="202" width="2" height="26" fill="@panel@"/></g>
+  <g id="tab-normal-topleft"><rect x="0" y="200" width="2" height="2" fill="@panel@"/></g>
+  <g id="tab-normal-topright"><rect x="28" y="200" width="2" height="2" fill="@panel@"/></g>
+  <g id="tab-normal-bottomleft"><rect x="0" y="228" width="2" height="2" fill="@panel@"/></g>
+  <g id="tab-normal-bottomright"><rect x="28" y="228" width="2" height="2" fill="@panel@"/></g>
+  <rect id="tab-focused" x="42" y="202" width="26" height="26" fill="@panel@"/>
+  <g id="tab-focused-top"><rect x="42" y="200" width="26" height="2" fill="@panel@"/></g>
+  <g id="tab-focused-bottom"><rect x="42" y="228" width="26" height="2" fill="@panel@"/><rect x="42" y="229" width="26" height="1" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="tab-focused-left"><rect x="40" y="202" width="2" height="26" fill="@panel@"/></g>
+  <g id="tab-focused-right"><rect x="68" y="202" width="2" height="26" fill="@panel@"/></g>
+  <g id="tab-focused-topleft"><rect x="40" y="200" width="2" height="2" fill="@panel@"/></g>
+  <g id="tab-focused-topright"><rect x="68" y="200" width="2" height="2" fill="@panel@"/></g>
+  <g id="tab-focused-bottomleft"><rect x="40" y="228" width="2" height="2" fill="@panel@"/><rect x="40" y="229" width="2" height="1" fill="@body@" fill-opacity="0.6"/></g>
+  <g id="tab-focused-bottomright"><rect x="68" y="228" width="2" height="2" fill="@panel@"/><rect x="68" y="229" width="2" height="1" fill="@body@" fill-opacity="0.6"/></g>
+  <rect id="tab-toggled" x="82" y="202" width="26" height="26" fill="@panel@"/>
+  <g id="tab-toggled-top"><rect x="82" y="200" width="26" height="2" fill="@panel@"/></g>
+  <g id="tab-toggled-bottom"><rect x="82" y="228" width="26" height="2" fill="@panel@"/><rect x="82" y="229" width="26" height="1" fill="@body@"/></g>
+  <g id="tab-toggled-left"><rect x="80" y="202" width="2" height="26" fill="@panel@"/></g>
+  <g id="tab-toggled-right"><rect x="108" y="202" width="2" height="26" fill="@panel@"/></g>
+  <g id="tab-toggled-topleft"><rect x="80" y="200" width="2" height="2" fill="@panel@"/></g>
+  <g id="tab-toggled-topright"><rect x="108" y="200" width="2" height="2" fill="@panel@"/></g>
+  <g id="tab-toggled-bottomleft"><rect x="80" y="228" width="2" height="2" fill="@panel@"/><rect x="80" y="229" width="2" height="1" fill="@body@"/></g>
+  <g id="tab-toggled-bottomright"><rect x="108" y="228" width="2" height="2" fill="@panel@"/><rect x="108" y="229" width="2" height="1" fill="@body@"/></g>
 
   <!-- Tab frame -->
-  <rect id="tabframe-normal-interior" x="0" y="280" width="30" height="30" rx="0" fill="@panel@"/>
-  <rect id="tabframe-normal-frame" x="0" y="280" width="30" height="30" rx="0" fill="none" stroke="@panel@" stroke-width="1"/>
+  <rect id="tabframe-normal" x="2" y="242" width="26" height="26" fill="@panel@"/>
+  <g id="tabframe-normal-top"><rect x="2" y="240" width="26" height="2" fill="@panel@"/></g>
+  <g id="tabframe-normal-bottom"><rect x="2" y="268" width="26" height="2" fill="@panel@"/></g>
+  <g id="tabframe-normal-left"><rect x="0" y="242" width="2" height="26" fill="@panel@"/></g>
+  <g id="tabframe-normal-right"><rect x="28" y="242" width="2" height="26" fill="@panel@"/></g>
+  <g id="tabframe-normal-topleft"><rect x="0" y="240" width="2" height="2" fill="@panel@"/></g>
+  <g id="tabframe-normal-topright"><rect x="28" y="240" width="2" height="2" fill="@panel@"/></g>
+  <g id="tabframe-normal-bottomleft"><rect x="0" y="268" width="2" height="2" fill="@panel@"/></g>
+  <g id="tabframe-normal-bottomright"><rect x="28" y="268" width="2" height="2" fill="@panel@"/></g>
 
   <!-- Tab bar frame -->
-  <rect id="tabBarFrame-normal-frame" x="40" y="280" width="30" height="30" rx="0" fill="none" stroke="@panel@" stroke-width="1"/>
+  <rect id="tabBarFrame-normal" x="2" y="282" width="26" height="26" fill="#000000" fill-opacity="0"/>
+  <g id="tabBarFrame-normal-top"><rect x="2" y="280" width="26" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="tabBarFrame-normal-bottom"><rect x="2" y="308" width="26" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="tabBarFrame-normal-left"><rect x="0" y="282" width="2" height="26" fill="#000000" fill-opacity="0"/></g>
+  <g id="tabBarFrame-normal-right"><rect x="28" y="282" width="2" height="26" fill="#000000" fill-opacity="0"/></g>
+  <g id="tabBarFrame-normal-topleft"><rect x="0" y="280" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="tabBarFrame-normal-topright"><rect x="28" y="280" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="tabBarFrame-normal-bottomleft"><rect x="0" y="308" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="tabBarFrame-normal-bottomright"><rect x="28" y="308" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
 
   <!-- Header -->
-  <rect id="header-normal-interior" x="0" y="320" width="30" height="30" rx="0" fill="@panel@"/>
-  <rect id="header-normal-frame" x="0" y="320" width="30" height="30" rx="0" fill="none" stroke="@inputGround@" stroke-width="1"/>
-  <rect id="header-focus-interior" x="40" y="320" width="30" height="30" rx="0" fill="@card@"/>
-  <rect id="header-focus-frame" x="40" y="320" width="30" height="30" rx="0" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
-  <rect id="header-press-interior" x="80" y="320" width="30" height="30" rx="0" fill="@hoverGround@"/>
-  <rect id="header-press-frame" x="80" y="320" width="30" height="30" rx="0" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
+  <rect id="header-normal" x="1" y="321" width="28" height="28" fill="@panel@"/>
+  <g id="header-normal-top"><rect x="1" y="320" width="28" height="1" fill="@panel@"/><rect x="1" y="320" width="28" height="1" fill="@structure@"/></g>
+  <g id="header-normal-bottom"><rect x="1" y="349" width="28" height="1" fill="@panel@"/><rect x="1" y="349" width="28" height="1" fill="@structure@"/></g>
+  <g id="header-normal-left"><rect x="0" y="321" width="1" height="28" fill="@panel@"/><rect x="0" y="321" width="1" height="28" fill="@structure@"/></g>
+  <g id="header-normal-right"><rect x="29" y="321" width="1" height="28" fill="@panel@"/><rect x="29" y="321" width="1" height="28" fill="@structure@"/></g>
+  <g id="header-normal-topleft"><rect x="0" y="320" width="1" height="1" fill="@panel@"/><rect x="0" y="320" width="1" height="1" fill="@structure@"/><rect x="0" y="320" width="1" height="1" fill="@structure@"/></g>
+  <g id="header-normal-topright"><rect x="29" y="320" width="1" height="1" fill="@panel@"/><rect x="29" y="320" width="1" height="1" fill="@structure@"/><rect x="29" y="320" width="1" height="1" fill="@structure@"/></g>
+  <g id="header-normal-bottomleft"><rect x="0" y="349" width="1" height="1" fill="@panel@"/><rect x="0" y="349" width="1" height="1" fill="@structure@"/><rect x="0" y="349" width="1" height="1" fill="@structure@"/></g>
+  <g id="header-normal-bottomright"><rect x="29" y="349" width="1" height="1" fill="@panel@"/><rect x="29" y="349" width="1" height="1" fill="@structure@"/><rect x="29" y="349" width="1" height="1" fill="@structure@"/></g>
+  <rect id="header-focused" x="41" y="321" width="28" height="28" fill="@card@"/>
+  <g id="header-focused-top"><rect x="41" y="320" width="28" height="1" fill="@card@"/><rect x="41" y="320" width="28" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="header-focused-bottom"><rect x="41" y="349" width="28" height="1" fill="@card@"/><rect x="41" y="349" width="28" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="header-focused-left"><rect x="40" y="321" width="1" height="28" fill="@card@"/><rect x="40" y="321" width="1" height="28" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="header-focused-right"><rect x="69" y="321" width="1" height="28" fill="@card@"/><rect x="69" y="321" width="1" height="28" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="header-focused-topleft"><rect x="40" y="320" width="1" height="1" fill="@card@"/><rect x="40" y="320" width="1" height="1" fill="@body@" fill-opacity="0.3"/><rect x="40" y="320" width="1" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="header-focused-topright"><rect x="69" y="320" width="1" height="1" fill="@card@"/><rect x="69" y="320" width="1" height="1" fill="@body@" fill-opacity="0.3"/><rect x="69" y="320" width="1" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="header-focused-bottomleft"><rect x="40" y="349" width="1" height="1" fill="@card@"/><rect x="40" y="349" width="1" height="1" fill="@body@" fill-opacity="0.3"/><rect x="40" y="349" width="1" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="header-focused-bottomright"><rect x="69" y="349" width="1" height="1" fill="@card@"/><rect x="69" y="349" width="1" height="1" fill="@body@" fill-opacity="0.3"/><rect x="69" y="349" width="1" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <rect id="header-pressed" x="81" y="321" width="28" height="28" fill="@hoverGround@"/>
+  <g id="header-pressed-top"><rect x="81" y="320" width="28" height="1" fill="@hoverGround@"/><rect x="81" y="320" width="28" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="header-pressed-bottom"><rect x="81" y="349" width="28" height="1" fill="@hoverGround@"/><rect x="81" y="349" width="28" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="header-pressed-left"><rect x="80" y="321" width="1" height="28" fill="@hoverGround@"/><rect x="80" y="321" width="1" height="28" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="header-pressed-right"><rect x="109" y="321" width="1" height="28" fill="@hoverGround@"/><rect x="109" y="321" width="1" height="28" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="header-pressed-topleft"><rect x="80" y="320" width="1" height="1" fill="@hoverGround@"/><rect x="80" y="320" width="1" height="1" fill="@body@" fill-opacity="0.4"/><rect x="80" y="320" width="1" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="header-pressed-topright"><rect x="109" y="320" width="1" height="1" fill="@hoverGround@"/><rect x="109" y="320" width="1" height="1" fill="@body@" fill-opacity="0.4"/><rect x="109" y="320" width="1" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="header-pressed-bottomleft"><rect x="80" y="349" width="1" height="1" fill="@hoverGround@"/><rect x="80" y="349" width="1" height="1" fill="@body@" fill-opacity="0.4"/><rect x="80" y="349" width="1" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="header-pressed-bottomright"><rect x="109" y="349" width="1" height="1" fill="@hoverGround@"/><rect x="109" y="349" width="1" height="1" fill="@body@" fill-opacity="0.4"/><rect x="109" y="349" width="1" height="1" fill="@body@" fill-opacity="0.4"/></g>
 
-  <!-- Item view -->
-  <rect id="itemview-normal-interior" x="0" y="360" width="30" height="30" rx="0" fill="transparent"/>
-  <rect id="itemview-normal-frame" x="0" y="360" width="30" height="30" rx="0" fill="none"/>
-  <rect id="itemview-focus-interior" x="40" y="360" width="30" height="30" rx="0" fill="@hoverGround@"/>
-  <rect id="itemview-focus-frame" x="40" y="360" width="30" height="30" rx="0" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
-  <rect id="itemview-press-interior" x="80" y="360" width="30" height="30" rx="2" fill="@pressedGround@"/>
-  <rect id="itemview-press-frame" x="80" y="360" width="30" height="30" rx="2" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
-  <rect id="itemview-toggle-interior" x="120" y="360" width="30" height="30" rx="2" fill="@hoverGround@"/>
-  <rect id="itemview-toggle-frame" x="120" y="360" width="30" height="30" rx="2" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.2"/>
+  <!-- Item view: the chosen row is inverse video -->
+  <rect id="itemview-normal" x="2" y="362" width="26" height="26" fill="#000000" fill-opacity="0"/>
+  <g id="itemview-normal-top"><rect x="2" y="360" width="26" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="itemview-normal-bottom"><rect x="2" y="388" width="26" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="itemview-normal-left"><rect x="0" y="362" width="2" height="26" fill="#000000" fill-opacity="0"/></g>
+  <g id="itemview-normal-right"><rect x="28" y="362" width="2" height="26" fill="#000000" fill-opacity="0"/></g>
+  <g id="itemview-normal-topleft"><rect x="0" y="360" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="itemview-normal-topright"><rect x="28" y="360" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="itemview-normal-bottomleft"><rect x="0" y="388" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="itemview-normal-bottomright"><rect x="28" y="388" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <rect id="itemview-focused" x="42" y="362" width="26" height="26" fill="@hoverGround@"/>
+  <g id="itemview-focused-top"><rect x="42" y="360" width="26" height="2" fill="@hoverGround@"/><rect x="42" y="360" width="26" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="itemview-focused-bottom"><rect x="42" y="388" width="26" height="2" fill="@hoverGround@"/><rect x="42" y="389" width="26" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="itemview-focused-left"><rect x="40" y="362" width="2" height="26" fill="@hoverGround@"/><rect x="40" y="362" width="1" height="26" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="itemview-focused-right"><rect x="68" y="362" width="2" height="26" fill="@hoverGround@"/><rect x="69" y="362" width="1" height="26" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="itemview-focused-topleft"><rect x="40" y="360" width="2" height="2" fill="@hoverGround@"/><rect x="40" y="360" width="2" height="1" fill="@body@" fill-opacity="0.3"/><rect x="40" y="360" width="1" height="2" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="itemview-focused-topright"><rect x="68" y="360" width="2" height="2" fill="@hoverGround@"/><rect x="68" y="360" width="2" height="1" fill="@body@" fill-opacity="0.3"/><rect x="69" y="360" width="1" height="2" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="itemview-focused-bottomleft"><rect x="40" y="388" width="2" height="2" fill="@hoverGround@"/><rect x="40" y="389" width="2" height="1" fill="@body@" fill-opacity="0.3"/><rect x="40" y="388" width="1" height="2" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="itemview-focused-bottomright"><rect x="68" y="388" width="2" height="2" fill="@hoverGround@"/><rect x="68" y="389" width="2" height="1" fill="@body@" fill-opacity="0.3"/><rect x="69" y="388" width="1" height="2" fill="@body@" fill-opacity="0.3"/></g>
+  <rect id="itemview-pressed" x="82" y="362" width="26" height="26" fill="@body@"/>
+  <g id="itemview-pressed-top"><rect x="82" y="360" width="26" height="2" fill="@body@"/><rect x="82" y="360" width="26" height="1" fill="@body@"/></g>
+  <g id="itemview-pressed-bottom"><rect x="82" y="388" width="26" height="2" fill="@body@"/><rect x="82" y="389" width="26" height="1" fill="@body@"/></g>
+  <g id="itemview-pressed-left"><rect x="80" y="362" width="2" height="26" fill="@body@"/><rect x="80" y="362" width="1" height="26" fill="@body@"/></g>
+  <g id="itemview-pressed-right"><rect x="108" y="362" width="2" height="26" fill="@body@"/><rect x="109" y="362" width="1" height="26" fill="@body@"/></g>
+  <g id="itemview-pressed-topleft"><rect x="80" y="360" width="2" height="2" fill="@body@"/><rect x="80" y="360" width="2" height="1" fill="@body@"/><rect x="80" y="360" width="1" height="2" fill="@body@"/></g>
+  <g id="itemview-pressed-topright"><rect x="108" y="360" width="2" height="2" fill="@body@"/><rect x="108" y="360" width="2" height="1" fill="@body@"/><rect x="109" y="360" width="1" height="2" fill="@body@"/></g>
+  <g id="itemview-pressed-bottomleft"><rect x="80" y="388" width="2" height="2" fill="@body@"/><rect x="80" y="389" width="2" height="1" fill="@body@"/><rect x="80" y="388" width="1" height="2" fill="@body@"/></g>
+  <g id="itemview-pressed-bottomright"><rect x="108" y="388" width="2" height="2" fill="@body@"/><rect x="108" y="389" width="2" height="1" fill="@body@"/><rect x="109" y="388" width="1" height="2" fill="@body@"/></g>
+  <rect id="itemview-toggled" x="122" y="362" width="26" height="26" fill="@body@"/>
+  <g id="itemview-toggled-top"><rect x="122" y="360" width="26" height="2" fill="@body@"/><rect x="122" y="360" width="26" height="1" fill="@body@"/></g>
+  <g id="itemview-toggled-bottom"><rect x="122" y="388" width="26" height="2" fill="@body@"/><rect x="122" y="389" width="26" height="1" fill="@body@"/></g>
+  <g id="itemview-toggled-left"><rect x="120" y="362" width="2" height="26" fill="@body@"/><rect x="120" y="362" width="1" height="26" fill="@body@"/></g>
+  <g id="itemview-toggled-right"><rect x="148" y="362" width="2" height="26" fill="@body@"/><rect x="149" y="362" width="1" height="26" fill="@body@"/></g>
+  <g id="itemview-toggled-topleft"><rect x="120" y="360" width="2" height="2" fill="@body@"/><rect x="120" y="360" width="2" height="1" fill="@body@"/><rect x="120" y="360" width="1" height="2" fill="@body@"/></g>
+  <g id="itemview-toggled-topright"><rect x="148" y="360" width="2" height="2" fill="@body@"/><rect x="148" y="360" width="2" height="1" fill="@body@"/><rect x="149" y="360" width="1" height="2" fill="@body@"/></g>
+  <g id="itemview-toggled-bottomleft"><rect x="120" y="388" width="2" height="2" fill="@body@"/><rect x="120" y="389" width="2" height="1" fill="@body@"/><rect x="120" y="388" width="1" height="2" fill="@body@"/></g>
+  <g id="itemview-toggled-bottomright"><rect x="148" y="388" width="2" height="2" fill="@body@"/><rect x="148" y="389" width="2" height="1" fill="@body@"/><rect x="149" y="388" width="1" height="2" fill="@body@"/></g>
 
   <!-- Menubar -->
-  <rect id="menubar-normal-interior" x="0" y="400" width="30" height="30" rx="0" fill="@panel@"/>
-  <rect id="menubar-normal-frame" x="0" y="400" width="30" height="30" rx="0" fill="none"/>
+  <rect id="menubar-normal" x="4" y="404" width="22" height="22" fill="@panel@"/>
+  <g id="menubar-normal-top"><rect x="4" y="400" width="22" height="4" fill="@panel@"/></g>
+  <g id="menubar-normal-bottom"><rect x="4" y="426" width="22" height="4" fill="@panel@"/></g>
+  <g id="menubar-normal-left"><rect x="0" y="404" width="4" height="22" fill="@panel@"/></g>
+  <g id="menubar-normal-right"><rect x="26" y="404" width="4" height="22" fill="@panel@"/></g>
+  <g id="menubar-normal-topleft"><rect x="0" y="400" width="4" height="4" fill="@panel@"/></g>
+  <g id="menubar-normal-topright"><rect x="26" y="400" width="4" height="4" fill="@panel@"/></g>
+  <g id="menubar-normal-bottomleft"><rect x="0" y="426" width="4" height="4" fill="@panel@"/></g>
+  <g id="menubar-normal-bottomright"><rect x="26" y="426" width="4" height="4" fill="@panel@"/></g>
 
   <!-- Menubar item -->
-  <rect id="menubaritem-normal-interior" x="0" y="440" width="30" height="30" rx="4" fill="transparent"/>
-  <rect id="menubaritem-normal-frame" x="0" y="440" width="30" height="30" rx="4" fill="none"/>
-  <rect id="menubaritem-focus-interior" x="40" y="440" width="30" height="30" rx="4" fill="@hoverGround@"/>
-  <rect id="menubaritem-focus-frame" x="40" y="440" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
+  <rect id="menubaritem-normal" x="2" y="442" width="26" height="26" fill="#000000" fill-opacity="0"/>
+  <g id="menubaritem-normal-top"><rect x="2" y="440" width="26" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="menubaritem-normal-bottom"><rect x="2" y="468" width="26" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="menubaritem-normal-left"><rect x="0" y="442" width="2" height="26" fill="#000000" fill-opacity="0"/></g>
+  <g id="menubaritem-normal-right"><rect x="28" y="442" width="2" height="26" fill="#000000" fill-opacity="0"/></g>
+  <g id="menubaritem-normal-topleft"><rect x="0" y="440" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="menubaritem-normal-topright"><rect x="28" y="440" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="menubaritem-normal-bottomleft"><rect x="0" y="468" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <g id="menubaritem-normal-bottomright"><rect x="28" y="468" width="2" height="2" fill="#000000" fill-opacity="0"/></g>
+  <rect id="menubaritem-focused" x="42" y="442" width="26" height="26" fill="@hoverGround@"/>
+  <g id="menubaritem-focused-top"><rect x="42" y="440" width="26" height="2" fill="@hoverGround@"/><rect x="42" y="440" width="26" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menubaritem-focused-bottom"><rect x="42" y="468" width="26" height="2" fill="@hoverGround@"/><rect x="42" y="469" width="26" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menubaritem-focused-left"><rect x="40" y="442" width="2" height="26" fill="@hoverGround@"/><rect x="40" y="442" width="1" height="26" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menubaritem-focused-right"><rect x="68" y="442" width="2" height="26" fill="@hoverGround@"/><rect x="69" y="442" width="1" height="26" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menubaritem-focused-topleft"><rect x="40" y="440" width="2" height="2" fill="@hoverGround@"/><rect x="40" y="440" width="2" height="1" fill="@body@" fill-opacity="0.3"/><rect x="40" y="440" width="1" height="2" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menubaritem-focused-topright"><rect x="68" y="440" width="2" height="2" fill="@hoverGround@"/><rect x="68" y="440" width="2" height="1" fill="@body@" fill-opacity="0.3"/><rect x="69" y="440" width="1" height="2" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menubaritem-focused-bottomleft"><rect x="40" y="468" width="2" height="2" fill="@hoverGround@"/><rect x="40" y="469" width="2" height="1" fill="@body@" fill-opacity="0.3"/><rect x="40" y="468" width="1" height="2" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menubaritem-focused-bottomright"><rect x="68" y="468" width="2" height="2" fill="@hoverGround@"/><rect x="68" y="469" width="2" height="1" fill="@body@" fill-opacity="0.3"/><rect x="69" y="468" width="1" height="2" fill="@body@" fill-opacity="0.3"/></g>
+  <rect id="menubaritem-toggled" x="82" y="442" width="26" height="26" fill="@body@"/>
+  <g id="menubaritem-toggled-top"><rect x="82" y="440" width="26" height="2" fill="@body@"/><rect x="82" y="440" width="26" height="1" fill="@body@"/></g>
+  <g id="menubaritem-toggled-bottom"><rect x="82" y="468" width="26" height="2" fill="@body@"/><rect x="82" y="469" width="26" height="1" fill="@body@"/></g>
+  <g id="menubaritem-toggled-left"><rect x="80" y="442" width="2" height="26" fill="@body@"/><rect x="80" y="442" width="1" height="26" fill="@body@"/></g>
+  <g id="menubaritem-toggled-right"><rect x="108" y="442" width="2" height="26" fill="@body@"/><rect x="109" y="442" width="1" height="26" fill="@body@"/></g>
+  <g id="menubaritem-toggled-topleft"><rect x="80" y="440" width="2" height="2" fill="@body@"/><rect x="80" y="440" width="2" height="1" fill="@body@"/><rect x="80" y="440" width="1" height="2" fill="@body@"/></g>
+  <g id="menubaritem-toggled-topright"><rect x="108" y="440" width="2" height="2" fill="@body@"/><rect x="108" y="440" width="2" height="1" fill="@body@"/><rect x="109" y="440" width="1" height="2" fill="@body@"/></g>
+  <g id="menubaritem-toggled-bottomleft"><rect x="80" y="468" width="2" height="2" fill="@body@"/><rect x="80" y="469" width="2" height="1" fill="@body@"/><rect x="80" y="468" width="1" height="2" fill="@body@"/></g>
+  <g id="menubaritem-toggled-bottomright"><rect x="108" y="468" width="2" height="2" fill="@body@"/><rect x="108" y="469" width="2" height="1" fill="@body@"/><rect x="109" y="468" width="1" height="2" fill="@body@"/></g>
 
-  <!-- Menu (context menu): Kvantum reads an interior as <element>-<state> and a frame as eight edge and corner pieces -->
+  <!-- Menu (context menu) -->
   <rect id="menu-normal" x="1" y="481" width="28" height="28" fill="@panel@"/>
-  <rect id="menu-normal-top" x="1" y="480" width="28" height="1" fill="@body@" fill-opacity="0.3"/>
-  <rect id="menu-normal-bottom" x="1" y="509" width="28" height="1" fill="@body@" fill-opacity="0.3"/>
-  <rect id="menu-normal-left" x="0" y="481" width="1" height="28" fill="@body@" fill-opacity="0.3"/>
-  <rect id="menu-normal-right" x="29" y="481" width="1" height="28" fill="@body@" fill-opacity="0.3"/>
-  <rect id="menu-normal-topleft" x="0" y="480" width="1" height="1" fill="@body@" fill-opacity="0.3"/>
-  <rect id="menu-normal-topright" x="29" y="480" width="1" height="1" fill="@body@" fill-opacity="0.3"/>
-  <rect id="menu-normal-bottomleft" x="0" y="509" width="1" height="1" fill="@body@" fill-opacity="0.3"/>
-  <rect id="menu-normal-bottomright" x="29" y="509" width="1" height="1" fill="@body@" fill-opacity="0.3"/>
+  <g id="menu-normal-top"><rect x="1" y="480" width="28" height="1" fill="@panel@"/><rect x="1" y="480" width="28" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menu-normal-bottom"><rect x="1" y="509" width="28" height="1" fill="@panel@"/><rect x="1" y="509" width="28" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menu-normal-left"><rect x="0" y="481" width="1" height="28" fill="@panel@"/><rect x="0" y="481" width="1" height="28" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menu-normal-right"><rect x="29" y="481" width="1" height="28" fill="@panel@"/><rect x="29" y="481" width="1" height="28" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menu-normal-topleft"><rect x="0" y="480" width="1" height="1" fill="@panel@"/><rect x="0" y="480" width="1" height="1" fill="@body@" fill-opacity="0.3"/><rect x="0" y="480" width="1" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menu-normal-topright"><rect x="29" y="480" width="1" height="1" fill="@panel@"/><rect x="29" y="480" width="1" height="1" fill="@body@" fill-opacity="0.3"/><rect x="29" y="480" width="1" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menu-normal-bottomleft"><rect x="0" y="509" width="1" height="1" fill="@panel@"/><rect x="0" y="509" width="1" height="1" fill="@body@" fill-opacity="0.3"/><rect x="0" y="509" width="1" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="menu-normal-bottomright"><rect x="29" y="509" width="1" height="1" fill="@panel@"/><rect x="29" y="509" width="1" height="1" fill="@body@" fill-opacity="0.3"/><rect x="29" y="509" width="1" height="1" fill="@body@" fill-opacity="0.3"/></g>
 
   <!-- Menu item: the one under the pointer is "toggled" to Kvantum, and nothing is drawn for the rest -->
-  <rect id="menuitem-toggled" x="43" y="523" width="24" height="24" fill="@body@"/>
-  <rect id="menuitem-toggled-top" x="43" y="520" width="24" height="3" fill="@body@"/>
-  <rect id="menuitem-toggled-bottom" x="43" y="547" width="24" height="3" fill="@body@"/>
-  <rect id="menuitem-toggled-left" x="40" y="523" width="3" height="24" fill="@body@"/>
-  <rect id="menuitem-toggled-right" x="67" y="523" width="3" height="24" fill="@body@"/>
-  <rect id="menuitem-toggled-topleft" x="40" y="520" width="3" height="3" fill="@body@"/>
-  <rect id="menuitem-toggled-topright" x="67" y="520" width="3" height="3" fill="@body@"/>
-  <rect id="menuitem-toggled-bottomleft" x="40" y="547" width="3" height="3" fill="@body@"/>
-  <rect id="menuitem-toggled-bottomright" x="67" y="547" width="3" height="3" fill="@body@"/>
+  <rect id="menuitem-toggled" x="3" y="523" width="24" height="24" fill="@body@"/>
+  <g id="menuitem-toggled-top"><rect x="3" y="520" width="24" height="3" fill="@body@"/><rect x="3" y="520" width="24" height="1" fill="@body@"/></g>
+  <g id="menuitem-toggled-bottom"><rect x="3" y="547" width="24" height="3" fill="@body@"/><rect x="3" y="549" width="24" height="1" fill="@body@"/></g>
+  <g id="menuitem-toggled-left"><rect x="0" y="523" width="3" height="24" fill="@body@"/><rect x="0" y="523" width="1" height="24" fill="@body@"/></g>
+  <g id="menuitem-toggled-right"><rect x="27" y="523" width="3" height="24" fill="@body@"/><rect x="29" y="523" width="1" height="24" fill="@body@"/></g>
+  <g id="menuitem-toggled-topleft"><rect x="0" y="520" width="3" height="3" fill="@body@"/><rect x="0" y="520" width="3" height="1" fill="@body@"/><rect x="0" y="520" width="1" height="3" fill="@body@"/></g>
+  <g id="menuitem-toggled-topright"><rect x="27" y="520" width="3" height="3" fill="@body@"/><rect x="27" y="520" width="3" height="1" fill="@body@"/><rect x="29" y="520" width="1" height="3" fill="@body@"/></g>
+  <g id="menuitem-toggled-bottomleft"><rect x="0" y="547" width="3" height="3" fill="@body@"/><rect x="0" y="549" width="3" height="1" fill="@body@"/><rect x="0" y="547" width="1" height="3" fill="@body@"/></g>
+  <g id="menuitem-toggled-bottomright"><rect x="27" y="547" width="3" height="3" fill="@body@"/><rect x="27" y="549" width="3" height="1" fill="@body@"/><rect x="29" y="547" width="1" height="3" fill="@body@"/></g>
 
   <!-- Dock -->
-  <rect id="dock-normal-interior" x="0" y="560" width="30" height="30" rx="0" fill="@panel@"/>
-  <rect id="dock-normal-frame" x="0" y="560" width="30" height="30" rx="0" fill="none" stroke="@inputGround@" stroke-width="1"/>
+  <rect id="dock-normal" x="1" y="561" width="28" height="28" fill="@panel@"/>
+  <g id="dock-normal-top"><rect x="1" y="560" width="28" height="1" fill="@panel@"/><rect x="1" y="560" width="28" height="1" fill="@structure@"/></g>
+  <g id="dock-normal-bottom"><rect x="1" y="589" width="28" height="1" fill="@panel@"/><rect x="1" y="589" width="28" height="1" fill="@structure@"/></g>
+  <g id="dock-normal-left"><rect x="0" y="561" width="1" height="28" fill="@panel@"/><rect x="0" y="561" width="1" height="28" fill="@structure@"/></g>
+  <g id="dock-normal-right"><rect x="29" y="561" width="1" height="28" fill="@panel@"/><rect x="29" y="561" width="1" height="28" fill="@structure@"/></g>
+  <g id="dock-normal-topleft"><rect x="0" y="560" width="1" height="1" fill="@panel@"/><rect x="0" y="560" width="1" height="1" fill="@structure@"/><rect x="0" y="560" width="1" height="1" fill="@structure@"/></g>
+  <g id="dock-normal-topright"><rect x="29" y="560" width="1" height="1" fill="@panel@"/><rect x="29" y="560" width="1" height="1" fill="@structure@"/><rect x="29" y="560" width="1" height="1" fill="@structure@"/></g>
+  <g id="dock-normal-bottomleft"><rect x="0" y="589" width="1" height="1" fill="@panel@"/><rect x="0" y="589" width="1" height="1" fill="@structure@"/><rect x="0" y="589" width="1" height="1" fill="@structure@"/></g>
+  <g id="dock-normal-bottomright"><rect x="29" y="589" width="1" height="1" fill="@panel@"/><rect x="29" y="589" width="1" height="1" fill="@structure@"/><rect x="29" y="589" width="1" height="1" fill="@structure@"/></g>
 
   <!-- Progress bar -->
-  <rect id="progress-normal-interior" x="0" y="600" width="30" height="30" rx="4" fill="@panel@"/>
-  <rect id="progress-normal-frame" x="0" y="600" width="30" height="30" rx="4" fill="none" stroke="@raised@" stroke-width="1"/>
-  <rect id="progress-pattern-normal-interior" x="40" y="600" width="30" height="30" rx="4" fill="url(#amber-glow)"/>
-  <rect id="progress-pattern-normal-frame" x="40" y="600" width="30" height="30" rx="4" fill="none"/>
+  <rect id="progress-normal" x="4" y="604" width="22" height="22" fill="@panel@"/>
+  <g id="progress-normal-top"><rect x="4" y="600" width="22" height="4" fill="@panel@"/><rect x="4" y="600" width="22" height="1" fill="@structure@"/></g>
+  <g id="progress-normal-bottom"><rect x="4" y="626" width="22" height="4" fill="@panel@"/><rect x="4" y="629" width="22" height="1" fill="@structure@"/></g>
+  <g id="progress-normal-left"><rect x="0" y="604" width="4" height="22" fill="@panel@"/><rect x="0" y="604" width="1" height="22" fill="@structure@"/></g>
+  <g id="progress-normal-right"><rect x="26" y="604" width="4" height="22" fill="@panel@"/><rect x="29" y="604" width="1" height="22" fill="@structure@"/></g>
+  <g id="progress-normal-topleft"><rect x="0" y="600" width="4" height="4" fill="@panel@"/><rect x="0" y="600" width="4" height="1" fill="@structure@"/><rect x="0" y="600" width="1" height="4" fill="@structure@"/></g>
+  <g id="progress-normal-topright"><rect x="26" y="600" width="4" height="4" fill="@panel@"/><rect x="26" y="600" width="4" height="1" fill="@structure@"/><rect x="29" y="600" width="1" height="4" fill="@structure@"/></g>
+  <g id="progress-normal-bottomleft"><rect x="0" y="626" width="4" height="4" fill="@panel@"/><rect x="0" y="629" width="4" height="1" fill="@structure@"/><rect x="0" y="626" width="1" height="4" fill="@structure@"/></g>
+  <g id="progress-normal-bottomright"><rect x="26" y="626" width="4" height="4" fill="@panel@"/><rect x="26" y="629" width="4" height="1" fill="@structure@"/><rect x="29" y="626" width="1" height="4" fill="@structure@"/></g>
 
-  <!-- Scrollbar slider -->
-  <rect id="scrollbarslider-normal-interior" x="0" y="640" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.3"/>
-  <rect id="scrollbarslider-focus-interior" x="16" y="640" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.5"/>
-  <rect id="scrollbarslider-press-interior" x="32" y="640" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.7"/>
+  <!-- Progress bar contents -->
+  <rect id="progress-pattern-normal" x="4" y="644" width="22" height="22" fill="url(#amber-glow)"/>
+  <g id="progress-pattern-normal-top"><rect x="4" y="640" width="22" height="4" fill="url(#amber-glow)"/></g>
+  <g id="progress-pattern-normal-bottom"><rect x="4" y="666" width="22" height="4" fill="url(#amber-glow)"/></g>
+  <g id="progress-pattern-normal-left"><rect x="0" y="644" width="4" height="22" fill="url(#amber-glow)"/></g>
+  <g id="progress-pattern-normal-right"><rect x="26" y="644" width="4" height="22" fill="url(#amber-glow)"/></g>
+  <g id="progress-pattern-normal-topleft"><rect x="0" y="640" width="4" height="4" fill="url(#amber-glow)"/></g>
+  <g id="progress-pattern-normal-topright"><rect x="26" y="640" width="4" height="4" fill="url(#amber-glow)"/></g>
+  <g id="progress-pattern-normal-bottomleft"><rect x="0" y="666" width="4" height="4" fill="url(#amber-glow)"/></g>
+  <g id="progress-pattern-normal-bottomright"><rect x="26" y="666" width="4" height="4" fill="url(#amber-glow)"/></g>
 
-  <!-- Slider -->
-  <rect id="slider-normal-interior" x="0" y="680" width="30" height="6" rx="3" fill="@inputGround@"/>
-  <rect id="slider-normal-frame" x="0" y="680" width="30" height="6" rx="3" fill="none" stroke="@raised@" stroke-width="1"/>
-  <rect id="slider-focus-interior" x="40" y="680" width="30" height="6" rx="3" fill="@inputGround@"/>
-  <rect id="slider-focus-frame" x="40" y="680" width="30" height="6" rx="3" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.4"/>
-  <circle id="slidercursor-normal-interior" cx="10" cy="700" r="8" fill="@body@"/>
-  <circle id="slidercursor-focus-interior" cx="30" cy="700" r="8" fill="@body@"/>
-  <circle id="slidercursor-press-interior" cx="50" cy="700" r="8" fill="@visited@"/>
+  <!-- Slider groove: the travelled part is "toggled" -->
+  <rect id="slider-normal" x="3" y="683" width="24" height="24" fill="@inputGround@"/>
+  <g id="slider-normal-top"><rect x="3" y="680" width="24" height="3" fill="@inputGround@"/><rect x="3" y="680" width="24" height="1" fill="@structure@"/></g>
+  <g id="slider-normal-bottom"><rect x="3" y="707" width="24" height="3" fill="@inputGround@"/><rect x="3" y="709" width="24" height="1" fill="@structure@"/></g>
+  <g id="slider-normal-left"><rect x="0" y="683" width="3" height="24" fill="@inputGround@"/><rect x="0" y="683" width="1" height="24" fill="@structure@"/></g>
+  <g id="slider-normal-right"><rect x="27" y="683" width="3" height="24" fill="@inputGround@"/><rect x="29" y="683" width="1" height="24" fill="@structure@"/></g>
+  <g id="slider-normal-topleft"><rect x="0" y="680" width="3" height="3" fill="@inputGround@"/><rect x="0" y="680" width="3" height="1" fill="@structure@"/><rect x="0" y="680" width="1" height="3" fill="@structure@"/></g>
+  <g id="slider-normal-topright"><rect x="27" y="680" width="3" height="3" fill="@inputGround@"/><rect x="27" y="680" width="3" height="1" fill="@structure@"/><rect x="29" y="680" width="1" height="3" fill="@structure@"/></g>
+  <g id="slider-normal-bottomleft"><rect x="0" y="707" width="3" height="3" fill="@inputGround@"/><rect x="0" y="709" width="3" height="1" fill="@structure@"/><rect x="0" y="707" width="1" height="3" fill="@structure@"/></g>
+  <g id="slider-normal-bottomright"><rect x="27" y="707" width="3" height="3" fill="@inputGround@"/><rect x="27" y="709" width="3" height="1" fill="@structure@"/><rect x="29" y="707" width="1" height="3" fill="@structure@"/></g>
+  <rect id="slider-focused" x="43" y="683" width="24" height="24" fill="@inputGround@"/>
+  <g id="slider-focused-top"><rect x="43" y="680" width="24" height="3" fill="@inputGround@"/><rect x="43" y="680" width="24" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="slider-focused-bottom"><rect x="43" y="707" width="24" height="3" fill="@inputGround@"/><rect x="43" y="709" width="24" height="1" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="slider-focused-left"><rect x="40" y="683" width="3" height="24" fill="@inputGround@"/><rect x="40" y="683" width="1" height="24" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="slider-focused-right"><rect x="67" y="683" width="3" height="24" fill="@inputGround@"/><rect x="69" y="683" width="1" height="24" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="slider-focused-topleft"><rect x="40" y="680" width="3" height="3" fill="@inputGround@"/><rect x="40" y="680" width="3" height="1" fill="@body@" fill-opacity="0.4"/><rect x="40" y="680" width="1" height="3" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="slider-focused-topright"><rect x="67" y="680" width="3" height="3" fill="@inputGround@"/><rect x="67" y="680" width="3" height="1" fill="@body@" fill-opacity="0.4"/><rect x="69" y="680" width="1" height="3" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="slider-focused-bottomleft"><rect x="40" y="707" width="3" height="3" fill="@inputGround@"/><rect x="40" y="709" width="3" height="1" fill="@body@" fill-opacity="0.4"/><rect x="40" y="707" width="1" height="3" fill="@body@" fill-opacity="0.4"/></g>
+  <g id="slider-focused-bottomright"><rect x="67" y="707" width="3" height="3" fill="@inputGround@"/><rect x="67" y="709" width="3" height="1" fill="@body@" fill-opacity="0.4"/><rect x="69" y="707" width="1" height="3" fill="@body@" fill-opacity="0.4"/></g>
+  <rect id="slider-toggled" x="83" y="683" width="24" height="24" fill="@body@"/>
+  <g id="slider-toggled-top"><rect x="83" y="680" width="24" height="3" fill="@body@"/><rect x="83" y="680" width="24" height="1" fill="@body@"/></g>
+  <g id="slider-toggled-bottom"><rect x="83" y="707" width="24" height="3" fill="@body@"/><rect x="83" y="709" width="24" height="1" fill="@body@"/></g>
+  <g id="slider-toggled-left"><rect x="80" y="683" width="3" height="24" fill="@body@"/><rect x="80" y="683" width="1" height="24" fill="@body@"/></g>
+  <g id="slider-toggled-right"><rect x="107" y="683" width="3" height="24" fill="@body@"/><rect x="109" y="683" width="1" height="24" fill="@body@"/></g>
+  <g id="slider-toggled-topleft"><rect x="80" y="680" width="3" height="3" fill="@body@"/><rect x="80" y="680" width="3" height="1" fill="@body@"/><rect x="80" y="680" width="1" height="3" fill="@body@"/></g>
+  <g id="slider-toggled-topright"><rect x="107" y="680" width="3" height="3" fill="@body@"/><rect x="107" y="680" width="3" height="1" fill="@body@"/><rect x="109" y="680" width="1" height="3" fill="@body@"/></g>
+  <g id="slider-toggled-bottomleft"><rect x="80" y="707" width="3" height="3" fill="@body@"/><rect x="80" y="709" width="3" height="1" fill="@body@"/><rect x="80" y="707" width="1" height="3" fill="@body@"/></g>
+  <g id="slider-toggled-bottomright"><rect x="107" y="707" width="3" height="3" fill="@body@"/><rect x="107" y="709" width="3" height="1" fill="@body@"/><rect x="109" y="707" width="1" height="3" fill="@body@"/></g>
 
   <!-- Tooltip -->
-  <rect id="tooltip-normal-interior" x="0" y="720" width="30" height="30" rx="4" fill="@panel@"/>
-  <rect id="tooltip-normal-frame" x="0" y="720" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
+  <rect id="tooltip-normal" x="3" y="723" width="24" height="24" fill="@panel@"/>
+  <g id="tooltip-normal-top"><rect x="3" y="720" width="24" height="3" fill="@panel@"/><rect x="3" y="720" width="24" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="tooltip-normal-bottom"><rect x="3" y="747" width="24" height="3" fill="@panel@"/><rect x="3" y="749" width="24" height="1" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="tooltip-normal-left"><rect x="0" y="723" width="3" height="24" fill="@panel@"/><rect x="0" y="723" width="1" height="24" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="tooltip-normal-right"><rect x="27" y="723" width="3" height="24" fill="@panel@"/><rect x="29" y="723" width="1" height="24" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="tooltip-normal-topleft"><rect x="0" y="720" width="3" height="3" fill="@panel@"/><rect x="0" y="720" width="3" height="1" fill="@body@" fill-opacity="0.3"/><rect x="0" y="720" width="1" height="3" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="tooltip-normal-topright"><rect x="27" y="720" width="3" height="3" fill="@panel@"/><rect x="27" y="720" width="3" height="1" fill="@body@" fill-opacity="0.3"/><rect x="29" y="720" width="1" height="3" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="tooltip-normal-bottomleft"><rect x="0" y="747" width="3" height="3" fill="@panel@"/><rect x="0" y="749" width="3" height="1" fill="@body@" fill-opacity="0.3"/><rect x="0" y="747" width="1" height="3" fill="@body@" fill-opacity="0.3"/></g>
+  <g id="tooltip-normal-bottomright"><rect x="27" y="747" width="3" height="3" fill="@panel@"/><rect x="27" y="749" width="3" height="1" fill="@body@" fill-opacity="0.3"/><rect x="29" y="747" width="1" height="3" fill="@body@" fill-opacity="0.3"/></g>
 
-  <!-- Titlebar -->
-  <rect id="titlebar-normal-interior" x="0" y="760" width="30" height="30" rx="0" fill="@panel@"/>
-  <rect id="titlebar-focus-interior" x="40" y="760" width="30" height="30" rx="0" fill="@panel@"/>
+  <!-- Focus frame: pieces with no state -->
+  <rect id="focus-top" x="1" y="760" width="28" height="1" fill="@body@" fill-opacity="0.5"/>
+  <rect id="focus-bottom" x="1" y="789" width="28" height="1" fill="@body@" fill-opacity="0.5"/>
+  <rect id="focus-left" x="0" y="761" width="1" height="28" fill="@body@" fill-opacity="0.5"/>
+  <rect id="focus-right" x="29" y="761" width="1" height="28" fill="@body@" fill-opacity="0.5"/>
+  <rect id="focus-topleft" x="0" y="760" width="1" height="1" fill="@body@" fill-opacity="0.5"/>
+  <rect id="focus-topright" x="29" y="760" width="1" height="1" fill="@body@" fill-opacity="0.5"/>
+  <rect id="focus-bottomleft" x="0" y="789" width="1" height="1" fill="@body@" fill-opacity="0.5"/>
+  <rect id="focus-bottomright" x="29" y="789" width="1" height="1" fill="@body@" fill-opacity="0.5"/>
 
-  <!-- Checkbox and radio -->
-  <rect id="checkbox-normal-interior" x="200" y="0" width="16" height="16" rx="3" fill="@panel@" stroke="@raised@" stroke-width="1"/>
-  <rect id="checkbox-focus-interior" x="220" y="0" width="16" height="16" rx="3" fill="@panel@" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
-  <rect id="checkbox-toggle-interior" x="240" y="0" width="16" height="16" rx="3" fill="@body@"/>
-  <circle id="radio-normal-interior" cx="208" cy="30" r="7" fill="@panel@" stroke="@raised@" stroke-width="1"/>
-  <circle id="radio-focus-interior" cx="228" cy="30" r="7" fill="@panel@" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
-  <circle id="radio-toggle-interior" cx="248" cy="30" r="7" fill="@body@"/>
+  <!-- Window, titlebar -->
+  <rect id="window-normal" x="40" y="760" width="30" height="30" fill="@panel@"/>
+  <rect id="titlebar-normal" x="80" y="760" width="30" height="30" fill="@panel@"/>
+  <rect id="titlebar-focused" x="120" y="760" width="30" height="30" fill="@panel@"/>
 
+  <!-- Scrollbar slider -->
+  <rect id="scrollbarslider-normal" x="0" y="800" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.3"/>
+  <rect id="scrollbarslider-focused" x="16" y="800" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.5"/>
+  <rect id="scrollbarslider-pressed" x="32" y="800" width="8" height="30" rx="4" fill="@body@" fill-opacity="0.7"/>
+
+  <!-- Slider handle -->
+  <circle id="slidercursor-normal" cx="10" cy="850" r="8" fill="@body@"/>
+  <circle id="slidercursor-focused" cx="30" cy="850" r="8" fill="@body@"/>
+  <circle id="slidercursor-pressed" cx="50" cy="850" r="8" fill="@visited@"/>
+
+  <!-- Checkbox and radio: a filled one is checked -->
+  <rect id="checkbox-normal" x="0.5" y="870.5" width="15" height="15" fill="@panel@" stroke="@structure@" stroke-width="1"/>
+  <rect id="checkbox-focused" x="20.5" y="870.5" width="15" height="15" fill="@panel@" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
+  <rect id="checkbox-checked-normal" x="40" y="870" width="16" height="16" fill="@body@"/>
+  <rect id="checkbox-checked-focused" x="60" y="870" width="16" height="16" fill="@body@"/>
+  <circle id="radio-normal" cx="8" cy="900" r="7" fill="@panel@" stroke="@structure@" stroke-width="1"/>
+  <circle id="radio-focused" cx="28" cy="900" r="7" fill="@panel@" stroke="@body@" stroke-width="1" stroke-opacity="0.6"/>
+  <circle id="radio-checked-normal" cx="48" cy="900" r="7" fill="@body@"/>
+  <circle id="radio-checked-focused" cx="68" cy="900" r="7" fill="@body@"/>
 </svg>
+
