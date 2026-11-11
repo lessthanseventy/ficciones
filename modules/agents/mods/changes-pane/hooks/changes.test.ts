@@ -261,7 +261,7 @@ test('the wheel over a list walks its selection', async ($, on) => {
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   expect(await ui.find({ text: /^f1\.ts/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^f15\.ts/, in: 'changes' })).toBeUndefined()
-  // 30 rows: the diff's box around 15 rows, the files' top edge, then seven files from row 18
+  // 30 rows: the tabs, the diff's box around 14 rows, the files' top edge, then seven files from row 18
   await $.ui.scroll({ component: 'Pane', requestId: 'changes', offset: 8, by: 8, bodyRows: 30, contentRows: 30, origin: { kind: 'person' }, pointer: { column: 3, row: 22 } } as never)
   expect(await ui.find({ text: /^f2\.ts$/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
@@ -332,6 +332,24 @@ test('the wheel moves the diff under its header, and holds it', async ($, on) =>
   expect(await ui.find({ text: /\+l1\b/, in: 'changes' })).toBeUndefined()
   expect(await ui.find({ text: /\+l20\b/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
+})
+
+test('the activity tab draws the session as a wheel over its feed', async ($, on) => {
+  mock.clock(on)
+  repo(on)
+  on('tool.call', ($, e) => ({ result: {}, ...(e.tool === 'Bash' ? { isError: true } : {}) }) as never)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await ui.press({ key: 'tab-activity' })
+  expect(await ui.find({ text: /CLAUDE/ })).toBeDefined()
+  expect(await ui.find({ text: /nothing yet this session/ })).toBeDefined()
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/a.ts', old_string: 'x', new_string: 'y' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'mix test', description: 'Run the test suite' } as never)
+  expect(await ui.find({ text: /Edit a\.ts/ })).toBeDefined()
+  expect(await ui.find({ text: /^✕ Shell/ })).toBeDefined()
+  expect(await ui.find({ text: /○ Files 1/ })).toBeDefined()
+  await ui.press({ key: 'tab-changes' })
+  expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
 })
 
 // Two repositories under one folder: git answers by the directory it is run in.

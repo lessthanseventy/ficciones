@@ -1,5 +1,7 @@
 import type { Register } from 'claude-code'
 
+import { describe, feedRow, graph, modelName, nodeOf } from './activity'
+import type { Entry, NodeId } from './activity'
 import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Commit, DiffLine, File, Run } from './changes'
 import type { Input, List, Section } from './view'
@@ -18,6 +20,11 @@ const MAX_UNTRACKED_DIFFS = 30
 const CONTEXT_ROWS = 3
 // The pane's keys, each a button under its lists: a hotkey is one lowercase letter.
 const KEYS = [['j', 'next'], ['k', 'prev'], ['t', 'list'], ['d', 'diff↓'], ['u', 'diff↑'], ['f', 'follow'], ['l', 'git']] as const
+
+const TABS = [['c', 'changes'], ['a', 'activity']] as const
+type Tab = (typeof TABS)[number][1]
+const MAX_ENTRIES = 200
+const MAX_GRAPH_ROWS = 17
 
 const OPEN = { id: PANE, title: 'Changes' }
 // The tools whose call names the file it writes.
@@ -71,6 +78,15 @@ export const register: Register = on => {
   let repo = ''
   let shared = ''
   const stamps = new Map<string, string>()
+  let tab: Tab = 'changes'
+  // newest first
+  const entries: Entry[] = []
+  const counts: Partial<Record<NodeId, number>> = {}
+  let feedTop = 0
+  let model = ''
+  let stepNo = 0
+  let percent: number | undefined
+  let isBusy = false
   let follow: (e: Call) => Promise<boolean> = async () => false
   let sight: () => Promise<void> = async () => {}
 
@@ -91,8 +107,8 @@ export const register: Register = on => {
   const commitIndex = () => (source === '' ? 0 : 1 + Math.max(0, commits.findIndex(c => c.sha === source)))
   const fileRows = () => clamp(paths().length, 1, Math.min(MAX_FILE_ROWS, Math.floor(size.rows / 4)))
   const commitRows = () => clamp(commits.length + 1, 1, Math.min(MAX_COMMIT_ROWS, Math.floor(size.rows / 5)))
-  // Three boxes' top and bottom edges, and the hint.
-  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 7)
+  // The tabs, three boxes' top and bottom edges, and the hint.
+  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 8)
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
   const reveal = () => {
     filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
@@ -198,6 +214,72 @@ export const register: Register = on => {
       acked,
     }
   }
+
+  const log = (entry: Entry) => {
+    entries.unshift(entry)
+    if (entries.length > MAX_ENTRIES) entries.pop()
+    counts[entry.node] = (counts[entry.node] ?? 0) + 1
+    return entry
+  }
+
+  const activity = () => {
+    const columns = size.columns + 2
+    // under the tabs and above the hint
+    const room = Math.max(2, size.rows - 2)
+    const graphRows = clamp(Math.floor(room / 2), 9, MAX_GRAPH_ROWS)
+    const running = new Set(entries.filter(e => e.state === 'running').map(e => e.node))
+    const latest = new Map<NodeId, Entry>()
+    for (const entry of [...entries].reverse()) latest.set(entry.node, entry)
+    const failed = new Set([...latest].filter(([, e]) => e.state === 'failed').map(([node]) => node))
+    const centre = [percent === undefined ? '' : `ctx ${Math.round(percent)}%`, 'CLAUDE', model]
+    const head = [model && `Model: ${model}`, stepNo > 0 && `step ${stepNo}`, percent !== undefined && `context ${Math.round(percent)}%`].filter(Boolean).join(' · ')
+    const first = clamp(feedTop, 0, entries.length - 1)
+    return [
+      ...graph(columns, graphRows, { counts, running, failed, last: entries[0]?.node, centre, isBusy }),
+      [{ t: head || 'nothing yet this session', bold: true as const }],
+      ...entries.slice(first, first + Math.max(0, room - graphRows - 1)).map(entry => feedRow(entry, columns)),
+    ]
+  }
+
+  on('prompt.submit', async ($, e, next) => {
+    log({ node: 'you', text: 'new message', state: 'done' })
+    if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
+    return next(e)
+  })
+
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) isBusy = true
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      isBusy = false
+      if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
+    }
+    return next(e)
+  })
+
+  on('turn.step', async function* ($, e, next) {
+    if (e.agentId !== undefined) return yield* next(e)
+    model = modelName(e.model)
+    stepNo = e.index + 1
+    const entry = log({ node: 'model', text: `${model} · step ${stepNo}`, state: 'running' })
+    const started = Date.now()
+    if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
+    try {
+      const response = yield* next(e)
+      entry.state = 'done'
+      return response
+    } catch (error) {
+      entry.state = 'failed'
+      throw error
+    } finally {
+      entry.ms = Date.now() - started
+      percent = (await $.session.usage().catch(() => null))?.context.percent ?? percent
+      if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
+    }
+  })
 
   on('session.start', async ($, e, next) => {
     const where = async (dir: string) => {
@@ -417,7 +499,16 @@ export const register: Register = on => {
   // The poll alone would leave up to two seconds between an edit and the pane following it.
   on('tool.call', async ($, e, next) => {
     if (canDraw) await sight().catch(() => {})
-    const result = await next(e)
+    const call = e as unknown as { tool: string }
+    const entry = log({ node: nodeOf(call), text: describe(call), state: 'running' })
+    const started = Date.now()
+    if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
+    const result = await next(e).finally(() => {
+      entry.state = 'failed'
+      entry.ms = Date.now() - started
+    })
+    entry.state = 'deny' in result || ('isError' in result && result.isError) ? 'failed' : 'done'
+    if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
     if (!canDraw) return result
     // The tool has already run: a failed look at git must not cost it its result.
     try {
@@ -478,10 +569,37 @@ export const register: Register = on => {
     }
     return (
       <Box flexDirection="column">
-        <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" />
         <Box>
-          {hasKeys ? <Text inverse weight="bold" color="claude"> CHANGES </Text> : <Text dimColor>○ click</Text>}
-          {KEYS.map(([hotkey, label]) => (
+          {TABS.map(([hotkey, id]) => (
+            <Box marginRight={2}>
+              {id === tab ? <Text inverse weight="bold" color="claude"> {id} </Text> : (
+                <Button
+                  plain
+                  dimColor={!hasKeys}
+                  key={`tab-${id}`}
+                  hotkey={hotkey}
+                  label={id}
+                  onPress={async () => {
+                    tab = id
+                    $.ui.invalidate('ui.render')
+                  }}
+                />
+              )}
+            </Box>
+          ))}
+        </Box>
+        {tab === 'changes' ? <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" /> : (
+          <Box flexDirection="column">
+            {activity().map(row => (
+              <Text wrap="truncate-end">
+                {row.map(r => <Text color={r.c} weight={r.bold ? 'bold' : undefined} dimColor={r.dim}>{r.t}</Text>)}
+              </Text>
+            ))}
+          </Box>
+        )}
+        <Box>
+          {hasKeys ? <Text inverse weight="bold" color="claude"> {tab.toUpperCase()} </Text> : <Text dimColor>○ click</Text>}
+          {(tab === 'changes' ? KEYS : []).map(([hotkey, label]) => (
             <Box marginLeft={2}>
               <Button
                 plain
@@ -518,7 +636,13 @@ export const register: Register = on => {
   // The body never overflows: the view draws its own windows of rows, so the wheel acts on the one
   // it is over: the diff's box, then the files' box, then the commits'.
   on('ui.scroll', { requestId: PANE }, async ($, e) => {
-    const at = e.pointer?.row ?? 0
+    if (tab === 'activity') {
+      feedTop = clamp(feedTop + e.by, 0, entries.length - 1)
+      $.ui.invalidate('ui.render')
+      return {}
+    }
+    // the tabs take the body's first row
+    const at = (e.pointer?.row ?? 0) - 1
     isFollowing = false
     if (at < diffRows() + 2) scrollTo(offset + e.by)
     else {
