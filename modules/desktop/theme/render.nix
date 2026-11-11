@@ -634,6 +634,8 @@ rec {
     *:selected { background-color: ${hex r.cursorField}; color: ${hex r.fieldInk}; }
     link, label.link, *:link { color: ${hex r.key}; }
     tooltip { background-color: ${hex r.card}; color: ${hex r.body}; border: 1px solid ${hex r.structure}; }
+    /* on X11 a GTK3 dialog's shadow is part of its window: the compositor's border is drawn around it */
+    decoration, decoration:backdrop { box-shadow: none; margin: 0; }
   '';
   # what the desktop asks for by name, for the module's env, gsettings and settings.ini
   desktop = {

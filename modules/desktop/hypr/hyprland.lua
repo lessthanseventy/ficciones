@@ -284,19 +284,15 @@ hl.window_rule({
     float = true,
 })
 
--- The GTK file picker of an X11 app (Discord, Steam) is an X11 window with 103 px of invisible
--- shadow on each side, and it reopens at the size it was left: taller than the work area, it is
--- pushed up under the bar. 1406x1000 with the shadow fits both monitors; 1200x794 is what shows.
--- A border or shadow of ours would be drawn around that margin, away from the picker.
+-- The GTK file picker of an X11 app (Discord, Steam) reopens at the size it was left: taller than
+-- the work area, it is pushed up under the bar.
 hl.window_rule({
     name = "gtk-portal-picker",
     -- its tooltips are windows of the same class, titled with the program's name
     match = { class = "^Xdg-desktop-portal-gtk$", title = "negative:^xdg-desktop-portal-gtk$" },
     float = true,
-    size = { 1406, 1000 },
+    size = { 1200, 800 },
     center = true,
-    border_size = 0,
-    no_shadow = true,
 })
 
 -- Picture-in-picture
