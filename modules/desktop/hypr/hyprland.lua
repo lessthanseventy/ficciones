@@ -324,6 +324,15 @@ hl.window_rule({ name = "fzf-picker", match = { class = "^(fzf-picker)$" }, floa
 -- float here; no_anim because the slide is the shell's, no_wobble because a wobble fights it.
 hl.window_rule({ name = "quake-term", match = { class = "^(com\\.ghostty\\.quake)$" }, float = true, no_anim = true, no_wobble = true })
 
+-- Dolphin's settings open at their 540 px minimum, and KDE never remembers a resize here: every
+-- window is told it is maximized, so KWindowConfig saves that in place of a size.
+hl.window_rule({
+    name = "dolphin-configure",
+    match = { class = "^org\\.kde\\.dolphin$", title = "^Configure" },
+    size = { 900, 760 },
+    center = true,
+})
+
 -- Bitwarden popups
 hl.window_rule({
     name = "bitwarden-popup",
