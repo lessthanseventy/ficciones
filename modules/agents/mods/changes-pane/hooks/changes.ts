@@ -176,6 +176,14 @@ export const parseAnsi = (ansi: string, width: number): Run[][] =>
     return runs
   })
 
+/** The command that draws a diff: one row a line, the line numbers leading, and no row for a file's or a hunk's header. */
+export const deltaArgv = (columns: number) => [
+  'delta', '--no-gitconfig', '--dark', '--true-color=always', `--width=${columns}`, '--line-fill-method=spaces',
+  '--wrap-max-lines=0', '--paging=never', '--line-numbers',
+  '--file-style=omit', '--file-decoration-style=omit', '--hunk-header-style=omit', '--hunk-header-decoration-style=omit',
+  '--minus-style=syntax #3f0001', '--plus-style=syntax #002800',
+]
+
 const MIN_WRAPPED_TEXT = 8
 // How far back a row looks for a space to break at before it cuts the word.
 const MAX_WORD = 24

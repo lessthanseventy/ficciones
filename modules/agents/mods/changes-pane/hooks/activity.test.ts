@@ -1,7 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
 import { agentRow, describe, duration, feedRow, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, satelliteRows, turnRow } from './activity'
-import { noteBlock } from './review'
 
 test('a call lands on the node it reaches', async () => {
   expect(nodeOf({ tool: 'Bash', command: 'ls' })).toBe('shell')
@@ -13,14 +12,6 @@ test('a call lands on the node it reaches', async () => {
   expect(nodeOf({ tool: 'WebFetch', url: 'https://docs.example.com/a' })).toBe('network')
   expect(nodeOf({ tool: 'Agent', description: 'Read the docs' })).toBe('agents')
   expect(nodeOf({ tool: 'SubagentHandback' })).toBe('agents')
-})
-
-test('the notes read as one block, by repository', async () => {
-  const block = noteBlock([
-    { repo: '/w/api', source: '', file: 'lib/a.ex', at: 12, code: '+  x = 1', note: 'why not a guard?' },
-    { repo: '/w/web', source: 'abc1234', file: 'b.ts', at: 0, code: '', note: 'split this file' },
-  ])
-  expect(block).toBe('Review notes I left on the diff in the changes pane:\n\nIn /w/api:\n- lib/a.ex:12 `+  x = 1`: why not a guard?\n\nIn /w/web:\n- b.ts @ abc1234: split this file')
 })
 
 test('a call is said in a few words', async () => {

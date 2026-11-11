@@ -1,0 +1,1 @@
+{ "name": "review-pane", "version": "0.1.0", "author": { "name": "Andrew Moore" }, "description": "A review of the whole branch before it lands, opened with /land: notes on lines of its diff, sent to Claude as one message, and the pull request once none are left" }

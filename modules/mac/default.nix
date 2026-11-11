@@ -129,12 +129,12 @@ in
           if [ -f "$f" ]; then
             tmp=$(mktemp)
             # the Mac's own plugin dirs stay; only the mods' store paths are swapped in
-            if ${pkgs.jq}/bin/jq --arg pane "${../agents/mods/changes-pane}" --arg rows "${../agents/mods/transcript-rows}" '.theme = "custom:ficciones"
+            if ${pkgs.jq}/bin/jq --arg pane "${../agents/mods/changes-pane}" --arg review "${../agents/mods/review-pane}" --arg rows "${../agents/mods/transcript-rows}" '.theme = "custom:ficciones"
                  | .statusLine = {type: "command", command: "~/.claude/statusline-box.sh"}
                  | .autoCompactWindow = 400000
                  | .enabledPlugins["cc-plugin-diff@builtin"] = false
                  | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
-                     | map(select(. != "" and (endswith("-changes-pane") or endswith("-transcript-rows") | not))) + [$pane, $rows] | join(":"))' "$f" > "$tmp"; then
+                     | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") | not))) + [$pane, $review, $rows] | join(":"))' "$f" > "$tmp"; then
               run mv -f "$tmp" "$f"
             else
               rm -f "$tmp"

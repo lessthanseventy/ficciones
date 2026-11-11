@@ -94,8 +94,8 @@ in
   # keeps only PATH, so these cannot live in the rc. No EDITOR: Claude Code's ctrl+g uses it.
   # autoCompactWindow: a 1M-window session otherwise grows to ~1M before compacting, and every
   # call re-reads all of it (one week-long session was 40% of a week's tokens at 455k a call).
-  # CLAUDE_CODE_PLUGIN_DIRS: the changes pane, which /changes and /diff open, by its store path,
-  # since the plugin loader refuses a module reached through a home.file symlink.
+  # CLAUDE_CODE_PLUGIN_DIRS: the mods (the changes pane, which /changes and /diff open, among them),
+  # each by its store path, since the plugin loader refuses a module reached through a home.file symlink.
   # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
   # diffSidebarOpen off, in ~/.claude.json: the app's own diff panel opens on an edit otherwise,
   # and while it shows the dock gets no columns, so that pane has nowhere to draw.
@@ -108,8 +108,8 @@ in
            GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
            GIT_TERMINAL_PROMPT: "0" }
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
-             | map(select(. != "" and (endswith("-changes-pane") or endswith("-transcript-rows") | not)))
-               + ["${./mods/changes-pane}", "${./mods/transcript-rows}"] | join(":"))
+             | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") | not)))
+               + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}"] | join(":"))
          | .autoCompactWindow = 400000
          | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"

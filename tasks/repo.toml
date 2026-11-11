@@ -35,8 +35,8 @@ description = "the hook that refuses cap piped into a filter reaches every verdi
 run = "scripts/cap-no-pipe.test.sh"
 
 ["check:mods"]
-description = "the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing), and their list of menard's verbs against menard's"
-run = "scripts/check-menard-verbs.sh || exit 1; command -v claude >/dev/null || { echo 'check:mods — no claude on PATH, not run'; exit 0; }; for m in modules/agents/mods/*/; do claude plugin test \"$m\" || exit 1; done"
+description = "the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing), their list of menard's verbs against menard's, and the review pane's copy of the diff reader against the changes pane's (a mod may import only its own files)"
+run = "scripts/check-menard-verbs.sh || exit 1; cmp modules/agents/mods/changes-pane/hooks/changes.ts modules/agents/mods/review-pane/hooks/changes.ts || { echo 'check:mods — review-pane/hooks/changes.ts is a copy of changes-pane/hooks/changes.ts: edit that one, then cp it over'; exit 1; }; command -v claude >/dev/null || { echo 'check:mods — no claude on PATH, not run'; exit 0; }; for m in modules/agents/mods/*/; do claude plugin test \"$m\" || exit 1; done"
 
 # The flake builds the shell's bundle, which checks no types.
 ["check:shell"]
