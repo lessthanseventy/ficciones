@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 
-import { agentRow, describe, feedRow, graph, level, modelName, nodeOf } from './activity'
-import type { Agent, Entry, NodeId } from './activity'
+import { agentRow, describe, feedRow, flashingOf, graph, heartbeat, isInTransit, isMoving, level, modelName, nodeOf, pulsesOf, satelliteRows, sharesOf, turnRow } from './activity'
+import type { Agent, Entry, NodeId, Turn } from './activity'
 import { noteBlock, noteHead } from './review'
 import type { Note } from './review'
 import { clamp, countDiff, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
@@ -25,10 +25,17 @@ const KEYS = [['j', 'next'], ['k', 'prev'], ['t', 'list'], ['d', 'down'], ['u', 
 
 const TABS = [['c', 'changes'], ['a', 'activity'], ['r', 'review']] as const
 type Tab = (typeof TABS)[number][1]
-const MAX_ENTRIES = 200
+const MAX_ENTRIES = 400
+const MAX_TURNS = 100
+const MIN_LOG_ROWS = 6
+// Eight drawings a second while a dot travels, one a second while a call only runs, none at rest:
+// a drawing is the whole pane's, and at eight a second through a long call it cost a quarter of a core.
+const FRAME_MS = 125
+const SLOW_MS = 1000
 // Each repository listed costs a git status after every tool call.
 const MAX_REPOS = 8
-const MAX_GRAPH_ROWS = 17
+const MIN_GRAPH_ROWS = 13
+const MAX_GRAPH_ROWS = 19
 const MAX_AGENTS = 30
 const MAX_AGENT_ROWS = 4
 
@@ -111,6 +118,11 @@ export const register: Register = on => {
   const entries: Entry[] = []
   const counts: Partial<Record<NodeId, number>> = {}
   let feedTop = 0
+  // The main loop's turns, newest first, the first of them the one running while `isBusy`.
+  let turns: Turn[] = []
+  let turnNo = 0
+  let frame = 0
+  let wake: () => void = () => {}
   // The subagents of the session, newest first; `only` is the one the feed is narrowed to.
   let agents: Agent[] = []
   let only: string | null = null
@@ -276,10 +288,13 @@ export const register: Register = on => {
     }
   }
 
-  const log = (entry: Entry) => {
+  const log = (said: Omit<Entry, 'at' | 'turn'>) => {
+    // what is logged already over took no time; what is running has no time yet
+    const entry: Entry = { ...said, at: Date.now(), turn: turnNo, ...(said.state === 'running' ? {} : { ms: 0 }) }
     entries.unshift(entry)
     if (entries.length > MAX_ENTRIES) entries.pop()
     counts[entry.node] = (counts[entry.node] ?? 0) + 1
+    wake()
     return entry
   }
 
@@ -287,7 +302,11 @@ export const register: Register = on => {
     const columns = size.columns + 2
     // under the tabs and above the hint
     const room = Math.max(2, size.rows - 2)
-    const graphRows = clamp(Math.floor(room / 2), 9, MAX_GRAPH_ROWS)
+    const now = Date.now()
+    const band = satelliteRows(agents.length)
+    // the head and the heartbeat take a row each
+    const graphRows = clamp(room - band - 2 - agentRows() - MIN_LOG_ROWS, MIN_GRAPH_ROWS, MAX_GRAPH_ROWS) + band
+    const spent = sharesOf(entries.filter(e => e.turn === turnNo), now)
     const running = new Set(entries.filter(e => e.state === 'running').map(e => e.node))
     if (agents.some(a => a.state === 'running')) running.add('agents')
     const latest = new Map<NodeId, Entry>()
@@ -300,18 +319,36 @@ export const register: Register = on => {
       { t: ` · step ${stepNo}`, c: 'claude' },
       ...(percent === undefined ? [] : [{ t: ' · context ', dim: true as const }, { t: `${Math.round(percent)}%`, c: level(percent), bold: true as const }]),
     ]
-    const feed = only === null ? entries : entries.filter(e => e.agentId === only)
-    const first = clamp(feedTop, 0, feed.length - 1)
     // the running ones lead, so a finished one is what leaves when there are too many
-    const listed = [...agents.filter(a => a.state === 'running'), ...agents.filter(a => a.state !== 'running')].slice(0, MAX_AGENT_ROWS)
+    const ordered = [...agents.filter(a => a.state === 'running'), ...agents.filter(a => a.state !== 'running')]
+    // The log is the turns that have ended and the one running; narrowed to a subagent, it is that one's calls.
+    const rows = only === null
+      ? turns.map(turn => turnRow(turn.state === 'running' ? { ...turn, shares: spent } : turn, columns, now))
+      : entries.filter(e => e.agentId === only).map(entry => feedRow(entry, columns))
+    const first = clamp(feedTop, 0, rows.length - 1)
     return {
       top: [
-        // the Agents node counts the subagents, not each step one of them took
-        ...graph(columns, graphRows, { counts: { ...counts, agents: agents.length || undefined }, running, failed, last: entries[0]?.node, centre, percent, isBusy }),
+        ...graph(columns, graphRows, {
+          // the Agents node counts the subagents, not each step one of them took
+          counts: { ...counts, agents: agents.length || undefined },
+          running,
+          failed,
+          flashing: flashingOf(entries, now),
+          isOdd: frame % 2 === 1,
+          last: entries[0]?.node,
+          pulses: pulsesOf(entries, now),
+          shares: isBusy ? spent : turns[0]?.shares ?? {},
+          agents: ordered,
+          centre,
+          percent,
+          isBusy,
+          now,
+        }),
         head,
+        heartbeat(entries, columns, now),
       ],
-      agents: listed.map(a => ({ id: a.id, isRunning: a.state === 'running', label: `${a.id === only ? '▶ ' : ''}${agentRow(a, columns - (a.id === only ? 2 : 0), Date.now())}` })),
-      feed: feed.slice(first, first + Math.max(0, room - graphRows - 1 - agentRows())).map(entry => feedRow(entry, columns)),
+      agents: ordered.slice(0, MAX_AGENT_ROWS).map(a => ({ id: a.id, isRunning: a.state === 'running', label: `${a.id === only ? '▶ ' : ''}${agentRow(a, columns - (a.id === only ? 2 : 0), now)}` })),
+      feed: rows.slice(first, first + Math.max(0, room - graphRows - 2 - agentRows())),
     }
   }
 
@@ -335,14 +372,24 @@ export const register: Register = on => {
   })
 
   on('turn.start', async ($, e, next) => {
-    if (e.agentId === undefined) isBusy = true
-    else Object.assign(agentOf(e.agentId), { state: 'running', ms: undefined })
+    if (e.agentId === undefined) {
+      isBusy = true
+      turnNo += 1
+      turns = [{ n: turnNo, started: Date.now(), steps: 0, calls: 0, failed: 0, state: 'running' as const, shares: {} }, ...turns].slice(0, MAX_TURNS)
+    } else Object.assign(agentOf(e.agentId), { state: 'running', ms: undefined })
+    wake()
     return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId === undefined) isBusy = false
-    else {
+    if (e.agentId === undefined) {
+      isBusy = false
+      const turn = turns[0]
+      if (turn?.state === 'running') {
+        const now = Date.now()
+        Object.assign(turn, { ms: now - turn.started, state: e.reason === 'answer' ? 'done' : 'failed', shares: sharesOf(entries.filter(entry => entry.turn === turn.n), now) })
+      }
+    } else {
       const agent = agentOf(e.agentId)
       Object.assign(agent, { state: e.reason === 'answer' ? 'done' : 'failed', ms: Date.now() - agent.started })
     }
@@ -352,10 +399,11 @@ export const register: Register = on => {
 
   on('turn.step', async function* ($, e, next) {
     const agent = e.agentId === undefined ? null : agentOf(e.agentId)
-    if (agent) Object.assign(agent, { step: e.index + 1, model: agent.model || modelName(e.model), doing: 'thinking' })
+    if (agent) Object.assign(agent, { step: e.index + 1, model: agent.model || modelName(e.model), doing: 'thinking', node: 'model' })
     else {
       model = modelName(e.model)
       stepNo = e.index + 1
+      if (turns[0]?.state === 'running') turns[0].steps += 1
     }
     const entry = log(agent
       ? { node: 'agents', text: `${agent.model} · step ${agent.step}`, state: 'running', agentId: agent.id, agent: agent.name }
@@ -586,6 +634,23 @@ export const register: Register = on => {
     }
 
     $.clock.every(POLL_MS, () => { void refresh() })
+    let tick: { cancel: () => void } | null = null
+    wake = () => {
+      if (tick || !isOpen || tab !== 'activity') return
+      let drawn = 0
+      tick = $.clock.every(FRAME_MS, () => {
+        const now = Date.now()
+        const isLive = isOpen && tab === 'activity' && isMoving(entries, agents, now)
+        if (isLive && !isInTransit(entries, now) && now - drawn < SLOW_MS) return
+        drawn = now
+        frame += 1
+        $.ui.invalidate('ui.render')
+        // one drawing after the last thing has come to rest, then none
+        if (isLive) return
+        tick?.cancel()
+        tick = null
+      })
+    }
     // VS Code and mobile have no Client to draw this pane with.
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
     if (canDraw) {
@@ -620,7 +685,9 @@ export const register: Register = on => {
     if (canDraw) await sight().catch(() => {})
     const call = e as unknown as { tool: string }
     const agent = e.agentId === undefined ? null : agentOf(e.agentId)
-    if (agent) agent.doing = describe(call)
+    if (agent) Object.assign(agent, { doing: describe(call), node: nodeOf(call) })
+    const turn = !agent && turns[0]?.state === 'running' ? turns[0] : null
+    if (turn) turn.calls += 1
     const entry = log({ node: nodeOf(call), text: describe(call), state: 'running', ...(agent ? { agentId: agent.id, agent: agent.name } : {}) })
     const started = Date.now()
     if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
@@ -629,6 +696,7 @@ export const register: Register = on => {
       entry.ms = Date.now() - started
     })
     entry.state = 'deny' in result || ('isError' in result && result.isError) ? 'failed' : 'done'
+    if (turn && entry.state === 'failed') turn.failed += 1
     if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
     if (!canDraw) return result
     // The tool has already run: a failed look at git must not cost it its result.
@@ -711,6 +779,7 @@ export const register: Register = on => {
                   onPress={async () => {
                     tab = id
                     isWriting = false
+                    wake()
                     $.ui.invalidate('ui.render')
                   }}
                 />
@@ -851,7 +920,7 @@ export const register: Register = on => {
   // it is over: the diff's box, then the files' box, then the commits'.
   on('ui.scroll', { requestId: PANE }, async ($, e) => {
     if (tab === 'activity') {
-      feedTop = clamp(feedTop + e.by, 0, (only === null ? entries : entries.filter(entry => entry.agentId === only)).length - 1)
+      feedTop = clamp(feedTop + e.by, 0, (only === null ? turns : entries.filter(entry => entry.agentId === only)).length - 1)
       $.ui.invalidate('ui.render')
       return {}
     }

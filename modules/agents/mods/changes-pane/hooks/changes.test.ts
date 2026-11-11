@@ -335,19 +335,28 @@ test('the wheel moves the diff under its header, and holds it', async ($, on) =>
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
 })
 
-test('the activity tab draws the session as a wheel over its feed', async ($, on) => {
+test('the activity tab draws the session as a wheel over the turns that have ended', async ($, on) => {
   mock.clock(on)
   repo(on)
   on('tool.call', ($, e) => ({ result: {}, ...(e.tool === 'Bash' ? { isError: true } : {}) }) as never)
+  on('turn.start', async () => ({ turnId: 't1' }) as never)
+  on('turn.complete', async () => ({ text: '' }) as never)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   await ui.press({ key: 'tab-activity' })
   expect(await ui.find({ text: /CLAUDE/ })).toBeDefined()
   expect(await ui.find({ text: /nothing yet this session/ })).toBeDefined()
+  await $.turn.start({ turnId: 't1' } as never)
   await $.tool.call({ tool: 'Edit', file_path: '/repo/a.ts', old_string: 'x', new_string: 'y' } as never)
+  expect(await ui.find({ text: /^● turn 1/ })).toBeDefined()
   await $.tool.call({ tool: 'Bash', command: 'mix test', description: 'Run the test suite' } as never)
-  expect(await ui.find({ text: /Edit a\.ts/ })).toBeDefined()
-  expect(await ui.find({ text: /^✕ Shell/ })).toBeDefined()
+  await $.turn.complete({ turnId: 't1', reason: 'answer' } as never)
+  expect(await ui.find({ text: /^· turn 1/ })).toBeDefined()
+  expect(await ui.find({ text: /^ {2}0 steps · 2 calls$/ })).toBeDefined()
+  expect(await ui.find({ text: /^ · 1 failed$/ })).toBeDefined()
+  // the calls themselves are the transcript's to list
+  expect(await ui.find({ text: /Run the test suite/ })).toBeUndefined()
+  expect(await ui.find({ text: /✕ Shell 1/ })).toBeDefined()
   expect(await ui.find({ text: /○ Files 1/ })).toBeDefined()
   await ui.press({ key: 'tab-changes' })
   expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
@@ -366,16 +375,16 @@ test('a subagent has a row of its own, and a click narrows the feed to it', asyn
   await $.tool.call({ tool: 'WebFetch', url: 'https://hunk.dev/docs', agentId: 'a1' } as never)
   // the pane is 50 columns wide, and a row is cut to it
   expect(await ui.find({ text: /^● Read the hunk docs · haiku 5\.5 · WebFetch/ })).toBeDefined()
-  expect(await ui.find({ text: /^Read the hunk… ▸ WebFetch/ })).toBeDefined()
+  expect(await ui.find({ text: /^Read the hunk… ▸ WebFetch/ })).toBeUndefined()
   await $.tool.call({ tool: 'SubagentHandback', agentId: 'a1' } as never)
   // one subagent, whatever it has done, and its node lit while it runs
   expect(await ui.find({ text: /Agents 1 ●/ })).toBeDefined()
-  expect(await ui.find({ text: /^List the files$/ })).toBeDefined()
+  expect(await ui.find({ text: /^◉ Read the …$/ })).toBeDefined()
   await ui.press({ key: 'agent-a1' })
-  expect(await ui.find({ text: /^List the files$/ })).toBeUndefined()
+  expect(await ui.find({ text: /^Read the hunk… ▸ WebFetch/ })).toBeDefined()
   expect(await ui.find({ text: /^▶ ● Read the hunk docs/ })).toBeDefined()
   await ui.press({ key: 'agent-a1' })
-  expect(await ui.find({ text: /^List the files$/ })).toBeDefined()
+  expect(await ui.find({ text: /^Read the hunk… ▸ WebFetch/ })).toBeUndefined()
 })
 
 // Two repositories under one folder: git answers by the directory it is run in.
