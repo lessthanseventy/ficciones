@@ -7,7 +7,9 @@ export const NODES = [
 ] as const
 export type NodeId = (typeof NODES)[number][0]
 export type State = 'running' | 'done' | 'failed'
-export type Entry = { node: NodeId; text: string; state: State; ms?: number }
+// `agentId` and `agent` are the subagent the entry is of and its name; absent on the main loop's.
+export type Entry = { node: NodeId; text: string; state: State; ms?: number; agentId?: string; agent?: string }
+export type Agent = { id: string; name: string; model: string; state: State; step: number; doing: string; started: number; ms?: number }
 export type Graph = {
   counts: Partial<Record<NodeId, number>>
   running: ReadonlySet<NodeId>
@@ -27,7 +29,7 @@ export const nodeOf = (e: Call): NodeId => {
   if (tool.startsWith('mcp__')) return tool.includes('menard') ? 'menard' : 'mcp'
   if (tool === 'Bash') return /^\S*menard\s/.test(text(e.command)) ? 'menard' : 'shell'
   if (tool === 'WebFetch' || tool === 'WebSearch') return 'network'
-  if (tool === 'Agent' || tool === 'Workflow' || tool === 'SendMessage') return 'agents'
+  if (['Agent', 'Workflow', 'SendMessage', 'SubagentHandback'].includes(tool)) return 'agents'
   if (tool === 'Skill') return 'skills'
   if (['Read', 'Edit', 'Write', 'NotebookEdit', 'Grep', 'Glob'].includes(tool)) return isMemory(text(e.file_path)) ? 'memory' : 'files'
   return 'model'
@@ -49,14 +51,24 @@ export const duration = (ms: number) => (ms < 1000 ? `${Math.round(ms / 100) * 1
 const label = (node: NodeId) => NODES.find(([id]) => id === node)![1]
 const tone = (state: State): Pick<Run, 'c' | 'dim' | 'bold'> => (state === 'running' ? { c: 'claude', bold: true } : state === 'failed' ? { c: 'error' } : { dim: true })
 
-export const feedRow = ({ node, text: said, state, ms }: Entry, columns: number): Run[] => {
+const cut = (said: string, room: number) => (said.length > room ? `${said.slice(0, Math.max(0, room - 1))}…` : said)
+
+/** A subagent in one line: what it was sent to do, its model, what it is doing now, and how long it has run. */
+export const agentRow = ({ name, model, state, step, doing, started, ms }: Agent, columns: number, now: number) => {
+  const mark = state === 'running' ? '●' : state === 'failed' ? '✕' : '·'
+  const tail = `  ${duration(ms ?? now - started)}`
+  const body = [name, model, state === 'running' ? doing : step > 0 ? `${step} step${step === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ')
+  return `${mark} ${cut(body.replace(/\s+/g, ' '), Math.max(0, columns - 2 - tail.length))}${tail}`
+}
+
+export const feedRow = ({ node, text: said, state, ms, agent }: Entry, columns: number): Run[] => {
   const mark = state === 'running' ? '●' : state === 'failed' ? '✕' : '·'
   const tail = state === 'running' ? '  running' : ms === undefined ? '' : `  ${duration(ms)}`
   const room = Math.max(0, columns - 11 - tail.length)
-  const body = said.replace(/\s+/g, ' ')
+  const body = `${agent ? `${cut(agent, 14)} ▸ ` : ''}${said}`.replace(/\s+/g, ' ')
   return [
     { t: `${mark} ${label(node).padEnd(9)}`, ...tone(state) },
-    { t: body.length > room ? `${body.slice(0, Math.max(0, room - 1))}…` : body, ...(state === 'failed' ? { c: 'error' } : state === 'running' ? { c: 'claude' } : {}) },
+    { t: cut(body, room), ...(state === 'failed' ? { c: 'error' } : state === 'running' ? { c: 'claude' } : {}) },
     { t: tail, ...tone(state) },
   ]
 }

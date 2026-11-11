@@ -353,6 +353,28 @@ test('the activity tab draws the session as a wheel over its feed', async ($, on
   expect(await ui.find({ text: /following/, in: 'changes' })).toBeDefined()
 })
 
+test('a subagent has a row of its own, and a click narrows the feed to it', async ($, on) => {
+  mock.clock(on)
+  repo(on)
+  on('tool.call', () => ({ result: {} }) as never)
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: 'a1' }) as never)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await ui.press({ key: 'tab-activity' })
+  await $.tool.call({ tool: 'Bash', command: 'ls', description: 'List the files' } as never)
+  await $.agent.spawn({ tool_use_id: 't1', prompt: 'read them', description: 'Read the hunk docs', subagentType: 'web-fetch', parentModel: 'claude-fable-5-2', background: false, fork: false } as never)
+  await $.tool.call({ tool: 'WebFetch', url: 'https://hunk.dev/docs', agentId: 'a1' } as never)
+  // the pane is 50 columns wide, and a row is cut to it
+  expect(await ui.find({ text: /^● Read the hunk docs · haiku 5\.5 · WebFetch/ })).toBeDefined()
+  expect(await ui.find({ text: /^Read the hunk… ▸ WebFetch/ })).toBeDefined()
+  expect(await ui.find({ text: /^List the files$/ })).toBeDefined()
+  await ui.press({ key: 'agent-a1' })
+  expect(await ui.find({ text: /^List the files$/ })).toBeUndefined()
+  expect(await ui.find({ text: /^▶ ● Read the hunk docs/ })).toBeDefined()
+  await ui.press({ key: 'agent-a1' })
+  expect(await ui.find({ text: /^List the files$/ })).toBeDefined()
+})
+
 // Two repositories under one folder: git answers by the directory it is run in.
 const repos = (on: On, at: { cwd: string; run?: () => void }, trees: Record<string, string[]>) => {
   on('session.start', async ($, e) => e)

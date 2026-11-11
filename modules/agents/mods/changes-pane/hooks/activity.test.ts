@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { describe, duration, feedRow, graph, modelName, nodeOf } from './activity'
+import { agentRow, describe, duration, feedRow, graph, modelName, nodeOf } from './activity'
 import { noteBlock } from './review'
 
 test('a call lands on the node it reaches', async () => {
@@ -12,6 +12,7 @@ test('a call lands on the node it reaches', async () => {
   expect(nodeOf({ tool: 'Write', file_path: '/home/a/.claude/projects/x/memory/note.md' })).toBe('memory')
   expect(nodeOf({ tool: 'WebFetch', url: 'https://docs.example.com/a' })).toBe('network')
   expect(nodeOf({ tool: 'Agent', description: 'Read the docs' })).toBe('agents')
+  expect(nodeOf({ tool: 'SubagentHandback' })).toBe('agents')
 })
 
 test('the notes read as one block, by repository', async () => {
@@ -36,6 +37,15 @@ test('a feed row keeps its duration when the text is cut', async () => {
   const row = feedRow({ node: 'shell', text: 'Run the whole test suite of the repository', state: 'failed', ms: 1500 }, 30)
   expect(row.map(r => r.t).join('')).toBe('✕ Shell    Run the who…  1.5 s')
   expect(row[1]!.c).toBe('error')
+})
+
+test('a subagent reads in one line, and its calls carry its name', async () => {
+  const agent = { id: 'a1', name: 'Read the hunk docs', model: 'haiku 5.5', state: 'running' as const, step: 3, doing: 'WebFetch hunk.dev', started: 1000 }
+  expect(agentRow(agent, 60, 13_000)).toBe('● Read the hunk docs · haiku 5.5 · WebFetch hunk.dev  12.0 s')
+  expect(agentRow(agent, 40, 13_000)).toBe('● Read the hunk docs · haiku 5.…  12.0 s')
+  expect(agentRow({ ...agent, state: 'done', ms: 61_000 }, 60, 0)).toBe('· Read the hunk docs · haiku 5.5 · 3 steps  1m 1s')
+  const row = feedRow({ node: 'network', text: 'WebFetch hunk.dev', state: 'done', ms: 600, agent: 'Read the hunk docs' }, 60)
+  expect(row.map(r => r.t).join('')).toBe('· Network  Read the hunk… ▸ WebFetch hunk.dev  600 ms')
 })
 
 test('the wheel holds every node, and lights the spoke in use', async () => {
