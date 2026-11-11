@@ -5,6 +5,9 @@ import { agentRow, describe, duration, feedRow, graph, heartbeat, isInTransit, i
 test('a call lands on the node it reaches', async () => {
   expect(nodeOf({ tool: 'Bash', command: 'ls' })).toBe('shell')
   expect(nodeOf({ tool: 'Bash', command: '~/projects/menard/bin/menard run test' })).toBe('menard')
+  expect(nodeOf({ tool: 'Bash', command: 'cd /tmp/work && taskset -c 0,1 ~/projects/menard/bin/menard run check' })).toBe('menard')
+  expect(nodeOf({ tool: 'Bash', command: 'cd ~/projects/menard && git status' })).toBe('shell')
+  expect(nodeOf({ tool: 'Grep', pattern: 'keyd', path: '/home/a/.claude/projects/x/memory/' })).toBe('memory')
   expect(nodeOf({ tool: 'mcp__plugin_menard_menard__edit' })).toBe('menard')
   expect(nodeOf({ tool: 'mcp__claude_ai_Slack__slack_send_message' })).toBe('mcp')
   expect(nodeOf({ tool: 'Edit', file_path: '/repo/lib/a.ex' })).toBe('files')

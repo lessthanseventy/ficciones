@@ -44,15 +44,17 @@ type Call = { tool: string; [key: string]: unknown }
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '')
 const isMemory = (path: string) => path.includes('/memory/') || path.endsWith('MEMORY.md')
+// menard run anywhere in a command line (after a cd, under taskset), but not a folder named menard that is only walked into.
+const MENARD = /(?:^|[\s;&|(=])\S*\/bin\/menard(?:\s|$)|(?:^|[;&|(]\s*)menard\s/
 
 export const nodeOf = (e: Call): NodeId => {
   const { tool } = e
   if (tool.startsWith('mcp__')) return tool.includes('menard') ? 'menard' : 'mcp'
-  if (tool === 'Bash') return /^\S*menard\s/.test(text(e.command)) ? 'menard' : 'shell'
+  if (tool === 'Bash') return MENARD.test(text(e.command)) ? 'menard' : 'shell'
   if (tool === 'WebFetch' || tool === 'WebSearch') return 'network'
   if (['Agent', 'Workflow', 'SendMessage', 'SubagentHandback'].includes(tool)) return 'agents'
   if (tool === 'Skill') return 'skills'
-  if (['Read', 'Edit', 'Write', 'NotebookEdit', 'Grep', 'Glob'].includes(tool)) return isMemory(text(e.file_path)) ? 'memory' : 'files'
+  if (['Read', 'Edit', 'Write', 'NotebookEdit', 'Grep', 'Glob'].includes(tool)) return isMemory(text(e.file_path) || text(e.path)) ? 'memory' : 'files'
   return 'model'
 }
 
