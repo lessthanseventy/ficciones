@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentRow, describe, duration, feedRow, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, turnRow } from './activity'
+import { agentRow, describe, duration, feedRow, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, reportOf, turnRow } from './activity'
 
 test('a call lands on the node it reaches', async () => {
   expect(nodeOf({ tool: 'Bash', command: 'ls' })).toBe('shell')
@@ -122,10 +122,16 @@ test('the heartbeat is the last minutes as a line: a cell a slice, coloured by i
   expect(heartbeat([], 77, 0)[0]!.t).toBe(' 5m ')
 })
 
-test('a turn reads in one line, its time by node at the end of it', async () => {
+test('a task that reports back is named, with how it ended', async () => {
+  const notice = (summary: string) => `<task-notification>\n<task-id>b1</task-id>\n<status>completed</status>\n<summary>${summary}</summary>\n</task-notification>`
+  expect(reportOf(notice('Background command "Rebuild the one-file game" completed (exit code 0)'))).toBe('↩ Rebuild the one-file game · completed (exit code 0)')
+  expect(reportOf(notice('Agent "Make 1080p draw at 2x" is waiting on its own background work'))).toBe('↩ Make 1080p draw at 2x · is waiting on its own background work')
+  expect(reportOf('<teammate-message>done</teammate-message>')).toBe('a task reports back')
+})
+
+test('a turn reads in one line', async () => {
   const started = new Date(2026, 10, 10, 23, 4).getTime()
   const row = turnRow({ said: 'make the missing art, mostly from theirs, and say what is left', started, ms: 134_000, calls: 31, failed: 1, state: 'done', shares: { model: 3, shell: 1 } }, 70, 0)
-  expect(row.map(r => r.t).join('')).toBe('· 23:04 make the missing a…  2m 14s · 31 calls · 1 failed ━━━━━━━━━━━━')
-  expect(row.filter(r => r.t === '━').map(r => r.c)).toEqual([...Array(9).fill('remember'), ...Array(3).fill('claude')])
-  expect(turnRow({ said: 'ls', started, calls: 0, failed: 0, state: 'running', shares: {} }, 40, started + 4000).map(r => r.t).join('')).toBe('● 23:04 ls  4.0 s · 0 calls ────────────')
+  expect(row.map(r => r.t).join('')).toBe('· 23:04 make the missing art, mostly fr…  2m 14s · 31 calls · 1 failed')
+  expect(turnRow({ said: 'ls', started, calls: 0, failed: 0, state: 'running', shares: {} }, 40, started + 4000).map(r => r.t).join('')).toBe(`● 23:04 ls${' '.repeat(13)}  4.0 s · 0 calls`)
 })

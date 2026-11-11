@@ -117,21 +117,25 @@ const shareCells = (shares: Shares, cells: number): (string | undefined)[] => {
 
 const two = (n: number) => String(n).padStart(2, '0')
 
-/** A turn that has ended, or the one running, in one line: when it began, what was asked, how long it took, and where the time went. */
-export const turnRow = ({ said, started, ms, calls, failed, state, shares }: Turn, columns: number, now: number): Run[] => {
-  const bar = shareCells(shares, 12)
+/** What a background task's notice says of it: the task by name, then how it ended. */
+export const reportOf = (notice: string) => {
+  const summary = /<summary>([\s\S]*?)<\/summary>/.exec(notice)?.[1]?.trim() ?? ''
+  const named = /^(?:Background command|Agent) "(.*)" (.*)$/s.exec(summary)
+  return named ? `↩ ${named[1]} · ${named[2]}` : summary ? `↩ ${summary}` : 'a task reports back'
+}
+
+/** A turn that has ended, or the one running, in one line: when it began, what was asked, and how long it took. */
+export const turnRow = ({ said, started, ms, calls, failed, state }: Turn, columns: number, now: number): Run[] => {
   const at = new Date(started)
   const head = `${state === 'running' ? '●' : state === 'failed' ? '✕' : '·'} ${two(at.getHours())}:${two(at.getMinutes())} `
   const tail = `  ${duration(ms ?? now - started)} · ${calls} call${calls === 1 ? '' : 's'}`
   const bad = failed > 0 ? ` · ${failed} failed` : ''
-  const room = Math.max(0, columns - head.length - tail.length - bad.length - 1 - bar.length)
+  const room = Math.max(0, columns - head.length - tail.length - bad.length)
   return [
     { t: head, c: state === 'failed' ? 'error' : state === 'running' ? 'claude' : 'subtle', ...(state === 'running' ? { bold: true as const } : {}) },
     { t: cut(said.replace(/\s+/g, ' '), room).padEnd(room), ...(state === 'running' ? { bold: true as const } : {}) },
     { t: tail, c: 'subtle' },
     { t: bad, c: 'error' },
-    { t: ' ' },
-    ...bar.map(c => (c ? { t: '━', c } : { t: '─', dim: true as const })),
   ]
 }
 

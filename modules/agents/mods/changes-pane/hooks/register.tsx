@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { agentRow, describe, feedRow, flashingOf, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, sharesOf, turnRow } from './activity'
+import { agentRow, describe, feedRow, flashingOf, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, reportOf, sharesOf, turnRow } from './activity'
 import type { Agent, Entry, NodeId, Turn } from './activity'
 
 import { clamp, countDiff, deltaArgv, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
@@ -326,7 +326,7 @@ export const register: Register = on => {
     // a subagent's message arrives as markup, with no origin to say so
     const isReport = e.origin?.kind === 'task-notification' || line.startsWith('<')
     log(isReport ? { node: 'agents', text: 'a task reports back', state: 'done' } : { node: 'you', text: 'new message', state: 'done' })
-    asked = isReport ? 'a task reports back' : printable(line)
+    asked = printable(isReport ? reportOf(e.text) : line)
     if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
     return next(e)
   })
