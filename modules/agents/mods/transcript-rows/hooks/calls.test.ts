@@ -70,6 +70,14 @@ test("a command's last word is not its timing, and a call's own time reads short
   expect([took(undefined), took(400), took(3400), took(109_530)]).toEqual(['', '', '3s', '1m 50s'])
 })
 
+test('a command too long for its row is cut between words and says it was cut', async () => {
+  const command = `ls ~/projects/thatch-shots | grep -v -E '^[0-9]{2}-.*-(top|iso)\\.png$'; rm ~/projects/thatch-shots/[0-9][0-9]-*-top.png ~/projects/thatch-shots/[0-9][0-9]-*-iso.png`
+  const line = turnLine({ tool: 'Bash', input: { command } }, false)
+  expect(line.endsWith(' …')).toBe(true)
+  expect(command.startsWith(line.slice('Bash '.length, -' …'.length) + ' ')).toBe(true)
+  expect(turnLine({ tool: 'Bash', input: { command: 'rm ~/projects/thatch-shots/a.png' } }, false)).toBe('Bash rm ~/projects/thatch-shots/a.png')
+})
+
 test('a call on an absolute path is named by the file and its folder', async () => {
   expect(turnLine({ tool: 'Read', input: { file_path: '/home/a/repo/lib/cart.ex' } }, false)).toBe('Read lib/cart.ex')
 })

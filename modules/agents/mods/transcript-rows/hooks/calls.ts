@@ -132,6 +132,14 @@ export const took = (ms: number | undefined): string => {
 const MAX_MADE = 120
 const MAX_LAST = 100
 
+// A cut inside a word reads as a whole one (`rm ~/project` for `rm ~/projects/shots/*.png`), so a
+// long command ends at the last whole word that fits and says there was more.
+const clip = (text: string, max: number) => {
+  if (text.length <= max) return text
+  const head = text.slice(0, max + 1)
+  return `${head.slice(0, Math.max(head.lastIndexOf(' '), 1)).trimEnd()} …`
+}
+
 // an absolute path is told apart by its file and the folder it is in
 const nearby = (text: string) => (text.startsWith('/') && !text.includes(' ') ? text.split('/').slice(-2).join('/') : text)
 
@@ -150,7 +158,7 @@ export const turnLine = (call: Call, isError: boolean): string => {
   const last = typeof stdout === 'string' ? lastSaid(stdout).slice(0, MAX_LAST) : ''
   // a command of several steps is named by them, one of a single step by its own text
   const ran = call.tool === 'Bash' ? steps(first) : []
-  const made = ran.length > 1 ? `${ran.slice(0, MAX_STEPS).join(' · ')}${ran.length > MAX_STEPS ? ` · +${ran.length - MAX_STEPS}` : ''}` : nearby(first.split('\n')[0]!.replace(/^\s*cd\s+\S+\s*(?:&&|;)\s*/, '')).slice(0, MAX_MADE)
+  const made = ran.length > 1 ? `${ran.slice(0, MAX_STEPS).join(' · ')}${ran.length > MAX_STEPS ? ` · +${ran.length - MAX_STEPS}` : ''}` : clip(nearby(first.split('\n')[0]!.replace(/^\s*cd\s+\S+\s*(?:&&|;)\s*/, '')), MAX_MADE)
   return `${call.tool} ${made}${failed}${last ? ` → ${last}` : ''}`.trim()
 }
 
