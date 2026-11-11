@@ -24,6 +24,8 @@ const KEYS = [['j', 'next'], ['k', 'prev'], ['t', 'list'], ['d', 'diff↓'], ['u
 const TABS = [['c', 'changes'], ['a', 'activity']] as const
 type Tab = (typeof TABS)[number][1]
 const MAX_ENTRIES = 200
+// Each repository listed costs a git status after every tool call.
+const MAX_REPOS = 8
 const MAX_GRAPH_ROWS = 17
 
 const OPEN = { id: PANE, title: 'Changes' }
@@ -78,6 +80,17 @@ export const register: Register = on => {
   let repo = ''
   let shared = ''
   const stamps = new Map<string, string>()
+  // The repositories the pane has been on, in the order it came to them, each with its uncommitted files.
+  const known = new Map<string, { common: string; dirty: number }>()
+  // The row of them, drawn once there are two.
+  const repoRows = () => (known.size > 1 ? 1 : 0)
+  const listed = () => {
+    let room = size.columns + 2
+    return [...known]
+      .map(([root, { dirty }]) => ({ root, name: root.split('/').pop() ?? '', n: root === repo ? files.length : dirty }))
+      .map(({ root, name, n }) => ({ root, label: n > 0 ? `${name} ${n}` : name }))
+      .filter(({ label }) => (room -= label.length + 4) >= 0)
+  }
   let tab: Tab = 'changes'
   // newest first
   const entries: Entry[] = []
@@ -89,6 +102,8 @@ export const register: Register = on => {
   let isBusy = false
   let follow: (e: Call) => Promise<boolean> = async () => false
   let sight: () => Promise<void> = async () => {}
+  let hold: (root: string) => void = () => {}
+  let count: () => Promise<void> = async () => {}
 
   // A terminal sends one notch of the wheel as a burst of events (Ghostty: three); over a list the
   // burst is one step.
@@ -108,7 +123,7 @@ export const register: Register = on => {
   const fileRows = () => clamp(paths().length, 1, Math.min(MAX_FILE_ROWS, Math.floor(size.rows / 4)))
   const commitRows = () => clamp(commits.length + 1, 1, Math.min(MAX_COMMIT_ROWS, Math.floor(size.rows / 5)))
   // The tabs, three boxes' top and bottom edges, and the hint.
-  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 8)
+  const diffRows = () => Math.max(1, size.rows - fileRows() - commitRows() - 8 - repoRows())
   const scrollTo = (next: number) => { offset = clamp(next, 0, rows.length - diffRows()) }
   const reveal = () => {
     filesTop = revealTop(filesTop, Math.max(0, paths().indexOf(file)), paths().length, fileRows())
@@ -297,8 +312,12 @@ export const register: Register = on => {
     }
 
     const enter = (at: { root: string; common: string }, path = '') => {
+      const left = known.get(repo)
+      if (left) left.dirty = files.length
       repo = at.root
       shared = at.common
+      if (!known.has(repo) && known.size >= MAX_REPOS) known.delete(known.keys().next().value!)
+      known.set(repo, known.get(repo) ?? { common: shared, dirty: 0 })
       files = []
       diffs = new Map()
       commits = []
@@ -313,6 +332,21 @@ export const register: Register = on => {
       offset = 0
       filesTop = 0
       commitsTop = 0
+    }
+
+    hold = root => {
+      const at = known.get(root)
+      if (!at || root === repo) return
+      enter({ root, common: at.common })
+      isFollowing = false
+    }
+
+    count = async () => {
+      for (const [root, at] of known) {
+        if (root === repo) continue
+        const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-uall'], { cwd: root })
+        at.dirty = status.stdout.split('\n').filter(Boolean).length
+      }
     }
 
     // Read before a call, so that what the call itself changes in the session's repository shows after it.
@@ -513,6 +547,7 @@ export const register: Register = on => {
     // The tool has already run: a failed look at git must not cost it its result.
     try {
       const hasMoved = await follow(e as Call)
+      await count()
       if (isOpen) void refresh()
       else if (!isDismissed && repo !== '') {
         // A move into a repository opens the pane with nothing uncommitted.
@@ -588,6 +623,26 @@ export const register: Register = on => {
             </Box>
           ))}
         </Box>
+        {tab === 'changes' && repoRows() > 0 ? (
+          <Box>
+            {listed().map(({ root, label }) => (
+              <Box marginRight={2}>
+                {root === repo ? <Text inverse weight="bold" color="remember"> {label} </Text> : (
+                  <Button
+                    plain
+                    key={`repo-${root}`}
+                    label={label}
+                    onPress={async () => {
+                      hold(root)
+                      await refresh()
+                      $.ui.invalidate('ui.render')
+                    }}
+                  />
+                )}
+              </Box>
+            ))}
+          </Box>
+        ) : null}
         {tab === 'changes' ? <Client key="changes" module="./view.tsx" props={viewProps()} width="100%" /> : (
           <Box flexDirection="column">
             {activity().map(row => (
@@ -641,8 +696,8 @@ export const register: Register = on => {
       $.ui.invalidate('ui.render')
       return {}
     }
-    // the tabs take the body's first row
-    const at = (e.pointer?.row ?? 0) - 1
+    // the tabs take the body's first row, the repositories the one under it
+    const at = (e.pointer?.row ?? 0) - 1 - repoRows()
     isFollowing = false
     if (at < diffRows() + 2) scrollTo(offset + e.by)
     else {

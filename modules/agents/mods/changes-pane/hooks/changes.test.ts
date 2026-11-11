@@ -397,6 +397,24 @@ test('a cd into another repository leaves the pane on the one being worked in, a
   expect(await ui.find({ text: /w2\.ts {2}\+1 -1/, in: 'changes' })).toBeDefined()
 })
 
+test('the repositories the pane has been on sit in a row, and a click holds the pane on one', async ($, on) => {
+  mock.clock(on)
+  const at = { cwd: '/w/api' }
+  repos(on, at, { '/w/api': ['a.ts'], '/w/web': ['w1.ts', 'w2.ts'] })
+  await $.session.start({ cwd: at.cwd, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /^ api 1 $/ })).toBeUndefined()
+  await $.tool.call({ tool: 'Edit', file_path: '/w/web/w2.ts', old_string: 'x', new_string: 'y' } as never)
+  expect(await ui.find({ text: /^ web 2 $/ })).toBeDefined()
+  await ui.press({ key: 'repo-/w/api' })
+  expect(await ui.find({ text: /^ api 1 $/ })).toBeDefined()
+  expect(await ui.find({ text: /^web 2$/ })).toBeDefined()
+  expect(await ui.find({ text: /^a\.ts$/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
+  await $.tool.call({ tool: 'Edit', file_path: '/w/web/w1.ts', old_string: 'x', new_string: 'y' } as never)
+  expect(await ui.find({ text: /^a\.ts$/, in: 'changes' })).toBeDefined()
+})
+
 test('a shell command that changes another repository moves the pane to it', async ($, on) => {
   mock.clock(on)
   const at: { cwd: string; run?: () => void } = { cwd: '/w/api' }
