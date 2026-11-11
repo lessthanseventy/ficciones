@@ -20,6 +20,9 @@ const CONTEXT_ROWS = 3
 const KEYS = [['j', 'next'], ['k', 'prev'], ['t', 'list'], ['d', 'diff↓'], ['u', 'diff↑'], ['f', 'follow'], ['l', 'git']] as const
 
 const OPEN = { id: PANE, title: 'Changes' }
+// The tools whose call names the file it writes.
+const WRITES = new Set(['Edit', 'Write', 'NotebookEdit'])
+type Call = { tool: string; file_path?: unknown; notebook_path?: unknown }
 
 type Diff = { text: string; lines: DiffLine[]; adds: number; dels: number }
 type Shown = { message: string[]; diffs: Map<string, Diff> }
@@ -64,7 +67,12 @@ export const register: Register = on => {
   let isFollowing = true
   let canDraw = false
   let isDismissed = false
-  let cwd = ''
+  // The repository the pane reads, and the git directory its worktrees share.
+  let repo = ''
+  let shared = ''
+  const stamps = new Map<string, string>()
+  let follow: (e: Call) => Promise<boolean> = async () => false
+  let sight: () => Promise<void> = async () => {}
 
   // A terminal sends one notch of the wheel as a burst of events (Ghostty: three); over a list the
   // burst is one step.
@@ -192,44 +200,118 @@ export const register: Register = on => {
   }
 
   on('session.start', async ($, e, next) => {
+    const where = async (dir: string) => {
+      const top = await $.process.run(['git', 'rev-parse', '--show-toplevel', '--path-format=absolute', '--git-common-dir'], { cwd: dir })
+      if (top.exitCode !== 0) return null
+      const [at = '', shared = ''] = top.stdout.split('\n')
+      return { root: at || dir, common: shared }
+    }
+
+    // What a shell command can change in a repository: its tree, its commit, the text of its diff.
+    const stamp = async (dir: string) => {
+      const run = (...args: string[]) => $.process.run(['git', '--no-optional-locks', ...args], { cwd: dir })
+      const read = [await run('status', '--porcelain=v1'), await run('rev-parse', 'HEAD'), await run('diff', 'HEAD', '--shortstat')]
+      return read.map(r => r.stdout).join('\0')
+    }
+
+    const enter = (at: { root: string; common: string }, path = '') => {
+      repo = at.root
+      shared = at.common
+      files = []
+      diffs = new Map()
+      commits = []
+      ahead = new Set()
+      shown.clear()
+      source = ''
+      file = path
+      hasBaseline = false
+      rows = []
+      starts = []
+      renderedKey = ''
+      offset = 0
+      filesTop = 0
+      commitsTop = 0
+    }
+
+    // Read before a call, so that what the call itself changes in the session's repository shows after it.
+    sight = async () => {
+      if (!isFollowing || repo === '') return
+      const at = await where(await $.session.cwd())
+      if (at && at.root !== repo && at.common !== shared) stamps.set(at.root, await stamp(at.root))
+    }
+
+    // The pane stays on the repository being worked in: an edit moves it, a cd alone does not.
+    follow = async e => {
+      if (!isFollowing && repo !== '') return false
+      const cwd = await $.session.cwd()
+      const edited = WRITES.has(e.tool) ? e.file_path ?? e.notebook_path : undefined
+      if (typeof edited === 'string') {
+        const path = edited.startsWith('/') ? edited : `${cwd}/${edited}`
+        const at = await where(path.slice(0, path.lastIndexOf('/')))
+        if (at && at.root !== repo) {
+          enter(at, path.startsWith(`${at.root}/`) ? path.slice(at.root.length + 1) : '')
+          return true
+        }
+      }
+      const at = await where(cwd)
+      if (!at || at.root === repo) return false
+      // a worktree of the repository shown is the same work, moved
+      if (repo !== '' && at.common !== shared) {
+        const now = await stamp(at.root)
+        const before = stamps.get(at.root)
+        stamps.set(at.root, now)
+        if (before === undefined || before === now) return false
+      }
+      enter(at)
+      return true
+    }
+
     // status and diff name files from the repo root, whichever folder the session is in.
-    const readDiffs = async (listed: File[]) => {
-      const tracked = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'diff', 'HEAD', '--no-renames', '--no-color', '--no-ext-diff'])
+    const readDiffs = async (at: string, listed: File[]) => {
+      const tracked = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'diff', 'HEAD', '--no-renames', '--no-color', '--no-ext-diff'], { cwd: at })
       const texts = splitDiff(tracked.stdout)
       for (const untracked of listed.filter(f => f.isUntracked).slice(0, MAX_UNTRACKED_DIFFS)) {
-        const diff = await $.process.run(['git', 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', untracked.path], { cwd: root })
+        const diff = await $.process.run(['git', 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', untracked.path], { cwd: at })
         texts.set(untracked.path, diff.stdout)
       }
       return texts
     }
 
-    const readCommit = async (sha: string) => {
-      const show = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'show', '--no-renames', '--no-color', '--no-ext-diff', '--format=%an · %ar%n%n%B', sha])
+    const readCommit = async (at: string, sha: string) => {
+      const show = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'show', '--no-renames', '--no-color', '--no-ext-diff', '--format=%an · %ar%n%n%B', sha], { cwd: at })
       const { message, files: texts } = parseShow(show.stdout)
+      if (at !== repo) return
       if (shown.size >= MAX_KEPT_COMMITS) shown.clear()
       shown.set(sha, { message, diffs: new Map([...texts].map(([path, text]) => [path, diffOf(text)])) })
     }
 
     const load = async () => {
       let jump: number | null = null
+      // A move to another repository while this reads leaves it for the next pass.
+      const at = repo
+      const git = (...args: string[]) => $.process.run(['git', '--no-optional-locks', ...args], { cwd: at })
       // Without --no-optional-locks this poll takes the index lock and can fail Claude's own git commands.
-      const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-z', '-uall'])
-      if (status.exitCode !== 0) {
+      const status = at === '' ? null : await git('status', '--porcelain=v1', '-z', '-uall')
+      if (!status || status.exitCode !== 0) {
+        if (at !== repo) return
         files = []
         diffs = new Map()
         commits = []
         note = 'not a git repository'
       } else {
-        files = parseStatus(status.stdout)
-        note = ''
+        const listed = parseStatus(status.stdout)
         // the common git directory sits in the main checkout, which a linked worktree is not
-        ;[root = '', branch = '', common = ''] = (await $.process.run(['git', 'rev-parse', '--show-toplevel', '--abbrev-ref', 'HEAD', '--path-format=absolute', '--git-common-dir'])).stdout.split('\n')
-        const log = await $.process.run(['git', '--no-optional-locks', 'log', '-n', String(MAX_COMMITS), '--format=%h%x09%s'])
-        commits = log.exitCode === 0 ? parseLog(log.stdout) : []
+        const names = (await git('rev-parse', '--show-toplevel', '--abbrev-ref', 'HEAD', '--path-format=absolute', '--git-common-dir')).stdout.split('\n')
+        const log = await git('log', '-n', String(MAX_COMMITS), '--format=%h%x09%s')
         // a branch with no upstream has nothing to be ahead of
-        const unpushed = await $.process.run(['git', '--no-optional-locks', 'log', '-n', String(MAX_COMMITS), '--format=%h', '@{upstream}..HEAD'])
+        const unpushed = await git('log', '-n', String(MAX_COMMITS), '--format=%h', '@{upstream}..HEAD')
+        const texts = await readDiffs(at, listed)
+        if (at !== repo) return
+        files = listed
+        note = ''
+        ;[root = '', branch = '', common = ''] = names
+        commits = log.exitCode === 0 ? parseLog(log.stdout) : []
         ahead = new Set(unpushed.exitCode === 0 ? unpushed.stdout.split('\n').filter(Boolean) : [])
-        const texts = await readDiffs(files)
         const before = diffs
         diffs = new Map(files.map(({ path }) => {
           const text = texts.get(path) ?? ''
@@ -250,7 +332,8 @@ export const register: Register = on => {
 
       // A commit amended or rebased away leaves the working tree.
       if (source !== '' && !commits.some(c => c.sha === source)) source = ''
-      if (source !== '' && !shown.has(source)) await readCommit(source)
+      if (source !== '' && !shown.has(source)) await readCommit(at, source)
+      if (at !== repo) return
       if (!paths().includes(file)) file = source === '' ? paths()[0] ?? '' : ''
       if (jump !== null) reveal()
 
@@ -274,6 +357,7 @@ export const register: Register = on => {
         return
       }
       const drawn = await $.process.run(deltaArgv(size.columns), { stdin: text })
+      if (at !== repo) return
       // delta leads with the blank row it puts before every hunk.
       ;({ rows, starts } = wrapRows(parseAnsi(drawn.stdout, size.columns).slice(1), size.columns))
       if (jump !== null) offset = Math.max(0, (starts[jump] ?? 0) - CONTEXT_ROWS)
@@ -300,16 +384,16 @@ export const register: Register = on => {
       }
     }
 
-    cwd = e.cwd
     $.clock.every(POLL_MS, () => { void refresh() })
     // VS Code and mobile have no Client to draw this pane with.
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
     if (canDraw) {
+      const at = await where(e.cwd).catch(() => null)
+      if (at) enter(at)
       await $.command.register({ name: PANE, description: 'Show or hide what is uncommitted and the recent commits, a file at a time, following the latest edit', immediate: true })
       // In a repository the pane is up from the start; a session must still start where it cannot open.
       try {
-        const inside = await $.process.run(['git', 'rev-parse', '--is-inside-work-tree'])
-        if (inside.exitCode === 0) seated(await $.ui.open(OPEN))
+        if (at) seated(await $.ui.open(OPEN))
       } catch {}
     }
     return next(e)
@@ -332,19 +416,19 @@ export const register: Register = on => {
 
   // The poll alone would leave up to two seconds between an edit and the pane following it.
   on('tool.call', async ($, e, next) => {
+    if (canDraw) await sight().catch(() => {})
     const result = await next(e)
-    if (isOpen) void refresh()
-    else if (canDraw && !isDismissed) {
-      // The tool has already run: a failed look at git must not cost it its result.
-      try {
-        // Claude's cd moves the session, and a move into a repository opens the pane with nothing uncommitted.
-        const now = await $.session.cwd()
-        const hasMoved = now !== cwd
-        cwd = now
-        const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1'])
+    if (!canDraw) return result
+    // The tool has already run: a failed look at git must not cost it its result.
+    try {
+      const hasMoved = await follow(e as Call)
+      if (isOpen) void refresh()
+      else if (!isDismissed && repo !== '') {
+        // A move into a repository opens the pane with nothing uncommitted.
+        const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1'], { cwd: repo })
         if (status.exitCode === 0 && (hasMoved || status.stdout !== '')) seated(await $.ui.open(OPEN))
-      } catch {}
-    }
+      }
+    } catch {}
     return result
   })
 
@@ -407,7 +491,7 @@ export const register: Register = on => {
                 label={label}
                 onPress={async () => {
                   if (hotkey === 'l') {
-                    const cwd = `--working-directory=${await $.session.cwd()}`
+                    const cwd = `--working-directory=${repo || await $.session.cwd()}`
                     // setsid -f returns at once and leaves a window that outlives this session.
                     try {
                       await $.process.run(['setsid', '-f', 'ghostty', cwd, '-e', 'lazygit'])

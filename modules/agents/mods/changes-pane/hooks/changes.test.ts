@@ -333,3 +333,79 @@ test('the wheel moves the diff under its header, and holds it', async ($, on) =>
   expect(await ui.find({ text: /\+l20\b/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
 })
+
+// Two repositories under one folder: git answers by the directory it is run in.
+const repos = (on: On, at: { cwd: string; run?: () => void }, trees: Record<string, string[]>) => {
+  on('session.start', async ($, e) => e)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.cwd', async () => ({ value: at.cwd }) as never)
+  on('tool.call', () => {
+    at.run?.()
+    return { result: {} } as never
+  })
+  on('process.run', async ($, e) => {
+    const line = e.argv.join(' ')
+    if (line.startsWith('delta')) return { value: { exitCode: 0, stdout: `\n${e.init?.stdin}`, stderr: '' } } as never
+    const dir = e.init?.cwd ?? at.cwd
+    const root = Object.keys(trees).find(r => dir === r || dir.startsWith(`${r}/`))
+    if (!root) return { value: { exitCode: 128, stdout: '', stderr: '' } } as never
+    const names = trees[root]!
+    const stdout = line.includes('--show-toplevel') ? `${root}\n${line.includes('--abbrev-ref') ? 'main\n' : ''}${root}/.git\n`
+      : line.includes(' status ') ? names.map(n => ` M ${n}\0`).join('')
+      : line.includes(' diff ') ? names.map(n => `diff --git a/${n} b/${n}\n--- a/${n}\n+++ b/${n}\n@@ -1 +1 @@\n-x\n+y\n`).join('')
+      : ''
+    return { value: { exitCode: 0, stdout, stderr: '' } } as never
+  })
+}
+
+test('a cd into another repository leaves the pane on the one being worked in, and an edit there moves it', async ($, on) => {
+  mock.clock(on)
+  const at = { cwd: '/w/api' }
+  repos(on, at, { '/w/api': ['a.ts'], '/w/web': ['w1.ts', 'w2.ts'] })
+  await $.session.start({ cwd: at.cwd, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /^a\.ts$/, in: 'changes' })).toBeDefined()
+  at.cwd = '/w/web'
+  await $.tool.call({ tool: 'Bash', command: 'cd /w/web' } as never)
+  at.cwd = '/w'
+  await $.tool.call({ tool: 'Bash', command: 'cd /w' } as never)
+  expect(await ui.find({ text: /^a\.ts$/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /not a git repository/, in: 'changes' })).toBeUndefined()
+  await $.tool.call({ tool: 'Edit', file_path: '/w/web/w2.ts', old_string: 'x', new_string: 'y' } as never)
+  expect(await ui.find({ text: /^commits · main · web/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^a\.ts$/, in: 'changes' })).toBeUndefined()
+  // the edited file, not the last of a tree that is all new to the pane
+  expect(await ui.find({ text: /w2\.ts {2}\+1 -1/, in: 'changes' })).toBeDefined()
+})
+
+test('a shell command that changes another repository moves the pane to it', async ($, on) => {
+  mock.clock(on)
+  const at: { cwd: string; run?: () => void } = { cwd: '/w/api' }
+  const trees = { '/w/api': ['a.ts'], '/w/web': ['w1.ts'] }
+  repos(on, at, trees)
+  await $.session.start({ cwd: at.cwd, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  at.cwd = '/w/web'
+  // the tree as it was before the session came is nothing the session did
+  trees['/w/web'] = ['w1.ts', 'w0.ts']
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  expect(await ui.find({ text: /^a\.ts$/, in: 'changes' })).toBeDefined()
+  at.run = () => { trees['/w/web'] = ['w1.ts', 'w0.ts', 'made.ts'] }
+  await $.tool.call({ tool: 'Bash', command: 'touch made.ts' } as never)
+  expect(await ui.find({ text: /^made\.ts/, in: 'changes' })).toBeDefined()
+})
+
+test('a held pane stays on its repository through an edit in another', async ($, on) => {
+  mock.clock(on)
+  const at = { cwd: '/w/api' }
+  repos(on, at, { '/w/api': ['a.ts'], '/w/web': ['w1.ts'] })
+  await $.session.start({ cwd: at.cwd, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await ui.press({ key: 'key-f' })
+  await $.tool.call({ tool: 'Edit', file_path: '/w/web/w1.ts', old_string: 'x', new_string: 'y' } as never)
+  expect(await ui.find({ text: /^a\.ts$/, in: 'changes' })).toBeDefined()
+  await ui.press({ key: 'key-f' })
+  await $.tool.call({ tool: 'Edit', file_path: '/w/web/w1.ts', old_string: 'x', new_string: 'y' } as never)
+  expect(await ui.find({ text: /^w1\.ts$/, in: 'changes' })).toBeDefined()
+})
