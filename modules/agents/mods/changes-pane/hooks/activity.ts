@@ -17,8 +17,18 @@ export type Graph = {
   // the node of the newest entry, lit while nothing runs
   last?: NodeId
   centre: string[]
+  // the context's fill, which colours its line of the hub
+  percent?: number
   isBusy: boolean
 }
+
+// Each node has a colour of the theme, so that a row of the feed and its spoke read as one thing.
+const HUE: Record<NodeId, string> = {
+  you: 'success', model: 'remember', files: 'claude', shell: 'claude', menard: 'planMode',
+  network: 'suggestion', agents: 'planMode', mcp: 'suggestion', skills: 'warning', memory: 'remember',
+}
+
+export const level = (percent: number) => (percent >= 85 ? 'error' : percent >= 60 ? 'warning' : 'success')
 type Call = { tool: string; [key: string]: unknown }
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '')
@@ -49,7 +59,7 @@ export const modelName = (id: string) => id.replace(/^claude-/, '').replace(/-(\
 export const duration = (ms: number) => (ms < 1000 ? `${Math.round(ms / 100) * 100} ms` : ms < 60_000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`)
 
 const label = (node: NodeId) => NODES.find(([id]) => id === node)![1]
-const tone = (state: State): Pick<Run, 'c' | 'dim' | 'bold'> => (state === 'running' ? { c: 'claude', bold: true } : state === 'failed' ? { c: 'error' } : { dim: true })
+
 
 const cut = (said: string, room: number) => (said.length > room ? `${said.slice(0, Math.max(0, room - 1))}…` : said)
 
@@ -66,10 +76,11 @@ export const feedRow = ({ node, text: said, state, ms, agent }: Entry, columns: 
   const tail = state === 'running' ? '  running' : ms === undefined ? '' : `  ${duration(ms)}`
   const room = Math.max(0, columns - 11 - tail.length)
   const body = `${agent ? `${cut(agent, 14)} ▸ ` : ''}${said}`.replace(/\s+/g, ' ')
+  const hue = state === 'failed' ? 'error' : HUE[node]
   return [
-    { t: `${mark} ${label(node).padEnd(9)}`, ...tone(state) },
-    { t: cut(body, room), ...(state === 'failed' ? { c: 'error' } : state === 'running' ? { c: 'claude' } : {}) },
-    { t: tail, ...tone(state) },
+    { t: `${mark} ${label(node).padEnd(9)}`, c: hue, ...(state === 'running' ? { bold: true as const } : {}) },
+    { t: cut(body, room), ...(state === 'failed' ? { c: 'error' } : state === 'running' ? { bold: true as const } : {}) },
+    { t: tail, c: state === 'failed' ? 'error' : state === 'running' ? hue : 'subtle' },
   ]
 }
 
@@ -89,12 +100,13 @@ export const graph = (columns: number, rows: number, g: Graph): Run[][] => {
   const cx = Math.floor(columns / 2)
   const cy = Math.floor(rows / 2)
   const widest = Math.max(...g.centre.map(line => line.length), 6)
-  const hub = g.isBusy ? { c: 'claude', bold: true as const } : { dim: true as const }
+  const hub = g.isBusy ? { c: 'claude', bold: true as const } : { c: 'claude', dim: true as const }
+  const lines = [{ c: g.percent === undefined ? 'subtle' : level(g.percent) }, { c: 'claude', bold: true as const }, { c: 'remember' }]
   write(cx - Math.floor(widest / 2) - 2, cy - 2, `╭${'─'.repeat(widest + 2)}╮`, hub)
   g.centre.slice(0, 3).forEach((line, i) => {
     const pad = widest - line.length
     write(cx - Math.floor(widest / 2) - 2, cy - 1 + i, '│', hub)
-    write(cx - Math.floor(widest / 2) - 1, cy - 1 + i, ` ${' '.repeat(Math.floor(pad / 2))}${line}${' '.repeat(Math.ceil(pad / 2))} `, i === 1 ? { c: 'claude', bold: true } : {})
+    write(cx - Math.floor(widest / 2) - 1, cy - 1 + i, ` ${' '.repeat(Math.floor(pad / 2))}${line}${' '.repeat(Math.ceil(pad / 2))} `, lines[i]!)
     write(cx + Math.ceil(widest / 2) + 1, cy - 1 + i, '│', hub)
   })
   write(cx - Math.floor(widest / 2) - 2, cy + 2, `╰${'─'.repeat(widest + 2)}╯`, hub)
@@ -106,18 +118,23 @@ export const graph = (columns: number, rows: number, g: Graph): Run[][] => {
     const x = Math.round(cx + rx * Math.cos(angle))
     const y = Math.round(cy + ry * Math.sin(angle))
     const state = g.failed.has(id) ? 'failed' : g.running.has(id) || (g.running.size === 0 && g.last === id) ? 'lit' : 'idle'
-    const style = state === 'failed' ? { c: 'error', bold: true as const } : state === 'lit' ? { c: g.running.has(id) ? 'claude' : 'success', bold: true as const } : { dim: true as const }
+    // a node the session has used keeps its colour, and one it has not stays dim
+    const style = state === 'failed' ? { c: 'error', bold: true as const }
+      : state === 'lit' ? { c: HUE[id], bold: true as const }
+      : g.counts[id] ? { c: HUE[id] }
+      : { dim: true as const }
+    const spoke = state === 'idle' ? { ...style, dim: true as const } : style
     const count = g.counts[id] ? ` ${g.counts[id]}` : ''
     const mark = state === 'idle' ? '○' : state === 'failed' ? '✕' : '●'
     const side = Math.cos(angle)
     // a node left of the hub reads towards it, so its mark is the end nearest the spoke
     const said = side < -0.2 ? `${name}${count} ${mark}` : `${mark} ${name}${count}`
     const at = side < -0.2 ? x - said.length + 1 : side > 0.2 ? x : x - Math.floor(said.length / 2)
-    return { x, y, at, said, style, rank: state === 'idle' ? 0 : state === 'lit' ? 1 : 2 }
+    return { x, y, at, said, style, spoke, rank: state === 'idle' ? 0 : state === 'lit' ? 1 : 2 }
   })
   for (const { y, at, said, style } of spokes) write(clamp(at, 0, columns - said.length), y, said, style)
 
-  for (const { x, y, style, rank } of [...spokes].sort((a, b) => a.rank - b.rank)) {
+  for (const { x, y, spoke: style, rank } of [...spokes].sort((a, b) => a.rank - b.rank)) {
     const [x0, y0, x1, y1] = [cx * 2, cy * 4 + 2, x * 2, y * 4 + 2]
     const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1)
     for (let s = 0; s <= steps; s++) {

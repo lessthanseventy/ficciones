@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { agentRow, describe, feedRow, graph, modelName, nodeOf } from './activity'
+import { agentRow, describe, feedRow, graph, level, modelName, nodeOf } from './activity'
 import type { Agent, Entry, NodeId } from './activity'
 import { noteBlock, noteHead } from './review'
 import type { Note } from './review'
@@ -294,15 +294,21 @@ export const register: Register = on => {
     for (const entry of [...entries].reverse()) latest.set(entry.node, entry)
     const failed = new Set([...latest].filter(([, e]) => e.state === 'failed').map(([node]) => node))
     const centre = [percent === undefined ? '' : `ctx ${Math.round(percent)}%`, 'CLAUDE', model]
-    const head = [model && `Model: ${model}`, stepNo > 0 && `step ${stepNo}`, percent !== undefined && `context ${Math.round(percent)}%`].filter(Boolean).join(' · ')
+    const head: Run[] = model === '' ? [{ t: 'nothing yet this session', dim: true }] : [
+      { t: 'Model ', dim: true },
+      { t: model, c: 'remember', bold: true },
+      { t: ` · step ${stepNo}`, c: 'claude' },
+      ...(percent === undefined ? [] : [{ t: ' · context ', dim: true as const }, { t: `${Math.round(percent)}%`, c: level(percent), bold: true as const }]),
+    ]
     const feed = only === null ? entries : entries.filter(e => e.agentId === only)
     const first = clamp(feedTop, 0, feed.length - 1)
     // the running ones lead, so a finished one is what leaves when there are too many
     const listed = [...agents.filter(a => a.state === 'running'), ...agents.filter(a => a.state !== 'running')].slice(0, MAX_AGENT_ROWS)
     return {
       top: [
-        ...graph(columns, graphRows, { counts, running, failed, last: entries[0]?.node, centre, isBusy }),
-        [{ t: head || 'nothing yet this session', bold: true as const }],
+        // the Agents node counts the subagents, not each step one of them took
+        ...graph(columns, graphRows, { counts: { ...counts, agents: agents.length || undefined }, running, failed, last: entries[0]?.node, centre, percent, isBusy }),
+        head,
       ],
       agents: listed.map(a => ({ id: a.id, isRunning: a.state === 'running', label: `${a.id === only ? '▶ ' : ''}${agentRow(a, columns - (a.id === only ? 2 : 0), Date.now())}` })),
       feed: feed.slice(first, first + Math.max(0, room - graphRows - 1 - agentRows())).map(entry => feedRow(entry, columns)),
@@ -365,7 +371,12 @@ export const register: Register = on => {
       throw error
     } finally {
       entry.ms = Date.now() - started
-      if (!agent) percent = (await $.session.usage().catch(() => null))?.context.percent ?? percent
+      if (!agent) {
+        // The status line counts the context against the compaction budget where one is set, and so does this.
+        const context = (await $.session.usage().catch(() => null))?.context
+        const budget = await $.settings.read({ key: 'autoCompactWindow' }).catch(() => undefined)
+        percent = typeof budget === 'number' && context?.tokens ? (context.tokens * 100) / budget : context?.percent ?? percent
+      }
       if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
     }
   })

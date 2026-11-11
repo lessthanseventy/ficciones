@@ -367,6 +367,9 @@ test('a subagent has a row of its own, and a click narrows the feed to it', asyn
   // the pane is 50 columns wide, and a row is cut to it
   expect(await ui.find({ text: /^● Read the hunk docs · haiku 5\.5 · WebFetch/ })).toBeDefined()
   expect(await ui.find({ text: /^Read the hunk… ▸ WebFetch/ })).toBeDefined()
+  await $.tool.call({ tool: 'SubagentHandback', agentId: 'a1' } as never)
+  // one subagent, whatever it has done, and its node lit while it runs
+  expect(await ui.find({ text: /Agents 1 ●/ })).toBeDefined()
   expect(await ui.find({ text: /^List the files$/ })).toBeDefined()
   await ui.press({ key: 'agent-a1' })
   expect(await ui.find({ text: /^List the files$/ })).toBeUndefined()
