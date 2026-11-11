@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 
 import { agentRow, describe, feedRow, flashingOf, graph, heartbeat, isInTransit, isMoving, modelName, nodeOf, pulsesOf, reportOf, sharesOf, turnRow } from './activity'
-import type { Agent, Entry, NodeId, Turn } from './activity'
+import type { Agent, Entry, NodeId, State, Turn } from './activity'
 
 import { clamp, countDiff, deltaArgv, emptyDiffNote, firstChangedRow, fitRows, parseAnsi, parseDiff, parseLog, parseShow, parseStatus, printable, revealTop, splitDiff, tailPath, wrapRows } from './changes'
 import type { Commit, DiffLine, File, Run } from './changes'
@@ -37,6 +37,10 @@ const MIN_GRAPH_ROWS = 13
 const MAX_GRAPH_ROWS = 19
 const MAX_AGENTS = 30
 const MAX_AGENT_ROWS = 4
+// The store is one file of at most 4 MiB, and a session ended long ago is not started again.
+const MAX_KEPT_SESSIONS = 30
+// What a session that starts again has back: the wheel's totals, its turns and agents, and the repositories the pane has been on.
+type Kept = { at: number; counts: Partial<Record<NodeId, number>>; turns: Turn[]; turnNo: number; agents: Agent[]; repos: [root: string, common: string][]; repo: string; isFollowing: boolean }
 
 const OPEN = { id: PANE, title: 'Changes' }
 // The tools whose call names the file it writes.
@@ -128,6 +132,7 @@ export const register: Register = on => {
   let sight: () => Promise<void> = async () => {}
   let hold: (root: string) => void = () => {}
   let count: () => Promise<void> = async () => {}
+  let keep: () => Promise<void> = async () => {}
 
   // A terminal sends one notch of the wheel as a burst of events (Ghostty: three); over a list the
   // burst is one step.
@@ -354,6 +359,7 @@ export const register: Register = on => {
       const agent = agentOf(e.agentId)
       Object.assign(agent, { state: e.reason === 'answer' ? 'done' : 'failed', ms: Date.now() - agent.started })
     }
+    await keep()
     if (isOpen && tab === 'activity') $.ui.invalidate('ui.render')
     return next(e)
   })
@@ -432,6 +438,7 @@ export const register: Register = on => {
       if (!at || root === repo) return
       enter({ root, common: at.common })
       isFollowing = false
+      void keep()
     }
 
     count = async () => {
@@ -611,15 +618,42 @@ export const register: Register = on => {
         tick = null
       })
     }
+    const id = await $.session.id().catch(() => '')
+    const kept = id === '' ? undefined : await $.store.get(`session:${id}`).catch(() => undefined) as Kept | undefined
+    if (id !== '') {
+      keep = () => {
+        const now: Kept = { at: Date.now(), counts, turns, turnNo, agents, repos: [...known].map(([root, { common }]) => [root, common]), repo, isFollowing }
+        return $.store.set(`session:${id}`, now).catch(() => {})
+      }
+    }
+    if (kept) {
+      // what was running when the session stopped never finished
+      const ended = <T extends { state: State; started: number; ms?: number }>(it: T): T => (it.state === 'running' ? { ...it, state: 'failed', ms: kept.at - it.started } : it)
+      Object.assign(counts, kept.counts)
+      turns = kept.turns.map(ended)
+      turnNo = kept.turnNo
+      agents = kept.agents.map(ended)
+    } else {
+      const sessions = (await $.store.keys().catch(() => [])).filter(key => key.startsWith('session:'))
+      for (const old of sessions.slice(0, -MAX_KEPT_SESSIONS)) await $.store.delete(old).catch(() => {})
+    }
     // VS Code and mobile have no Client to draw this pane with.
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
     if (canDraw) {
+      // a worktree may have been removed since
+      for (const [root, common] of kept?.repos ?? []) if (await where(root).catch(() => null)) known.set(root, { common, dirty: 0 })
       const at = await where(e.cwd).catch(() => null)
       if (at) enter(at)
+      const held = kept ? known.get(kept.repo) : undefined
+      if (kept && held) {
+        if (kept.repo !== repo) enter({ root: kept.repo, common: held.common })
+        isFollowing = kept.isFollowing
+        void count().catch(() => {})
+      }
       await $.command.register({ name: PANE, description: 'Show or hide what is uncommitted and the recent commits, a file at a time, following the latest edit', immediate: true })
       // In a repository the pane is up from the start; a session must still start where it cannot open.
       try {
-        if (at) seated(await $.ui.open(OPEN))
+        if (repo !== '') seated(await $.ui.open(OPEN))
       } catch {}
     }
     return next(e)

@@ -470,6 +470,36 @@ test('a shell command that changes another repository moves the pane to it', asy
   expect(await ui.find({ text: /^made\.ts/, in: 'changes' })).toBeDefined()
 })
 
+test('a session that starts again has its wheel, its turns and its repository back', async ($, on) => {
+  mock.clock(on)
+  const at = { cwd: '/w/api' }
+  repos(on, at, { '/w/api': ['a.ts'], '/w/web': ['w1.ts'] })
+  on('session.id', async () => ({ value: 's1' }) as never)
+  on('turn.start', async () => ({ turnId: 't2' }) as never)
+  on('turn.complete', async () => ({ text: '' }) as never)
+  const turn = { said: 'fix the queue', started: 1000, ms: 2000, calls: 7, failed: 0, state: 'done', shares: {} }
+  const store = new Map<string, unknown>([['session:s1', { at: 5000, counts: { shell: 7 }, turns: [turn], turnNo: 1, agents: [], repos: [['/w/api', '/w/api/.git'], ['/w/web', '/w/web/.git'], ['/w/gone', '/w/gone/.git']], repo: '/w/web', isFollowing: false }]])
+  on('store.get', async ($, e) => ({ value: store.get(e.key) }) as never)
+  on('store.set', async ($, e) => {
+    store.set(e.key, JSON.parse(JSON.stringify(e.value)))
+    return { value: undefined } as never
+  })
+  await $.session.start({ cwd: at.cwd, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /^w1\.ts$/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
+  await ui.press({ key: 'tab-activity' })
+  expect(await ui.find({ text: /Shell 7/ })).toBeDefined()
+  expect(await ui.find({ text: /^fix the queue\s*$/ })).toBeDefined()
+  await $.turn.start({ turnId: 't2' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  await $.turn.complete({ turnId: 't2', reason: 'answer' } as never)
+  const kept = store.get('session:s1') as { counts: { shell: number }; turns: unknown[]; repos: string[][] }
+  expect(kept.counts.shell).toBe(8)
+  expect(kept.turns).toHaveLength(2)
+  expect(kept.repos.map(([root]) => root)).toEqual(['/w/api', '/w/web'])
+})
+
 test('a held pane stays on its repository through an edit in another', async ($, on) => {
   mock.clock(on)
   const at = { cwd: '/w/api' }
