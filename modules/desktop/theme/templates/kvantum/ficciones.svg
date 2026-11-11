@@ -112,15 +112,27 @@
   <rect id="menubaritem-focus-interior" x="40" y="440" width="30" height="30" rx="4" fill="@hoverGround@"/>
   <rect id="menubaritem-focus-frame" x="40" y="440" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
 
-  <!-- Menu (context menu) -->
-  <rect id="menu-normal-interior" x="0" y="480" width="30" height="30" rx="4" fill="@panel@"/>
-  <rect id="menu-normal-frame" x="0" y="480" width="30" height="30" rx="4" fill="none" stroke="@body@" stroke-width="1" stroke-opacity="0.3"/>
+  <!-- Menu (context menu): Kvantum reads an interior as <element>-<state> and a frame as eight edge and corner pieces -->
+  <rect id="menu-normal" x="1" y="481" width="28" height="28" fill="@panel@"/>
+  <rect id="menu-normal-top" x="1" y="480" width="28" height="1" fill="@body@" fill-opacity="0.3"/>
+  <rect id="menu-normal-bottom" x="1" y="509" width="28" height="1" fill="@body@" fill-opacity="0.3"/>
+  <rect id="menu-normal-left" x="0" y="481" width="1" height="28" fill="@body@" fill-opacity="0.3"/>
+  <rect id="menu-normal-right" x="29" y="481" width="1" height="28" fill="@body@" fill-opacity="0.3"/>
+  <rect id="menu-normal-topleft" x="0" y="480" width="1" height="1" fill="@body@" fill-opacity="0.3"/>
+  <rect id="menu-normal-topright" x="29" y="480" width="1" height="1" fill="@body@" fill-opacity="0.3"/>
+  <rect id="menu-normal-bottomleft" x="0" y="509" width="1" height="1" fill="@body@" fill-opacity="0.3"/>
+  <rect id="menu-normal-bottomright" x="29" y="509" width="1" height="1" fill="@body@" fill-opacity="0.3"/>
 
-  <!-- Menu item -->
-  <rect id="menuitem-normal-interior" x="0" y="520" width="30" height="30" rx="4" fill="transparent"/>
-  <rect id="menuitem-normal-frame" x="0" y="520" width="30" height="30" rx="4" fill="none"/>
-  <rect id="menuitem-focus-interior" x="40" y="520" width="30" height="30" rx="4" fill="@body@"/>
-  <rect id="menuitem-focus-frame" x="40" y="520" width="30" height="30" rx="4" fill="none"/>
+  <!-- Menu item: the one under the pointer is "toggled" to Kvantum, and nothing is drawn for the rest -->
+  <rect id="menuitem-toggled" x="43" y="523" width="24" height="24" fill="@body@"/>
+  <rect id="menuitem-toggled-top" x="43" y="520" width="24" height="3" fill="@body@"/>
+  <rect id="menuitem-toggled-bottom" x="43" y="547" width="24" height="3" fill="@body@"/>
+  <rect id="menuitem-toggled-left" x="40" y="523" width="3" height="24" fill="@body@"/>
+  <rect id="menuitem-toggled-right" x="67" y="523" width="3" height="24" fill="@body@"/>
+  <rect id="menuitem-toggled-topleft" x="40" y="520" width="3" height="3" fill="@body@"/>
+  <rect id="menuitem-toggled-topright" x="67" y="520" width="3" height="3" fill="@body@"/>
+  <rect id="menuitem-toggled-bottomleft" x="40" y="547" width="3" height="3" fill="@body@"/>
+  <rect id="menuitem-toggled-bottomright" x="67" y="547" width="3" height="3" fill="@body@"/>
 
   <!-- Dock -->
   <rect id="dock-normal-interior" x="0" y="560" width="30" height="30" rx="0" fill="@panel@"/>
