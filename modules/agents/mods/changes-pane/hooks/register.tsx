@@ -201,7 +201,7 @@ export const register: Register = on => {
     ]
     // a head doubles as the line between two sections
     // A box's top edge holds its title: a corner and a dash before it, the rule after it to the far corner.
-    const room = Math.max(0, size.columns - 3)
+    const room = Math.max(0, size.columns - 2)
     const rule = (taken: number) => (room > taken ? ` ${'─'.repeat(room - taken - 1)}` : '')
     const filesHead = (commit ? `files in ${commit.sha}` : 'files · uncommitted').slice(0, room)
     const main = common.endsWith('/.git') ? common.slice(0, -5) : root
