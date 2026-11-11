@@ -1,7 +1,7 @@
 // The launcher (retires anyrun) and the clipboard picker (retires the fuzzel stopgap): one
 // list widget, two sources. A centred pane with a `>` prompt and a block cursor, results
 // below, the selection in inverse video. Prefixes switch mode: apps by default, `=` calc, `>` verbs (mise tasks)
-// (qalc), `/` files (fd from ~), `:` run a shell line. Up/Down or Ctrl+j/k, Enter, Escape.
+// (qalc), `/` files (fd from ~), `:` run a shell line. Up/Down, Ctrl+j/k or Ctrl+n/p, Enter, Escape.
 import { parseSpec } from "../lib/timer"
 import { L, dispatch, sel as windowSel } from "../lib/hyprlua"
 import { agents } from "../lib/agents"
@@ -185,8 +185,8 @@ export default function Launcher() {
   const onKey = (kv: number, state: number) => {
     const ctrl = state & Gdk.ModifierType.CONTROL_MASK
     const n = items.peek().length
-    if (kv === Gdk.KEY_Down || (ctrl && kv === Gdk.KEY_j) || kv === Gdk.KEY_Tab) return setSel((s) => (n ? (s + 1) % n : 0)), true
-    if (kv === Gdk.KEY_Up || (ctrl && kv === Gdk.KEY_k) || kv === Gdk.KEY_ISO_Left_Tab) return setSel((s) => (n ? (s + n - 1) % n : 0)), true
+    if (kv === Gdk.KEY_Down || (ctrl && (kv === Gdk.KEY_j || kv === Gdk.KEY_n)) || kv === Gdk.KEY_Tab) return setSel((s) => (n ? (s + 1) % n : 0)), true
+    if (kv === Gdk.KEY_Up || (ctrl && (kv === Gdk.KEY_k || kv === Gdk.KEY_p)) || kv === Gdk.KEY_ISO_Left_Tab) return setSel((s) => (n ? (s + n - 1) % n : 0)), true
     if (kv === Gdk.KEY_Return || kv === Gdk.KEY_KP_Enter) return activate(), true
     return false
   }

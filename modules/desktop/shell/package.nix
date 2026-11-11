@@ -12,6 +12,7 @@
   glib-networking,
   vte-gtk4,
   writeText,
+  runtimeShell,
   dart-sass,
   agsPackages,
   tlon,
@@ -109,11 +110,22 @@ stdenv.mkDerivation {
 
   installPhase = ''
     runHook preInstall
-    mkdir -p $out/bin $out/share/astal-shell/themes
+    mkdir -p $out/bin $out/libexec $out/share/astal-shell/themes
     cp -r . $out/share/astal-shell
-    ags bundle app.tsx $out/bin/astal-shell -d "SRC='$out/share/astal-shell'"
+    ags bundle app.tsx $out/libexec/astal-shell -d "SRC='$out/share/astal-shell'"
     ${compileThemes}
     runHook postInstall
+  '';
+
+  # A verb goes straight to the running shell: the bundle takes over a second to load, only to
+  # forward it. Written after the wrap hook, which would put its own start-up in front of this too.
+  postFixup = ''
+    cat > $out/bin/astal-shell <<EOF
+    #!${runtimeShell}
+    [ \$# -gt 0 ] && exec ${ags}/bin/ags request -i astal-shell "\$@"
+    exec $out/libexec/astal-shell
+    EOF
+    chmod +x $out/bin/astal-shell
   '';
 
   passthru = { inherit ags astalLibs; };
