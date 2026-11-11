@@ -38,9 +38,11 @@ mapfile -t L <<<"$raw"
 # recomputes from raw token counts and under-reads badly (60% shown at the ~90% popup)
 # the context window's own field — the JSON carries three used_percentage keys (context,
 # 5h limit, 7d limit) and a greedy sed took the last: ctx showed the weekly number
-# and it is a share of the model's whole window: with `autoCompactWindow` (400k of a 1M window) the
-# compaction comes at 40%, so ctx is the context's tokens over that budget when it is set
-cap=$(jq -r '.autoCompactWindow // null' "$HOME/.claude/settings.json" 2>/dev/null)
+# and it is a share of the model's whole window: with `autoCompactWindow` (433k of a 1M window) the
+# compaction comes at 40%, so ctx is the context's tokens over that budget when it is set.
+# Claude Code compacts 33k short of the window (20k kept for the summary, 13k of margin), and its
+# "N% until auto-compact" counts to there: so does this, or the two disagree by 8% at the end
+cap=$(jq -r '(.autoCompactWindow // null) | if type == "number" then . - 33000 else . end' "$HOME/.claude/settings.json" 2>/dev/null)
 used=$(printf '%s' "$input" | jq -r --argjson cap "${cap:-null}" '
   .context_window as $c | ($c.current_usage // {}) as $u
   | (($u.input_tokens // 0) + ($u.cache_creation_input_tokens // 0) + ($u.cache_read_input_tokens // 0)) as $t
