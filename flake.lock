@@ -667,7 +667,29 @@
         "home-manager": "home-manager",
         "hyprexpo": "hyprexpo",
         "nixpkgs": "nixpkgs_3",
+        "strata": "strata",
         "tlon": "tlon"
+      }
+    },
+    "strata": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794289180,
+        "narHash": "sha256-pK8XAf3fjSVBUWz73iWHnCvqyBgSfWScLig2R5o95yk=",
+        "owner": "lgse",
+        "repo": "strata",
+        "rev": "491e6ba9735e821f9f49910ffd2582076196865c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "lgse",
+        "ref": "v1.2.1",
+        "repo": "strata",
+        "type": "github"
       }
     },
     "systems": {
