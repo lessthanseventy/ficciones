@@ -17,6 +17,7 @@ import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Deck, { DeckRow, toggleDeck } from "./surfaces/Deck"
 import { logEvent } from "./lib/log"
 import { setSuperHeld } from "./lib/hypr"
+import { namedMonitors } from "./lib/monitors"
 import { initAwake } from "./lib/awake"
 import "./lib/zoomfix"
 import { screenshot, startRecording, stopRecording } from "./lib/capture"
@@ -180,7 +181,7 @@ app.start({
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;
     // a stock `ags init` project fails the same way), so it is seen through gnim's here
     const gapp = app as unknown as GObject.Object & { monitors: Gdk.Monitor[] }
-    const monitors = createBinding(gapp, "monitors")
+    const monitors = namedMonitors(createBinding(gapp, "monitors"))
     // a selectable label selects all of itself when it takes focus, and an alert card's window
     // passes focus around as it redraws, so its text flickered highlighted on and off
     Gtk.Settings.get_default()!.gtkLabelSelectOnFocus = false
