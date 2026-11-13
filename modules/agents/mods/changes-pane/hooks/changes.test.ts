@@ -500,6 +500,46 @@ test('a session that starts again has its wheel, its turns and its repository ba
   expect(kept.repos.map(([root]) => root)).toEqual(['/w/api', '/w/web'])
 })
 
+test('a /clear empties the wheel and the turns, keeps the repository, and the next turn is kept under the new session', async ($, on) => {
+  mock.clock(on)
+  const at = { cwd: '/w/api' }
+  repos(on, at, { '/w/api': ['a.ts'] })
+  const session = { id: 's1' }
+  on('session.id', async () => ({ value: session.id }) as never)
+  on('session.end', async ($, e) => ({ sessionId: e.sessionId }) as never)
+  on('turn.start', async () => ({ turnId: 't1' }) as never)
+  on('turn.complete', async () => ({ text: '' }) as never)
+  on('prompt.submit', async ($, e) => e as never)
+  const store = new Map<string, unknown>()
+  on('store.get', async ($, e) => ({ value: store.get(e.key) }) as never)
+  on('store.set', async ($, e) => {
+    store.set(e.key, JSON.parse(JSON.stringify(e.value)))
+    return { value: undefined } as never
+  })
+  await $.session.start({ cwd: at.cwd, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await $.prompt.submit({ text: 'fix the queue' } as never)
+  await $.turn.start({ turnId: 't1' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  await $.turn.complete({ turnId: 't1', reason: 'answer' } as never)
+  await ui.press({ key: 'tab-activity' })
+  expect(await ui.find({ text: /Shell 1/ })).toBeDefined()
+
+  await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
+  session.id = 's2'
+  expect(await ui.find({ text: /Shell 1/ })).toBeUndefined()
+  expect(await ui.find({ text: /fix the queue/ })).toBeUndefined()
+  expect(await ui.find({ text: /nothing yet this session/ })).toBeDefined()
+  await ui.press({ key: 'tab-changes' })
+  expect(await ui.find({ text: /^a\.ts$/, in: 'changes' })).toBeDefined()
+
+  await $.turn.start({ turnId: 't2' } as never)
+  await $.turn.complete({ turnId: 't2', reason: 'answer' } as never)
+  expect((store.get('session:s1') as { turns: unknown[] }).turns).toHaveLength(1)
+  expect((store.get('session:s2') as { turns: unknown[]; counts: object }).turns).toHaveLength(1)
+  expect((store.get('session:s2') as { counts: object }).counts).toEqual({})
+})
+
 test('a held pane stays on its repository through an edit in another', async ($, on) => {
   mock.clock(on)
   const at = { cwd: '/w/api' }

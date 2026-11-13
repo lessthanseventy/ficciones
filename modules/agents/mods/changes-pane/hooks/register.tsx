@@ -620,11 +620,12 @@ export const register: Register = on => {
     }
     const id = await $.session.id().catch(() => '')
     const kept = id === '' ? undefined : await $.store.get(`session:${id}`).catch(() => undefined) as Kept | undefined
-    if (id !== '') {
-      keep = () => {
-        const now: Kept = { at: Date.now(), counts, turns, turnNo, agents, repos: [...known].map(([root, { common }]) => [root, common]), repo, isFollowing }
-        return $.store.set(`session:${id}`, now).catch(() => {})
-      }
+    // A /clear goes on under another id, so the id is read at each write.
+    keep = async () => {
+      const id = await $.session.id().catch(() => '')
+      if (id === '') return
+      const now: Kept = { at: Date.now(), counts, turns, turnNo, agents, repos: [...known].map(([root, { common }]) => [root, common]), repo, isFollowing }
+      await $.store.set(`session:${id}`, now).catch(() => {})
     }
     if (kept) {
       // what was running when the session stopped never finished
@@ -655,6 +656,25 @@ export const register: Register = on => {
       try {
         if (repo !== '') seated(await $.ui.open(OPEN))
       } catch {}
+    }
+    return next(e)
+  })
+
+  // A /clear starts no session: the conversation's activity ends here, and the repositories stay.
+  on('session.end', async ($, e, next) => {
+    if (e.reason === 'clear') {
+      entries.length = 0
+      for (const node of Object.keys(counts) as NodeId[]) delete counts[node]
+      turns = []
+      turnNo = 0
+      agents = []
+      only = null
+      asked = ''
+      feedTop = 0
+      stepNo = 0
+      percent = undefined
+      isBusy = false
+      if (isOpen) $.ui.invalidate('ui.render')
     }
     return next(e)
   })
