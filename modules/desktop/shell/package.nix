@@ -7,6 +7,7 @@
   wrapGAppsHook3,
   gobject-introspection,
   gjs,
+  glib,
   libadwaita,
   libsoup_3,
   glib-networking,
@@ -103,9 +104,10 @@ stdenv.mkDerivation {
   '';
 
   # The shell brings its own stylesheet; a GTK_THEME from the session (theme.lua sets one for
-  # the other GTK apps) would paint under it — grey popovers and bars.
+  # the other GTK apps) would paint under it — grey popovers and bars. gio: lib/launch.ts starts
+  # desktop apps with `gio launch`.
   preFixup = ''
-    gappsWrapperArgs+=(--unset GTK_THEME)
+    gappsWrapperArgs+=(--unset GTK_THEME --prefix PATH : ${lib.getBin glib}/bin)
   '';
 
   installPhase = ''

@@ -6,10 +6,10 @@
 // so a restart does not fire them again. An alert whose cause resolves drops off on its own.
 import { createState, createComputed } from "ags"
 import { interval } from "ags/time"
-import { execAsync } from "ags/process"
 import { fetch } from "ags/fetch"
 import GLib from "gi://GLib?version=2.0"
 import { logEvent } from "./log"
+import { outside } from "./launch"
 import { play } from "./sfx"
 import { openInOffice } from "./agents"
 import { hypr } from "./hypr"
@@ -116,7 +116,7 @@ async function readDoc(a: Alert, path: string) {
 /** Do what an action says: open its link, read its doc, or make its call (with `text` in its `input` field). */
 export async function act(a: Alert, x: Action, text?: string) {
   try {
-    if (x.open) { await execAsync(["xdg-open", x.open]); dismiss(a); return }
+    if (x.open) { await outside(["xdg-open", x.open]); dismiss(a); return }
     if (x.read) { await readDoc(a, x.read); return }
     const call = request(x, text)
     if (!call) return

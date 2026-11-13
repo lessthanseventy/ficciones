@@ -21,6 +21,7 @@ import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
 import { remember, score, recent, times, type Memory } from "../lib/funes"
 import { order } from "../lib/launcher-core"
+import { outside, launchApp } from "../lib/launch"
 
 type Item = { icon?: string; glyph?: string; title: string; sub?: string; run: () => void | Promise<void>; key: string; mode?: Mode }
 type Mode = "apps" | "calc" | "files" | "shell" | "clip" | "verbs"
@@ -61,10 +62,10 @@ function recall(m: Memory): Item | null {
   if (m.mode === "apps") {
     const a = apps.get_list().find((x) => x.entry === m.key)
     if (!a) return null
-    return { icon: a.iconName || "application-x-executable", title: a.name, sub: `${times("apps", m.key)}×`, key: a.entry, mode: "apps", run: () => { a.launch() } }
+    return { icon: a.iconName || "application-x-executable", title: a.name, sub: `${times("apps", m.key)}×`, key: a.entry, mode: "apps", run: () => launchApp(a) }
   }
-  if (m.mode === "shell") return { glyph: ":", title: m.key, sub: `${times("shell", m.key)}×`, key: m.key, mode: "shell", run: () => execAsync(["sh", "-c", m.key]).then(() => void 0) }
-  if (m.mode === "files") return { glyph: "/", title: m.key.replace(home, "~"), sub: `${times("files", m.key)}×`, key: m.key, mode: "files", run: () => execAsync(["xdg-open", m.key]).then(() => void 0) }
+  if (m.mode === "shell") return { glyph: ":", title: m.key, sub: `${times("shell", m.key)}×`, key: m.key, mode: "shell", run: () => outside(["sh", "-c", m.key]).then(() => void 0) }
+  if (m.mode === "files") return { glyph: "/", title: m.key.replace(home, "~"), sub: `${times("files", m.key)}×`, key: m.key, mode: "files", run: () => outside(["xdg-open", m.key]).then(() => void 0) }
   if (m.mode === "calc") return { glyph: "=", title: m.title, sub: m.key, key: m.key, mode: "calc", run: () => execAsync(["wl-copy", m.title]).then(() => void 0) }
   if (m.mode === "verbs") return { glyph: ">", title: m.key, sub: `${times("verbs", m.key)}×`, key: m.key, mode: "verbs", run: () => runVerb(m.key) }
   return null
@@ -86,14 +87,14 @@ async function search(q: string) {
         out = recent(8, ["apps", "shell", "files", "calc"]).map(recall).filter((x): x is Item => { if (!x) return false; seen.add(`${x.mode}:${x.key}`); return true })
         for (const a of [...apps.get_list()].sort((a, b) => score("apps", b.entry) - score("apps", a.entry)).slice(0, 12 - out.length)) {
           if (seen.has(`apps:${a.entry}`)) continue
-          out.push({ icon: a.iconName || "application-x-executable", title: a.name, sub: a.description ?? "", key: a.entry, mode: "apps", run: () => { a.launch() } })
+          out.push({ icon: a.iconName || "application-x-executable", title: a.name, sub: a.description ?? "", key: a.entry, mode: "apps", run: () => launchApp(a) })
         }
       } else {
         out = order(body, apps.get_list(), (a) => ({ name: a.name, exec: a.executable ?? "", words: a.keywords ?? [] }), (a) => score("apps", a.entry))
           .slice(0, 8)
           .map((a) => ({
             icon: a.iconName || "application-x-executable", title: a.name, sub: times("apps", a.entry) ? `${a.description ?? ""}  · ${times("apps", a.entry)}×` : (a.description ?? ""), key: a.entry, mode: "apps",
-            run: () => { a.launch() },
+            run: () => launchApp(a),
           }))
         // a shell line typed before that starts the same way rides along
         for (const r of recent(3, ["shell"]).filter((r) => r.key.startsWith(body))) { const it = recall(r); if (it) out.push(it) }
@@ -115,13 +116,13 @@ async function search(q: string) {
       if (body.length >= 2) {
         const r = await execAsync(["fd", "--max-results", "14", "--hidden", "--exclude", ".git", "--exclude", "node_modules", "--exclude", ".cache", "-i", body, home])
         out = r.trim().split("\n").filter(Boolean).map((p) => ({
-          glyph: "/", title: p.replace(home, "~"), key: p, mode: "files" as Mode, run: () => execAsync(["xdg-open", p]).then(() => void 0),
+          glyph: "/", title: p.replace(home, "~"), key: p, mode: "files" as Mode, run: () => outside(["xdg-open", p]).then(() => void 0),
         })).sort((a, b) => score("files", b.key) - score("files", a.key))
       } else {
         out = recent(8, ["files"]).map(recall).filter((x): x is Item => !!x)
       }
     } else if (m === "shell") {
-      out = body ? [{ glyph: ":", title: body, sub: "run in a shell", key: body, mode: "shell", run: () => execAsync(["sh", "-c", body]).then(() => void 0) }] : []
+      out = body ? [{ glyph: ":", title: body, sub: "run in a shell", key: body, mode: "shell", run: () => outside(["sh", "-c", body]).then(() => void 0) }] : []
       // lines run before that start the same way, most-reached-for first
       for (const r of recent(8, ["shell"]).filter((r) => r.key !== body && r.key.startsWith(body))) { const it = recall(r); if (it) out.push(it) }
     } else if (m === "verbs") {
