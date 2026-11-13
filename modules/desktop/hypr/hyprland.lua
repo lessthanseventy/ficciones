@@ -457,6 +457,7 @@ local shell = hyprdir .. "/scripts"
 -- ----- App launchers -----
 bind(M .. " + Return", exec("ghostty"))
 bind(M .. " + SHIFT + Return", exec("ghostty --title=AgentDeck --class=com.ghostty.agent-deck -e agent-deck")) -- agent deck
+bind(M .. " + CTRL + Return", exec("ghostty --title=arena --class=com.ghostty.arena -e arena")) -- tmux sessions as a strip
 bind(M .. " + E", exec("dolphin"))
 bind(M .. " + W", exec("floorp"))
 bind(M .. " + X", exec("kate"))

@@ -11,6 +11,11 @@
  },
  {
   "group": "launch",
+  "keys": "SUPER+CTRL+Return",
+  "does": "tmux sessions as a strip"
+ },
+ {
+  "group": "launch",
   "keys": "SUPER+E",
   "does": "files"
  },
