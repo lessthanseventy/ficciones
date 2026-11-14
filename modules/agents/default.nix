@@ -41,7 +41,20 @@ let
     builtins.toJSON {
       UserPromptSubmit = [ (arenaState "working") ];
       PostToolUse = [ (arenaState "working") ];
-      Stop = [ (arenaState "done") ];
+      # a turn can end with a shell or an agent still running in the background, which
+      # wakes Claude when it finishes: done only when nothing is
+      Stop = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command =
+                "[ -z \"$TMUX_PANE\" ] || tmux set -p -t \"$TMUX_PANE\" @arena_claude "
+                + "\"$(${pkgs.jq}/bin/jq -r 'if any(.background_tasks[]?; .status == \"running\") then \"working\" else \"done\" end')\"";
+            }
+          ];
+        }
+      ];
       Notification = [
         ((arenaState "waiting") // { matcher = "permission_prompt|elicitation_dialog"; })
       ];
