@@ -159,9 +159,10 @@ hl.config({
         animate_manual_resizes = true,
     },
 
-    -- Let fullscreen apps (video, games) bypass compositing and go straight to the display
-    -- plane — skips the i915 composite+flip path.
-    render = { direct_scanout = 1 },
+    render = { direct_scanout = 0 },
+
+    -- $XDG_RUNTIME_DIR/hypr/<sig>/hyprland.log, the only trace a black-screen hang leaves
+    debug = { disable_logs = false },
 
     -- Never warp the pointer: a focus change (movefocus, the bar's window cells, a new window)
     -- leaves the mouse where the hand left it.
