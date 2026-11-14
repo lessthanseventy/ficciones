@@ -20,7 +20,7 @@ export function TodayCard() {
       const u = urgencyOf(n)
       out.push({
         key: g.key, glyph: u === "critical" ? "\u{f0026}" : "\u{f009a}", cls: u === "critical" ? "red" : u === "low" ? "dim" : "amber",
-        text: g.count > 1 ? `${n.summary}  ×${g.count}` : n.summary, sub: n.appName, onClick: () => dismissGroup(g),
+        text: g.count > 1 ? `${n.summary}  ×${g.count}` : n.summary, sub: n.appName ?? undefined, onClick: () => dismissGroup(g),
       })
     }
     if (ns.length > 40) out.push({ key: "more", glyph: "…", cls: "dim", text: `${ns.length - 40} more notices in the hub` })
