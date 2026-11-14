@@ -256,6 +256,7 @@ in
       podman-desktop
       audacity
       strawberry
+      unityhub
       # the theme module renders configs for these; the binaries were pacman's
       starship
       bat
