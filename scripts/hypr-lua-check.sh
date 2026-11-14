@@ -15,14 +15,12 @@ l() { HYPRLAND_INSTANCE_SIGNATURE="$live" hyprctl "$@"; }
 # theme.lua sets plugin.hyprexpo.* keys; with autostart off nothing loads the plugin into the
 # nested instance (the live one gets it from hyprland.lua's autostart), and every key would
 # read "unknown". Load it, reload, and only then read the errors — which must be none.
-for so in /etc/hypr/plugins/hyprexpo.so ~/.local/share/hypr/plugins/hyprexpo.so; do
-	[ -f "$so" ] && {
-		n plugin load "$so" >/dev/null
-		n reload >/dev/null
-		sleep 1
-		break
-	}
-done
+so=~/.local/share/hypr/plugins/hyprexpo.so
+if [ -f "$so" ]; then
+	n plugin load "$so" >/dev/null
+	n reload >/dev/null
+	sleep 1
+fi
 echo "== configerrors (nested)"
 errs="$(n configerrors)"
 if [ -n "$errs" ] && [ "$errs" != "no errors" ]; then

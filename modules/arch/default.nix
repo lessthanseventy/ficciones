@@ -40,7 +40,7 @@ in
     ];
     file = {
       ".local/share/ficciones/graphics-drivers".source = graphicsDrivers;
-      # hyprland.lua loads these at start; NixOS has them at /etc/hypr/plugins
+      # hyprland.lua loads these at start
       ".local/share/hypr/plugins/hyprexpo.so".source =
         "${pkgsHypr.hyprlandPlugins.hyprexpo}/lib/libhyprexpo.so";
       ".local/share/hypr/plugins/hyprwindowshade.so".source =

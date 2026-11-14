@@ -54,25 +54,22 @@ dofile(hyprdir .. "/theme.lua")
 -- (scripts/hypr-lua-check.sh) so it does not spawn a second shell, idle daemon, etc.
 if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
     hl.on("hyprland.start", function()
-        -- Under uwsm (NixOS) this exports the env and activates graphical-session.target,
-        -- which is what the shell's user unit waits on. On Arch there is no uwsm: a no-op.
-        hl.exec_cmd("command -v uwsm >/dev/null && uwsm finalize")
         -- The astal shell (modules/desktop/shell), via its user unit so a crash restarts and is
-        -- logged. graphical-session.target starts it: uwsm finalize brings that up on NixOS, and
-        -- on Arch Hyprland's own hyprland-session.target (modules/arch). A Hyprland without the
+        -- logged. graphical-session.target starts it, through Hyprland's own
+        -- hyprland-session.target (modules/arch). A Hyprland without the
         -- target (pacman's) gets it started here — same reset-failed dance as hyprpolkitagent
         -- below, for the same start-limit reason.
-        hl.exec_cmd("test -e /etc/NIXOS || systemctl --user is-active -q graphical-session.target || sh -c 'systemctl --user reset-failed astal-shell; systemctl --user start astal-shell'")
+        hl.exec_cmd("systemctl --user is-active -q graphical-session.target || sh -c 'systemctl --user reset-failed astal-shell; systemctl --user start astal-shell'")
         -- night light daemon; the shell's hub toggles it (hyprctl hyprsunset temperature / identity)
         hl.exec_cmd("hyprsunset")
         hl.exec_cmd("easyeffects --hide-window --service-mode")
         hl.exec_cmd("hypridle")
-        -- hyprexpo: modules/os puts the .so in /etc on NixOS, modules/arch in ~/.local/share on Arch.
-        -- Until it loads, the plugin.hyprexpo.* keys in theme.lua are "unknown".
-        hl.exec_cmd("for so in /etc/hypr/plugins/hyprexpo.so ~/.local/share/hypr/plugins/hyprexpo.so; do test -f $so && exec hyprctl plugin load $so; done")
-        -- HyprWindowShade (the close burn below): same two homes. At start, never at parse time:
+        -- hyprexpo, which modules/arch puts in ~/.local/share. Until it loads, the plugin.hyprexpo.*
+        -- keys in theme.lua are "unknown".
+        hl.exec_cmd("so=~/.local/share/hypr/plugins/hyprexpo.so; test -f $so && exec hyprctl plugin load $so")
+        -- HyprWindowShade (the close burn below), beside it. At start, never at parse time:
         -- a corrupt .so segfaults in ld.so, and from the parse that kills every boot.
-        hl.exec_cmd("for so in /etc/hypr/plugins/hyprwindowshade.so ~/.local/share/hypr/plugins/hyprwindowshade.so; do test -f $so && exec hyprctl plugin load $so; done")
+        hl.exec_cmd("so=~/.local/share/hypr/plugins/hyprwindowshade.so; test -f $so && exec hyprctl plugin load $so")
         hl.exec_cmd("bash -c 'wl-paste --type text  --watch cliphist store'")
         hl.exec_cmd("bash -c 'wl-paste --type image --watch cliphist store'")
         -- A Hyprland restart takes the socket away: the agent exits, Restart=on-failure respawns

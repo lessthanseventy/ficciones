@@ -1,9 +1,8 @@
 -- ivysaur — the laptop. Hybrid Intel/NVIDIA, eDP-1 + a Samsung 27" on the dock.
--- GPU selection (Intel first for battery, NVIDIA fallback)
+-- GPU selection: the Iris Xe alone
 -- cardN, not by-path: aquamarine splits this list on ":" and by-path names contain them (the
 -- 2026-09-06 crash on login). But cardN is not stable either — it depends on whether simpledrm
--- claimed a node this boot, so it differs across Arch, NixOS, and (observed 2026-09-12) two boots
--- of the same Arch install. The PCI addresses ARE stable, so resolve those to whatever cardN they
+-- claimed a node this boot, so it can differ between two boots. The PCI addresses ARE stable, so resolve those to whatever cardN they
 -- are right now. If resolution fails we set nothing: aquamarine choosing its own order is
 -- recoverable, a wrong list is a compositor that never starts (hyprland.lua:49).
 local function card_at(pci)
@@ -16,13 +15,9 @@ local function card_at(pci)
     return dev and dev:match("^/dev/dri/card%d+$") or nil
 end
 local intel = card_at("0000:00:02.0") -- Iris Xe
-local nvidia = card_at("0000:01:00.0") -- RTX 4060 Max-Q
--- Off NixOS the compositor's GL is nix's mesa (modules/arch), which cannot drive the NVIDIA card;
--- every display port is wired to the Iris Xe, so Arch lists it alone.
-local nixos = io.open("/etc/NIXOS") ~= nil
-if intel and nvidia and nixos then
-    hl.env("AQ_DRM_DEVICES", intel .. ":" .. nvidia)
-elseif intel and not nixos then
+-- The compositor's GL is nix's mesa (modules/arch), which cannot drive the NVIDIA card; every
+-- display port is wired to the Iris Xe, so it is listed alone.
+if intel then
     hl.env("AQ_DRM_DEVICES", intel)
 end
 

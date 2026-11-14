@@ -12,12 +12,8 @@ nested_start
 : "${nested_wl:?}"
 
 loaded=""
-for so in /etc/hypr/plugins/hyprwindowshade.so ~/.local/share/hypr/plugins/hyprwindowshade.so; do
-	[ -f "$so" ] && {
-		loaded="$(n plugin load "$so")"
-		break
-	}
-done
+so=~/.local/share/hypr/plugins/hyprwindowshade.so
+[ -f "$so" ] && loaded="$(n plugin load "$so")"
 [ "$loaded" = "ok" ] || {
 	echo "HyprWindowShade did not load: ${loaded:-no .so installed}"
 	exit 1
