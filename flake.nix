@@ -326,9 +326,8 @@
         packages = [ pkgs.sqlite ];
       };
 
-      # The end state: the whole machine from this flake. `vm` is the laptop's configuration
-      # minus the hardware, booted under QEMU with the working tree shared in at its real path
-      # (modules/os/vm.nix). `ivysaur` lands when the laptop leaves Arch.
+      # The desktop as full NixOS, booted under QEMU with the working tree shared in at its real
+      # path (modules/os/vm.nix).
       nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
@@ -351,31 +350,6 @@
           ./modules/os/vm.nix
         ];
       };
-      # The laptop. Evaluates and builds today; installs when Andrew runs the runbook
-      # (docs/plans/2026-09-05-ivysaur-nixos-migration-runbook.md).
-      nixosConfigurations.ivysaur = nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = {
-          inherit
-            repo
-            tlonRepo
-            astalShell
-            hyprexpo
-            dbx
-            agentBrowser
-            agentDesktop
-            ;
-          agenixPackage = agenix.packages.${system}.default;
-          agenixHome = agenix.homeManagerModules.default;
-          expertPackages = inputs.expert.packages;
-        };
-        modules = [
-          home-manager.nixosModules.home-manager
-          ./modules/os
-          ./modules/os/ivysaur.nix
-        ];
-      };
-
       # The work Mac: the palette's portable surfaces only (modules/mac). Named for the user so a
       # bare `home-manager switch --flake .` there picks it.
       homeConfigurations.anmoore = home-manager.lib.homeManagerConfiguration {

@@ -290,7 +290,6 @@ in
       kitty
       wezterm
       delta
-      # decided in modules/os/ivysaur.nix, applied to today's profile too
       dolphin
       libreoffice-stable
       qbittorrent

@@ -90,8 +90,9 @@ exists so a reader of the repo knows where the law comes from and edits the one 
   because a weaker model trusts it. Nothing mechanical can catch this (staleness is semantic, invisible
   to compile/tests), so it's on you. (The `programs.rbw` comment that survived the rbw→agenix switch
   still describing the old design is the incident this comes from.)
-- **Adopt Nix gradually.** home-manager on Arch first, a disposable NixOS VM (`nixos-rebuild build-vm`)
-  as the testbed, metal last. Do not propose replacing the OS as a first step.
+- **Nix on Arch, not NixOS.** The laptop stays a minimal Arch base with the flake (home-manager)
+  above it; there is no NixOS host. What needs root on Arch is a `machine (sudo)` task. Do not
+  propose replacing the OS.
 - **Commit as who you are.** An agent's commit ends with a `Co-Authored-By:` trailer naming the model
   that wrote it — YOUR model, never a name copied from an example or another model's commit.
   Format: `Co-Authored-By: <your model> <noreply@anthropic.com>`.

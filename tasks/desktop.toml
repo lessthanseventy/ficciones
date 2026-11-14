@@ -18,18 +18,15 @@ run = "nix flake update"
 ["flake:check"]
 description = "machine: nix flake check + build this host's closures — the machine-level gate"
 # `nix flake check` only EVALUATES; it never builds. A bash syntax error in a home.activation
-# block sails through it and explodes at home:switch; a broken derivation in the laptop's closure
-# sails through it and explodes on the install ISO, where there is no shell to fix it from.
-# Building is what actually catches them. The Linux closures are x86_64-linux and the Mac has no
-# Linux builder, so each host builds its own.
+# block sails through it and explodes at home:switch. Building is what actually catches it. The
+# Linux closures are x86_64-linux and the Mac has no Linux builder, so each host builds its own.
 run = [
   "nix flake check",
   '''
   if [ "$(uname)" = Darwin ]; then
     nix build --no-link .#homeConfigurations.anmoore.activationPackage
   else
-    nix build --no-link .#homeConfigurations.personalbox.activationPackage &&
-      nix build --no-link .#nixosConfigurations.ivysaur.config.system.build.toplevel
+    nix build --no-link .#homeConfigurations.personalbox.activationPackage
   fi
   ''',
 ]
@@ -46,11 +43,7 @@ run = "scripts/hypr-lua-check.sh"
 description = "hypr: open and close a window in a nested Hyprland with HyprWindowShade loaded, and photograph the close shader as a contact sheet — the burn, seen without logging out"
 run = "scripts/hypr-close-frames.sh"
 
-["ivysaur:build"]
-description = "machine: build the laptop's NixOS system closure to .dev/ivysaur — the runbook's install gate"
-run = "nix build .#nixosConfigurations.ivysaur.config.system.build.toplevel -o .dev/ivysaur"
-
-# The NixOS VM — the laptop's configuration booted under QEMU with this working tree shared in
+# The NixOS VM — the desktop booted under QEMU with this working tree shared in
 # at its real path (modules/os/vm.nix). KVM + virtio-gpu GL; the window is a Hyprland session
 # logged in as andrew. Ctrl+Alt+G releases the pointer.
 ["vm:build"]
@@ -172,8 +165,6 @@ run = [
 description = "machine: apply the work Mac's home-manager profile (modules/mac)"
 run = "nix run github:nix-community/home-manager -- switch --flake .#anmoore -b pre-ficciones"
 
-# Home-manager can't own a root service on Arch, so the config comes from ivysaur's services.keyd
-# (the one source) and this installs it. Rerun after changing it.
 ["hyprland:install"]
 description = "machine (sudo): once on Arch — point /run/opengl-driver at the flake's mesa and give ly a session for the flake's Hyprland (modules/arch)"
 run = '''
@@ -186,19 +177,21 @@ printf '[Desktop Entry]\nName=Hyprland (ficciones)\nExec=%s\nType=Application\nD
 	sudo install -Dm644 /dev/stdin /usr/share/wayland-sessions/ficciones.desktop
 '''
 
+# keyd merges every keyboard into one virtual device: the Compx receiver splits a key's press and
+# release across two interfaces, which per-device remappers leave stuck (Shift, caps lock).
 ["keyd:install"]
-description = "machine (sudo): install keyd on Arch with the config from ivysaur's services.keyd"
+description = "machine (sudo): install keyd on Arch with caps lock as control held, escape tapped"
 run = '''
 set -euo pipefail
-conf=$(nix build --no-link --print-out-paths '.#nixosConfigurations.ivysaur.config.environment.etc."keyd/default.conf".source')
 sudo pacman -S --needed --noconfirm keyd
-sudo install -Dm644 "$conf" /etc/keyd/default.conf
+printf '[ids]\n*\n\n[main]\ncapslock=overload(control, esc)\n' |
+	sudo install -Dm644 /dev/stdin /etc/keyd/default.conf
 sudo systemctl enable keyd
 sudo systemctl restart keyd
 '''
 
 ["timezone:install"]
-description = "machine (sudo): once on Arch — automatic-timezoned (AUR), allowed in geoclue, so the system zone follows the machine as ivysaur's services.automatic-timezoned does"
+description = "machine (sudo): once on Arch — automatic-timezoned (AUR), allowed in geoclue, so the system zone follows the machine"
 run = '''
 set -euo pipefail
 paru -S --needed --noconfirm automatic-timezoned

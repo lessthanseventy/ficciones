@@ -15,7 +15,7 @@ ficciones/
   mise.toml, tasks/      # the dev loop: every verb a human or an agent runs; `mise tasks` lists them
   scripts/               # the shell side of the loop: cap, watch, the manual and theme generators, the git hooks
   modules/
-    os/                  # the NixOS side: one user, Hyprland, sound, network, fonts; vm.nix and ivysaur.nix add the hardware
+    os/                  # the NixOS side: one user, Hyprland, sound, network, fonts; vm.nix adds the hardware
     arch/                # what modules/os gives a NixOS host, for home-manager on the Arch base
     desktop/             # the Hyprland stack: its config, the astal shell, the theme and its four palettes
     mac/                 # the work Mac: the palette's portable surfaces, no desktop
@@ -39,8 +39,7 @@ Four targets, one flake:
 - `homeConfigurations.anmoore`: the work Mac. The same palettes on terminals, prompt, TUIs,
   Floorp and Claude Code, and no desktop.
 - `nixosConfigurations.vm`: a disposable NixOS VM (`mise run vm:build`, `vm:run`, `vm:ssh`) where
-  full NixOS is tried before it touches metal.
-- `nixosConfigurations.ivysaur`: the laptop, full NixOS.
+  the desktop runs as full NixOS.
 
 home-manager places symlinks that point back into this working tree for the desktop's config, so
 an edit to `modules/desktop/hypr/hyprland.lua` is live on `hyprctl reload`. The price is that a

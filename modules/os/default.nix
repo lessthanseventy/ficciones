@@ -1,6 +1,6 @@
 # The operating system under the desktop: one user, Hyprland, sound, network, fonts, and
-# home-manager applying modules/desktop for that user. Hardware-free on purpose — vm.nix and
-# (later) ivysaur.nix add the machine. See docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md.
+# home-manager applying modules/desktop for that user. Hardware-free on purpose — vm.nix adds
+# the machine. See docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md.
 {
   config,
   pkgs,
