@@ -634,6 +634,8 @@ rec {
     *:selected { background-color: ${hex r.cursorField}; color: ${hex r.fieldInk}; }
     link, label.link, *:link { color: ${hex r.key}; }
     tooltip { background-color: ${hex r.card}; color: ${hex r.body}; border: 1px solid ${hex r.structure}; }
+    /* libadwaita edges an alert with a dark shadow only, which a black window swallows */
+    dialog.alert sheet, window.dialog-window.alert { border: 2px solid ${hex r.structure}; border-radius: 0; }
     /* on X11 a GTK3 dialog's shadow is part of its window: the compositor's border is drawn around it */
     decoration, decoration:backdrop { box-shadow: none; margin: 0; }
   '';
