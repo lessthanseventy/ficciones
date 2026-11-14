@@ -263,7 +263,6 @@ in
       cava
       btop
       kitty
-      wezterm
       delta
       libreoffice-stable
       qbittorrent

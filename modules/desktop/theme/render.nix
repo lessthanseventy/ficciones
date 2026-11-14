@@ -537,28 +537,6 @@ rec {
       ${pal}
     '';
 
-  weztermTheme =
-    let
-      lst = xs: lib.concatMapStringsSep ", " (c: "\"${hex c}\"") xs;
-    in
-    ''
-      # ${gen}. ~/.config/wezterm/colors/ficciones.toml — wezterm.lua: config.color_scheme = "ficciones"
-      [colors]
-      foreground = "${hex r.body}"
-      background = "${hex r.ground}"
-      cursor_bg = "${hex r.body}"
-      cursor_fg = "${hex r.fieldInk}"
-      cursor_border = "${hex r.body}"
-      selection_bg = "${hex r.selField}"
-      selection_fg = "${hex r.selInk}"
-      ansi = [${lst (lib.take 8 p.ansiList)}]
-      brights = [${lst (lib.drop 8 p.ansiList)}]
-
-      [metadata]
-      name = "ficciones"
-      origin_url = "modules/desktop/theme/palette.nix"
-    '';
-
   # ---- GTK -----------------------------------------------------------------------------
   # libadwaita's named colours, so every GTK4 app and the GTK3 ports pick up the palette
   # without a full theme. The law: the thing under your CURSOR — a highlighted menu item, a

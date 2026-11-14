@@ -59,7 +59,6 @@ let
     "ghostty-theme" = r.ghosttyTheme;
     "ghostty.css" = r.ghosttyCss;
     "kitty-theme.conf" = r.kittyTheme;
-    "wezterm.toml" = r.weztermTheme;
     "gtk.css" = r.gtkCss;
     "qt6ct-colors.conf" = r.qt6ctColors;
     "qt.qss" = r.qss;
@@ -262,9 +261,8 @@ in
         "ghostty/themes/ficciones" = via "ghostty-theme";
         "ghostty/config".text = render.ghosttyConfig (tpl "ghostty.conf");
 
-        # kitty / wezterm — theme files only; each config includes its own (comment in the file).
+        # kitty — the theme file only; its config includes it (comment in the file).
         "kitty/theme.conf" = via "kitty-theme.conf";
-        "wezterm/colors/ficciones.toml" = via "wezterm.toml";
 
         # GTK 3/4: libadwaita's named colours + the font, over whichever theme draws the widgets.
         "gtk-3.0/gtk.css" = via "gtk.css";

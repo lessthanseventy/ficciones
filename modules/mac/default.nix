@@ -18,7 +18,6 @@ let
   themeFiles = r: {
     "ghostty-theme" = r.ghosttyTheme;
     "kitty-theme.conf" = r.kittyTheme;
-    "wezterm.toml" = r.weztermTheme;
     "btop.theme" = r.btopTheme;
     "lazygit.yml" = r.lazygitConfig (tpl "lazygit.yml");
     "starship.toml" = r.starshipConfig (tpl "starship.toml");
@@ -93,7 +92,6 @@ in
           (import (theme + "/render.nix") { inherit lib; palette = import (theme + "/palette.nix"); })
           .ghosttyConfig (tpl "ghostty-mac.conf");
         "kitty/theme.conf" = via "kitty-theme.conf";
-        "wezterm/colors/ficciones.toml" = via "wezterm.toml";
         "starship.toml" = via "starship.toml";
         "bat/config" = via "bat-config";
         "fzf/theme.zsh" = via "fzf.zsh";
