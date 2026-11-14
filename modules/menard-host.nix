@@ -14,5 +14,6 @@
     nixfmt
     statix
     nil
+    biome
   ];
 }

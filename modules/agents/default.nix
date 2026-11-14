@@ -84,6 +84,12 @@ in
     pkgs.marksman
     pkgs.taplo
     pkgs.yaml-language-server
+    # zls's minor version tracks the Zig that mise installs for arena
+    pkgs.zls
+    pkgs.actionlint
+    pkgs.gdtoolkit_4
+    pkgs.ruff
+    pkgs.ast-grep
     # markdown lint, for agents
     pkgs.markdownlint-cli2
     # `agenix -e secrets/<name>.age` to create/edit a secret; decryption at switch is
