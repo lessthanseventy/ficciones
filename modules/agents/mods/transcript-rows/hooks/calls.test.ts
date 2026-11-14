@@ -100,3 +100,9 @@ test('an edit is counted from its own result', async () => {
   expect(patchCounts({ type: 'create', structuredPatch: [], content: 'a\nb\n' })).toEqual({ adds: 2, dels: 0 })
   expect(patchCounts(undefined)).toEqual({ adds: 0, dels: 0 })
 })
+
+test('control characters in a call are shown as characters the engine draws', async () => {
+  expect(callText({ tool: 'Bash', input: { command: 'make\tall' }, output: { stdout: 'a\x1b[1mb\r\nc\x7f\x9b\n', stderr: '' } })).toEqual(['$ make    all', 'a␛[1mb', 'c␡�'])
+  expect(callText({ tool: 'Edit', input: { file_path: '/r/Makefile' }, output: { structuredPatch: [{ lines: ['+\tcc'] }] } })).toEqual(['/r/Makefile', '+    cc'])
+  expect(turnLine({ tool: 'Bash', input: { command: 'printf a\tb\x1b' } }, false)).toBe('Bash printf a    b␛')
+})

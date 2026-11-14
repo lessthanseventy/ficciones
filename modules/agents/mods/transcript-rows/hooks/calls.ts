@@ -113,6 +113,14 @@ const TIMING = /^\W*(?:finished|done|took|elapsed|real|user|sys|time|worked|\w+e
 const HINT = /^more: /
 const TIMED = /\s*[[(]\d+(?:\.\d+)?\s?m?s[\])]/g
 
+// The engine refuses a row that holds a control character: each is shown as the picture of it,
+// a tab as spaces, and a line's closing carriage return not at all.
+const shown = (text: string): string =>
+  text
+    .replace(/\r(?=\n|$)/g, '')
+    .replace(/\t/g, '    ')
+    .replace(/[\x00-\x09\x0b-\x1f\x7f-\x9f]/g, c => (c < ' ' ? String.fromCodePoint(0x2400 + c.charCodeAt(0)) : c === '\x7f' ? '␡' : '�'))
+
 // The last thing a command said that is not its timing, less a time in brackets at its end.
 export const lastSaid = (stdout: string): string => {
   // colour codes and control characters are not words, and the engine refuses a row that holds one
@@ -159,13 +167,13 @@ export const turnLine = (call: Call, isError: boolean): string => {
   // a command of several steps is named by them, one of a single step by its own text
   const ran = call.tool === 'Bash' ? steps(first) : []
   const made = ran.length > 1 ? `${ran.slice(0, MAX_STEPS).join(' · ')}${ran.length > MAX_STEPS ? ` · +${ran.length - MAX_STEPS}` : ''}` : clip(nearby(first.split('\n')[0]!.replace(/^\s*cd\s+\S+\s*(?:&&|;)\s*/, '')), MAX_MADE)
-  return `${call.tool} ${made}${failed}${last ? ` → ${last}` : ''}`.trim()
+  return shown(`${call.tool} ${made}${failed}${last ? ` → ${last}` : ''}`.trim())
 }
 
 const MAX_CALL_LINES = 30
 
 const cut = (text: string): string[] => {
-  const all = text.replace(/\n+$/, '').split('\n')
+  const all = shown(text).replace(/\n+$/, '').split('\n')
   return all.length > MAX_CALL_LINES ? [...all.slice(0, MAX_CALL_LINES), `… +${all.length - MAX_CALL_LINES} lines`] : all
 }
 
