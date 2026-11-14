@@ -587,10 +587,10 @@ export const register: Register = on => {
       try {
         while (isStale) {
           isStale = false
-          const seen = JSON.stringify([renderedKey, note, files, commits, branch])
+          const seen = JSON.stringify([renderedKey, note, files, commits, branch, [...ahead]])
           await load()
           scrollTo(offset)
-          if (seen !== JSON.stringify([renderedKey, note, files, commits, branch])) $.ui.invalidate('ui.render')
+          if (seen !== JSON.stringify([renderedKey, note, files, commits, branch, [...ahead]])) $.ui.invalidate('ui.render')
         }
       } catch (error) {
         note = `could not read the changes: ${error instanceof Error ? error.message : String(error)}`

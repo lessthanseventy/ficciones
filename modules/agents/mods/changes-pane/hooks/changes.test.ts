@@ -553,3 +553,24 @@ test('a held pane stays on its repository through an edit in another', async ($,
   await $.tool.call({ tool: 'Edit', file_path: '/w/web/w1.ts', old_string: 'x', new_string: 'y' } as never)
   expect(await ui.find({ text: /^w1\.ts$/, in: 'changes' })).toBeDefined()
 })
+
+test('a push alone redraws the pane, so its commits stop showing as unpushed', async ($, on) => {
+  const clock = mock.clock(on)
+  let unpushed = 'abc1234\n'
+  let drawn = 0
+  on('session.start', async (_$, e) => e)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('ui.invalidate', async (_$, e, next) => { drawn++; return next(e) })
+  on('process.run', async (_$, e) => {
+    const line = e.argv.join(' ')
+    const stdout = line.includes('@{upstream}') ? unpushed : line.includes(' log ') ? 'abc1234\tfix the thing\n' : ''
+    return { value: { exitCode: 0, stdout, stderr: '' } } as never
+  })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await clock.advance(2000)
+  const before = drawn
+  unpushed = ''
+  await clock.advance(2000)
+  expect(drawn).toBeGreaterThan(before)
+})
