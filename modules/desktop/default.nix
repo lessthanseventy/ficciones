@@ -419,6 +419,16 @@ in
     # gnome-keyring 50 falls over after it (2026-09-07: Default_keyring appeared, then a
     # segfault). The pointer is gnome-keyring's own file, so it is only ever filled in, never
     # overwritten.
+    # The defaults this machine picks, set in ~/.config/mimeapps.list. Not xdg.mimeApps: that makes
+    # the file a read-only store link, and apps register their own handlers there at runtime
+    # (Claude Code, dbx, Slack).
+    home.activation.mimeDefaults = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      m=${pkgs.xdg-utils}/bin/xdg-mime
+      run $m default floorp.desktop text/html application/xhtml+xml x-scheme-handler/http x-scheme-handler/https
+      run $m default io.github.lgse.Strata.desktop inode/directory x-scheme-handler/trash
+      run $m default org.qbittorrent.qBittorrent.desktop application/x-bittorrent x-scheme-handler/magnet
+    '';
+
     home.activation.keyringDefault = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       d="${config.xdg.dataHome}/keyrings"
       if [ -f "$d/login.keyring" ] && [ ! -s "$d/default" ]; then
