@@ -1,4 +1,4 @@
-# What modules/os gives a NixOS host, for home-manager on the Arch base. Arch keeps what has to
+# The system half of the desktop, for home-manager on the Arch base. Arch keeps what has to
 # match the kernel or run as root: kernel, nvidia, its own mesa, ly, PAM — so hyprlock stays
 # pacman's (a nix hyprlock cannot run the setuid unix_chkpwd, and never unlocks). Hyprland and
 # the rest of its stack come from here. `mise run hyprland:install` does the root half once.

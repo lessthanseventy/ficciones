@@ -178,8 +178,8 @@ in
       ];
       default = "gtk3";
       description = ''
-        How Qt apps get the palette. "qt6ct" (+ kvantum) is the real thing and what modules/os
-        installs; "gtk3" is Qt's own platform theme, which derives a palette from the GTK theme
+        How Qt apps get the palette. "qt6ct" (+ kvantum) is the real thing; "gtk3" is Qt's own
+        platform theme, which derives a palette from the GTK theme
         and our gtk.css — the honest choice on the Arch box, where qt6ct was never installed.
       '';
     };
@@ -188,7 +188,7 @@ in
       default = "catppuccin-mocha-yellow-standard+default";
       description = ''
         The GTK theme under the @define-color overrides — the overrides carry the palette, the
-        theme carries widget shapes. Installed by the OS (pacman today, fonts/themes in modules/os later).
+        theme carries widget shapes. Installed by the OS (pacman).
       '';
     };
   };

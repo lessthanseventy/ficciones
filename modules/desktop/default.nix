@@ -135,9 +135,9 @@ let
   };
 
   # Shared by both activation entries: reload every live instance, no-op when none (a headless
-  # switch, a VM build). Activation's PATH may lack the profiles, so probe them too: Arch's
-  # Hyprland is the user profile's (modules/arch), NixOS's the system's. A store path would name
-  # this nixpkgs' hyprctl, not the running compositor's.
+  # switch). Activation's PATH may lack the profiles, so probe them too: Hyprland is the user
+  # profile's (modules/arch). A store path would name this nixpkgs' hyprctl, not the running
+  # compositor's.
   reloadHyprland = ''
     hyprctl=""
     for c in "$(command -v hyprctl 2>/dev/null)" "$HOME/.nix-profile/bin/hyprctl" /run/current-system/sw/bin/hyprctl; do
@@ -174,7 +174,6 @@ in
       lon = -104.80787634502575;
     };
 
-    # mkDefault so modules/os can still state it outright for NixOS without a conflict.
     ficciones.desktop.shell.autostart = lib.mkDefault true;
 
     # sudo's askpass (scripts/sudo-askpass): random glyphs per keystroke; a tty or a dialog
@@ -262,7 +261,7 @@ in
       lf
       vifm
       # user-level tools moved off pacman (2026-09-07 survey): the flake owns what the next box
-      # needs; pacman keeps the kernel, drivers, Hyprland and its ecosystem until NixOS
+      # needs; pacman keeps the kernel and drivers
       xssHost
       fastfetch
       fd

@@ -43,21 +43,6 @@ run = "scripts/hypr-lua-check.sh"
 description = "hypr: open and close a window in a nested Hyprland with HyprWindowShade loaded, and photograph the close shader as a contact sheet — the burn, seen without logging out"
 run = "scripts/hypr-close-frames.sh"
 
-# The NixOS VM — the desktop booted under QEMU with this working tree shared in
-# at its real path (modules/os/vm.nix). KVM + virtio-gpu GL; the window is a Hyprland session
-# logged in as andrew. Ctrl+Alt+G releases the pointer.
-["vm:build"]
-description = "machine: build the NixOS VM runner from nixosConfigurations.vm"
-run = "nix build .#nixosConfigurations.vm.config.system.build.vm -o .dev/vm"
-
-["vm:run"]
-description = "machine: boot the VM (vm:build first); disk state lives in .dev/vm.qcow2"
-depends = ["vm:build"]
-run = "cd .dev && NIX_DISK_IMAGE=vm.qcow2 ./vm/bin/run-vm-vm"
-
-["vm:ssh"]
-description = "machine: ssh into the running VM as andrew (password andrew); pass a command to run it"
-run = "ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null andrew@localhost"
 
 # The desktop shell (modules/desktop/shell). `ags` on PATH comes from home:switch (the same
 # build the package used), so the dev loop and the store package see one Astal.

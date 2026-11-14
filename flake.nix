@@ -26,8 +26,7 @@
     };
     # hyprexpo (sandwichfarm's fork): the expose-style workspace overview with LIVE window
     # thumbnails — a compositor plugin, so it must be built against the exact Hyprland it loads
-    # into. The NixOS side runs the Hyprland this flake pins (its `hyprland` input); the Arch box
-    # gets it through hyprpm instead (modules/desktop/hypr/hyprland.lua says how).
+    # into; modules/hyprland-packages.nix builds the two in one package set.
     hyprexpo.url = "github:sandwichfarm/hyprexpo";
     # Expert — the Elixir LSP (expert-lsp.org, NOT elixir-ls), built from main by its own flake.
     # Main, not a release: v0.1.10 stops answering once a client rejects its registerCapability,
@@ -64,7 +63,7 @@
     let
       # One system for now; this box is x86_64-linux. Widen when a second arch appears.
       system = "x86_64-linux";
-      # imported, not legacyPackages: slack is unfree (the NixOS module allows it on its own side)
+      # imported, not legacyPackages: slack is unfree
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
@@ -78,7 +77,7 @@
       tlonRepo = "/home/andrew/projects/tlon";
 
       # The desktop shell (modules/desktop/shell). Built here once and handed to home-manager
-      # as a special arg so the Arch profile and the NixOS VM install the identical package.
+      # as a special arg, so the profile installs the package `nix build .#astal-shell` builds.
       astalShell = pkgs.callPackage ./modules/desktop/shell/package.nix {
         agsPackages = ags.packages.${system};
         tlon = inputs.tlon;
@@ -326,30 +325,6 @@
         packages = [ pkgs.sqlite ];
       };
 
-      # The desktop as full NixOS, booted under QEMU with the working tree shared in at its real
-      # path (modules/os/vm.nix).
-      nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = {
-          inherit
-            repo
-            tlonRepo
-            astalShell
-            hyprexpo
-            dbx
-            agentBrowser
-            agentDesktop
-            ;
-          agenixPackage = agenix.packages.${system}.default;
-          agenixHome = agenix.homeManagerModules.default;
-          expertPackages = inputs.expert.packages;
-        };
-        modules = [
-          home-manager.nixosModules.home-manager
-          ./modules/os
-          ./modules/os/vm.nix
-        ];
-      };
       # The work Mac: the palette's portable surfaces only (modules/mac). Named for the user so a
       # bare `home-manager switch --flake .` there picks it.
       homeConfigurations.anmoore = home-manager.lib.homeManagerConfiguration {

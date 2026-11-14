@@ -1,7 +1,6 @@
 # modules/desktop/shell — the astal shell
 
-AGS 3 (gnim JSX) over Astal, GTK4, SCSS. Design: `docs/plans/2026-09-02-astal-shell-design.md`;
-where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
+AGS 3 (gnim JSX) over Astal, GTK4, SCSS. Design: `docs/plans/2026-09-02-astal-shell-design.md`.
 
 ## Loop
 
@@ -16,8 +15,7 @@ where it runs and the VM: `docs/plans/2026-09-05-astal-shell-nixos-vm-plan.md`.
 - `mise shell:test` — node tests of the pure logic (`lib/*.test.mjs`, also the last step of
   `shell:check`). What they import must not touch `gi://`; split a module's pure half out
   (`settings-core.ts`) to test it.
-- `nix build .#astal-shell` — the store package the VM and home-manager install.
-- In the NixOS VM the unit is `astal-shell.service`; `mise shell:logs` / `shell:restart`.
+- `nix build .#astal-shell` — the store package home-manager installs.
 
 ## Layer law
 

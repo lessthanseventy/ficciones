@@ -11,12 +11,12 @@ of modules. The programs it runs that are repos of their own, [tlon](https://git
 
 ```
 ficciones/
-  flake.nix              # the machine: NixOS for the VM and the laptop, home-manager for the Arch box and the Mac
+  flake.nix              # the machine: home-manager for the Arch box and the Mac
   mise.toml, tasks/      # the dev loop: every verb a human or an agent runs; `mise tasks` lists them
   scripts/               # the shell side of the loop: cap, watch, the manual and theme generators, the git hooks
   modules/
-    os/                  # the NixOS side: one user, Hyprland, sound, network, fonts; vm.nix adds the hardware
-    arch/                # what modules/os gives a NixOS host, for home-manager on the Arch base
+    os/                  # the dotfiles the profiles share: zshrc, gitconfig, gitignore, Hyprland's patches
+    arch/                # the system half of the desktop, for home-manager on the Arch base
     desktop/             # the Hyprland stack: its config, the astal shell, the theme and its four palettes
     mac/                 # the work Mac: the palette's portable surfaces, no desktop
     agents/              # the rules, skills, mods and shell every agent on this machine works by
@@ -38,8 +38,7 @@ Four targets, one flake:
   from here.
 - `homeConfigurations.anmoore`: the work Mac. The same palettes on terminals, prompt, TUIs,
   Floorp and Claude Code, and no desktop.
-- `nixosConfigurations.vm`: a disposable NixOS VM (`mise run vm:build`, `vm:run`, `vm:ssh`) where
-  the desktop runs as full NixOS.
+
 
 home-manager places symlinks that point back into this working tree for the desktop's config, so
 an edit to `modules/desktop/hypr/hyprland.lua` is live on `hyprctl reload`. The price is that a

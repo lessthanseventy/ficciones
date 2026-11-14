@@ -72,8 +72,8 @@ exists so a reader of the repo knows where the law comes from and edits the one 
 
 - **`nix` runs from the agent tools now** (Arch's nix, not Determinate — see the Nix machine-truth
   memory). So `nix flake check`, `nix eval`, and `nix build .#astal-shell` are fair to run and verify directly.
-  What stays the human's are the **system-mutating** commands — `home-manager switch`, `nixos-rebuild
-  switch` on the host — because building the machine is a change the human owns. A claim that a build
+  What stays the human's are the **system-mutating** commands — `home-manager switch` —
+  because building the machine is a change the human owns. A claim that a build
   works without having run it is the one thing this repo cannot afford.
 - **A module is born when it has content.** Do not create empty placeholder directories to imply a
   structure that does not exist yet. The tree should not lie about what is built.
