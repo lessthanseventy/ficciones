@@ -34,7 +34,7 @@ WORDS = {
     "capture shot region": "screenshot: region", "capture rec monitor": "record the monitor", "capture stop": "stop recording",
     "shell/shot-region.sh": "screenshot: region", "shell/shot-region.sh repeat": "screenshot: the same region again",
     # commands
-    "ghostty": "terminal", "dolphin": "files", "floorp": "browser", "kate": "editor", "pavucontrol": "audio mixer",
+    "ghostty": "terminal", "strata": "files", "floorp": "browser", "kate": "editor", "pavucontrol": "audio mixer",
     "ghostty -e btop": "btop", "hyprpicker -a": "colour picker", "loginctl lock-session": "lock",
     "systemctl poweroff": "power off", "playerctl play-pause": "play / pause", "playerctl next": "next track",
     "playerctl previous": "previous track", "brightnessctl set 5%+": "brightness up", "brightnessctl set 5%-": "brightness down",

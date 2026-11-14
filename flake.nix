@@ -33,8 +33,7 @@
     # which Claude Code does (expert #904, fixed by #907). Back to a release once one has #907.
     # Its nixpkgs is left its own: that is the pin it builds and is tested against.
     expert.url = "github:expert-lsp/expert";
-    # Strata — a GTK4 file manager, on trial beside Dolphin. Pinned to a release; installed on the
-    # Arch profile only, and it claims neither FileManager1 nor the file-chooser portal.
+    # Strata — the GTK4 file manager (modules/desktop). Pinned to a release.
     strata = {
       url = "github:lgse/strata/v1.2.1";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -357,6 +356,7 @@
             agentBrowser
             agentDesktop
             ;
+          strata = inputs.strata.packages.${system}.strata;
           agenixPackage = agenix.packages.${system}.default;
           expertPackages = inputs.expert.packages;
           # Arch's Postgres is the system's, not this profile's
@@ -377,7 +377,6 @@
             home.homeDirectory = "/home/andrew";
             home.stateVersion = "25.05";
             programs.home-manager.enable = true;
-            home.packages = [ inputs.strata.packages.${system}.strata ];
           }
         ];
       };
