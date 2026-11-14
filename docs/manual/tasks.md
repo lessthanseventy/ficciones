@@ -102,9 +102,9 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 | verb | does |
 |---|---|
 | `shot:layer` | desktop: grim ONE of the shell's layer surfaces on the focused monitor (arg: rail\|bar\|deck\|backdrop, or any namespace substring; default bar). The shell draws in LAYERS, not windows, so shot:window cannot see it and shot:monitor makes you crop by hand. |
-| `shot:monitor` | desktop: grim the focused monitor to ~/Pictures/Screenshots, print the path |
+| `shot:monitor` | desktop: grim the focused monitor to ~/pictures/screenshots, print the path |
 | `shot:region` | desktop: grim an arbitrary rectangle in global compositor coords (arg: 'X,Y WxH', e.g. '1920,40 48x280') — the escape hatch when the thing you want is not a window or a layer |
-| `shot:window` | desktop: grim one window (arg: class/title regex; none = focused) to ~/Pictures/Screenshots, print the path |
+| `shot:window` | desktop: grim one window (arg: class/title regex; none = focused) to ~/pictures/screenshots, print the path |
 
 ## theme
 

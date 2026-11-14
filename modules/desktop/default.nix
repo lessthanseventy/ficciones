@@ -191,6 +191,7 @@ in
       };
     };
     home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
+    home.sessionVariables.GOPATH = "${config.home.homeDirectory}/.local/share/go";
 
     # piper voices (the nix piper-tts ships none; pacman's piper-voices-en-* was 1.8 GB of every
     # voice, none in use — `say` is kokoro via litellm). Two general ones, pinned from the
@@ -351,9 +352,30 @@ in
       strata
     ];
 
-    # "show in folder" opens Strata: its opt-in claim on FileManager1, not the file-chooser portal
-    xdg.dataFile."dbus-1/services/org.freedesktop.FileManager1.service".source =
-      "${strata}/share/strata/io.github.lgse.Strata.FileManager1.service";
+    xdg = {
+      userDirs =
+        let
+          home = config.home.homeDirectory;
+        in
+        {
+          enable = true;
+          createDirectories = true;
+          setSessionVariables = false;
+          desktop = "${home}/desktop";
+          documents = "${home}/documents";
+          download = "${home}/downloads";
+          music = "${home}/music";
+          pictures = "${home}/pictures";
+          projects = "${home}/projects";
+          videos = "${home}/videos";
+          publicShare = null;
+          templates = null;
+        };
+
+      # "show in folder" opens Strata: its opt-in claim on FileManager1, not the file-chooser portal
+      dataFile."dbus-1/services/org.freedesktop.FileManager1.service".source =
+        "${strata}/share/strata/io.github.lgse.Strata.FileManager1.service";
+    };
 
     xdg.configFile = {
       # portals: hyprland for screencast/screenshot, gtk for the rest — including the file

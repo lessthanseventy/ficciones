@@ -11,7 +11,7 @@ Font: **ComicShannsMono Nerd Font** everywhere, 11pt base (low vision: sizes bia
 - Green = live/occupied. Pink = agents, the operator, attention. Red = alarm. Ember = warning, one step before red.
 - Every pair clears WCAG AAA (7:1 text, 3:1 bands) in EVERY palette — `mise run theme:contrast` proves it.
 
-- **A wallpaper per palette:** `wallpapers = [ "~/Pictures/Wallpapers/uqbar" ];` in `palettes/<name>.nix` (files or directories) makes the shell's photo backdrop draw from them while that palette is live; empty falls back to the shared wallpapers directory. `mise run home:switch` to apply.
+- **A wallpaper per palette:** `wallpapers = [ "~/pictures/wallpapers/uqbar" ];` in `palettes/<name>.nix` (files or directories) makes the shell's photo backdrop draw from them while that palette is live; empty falls back to the shared wallpapers directory. `mise run home:switch` to apply.
 
 ## Roles
 

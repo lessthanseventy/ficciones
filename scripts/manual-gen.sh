@@ -161,7 +161,7 @@ print("- **Body text is amber on black** (uqbar) — dark amber on cream in zahi
 print("- **Amber field = the CURSOR** (where you are: focused workspace, active tab, list row) as inverse video. **Violet field = the SELECTION** (what you picked and left behind). The test: *if you look away, does it stay?*")
 print("- Green = live/occupied. Pink = agents, the operator, attention. Red = alarm. Ember = warning, one step before red.")
 print("- Every pair clears WCAG AAA (7:1 text, 3:1 bands) in EVERY palette — `mise run theme:contrast` proves it.\n")
-print("- **A wallpaper per palette:** `wallpapers = [ \"~/Pictures/Wallpapers/uqbar\" ];` in `palettes/<name>.nix` (files or directories) makes the shell's photo backdrop draw from them while that palette is live; empty falls back to the shared wallpapers directory. `mise run home:switch` to apply.\n")
+print("- **A wallpaper per palette:** `wallpapers = [ \"~/pictures/wallpapers/uqbar\" ];` in `palettes/<name>.nix` (files or directories) makes the shell's photo backdrop draw from them while that palette is live; empty falls back to the shared wallpapers directory. `mise run home:switch` to apply.\n")
 names = sorted(p["roles"])
 print("## Roles\n\n| role | " + " | ".join(names) + " |\n|---|" + "---|" * len(names))
 for k in sorted(p["roles"]["uqbar"]):

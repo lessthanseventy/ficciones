@@ -1,5 +1,5 @@
-// Screenshots and recordings, off the rail's capture item. Shots go to ~/Pictures/Screenshots
-// and the clipboard; a notice says where. Recordings (wf-recorder) go to ~/Videos/Recordings;
+// Screenshots and recordings, off the rail's capture item. Shots go to ~/pictures/screenshots
+// and the clipboard; a notice says where. Recordings (wf-recorder) go to ~/videos/recordings;
 // the bar's REC cell shows one running, and the card offers stop. slurp for a region.
 import GLib from "gi://GLib?version=2.0"
 import { createState } from "ags"
@@ -8,8 +8,8 @@ import { logEvent } from "./log"
 import { hypr } from "./hypr"
 
 const stamp = () => GLib.DateTime.new_now_local().format("%Y-%m-%d_%H.%M.%S")
-const shotsDir = () => `${GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES) ?? `${GLib.get_home_dir()}/Pictures`}/Screenshots`
-const recsDir = () => `${GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_VIDEOS) ?? `${GLib.get_home_dir()}/Videos`}/Recordings`
+const shotsDir = () => `${GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES) ?? `${GLib.get_home_dir()}/pictures`}/screenshots`
+const recsDir = () => `${GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_VIDEOS) ?? `${GLib.get_home_dir()}/videos`}/recordings`
 
 const notify = (summary: string, body: string, icon = "camera-photo-symbolic") =>
   execAsync(["notify-send", "-a", "capture", "-i", icon, summary, body]).catch(() => {})
@@ -76,7 +76,7 @@ export async function screenshot(what: Target, sink: Sink = "both", address?: st
   } catch (e) { notify("screenshot failed", String(e), "dialog-error-symbolic") }
 }
 
-/** a region shot opened in satty to mark up: Enter saves it to ~/Pictures/Screenshots, Ctrl+C copies it */
+/** a region shot opened in satty to mark up: Enter saves it to ~/pictures/screenshots, Ctrl+C copies it */
 export async function annotate(what: Target = "region") {
   GLib.mkdir_with_parents(shotsDir(), 0o755)
   try {

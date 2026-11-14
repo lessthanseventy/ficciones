@@ -3,7 +3,7 @@
 // hyprpaper — the one wallpaper path that works nix-built on Arch and on NixOS alike.
 // The live palette's `wallpapers` (files or directories, ~/.config/ficciones/theme/wallpapers.json)
 // win; a palette naming none falls back to the shared directory: "wallpapers" in
-// ~/.config/astal-shell/config.json (home-manager writes it), default ~/Pictures/Wallpapers.
+// ~/.config/astal-shell/config.json (home-manager writes it), default ~/pictures/wallpapers.
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
@@ -19,7 +19,7 @@ function dir(): string {
     const cfg = ok ? JSON.parse(new TextDecoder().decode(bytes)) : {}
     if (typeof cfg.wallpapers === "string") return cfg.wallpapers.replace(/^~/, GLib.get_home_dir())
   } catch {}
-  return `${GLib.get_home_dir()}/Pictures/Wallpapers`
+  return `${GLib.get_home_dir()}/pictures/wallpapers`
 }
 
 function sources(): string[] {

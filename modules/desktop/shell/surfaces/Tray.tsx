@@ -334,7 +334,7 @@ function CaptureItem() {
     <box cssClasses={["cap-row", "cap-shot"]} spacing={8} visible={visible ?? true}>
       <label cssClasses={["cap-glyph"]} label={glyph} widthChars={2} />
       <label label={label} xalign={0} hexpand />
-      <button cssClasses={["act"]} tooltipText="save to ~/Pictures/Screenshots" onClicked={() => go(() => screenshot(what, "file"))}><label label={"\u{f0193}  disk"} /></button>
+      <button cssClasses={["act"]} tooltipText="save to ~/pictures/screenshots" onClicked={() => go(() => screenshot(what, "file"))}><label label={"\u{f0193}  disk"} /></button>
       <button cssClasses={["act"]} tooltipText="copy to the clipboard" onClicked={() => go(() => screenshot(what, "clip"))}><label label={"\u{f018f}  copy"} /></button>
     </box>
   )
@@ -364,7 +364,7 @@ function CaptureItem() {
                 <label cssClasses={["dim", "sm"]} label={createBinding(c, "workspace")((w) => String(w?.id ?? ""))} widthChars={2} xalign={1} />
                 <image iconName={iconFor(c)} pixelSize={16} />
                 <label label={createBinding(c, "title")} xalign={0} hexpand ellipsize={Pango.EllipsizeMode.END} maxWidthChars={26} />
-                <button cssClasses={["act"]} tooltipText="save to ~/Pictures/Screenshots" onClicked={() => go(() => screenshot("window", "file", c.address))}><label label={"\u{f0193}"} /></button>
+                <button cssClasses={["act"]} tooltipText="save to ~/pictures/screenshots" onClicked={() => go(() => screenshot("window", "file", c.address))}><label label={"\u{f0193}"} /></button>
                 <button cssClasses={["act"]} tooltipText="copy to the clipboard" onClicked={() => go(() => screenshot("window", "clip", c.address))}><label label={"\u{f018f}"} /></button>
               </box>
             )}
@@ -388,7 +388,7 @@ function CaptureItem() {
             <Row glyph={"\u{f040}"} label="annotate region (arrows, boxes, text)" on={() => annotate("region")} />
             <Shot glyph={"\u{f108}"} label="monitor" what="monitor" />
             <Windows />
-            <Help rows={[["saved to", "~/Pictures/Screenshots"], ["region", "slurp picks it"]]} />
+            <Help rows={[["saved to", "~/pictures/screenshots"], ["region", "slurp picks it"]]} />
             <RuleH />
             <Head label="RECORD" />
             <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={recording((r) => !r)}>
@@ -398,7 +398,7 @@ function CaptureItem() {
             <button cssClasses={["row", "cap-row", "stop"]} visible={recording((r) => !!r)} onClicked={() => { stopRecording(); pop?.close() }}>
               <box spacing={8}><label cssClasses={["cap-glyph", "red"]} label="■" widthChars={2} /><label label={recording((r) => `stop recording (${r ?? ""})`)} xalign={0} hexpand /></box>
             </button>
-            <Help rows={[["saved to", "~/Videos/Recordings"]]} />
+            <Help rows={[["saved to", "~/videos/recordings"]]} />
             <RuleH />
             <Help rows={[["flameshot", "Super+Shift+S · its own selector + editor"]]} />
           </box>

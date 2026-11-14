@@ -51,25 +51,25 @@ description = "shell: run the shell from source (Ctrl+C stops it); pkill -x gjs 
 dir = "modules/desktop/shell"
 run = "export ASTAL_SHELL_DEV=1; if command -v nix-gpu >/dev/null; then exec nix-gpu ags run app.tsx; fi; echo 'shell:dev — no nix-gpu yet (home:switch): drawing in software'; exec ags run app.tsx"
 
-# Silent screenshots for an agent's eyes (no flameshot UI): a PNG under ~/Pictures/Screenshots,
+# Silent screenshots for an agent's eyes (no flameshot UI): a PNG under ~/pictures/screenshots,
 # its path on stdout — Read it. `shot:window` matches class or title (regex, case-insensitive)
 # and takes the first mapped hit; no arg = the focused window. Andrew's own captures are the
 # rail's card / Print keys (flameshot).
 ["shot:monitor"]
-description = "desktop: grim the focused monitor to ~/Pictures/Screenshots, print the path"
+description = "desktop: grim the focused monitor to ~/pictures/screenshots, print the path"
 run = '''
 set -euo pipefail
-d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
+d="$HOME/pictures/screenshots"; mkdir -p "$d"
 m=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name')
 f="$d/$(date +%Y-%m-%d_%H.%M.%S)_monitor-$m.png"
 grim -o "$m" "$f" && echo "$f"
 '''
 
 ["shot:window"]
-description = "desktop: grim one window (arg: class/title regex; none = focused) to ~/Pictures/Screenshots, print the path"
+description = "desktop: grim one window (arg: class/title regex; none = focused) to ~/pictures/screenshots, print the path"
 run = '''
 set -euo pipefail
-d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
+d="$HOME/pictures/screenshots"; mkdir -p "$d"
 re={{arg(name="match", default="")}}
 if [ -n "$re" ]; then
   c=$(hyprctl clients -j | jq -c --arg re "$re" '[.[] | select(.mapped and ((.class|test($re;"i")) or (.title|test($re;"i"))))][0]')
@@ -87,7 +87,7 @@ grim -g "$g" "$f" && echo "$f"
 description = "desktop: grim ONE of the shell's layer surfaces on the focused monitor (arg: rail|bar|deck|backdrop, or any namespace substring; default bar). The shell draws in LAYERS, not windows, so shot:window cannot see it and shot:monitor makes you crop by hand."
 run = '''
 set -euo pipefail
-d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
+d="$HOME/pictures/screenshots"; mkdir -p "$d"
 q={{arg(name="layer", default="bar")}}
 m=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name')
 # layer x/y are already global compositor coords, which is what grim -g wants
@@ -103,7 +103,7 @@ run = '''
 set -euo pipefail
 g={{arg(name="geometry")}}
 [ -n "$g" ] || { echo "usage: mise run shot:region -- 'X,Y WxH'" >&2; exit 2; }
-d="$HOME/Pictures/Screenshots"; mkdir -p "$d"
+d="$HOME/pictures/screenshots"; mkdir -p "$d"
 f="$d/$(date +%Y-%m-%d_%H.%M.%S)_region.png"
 grim -g "$g" "$f" && echo "$f"
 '''

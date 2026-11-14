@@ -33,7 +33,7 @@ in
     autostart = lib.mkEnableOption "start the shell with graphical-session.target";
     wallpapers = lib.mkOption {
       type = lib.types.str;
-      default = "~/Pictures/Wallpapers";
+      default = "~/pictures/wallpapers";
       description = "Directory of images the backdrop rotates through (the shell is the wallpaper daemon).";
     };
     location = lib.mkOption {

@@ -89,12 +89,12 @@ format = '[](bold fg:@live@)[󰉋 $path]($style)[](bold fg:@live@)'
 
 
 [directory.substitutions]
-"Desktop" = "  "
-"Documents" = "  "
-"Downloads" = "  "
-"Music" = " 󰎈 "
-"Pictures" = "  "
-"Videos" = "  "
+"desktop" = "  "
+"documents" = "  "
+"downloads" = "  "
+"music" = " 󰎈 "
+"pictures" = "  "
+"videos" = "  "
 "GitHub" = " 󰊤 "
 
 [cmd_duration]
