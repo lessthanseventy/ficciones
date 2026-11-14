@@ -34,6 +34,8 @@
     # Its nixpkgs is left its own: that is the pin it builds and is tested against.
     expert.url = "github:expert-lsp/expert";
     # Strata — the GTK4 file manager (modules/desktop). Pinned to a release.
+    # TODO at the next nixpkgs bump: drop the follows (and take gvfs from strata's own nixpkgs) —
+    # following ours makes every bump a ~25-minute Rust rebuild, as no cache carries it.
     strata = {
       url = "github:lgse/strata/v1.2.1";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -356,7 +358,10 @@
             agentBrowser
             agentDesktop
             ;
-          strata = inputs.strata.packages.${system}.strata;
+          # gvfs's GIO module is what resolves trash:// for Strata's Trash view
+          strata = inputs.strata.packages.${system}.strata.overrideAttrs (o: {
+            buildInputs = o.buildInputs ++ [ pkgs.gvfs ];
+          });
           agenixPackage = agenix.packages.${system}.default;
           expertPackages = inputs.expert.packages;
           # Arch's Postgres is the system's, not this profile's
