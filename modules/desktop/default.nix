@@ -107,9 +107,6 @@ let
     nativeBuildInputs = [ pkgs.makeWrapper ];
     postBuild = ''
       wrapProgram $out/bin/unityhub --set NIXOS_XDG_OPEN_USE_PORTAL 1
-      f=share/applications/unityhub.desktop
-      rm $out/$f
-      substitute ${pkgs.unityhub}/$f $out/$f --replace-fail ${pkgs.unityhub}/opt/unityhub/unityhub $out/bin/unityhub
     '';
   };
 
