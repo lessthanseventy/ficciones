@@ -38,11 +38,15 @@ run = "scripts/cap-no-pipe.test.sh"
 description = "the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing), their list of menard's verbs against menard's, and the review pane's copy of the diff reader against the changes pane's (a mod may import only its own files)"
 run = "scripts/check-menard-verbs.sh || exit 1; cmp modules/agents/mods/changes-pane/hooks/changes.ts modules/agents/mods/review-pane/hooks/changes.ts || { echo 'check:mods — review-pane/hooks/changes.ts is a copy of changes-pane/hooks/changes.ts: edit that one, then cp it over'; exit 1; }; command -v claude >/dev/null || { echo 'check:mods — no claude on PATH, not run'; exit 0; }; for m in modules/agents/mods/*/; do claude plugin test \"$m\" || exit 1; done"
 
+["check:session-state"]
+description = "the Claude Code hook that keeps each session's record and arena's pane mark writes what it should"
+run = "modules/agents/session-state.test.sh"
+
 # The flake builds the shell's bundle, which checks no types.
 ["check:shell"]
 description = "the desktop shell's own gate (shell:check), where ags is installed"
 run = "command -v ags >/dev/null || { echo 'check:shell — no ags on PATH, not run'; exit 0; }; mise run shell:check"
 
 ["check"]
-description = "Everything green: the names gate, the cap hook, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "check:mods", "check:shell", "manual:check", "flake:check"]
+description = "Everything green: the names gate, the cap hook, the session hook, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
+depends = ["check:names", "check:cap-hook", "check:session-state", "check:mods", "check:shell", "manual:check", "flake:check"]

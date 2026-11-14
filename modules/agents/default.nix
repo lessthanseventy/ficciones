@@ -20,45 +20,28 @@ let
   # service below runs it headless; `server:console`/`:restart` drive the same
   # bin/server, so node + cookie agree via the release's own env.sh.
   serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
-  # Claude Code's hooks telling arena, by a pane option, what the Claude in the pane is doing;
-  # a session outside tmux has no TMUX_PANE and sets nothing.
-  arenaState = state: {
+  # Claude Code's hooks keeping each session's record in $XDG_RUNTIME_DIR/sessions, which the
+  # desktop shell reads, and the pane option arena marks windows by (./session-state.sh).
+  sessionStateBin = pkgs.writeShellScript "session-state" (
+    "PATH=${pkgs.jq}/bin:$PATH\n" + builtins.readFile ./session-state.sh
+  );
+  sessionState = event: {
     hooks = [
       {
         type = "command";
-        command =
-          "[ -z \"$TMUX_PANE\" ] || tmux "
-          + (
-            if state == null then
-              "set -pu -t \"$TMUX_PANE\" @arena_claude"
-            else
-              "set -p -t \"$TMUX_PANE\" @arena_claude ${state}"
-          );
+        command = "${sessionStateBin} ${event}";
       }
     ];
   };
-  arenaHooks = pkgs.writeText "arena-hooks.json" (
+  sessionHooks = pkgs.writeText "session-hooks.json" (
     builtins.toJSON {
-      UserPromptSubmit = [ (arenaState "working") ];
-      PostToolUse = [ (arenaState "working") ];
-      # a turn can end with a shell or an agent still running in the background, which
-      # wakes Claude when it finishes: done only when nothing is
-      Stop = [
-        {
-          hooks = [
-            {
-              type = "command";
-              command =
-                "[ -z \"$TMUX_PANE\" ] || tmux set -p -t \"$TMUX_PANE\" @arena_claude "
-                + "\"$(${pkgs.jq}/bin/jq -r 'if any(.background_tasks[]?; .status == \"running\") then \"working\" else \"done\" end')\"";
-            }
-          ];
-        }
-      ];
+      UserPromptSubmit = [ (sessionState "prompt") ];
+      PostToolUse = [ (sessionState "tool") ];
+      Stop = [ (sessionState "stop") ];
       Notification = [
-        ((arenaState "waiting") // { matcher = "permission_prompt|elicitation_dialog"; })
+        ((sessionState "waiting") // { matcher = "permission_prompt|elicitation_dialog"; })
       ];
-      SessionEnd = [ (arenaState null) ];
+      SessionEnd = [ (sessionState "end") ];
     }
   );
 in
@@ -147,12 +130,13 @@ in
   # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
   # diffSidebarOpen off, in ~/.claude.json: the app's own diff panel opens on an edit otherwise,
   # and while it shows the dock gets no columns, so that pane has nowhere to draw.
-  # The arena hooks replace any earlier copy of themselves and leave every other hook be.
+  # The session hooks replace any earlier copy of themselves (and the inline arena hooks they
+  # grew from) and leave every other hook be.
   home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     cfg="$HOME/.claude/settings.json"
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq --slurpfile arena ${arenaHooks} '.env += {
+      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} '.env += {
            ZDOTDIR: (env.HOME + "/.claude/zsh"),
            GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
            GIT_TERMINAL_PROMPT: "0" }
@@ -161,8 +145,8 @@ in
                + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}"] | join(":"))
          | .autoCompactWindow = 433000
          | .enabledPlugins["cc-plugin-diff@builtin"] = false
-         | .hooks = reduce ($arena[0] | to_entries[]) as $e (.hooks // {};
-             .[$e.key] = [(.[$e.key] // [])[] | select(tostring | contains("@arena_claude") | not)] + $e.value)' "$cfg" > "$tmp"; then
+         | .hooks = reduce ($sessions[0] | to_entries[]) as $e (.hooks // {};
+             .[$e.key] = [(.[$e.key] // [])[] | select(tostring | test("@arena_claude|-session-state ") | not)] + $e.value)' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"
         run mv -f "$tmp" "$cfg"
       else
