@@ -105,6 +105,18 @@ let
       done
     '';
   };
+  # Discord's sandbox has no /usr/share/zoneinfo, so the host's /etc/localtime dangles there and
+  # it shows UTC; the zone's name is read here, outside, at each launch
+  discord = pkgs.symlinkJoin {
+    name = "discord-tz";
+    paths = [ pkgs.discord ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/Discord \
+        --run 'tz=$(readlink -f /etc/localtime); export TZ=''${tz#*/zoneinfo/}'
+      ln -sf Discord $out/bin/discord
+    '';
+  };
   linkTo = rel: {
     source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}";
   };
