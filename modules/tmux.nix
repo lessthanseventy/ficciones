@@ -1,5 +1,10 @@
 # tmux, shared by the Linux box and the work Mac (the clipboard is the only difference).
-{ pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   copy = if pkgs.stdenv.hostPlatform.isDarwin then "pbcopy" else "wl-copy";
@@ -149,5 +154,28 @@ in
       bind -n M-8 select-window -t 8
       bind -n M-9 select-window -t 9
     '';
+  };
+
+  # continuum saves from a hook in status-right, which is emptied above and which arena, a
+  # control client, never draws: the save runs on a timer instead. Continuum still restores.
+  # The first save waits ten minutes, so a fresh server's restore lands before it.
+  systemd.user = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
+    services.tmux-save = {
+      Unit.Description = "Save the tmux sessions for continuum to restore";
+      Service = {
+        Type = "oneshot";
+        Environment = [ "PATH=${config.home.profileDirectory}/bin:/usr/bin:/bin" ];
+        ExecCondition = "${config.programs.tmux.package}/bin/tmux has-session";
+        ExecStart = "${pkgs.tmuxPlugins.resurrect}/share/tmux-plugins/resurrect/scripts/save.sh quiet";
+      };
+    };
+    timers.tmux-save = {
+      Unit.Description = "Save the tmux sessions every ten minutes";
+      Timer = {
+        OnStartupSec = "10min";
+        OnUnitActiveSec = "10min";
+      };
+      Install.WantedBy = [ "timers.target" ];
+    };
   };
 }
