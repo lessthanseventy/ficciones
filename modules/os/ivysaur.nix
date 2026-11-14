@@ -29,7 +29,8 @@ let
 in
 {
   networking.hostName = "ivysaur";
-  time.timeZone = "America/Denver";
+  # the zone follows the machine; a fixed time.timeZone would make /etc/localtime read-only
+  services.automatic-timezoned.enable = true;
   i18n.defaultLocale = "en_US.UTF-8";
 
   # ---- boot -------------------------------------------------------------------------------
