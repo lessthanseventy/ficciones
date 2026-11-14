@@ -20,6 +20,7 @@ import { hhmm, duration } from "../lib/format"
 import { execAsync } from "ags/process"
 import { timer, left, stopTimer, startCountdown, startPomodoro, parseSpec } from "../lib/timer"
 import { agents } from "../lib/agents"
+import { sessions, readAt, mine, tally, mark, line, goTo, type Session } from "../lib/sessions"
 import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
 import { fullscreenMonitors } from "../lib/hypr"
 import { MediaCard } from "../panes/Media"
@@ -168,6 +169,27 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           </box>
           <popover cssClasses={["pop", "pop-timer", "timerpop"]}>
             <Panel title={"\u{f051b}  TIMER"} cssClasses={["card", "card-timer"]}><TimerPane /></Panel>
+          </popover>
+        </menubutton>
+        {/* your own Claude sessions, in arena's marks; hover lists them, a row takes you to its pane */}
+        <menubutton cssClasses={sessions((all) => ["cell", "deck-sessions", "clickable", ...(tally(mine(all)).waiting > 0 ? ["await"] : [])])} direction={Gtk.ArrowType.UP} $={(self) => hoverPopover(self, "deck")}>
+          <box spacing={6}>
+            <label cssClasses={["live"]} label={"\u{f0b79}"} />
+            <label cssClasses={["live"]} label={sessions((all) => mark(tally(mine(all))))} />
+          </box>
+          <popover cssClasses={["pop", "pop-sessions"]}>
+            <Panel title={"\u{f0b79}  SESSIONS"} cssClasses={["card", "card-sessions"]}>
+              <box orientation={Gtk.Orientation.VERTICAL}>
+                <label cssClasses={["dim"]} label="no Claude sessions" xalign={0} visible={sessions((all) => mine(all).length === 0)} />
+                <For each={sessions(mine)} id={(s: Session) => `${s.id} ${s.state} ${s.since} ${s.doing}`}>
+                  {(s: Session) => (
+                    <button cssClasses={["session-row", s.state]} onClicked={() => void goTo(s)} tooltipText={s.said ?? s.cwd}>
+                      <label label={readAt((t) => line(s, t))} xalign={0} />
+                    </button>
+                  )}
+                </For>
+              </box>
+            </Panel>
           </popover>
         </menubutton>
         {/* the Tlön roster: warm/total, pink with a ! when someone awaits you; toggles the office rail */}
