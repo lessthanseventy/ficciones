@@ -139,6 +139,9 @@ in
   # the workflow every repo here keeps (linear history: rebase, fast-forward, stacks); git
   # reads this beside ~/.gitconfig, which stays the machine's (identity, credentials)
   home.file.".config/git/config".source = ../os/gitconfig;
+  # out of the store: `mise use -g` and `mise trust` write this file
+  home.file.".config/mise/config.toml".source =
+    config.lib.file.mkOutOfStoreSymlink "${repo}/modules/os/mise.toml";
 
   # The node cookie the service and its remote shells share (rel/env.sh.eex reads it into
   # RELEASE_COOKIE; `server:console`, `server:dev` and tlon-cli.sh rpc use it): written once, 0600, never
