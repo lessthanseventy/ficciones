@@ -28,6 +28,11 @@ in
   # (gitmux/cpu/battery). Old file backed up on `home:switch` via the -b flag.
   programs.tmux = {
     enable = true;
+    # refresh-client -C takes the cell size in pixels too (80x24,9x19): arena, a control
+    # client, tells tmux its terminal's, which panes are told for pictures and pixel mice
+    package = pkgs.tmux.overrideAttrs (old: {
+      patches = (old.patches or [ ]) ++ [ ./tmux-control-pixels.patch ];
+    });
     shortcut = "b"; # Ctrl+B prefix
     escapeTime = 10;
     baseIndex = 1;
