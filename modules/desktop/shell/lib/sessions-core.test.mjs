@@ -17,11 +17,12 @@ test("the statusline's meter joins its record; a bad one is left out", () => {
   assert.deepEqual(metered(s("a", "working"), null), s("a", "working"))
 })
 
-test("a record whose tmux pane is gone is stale; one outside tmux is kept", () => {
+test("a record whose tmux pane is gone is stale; one outside tmux is, once a day has passed without a word", () => {
   const live = new Set(["/tmp/tmux-1000/default %6"])
-  assert.equal(alive(s("menard", "done"), live), true)
-  assert.equal(alive(s("ficciones", "done"), live), false)
-  assert.equal(alive(s("solo", "done", { socket: "", pane: "" }), live), true)
+  assert.equal(alive(s("menard", "done"), live, 1000), true)
+  assert.equal(alive(s("ficciones", "done"), live, 1000), false)
+  assert.equal(alive(s("solo", "done", { socket: "", pane: "", at: 1000 }), live, 1000 + 3600), true)
+  assert.equal(alive(s("solo", "done", { socket: "", pane: "", at: 1000 }), live, 1000 + 86400), false)
 })
 
 test("the crew is any session on a tlon workspace's tmux server", () => {

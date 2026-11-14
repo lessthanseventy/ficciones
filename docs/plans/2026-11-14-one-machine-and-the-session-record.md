@@ -43,7 +43,8 @@ One writer per file:
 | `<session_id>.meter` | `modules/desktop/scripts/statusline-box.sh`, on a change | `ctx` (% of the compaction budget), `model` |
 
 The same hook sets the pane option `@arena_claude`, which is arena's view of the state. The session's
-end removes both files; a reader drops a record whose tmux pane is gone.
+end removes both files; a reader drops a record whose tmux pane is gone, or, for one outside tmux,
+that has said nothing for a day.
 
 Readers: the deck's sessions cell (`lib/sessions.ts`, by inotify) shows yours in arena's marks, rings
 when one starts waiting, chimes when a long turn lands, and takes you to its pane. A session on a
@@ -62,8 +63,7 @@ lacks, the field goes in the record, written by the one place that knows it.
   handles kitty pictures, gets the low-resolution room.
 - **The crew's records are unseen so far.** Seats load the user's hooks beside their `--settings`,
   so they should write records on their own servers; no seat has run since the hook landed.
-- **A session outside tmux that crashes leaves its record** until the runtime dir is cleared: there is
-  no pane to check it against.
+
 - **menard's marks pile up in `/tmp`** (`menard-format-*.log`, `menard-door-*`, hundreds of them),
   which is menard's own bookkeeping and stays out of the record.
 - **arena could show the crew**: it reaches one tmux server at a time; the records name every server.

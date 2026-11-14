@@ -64,9 +64,10 @@ async function refresh() {
   try {
     const all = records()
     const live = await livePanes(all)
-    const now = all.filter((s) => alive(s, live))
+    const at = Date.now() / 1000
+    const now = all.filter((s) => alive(s, live, at))
     const before = new Map(sessions.peek().map((s) => [s.id, s]))
-    for (const sfx of new Set(chimes(before, now, Date.now() / 1000))) play(sfx)
+    for (const sfx of new Set(chimes(before, now, at))) play(sfx)
     setSessions(now)
     setReadAt(Date.now() / 1000)
   } finally { reading = false }
