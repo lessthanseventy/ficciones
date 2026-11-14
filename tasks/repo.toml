@@ -46,11 +46,15 @@ run = "modules/agents/agent-work.test.sh"
 description = "the Claude Code hook that keeps each session's record and arena's pane mark writes what it should"
 run = "modules/agents/session-state.test.sh"
 
+["check:session"]
+description = "the session command sets a session's goal and next, and briefs them"
+run = "modules/agents/session.test.sh"
+
 # The flake builds the shell's bundle, which checks no types.
 ["check:shell"]
 description = "the desktop shell's own gate (shell:check), where ags is installed"
 run = "command -v ags >/dev/null || { echo 'check:shell — no ags on PATH, not run'; exit 0; }; mise run shell:check"
 
 ["check"]
-description = "Everything green: the names gate, the cap hook, the session hook, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "check:agent-work", "check:session-state", "check:mods", "check:shell", "manual:check", "flake:check"]
+description = "Everything green: the names gate, the cap hook, the session hook and command, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
+depends = ["check:names", "check:cap-hook", "check:agent-work", "check:session-state", "check:session", "check:mods", "check:shell", "manual:check", "flake:check"]

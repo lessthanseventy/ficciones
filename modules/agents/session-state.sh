@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A Claude Code hook. $1 is the event (prompt | tool | stop | waiting | end), the hook's JSON is on
+# A Claude Code hook. $1 is the event (start | prompt | tool | stop | waiting | end), the hook's JSON is on
 # stdin. It keeps the session's record at $XDG_RUNTIME_DIR/sessions/<session_id>.json, which the
 # desktop shell reads, and the pane option @arena_claude arena marks the window by.
 # A hook must never fail a turn: every miss is silent and the exit is 0.
@@ -16,13 +16,15 @@ if [ "$event" = end ]; then
 	[ -z "$pane" ] || tmux set -pu -t "$pane" @arena_claude 2>/dev/null
 	exit 0
 fi
+[ "$event" = start ] && [ -e "$file" ] && exit 0
 
 case $event in
+start) state=idle ;;
 stop) state=$(jq -r 'if any(.background_tasks[]?; .status == "running") then "working" else "done" end' <<<"$input") ;;
 waiting) state=waiting ;;
 *) state=working ;;
 esac
-[ -z "$pane" ] || tmux set -p -t "$pane" @arena_claude "$state" 2>/dev/null
+[ -z "$pane" ] || [ "$event" = start ] || tmux set -p -t "$pane" @arena_claude "$state" 2>/dev/null
 
 cwd=$(jq -r '.cwd // empty' <<<"$input")
 top=$(git -C "${cwd:-.}" rev-parse --show-toplevel 2>/dev/null) || top=$cwd
@@ -42,7 +44,8 @@ if jq --argjson prev "$prev" --arg event "$event" --arg state "$state" \
 	  since: (if $prev.state == $state then $prev.since else $now end),
 	  at: $now, cwd: $in.cwd, repo: $repo, socket: $socket, pane: $pane,
 	  said: (if $event == "prompt" then ($in.prompt // "" | short) else $prev.said end),
-	  doing: (if $event == "tool" then ($in | doing) elif $event == "prompt" then null else $prev.doing end) }
+	  doing: (if $event == "tool" then ($in | doing) elif $event == "prompt" then null else $prev.doing end),
+	  goal: $prev.goal, next: $prev.next }
 	' >"$tmp" 2>/dev/null <<<"$input"; then
 	mv -f "$tmp" "$file"
 else

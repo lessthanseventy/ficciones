@@ -35,6 +35,7 @@ let
   };
   sessionHooks = pkgs.writeText "session-hooks.json" (
     builtins.toJSON {
+      SessionStart = [ (sessionState "start") ];
       UserPromptSubmit = [ (sessionState "prompt") ];
       PostToolUse = [ (sessionState "tool") ];
       Stop = [ (sessionState "stop") ];
@@ -95,6 +96,11 @@ in
     # the `claude` function in modules/os/zshrc sets it as CLAUDE_CODE_SHELL_PREFIX
     (pkgs.writeShellScriptBin "agent-work" (builtins.readFile ./agent-work.sh))
 
+    # `session set goal|next`, `session brief`: the session records, for /goal and /brief
+    (pkgs.writeShellScriptBin "session" (
+      "PATH=${pkgs.jq}/bin:$PATH\n" + builtins.readFile ./session.sh
+    ))
+
     # `tlon` — the product launcher: the office TUI, a thin wrapper over its mise task.
     (pkgs.writeShellScriptBin "tlon" ''
       cd ${tlonRepo} || { echo "tlon: repo not found at ${tlonRepo}" >&2; exit 1; }
@@ -116,6 +122,8 @@ in
   home.file.".claude/CLAUDE.md".source = ./how-to-work.md;
   home.file.".claude/skills/agent-desktop/SKILL.md".source = ./skills/agent-desktop/SKILL.md;
   home.file.".claude/skills/agent-browser/SKILL.md".source = ./skills/agent-browser/SKILL.md;
+  home.file.".claude/skills/goal/SKILL.md".source = ./skills/goal/SKILL.md;
+  home.file.".claude/skills/brief/SKILL.md".source = ./skills/brief/SKILL.md;
   xdg.configFile."worktrunk/config.toml".source = ./worktrunk.toml;
   # Claude Code's shells read these (settings.json: env.ZDOTDIR = ~/.claude/zsh): the user's
   # .zshenv and .zprofile, then a lean rc in place of ~/.zshrc's ~14k-line snapshot

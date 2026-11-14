@@ -39,7 +39,7 @@ One writer per file:
 
 | File | Writer | Holds |
 |---|---|---|
-| `<session_id>.json` | `modules/agents/session-state.sh`, on every hook event | `state` (`working`, `done`, `waiting`), `since`, `at`, `cwd`, `repo`, `socket` and `pane` (tmux), `said` (the last ask), `doing` (the last call) |
+| `<session_id>.json` | `modules/agents/session-state.sh`, on every hook event; `goal` and `next` by `session set` (`modules/agents/session.sh`) | `state` (`idle` from its start until its first ask, then `working`, `done`, `waiting`), `since`, `at`, `cwd`, `repo`, `socket` and `pane` (tmux), `said` (the last ask), `doing` (the last call), `goal` (what the session is for), `next` (its next step) |
 | `<session_id>.meter` | `modules/desktop/scripts/statusline-box.sh`, on a change | `ctx` (% of the compaction budget), `model` |
 
 The same hook sets the pane option `@arena_claude`, which is arena's view of the state. The session's

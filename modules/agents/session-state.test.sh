@@ -32,6 +32,11 @@ claim() {
 	fi
 }
 
+send start '{source: "startup"}'
+is .state idle "a new session sits idle"
+is .said null "having been asked nothing"
+claim "and marks no pane" test ! -e "$work/tmux.log"
+
 send prompt '{prompt: "make   the bar\nknow about my sessions"}'
 is .state working "a prompt starts work"
 is .repo repo "the repo is the git top, not the cwd"
@@ -48,6 +53,7 @@ is .doing "List files" "a description wins"
 send tool '{tool_name: "TodoWrite", tool_input: {todos: []}}'
 is .doing TodoWrite "else the tool"
 
+jq '.goal = "a bar that knows" | .next = "wire the inotify"' "$rec" >"$rec.new" && mv "$rec.new" "$rec"
 send waiting '{notification_type: "permission_prompt"}'
 is .state waiting "a permission prompt waits on you"
 is .doing TodoWrite "and keeps what it was doing"
@@ -56,6 +62,10 @@ is .state working "a stop with work in the background is still at work"
 send stop '{background_tasks: [{status: "completed"}]}'
 is .state "done" "a stop with nothing running is done"
 is .said "make the bar know about my sessions" "the ask outlives the turn"
+is .goal "a bar that knows" "so does the goal"
+is .next "wire the inotify" "and the next step"
+send start '{source: "resume"}'
+is .state "done" "a resumed session keeps its record"
 
 echo '{"session_id": "../x"}' | bash "$hook" tool
 claim "a session id cannot leave the dir" test ! -e "$work/run/x.json"
