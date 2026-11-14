@@ -350,6 +350,18 @@ in
       # and it was missing
       bc
       strata
+      # mail: mbsync fetches, notmuch indexes, msmtp sends, aerc reads
+      isync
+      notmuch
+      msmtp
+      aerc
+      nb
+      tmuxinator
+      csvkit
+      entr
+      timg
+      w3m
+      vim
     ];
 
     xdg = {
