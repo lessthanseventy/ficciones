@@ -48,6 +48,12 @@ in
     };
   };
 
+  # nothing on Arch reclaims the store; a weekly user timer drops profile versions over 30 days old
+  nix.gc = {
+    automatic = true;
+    options = "--delete-older-than 30d";
+  };
+
   # dbus and systemd look in these user dirs before /usr, and neither reads the nix profile
   xdg.dataFile = {
     "xdg-desktop-portal/portals/hyprland.portal" =
