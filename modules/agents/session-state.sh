@@ -12,7 +12,7 @@ file="$dir/$id.json"
 pane=${TMUX_PANE:-}
 
 if [ "$event" = end ]; then
-	rm -f "$file"
+	rm -f "$file" "$dir/$id.meter"
 	[ -z "$pane" ] || tmux set -pu -t "$pane" @arena_claude 2>/dev/null
 	exit 0
 fi

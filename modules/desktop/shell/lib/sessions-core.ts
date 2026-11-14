@@ -14,6 +14,9 @@ export type Session = {
   pane: string
   said: string | null
   doing: string | null
+  /** from the statusline's meter, `<id>.meter` beside the record */
+  ctx?: number
+  model?: string | null
 }
 export type Tally = Record<State, number>
 
@@ -28,6 +31,13 @@ export function parse(text: string): Session | null {
     const r = JSON.parse(text)
     return typeof r?.id === "string" && STATES.includes(r.state) ? (r as Session) : null
   } catch { return null }
+}
+
+export function metered(s: Session, text: string | null): Session {
+  try {
+    const m = text ? JSON.parse(text) : null
+    return typeof m?.ctx === "number" ? { ...s, ctx: m.ctx, model: m.model ?? null } : s
+  } catch { return s }
 }
 
 /** `live` holds "<socket> <pane>" for every pane the tmux servers have; a crash leaves a record behind */
@@ -70,7 +80,7 @@ function ago(s: number) {
 }
 
 export const line = (s: Session, now: number) =>
-  [`${MARK[s.state]} ${s.repo}`, s.doing ?? s.said, ago(now - s.since)].filter(Boolean).join("  ")
+  [`${MARK[s.state]} ${s.repo}`, s.doing ?? s.said, ago(now - s.since), s.ctx === undefined ? null : `ctx ${s.ctx}%`].filter(Boolean).join("  ")
 
 /** the `-L` that reaches the session's tmux server */
 export const arenaTarget = (s: Session) => ["-L", s.socket.split("/").pop() || "default"]

@@ -181,7 +181,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             <Panel title={"\u{f0b79}  SESSIONS"} cssClasses={["card", "card-sessions"]}>
               <box orientation={Gtk.Orientation.VERTICAL}>
                 <label cssClasses={["dim"]} label="no Claude sessions" xalign={0} visible={sessions((all) => mine(all).length === 0)} />
-                <For each={sessions(mine)} id={(s: Session) => `${s.id} ${s.state} ${s.since} ${s.doing}`}>
+                <For each={sessions(mine)} id={(s: Session) => `${s.id} ${s.state} ${s.since} ${s.doing} ${s.ctx}`}>
                   {(s: Session) => (
                     <button cssClasses={["session-row", s.state]} onClicked={() => void goTo(s)} tooltipText={s.said ?? s.cwd}>
                       <label label={readAt((t) => line(s, t))} xalign={0} />

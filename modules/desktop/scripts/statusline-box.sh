@@ -52,6 +52,17 @@ if [ -n "$used" ] && [ "${#L[@]}" -ge 2 ]; then
 	L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
 fi
 
+# the session's meter beside its record (modules/agents/session-state.sh), for the desktop's rows:
+# a file of its own so the hook and the repaint never write over each other, written only on a change
+id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
+meters="${XDG_RUNTIME_DIR:-/tmp}/sessions"
+if [ -n "$used" ] && [ -d "$meters" ] && [[ "$id" =~ ^[A-Za-z0-9_-]+$ ]]; then
+	meter=$(printf '%s' "$input" | jq -c --argjson ctx "$(printf '%.0f' "$used")" '{ctx: $ctx, model: (.model.display_name // null)}' 2>/dev/null)
+	if [ -n "$meter" ] && [ "$meter" != "$(cat "$meters/$id.meter" 2>/dev/null)" ]; then
+		printf '%s\n' "$meter" >"$meters/.$id.meter" && mv -f "$meters/.$id.meter" "$meters/$id.meter"
+	fi
+fi
+
 # a model family's own weekly limit (Fable's, beside the all-models one) is not in the input:
 # it is read from the account's usage endpoint, at most every five minutes and behind the
 # repaint; the touch is what keeps a failing read from being tried on every repaint

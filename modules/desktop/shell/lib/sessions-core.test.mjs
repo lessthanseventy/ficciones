@@ -1,7 +1,7 @@
 // node --test lib/sessions-core.test.mjs (mise shell:test): the pure half of lib/sessions.ts.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parse, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget } from "./sessions-core.ts"
+import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget } from "./sessions-core.ts"
 
 const s = (id, state, extra = {}) => ({ id, state, since: 1000, at: 1000, cwd: `/p/${id}`, repo: id, socket: "/tmp/tmux-1000/default", pane: `%${id.length}`, said: null, doing: null, ...extra })
 
@@ -9,6 +9,12 @@ test("a record parses, and anything else is dropped", () => {
   assert.deepEqual(parse(JSON.stringify(s("menard", "working"))), s("menard", "working"))
   assert.equal(parse("{half"), null)
   assert.equal(parse(JSON.stringify({ id: "x", state: "asleep" })), null)
+})
+
+test("the statusline's meter joins its record; a bad one is left out", () => {
+  assert.deepEqual(metered(s("a", "working"), '{"ctx":41,"model":"Opus 5.5"}'), s("a", "working", { ctx: 41, model: "Opus 5.5" }))
+  assert.deepEqual(metered(s("a", "working"), "{half"), s("a", "working"))
+  assert.deepEqual(metered(s("a", "working"), null), s("a", "working"))
 })
 
 test("a record whose tmux pane is gone is stale; one outside tmux is kept", () => {
@@ -50,6 +56,7 @@ test("a line says where, what and how long", () => {
   assert.equal(line(s("menard", "working", { doing: "Edit deck.ex", since: 1000 }), 1190), "◌ menard  Edit deck.ex  3m")
   assert.equal(line(s("arena", "waiting", { said: "make it so", since: 1000 }), 1010), "▲ arena  make it so  10s")
   assert.equal(line(s("jude", "done"), 1000 + 7300), "◉ jude  2h")
+  assert.equal(line(s("jude", "done", { ctx: 41 }), 1000 + 7300), "◉ jude  2h  ctx 41%")
 })
 
 test("arena is reached by its socket's name", () => {

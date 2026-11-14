@@ -10,7 +10,7 @@ import { play } from "./sfx"
 import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
-import { parse, alive, chimes, arenaTarget, type Session } from "./sessions-core"
+import { parse, metered, alive, chimes, arenaTarget, type Session } from "./sessions-core"
 
 export type { Session }
 export { mine, tally, mark, nextUp, line, isCrew } from "./sessions-core"
@@ -21,6 +21,13 @@ const ARENA = "com.ghostty.arena"
 export const [sessions, setSessions] = createState<Session[]>([])
 /** when the records were last read: the rows' times follow it */
 export const [readAt, setReadAt] = createState(Date.now() / 1000)
+
+function text(path: string): string | null {
+  try {
+    const [ok, bytes] = GLib.file_get_contents(path)
+    return ok ? new TextDecoder().decode(bytes) : null
+  } catch { return null }
+}
 
 function records(): Session[] {
   const out: Session[] = []
@@ -33,7 +40,7 @@ function records(): Session[] {
     try {
       const [ok, bytes] = GLib.file_get_contents(`${DIR}/${name}`)
       const s = ok ? parse(new TextDecoder().decode(bytes)) : null
-      if (s) out.push(s)
+      if (s) out.push(metered(s, text(`${DIR}/${s.id}.meter`)))
     } catch { /* written away under us */ }
   }
   return out
