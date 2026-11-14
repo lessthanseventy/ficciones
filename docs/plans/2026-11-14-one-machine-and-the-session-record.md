@@ -61,8 +61,7 @@ lacks, the field goes in the record, written by the one place that knows it.
 - **The office under arena draws in half blocks.** tlon's office falls back from kitty graphics
   whenever it sees tmux (`tlon/office/tui/boot.ts`), and arena, which draws panes itself and already
   handles kitty pictures, gets the low-resolution room.
-- **The crew's records are unseen so far.** Seats load the user's hooks beside their `--settings`,
-  so they should write records on their own servers; no seat has run since the hook landed.
+
 
 - **menard's marks pile up in `/tmp`** (`menard-format-*.log`, `menard-door-*`, hundreds of them),
   which is menard's own bookkeeping and stays out of the record.
