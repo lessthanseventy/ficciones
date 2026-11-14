@@ -92,6 +92,9 @@ in
     # handled by the agenix module (age.secrets below).
     agenixPackage
 
+    # the `claude` function in modules/os/zshrc sets it as CLAUDE_CODE_SHELL_PREFIX
+    (pkgs.writeShellScriptBin "agent-work" (builtins.readFile ./agent-work.sh))
+
     # `tlon` — the product launcher: the office TUI, a thin wrapper over its mise task.
     (pkgs.writeShellScriptBin "tlon" ''
       cd ${tlonRepo} || { echo "tlon: repo not found at ${tlonRepo}" >&2; exit 1; }
@@ -222,6 +225,8 @@ in
     # suites they run; apart from tlon.slice so `server:stop` never takes them down.
     # At the default weight, and no quota: the session's own UI is typed into from
     # inside this cgroup, and a low share made it wait behind every suite in the slice.
+    # The suites keep off the desktop by core instead (agent-work.sh pins them to the
+    # E-cores): no weight or quota helped, as all-core load drags every core's clock down.
     agents = {
       Unit.Description = "agents — Claude sessions started from a terminal";
       Unit.X-SwitchMethod = "keep-old";

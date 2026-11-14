@@ -131,8 +131,11 @@ function tt() {
 }
 
 # A session and everything it runs go in agents.slice: one handle on all of them (flake.nix sets its weight).
+# Its commands, hooks and MCP servers run through agent-work, on the E-cores. Claude Code takes
+# the prefix only as a resolved absolute path; never in settings.json, or tlon's coworkers get it too.
 function claude() {
-  systemd-run --user --scope --quiet --collect --slice=agents.slice -- claude "$@"
+  local work=${commands[agent-work]}
+  CLAUDE_CODE_SHELL_PREFIX=${work:+${work:A}} systemd-run --user --scope --quiet --collect --slice=agents.slice -- claude "$@"
 }
 
 export NNN_PLUG='f:fzopen;p:preview-tui;d:diffs;t:nmount;v:imgview'
