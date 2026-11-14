@@ -108,6 +108,19 @@ let
   linkTo = rel: {
     source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}";
   };
+  # Unity Hub's sandbox has its own /usr, so its xdg-open finds no host browser and sign-in opens
+  # nothing; through the portal the link is opened outside
+  unityhub = pkgs.symlinkJoin {
+    name = "unityhub-portal";
+    paths = [ pkgs.unityhub ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/unityhub --set NIXOS_XDG_OPEN_USE_PORTAL 1
+      f=share/applications/unityhub.desktop
+      rm $out/$f
+      substitute ${pkgs.unityhub}/$f $out/$f --replace-fail ${pkgs.unityhub}/opt/unityhub/unityhub $out/bin/unityhub
+    '';
+  };
 
   # Shared by both activation entries: reload every live instance, no-op when none (a headless
   # switch, a VM build). Activation's PATH may lack the profiles, so probe them too: Arch's
