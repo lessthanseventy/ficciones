@@ -72,7 +72,7 @@ claim "a session id cannot leave the dir" test ! -e "$work/run/x.json"
 echo 'not json' | bash "$hook" tool
 claim "bad input exits 0" test $? = 0
 
-want="set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude waiting|set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude done|"
+want="set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude working|set -p -t %7 @arena_claude waiting|set -p -t %7 @arena_claude background|set -p -t %7 @arena_claude done|"
 claim "arena's pane marks follow the state" test "$(tr '\n' '|' <"$work/tmux.log")" = "$want"
 
 echo '{"ctx":41,"model":"Opus 5.5"}' >"$work/run/sessions/s1.meter"

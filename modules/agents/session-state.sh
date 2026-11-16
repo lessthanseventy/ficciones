@@ -24,7 +24,10 @@ stop) state=$(jq -r 'if any(.background_tasks[]?; .status == "running") then "wo
 waiting) state=waiting ;;
 *) state=working ;;
 esac
-[ -z "$pane" ] || [ "$event" = start ] || tmux set -p -t "$pane" @arena_claude "$state" 2>/dev/null
+mark=$state
+# arena tells a turn that has ended with work still running from one under way; the record does not
+[ "$event" = stop ] && [ "$state" = working ] && mark=background
+[ -z "$pane" ] || [ "$event" = start ] || tmux set -p -t "$pane" @arena_claude "$mark" 2>/dev/null
 
 cwd=$(jq -r '.cwd // empty' <<<"$input")
 top=$(git -C "${cwd:-.}" rev-parse --show-toplevel 2>/dev/null) || top=$cwd
