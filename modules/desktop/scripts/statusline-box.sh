@@ -6,7 +6,7 @@
 # - line 2 (usage) is recoloured fg-only, live→chip→red by each segment's percentage
 # - labels are sed'd in after claude-powerline's fixed segment icons (it has no label option)
 
-CPL=${CLAUDE_POWERLINE:-/home/andrew/.local/share/mise/shims/claude-powerline}
+CPL=${CLAUDE_POWERLINE:?the flake wrapper sets CLAUDE_POWERLINE}
 THEME="${XDG_CONFIG_HOME:-$HOME/.config}/ficciones/theme"
 [ -r "$THEME/palette.sh" ] && . "$THEME/palette.sh"
 rgb() {
