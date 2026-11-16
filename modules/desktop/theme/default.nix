@@ -307,10 +307,10 @@ in
     # activation below and thereafter owned by the toggle, the same deal as the theme link.
     home.file = {
       # the statusline (scripts/statusline-box.sh) and its renderer's config, per theme
-      ".claude/statusline-box.sh" = {
-        source = ../scripts/statusline-box.sh;
-        executable = true;
-      };
+      ".claude/statusline-box.sh".source = pkgs.writeShellScript "statusline-box" ''
+        export CLAUDE_POWERLINE=${pkgs.claude-powerline}/bin/claude-powerline
+        exec bash ${../scripts/statusline-box.sh}
+      '';
       ".claude/claude-powerline.json" = via "claude-powerline.json";
     }
     # in ~/.icons, the path every cursor reader searches, not only those that take XDG_DATA_DIRS
