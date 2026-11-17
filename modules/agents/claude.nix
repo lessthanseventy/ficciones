@@ -23,6 +23,9 @@ let
       SessionStart = [ (sessionState "start") ];
       UserPromptSubmit = [ (sessionState "prompt") ];
       PostToolUse = [ (sessionState "tool") ];
+      # a tool that fails after its permission was granted: no PostToolUse comes, and nothing
+      # else would take the record off "waiting"
+      PostToolUseFailure = [ (sessionState "tool") ];
       Stop = [ (sessionState "stop") ];
       Notification = [
         ((sessionState "waiting") // { matcher = "permission_prompt|elicitation_dialog"; })
