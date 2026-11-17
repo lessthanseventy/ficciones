@@ -68,7 +68,6 @@ export default function Cheatsheet() {
         win = self
         // capture: Esc closes from inside the filter too
         self.add_controller(closeKeys({ close: () => (self.visible = false), capture: true }))
-        clickawayField(self, () => (self.visible = false))
       }}
       visible={false}
       cssClasses={["cheatsheet"]}
@@ -77,10 +76,12 @@ export default function Cheatsheet() {
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.EXCLUSIVE}
       exclusivity={Astal.Exclusivity.IGNORE}
-      anchor={Astal.WindowAnchor.TOP}
-      marginTop={80}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.RIGHT}
       application={app}
     >
+      <overlay>
+        <box cssClasses={["clickaway-field"]} hexpand vexpand $={(self) => clickawayField(self, () => { if (win) win.visible = false })} />
+        <box $type="overlay" halign={Gtk.Align.CENTER} valign={Gtk.Align.START} marginTop={80}>
       <Panel title="KEYS · hyprland.lua" cssClasses={["sheet-pane", "focused"]}>
         <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
           <box spacing={8}>
@@ -111,6 +112,8 @@ export default function Cheatsheet() {
           </scrolledwindow>
         </box>
       </Panel>
+        </box>
+      </overlay>
     </window>
   )
 }
