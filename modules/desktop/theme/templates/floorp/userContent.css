@@ -552,9 +552,9 @@ NOTE: You can use the userContent.css file without change preferences (about:con
         --colorCompoundBrandForeground1: @body@ !important;
 
         --colorPaletteRedForeground1: @alarm@ !important;
-        --colorPaletteRedBackground1: rgba(243, 139, 168, 0.1) !important;
+        --colorPaletteRedBackground1: color-mix(in srgb, @alarm@ 10%, transparent) !important;
         --colorPaletteGreenForeground1: @live@ !important;
-        --colorPaletteGreenBackground1: rgba(51, 255, 0, 0.1) !important;
+        --colorPaletteGreenBackground1: color-mix(in srgb, @live@ 10%, transparent) !important;
         --colorPaletteYellowForeground1: @body@ !important;
         --colorPaletteBlueForeground2: @key@ !important;
 

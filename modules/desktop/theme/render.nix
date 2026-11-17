@@ -605,7 +605,7 @@ rec {
     @define-color insensitive_fg_color ${hex r.inactive};
     @define-color unfocused_borders ${hex r.borderInactive};
     @define-color link_color ${hex r.key};
-    @define-color visited_link_color ${hex r.assistant};
+    @define-color visited_link_color ${hex r.visited};
 
     * { font-family: ${fontStack}; }
     selection { background-color: ${hex r.selField}; color: ${hex r.selInk}; }

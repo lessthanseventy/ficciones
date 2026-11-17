@@ -376,7 +376,7 @@ in
         dir="$HOME/.floorp/${profile}"
         if [ -f "$dir/user.js" ]; then
           printf '%s' ${lib.escapeShellArg followScheme} | cat - ${./floorp-ext/user.js} | while IFS= read -r line; do
-            grep -qF "$line" "$dir/user.js" || printf '%s\n' "$line" >> "$dir/user.js"
+            grep -qF "$line" "$dir/user.js" || run sh -c 'printf "%s\n" "$1" >> "$2"' _ "$line" "$dir/user.js"
           done
           xpi=${pkgs.callPackage ./floorp-ext { }}
           if ! cmp -s "$xpi" "$dir/extensions/theme@ficciones.xpi"; then
