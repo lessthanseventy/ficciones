@@ -15,5 +15,13 @@
     statix
     nil
     biome
+    yamlfmt
+    csharpier
+    taplo
+    gdtoolkit_4
+    ruff
+    go
+    rustfmt
+    zsh
   ];
 }
