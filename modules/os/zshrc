@@ -16,13 +16,6 @@ fi
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 
-# Auto-select GTK theme based on color scheme preference
-if gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null | grep -q "prefer-dark"; then
-    export GTK_THEME="RetroTerminal-dark"
-else
-    export GTK_THEME="RetroTerminal-light"
-fi
-
 export COLORTERM=truecolor
 
 ZSH_THEME="robbyrussell"
@@ -130,7 +123,7 @@ function tt() {
   mix test $1 --color --trace
 }
 
-# A session and everything it runs go in agents.slice: one handle on all of them (flake.nix sets its weight).
+# A session and everything it runs go in agents.slice: one handle on all of them (modules/agents/default.nix sets its weight).
 # Its commands, hooks and MCP servers run through agent-work, on the E-cores. Claude Code takes
 # the prefix only as a resolved absolute path; never in settings.json, or tlon's coworkers get it too.
 function claude() {
