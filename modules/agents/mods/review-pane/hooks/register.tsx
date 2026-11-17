@@ -48,6 +48,8 @@ export const register: Register = on => {
   // Whether the view has the keyboard, read from where input lands: the engine says nothing when a click gives it.
   let hasKeys = false
   let notes: Note[] = []
+  // the notes written on a repository the review has since left, for when it is back on it
+  const set = new Map<string, Note[]>()
   // The diff line a click chose, by its row in delta's drawing.
   let picked: { file: string; row: number; at: number; code: string } | null = null
   // A note whose line the next drawing of its file scrolls to.
@@ -165,15 +167,20 @@ export const register: Register = on => {
       // The pane opened on another repository while this reads leaves it for the next pass.
       const at = repo
       // Without --no-optional-locks this poll takes the index lock and can fail Claude's own git commands.
-      const git = (...args: string[]) => $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', ...args], { cwd: at })
+      // names as they are, and the a/ b/ prefixes splitDiff reads whatever the person's git config says
+      const plain = ['-c', 'core.quotePath=false', '-c', 'diff.noprefix=false', '-c', 'diff.mnemonicPrefix=false']
+      const git = (...args: string[]) => $.process.run(['git', '--no-optional-locks', ...plain, ...args], { cwd: at })
       const named = async (ref: string) => {
         const out = await git('rev-parse', '--abbrev-ref', ref)
         return out.exitCode === 0 ? out.stdout.trim() : ''
       }
       const here = at === '' ? '' : await named('HEAD')
-      // The remote's default branch, else what this one pushes to, else a local main: the first this branch parted from.
+      // The remote's default branch, else what this one pushes to, else a local main: the first this
+      // branch parted from. Its own copy on the remote comes last: against it only what is unpushed shows.
       let fork: { ref: string; sha: string } | null = null
-      for (const ref of here === '' ? [] : [await named('origin/HEAD'), await named('@{upstream}'), 'main', 'master']) {
+      const upstream = here === '' ? '' : await named('@{upstream}')
+      const isOwn = upstream.endsWith(`/${here}`)
+      for (const ref of here === '' ? [] : [await named('origin/HEAD'), isOwn ? '' : upstream, 'main', 'master', isOwn ? upstream : '']) {
         if (ref === '' || ref === here) continue
         const sha = await git('merge-base', 'HEAD', ref)
         if (sha.exitCode !== 0 || sha.stdout.trim() === '') continue
@@ -192,7 +199,7 @@ export const register: Register = on => {
         const count = await git('rev-list', '--count', `${fork.sha}..HEAD`)
         const texts = splitDiff(tracked.stdout)
         for (const untracked of parseStatus(status.stdout).filter(f => f.isUntracked).slice(0, MAX_UNTRACKED_DIFFS)) {
-          const diff = await $.process.run(['git', 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', untracked.path], { cwd: at })
+          const diff = await $.process.run(['git', ...plain, 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', untracked.path], { cwd: at })
           texts.set(untracked.path, diff.stdout)
         }
         if (at !== repo) return
@@ -233,10 +240,11 @@ export const register: Register = on => {
       try {
         while (isStale) {
           isStale = false
-          const seen = JSON.stringify([renderedKey, note, files.map(f => f.path), branch, base, commits, offset])
+          const drawn = () => JSON.stringify([renderedKey, note, files.map(f => [f.path, f.diff.adds, f.diff.dels]), branch, base, commits, offset])
+          const seen = drawn()
           await load()
           scrollTo(offset)
-          if (seen !== JSON.stringify([renderedKey, note, files.map(f => f.path), branch, base, commits, offset])) $.ui.invalidate('ui.render')
+          if (seen !== drawn()) $.ui.invalidate('ui.render')
         }
       } catch (error) {
         note = `could not read the branch: ${error instanceof Error ? error.message : String(error)}`
@@ -251,11 +259,13 @@ export const register: Register = on => {
       const top = await $.process.run(['git', 'rev-parse', '--show-toplevel'], { cwd: await $.session.cwd() })
       const root = top.exitCode === 0 ? top.stdout.trim() : ''
       if (root !== repo) {
+        if (notes.length > 0) set.set(repo, notes)
         repo = root
         files = []
         file = ''
         base = ''
-        notes = []
+        notes = set.get(root) ?? []
+        set.delete(root)
         picked = null
         renderedKey = ''
         offset = 0
@@ -379,7 +389,14 @@ export const register: Register = on => {
                 const sent = notes
                 notes = []
                 $.ui.invalidate('ui.render')
-                await press(noteBlock(sent, range))()
+                try {
+                  await press(noteBlock(sent, range))()
+                } catch (error) {
+                  // not sent: they are still the person's to send
+                  notes = [...sent, ...notes]
+                  $.ui.invalidate('ui.render')
+                  throw error
+                }
               }} />
             </Box>
           ) : base !== '' && files.length > 0 ? (

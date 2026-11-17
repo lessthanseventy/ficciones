@@ -51,6 +51,7 @@ const repo = (on: On, branch: string, refs: Record<string, string>) => {
     const named = / rev-parse --abbrev-ref (\S+)$/.exec(line)?.[1]
     if (named === 'HEAD') return ok(`${branch}\n`)
     if (named === 'origin/HEAD') return 'origin/main' in refs ? ok('origin/main\n') : no
+    if (named === '@{upstream}') return refs.upstream ? ok(`${refs.upstream}\n`) : no
     if (named) return no
     const from = / merge-base HEAD (\S+)$/.exec(line)?.[1]
     if (from) return from in refs ? ok(`${refs[from]}\n`) : no
@@ -139,6 +140,16 @@ test('on the main branch the review is of what is not pushed, and with no other 
   const ui = await $.ui.mount({ plugin: 'review-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
   expect(await ui.find({ text: /^origin\/main$/ })).toBeDefined()
   expect(ran.some(line => line.includes(' merge-base HEAD main'))).toBe(false)
+})
+
+test('a pushed branch is read against main, not against its own copy on the remote', async ($, on) => {
+  mock.clock(on)
+  repo(on, 'feature', { upstream: 'origin/feature', 'origin/feature': 'bbbbbbb', main: 'aaaaaaa' })
+  await $.session.start({ cwd: '/w/api', surface: 'terminal', isInteractive: true })
+  await $.command.run({ command: 'land', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'review-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  expect(await ui.find({ text: /^main$/ })).toBeDefined()
+  expect(await ui.find({ text: /^origin\/feature$/ })).toBeUndefined()
 })
 
 test('a branch with nothing to be read against says so', async ($, on) => {
