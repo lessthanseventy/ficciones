@@ -6,11 +6,6 @@
  },
  {
   "group": "launch",
-  "keys": "SUPER+SHIFT+Return",
-  "does": "agent deck"
- },
- {
-  "group": "launch",
   "keys": "SUPER+CTRL+Return",
   "does": "tmux sessions as a strip"
  },

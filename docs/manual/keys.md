@@ -1,14 +1,13 @@
 # Keys
 
 Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — edit THAT, never this file.
-132 binds. `SUPER` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).
+131 binds. `SUPER` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).
 
 ## launch
 
 | keys | does |
 |---|---|
 | `SUPER+Return` | terminal |
-| `SUPER+SHIFT+Return` | agent deck |
 | `SUPER+CTRL+Return` | tmux sessions as a strip |
 | `SUPER+E` | files |
 | `SUPER+W` | browser |

@@ -243,7 +243,10 @@ in
       fastfetch
       fd
       lazygit
+      tig
       gh
+      kdePackages.kate
+      easyeffects
       rclone
       tokei
       zenith

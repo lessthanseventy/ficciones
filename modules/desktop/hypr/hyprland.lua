@@ -76,7 +76,6 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         -- it against no display ~5 times in 2 s, and the unit trips its start limit — a plain
         -- `start` within the next 10 s is refused ("repeated too quickly", 2026-09-07).
         hl.exec_cmd("systemctl --user reset-failed hyprpolkitagent; systemctl --user start hyprpolkitagent")
-        hl.exec_cmd("wgtray")
     end)
 end
 
@@ -446,7 +445,7 @@ local shell = hyprdir .. "/scripts"
 
 -- ----- App launchers -----
 bind(M .. " + Return", exec("ghostty"))
-bind(M .. " + SHIFT + Return", exec("ghostty --title=AgentDeck --class=com.ghostty.agent-deck -e agent-deck")) -- agent deck
+
 bind(M .. " + CTRL + Return", exec("ghostty --title=arena --class=com.ghostty.arena -e arena")) -- tmux sessions as a strip
 bind(M .. " + E", exec("strata"))
 bind(M .. " + W", exec("floorp"))
