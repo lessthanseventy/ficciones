@@ -7,10 +7,10 @@ mkdir -p "$work/bin" "$work/run/sessions"
 # the panes tmux has: a crashed session's %9 is not among them
 cat >"$work/bin/tmux" <<'EOF2'
 #!/usr/bin/env bash
-case $2 in /s) printf '/s %%1\n/s %%2\n/s %%3\n/s %%4\n' ;; esac
+case $2 in /s) printf '/s %%1\n/s %%2\n/s %%3\n/s %%4\n' ;; /other) printf '/other %%1\n' ;; esac
 EOF2
 chmod +x "$work/bin/tmux"
-export PATH="$work/bin:$PATH" XDG_RUNTIME_DIR="$work/run" TMUX_PANE=%1
+export PATH="$work/bin:$PATH" XDG_RUNTIME_DIR="$work/run" TMUX_PANE=%1 TMUX=/s,1,0
 now=$(date +%s)
 rec() { jq -n --arg id "$1" --arg repo "$2" --arg state "$3" --arg pane "$4" --arg sock "${5:-/s}" --argjson at "$now" \
 	'{id: $id, repo: $repo, state: $state, pane: $pane, socket: $sock, since: ($at - 300), at: $at, said: "the ask", doing: "Edit x.ex"}' \
@@ -31,8 +31,13 @@ claim() {
 }
 field() { jq -r ".$2" "$work/run/sessions/$1.json"; }
 
+# another tmux server's %1, written later
+rec ffff6666 other working %1 /other
+jq '.at += 60' "$work/run/sessions/ffff6666.json" >"$work/f" && mv "$work/f" "$work/run/sessions/ffff6666.json"
 bash "$cmd" set goal "ship the brief"
 claim "set with no one named is this pane's session" test "$(field aaaa1111 goal)" = "ship the brief"
+claim "and not the same pane id on another server" test "$(field ffff6666 goal)" = null
+rm "$work/run/sessions/ffff6666.json"
 bash "$cmd" set next "wire the hook" arena
 claim "a repo names a session" test "$(field aaaa1111 next)" = "wire the hook"
 bash "$cmd" set next "x" menard 2>"$work/err"

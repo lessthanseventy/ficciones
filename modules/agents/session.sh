@@ -26,11 +26,15 @@ set_field() {
 		ids=$(records | jq -r --arg w "$who" '.[] | select(.repo == $w or (.id | startswith($w))) | .id')
 	else
 		[ -n "${TMUX_PANE:-}" ] || die "not in tmux: name the session"
-		ids=$(records | jq -r --arg p "$TMUX_PANE" 'map(select(.pane == $p)) | max_by(.at) | .id // empty')
+		# the socket too: a pane id is only unique within one tmux server
+		ids=$(records | jq -r --arg p "$TMUX_PANE" --arg s "${TMUX%%,*}" \
+			'map(select(.pane == $p and .socket == $s)) | max_by(.at) | .id // empty')
 	fi
 	[ -n "$ids" ] || die "no session ${who:-in pane $TMUX_PANE}"
 	[ "$(wc -l <<<"$ids")" -eq 1 ] || die "'$who' is $(tr '\n' ' ' <<<"$ids")— name one by its id"
 	local file="$dir/$ids.json" tmp
+	# the hook rewrites the same record on every tool call
+	exec 9>"$dir/.$ids.lock" && flock -w 2 9 2>/dev/null
 	tmp=$(mktemp "$dir/.$ids.XXXXXX") || die "cannot write in $dir"
 	if jq --arg k "$key" --arg v "$text" '.[$k] = (if $v == "" then null else $v end)' "$file" >"$tmp"; then
 		mv -f "$tmp" "$file"

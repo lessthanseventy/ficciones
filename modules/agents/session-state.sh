@@ -12,7 +12,7 @@ file="$dir/$id.json"
 pane=${TMUX_PANE:-}
 
 if [ "$event" = end ]; then
-	rm -f "$file" "$dir/$id.meter"
+	rm -f "$file" "$dir/$id.meter" "$dir/.$id.lock"
 	exit 0
 fi
 [ "$event" = start ] && [ -e "$file" ] && exit 0
@@ -26,9 +26,11 @@ esac
 
 cwd=$(jq -r '.cwd // empty' <<<"$input")
 top=$(git -C "${cwd:-.}" rev-parse --show-toplevel 2>/dev/null) || top=$cwd
+[ -d "$dir" ] || mkdir -m 700 "$dir" 2>/dev/null
+# `session set` writes goal and next into the same record: read it under the lock or lose them
+exec 9>"$dir/.$id.lock" && flock -w 2 9 2>/dev/null
 prev=$(jq -c . "$file" 2>/dev/null)
 [ -n "$prev" ] || prev='{}'
-[ -d "$dir" ] || mkdir -m 700 "$dir" 2>/dev/null
 tmp=$(mktemp "$dir/.$id.XXXXXX") || exit 0
 if jq --argjson prev "$prev" --arg event "$event" --arg state "$state" \
 	--arg repo "${top##*/}" --arg socket "${TMUX%%,*}" --arg pane "$pane" --argjson now "$(date +%s)" '
