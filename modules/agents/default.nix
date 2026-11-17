@@ -22,7 +22,7 @@ let
   serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
 in
 {
-  imports = [ ./session-hooks.nix ];
+  imports = [ ./claude.nix ];
 
   # rbw — Bitwarden CLI with an unlock agent, for interactive password management.
   # Config here is non-secret/declarative; master password + vault stay with Bitwarden.
@@ -73,11 +73,6 @@ in
     # the `claude` function in modules/os/zshrc sets it as CLAUDE_CODE_SHELL_PREFIX
     (pkgs.writeShellScriptBin "agent-work" (builtins.readFile ./agent-work.sh))
 
-    # `session set goal|next`, `session brief`: the session records, for /goal and /brief
-    (pkgs.writeShellScriptBin "session" (
-      "PATH=${pkgs.jq}/bin:$PATH\n" + builtins.readFile ./session.sh
-    ))
-
     # `tlon` — the product launcher: the office TUI, a thin wrapper over its mise task.
     (pkgs.writeShellScriptBin "tlon" ''
       cd ${tlonRepo} || { echo "tlon: repo not found at ${tlonRepo}" >&2; exit 1; }
@@ -99,17 +94,15 @@ in
   home.file.".claude/CLAUDE.md".source = ./how-to-work.md;
   home.file.".claude/skills/agent-desktop/SKILL.md".source = ./skills/agent-desktop/SKILL.md;
   home.file.".claude/skills/agent-browser/SKILL.md".source = ./skills/agent-browser/SKILL.md;
-  home.file.".claude/skills/goal/SKILL.md".source = ./skills/goal/SKILL.md;
-  home.file.".claude/skills/brief/SKILL.md".source = ./skills/brief/SKILL.md;
+
   xdg.configFile."worktrunk/config.toml".source = ./worktrunk.toml;
   # Claude Code's shells read these (settings.json: env.ZDOTDIR = ~/.claude/zsh): the user's
   # .zshenv and .zprofile, then a lean rc in place of ~/.zshrc's ~14k-line snapshot
   home.file.".claude/zsh/.zshenv".source = ./zsh/zshenv;
   home.file.".claude/zsh/.zprofile".source = ./zsh/zprofile;
   home.file.".claude/zsh/.zshrc".source = ./zsh/zshrc;
-  # ...and the env they need, merged into settings.json (Claude Code rewrites that file, so
-  # it stays mutable): ZDOTDIR above, and nothing that waits on a human; the shell snapshot
-  # keeps only PATH, so these cannot live in the rc. No EDITOR: Claude Code's ctrl+g uses it.
+  # ...by ZDOTDIR, merged into settings.json (Claude Code rewrites that file, so it stays mutable)
+  # beside the env every machine's shells get (./claude.nix).
   # autoCompactWindow: a 1M-window session otherwise grows to ~1M before compacting, and every
   # call re-reads all of it (one week-long session was 40% of a week's tokens at 455k a call).
   # 433k, as Claude Code compacts 33k short of the figure: at 400k.
@@ -122,10 +115,7 @@ in
     cfg="$HOME/.claude/settings.json"
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq '.env += {
-           ZDOTDIR: (env.HOME + "/.claude/zsh"),
-           GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
-           GIT_TERMINAL_PROMPT: "0" }
+      if ${pkgs.jq}/bin/jq '.env.ZDOTDIR = (env.HOME + "/.claude/zsh")
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
              | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") | not)))
                + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}"] | join(":"))

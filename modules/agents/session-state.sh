@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # A Claude Code hook. $1 is the event (start | prompt | tool | stop | waiting | end), the hook's JSON is on
 # stdin. It keeps the session's record at $XDG_RUNTIME_DIR/sessions/<session_id>.json, which the
-# desktop shell reads, and the pane option @arena_claude arena marks the window by.
+# desktop shell reads. arena's own plugin marks its windows.
 # A hook must never fail a turn: every miss is silent and the exit is 0.
 event=${1:-}
 input=$(cat)
@@ -13,7 +13,6 @@ pane=${TMUX_PANE:-}
 
 if [ "$event" = end ]; then
 	rm -f "$file" "$dir/$id.meter"
-	[ -z "$pane" ] || tmux set -pu -t "$pane" @arena_claude 2>/dev/null
 	exit 0
 fi
 [ "$event" = start ] && [ -e "$file" ] && exit 0
@@ -24,10 +23,6 @@ stop) state=$(jq -r 'if any(.background_tasks[]?; .status == "running") then "wo
 waiting) state=waiting ;;
 *) state=working ;;
 esac
-mark=$state
-# arena tells a turn that has ended with work still running from one under way; the record does not
-[ "$event" = stop ] && [ "$state" = working ] && mark=background
-[ -z "$pane" ] || [ "$event" = start ] || tmux set -p -t "$pane" @arena_claude "$mark" 2>/dev/null
 
 cwd=$(jq -r '.cwd // empty' <<<"$input")
 top=$(git -C "${cwd:-.}" rev-parse --show-toplevel 2>/dev/null) || top=$cwd

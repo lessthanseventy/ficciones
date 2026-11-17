@@ -29,7 +29,7 @@ set_field() {
 		ids=$(records | jq -r --arg p "$TMUX_PANE" 'map(select(.pane == $p)) | max_by(.at) | .id // empty')
 	fi
 	[ -n "$ids" ] || die "no session ${who:-in pane $TMUX_PANE}"
-	[ "$(wc -l <<<"$ids")" = 1 ] || die "'$who' is $(tr '\n' ' ' <<<"$ids")— name one by its id"
+	[ "$(wc -l <<<"$ids")" -eq 1 ] || die "'$who' is $(tr '\n' ' ' <<<"$ids")— name one by its id"
 	local file="$dir/$ids.json" tmp
 	tmp=$(mktemp "$dir/.$ids.XXXXXX") || die "cannot write in $dir"
 	if jq --arg k "$key" --arg v "$text" '.[$k] = (if $v == "" then null else $v end)' "$file" >"$tmp"; then
