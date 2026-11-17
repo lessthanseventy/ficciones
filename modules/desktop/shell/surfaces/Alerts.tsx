@@ -179,11 +179,20 @@ export function Stickies() {
 /** an info toast: goes by after the toast time and is dismissed for good when it does, so a key
  * shows once (the state file keeps it down across a restart while the server still lists it) */
 function Info({ a }: { a: Alert }) {
-  const t = timeout(Math.max(1, setting("notify.toastSeconds").peek()) * 1000, () => dismiss(a))
-  onCleanup(() => t.cancel())
+  // the time runs only while it is on screen: under the hub or a fullscreen window the column is
+  // hidden, and a toast that went by there was never seen
+  let t: ReturnType<typeof timeout> | null = null
+  const stop = () => { t?.cancel(); t = null }
+  onCleanup(stop)
   return (
     <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-info"]} spacing={4}>
-      <label selectable cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={44} />
+      <label
+        selectable cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={44}
+        $={(self) => {
+          self.connect("map", () => { stop(); t = timeout(Math.max(1, setting("notify.toastSeconds").peek()) * 1000, () => dismiss(a)) })
+          self.connect("unmap", stop)
+        }}
+      />
       <box cssClasses={["actions"]} spacing={8} visible={!!a.thread_id}>
         <button cssClasses={["act", "dim"]} onClicked={() => { dismiss(a); void openThread(a.thread_id!) }}><label label="Open" /></button>
       </box>
