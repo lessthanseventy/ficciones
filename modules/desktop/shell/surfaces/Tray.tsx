@@ -261,6 +261,17 @@ const thumb = (file: string): Gdk.Texture | null => {
 const newestKind = createPoll("—", 15_000, async () => {
   try { const c = parseClip((await execAsync(["sh", "-c", "cliphist list | head -n 1"])).trim()); return c ? (c.kind === "image" ? "img" : "txt") : "—" } catch { return "—" }
 })
+// a decoded clip outlives its entry in cliphist otherwise: a wiped screenshot stays on disk
+function pruneClips(keep: Set<string>) {
+  try {
+    const dir = Gio.File.new_for_path(CLIP_DIR)
+    const files = dir.enumerate_children("standard::name", Gio.FileQueryInfoFlags.NONE, null)
+    for (let info = files.next_file(null); info; info = files.next_file(null)) {
+      const name = info.get_name()
+      if (!keep.has(name.split(".")[0])) dir.get_child(name).delete(null)
+    }
+  } catch (e) { console.error(e) }
+}
 async function refreshClips() {
   try {
     const out = await execAsync(["sh", "-c", "cliphist list | head -n 6"])
@@ -270,6 +281,7 @@ async function refreshClips() {
     await Promise.all(clips.filter((c) => c.file && !GLib.file_test(c.file, GLib.FileTest.EXISTS))
       .map((c) => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${c.id}\t' | cliphist decode > "$1"`, "_", c.file!]).catch(() => {})))
     setRecentClips(clips)
+    pruneClips(new Set(clips.map((c) => c.id)))
   } catch { setRecentClips([]) }
 }
 const copyClip = (c: Clip) => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${c.id}\t' | cliphist decode | wl-copy`]).then(refreshClips).catch(console.error)
