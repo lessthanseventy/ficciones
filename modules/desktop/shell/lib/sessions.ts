@@ -58,8 +58,10 @@ async function livePanes(all: Session[]): Promise<Set<string>> {
 }
 
 let reading = false
+let again = false
 async function refresh() {
-  if (reading) return
+  // a record written while this reads is read after it, not a minute later
+  if (reading) { again = true; return }
   reading = true
   try {
     const all = records()
@@ -70,7 +72,10 @@ async function refresh() {
     for (const sfx of new Set(chimes(before, now, at))) play(sfx)
     setSessions(now)
     setReadAt(Date.now() / 1000)
-  } finally { reading = false }
+  } finally {
+    reading = false
+    if (again) { again = false; void refresh() }
+  }
 }
 
 try { GLib.mkdir_with_parents(DIR, 0o700) } catch { /* the hook makes it too */ }
