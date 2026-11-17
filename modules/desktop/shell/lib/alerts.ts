@@ -78,9 +78,12 @@ export async function refreshAlerts() {
     // poll would otherwise do under the pointer — eating a click, wiping a half-typed reply
     const next = fresh.map((a) => { const p = was.get(a.key); return p && JSON.stringify(p) === JSON.stringify(a) ? p : a })
     if (next.length !== prev.length || next.some((a, i) => a !== prev[i])) setAll(next)
-    // forget what has dropped off for good, so the state file does not grow forever
-    const live = new Set(next.map((a) => a.key)), k = kept.peek()
-    if (k.dismissed.some((d) => !live.has(d))) save({ ...k, dismissed: k.dismissed.filter((d) => live.has(d)) })
+    // forget what has dropped off for good, and a snooze that has run out, so the state file does
+    // not grow forever. Not on an empty answer: a server still starting would undo every dismissal
+    const live = new Set(next.map((a) => a.key)), k = kept.peek(), at = Date.now() / 1000
+    const dismissed = next.length ? k.dismissed.filter((d) => live.has(d)) : k.dismissed
+    const snoozed = Object.fromEntries(Object.entries(k.snoozed).filter(([, until]) => until > at))
+    if (dismissed.length !== k.dismissed.length || Object.keys(snoozed).length !== Object.keys(k.snoozed).length) save({ ...k, dismissed, snoozed })
   } catch { /* the channel is down: keep what is up */ }
   setNow(Date.now() / 1000)
 }
