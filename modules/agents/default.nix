@@ -15,7 +15,7 @@
   ...
 }:
 let
-  # server' self-contained release, built in tlon's `.release` checkout at its release
+  # The server's self-contained release, built in tlon's `.release` checkout at its release
   # pointer (tlon's `release:cut` task moves it; a merge to main deploys nothing). The
   # service below runs it headless; `server:console`/`:restart` drive the same
   # bin/server, so node + cookie agree via the release's own env.sh.
@@ -166,9 +166,7 @@ in
   # self-contained release (tlon's `server:release` task) means ExecStart is one
   # absolute path with no toolchain on PATH. ExecStartPre migrates first —
   # server never serves on a schema it can't repair. LOOPBACK-only. The store is
-  # Postgres `tlon` on the local socket (one-brain piece C, 2026-09-18; the SQLite
-  # corpus at ~/.local/share/funes/wb.db was copied in once with
-  # `mix server.import_sqlite`). Node name + cookie come from the release's own env.sh, so
+  # Postgres `tlon` on the local socket. Node name + cookie come from the release's own env.sh, so
   # `server:console`/`:restart` reach THIS node. Build the release before the first
   # `home:switch` that starts it.
   # The machine seed tlon's Server.Seed applies on every boot: this box's workspaces and
