@@ -12,6 +12,8 @@ const SUMMARISE = 'Below are the tool calls a coding assistant made in one turn,
 const MAX_KEPT_SUMMARIES = 50
 const MAX_GROUP_LINES = 12
 const MAX_KEPT_DURATIONS = 2000
+// each is a call's whole output
+const MAX_KEPT_REPLIES = 500
 
 // The calls drawn as one line each; any other tool keeps Claude Code's own row.
 const ROWED = new Set(['Bash', 'Read', 'Edit', 'Write', 'Grep', 'Glob'])
@@ -145,11 +147,14 @@ export const register: Register = on => {
       durations.set(id, Date.now() - started)
       $.ui.invalidate('ui.render')
     }
-    if ((e as { agentId?: string }).agentId === undefined) {
-      const call = { tool: e.tool, input: e, output: (result as { result?: unknown }).result }
-      const edited = shellEdits(call.output).map(({ name, adds, dels }) => ` · ${name} +${adds} -${dels}`).join('')
-      turnLines = [...turnLines, turnLine(call, (result as { isError?: boolean }).isError === true) + edited].slice(-MAX_TURN_LINES)
-    }
+    // The tool has already run: a result of a shape these do not expect must not cost it its result.
+    try {
+      if ((e as { agentId?: string }).agentId === undefined) {
+        const call = { tool: e.tool, input: e, output: (result as { result?: unknown }).result }
+        const edited = shellEdits(call.output).map(({ name, adds, dels }) => ` · ${name} +${adds} -${dels}`).join('')
+        turnLines = [...turnLines, turnLine(call, (result as { isError?: boolean }).isError === true) + edited].slice(-MAX_TURN_LINES)
+      }
+    } catch {}
     return result
   })
 
@@ -170,6 +175,7 @@ export const register: Register = on => {
   // A result's own props do not say what ran, so the calls a line was drawn for are kept by id.
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
     if (!canDraw || e.props.isExpanded || !ours.has(e.props.tool_use_id)) return next(e)
+    if (!replies.has(e.props.tool_use_id) && replies.size >= MAX_KEPT_REPLIES) replies.delete(replies.keys().next().value ?? '')
     replies.set(e.props.tool_use_id, e.props.output)
     const { Box } = $.ui.resolve(e)
     return <Box />
