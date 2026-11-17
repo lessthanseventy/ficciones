@@ -275,10 +275,12 @@ in
         "millennium/quick.css" = via "steam.css";
 
         # Qt: qt6ct owns the palette + font, kvantum draws the widgets, the qss covers what neither reaches.
-        "qt6ct/qt6ct.conf".text = render.qt6ctConf;
+        "qt6ct/qt6ct.conf".text = render.qt6ctConf config.xdg.configHome;
         "qt6ct/colors/ficciones.conf" = via "qt6ct-colors.conf";
         "qt6ct/qss/ficciones.qss" = via "qt.qss";
-        "qt5ct/qt5ct.conf".text = builtins.replaceStrings [ "qt6ct" ] [ "qt5ct" ] render.qt6ctConf;
+        "qt5ct/qt5ct.conf".text = builtins.replaceStrings [ "qt6ct" ] [ "qt5ct" ] (
+          render.qt6ctConf config.xdg.configHome
+        );
         "qt5ct/colors/ficciones.conf" = via "qt6ct-colors.conf";
         "qt5ct/qss/ficciones.qss" = via "qt.qss";
         "Kvantum/kvantum.kvconfig".text = "[General]\ntheme=ficciones\n";

@@ -685,11 +685,11 @@ rec {
       inactive_colors=${row "cc"}
       disabled_colors=${row "50"}
     '';
-  qt6ctConf = ''
+  qt6ctConf = config_home: ''
     [Appearance]
     color_scheme_path=${config_home}/qt6ct/colors/ficciones.conf
     custom_palette=true
-    icon_theme=breeze-dark
+    icon_theme=${desktop.iconTheme}
     standard_dialogs=default
     style=kvantum
     stylesheets=${config_home}/qt6ct/qss/ficciones.qss
@@ -714,7 +714,7 @@ rec {
     [Troubleshooting]
     force_raster_widgets=1
   '';
-  config_home = "/home/andrew/.config";
+
   kvantumConfig = fill (builtins.readFile ./templates/kvantum/ficciones.kvconfig) templateSubs;
   kvantumSvg = fill (builtins.readFile ./templates/kvantum/ficciones.svg) templateSubs;
   qss = "/* ${gen} */\n" + fill (builtins.readFile ./templates/ficciones.qss) templateSubs;
