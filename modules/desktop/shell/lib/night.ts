@@ -15,7 +15,8 @@ function apply(on: boolean) {
   if (applied === on) return
   applied = on
   setNightState(on)
-  execAsync(["hyprctl", "hyprsunset", ...(on ? ["temperature", String(setting("look.nightKelvin").peek())] : ["identity"])]).catch(console.error)
+  // not applied after all (hyprsunset not up yet): the next tick tries again
+  execAsync(["hyprctl", "hyprsunset", ...(on ? ["temperature", String(setting("look.nightKelvin").peek())] : ["identity"])]).catch((e) => { applied = null; console.error(e) })
 }
 
 /** Is it after sunset or before sunrise? By the forecast's times of day, not its date: offline the
