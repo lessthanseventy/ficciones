@@ -19,7 +19,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 | `check:mods` | the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing), their list of menard's verbs against menard's, and the review pane's copy of the diff reader against the changes pane's (a mod may import only its own files) |
 | `check:names` | names-exist gate: every mise task a guide names must exist (grep, offline, fast) |
 | `check:session` | the session command sets a session's goal and next, and briefs them |
-| `check:session-state` | the Claude Code hook that keeps each session's record and arena's pane mark writes what it should |
+| `check:session-state` | the Claude Code hook that keeps each session's record writes what it should, and marks no pane |
 | `check:shell` | the desktop shell's own gate (shell:check), where ags is installed |
 
 ## desktop
@@ -85,7 +85,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 | verb | does |
 |---|---|
 | `manual:check` | manual: fail if a generated manual page drifts from its source (run manual:gen) |
-| `manual:gen` | manual: regenerate docs/manual/{keys,tasks,palette}.md from hyprctl binds, mise tasks and render.nix |
+| `manual:gen` | manual: regenerate docs/manual/{keys,tasks,palette}.md from hyprland.lua's binds, mise tasks and the palettes |
 
 ## shell
 
@@ -110,7 +110,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 
 | verb | does |
 |---|---|
-| `theme:contrast` | theme: check BOTH palettes against the WCAG floors in contrast.nix (same check as flake's palette-contrast, with the full table printed) |
+| `theme:contrast` | theme: check EVERY palette against the WCAG floors in contrast.nix (same check as flake's palette-contrast, with the full table printed) |
 | `theme:gen` | theme: rewrite the palette-generated files in the repo from palette.nix (checks.palette-sync fails the flake when they drift) |
 
 ## timezone

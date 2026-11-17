@@ -43,7 +43,7 @@ description = "the CLAUDE_CODE_SHELL_PREFIX wrapper runs a command intact, pinne
 run = "modules/agents/agent-work.test.sh"
 
 ["check:session-state"]
-description = "the Claude Code hook that keeps each session's record and arena's pane mark writes what it should"
+description = "the Claude Code hook that keeps each session's record writes what it should, and marks no pane"
 run = "modules/agents/session-state.test.sh"
 
 ["check:session"]

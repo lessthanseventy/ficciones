@@ -8,7 +8,7 @@ run = "scripts/theme-gen.sh"
 
 # Andrew has low vision: contrast.nix declares the floor for every pair the machine paints.
 ["theme:contrast"]
-description = "theme: check BOTH palettes against the WCAG floors in contrast.nix (same check as flake's palette-contrast, with the full table printed)"
+description = "theme: check EVERY palette against the WCAG floors in contrast.nix (same check as flake's palette-contrast, with the full table printed)"
 run = "nix build --no-link --print-build-logs .#checks.x86_64-linux.palette-contrast"
 
 ["flake:bump"]
@@ -120,7 +120,9 @@ run = [
   # stderr is the gate; a new deprecation is refused the day it lands, not the day 3.0.0 drops.
   "w=$(ags bundle app.tsx \"$(mktemp -d)/astal-shell\" 2>&1 >/dev/null) || w=\"${w:-ags bundle failed, nothing on stderr}\"; if [ -n \"$w\" ]; then echo \"$w\"; echo 'shell:check — bundle wrote to stderr (zero-warning rule)'; exit 1; fi; echo 'shell:check — bundle ok, stderr clean'",
   "ags types -d . -u --ignore Gtk3 --ignore Astal3 >/dev/null",
-  "out=$(npx --yes -p typescript@5 tsc --noEmit -p . 2>&1 | grep -v '^ ' | grep -v '/nix/store' || true); if [ -n \"$out\" ]; then echo \"$out\"; exit 1; fi; echo 'shell:check — tsc ok'",
+  # only an error whose FILE is in the store is dropped: tsc also prints a store path inside the
+  # message of an error in ours, when it has to tell two types apart
+  "out=$(npx --yes -p typescript@5 tsc --noEmit -p . 2>&1 | grep -v '^ ' | grep -vE '^[^(]*/nix/store/' || true); if [ -n \"$out\" ]; then echo \"$out\"; exit 1; fi; echo 'shell:check — tsc ok'",
   # tsc does not report @deprecated, so gnim's two deprecated forms are refused by grep
   "dep=$(grep -rnE 'createComputed\\(\\s*\\[|\\.get\\(\\)' --include=*.ts --include=*.tsx --exclude-dir=node_modules --exclude-dir=@girs . || true); if [ -n \"$dep\" ]; then echo \"$dep\"; echo 'shell:check — deprecated gnim API: createComputed(() => …) not the deps array, .peek() not .get()'; exit 1; fi; echo 'shell:check — no deprecated gnim API'",
   "node --test lib/*.test.mjs",
@@ -142,13 +144,13 @@ run = "journalctl --user -u astal-shell.service -f"
 ["home:switch"]
 description = "machine: apply the home-manager profile"
 run = [
-  "nix run github:nix-community/home-manager -- switch --flake .#personalbox -b backup",
+  "nix run --inputs-from . home-manager -- switch --flake .#personalbox -b backup",
   "scripts/worktrunk-plugin.sh",
 ]
 
 ["home:switch:mac"]
 description = "machine: apply the work Mac's home-manager profile (modules/mac)"
-run = "nix run github:nix-community/home-manager -- switch --flake .#anmoore -b pre-ficciones"
+run = "nix run --inputs-from . home-manager -- switch --flake .#anmoore -b pre-ficciones"
 
 ["hyprland:install"]
 description = "machine (sudo): once on Arch — point /run/opengl-driver at the flake's mesa and give ly a session for the flake's Hyprland (modules/arch)"
@@ -200,13 +202,10 @@ sudo systemctl enable automatic-timezoned
 sudo systemctl restart automatic-timezoned
 '''
 
-# The one update verb (omarchy-update's shape, 2026-09-17): apply THIS checkout to the running
-# machine — profile, shell, server — in the order their dependencies require. Moving the pins is a
-# separate, committable step (flake:bump), not part of applying.
 # The manual (docs/manual): the generated pages come from their sources, never by hand —
-# keys from the live compositor, verbs from mise, the palette from render.nix. `--check` diffs.
+# keys from hyprland.lua, verbs from mise, the palette from palettes/. `--check` diffs.
 ["manual:gen"]
-description = "manual: regenerate docs/manual/{keys,tasks,palette}.md from hyprctl binds, mise tasks and render.nix"
+description = "manual: regenerate docs/manual/{keys,tasks,palette}.md from hyprland.lua's binds, mise tasks and the palettes"
 run = "scripts/manual-gen.sh"
 
 ["manual:check"]
@@ -221,6 +220,9 @@ run = "scripts/headless-desktop.sh"
 description = "desktop: prove the private headless desktop starts its own accessibility bus and leaves the live one alone"
 run = "scripts/headless-desktop.test.sh"
 
+# The one update verb: apply THIS checkout to the running machine — profile, shell, server — in
+# the order their dependencies require. Moving the pins is a separate, committable step
+# (flake:bump), not part of applying.
 ["machine:update"]
 description = "machine: apply the checkout to the live machine — home:switch, then restart the shell and the server"
 run = [

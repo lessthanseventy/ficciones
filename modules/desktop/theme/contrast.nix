@@ -1,5 +1,5 @@
 # The WCAG floor, as data. Every foreground/background pair the machine actually paints,
-# with the ratio it must clear — checked against BOTH palettes by `checks.palette-contrast`
+# with the ratio it must clear — checked against EVERY palette by `checks.palette-contrast`
 # (flake.nix) and `mise theme:contrast`. Andrew has low vision: AAA (7:1) is the bar for
 # text, and WCAG's 3:1 non-text floor is the bar for a band or border you must be able to
 # find. A pair that cannot be raised without breaking something else carries its real
