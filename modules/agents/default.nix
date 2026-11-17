@@ -20,33 +20,10 @@ let
   # service below runs it headless; `server:console`/`:restart` drive the same
   # bin/server, so node + cookie agree via the release's own env.sh.
   serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
-  # Claude Code's hooks keeping each session's record in $XDG_RUNTIME_DIR/sessions, which the
-  # desktop shell reads, and the pane option arena marks windows by (./session-state.sh).
-  sessionStateBin = pkgs.writeShellScript "session-state" (
-    "PATH=${pkgs.jq}/bin:$PATH\n" + builtins.readFile ./session-state.sh
-  );
-  sessionState = event: {
-    hooks = [
-      {
-        type = "command";
-        command = "${sessionStateBin} ${event}";
-      }
-    ];
-  };
-  sessionHooks = pkgs.writeText "session-hooks.json" (
-    builtins.toJSON {
-      SessionStart = [ (sessionState "start") ];
-      UserPromptSubmit = [ (sessionState "prompt") ];
-      PostToolUse = [ (sessionState "tool") ];
-      Stop = [ (sessionState "stop") ];
-      Notification = [
-        ((sessionState "waiting") // { matcher = "permission_prompt|elicitation_dialog"; })
-      ];
-      SessionEnd = [ (sessionState "end") ];
-    }
-  );
 in
 {
+  imports = [ ./session-hooks.nix ];
+
   # rbw — Bitwarden CLI with an unlock agent, for interactive password management.
   # Config here is non-secret/declarative; master password + vault stay with Bitwarden.
   # Machine secrets (OLLAMA_API_KEY) use agenix, not rbw — rbw needs an interactive unlock,
@@ -141,13 +118,11 @@ in
   # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
   # diffSidebarOpen off, in ~/.claude.json: the app's own diff panel opens on an edit otherwise,
   # and while it shows the dock gets no columns, so that pane has nowhere to draw.
-  # The session hooks replace any earlier copy of themselves (and the inline arena hooks they
-  # grew from) and leave every other hook be.
   home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     cfg="$HOME/.claude/settings.json"
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} '.env += {
+      if ${pkgs.jq}/bin/jq '.env += {
            ZDOTDIR: (env.HOME + "/.claude/zsh"),
            GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
            GIT_TERMINAL_PROMPT: "0" }
@@ -155,9 +130,7 @@ in
              | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") | not)))
                + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}"] | join(":"))
          | .autoCompactWindow = 433000
-         | .enabledPlugins["cc-plugin-diff@builtin"] = false
-         | .hooks = reduce ($sessions[0] | to_entries[]) as $e (.hooks // {};
-             .[$e.key] = [(.[$e.key] // [])[] | select(tostring | test("@arena_claude|-session-state ") | not)] + $e.value)' "$cfg" > "$tmp"; then
+         | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"
         run mv -f "$tmp" "$cfg"
       else

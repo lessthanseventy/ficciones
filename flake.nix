@@ -333,6 +333,7 @@
         extraSpecialArgs.expertPackages = inputs.expert.packages;
         modules = [
           ./modules/mac
+          ./modules/agents/session-hooks.nix
           ./modules/tmux.nix
           ./modules/menard-host.nix
           {
