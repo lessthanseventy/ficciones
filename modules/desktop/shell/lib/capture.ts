@@ -92,12 +92,15 @@ export async function annotate(what: Target = "region") {
 }
 
 let rec: Process | null = null
+let recStarting = false
 let recFile = ""
 export const [recording, setRecording] = createState<string | null>(null)
 
 export async function startRecording(what: "region" | "monitor") {
-  if (rec) return
-  const g = await geometry(what)
+  // a second start while the first is still picking its region would spawn a second recorder
+  if (rec || recStarting) return
+  recStarting = true
+  const g = await geometry(what).finally(() => { recStarting = false })
   if (!g) return
   GLib.mkdir_with_parents(recsDir(), 0o755)
   recFile = `${recsDir()}/${stamp()}_${what}.mp4`

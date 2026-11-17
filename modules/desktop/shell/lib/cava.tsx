@@ -13,7 +13,7 @@ function cava() {
     inst = Cava.get_default()
     // 30 fps (sound.vizFps) is plenty for block glyphs and halves the shell's own CPU
     if (inst) {
-      inst.bars = setting("sound.vizBars").peek() * 2; inst.set_stereo(true); inst.framerate = setting("sound.vizFps").peek()
+      inst.bars = Math.max(1, setting("sound.vizBars").peek()) * 2; inst.set_stereo(true); inst.framerate = Math.min(60, Math.max(5, setting("sound.vizFps").peek()))
       // silence is not free: libcava resamples and FFTs it at 30 fps regardless (~3% of a core
       // at idle, measured). Run only while sound actually plays (lib/sound).
       const c = inst

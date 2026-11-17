@@ -257,6 +257,9 @@ export async function pinSidecar(c: Hyprland.Client) {
   settleUntil = Date.now() + 1200
   timeout(80, relayout)
   timeout(400, () => place(c.address, m, col))
+  // pinned again before the first pin was through: its zone and ring go, or the column is reserved twice
+  const stale = sidecars.get(name)
+  if (stale) { stale.zone.destroy(); stale.frame.destroy() }
   sidecars.set(name, { address: c.address, zone: makeZone(name, col), frame: makeFrame(name, m, col, c.address), col, m, width: surfW(col) })
   fitMethod()
   publish()

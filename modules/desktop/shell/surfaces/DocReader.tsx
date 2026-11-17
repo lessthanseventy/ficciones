@@ -9,6 +9,14 @@ import { markdownToPango } from "../lib/markdown"
 import { ROLE } from "../lib/palette"
 import { closeKeys } from "../lib/keys"
 import { clickawayField } from "./Clickaway"
+import GLib from "gi://GLib?version=2.0"
+import Pango from "gi://Pango?version=1.0"
+
+// crossed emphasis (`**a *b** c*`) comes out mis-nested, and Pango then draws nothing of the doc
+function readable(text: string): string {
+  const markup = markdownToPango(text, ROLE.body, ROLE.key)
+  try { Pango.parse_markup(markup, -1, ""); return markup } catch { return GLib.markup_escape_text(text, -1) }
+}
 
 export default function DocReader() {
   const keys = closeKeys({ close: closeDoc, q: true })
@@ -44,7 +52,7 @@ export default function DocReader() {
                 wrap
                 selectable
                 useMarkup
-                label={doc((d) => (d ? markdownToPango(d.text, ROLE.body, ROLE.key) : ""))}
+                label={doc((d) => (d ? readable(d.text) : ""))}
               />
             </scrolledwindow>
           </Panel>
