@@ -2,7 +2,7 @@
 import Gtk from "gi://Gtk?version=4.0"
 import Mpris from "gi://AstalMpris"
 import { soundPids, playerSounding } from "../lib/sound"
-import { For, createBinding, createComputed, type Accessor } from "ags"
+import { For, createBinding, createComputed, onCleanup, type Accessor } from "ags"
 import { meter } from "../lib/format"
 import { createState } from "ags"
 import Gdk from "gi://Gdk?version=4.0"
@@ -54,13 +54,15 @@ function Art({ p }: { p: Mpris.Player }) {
       setTex(Gdk.Texture.new_for_pixbuf(GdkPixbuf.Pixbuf.new_from_file_at_scale(f, -1, ART_H, true)))
     } catch (e) { console.error("media art:", String(e)); cover() }
   }
-  p.connect("notify::cover-art", () => { if (!live) cover() })
+  const onCover = p.connect("notify::cover-art", () => { if (!live) cover() })
   cover()
   // live only while the media popover shows it
-  mediaShown.subscribe(() => {
+  const offShown = mediaShown.subscribe(() => {
     if (mediaShown.peek()) { shot(); live ??= interval(2000, shot) }
     else { live?.cancel(); live = null }
   })
+  // a player that has gone must not go on photographing its window
+  onCleanup(() => { offShown(); p.disconnect(onCover); live?.cancel(); live = null })
   return (
     <box cssClasses={["art"]} heightRequest={ART_H} widthRequest={tex((t) => (t ? t.get_width() : 0))} visible={tex((t) => !!t)}>
       <Gtk.Picture paintable={tex as unknown as Accessor<Gdk.Paintable>} canShrink={false} contentFit={Gtk.ContentFit.CONTAIN} halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} />
