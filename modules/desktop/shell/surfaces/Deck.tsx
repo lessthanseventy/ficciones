@@ -10,7 +10,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
 import Mpris from "gi://AstalMpris"
 import Hyprland from "gi://AstalHyprland"
-import { For, createBinding, createComputed, createState, type Accessor } from "ags"
+import { For, createBinding, createComputed, createState, onCleanup, type Accessor } from "ags"
 import { interval, type Timer as T } from "ags/time"
 import { Panel } from "../lib/tui"
 import { closeKeys } from "../lib/keys"
@@ -111,9 +111,12 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   // the one toggle for the drawer: closeOnPress leaves the log alone (see Clickaway), so a
   // press here closes an open drawer, or closes any other panel and opens the drawer
   const click = new Gtk.GestureClick({ button: 1 })
-  click.connect("pressed", () => { if (deckVisible()) hideDeck(); else { closeAny(); showDeck(gdkmonitor) } })
+  click.connect("pressed", () => { if (deckVisible()) hideDeck(); else showDeck(gdkmonitor) })
+  let win: Astal.Window
+  onCleanup(() => win.destroy())
   return (
     <window
+      $={(self) => (win = self)}
       visible={fullscreenMonitors((fs) => !fs.has(gdkmonitor.connector ?? ""))}
       cssClasses={["deck"]}
       namespace="astal-shell-deck"
@@ -218,6 +221,8 @@ let mediaPops = 0
 
 export function showDeck(on?: Gdk.Monitor) {
   if (!deckWin) return
+  // one panel at a time: the clickaway holds a single closer
+  closeAny()
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = on ?? app.get_monitors().find((m) => m.connector === name)
   if (mon) deckWin.gdkmonitor = mon

@@ -17,7 +17,7 @@ import { Toggles } from "../panes/Toggles"
 import { isFullscreen } from "../lib/hypr"
 import { deckVisible } from "./Deck"
 import { officeVisible } from "./Office"
-import { armClickaway, disarmClickaway, clickawayField } from "./Clickaway"
+import { armClickaway, closeAny, disarmClickaway, clickawayField } from "./Clickaway"
 import { setting } from "../lib/settings"
 import { closeKeys } from "../lib/keys"
 
@@ -55,6 +55,8 @@ let hubWin: Astal.Window | null = null
 export const [hubOpen, setHubOpen] = createState(false)
 export function showHub(on?: Gdk.Monitor) {
   if (!hubWin) return
+  // one panel at a time: the clickaway holds a single closer
+  closeAny()
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = on ?? app.get_monitors().find((m) => m.connector === name)
   if (mon) hubWin.gdkmonitor = mon
@@ -96,9 +98,11 @@ export function startHotEdge() {
     if (hubWin?.visible || deckVisible() || officeVisible()) { since = Date.now() + 1e9; return }
     // the right edge only: the deck opens on a click (Andrew, 2026-09-07: no hover for it)
     const mons = Hyprland.get_default().get_monitors()
-    const mon = mons.find(
-      (m) => x >= m.x + m.width - 2 && x < m.x + m.width && y >= m.y + BAR_H && y < m.y + m.height - BAR_H,
-    )
+    // cursorpos is in layout coordinates, a monitor's size in pixels of its mode
+    const mon = mons.find((m) => {
+      const w = m.width / m.scale, h = m.height / m.scale
+      return x >= m.x + w - 2 && x < m.x + w && y >= m.y + BAR_H && y < m.y + h - BAR_H
+    })
     // no hot edge on a monitor showing a film
     if (!mon || isFullscreen(mon.name)) { since = 0; armedFor = null; return }
     if (armedFor !== mon.name) { armedFor = mon.name; since = Date.now(); return }
