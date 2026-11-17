@@ -92,8 +92,10 @@ export async function adoptSidecars(tries = 40) {
 }
 
 async function monitorJson(name: string): Promise<MonitorJson | undefined> {
-  const list = JSON.parse(await execAsync(["hyprctl", "monitors", "-j"])) as MonitorJson[]
-  return list.find((m) => m.name === name)
+  try {
+    const list = JSON.parse(await execAsync(["hyprctl", "monitors", "-j"])) as MonitorJson[]
+    return list.find((m) => m.name === name)
+  } catch (e) { console.error("sidecar monitors:", String(e)); return undefined }
 }
 
 
@@ -372,6 +374,13 @@ export function sidecarVerb(what = "toggle", arg?: string) {
   else if (what === "unpin") unpinSidecar(c)
   else toggleSidecar(c)
 }
+
+// A sidecar whose monitor is unplugged: its zone and ring were placed by a geometry that is gone.
+// After the event, once AstalHyprland's own list has dropped the monitor.
+hypr.connect("monitor-removed", () => timeout(100, () => {
+  const names = new Set(hypr.get_monitors().map((m) => m.name))
+  for (const name of [...sidecars.keys()]) if (!names.has(name)) drop(name)
+}))
 
 // A sidecar that closes must give its column back.
 hypr.connect("client-removed", (_, address: string) => {

@@ -33,6 +33,17 @@ const installed = Gio.AppInfoMonitor["get"]()
 installed.connect("changed", () => apps.reload())
 const home = GLib.get_home_dir()
 const REPO = `${home}/projects/ficciones`
+// the list for a few seconds, not a mise process a keystroke
+type Verb = { name: string; description?: string }
+let verbsRead: { at: number; tasks: Promise<Verb[]> } | null = null
+function verbs(): Promise<Verb[]> {
+  if (!verbsRead || Date.now() - verbsRead.at > 10_000) {
+    const tasks = execAsync(["mise", "--cd", REPO, "tasks", "ls", "--json"]).then((r) => JSON.parse(r) as Verb[])
+    verbsRead = { at: Date.now(), tasks }
+    tasks.catch(() => { verbsRead = null })
+  }
+  return verbsRead.tasks
+}
 /** A verb runs in its own ghostty window from the repo, and the window stays until you dismiss it. */
 const runVerb = (name: string) =>
   execAsync(["ghostty", `--title=mise ${name}`, "-e", "sh", "-c", `cd ${REPO} && mise run ${name}; printf '\n[done — enter to close] '; read _`]).then(() => void 0)
@@ -128,8 +139,7 @@ async function search(q: string) {
     } else if (m === "verbs") {
       // `>` — the machine's verbs (omarchy-menu's shape, steals doc O3): every mise task in the
       // repo, run in its own ghostty so its output is a window, not a lost stdout
-      const r = await execAsync(["mise", "--cd", REPO, "tasks", "ls", "--json"])
-      const tasks = JSON.parse(r) as { name: string; description?: string }[]
+      const tasks = await verbs()
       const needle = body.toLowerCase()
       out = tasks
         .filter((t) => !needle || t.name.toLowerCase().includes(needle) || (t.description ?? "").toLowerCase().includes(needle))
