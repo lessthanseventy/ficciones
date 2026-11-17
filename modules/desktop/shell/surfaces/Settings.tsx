@@ -170,6 +170,12 @@ function Backdrop() {
       <Row label="ambient smoothness" hint="how often the smooth ambients step; costs CPU">
         <Stepper k="backdrop.smoothHz" stops={[10, 15, 20, 25, 30]} fmt={(n) => `${n} Hz`} />
       </Row>
+      <Row label="spectrum" hint="the sound as bars along the foot, over the photo or the ambient">
+        <OnOff k="backdrop.spectrum" />
+      </Row>
+      <Row label="spectrum height" hint="the tallest bar, as a share of the monitor">
+        <Stepper k="backdrop.spectrumHeight" stops={[0.1, 0.15, 0.25, 0.33, 0.5]} fmt={(n) => `${Math.round(n * 100)} %`} />
+      </Row>
       <Row label="hacks" hint="pick one to watch it; ✓ puts it in the rotation">
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
           <box spacing={8} cssClasses={["prompt", "set-search"]}>
