@@ -75,8 +75,9 @@ export function toggleHub() {
 
 /**
  * The hot edge: the pointer parked within 2px of a monitor's right edge for feel.hotEdgeMs opens the
- * hub on that monitor. Polled from Hyprland's socket at 5 Hz — a layer surface for the strip
- * would not shrink below 200px and swallowed clicks.
+ * hub on that monitor. Polled from Hyprland's socket at 2 Hz — a layer surface for the strip
+ * would not shrink below 200px and swallowed clicks. No faster: Hyprland logs every connection,
+ * and at 5 Hz these were most of a log that grew by 75 MB a day.
  *
  * The BARS are excluded: the bar's own right end holds the gauges, battery and agents, whose
  * popovers you reach by parking the pointer there — exactly the gesture that armed the edge.
@@ -88,7 +89,7 @@ const BAR_H = 36
 export function startHotEdge() {
   let since = 0
   let armedFor: string | null = null
-  interval(200, () => {
+  interval(500, () => {
     let x = 0, y = 0
     try { [x, y] = query("cursorpos").split(",").map((v) => Number(v.trim())) } catch { return }
     // open: nothing here — the hub and the deck close on Esc or a click outside, not on the
