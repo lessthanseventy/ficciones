@@ -4,7 +4,7 @@ export const PALETTE = {
   green: "#33FF00",
   pink: "#F06FB6",
   cyan: "#33C7FF",
-  lilac: "#B98AFF",
+  lilac: "#B4A5D6",
   chip: "#FFB000",
   red: "#FF7575",
   dim: "#BB9D53",

@@ -179,7 +179,7 @@ rec {
       green = hex h.green;
       pink = hex h.pink;
       cyan = hex h.cyan;
-      lilac = hex h.violet;
+      lilac = hex h.lilac;
       chip = hex h.chip;
       red = hex h.red;
       dim = hex h.dim;
@@ -197,7 +197,7 @@ rec {
         green: "${hex h.green}",
         pink: "${hex h.pink}",
         cyan: "${hex h.cyan}",
-        lilac: "${hex h.violet}",
+        lilac: "${hex h.lilac}",
         chip: "${hex h.chip}",
         red: "${hex h.red}",
         dim: "${hex h.dim}",
