@@ -8,8 +8,8 @@
 #   scripts/cap.sh bash scratchpad/thing.sh
 #   mise run cap -- mise exec -- mix test
 #
-# Knobs (env): CAP_TAIL (tail lines, default 40), CAP_KEEP (logs to retain, default 40),
-# CAP_WIDTH (printed line width, default 200; the log keeps whole lines).
+# Knobs (env): CAP_TAIL (tail lines, or `all`), CAP_SIGNAL (signal lines, default 12), CAP_KEEP
+# (logs to retain, default 40), CAP_WIDTH (printed line width, default 200; the log keeps whole lines).
 set -uo pipefail
 
 [ "$#" -gt 0 ] || {
@@ -26,7 +26,8 @@ mkdir -p "$log_dir"
 
 ts="$(date +%Y%m%dT%H%M%S)"
 slug="$(printf '%s' "$*" | tr -c 'A-Za-z0-9' '-' | tr -s '-' | cut -c1-48)"
-log="$log_dir/${ts}-${slug}.log"
+# the pid: a watcher and a hand run of one command in one second must not share a log
+log="$log_dir/${ts}-${slug}-$$.log"
 
 # All output goes to the log only — not streamed into context. Strip ANSI as we store
 # (pure noise). pipefail keeps the WRAPPED command's exit code, not sed's.
