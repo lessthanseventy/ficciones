@@ -1,7 +1,7 @@
 # Keys
 
 Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — edit THAT, never this file.
-130 binds. `SUPER` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).
+132 binds. `SUPER` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).
 
 ## launch
 
@@ -16,6 +16,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `CTRL+SUPER+V` | audio mixer |
 | `CTRL+SHIFT+Escape` | btop |
 | `CTRL+SUPER+Slash` | open this config |
+| `ALT+SUPER+C` | pick a palette colour by name |
 | `CTRL+SUPER+M` | play the stream on the clipboard |
 | `CTRL+ALT+L` | lock |
 | `CTRL+SHIFT+ALT+SUPER+Delete` | power off |
@@ -154,6 +155,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `SHIFT+Print` | record the monitor |
 | `CTRL+SHIFT+Print` | stop recording |
 | `SUPER+P` | colour picker |
+| `ALT+SUPER+P` | colour picker, as rgb |
 | `SUPER+SHIFT+X` | read the text in a region to the clipboard |
 
 ## media

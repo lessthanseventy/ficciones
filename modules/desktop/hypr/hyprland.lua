@@ -629,6 +629,8 @@ bind("CTRL + SHIFT + Print", exec(shell .. "/shell-req.sh capture stop"))
 
 -- ----- Color picker / OCR -----
 bind(M .. " + P", exec("hyprpicker -a"))
+bind("ALT + " .. M .. " + P", exec([[hyprpicker -a -f rgb -o 'rgb({0}, {1}, {2})']])) -- colour picker, as rgb
+bind("ALT + " .. M .. " + C", exec("kitty --class fzf-picker " .. shell .. "/palette-pick.sh")) -- pick a palette colour by name
 bind(M .. " + SHIFT + X", exec([[bash -c 'f=$(mktemp --suffix=.png) && grim -g "$(slurp)" "$f" && tesseract "$f" - | wl-copy; rm -f "$f"']])) -- read the text in a region to the clipboard
 
 -- ----- Audio (locked + repeating = the old bindle; locked = bindl) -----

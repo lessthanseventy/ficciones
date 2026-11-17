@@ -46,6 +46,11 @@
  },
  {
   "group": "launch",
+  "keys": "ALT+SUPER+C",
+  "does": "pick a palette colour by name"
+ },
+ {
+  "group": "launch",
   "keys": "CTRL+SUPER+M",
   "does": "play the stream on the clipboard"
  },
@@ -558,6 +563,11 @@
   "group": "capture",
   "keys": "SUPER+P",
   "does": "colour picker"
+ },
+ {
+  "group": "capture",
+  "keys": "ALT+SUPER+P",
+  "does": "colour picker, as rgb"
  },
  {
   "group": "capture",

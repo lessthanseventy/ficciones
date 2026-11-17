@@ -412,6 +412,7 @@ in
       "hypr/scripts/launch_hyprland.sh" = linkTo "scripts/launch_hyprland.sh";
       "hypr/scripts/shot-region.sh" = linkTo "scripts/shot-region.sh";
       "hypr/scripts/shell-req.sh" = linkTo "scripts/shell-req.sh";
+      "hypr/scripts/palette-pick.sh" = linkTo "scripts/palette-pick.sh";
 
       # CRT screen shaders, switched by path (hyprctl keyword decoration:screen_shader …).
       "hypr/shaders/crt-full.glsl" = linkTo "shaders/crt-full.glsl";
