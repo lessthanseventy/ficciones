@@ -69,6 +69,7 @@ cmd-alt-6 = 'workspace 6'
 cmd-alt-7 = 'workspace 7'
 cmd-alt-8 = 'workspace 8'
 cmd-alt-9 = 'workspace 9'
+cmd-alt-0 = 'workspace 10'
 
 cmd-alt-shift-1 = 'move-node-to-workspace 1'
 cmd-alt-shift-2 = 'move-node-to-workspace 2'
@@ -79,6 +80,7 @@ cmd-alt-shift-6 = 'move-node-to-workspace 6'
 cmd-alt-shift-7 = 'move-node-to-workspace 7'
 cmd-alt-shift-8 = 'move-node-to-workspace 8'
 cmd-alt-shift-9 = 'move-node-to-workspace 9'
+cmd-alt-shift-0 = 'move-node-to-workspace 10'
 
 cmd-alt-backtick = 'workspace-back-and-forth'
 

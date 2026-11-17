@@ -4,7 +4,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Right Cmd drives AeroSpace (sent as Cmd+Opt); left Cmd stays plain Cmd. Right Cmd+Tab reaches AeroSpace, right Cmd+` opens the app switcher.",
+                        "description": "Cmd drives AeroSpace (sent as Cmd+Opt): either Cmd on 0-9 and j/k, right Cmd only for the rest, so left Cmd stays plain Cmd elsewhere. Right Cmd+Tab reaches AeroSpace, right Cmd+` opens the app switcher.",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -81,7 +81,7 @@
                                     "key_code": "j",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift",
@@ -105,7 +105,7 @@
                                     "key_code": "k",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift",
@@ -153,7 +153,7 @@
                                     "key_code": "1",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -176,7 +176,7 @@
                                     "key_code": "2",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -199,7 +199,7 @@
                                     "key_code": "3",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -222,7 +222,7 @@
                                     "key_code": "4",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -245,7 +245,7 @@
                                     "key_code": "5",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -268,7 +268,7 @@
                                     "key_code": "6",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -291,7 +291,7 @@
                                     "key_code": "7",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -314,7 +314,7 @@
                                     "key_code": "8",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -337,7 +337,7 @@
                                     "key_code": "9",
                                     "modifiers": {
                                         "mandatory": [
-                                            "right_command"
+                                            "command"
                                         ],
                                         "optional": [
                                             "shift"
@@ -347,6 +347,29 @@
                                 "to": [
                                     {
                                         "key_code": "9",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_option"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "0",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "command"
+                                        ],
+                                        "optional": [
+                                            "shift"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "0",
                                         "modifiers": [
                                             "left_command",
                                             "left_option"
