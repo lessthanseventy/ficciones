@@ -4,7 +4,7 @@
 -- 2026-09-06 crash on login). But cardN is not stable either — it depends on whether simpledrm
 -- claimed a node this boot, so it can differ between two boots. The PCI addresses ARE stable, so resolve those to whatever cardN they
 -- are right now. If resolution fails we set nothing: aquamarine choosing its own order is
--- recoverable, a wrong list is a compositor that never starts (hyprland.lua:49).
+-- recoverable, a wrong list is a compositor that never starts.
 local function card_at(pci)
     local pipe = io.popen("readlink -f /dev/dri/by-path/pci-" .. pci .. "-card 2>/dev/null")
     if not pipe then return nil end
@@ -32,7 +32,10 @@ local external = "desc:Samsung Electric Company LS27D36xG"
 -- Turning a mirror on in a running session crashed Hyprland 0.56.2; the shell only ever breaks
 -- one, by writing "separate" there and reloading (shell/lib/display.ts).
 local function screens()
-    local path = os.getenv("XDG_RUNTIME_DIR") .. "/hypr/" .. os.getenv("HYPRLAND_INSTANCE_SIGNATURE") .. "/ficciones-screens"
+    local run, sig = os.getenv("XDG_RUNTIME_DIR"), os.getenv("HYPRLAND_INSTANCE_SIGNATURE")
+    -- nowhere to keep the answer: a nil here would take the whole config down with it
+    if not run or not sig then return "mirror" end
+    local path = run .. "/hypr/" .. sig .. "/ficciones-screens"
     local f = io.open(path)
     if f then
         local v = f:read("*l")
