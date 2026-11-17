@@ -152,14 +152,14 @@ in
 
     ficciones.desktop.shell.autostart = lib.mkDefault true;
 
-    # sudo's askpass (scripts/sudo-askpass): random glyphs per keystroke; a tty or a dialog
-    # when stdin is not a terminal (hyprpm and friends hang on it).
     # Claude Code skills tracked in tlon's adapters/skills; an out-of-store link so an edit lands
     # without a switch
     home.file.".claude/skills/drive-office".source =
       config.lib.file.mkOutOfStoreSymlink "${tlonRepo}/adapters/skills/drive-office";
     # gh finds extensions only in its own dir, not on PATH: `gh stack` (GitHub's stacked PRs)
     home.file.".local/share/gh/extensions/gh-stack/gh-stack".source = "${pkgs.gh-stack}/bin/gh-stack";
+    # sudo's askpass (scripts/sudo-askpass): random glyphs per keystroke; a tty or a dialog
+    # when stdin is not a terminal (hyprpm and friends hang on it).
     home.file.".local/bin/sudo-askpass" = {
       source = ./scripts/sudo-askpass;
       executable = true;
@@ -445,11 +445,6 @@ in
     # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
     home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
 
-    # The keyring the PAM stack unlocks at login is `login`; with no default pointer, the first
-    # libsecret client asks for the default collection, gets a "create a keyring" prompt, and
-    # gnome-keyring 50 falls over after it (2026-09-07: Default_keyring appeared, then a
-    # segfault). The pointer is gnome-keyring's own file, so it is only ever filled in, never
-    # overwritten.
     # The defaults this machine picks, set in ~/.config/mimeapps.list. Not xdg.mimeApps: that makes
     # the file a read-only store link, and apps register their own handlers there at runtime
     # (Claude Code, dbx, Slack).
@@ -460,6 +455,10 @@ in
       run $m default org.qbittorrent.qBittorrent.desktop application/x-bittorrent x-scheme-handler/magnet
     '';
 
+    # The keyring the PAM stack unlocks at login is `login`; with no default pointer, the first
+    # libsecret client asks for the default collection, gets a "create a keyring" prompt, and
+    # gnome-keyring 50 falls over after it. The pointer is gnome-keyring's own file, so it is
+    # only ever filled in, never overwritten.
     home.activation.keyringDefault = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       d="${config.xdg.dataHome}/keyrings"
       if [ -f "$d/login.keyring" ] && [ ! -s "$d/default" ]; then

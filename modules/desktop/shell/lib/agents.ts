@@ -107,7 +107,7 @@ let opener: (tid: number) => void = () => {}
 export const setOpener = (fn: (tid: number) => void) => { opener = fn }
 export const openInOffice = (tid: number) => opener(tid)
 
-// the always-up service's operator API (loopback; its port is the service's, as flake.nix sets it)
+// the always-up service's operator API (loopback; its port is the service's, as modules/agents/default.nix sets it)
 const API = "http://127.0.0.1:4040/api"
 
 // the command log gets the changes, not the polls: who woke, who slept, who waits on you

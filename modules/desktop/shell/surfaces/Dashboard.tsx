@@ -102,7 +102,6 @@ function Shell() {
   )
 }
 
-/** The big clock: time, date, how long the box has been up. */
 /** The mark: the corner's doubled aleph and the name, the machine under it — its own little
  * card above NOW, so the left column fills to the weather card. */
 function MarkCard() {

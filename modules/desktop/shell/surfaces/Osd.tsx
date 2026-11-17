@@ -1,4 +1,4 @@
-// The OSD: volume and brightness, bottom centre of the focused monitor, up for 1.4 s after a
+// The OSD: volume and brightness, bottom centre of the focused monitor, up for feel.osdHoldMs after a
 // change. Prominent on purpose (Andrew, 2026-09-05: headphone buttons change the volume with
 // nothing on screen). A change made from a popover slider is already visible, so those call
 // `quietOsd()` first and the OSD stays down.

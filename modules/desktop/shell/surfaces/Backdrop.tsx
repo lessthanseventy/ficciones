@@ -1,6 +1,7 @@
 // The backdrop: a background-layer surface per monitor. Underneath, the photo wallpaper
 // (lib/wallpaper.ts — the shell IS the wallpaper daemon, no hyprpaper); on top, when zen is on,
-// a Lorenz attractor in braille with phosphor decay. `astal-shell backdrop zen|photo|toggle`.
+// an ambient (MODE_NAMES) or a hack in braille with phosphor decay. `astal-shell backdrop` takes
+// zen, photo, toggle, cycle, random or an ambient's name (setBackdrop).
 // It earns its place purely by looking incredible (design §6).
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"

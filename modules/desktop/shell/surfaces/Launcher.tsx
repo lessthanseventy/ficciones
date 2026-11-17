@@ -1,7 +1,7 @@
 // The launcher (retires anyrun) and the clipboard picker (retires the fuzzel stopgap): one
 // list widget, two sources. A centred pane with a `>` prompt and a block cursor, results
-// below, the selection in inverse video. Prefixes switch mode: apps by default, `=` calc, `>` verbs (mise tasks)
-// (qalc), `/` files (fd from ~), `:` run a shell line. Up/Down, Ctrl+j/k or Ctrl+n/p, Enter, Escape.
+// below, the selection in inverse video. Prefixes switch mode: apps by default, `=` calc (qalc),
+// `>` verbs (mise tasks), `/` files (fd from ~), `:` run a shell line. Up/Down, Ctrl+j/k or Ctrl+n/p, Enter, Escape.
 import { parseSpec } from "../lib/timer"
 import { L, dispatch, sel as windowSel } from "../lib/hyprlua"
 import { agents } from "../lib/agents"

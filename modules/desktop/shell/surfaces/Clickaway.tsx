@@ -1,7 +1,6 @@
-// Click-away for the panels. A covering layer surface turned out to swallow clicks at the
-// compositor without GTK ever seeing them, so there is none: a click on a window takes the
-// keyboard focus and the panel closes on focus loss (see Drawer/Hub); a press on the rail or
-// bar — which never take focus — closes it through closeOnPress.
+// Click-away for the panels. A panel's own window covers its output, with a `clickaway-field`
+// under the pane: a press there closes it (clickawayField). The rail and bar lie outside those
+// windows, so a press on them closes the open panel through closeOnPress.
 import Gtk from "gi://Gtk?version=4.0"
 
 let closer: (() => void) | null = null

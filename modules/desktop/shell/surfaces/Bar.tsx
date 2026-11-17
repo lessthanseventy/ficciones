@@ -116,8 +116,8 @@ function Windows({ connector }: { connector: string }) {
   )
 }
 
-// A perf cell: icon coloured by load tier, KEY, number, an 8-glyph braille sparkline of the last
-// 16 seconds; click drops the metric's detail pane straight off the cell.
+// A perf cell: icon coloured by load tier, KEY, number, a braille sparkline SPARK_CELLS wide;
+// hover drops the metric's detail pane straight off the cell.
 const SPARK_CELLS = 10
 function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
   const cls = m.frac((f) => ["cell", "perf", tier(f, m.breaks)])
@@ -260,7 +260,6 @@ function RecCell() {
   )
 }
 
-/** The next calendar event and the time to it — the bar's centre; pink inside ten minutes. */
 /** Who waits on you, in words, where the eye rests: the first thread and what it asks; a click opens it. */
 function WaitingCell() {
   const first = agents((a) => a.threads.find((t) => t.awaiting) ?? null)
@@ -277,6 +276,7 @@ function WaitingCell() {
   )
 }
 
+/** The next calendar event and the time to it — the bar's centre; pink inside ten minutes. */
 function NextUpCell() {
   const [now, setNow] = createState(Date.now())
   const tick = interval(15_000, () => setNow(Date.now()))

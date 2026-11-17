@@ -126,7 +126,7 @@ export default function Hub() {
       cssClasses={["hub"]}
       namespace="astal-shell-hub"
       name="hub"
-      layer={Astal.Layer.OVERLAY} // above the clickaway, which sits on TOP
+      layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT}

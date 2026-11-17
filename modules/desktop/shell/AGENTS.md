@@ -23,8 +23,8 @@ Hyprland stacks BACKGROUND < windows < TOP < fullscreen windows < OVERLAY. A sur
 `layer` is TOP.
 
 - BACKGROUND: `backdrop`.
-- TOP (exclusive zones; a floating window cannot cover them): `rail`, `bar`, `deck`, the clickaway
-  fields, and the sidecar.
+- TOP (exclusive zones; a floating window cannot cover them): `rail`, `bar`, `deck`, and the
+  sidecar. A panel's clickaway field is inside the panel's own OVERLAY window.
 - OVERLAY (must show over a fullscreen app): `osd`, `decision` banner, `alarm`, notifications, and
   the summoned panels (launcher, hub, dashboard, settings, cheatsheet, docreader, office, deck
   drawer). A panel is only up while summoned, so covering a capture tool then is intended.
