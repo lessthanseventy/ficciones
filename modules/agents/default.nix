@@ -242,7 +242,7 @@ in
         # the home's inbox polls the Telegram bot: this node only (a second poller takes its messages)
         "TLON_START_HOME_INBOX=1"
         "TLON_MCP_PORT=4040"
-        "TLON_WORKLINE_ROOT=${repo}"
+        "TLON_WORKLINE_ROOT=${tlonRepo}"
         "TLON_MEMORY_PASS=1"
         # the office's small talk, on the cheap ollama tier, only while an office watches
         "TLON_BANTER=1"
