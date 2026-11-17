@@ -176,6 +176,9 @@ function Backdrop() {
       <Row label="spectrum height" hint="the tallest bar, as a share of the monitor">
         <Stepper k="backdrop.spectrumHeight" stops={[0.1, 0.15, 0.25, 0.33, 0.5]} fmt={(n) => `${Math.round(n * 100)} %`} />
       </Row>
+      <Row label="spectrum strength" hint="how solid the bars are over the backdrop">
+        <Stepper k="backdrop.spectrumOpacity" stops={[0.15, 0.25, 0.35, 0.45, 0.6, 0.8, 1]} fmt={(n) => `${Math.round(n * 100)} %`} />
+      </Row>
       <Row label="hacks" hint="pick one to watch it; ✓ puts it in the rotation">
         <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
           <box spacing={8} cssClasses={["prompt", "set-search"]}>

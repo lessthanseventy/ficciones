@@ -42,7 +42,7 @@ function bands(vs: number[], side: "left" | "right", rows: number): number[] {
 export function Spectrum({ covered }: { covered: Accessor<boolean> }) {
   const c = cava()
   if (!c) return <box $type="overlay" visible={false} />
-  const on = setting("backdrop.spectrum"), height = setting("backdrop.spectrumHeight")
+  const on = setting("backdrop.spectrum"), height = setting("backdrop.spectrumHeight"), opacity = setting("backdrop.spectrumOpacity")
   const shown = createComputed(() => on() && soundRunning() && !covered())
   let area: Gtk.DrawingArea | null = null
   const id = c.connect("notify::values", () => { if (shown.peek()) area?.queue_draw() })
@@ -59,7 +59,7 @@ export function Spectrum({ covered }: { covered: Accessor<boolean> }) {
           const vs = c.values, n = vs.length / 2
           const bars = [...vs.slice(0, n).reverse(), ...vs.slice(n)]
           const col = self.get_color()
-          cr.setSourceRGBA(col.red, col.green, col.blue, col.alpha)
+          cr.setSourceRGBA(col.red, col.green, col.blue, Math.min(1, Math.max(0.05, opacity.peek())))
           const bw = w / bars.length, top = h * Math.min(1, Math.max(0.05, height.peek()))
           bars.forEach((v, i) => { const bh = Math.round(curve(v) * top); if (bh > 0) cr.rectangle(i * bw + 1, h - bh, Math.max(1, bw - 2), bh) })
           cr.fill()

@@ -24,6 +24,8 @@ const DEFAULTS = {
   "backdrop.spectrum": true,
   /** how much of the monitor's height the tallest bar takes */
   "backdrop.spectrumHeight": 0.25,
+  /** how solid the bars are: 1 is the body colour, lower lets the backdrop through */
+  "backdrop.spectrumOpacity": 0.45,
   /** the photo backdrop picks a new image this often */
   "wallpaper.rotateMinutes": 5,
   /** the external screen shows the laptop's, from the next login (hypr/hosts/<host>.lua reads it) */
