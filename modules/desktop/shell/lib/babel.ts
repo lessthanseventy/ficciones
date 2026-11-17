@@ -46,7 +46,8 @@ export function ensureBooks() {
   Promise.all(BOOKS.map(async (id) => {
     const f = `${DIR}/pg${id}.txt`
     if (Gio.File.new_for_path(f).query_exists(null)) return
-    try { await execAsync(["curl", "-fsSL", "--max-time", "60", "-o", f, `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`]) } catch { /* a book that will not download stays missing */ }
+    // under another name until it is whole: a download cut short would pass for the book for good
+    try { await execAsync(["sh", "-c", 'curl -fsSL --max-time 60 -o "$1.part" "$2" && mv "$1.part" "$1"', "_", f, `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`]) } catch { /* a book that will not download stays missing */ }
   })).then(() => { loadBooks(); fetching = false })
 }
 
