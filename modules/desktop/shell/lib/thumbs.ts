@@ -38,7 +38,7 @@ async function stableIds(): Promise<Map<string, string>> {
 }
 
 const busy = new Set<number>() // by workspace: each monitor's showing one captures on its own
-/** Capture every window on `ws` (only if it is showing). One grim per window, a quarter scale. */
+/** Capture every window on `ws` (only if it is showing). One grim per window. */
 export async function capture(ws: Hyprland.Workspace | null | undefined) {
   if (!ws || busy.has(ws.id)) return
   const cs = visibleClients(ws)

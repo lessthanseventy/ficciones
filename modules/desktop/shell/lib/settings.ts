@@ -32,9 +32,9 @@ const DEFAULTS = {
   "look.nightKelvin": 4000,
   /** night light on at sunset and off at sunrise; off, only the toggle moves it */
   "look.nightFollowsSun": true,
-  /** how long a toast stays up, unless the sender says; critical ones stay until clicked */
   /** hold off hypridle's lock, screen-off and suspend */
   "power.awake": true,
+  /** how long a toast stays up, unless the sender says; critical ones stay until clicked */
   "notify.toastSeconds": 6,
   "notify.maxToasts": 5,
   "notify.dnd": false,
