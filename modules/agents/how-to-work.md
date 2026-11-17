@@ -80,8 +80,10 @@ merging main in. Rewriting history that is already pushed or shared is the human
   Never join a check to a push or a deploy in one command: with `;` the push runs whether it
   passed or not. Do not discard a tool's own summary to rebuild one with tail.
 - **Wait on notifications, not loops.** Start a long command once in the background and wait for its
-  completion; no `sleep`/`until` poll loops (they outlive you, and `pgrep -f` matches the loop
-  itself). Before saying nothing is running, check your agents and background shells too.
+  completion; no `sleep`/`until` poll loops left in a shell (they outlive you, and `pgrep -f` matches
+  the loop itself). For state nothing will notify you about (a PR merging, a remote queue), use the
+  harness's own tracked monitor: bounded, reading the state itself, ending on every terminal state,
+  not only the good one. Before saying nothing is running, check your agents and background shells too.
 - **The shell is zsh.** An unquoted `$var` is not word-split, so never keep a command in a variable;
   use a function.
 - **Subagents get an explicit model** matched to the work: sonnet for specified builds, reviews and
