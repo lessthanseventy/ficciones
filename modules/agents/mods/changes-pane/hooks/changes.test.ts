@@ -122,7 +122,7 @@ test('l opens lazygit through Ghostty.app where setsid cannot start', async ($, 
   on('process.run', async ($, e) => {
     const line = e.argv.join(' ')
     ran.push(line)
-    if (e.argv[0] === 'setsid') return { deny: 'spawn setsid ENOENT' } as never
+    if (e.argv[0] === 'sh') return { value: { exitCode: 127, stdout: '', stderr: 'sh: setsid: command not found' } } as never
     if (e.argv[0] === 'open') return { value: { exitCode: 0, stdout: '', stderr: '' } } as never
     const stdout = e.argv[0] === 'which' ? '/opt/homebrew/bin/lazygit\n' : line.includes(' status ') ? ' M a.ts\0' : ''
     return { value: { exitCode: 0, stdout, stderr: '' } } as never
@@ -310,6 +310,18 @@ test('a diff with no hunks still splits, and the note names it', async () => {
 })
 
 
+test('a name git quotes is the name status gives', async () => {
+  const split = splitDiff('diff --git "a/say \\"hi\\"\\t\\\\.ts" "b/say \\"hi\\"\\t\\\\.ts"\n--- "a/say \\"hi\\"\\t\\\\.ts"\n+++ "b/say \\"hi\\"\\t\\\\.ts"\n@@ -1 +1 @@\n-x\n+y\n')
+  expect([...split.keys()]).toEqual(['say "hi"\t\\.ts'])
+  expect([...splitDiff('diff --git "a/b\\007.bin" "b/b\\007.bin"\nBinary files differ\n').keys()]).toEqual(['b\x07.bin'])
+})
+
+test('a message line that starts like a diff stays in the message', async () => {
+  const { message, files } = parseShow('me · now\n\nsubject\n\nran:\ndiff --git a/x b/x\nand it was clean\n\ndiff --git a/y b/y\n--- a/y\n+++ b/y\n@@ -1 +1 @@\n-x\n+y\n')
+  expect(message).toContain('diff --git a/x b/x')
+  expect([...files.keys()]).toEqual(['y'])
+})
+
 test('a control character in a file or its name cannot break the view', async ($, on) => {
   expect(parseAnsi('\x1b[31ma\x07b\x7fc\x9bd\x1be\x1b[0m', 9)).toEqual([[{ c: 'red', t: 'a·b·c·d·e' }]])
   expect(printable('a\nb')).toBe('a·b')
@@ -391,7 +403,7 @@ test('a subagent has a row of its own, and a click narrows the feed to it', asyn
 })
 
 // Two repositories under one folder: git answers by the directory it is run in.
-const repos = (on: On, at: { cwd: string; run?: () => void }, trees: Record<string, string[]>) => {
+const repos = (on: On, at: { cwd: string; run?: () => void }, trees: Record<string, string[]>, commons: Record<string, string> = {}) => {
   on('session.start', async ($, e) => e)
   on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
   on('command.register', async () => ({ value: undefined }) as never)
@@ -407,7 +419,7 @@ const repos = (on: On, at: { cwd: string; run?: () => void }, trees: Record<stri
     const root = Object.keys(trees).find(r => dir === r || dir.startsWith(`${r}/`))
     if (!root) return { value: { exitCode: 128, stdout: '', stderr: '' } } as never
     const names = trees[root]!
-    const stdout = line.includes('--show-toplevel') ? `${root}\n${line.includes('--abbrev-ref') ? 'main\n' : ''}${root}/.git\n`
+    const stdout = line.includes('--show-toplevel') ? `${root}\n${line.includes('--abbrev-ref') ? 'main\n' : ''}${commons[root] ?? `${root}/.git`}\n`
       : line.includes(' status ') ? names.map(n => ` M ${n}\0`).join('')
       : line.includes(' diff ') ? names.map(n => `diff --git a/${n} b/${n}\n--- a/${n}\n+++ b/${n}\n@@ -1 +1 @@\n-x\n+y\n`).join('')
       : ''
@@ -552,6 +564,49 @@ test('a held pane stays on its repository through an edit in another', async ($,
   await ui.press({ key: 'key-f' })
   await $.tool.call({ tool: 'Edit', file_path: '/w/web/w1.ts', old_string: 'x', new_string: 'y' } as never)
   expect(await ui.find({ text: /^w1\.ts$/, in: 'changes' })).toBeDefined()
+})
+
+test('an edit in a worktree of the repository moves the pane there, and the next call leaves it there', async ($, on) => {
+  mock.clock(on)
+  const at = { cwd: '/w/app' }
+  repos(on, at, { '/w/app': ['a.ts'], '/w/app-wt': ['b.ts'] }, { '/w/app-wt': '/w/app/.git' })
+  await $.session.start({ cwd: at.cwd, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await $.tool.call({ tool: 'Edit', file_path: '/w/app-wt/b.ts', old_string: 'x', new_string: 'y' } as never)
+  expect(await ui.find({ text: /^b\.ts/, in: 'changes' })).toBeDefined()
+  await $.tool.call({ tool: 'Read', file_path: '/etc/hosts' } as never)
+  expect(await ui.find({ text: /^b\.ts/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^a\.ts/, in: 'changes' })).toBeUndefined()
+})
+
+test('a held pane redraws when the diff of a file it is not showing changes', async ($, on) => {
+  mock.clock(on)
+  let drawn = 0
+  let body = '-x\n+y\n'
+  on('session.start', async (_$, e) => e)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.cwd', async () => ({ value: '/repo' }) as never)
+  on('tool.call', () => ({ result: {} }) as never)
+  on('ui.invalidate', async (_$, e, next) => { drawn++; return next(e) })
+  on('process.run', async (_$, e) => {
+    const line = e.argv.join(' ')
+    if (line.startsWith('delta')) return { value: { exitCode: 0, stdout: `\n${e.init?.stdin}`, stderr: '' } } as never
+    const stdout = line.includes('--show-toplevel') ? `/repo\n${line.includes('--abbrev-ref') ? 'main\n' : ''}/repo/.git\n`
+      : line.includes(' status ') ? ' M a.ts\0 M b.ts\0'
+      : line.includes(' diff ') ? `diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-x\n+y\ndiff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -1 +1 @@\n${body}`
+      : ''
+    return { value: { exitCode: 0, stdout, stderr: '' } } as never
+  })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await ui.press({ key: 'key-f' })
+  expect(await ui.find({ text: /held/, in: 'changes' })).toBeDefined()
+  drawn = 0
+  body = '-x\n+y\n+z\n'
+  await $.tool.call({ tool: 'Bash', command: 'true' } as never)
+  await new Promise(done => setTimeout(done, 50))
+  expect(drawn).toBeGreaterThan(0)
 })
 
 test('a push alone redraws the pane, so its commits stop showing as unpushed', async ($, on) => {

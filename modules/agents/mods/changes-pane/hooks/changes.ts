@@ -28,7 +28,9 @@ export const parseLog = (out: string): Commit[] =>
 // `git show` with the message first: what the person reads, and each file's own diff. A session
 // link in a trailer is a click waiting to happen, so those lines are left out.
 export const parseShow = (show: string): { message: string[]; files: Map<string, string> } => {
-  const at = show.search(/^diff --git /m)
+  // after the blank line that ends the message: a line of the message may start the same way
+  const gap = show.search(/\n\ndiff --git /)
+  const at = gap < 0 ? show.search(/^diff --git /m) : gap + 2
   const head = at < 0 ? show : show.slice(0, at)
   return {
     message: head.replace(/\n+$/, '').split('\n').filter(line => !/^Claude-Session:/i.test(line)),
@@ -36,12 +38,19 @@ export const parseShow = (show: string): { message: string[]; files: Map<string,
   }
 }
 
+const ESCAPES: Record<string, string> = { n: '\n', t: '\t', r: '\r', a: '\x07', b: '\b', f: '\f', v: '\v' }
+// git quotes a name that holds a quote, a backslash or a control character, whatever core.quotePath says
+const unquoted = (name: string) =>
+  name.replace(/\\([0-7]{3}|.)/g, (_, e: string) => (e.length === 3 ? String.fromCharCode(parseInt(e, 8)) : ESCAPES[e] ?? e))
+
 export const splitDiff = (diff: string): Map<string, string> => {
   const byPath = new Map<string, string>()
   for (const chunk of diff.split(/^(?=diff --git )/m)) {
     // A binary, mode-only or empty file has no ---/+++ lines, and --no-renames keeps both header names equal.
-    const name = /^\+\+\+ b\/(.*)$/m.exec(chunk)?.[1] ?? /^--- a\/(.*)$/m.exec(chunk)?.[1] ?? /^diff --git a\/(.*) b\/\1$/m.exec(chunk)?.[1]
-    if (name) byPath.set(name.replace(/\t$/, ''), chunk)
+    const plain = /^\+\+\+ b\/(.*)$/m.exec(chunk)?.[1] ?? /^--- a\/(.*)$/m.exec(chunk)?.[1] ?? /^diff --git a\/(.*) b\/\1$/m.exec(chunk)?.[1]
+    const quoted = /^\+\+\+ "b\/(.*)"$/m.exec(chunk)?.[1] ?? /^--- "a\/(.*)"$/m.exec(chunk)?.[1] ?? /^diff --git "a\/(.*)" "b\/\1"$/m.exec(chunk)?.[1]
+    const name = plain?.replace(/\t$/, '') ?? (quoted === undefined ? undefined : unquoted(quoted))
+    if (name) byPath.set(name, chunk)
   }
   return byPath
 }

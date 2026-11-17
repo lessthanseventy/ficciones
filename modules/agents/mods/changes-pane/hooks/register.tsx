@@ -18,6 +18,8 @@ const MAX_COMMITS = 30
 const MAX_KEPT_COMMITS = 50
 // Each untracked file costs a process on every poll; an unignored build folder must not cost thousands.
 const MAX_UNTRACKED_DIFFS = 30
+// names as they are, and the a/ b/ prefixes splitDiff reads whatever the person's git config says
+const PLAIN_DIFF = ['-c', 'core.quotePath=false', '-c', 'diff.noprefix=false', '-c', 'diff.mnemonicPrefix=false']
 const CONTEXT_ROWS = 3
 // The pane's keys, each a button under its lists: a hotkey is one lowercase letter.
 const KEYS = [['j', 'next'], ['k', 'prev'], ['t', 'list'], ['d', 'down'], ['u', 'up'], ['f', 'follow'], ['l', 'git']] as const
@@ -88,6 +90,7 @@ export const register: Register = on => {
   let repo = ''
   let shared = ''
   const stamps = new Map<string, string>()
+  let untrackedDiffs = new Map<string, { hash: string; text: string }>()
   // The repositories the pane has been on, in the order it came to them, each with its uncommitted files.
   const known = new Map<string, { common: string; dirty: number }>()
   // The row of them, drawn once there are two.
@@ -419,6 +422,7 @@ export const register: Register = on => {
       known.set(repo, known.get(repo) ?? { common: shared, dirty: 0 })
       files = []
       diffs = new Map()
+      untrackedDiffs = new Map()
       commits = []
       ahead = new Set()
       shown.clear()
@@ -441,11 +445,22 @@ export const register: Register = on => {
       void keep()
     }
 
+    let isCounting = false
     count = async () => {
-      for (const [root, at] of known) {
-        if (root === repo) continue
-        const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-uall'], { cwd: root })
-        at.dirty = status.stdout.split('\n').filter(Boolean).length
+      if (isCounting) return
+      isCounting = true
+      try {
+        let hasChanged = false
+        for (const [root, at] of known) {
+          if (root === repo) continue
+          const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-uall'], { cwd: root })
+          const dirty = status.stdout.split('\n').filter(Boolean).length
+          hasChanged ||= dirty !== at.dirty
+          at.dirty = dirty
+        }
+        if (hasChanged && isOpen) $.ui.invalidate('ui.render')
+      } finally {
+        isCounting = false
       }
     }
 
@@ -453,7 +468,7 @@ export const register: Register = on => {
     sight = async () => {
       if (!isFollowing || repo === '') return
       const at = await where(await $.session.cwd())
-      if (at && at.root !== repo && at.common !== shared) stamps.set(at.root, await stamp(at.root))
+      if (at && at.root !== repo) stamps.set(at.root, await stamp(at.root))
     }
 
     // The pane stays on the repository being worked in: an edit moves it, a cd alone does not.
@@ -471,8 +486,9 @@ export const register: Register = on => {
       }
       const at = await where(cwd)
       if (!at || at.root === repo) return false
-      // a worktree of the repository shown is the same work, moved
-      if (repo !== '' && at.common !== shared) {
+      // a worktree of the repository shown too: entered on the cwd alone, the pane went there on
+      // an edit and came back on the next call of any kind
+      if (repo !== '') {
         const now = await stamp(at.root)
         const before = stamps.get(at.root)
         stamps.set(at.root, now)
@@ -484,17 +500,29 @@ export const register: Register = on => {
 
     // status and diff name files from the repo root, whichever folder the session is in.
     const readDiffs = async (at: string, listed: File[]) => {
-      const tracked = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'diff', 'HEAD', '--no-renames', '--no-color', '--no-ext-diff'], { cwd: at })
+      const tracked = await $.process.run(['git', '--no-optional-locks', ...PLAIN_DIFF, 'diff', 'HEAD', '--no-renames', '--no-color', '--no-ext-diff'], { cwd: at })
       const texts = splitDiff(tracked.stdout)
-      for (const untracked of listed.filter(f => f.isUntracked).slice(0, MAX_UNTRACKED_DIFFS)) {
-        const diff = await $.process.run(['git', 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', untracked.path], { cwd: at })
-        texts.set(untracked.path, diff.stdout)
+      const untracked = listed.filter(f => f.isUntracked).slice(0, MAX_UNTRACKED_DIFFS)
+      // one process says which of them changed since the last poll: the rest keep the diff they had
+      const hashed = untracked.length === 0 ? null : await $.process.run(['git', 'hash-object', '--', ...untracked.map(f => f.path)], { cwd: at })
+      const hashes = hashed?.exitCode === 0 ? hashed.stdout.split('\n').filter(Boolean) : []
+      const read = new Map<string, { hash: string; text: string }>()
+      for (const [i, { path }] of untracked.entries()) {
+        const hash = (hashes.length === untracked.length ? hashes[i] : undefined) ?? ''
+        const old = untrackedDiffs.get(path)
+        const text = hash !== '' && old?.hash === hash
+          ? old.text
+          : (await $.process.run(['git', ...PLAIN_DIFF, 'diff', '--no-index', '--no-color', '--no-ext-diff', '--', '/dev/null', path], { cwd: at })).stdout
+        read.set(path, { hash, text })
+        texts.set(path, text)
       }
+      if (at === repo) untrackedDiffs = read
       return texts
     }
 
     const readCommit = async (at: string, sha: string) => {
-      const show = await $.process.run(['git', '--no-optional-locks', '-c', 'core.quotePath=false', 'show', '--no-renames', '--no-color', '--no-ext-diff', '--format=%an · %ar%n%n%B', sha], { cwd: at })
+      // a merge against its first parent: the combined diff it shows otherwise has no file headers
+      const show = await $.process.run(['git', '--no-optional-locks', ...PLAIN_DIFF, 'show', '--diff-merges=first-parent', '--no-renames', '--no-color', '--no-ext-diff', '--format=%an · %ar%n%n%B', sha], { cwd: at })
       const { message, files: texts } = parseShow(show.stdout)
       if (at !== repo) return
       if (shown.size >= MAX_KEPT_COMMITS) shown.clear()
@@ -587,10 +615,12 @@ export const register: Register = on => {
       try {
         while (isStale) {
           isStale = false
-          const seen = JSON.stringify([renderedKey, note, files, commits, branch, [...ahead]])
+          // the counts of every file, not only the one drawn: a held pane lists the others too
+          const drawn = () => JSON.stringify([renderedKey, note, files, commits, branch, [...ahead], [...diffs].map(([path, d]) => [path, d.adds, d.dels])])
+          const seen = drawn()
           await load()
           scrollTo(offset)
-          if (seen !== JSON.stringify([renderedKey, note, files, commits, branch, [...ahead]])) $.ui.invalidate('ui.render')
+          if (seen !== drawn()) $.ui.invalidate('ui.render')
         }
       } catch (error) {
         note = `could not read the changes: ${error instanceof Error ? error.message : String(error)}`
@@ -636,7 +666,11 @@ export const register: Register = on => {
       agents = kept.agents.map(ended)
     } else {
       const sessions = (await $.store.keys().catch(() => [])).filter(key => key.startsWith('session:'))
-      for (const old of sessions.slice(0, -MAX_KEPT_SESSIONS)) await $.store.delete(old).catch(() => {})
+      if (sessions.length > MAX_KEPT_SESSIONS) {
+        // by when each was last written: the keys come in the order they were first set
+        const dated = await Promise.all(sessions.map(async key => [key, (await $.store.get(key).catch(() => undefined) as Kept | undefined)?.at ?? 0] as const))
+        for (const [old] of dated.sort((a, b) => a[1] - b[1]).slice(0, -MAX_KEPT_SESSIONS)) await $.store.delete(old).catch(() => {})
+      }
     }
     // VS Code and mobile have no Client to draw this pane with.
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
@@ -716,7 +750,8 @@ export const register: Register = on => {
     // The tool has already run: a failed look at git must not cost it its result.
     try {
       const hasMoved = await follow(e as Call)
-      await count()
+      // not awaited: a status in every other repository is no reason to hold the call's result
+      void count().catch(() => {})
       if (isOpen) void refresh()
       else if (!isDismissed && repo !== '') {
         // A move into a repository opens the pane with nothing uncommitted.
@@ -855,10 +890,10 @@ export const register: Register = on => {
                 onPress={async () => {
                   if (hotkey === 'l') {
                     const cwd = `--working-directory=${repo || await $.session.cwd()}`
-                    // setsid -f returns at once and leaves a window that outlives this session.
-                    try {
-                      await $.process.run(['setsid', '-f', 'ghostty', cwd, '-e', 'lazygit'])
-                    } catch {
+                    // setsid -f returns at once and leaves a window that outlives this session; the
+                    // window must not hold this call's pipes, or the call waits on it
+                    const started = await $.process.run(['sh', '-c', 'setsid -f ghostty "$@" >/dev/null 2>&1 </dev/null', 'sh', cwd, '-e', 'lazygit']).catch(() => null)
+                    if (started?.exitCode !== 0) {
                       // macOS has neither setsid nor ghostty on PATH, and the window open starts may lack Homebrew's PATH.
                       const lazygit = (await $.process.run(['which', 'lazygit'])).stdout.trim() || 'lazygit'
                       await $.process.run(['open', '-na', 'Ghostty.app', '--args', cwd, '-e', lazygit])
