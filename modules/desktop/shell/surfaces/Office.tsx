@@ -248,8 +248,8 @@ function Knobs({ model, setModel, effort, setEffort, ask, setAsk }: {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
       <label cssClasses={["k", "sm"]} label="model" xalign={0} />
       {/* two to a row: the labels carry the harness */}
-      {[0, 2, 4, 6].map((from) => (
-        <box spacing={6}>
+      {[0, 2, 4, 6, 8, 10, 12, 14].map((from) => (
+        <box spacing={6} visible={rows((r) => r.length > from)}>
           <For each={rows((r) => r.slice(from, from + 2))}>
             {(key: string | null) => (
               <button cssClasses={chip(model((m) => m === key))} onClicked={() => setModel(key)}>
@@ -575,8 +575,8 @@ function ActionCard() {
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} visible={is("hire")}>
         <entry cssClasses={["deck-entry"]} placeholderText="name (lowercase, one word)" $={(self) => { name = self; self.connect("activate", submitHire) }} />
         {/* three to a row, so the rail keeps its width */}
-        {[0, 3].map((from) => (
-          <box spacing={6}>
+        {[0, 3, 6, 9].map((from) => (
+          <box spacing={6} visible={agents((a) => a.archetypes.length > from)}>
             <For each={agents((a) => a.archetypes.slice(from, from + 3).map((x) => x.name))}>
               {(k: string) => (
                 <button cssClasses={arch((x) => ["act", ...(x === k ? ["chip"] : [])])} onClicked={() => setArch(k)}><label label={k} /></button>
@@ -604,11 +604,16 @@ function ActionCard() {
 let liveTerm: Vte.Terminal | null = null
 let liveWs: number | null = null
 let livePid = 0
+// which spawn is the current one, and how many killed clients have yet to report their exit:
+// an old client's exit, or its late spawn callback, must not clear the state of the one after it
+let liveGen = 0
+let staleExits = 0
+const killClient = (pid: number) => { staleExits++; execAsync(["kill", String(pid)]).catch(() => {}) }
 /** attach to whatever the wide view shows now — the office coming back up re-attaches */
 let reattach = () => {}
 function endTerminal() {
-  if (livePid) execAsync(["kill", String(livePid)]).catch(() => {})
-  livePid = 0; liveWs = null
+  if (livePid > 0) killClient(livePid)
+  livePid = 0; liveWs = null; liveGen++
 }
 function attachTerminal(ws: number, window: string) {
   if (!liveTerm) return
@@ -619,10 +624,15 @@ function attachTerminal(ws: number, window: string) {
   }
   endTerminal()
   liveWs = ws
+  const gen = liveGen
   liveTerm.reset(true, true)
   liveTerm.spawn_async(Vte.PtyFlags.DEFAULT, null,
     ["tmux", "-L", sock, "new-session", "-A", "-s", "office", "-t", `w${ws}`, ";", "set-option", "destroy-unattached", "on", ";", "select-window", "-t", `office:=${window}`],
-    null, GLib.SpawnFlags.SEARCH_PATH, null, -1, null, (_t, pid) => { livePid = pid })
+    null, GLib.SpawnFlags.SEARCH_PATH, null, -1, null, (_t, pid) => {
+      if (gen !== liveGen) { if (pid > 0) killClient(pid) }
+      else if (pid > 0) livePid = pid
+      else liveWs = null
+    })
 }
 
 /** the wide view's second column: the picked thread's actions, its worker's live terminal, its conversation */
@@ -651,7 +661,10 @@ function ThreadPane() {
           self.set_font(Pango.FontDescription.from_string("ComicShannsMono Nerd Font Mono 11"))
           const rgba = (hex: string) => { const c = new Gdk.RGBA(); c.parse(hex); return c }
           self.set_colors(rgba(ROLE.prose), rgba(ROLE.ground), null)
-          self.connect("child-exited", () => { livePid = 0; liveWs = null })
+          self.connect("child-exited", () => {
+            if (staleExits > 0) { staleExits--; return }
+            livePid = 0; liveWs = null
+          })
         }} />
       </Panel>
       <Panel title={"\u{f0e7e}  CONVERSATION"} cssClasses={["card", "card-agents"]}>
@@ -757,12 +770,17 @@ setOpener(openOfficeAt)
 let talkEntry: Gtk.Entry | null = null
 /** the office's people in walking order — the bench, then anyone on a thread who is not on it */
 const people = view((a) => [...a.bench.map((c) => c.name), ...a.roster.map((r) => r.agent).filter((n) => !a.bench.some((c) => c.name === n))])
+// someone on a thread but off the bench changes no mode, so the walk keeps its own place there
+let walked: string | null = null
+mode.subscribe(() => { walked = null })
 function stepPerson(d: 1 | -1) {
   const list = people.peek(), a = view.peek()
   if (!list.length) return
   const m = mode.peek()
-  const cur = m.kind === "coworker" ? list.indexOf(a.bench.find((c) => c.agent_id === m.agentId)?.name ?? "") : -1
+  const at = walked ?? (m.kind === "coworker" ? a.bench.find((c) => c.agent_id === m.agentId)?.name : undefined) ?? ""
+  const cur = list.indexOf(at)
   const name = list[(cur + d + list.length) % list.length]
+  walked = name
   const c = a.bench.find((x) => x.name === name)
   if (c) setMode({ kind: "coworker", agentId: c.agent_id })
   const r = a.roster.find((x) => x.agent === name)
