@@ -168,7 +168,7 @@ export default function Rail({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
   let win: Astal.Window
   const { TOP, LEFT, BOTTOM } = Astal.WindowAnchor
 
-  onCleanup(() => win.destroy())
+  onCleanup(() => { win.destroy(); clockPops.delete(connector); weatherPops.delete(connector) })
 
   return (
     <window

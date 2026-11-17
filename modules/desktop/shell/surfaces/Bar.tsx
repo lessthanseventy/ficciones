@@ -187,10 +187,12 @@ function BatteryCell() {
   // always reads green.
   const cls = createComputed(() => { const p = pctA(), c = chg(); return [c || p >= 0.5 ? "idle" : p >= 0.2 ? "busy" : "hot"] })
   const toEmpty = createBinding(bat, "timeToEmpty"), toFull = createBinding(bat, "timeToFull"), energyRate = createBinding(bat, "energyRate")
+  const state = createBinding(bat, "state")
   const eta = createComputed(() => {
     const e = toEmpty(), f = toFull(), c = chg(), rate = energyRate()
     const s = c ? f : e
-    if (rate < 0.5 || s <= 0 || s > 48 * 3600) return c ? "charging" : "on mains"
+    // no estimate yet, as just after the plug is pulled
+    if (rate < 0.5 || s <= 0 || s > 48 * 3600) return c ? "charging" : state() === Battery.State.DISCHARGING ? "on battery" : "on mains"
     return `${c ? "full in" : "empty in"} ${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
   })
   const active = createBinding(profiles, "activeProfile")
@@ -277,7 +279,8 @@ function WaitingCell() {
 
 function NextUpCell() {
   const [now, setNow] = createState(Date.now())
-  interval(15_000, () => setNow(Date.now()))
+  const tick = interval(15_000, () => setNow(Date.now()))
+  onCleanup(() => tick.cancel())
   const text = createComputed(() => { const n = nextUp(), t = now(); return (n ? `${n.title}  ·  ${untilText(n.at, t)}` : "") })
   const cls = createComputed(() => { const n = nextUp(), t = now(); return ["cell", "nextup", ...(n && n.at - t < 10 * 60_000 ? ["soon"] : [])] })
   return (
