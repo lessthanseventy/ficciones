@@ -86,6 +86,9 @@ in
     lib.optionalAttrs (builtins.pathExists ../../secrets/ollama-api-key.age) {
       ollama-api-key.file = ../../secrets/ollama-api-key.age;
     }
+    // lib.optionalAttrs (builtins.pathExists ../../secrets/telegram-bot-token.age) {
+      telegram-bot-token.file = ../../secrets/telegram-bot-token.age;
+    }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/dbx-connections.age) {
       dbx-connections.file = ../../secrets/dbx-connections.age;
     };
@@ -236,6 +239,8 @@ in
         "TLON_START_MCP=1"
         "TLON_START_SWITCHBOARD=1"
         "TLON_START_ATTENTION=1"
+        # the home's inbox polls the Telegram bot: this node only (a second poller takes its messages)
+        "TLON_START_HOME_INBOX=1"
         "TLON_MCP_PORT=4040"
         "TLON_WORKLINE_ROOT=${repo}"
         "TLON_MEMORY_PASS=1"
