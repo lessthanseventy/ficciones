@@ -448,6 +448,33 @@ in
     # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
     home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
 
+    # git rewrites hyprland.lua by unlinking it first (a checkout, a rebase's autostash). Hyprland
+    # reloads in that instant, finds no file and raises its error bar, and keeps the bar after
+    # the file is back. Once the file settles: reload if the errors are still listed, and take
+    # the bar down when none are.
+    systemd.user.paths.hyprland-config-settled = {
+      Unit.Description = "hyprland.lua was rewritten";
+      Path.PathChanged = "${repo}/modules/desktop/hypr/hyprland.lua";
+      Install.WantedBy = [ "graphical-session.target" ];
+    };
+    systemd.user.services.hyprland-config-settled = {
+      Unit.Description = "clear a config error Hyprland raised while hyprland.lua was mid-rewrite";
+      Service = {
+        Type = "oneshot";
+        ExecStart = pkgs.writeShellScript "hyprland-config-settled" ''
+          # the profile's hyprctl: a store path would name this nixpkgs', not the running compositor's
+          hyprctl=${config.home.profileDirectory}/bin/hyprctl
+          conf=${repo}/modules/desktop/hypr/hyprland.lua
+          clean() { [ -z "$("$hyprctl" -i 0 configerrors 2>/dev/null | tr -d '[:space:]')" ]; }
+          sleep 1
+          [ -x "$hyprctl" ] && [ -e "$conf" ] || exit 0
+          clean || "$hyprctl" -i 0 reload >/dev/null 2>&1
+          clean && "$hyprctl" -i 0 seterror disable >/dev/null 2>&1
+          exit 0
+        '';
+      };
+    };
+
     # The defaults this machine picks, set in ~/.config/mimeapps.list. Not xdg.mimeApps: that makes
     # the file a read-only store link, and apps register their own handlers there at runtime
     # (Claude Code, dbx, Slack).
