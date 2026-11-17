@@ -1,5 +1,5 @@
 {
-  description = "ficciones — one person's whole computer as modules, each a Borges story. server is the first.";
+  description = "ficciones — one person's whole computer as modules, each a Borges story.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -256,8 +256,7 @@
     in
     {
       # Exposed as build targets so they can be verified (`nix build .#dbx`) without touching
-      # the system — the same way server' package will be. home-manager consumes the same
-      # derivation below.
+      # the system. home-manager consumes the same derivations below.
       packages.${system} = {
         inherit expert astalShell dbx;
         astal-shell = astalShell;
@@ -318,12 +317,6 @@
             + pkgs.lib.concatStrings (pkgs.lib.mapAttrsToList run (import ./modules/desktop/theme/palettes))
             + "[ $rc = 0 ] && touch $out\n"
           );
-      };
-
-      # mise owns Elixir/OTP (mise.toml pins erlang 28 + elixir 1.19.5-otp-28); this shell
-      # is the 2am path — sqlite3 to open the db when nothing else is up.
-      devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.sqlite ];
       };
 
       # The work Mac: the palette's portable surfaces only (modules/mac). Named for the user so a
