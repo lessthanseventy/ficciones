@@ -50,6 +50,8 @@ in
     dbx
     pkgs.watchexec
     pkgs.worktrunk
+    # tlon's home inbox transcribes voice notes on this machine (Server.Home.Ear)
+    pkgs.whisper-cpp
     agentBrowser
     agentDesktop
     pkgs.typescript-language-server
@@ -241,6 +243,12 @@ in
         "TLON_START_ATTENTION=1"
         # the home's inbox polls the Telegram bot: this node only (a second poller takes its messages)
         "TLON_START_HOME_INBOX=1"
+        "TLON_WHISPER_MODEL=${
+          pkgs.fetchurl {
+            url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin";
+            sha256 = "0p8yqkwvpl9lyy43yajk305bps0v5z1qgyg0jwh35j7cb1nqs4y6";
+          }
+        }"
         "TLON_MCP_PORT=4040"
         "TLON_WORKLINE_ROOT=${tlonRepo}"
         "TLON_MEMORY_PASS=1"
