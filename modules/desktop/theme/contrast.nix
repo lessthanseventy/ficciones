@@ -218,6 +218,25 @@ in
         "pink"
       ];
 
+  # Claude Code's diff: its text is userVoice, on a line's ground and on the changed words in it.
+  # A word ground has to step off its line ground, and on paper the removed line already sits
+  # just over 7:1, so there is no AAA room under it.
+  diff =
+    onSurface "diffAdded" [ "userVoice" ]
+    ++ onSurface "diffAddedWord" [ "userVoice" ]
+    ++ onSurface "diffAddedDimmed" [ "userVoice" ]
+    ++ onSurface "diffRemoved" [ "userVoice" ]
+    ++ onSurface "diffRemovedDimmed" [ "userVoice" ]
+    ++ [
+      {
+        label = "userVoice on diffRemovedWord";
+        fg = "userVoice";
+        bg = "diffRemovedWord";
+        min = 6.5;
+        why = "the removed-word ground must be darker than the removed line, which on paper is itself near 7:1";
+      }
+    ];
+
   # The ANSI 16 are a contract, not roles: whichever way round a program pairs the ends of the
   # ramp, it has to be legible. zahir bound brightWhite to the `white` HUE (which on paper is
   # dark, being "max contrast on the ground") and so made black and brightWhite the same colour.

@@ -47,6 +47,13 @@ rec {
     selInk = "1A0A2E"; # the ink inside the violet selection field
     selSoft = "2E0057"; # selection where we cannot set the ink (Claude Code's selectionBg): dark, so bright text survives
     red = "FF7575"; # alarm
+    # Claude Code's diff grounds: a line, the changed words in it, and the same receded
+    diffAdded = "0C2E0C";
+    diffAddedWord = "164D16";
+    diffAddedDimmed = "081F08";
+    diffRemoved = "2E0C0C";
+    diffRemovedWord = "5E1B1B";
+    diffRemovedDimmed = "1F0808";
     dim = "BB9D53"; # inactive text
     sep = "B5651D"; # structure: borders, rules (burnt orange)
     grey = "C7C7C7"; # italic / muted prose
@@ -97,6 +104,14 @@ rec {
     attention = pink; # agents, the operator, something wants you
     attentionDim = pinkDim; # the same, receded
     alarm = red;
+    inherit
+      diffAdded
+      diffAddedWord
+      diffAddedDimmed
+      diffRemoved
+      diffRemovedWord
+      diffRemovedDimmed
+      ;
     assistant = violet;
     # a warning that is the same colour as body text says nothing: ember is the step between the
     # body amber and the alarm red, and was doing nothing but partnering the active border

@@ -43,6 +43,13 @@ rec {
     selInk = "221A33";
     selSoft = "3D3554"; # selection where we cannot set the ink: dark, so the chalk survives
     red = "FFA9A2"; # alarm
+    # Claude Code's diff grounds: a line, the changed words in it, and the same receded
+    diffAdded = "0C2E0C";
+    diffAddedWord = "133F13";
+    diffAddedDimmed = "081F08";
+    diffRemoved = "2E0C0C";
+    diffRemovedWord = "5E1B1B";
+    diffRemovedDimmed = "1F0808";
     dim = "CBBEA0"; # inactive text
     sep = "8E7456"; # structure: borders, rules
     grey = "D0CBC1"; # italic / muted prose
@@ -85,6 +92,14 @@ rec {
     attention = pink;
     attentionDim = pinkDim;
     alarm = red;
+    inherit
+      diffAdded
+      diffAddedWord
+      diffAddedDimmed
+      diffRemoved
+      diffRemovedWord
+      diffRemovedDimmed
+      ;
     assistant = violet;
     warn = ember;
     userVoice = green;

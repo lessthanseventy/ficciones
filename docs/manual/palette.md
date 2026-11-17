@@ -32,6 +32,12 @@ Font: **ComicShannsMono Nerd Font** everywhere, 11pt base (low vision: sizes bia
 | `borderInactive2` | `#BF8A68` | `#93603F` | `#9E3B00` | `#C27645` |
 | `card` | `#E8DEC8` | `#2E2B26` | `#0E0E0E` | `#E6DCC6` |
 | `cursorField` | `#2C2A33` | `#EDE3CC` | `#FFB000` | `#4E3300` |
+| `diffAdded` | `#D6EDD6` | `#0C2E0C` | `#0C2E0C` | `#D6EDD6` |
+| `diffAddedDimmed` | `#E6F2E6` | `#081F08` | `#081F08` | `#E6F2E6` |
+| `diffAddedWord` | `#CAE9CA` | `#133F13` | `#164D16` | `#BEE4BE` |
+| `diffRemoved` | `#F2D9D9` | `#2E0C0C` | `#2E0C0C` | `#F2D9D9` |
+| `diffRemovedDimmed` | `#F7E8E8` | `#1F0808` | `#1F0808` | `#F7E8E8` |
+| `diffRemovedWord` | `#EFCFCF` | `#5E1B1B` | `#5E1B1B` | `#EDCACA` |
 | `done` | `#36502F` | `#98B991` | `#62A562` | `#365636` |
 | `edge` | `#CAB994` | `#4A463D` | `#2A2A2A` | `#C9B996` |
 | `fieldInk` | `#FFF9EC` | `#1C1A17` | `#0A0A0A` | `#FFF7DD` |

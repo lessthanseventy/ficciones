@@ -44,6 +44,13 @@ rec {
     selInk = "FFF9EC";
     selSoft = "CCD8EE"; # selection where we cannot set the ink: a pale blue highlighter
     red = "801818"; # alarm — the red pen
+    # Claude Code's diff grounds: a line, the changed words in it, and the same receded
+    diffAdded = "D6EDD6";
+    diffAddedWord = "CAE9CA";
+    diffAddedDimmed = "E6F2E6";
+    diffRemoved = "F2D9D9";
+    diffRemovedWord = "EFCFCF";
+    diffRemovedDimmed = "F7E8E8";
     dim = "463F35"; # inactive text
     sep = "9A7A55"; # structure: borders, rules (a brown pencil line)
     grey = "4A4A4A"; # italic / muted prose
@@ -86,6 +93,14 @@ rec {
     attention = pink;
     attentionDim = pinkDim;
     alarm = red;
+    inherit
+      diffAdded
+      diffAddedWord
+      diffAddedDimmed
+      diffRemoved
+      diffRemovedWord
+      diffRemovedDimmed
+      ;
     assistant = violet;
     warn = ember;
     userVoice = green;
