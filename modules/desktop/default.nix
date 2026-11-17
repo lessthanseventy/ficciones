@@ -169,7 +169,7 @@ in
       source = ./scripts/ficciones-recolor;
       executable = true;
     };
-    # arena is a sibling repo: the link is to what `mise run build` there last built
+    # arena is a sibling repo: the link is to what its own build task last built
     home.file.".local/bin/arena".source =
       config.lib.file.mkOutOfStoreSymlink "${builtins.dirOf repo}/arena/zig-out/bin/arena";
     # a stream URL (m3u8/mpd) into mpv, referer and all — what The Stream Detector copies out of

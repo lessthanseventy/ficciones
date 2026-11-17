@@ -3,7 +3,7 @@
 # compiles these seams, so a rename fails silently at 2am — this catches it at commit time.
 #
 #   (c) `mise run <task>` in any AGENTS.md / README.md, mise.toml, tasks/, scripts, git hooks,
-#       flake.nix and the zshrc (there as `mise --cd …/ficciones run <task>`)
+#       every .nix file and the zshrc (there as `mise --cd …/ficciones run <task>`)
 #       →  a task `mise tasks ls` knows (`<prefix>:*` is a glob: some task must match)
 #
 # grep only, offline, a few hundred ms. One line per miss; exit 1 if any. docs/ is not an
@@ -22,6 +22,7 @@ miss() {
 # This file names the patterns it hunts; every other script is an input.
 mapfile -t inputs < <(
 	find scripts -maxdepth 1 -name '*.sh' ! -name check-names.sh
+	find modules -name '*.nix'
 	find . -path '*/node_modules' -prune -o -path ./.worktrees -prune -o -path ./.git -prune -o -path ./docs -prune -o \( -name AGENTS.md -o -name README.md \) -print
 )
 
