@@ -255,7 +255,13 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       exclusivity={Astal.Exclusivity.IGNORE}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT | Astal.WindowAnchor.BOTTOM}
       application={app}
-      $={(self) => { canvases.set(self, canvas); canvas.win = self; canvas.run(zen.peek()); self.visible = true }}
+      $={(self) => {
+        canvases.set(self, canvas); canvas.win = self; canvas.run(zen.peek())
+        // a monitor plugged in while an ambient is held holds it too
+        const mode = backdropMode.peek()
+        if (mode !== "photo" && mode !== "random") { canvas.hold = true; canvas.jump(mode) }
+        self.visible = true
+      }}
     >
       <overlay>
         <Gtk.Picture
