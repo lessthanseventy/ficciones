@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS ai_configs (
 SQL
 
 insert_connections() {
-	jq -r '.[] | [.id, (. | tojson)] | @tsv' "$1" | while IFS=$'\t' read -r id json; do
+	# one object a line, not @tsv: that escapes a backslash again and the row is stored broken
+	jq -c '.[]' "$1" | while IFS= read -r json; do
+		id=$(jq -r '.id' <<<"$json")
 		sqlite3 "$db" "INSERT OR IGNORE INTO connections (id, config_json) VALUES ('$id', '${json//\'/\'\'}');"
 	done
 }
