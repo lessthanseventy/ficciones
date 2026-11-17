@@ -33,6 +33,11 @@ function hostOf(url) {
 async function show() {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   const { theme, paused, off, tune, sites } = await browser.runtime.sendMessage({ ask: true });
+  if (!theme) {
+    $("note").hidden = false;
+    $("note").textContent = "The theme did not load";
+    return;
+  }
   for (const role of ["ground", "body", "link", "heading", "code"]) {
     document.body.style.setProperty(`--${role}`, theme[role]);
   }
