@@ -46,6 +46,7 @@ in
     arena="$HOME/projects/arena"
     has_arena=false
     [ -f "$arena/hooks/hooks.json" ] && has_arena=true
+    [ -f "$cfg" ] || { run mkdir -p "$HOME/.claude"; run sh -c 'echo "{}" > "$1"' _ "$cfg"; }
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
       if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena" --argjson has_arena "$has_arena" '.env += {

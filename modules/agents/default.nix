@@ -113,6 +113,8 @@ in
   # and while it shows the dock gets no columns, so that pane has nowhere to draw.
   home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     cfg="$HOME/.claude/settings.json"
+    # a machine Claude Code has not run on yet has no file, and would get none of this
+    [ -f "$cfg" ] || { run mkdir -p "$HOME/.claude"; run sh -c 'echo "{}" > "$1"' _ "$cfg"; }
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
       if ${pkgs.jq}/bin/jq '.env.ZDOTDIR = (env.HOME + "/.claude/zsh")
