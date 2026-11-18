@@ -60,13 +60,19 @@ export function SpectrumBars({ shown }: { shown: Accessor<boolean> }) {
           const bars = [...vs.slice(0, n).reverse(), ...vs.slice(n)]
           // the active window border's two colours, read per draw as a theme change swaps them
           const a = Math.min(1, Math.max(0.05, opacity.peek()))
-          const g = new Cairo.LinearGradient(0, 0, w, 0)
-          g.addColorStopRGBA(0, ...rgb(ROLE.body), a)
-          g.addColorStopRGBA(1, ...rgb(ROLE.assistant), a)
-          cr.setSource(g)
+          const foot = rgb(ROLE.body), tip = rgb(ROLE.assistant)
           const bw = w / bars.length
-          bars.forEach((v, i) => { const bh = Math.round(curve(v) * h); if (bh > 0) cr.rectangle(i * bw + 1, h - bh, Math.max(1, bw - 2), bh) })
-          cr.fill()
+          bars.forEach((v, i) => {
+            const bh = Math.round(curve(v) * h)
+            if (bh <= 0) return
+            // a gradient per bar, foot to its own tip, so a short bar shows both colours too
+            const g = new Cairo.LinearGradient(0, h, 0, h - bh)
+            g.addColorStopRGBA(0, ...foot, a)
+            g.addColorStopRGBA(1, ...tip, a)
+            cr.setSource(g)
+            cr.rectangle(i * bw + 1, h - bh, Math.max(1, bw - 2), bh)
+            cr.fill()
+          })
         })
       }}
     />
