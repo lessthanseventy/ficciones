@@ -129,6 +129,30 @@ let
 
   # ivysaur's built-in speakers, as PipeWire names the sink
   speakerSink = "alsa_output.pci-0000_00_1f.3-platform-skl_hda_dsp_generic.HiFi__Speaker__sink";
+  # the Bose QuietComfort Headphones, by Bluetooth address
+  boseSink = "bluez_output.68_F2_1F_20_61_6A.1";
+  eqBand = mode: type: frequency: gain: q: {
+    inherit
+      mode
+      type
+      frequency
+      gain
+      q
+      ;
+    slope = "x1";
+    mute = false;
+    solo = false;
+  };
+  # easyeffects' autoload file for one output; its file name is the same sink and route
+  autoload = sink: route: preset: {
+    text = builtins.toJSON {
+      device = sink;
+      device-description = route;
+      # the route's description, as PipeWire gives it
+      device-profile = route;
+      preset-name = preset;
+    };
+  };
   # easyeffects' levelling plugins, shared by its presets
   level = {
     "autogain#0" = {
@@ -478,15 +502,19 @@ in
     home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
 
     # Loudness levelling on every output, then a limiter that keeps what it raises under full
-    # scale; the laptop speakers get an equaliser before them. easyeffects picks the preset by
-    # the output in use (the autoload file below), and falls back to `level` for any other.
-    xdg.dataFile."easyeffects/autoload/output/${speakerSink}:Speaker.json".text = builtins.toJSON {
-      device = speakerSink;
-      device-description = "Speaker";
-      # the route's description, as PipeWire gives it
-      device-profile = "Speaker";
-      preset-name = "speakers";
-    };
+    # scale; the laptop speakers and the Bose headphones each get an equaliser before them.
+    # easyeffects picks the preset by the output in use (the autoload files below), and falls
+    # back to `level` for any other.
+    xdg.dataFile."easyeffects/autoload/output/${speakerSink}:Speaker.json" =
+      autoload speakerSink "Speaker"
+        "speakers";
+    # PipeWire names the route by what the headset reports itself as, either of these
+    xdg.dataFile."easyeffects/autoload/output/${boseSink}:Headphones.json" =
+      autoload boseSink "Headphones"
+        "bose-qc";
+    xdg.dataFile."easyeffects/autoload/output/${boseSink}:Headset.json" =
+      autoload boseSink "Headset"
+        "bose-qc";
     services.easyeffects = {
       enable = true;
       # easyeffects keeps these two under its Window group
@@ -502,20 +530,46 @@ in
         ];
       }
       // level;
+      # AutoEq's correction for this model from Rtings' measurement, toward the Harman curve
+      extraPresets.bose-qc.output =
+        let
+          band = eqBand "APO (DR)";
+          bands = {
+            band0 = band "Lo-shelf" 105.0 (-4.6) 0.7;
+            band1 = band "Bell" 524.0 2.2 0.89;
+            band2 = band "Bell" 181.0 (-2.5) 1.57;
+            band3 = band "Bell" 2364.0 2.7 3.98;
+            band4 = band "Bell" 6337.0 (-5.7) 6.0;
+            band5 = band "Hi-shelf" 10000.0 3.3 0.7;
+            band6 = band "Bell" 9589.0 (-2.5) 2.54;
+            band7 = band "Bell" 53.0 1.8 3.05;
+            band8 = band "Bell" 3636.0 (-3.7) 5.89;
+            band9 = band "Bell" 4525.0 1.7 3.67;
+          };
+        in
+        {
+          blocklist = [ ];
+          plugins_order = [
+            "equalizer#0"
+            "autogain#0"
+            "limiter#0"
+          ];
+          "equalizer#0" = {
+            bypass = false;
+            mode = "IIR";
+            num-bands = 10;
+            split-channels = false;
+            # the curve's own preamp
+            input-gain = -3.3;
+            output-gain = 0.0;
+            left = bands;
+            right = bands;
+          };
+        }
+        // level;
       extraPresets.speakers.output =
         let
-          band = type: frequency: gain: q: {
-            inherit
-              type
-              frequency
-              gain
-              q
-              ;
-            mode = "RLC (BT)";
-            slope = "x1";
-            mute = false;
-            solo = false;
-          };
+          band = eqBand "RLC (BT)";
           bands = {
             # below this the drivers only move, they make no sound
             band0 = band "High-pass" 90.0 0.0 0.7;
