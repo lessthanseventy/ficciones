@@ -24,10 +24,12 @@ export default function Spectrum({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       application={app}
       visible={shown}
       $={(self) => {
-        // both: a size request alone is a minimum, and GTK never shrinks the surface back
+        // both: a size request alone is a minimum, and GTK never shrinks the surface back. A
+        // width of 1, which the anchors stretch: the bars have no natural width, and GDK warns
+        // on a toplevel that asks for none
         const size = () => {
           const h = Math.round(gdkmonitor.geometry.height * Math.min(1, Math.max(0.05, height.peek())))
-          self.set_size_request(-1, h); self.set_default_size(-1, h)
+          self.set_size_request(1, h); self.set_default_size(1, h)
         }
         size()
         onCleanup(height.subscribe(size))
