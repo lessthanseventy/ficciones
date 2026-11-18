@@ -80,6 +80,17 @@ in
       cd ${tlonRepo} || { echo "tlon: repo not found at ${tlonRepo}" >&2; exit 1; }
       exec mise --cd ${tlonRepo} run office:run -- "$@"
     '')
+
+    # `house` — tlon's house window; `house widget` the small always-on-top one, `house demo`
+    # the made-up one with no server.
+    (pkgs.writeShellScriptBin "house" ''
+      cd ${tlonRepo} || { echo "house: repo not found at ${tlonRepo}" >&2; exit 1; }
+      case "''${1:-}" in
+        widget | demo) task="house:$1"; shift ;;
+        *) task=house:run ;;
+      esac
+      exec mise --cd ${tlonRepo} run "$task" -- "$@"
+    '')
   ];
 
   # age-encrypted secrets, decrypted at home:switch to $XDG_RUNTIME_DIR/agenix/<name>.

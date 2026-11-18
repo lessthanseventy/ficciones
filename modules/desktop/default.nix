@@ -372,7 +372,7 @@ in
       desktopEntries.tlon-house = {
         name = "The House";
         comment = "What you texted yourself: open things, what is coming, notes";
-        exec = "godot --path ${builtins.dirOf repo}/tlon/house";
+        exec = "house";
         categories = [ "Utility" ];
       };
       userDirs =
