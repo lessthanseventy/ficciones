@@ -193,8 +193,9 @@ function Info({ a }: { a: Alert }) {
           self.connect("unmap", stop)
         }}
       />
-      <box cssClasses={["actions"]} spacing={8} visible={!!a.thread_id}>
-        <button cssClasses={["act", "dim"]} onClicked={() => { dismiss(a); void openThread(a.thread_id!) }}><label label="Open" /></button>
+      <box cssClasses={["actions"]} spacing={8}>
+        <button cssClasses={["act", "dim"]} visible={!!a.thread_id} onClicked={() => { dismiss(a); void openThread(a.thread_id!) }}><label label="Open" /></button>
+        <button cssClasses={["act", "dim"]} onClicked={() => dismiss(a)}><label label="Dismiss" /></button>
       </box>
     </Panel>
   )
