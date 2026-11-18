@@ -7,7 +7,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import { onCleanup, type Accessor } from "ags"
 import { soundRunning } from "./sound"
 import Cairo from "cairo"
-import { ROLE } from "./palette"
+import { PALETTE, type Hue } from "./palette"
 
 let inst: Cava.Cava | null | undefined
 function cava() {
@@ -31,6 +31,14 @@ function cava() {
 // quiet passages presence without clipping loud ones
 const curve = (v: number) => Math.sqrt(Math.min(1, Math.max(0, v)))
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number]
+const RING: Hue[] = ["amber", "pink", "lilac", "cyan", "green"]
+/** the colour `t` of the way round the palette's hues (1 is back at the first), read per call
+ *  as a theme change swaps them */
+function ring(t: number): [number, number, number] {
+  const x = (((t % 1) + 1) % 1) * RING.length, i = Math.floor(x)
+  const a = rgb(PALETTE[RING[i]]), b = rgb(PALETTE[RING[(i + 1) % RING.length]])
+  return a.map((v, k) => v + (b[k] - v) * (x - i)) as [number, number, number]
+}
 
 /** one channel's bars folded to `rows` bands, low freq first: each the mean of its band */
 function bands(vs: number[], side: "left" | "right", rows: number): number[] {
@@ -58,17 +66,18 @@ export function SpectrumBars({ shown }: { shown: Accessor<boolean> }) {
         self.set_draw_func((_, cr, w, h) => {
           const vs = c.values, n = vs.length / 2
           const bars = [...vs.slice(0, n).reverse(), ...vs.slice(n)]
-          // the active window border's two colours, read per draw as a theme change swaps them
+
           const a = Math.min(1, Math.max(0.05, opacity.peek()))
-          const foot = rgb(ROLE.body), tip = rgb(ROLE.assistant)
-          const bw = w / bars.length
+          const bw = w / bars.length, mid = bars.length / 2
           bars.forEach((v, i) => {
             const bh = Math.round(curve(v) * h)
             if (bh <= 0) return
-            // a gradient per bar, foot to its own tip, so a short bar shows both colours too
+            // the palette runs outward from the bass in the middle, and each bar climbs one hue
+            // further along it, foot to its own tip, so a short bar shows both colours too
+            const t = (Math.abs(i + 0.5 - mid) / mid) * (1 - 1 / RING.length)
             const g = new Cairo.LinearGradient(0, h, 0, h - bh)
-            g.addColorStopRGBA(0, ...foot, a)
-            g.addColorStopRGBA(1, ...tip, a)
+            g.addColorStopRGBA(0, ...ring(t), a)
+            g.addColorStopRGBA(1, ...ring(t + 1 / RING.length), a)
             cr.setSource(g)
             cr.rectangle(i * bw + 1, h - bh, Math.max(1, bw - 2), bh)
             cr.fill()
