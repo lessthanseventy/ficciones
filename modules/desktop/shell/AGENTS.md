@@ -19,10 +19,11 @@ AGS 3 (gnim JSX) over Astal, GTK4, SCSS. Design: `docs/plans/2026-09-02-astal-sh
 
 ## Layer law
 
-Hyprland stacks BACKGROUND < windows < TOP < fullscreen windows < OVERLAY. A surface that omits
+Hyprland stacks BACKGROUND < BOTTOM < windows < TOP < fullscreen windows < OVERLAY. A surface that omits
 `layer` is TOP.
 
-- BACKGROUND: `backdrop`.
+- BACKGROUND: `backdrop`, and a screensaver hack (`xss-host`'s own surface).
+- BOTTOM: `spectrum`, so it shows over both.
 - TOP (exclusive zones; a floating window cannot cover them): `rail`, `bar`, `deck`, and the
   sidecar. A panel's clickaway field is inside the panel's own OVERLAY window.
 - OVERLAY (must show over a fullscreen app): `osd`, `decision` banner, `alarm`, notifications, and

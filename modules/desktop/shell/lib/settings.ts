@@ -20,7 +20,7 @@ const DEFAULTS = {
   "backdrop.hackScale": 0.5,
   /** how often the smooth ambients step; a multiple of 5 (the slow ones' rate) */
   "backdrop.smoothHz": 15,
-  /** the sound's spectrum along the foot of the backdrop, over the photo or the ambient, while sound plays */
+  /** the sound's spectrum along the foot of the desktop, over the photo, the ambient or the hack, while sound plays */
   "backdrop.spectrum": true,
   /** how much of the monitor's height the tallest bar takes */
   "backdrop.spectrumHeight": 0.25,

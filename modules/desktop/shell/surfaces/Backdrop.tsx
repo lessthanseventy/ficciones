@@ -22,7 +22,7 @@ import { closeAny } from "./Clickaway"
 import { loadHacks, hackNames, startHack, stopHack, pauseHack } from "../lib/xscreensaver"
 import { pickTurn, type Turn } from "../lib/rotation-core"
 import { fullscreenMonitors } from "../lib/hypr"
-import { Spectrum } from "../lib/cava"
+
 import { setting } from "../lib/settings"
 
 const COLS = 210, ROWS = 64   // ≈ 1920×1200 at 9px × 18px cells
@@ -296,7 +296,7 @@ export default function Backdrop({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             $={(self) => { canvas.area = self; self.paint = canvas.paint }}
           />
         </box>
-        <Spectrum covered={fullscreenMonitors((f) => f.has(gdkmonitor.connector ?? ""))} />
+
         <box
           $type="overlay"
           visible={zen((z) => !z)}

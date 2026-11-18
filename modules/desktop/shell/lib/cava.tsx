@@ -4,7 +4,7 @@
 import Cava from "gi://AstalCava"
 import { setting } from "./settings"
 import Gtk from "gi://Gtk?version=4.0"
-import { createComputed, onCleanup, type Accessor } from "ags"
+import { onCleanup, type Accessor } from "ags"
 import { soundRunning } from "./sound"
 
 let inst: Cava.Cava | null | undefined
@@ -37,22 +37,19 @@ function bands(vs: number[], side: "left" | "right", rows: number): number[] {
   return Array.from({ length: rows }, (_, r) => ch.slice(r * step, (r + 1) * step).reduce((a, b) => a + b, 0) / step)
 }
 
-/** Both channels as bars along the foot of the backdrop, the bass in the middle. It takes no
- *  input, and is hidden (so not drawn) in silence, when turned off, and while `covered`. */
-export function Spectrum({ covered }: { covered: Accessor<boolean> }) {
+/** Both channels as bars filling its box, the bass in the middle. Redrawn only while `shown`. */
+export function SpectrumBars({ shown }: { shown: Accessor<boolean> }) {
   const c = cava()
-  if (!c) return <box $type="overlay" visible={false} />
-  const on = setting("backdrop.spectrum"), height = setting("backdrop.spectrumHeight"), opacity = setting("backdrop.spectrumOpacity")
-  const shown = createComputed(() => on() && soundRunning() && !covered())
+  if (!c) return <box />
+  const opacity = setting("backdrop.spectrumOpacity")
   let area: Gtk.DrawingArea | null = null
   const id = c.connect("notify::values", () => { if (shown.peek()) area?.queue_draw() })
   onCleanup(() => c.disconnect(id))
   return (
     <Gtk.DrawingArea
-      $type="overlay"
       cssClasses={["spectrum"]}
-      canTarget={false}
-      visible={shown}
+      hexpand
+      vexpand
       $={(self) => {
         area = self
         self.set_draw_func((_, cr, w, h) => {
@@ -60,8 +57,8 @@ export function Spectrum({ covered }: { covered: Accessor<boolean> }) {
           const bars = [...vs.slice(0, n).reverse(), ...vs.slice(n)]
           const col = self.get_color()
           cr.setSourceRGBA(col.red, col.green, col.blue, Math.min(1, Math.max(0.05, opacity.peek())))
-          const bw = w / bars.length, top = h * Math.min(1, Math.max(0.05, height.peek()))
-          bars.forEach((v, i) => { const bh = Math.round(curve(v) * top); if (bh > 0) cr.rectangle(i * bw + 1, h - bh, Math.max(1, bw - 2), bh) })
+          const bw = w / bars.length
+          bars.forEach((v, i) => { const bh = Math.round(curve(v) * h); if (bh > 0) cr.rectangle(i * bw + 1, h - bh, Math.max(1, bw - 2), bh) })
           cr.fill()
         })
       }}

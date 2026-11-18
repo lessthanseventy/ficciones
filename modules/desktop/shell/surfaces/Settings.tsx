@@ -170,7 +170,7 @@ function Backdrop() {
       <Row label="ambient smoothness" hint="how often the smooth ambients step; costs CPU">
         <Stepper k="backdrop.smoothHz" stops={[10, 15, 20, 25, 30]} fmt={(n) => `${n} Hz`} />
       </Row>
-      <Row label="spectrum" hint="the sound as bars along the foot, over the photo or the ambient">
+      <Row label="spectrum" hint="the sound as bars along the foot, over whatever the backdrop shows">
         <OnOff k="backdrop.spectrum" />
       </Row>
       <Row label="spectrum height" hint="the tallest bar, as a share of the monitor">

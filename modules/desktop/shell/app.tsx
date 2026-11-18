@@ -26,6 +26,7 @@ import Cheatsheet, { toggleCheatsheet } from "./surfaces/Cheatsheet"
 import Settings, { toggleSettings } from "./surfaces/Settings"
 import { sendToOtherScreen } from "./lib/display"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
+import Spectrum from "./surfaces/Spectrum"
 import Backdrop, { setBackdrop, MODE_NAMES, type BackdropMode } from "./surfaces/Backdrop"
 import { popAgents } from "./surfaces/Deck"
 import Office, { toggleOffice } from "./surfaces/Office"
@@ -219,6 +220,7 @@ app.start({
             <Bar gdkmonitor={monitor} />
             <DeckRow gdkmonitor={monitor} />
             <Backdrop gdkmonitor={monitor} />
+            <Spectrum gdkmonitor={monitor} />
             <Alarms gdkmonitor={monitor} />
           </This>
         )}
