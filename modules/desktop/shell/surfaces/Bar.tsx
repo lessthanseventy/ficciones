@@ -47,10 +47,12 @@ function Windows({ connector }: { connector: string }) {
     focusedWorkspace(); focusedClient()
     const cs = hyprClients()
     const ws = activeWs()
-    let live = new Map<string, number>()
-    try { live = new Map((JSON.parse(query("j/clients")) as { address: string; at: [number, number] }[]).map((c) => [c.address.replace(/^0x/, ""), c.at[0]])) } catch { /* cached order */ }
-    const x = (c: Hyprland.Client) => live.get(c.address.replace(/^0x/, "")) ?? c.x
-    return cs.filter((c) => ws && c.workspace?.id === ws.id && c.mapped).sort((a, b) => x(a) - x(b))
+    let live = new Map<string, { x: number; hidden: boolean }>()
+    try { live = new Map((JSON.parse(query("j/clients")) as { address: string; at: [number, number]; hidden: boolean }[]).map((c) => [c.address.replace(/^0x/, ""), { x: c.at[0], hidden: c.hidden }])) } catch { /* cached order */ }
+    const at = (c: Hyprland.Client) => live.get(c.address.replace(/^0x/, ""))
+    const x = (c: Hyprland.Client) => at(c)?.x ?? c.x
+    // a swallowed terminal stays mapped on its workspace, hidden behind the window it launched
+    return cs.filter((c) => ws && c.workspace?.id === ws.id && c.mapped && !at(c)?.hidden).sort((a, b) => x(a) - x(b))
   })
   // Stops at the ends, no wrap — same as the rail's wheel.
   const scroll = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
