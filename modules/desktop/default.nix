@@ -127,6 +127,29 @@ let
     fi
   '';
 
+  # ivysaur's built-in speakers, as PipeWire names the sink
+  speakerSink = "alsa_output.pci-0000_00_1f.3-platform-skl_hda_dsp_generic.HiFi__Speaker__sink";
+  # easyeffects' levelling plugins, shared by its presets
+  level = {
+    "autogain#0" = {
+      bypass = false;
+      target = -16.0;
+      reference = "Geometric Mean (MSI)";
+      maximum-history = 15;
+      silence-threshold = -70.0;
+    };
+    "limiter#0" = {
+      bypass = false;
+      mode = "Herm Thin";
+      threshold = -1.0;
+      lookahead = 5.0;
+      attack = 5.0;
+      release = 5.0;
+      stereo-link = 100.0;
+      gain-boost = false;
+    };
+  };
+
 in
 {
   imports = [
@@ -454,11 +477,31 @@ in
     # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
     home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
 
-    # One output chain for the laptop speakers: an equaliser, then loudness levelling, then a
-    # limiter that keeps what the first two raise under full scale.
+    # Loudness levelling on every output, then a limiter that keeps what it raises under full
+    # scale; the laptop speakers get an equaliser before them. easyeffects picks the preset by
+    # the output in use (the autoload file below), and falls back to `level` for any other.
+    xdg.dataFile."easyeffects/autoload/output/${speakerSink}:Speaker.json".text = builtins.toJSON {
+      device = speakerSink;
+      device-description = "Speaker";
+      # the route's description, as PipeWire gives it
+      device-profile = "Speaker";
+      preset-name = "speakers";
+    };
     services.easyeffects = {
       enable = true;
-      preset = "speakers";
+      # easyeffects keeps these two under its Window group
+      settings.Window = {
+        outputAutoloadingUsesFallback = true;
+        outputAutoloadingFallbackPreset = "level";
+      };
+      extraPresets.level.output = {
+        blocklist = [ ];
+        plugins_order = [
+          "autogain#0"
+          "limiter#0"
+        ];
+      }
+      // level;
       extraPresets.speakers.output =
         let
           band = type: frequency: gain: q: {
@@ -499,24 +542,8 @@ in
             left = bands;
             right = bands;
           };
-          "autogain#0" = {
-            bypass = false;
-            target = -16.0;
-            reference = "Geometric Mean (MSI)";
-            maximum-history = 15;
-            silence-threshold = -70.0;
-          };
-          "limiter#0" = {
-            bypass = false;
-            mode = "Herm Thin";
-            threshold = -1.0;
-            lookahead = 5.0;
-            attack = 5.0;
-            release = 5.0;
-            stereo-link = 100.0;
-            gain-boost = false;
-          };
-        };
+        }
+        // level;
     };
 
     # git rewrites hyprland.lua by unlinking it first (a checkout, a rebase's autostash). Hyprland
