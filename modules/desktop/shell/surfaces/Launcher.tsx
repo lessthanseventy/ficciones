@@ -1,7 +1,7 @@
 // The launcher (retires anyrun) and the clipboard picker (retires the fuzzel stopgap): one
 // list widget, two sources. A centred pane with a `>` prompt and a block cursor, results
 // below, the selection in inverse video. Prefixes switch mode: apps by default, `=` calc (qalc),
-// `>` verbs (mise tasks), `/` files (fd from ~), `:` run a shell line. Up/Down, Ctrl+j/k or Ctrl+n/p, Enter, Escape.
+// `>` verbs (mise tasks), `/` files (fd from ~), `:` run a shell line, `+` tell tlon's home a thing. Up/Down, Ctrl+j/k or Ctrl+n/p, Enter, Escape.
 import { parseSpec } from "../lib/timer"
 import { L, dispatch, sel as windowSel } from "../lib/hyprlua"
 import { agents } from "../lib/agents"
@@ -18,13 +18,14 @@ import Apps from "gi://AstalApps"
 import Hyprland from "gi://AstalHyprland"
 import { For, createState, createComputed } from "ags"
 import { execAsync } from "ags/process"
+import { fetch } from "ags/fetch"
 import { Panel } from "../lib/tui"
 import { remember, score, recent, times, type Memory } from "../lib/funes"
 import { order } from "../lib/launcher-core"
 import { outside, launchApp } from "../lib/launch"
 
 type Item = { icon?: string; glyph?: string; title: string; sub?: string; run: () => void | Promise<void>; key: string; mode?: Mode }
-type Mode = "apps" | "calc" | "files" | "shell" | "clip" | "verbs"
+type Mode = "apps" | "calc" | "files" | "shell" | "clip" | "verbs" | "jot"
 
 const apps = new Apps.Apps()
 // AstalApps reads the desktop entries once; without this an app installed under a running shell is absent.
@@ -66,7 +67,18 @@ const [modeOverride, setModeOverride] = createState<Mode | null>(null)
 const [query, setQuery] = createState("")
 const [items, setItems] = createState<Item[]>([])
 const [sel, setSel] = createState(0)
-const mode = createComputed((): Mode => { const o = modeOverride(), q = query(); return o ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : q.startsWith(">") ? "verbs" : "apps") })
+const mode = createComputed((): Mode => { const o = modeOverride(), q = query(); return o ?? (q.startsWith("=") ? "calc" : q.startsWith("/") ? "files" : q.startsWith(":") ? "shell" : q.startsWith(">") ? "verbs" : q.startsWith("+") ? "jot" : "apps") })
+
+/** Say a thing to tlon's home, as a text to its bot is said; the reading comes back as a notice. */
+async function jot(text: string) {
+  const say = (summary: string, body: string) => execAsync(["notify-send", "-a", "tlön", summary, body]).catch(() => {})
+  try {
+    const res = await fetch("http://127.0.0.1:4040/api/home", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) })
+    if (res.status >= 300) throw new Error(`HTTP ${res.status}`)
+    const { reply } = (await res.json()) as { reply: string }
+    await say(reply, text)
+  } catch (e) { await say("not kept: tlon did not answer", `${text}\n${String(e)}`) }
+}
 
 /** A remembered thing as an item again: apps relaunch, shell lines rerun, files reopen, sums recopy. */
 function recall(m: Memory): Item | null {
@@ -132,6 +144,8 @@ async function search(q: string) {
       } else {
         out = recent(8, ["files"]).map(recall).filter((x): x is Item => !!x)
       }
+    } else if (m === "jot") {
+      out = body.trim() ? [{ glyph: "+", title: body.trim(), sub: "tell tlon", key: `jot:${body}`, run: () => jot(body.trim()) }] : []
     } else if (m === "shell") {
       out = body ? [{ glyph: ":", title: body, sub: "run in a shell", key: body, mode: "shell", run: () => outside(["sh", "-c", body]).then(() => void 0) }] : []
       // lines run before that start the same way, most-reached-for first
@@ -189,8 +203,8 @@ export function showLauncher(m: Mode | null = null) {
 }
 export function toggleLauncher(m: Mode | null = null) { if (win?.visible) hide(); else showLauncher(m) }
 
-const prompt: Record<Mode, string> = { apps: ">", calc: "=", files: "/", shell: ":", clip: "\u{f0cea}", verbs: "\u{f0493}" }
-const hint: Record<Mode, string> = { apps: "apps · =calc · /files · :shell · >verbs", calc: "qalc · Enter copies", files: "fd from ~ · Enter opens", shell: "Enter runs", clip: "Enter copies", verbs: "mise tasks · Enter runs in a window" }
+const prompt: Record<Mode, string> = { apps: ">", calc: "=", files: "/", shell: ":", clip: "\u{f0cea}", verbs: "\u{f0493}", jot: "+" }
+const hint: Record<Mode, string> = { apps: "apps · =calc · /files · :shell · >verbs · +tell tlon", jot: "a reminder, a to-do, a note · Enter keeps it", calc: "qalc · Enter copies", files: "fd from ~ · Enter opens", shell: "Enter runs", clip: "Enter copies", verbs: "mise tasks · Enter runs in a window" }
 
 export default function Launcher() {
   const onKey = (kv: number, state: number) => {
