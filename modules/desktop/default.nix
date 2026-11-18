@@ -246,7 +246,6 @@ in
       tig
       gh
       kdePackages.kate
-      easyeffects
       rclone
       tokei
       zenith
@@ -454,6 +453,71 @@ in
     # hyprland.lua goes down home-manager's slow path, which is `mv` to the backup and THEN
     # `ln` — a window with no file, which is all Hyprland needs to fall back to defaults.
     home.activation.hyprlandReload = lib.hm.dag.entryAfter [ "linkGeneration" ] reloadHyprland;
+
+    # One output chain for the laptop speakers: an equaliser, then loudness levelling, then a
+    # limiter that keeps what the first two raise under full scale.
+    services.easyeffects = {
+      enable = true;
+      preset = "speakers";
+      extraPresets.speakers.output =
+        let
+          band = type: frequency: gain: q: {
+            inherit
+              type
+              frequency
+              gain
+              q
+              ;
+            mode = "RLC (BT)";
+            slope = "x1";
+            mute = false;
+            solo = false;
+          };
+          bands = {
+            # below this the drivers only move, they make no sound
+            band0 = band "High-pass" 90.0 0.0 0.7;
+            band1 = band "Bell" 180.0 3.0 1.0;
+            band2 = band "Bell" 3200.0 (-2.0) 1.5;
+            band3 = band "Hi-shelf" 9000.0 2.0 0.7;
+          };
+        in
+        {
+          blocklist = [ ];
+          plugins_order = [
+            "equalizer#0"
+            "autogain#0"
+            "limiter#0"
+          ];
+          "equalizer#0" = {
+            bypass = false;
+            mode = "IIR";
+            num-bands = 4;
+            split-channels = false;
+            input-gain = 0.0;
+            # headroom for the bands that boost
+            output-gain = -3.0;
+            left = bands;
+            right = bands;
+          };
+          "autogain#0" = {
+            bypass = false;
+            target = -16.0;
+            reference = "Geometric Mean (MSI)";
+            maximum-history = 15;
+            silence-threshold = -70.0;
+          };
+          "limiter#0" = {
+            bypass = false;
+            mode = "Herm Thin";
+            threshold = -1.0;
+            lookahead = 5.0;
+            attack = 5.0;
+            release = 5.0;
+            stereo-link = 100.0;
+            gain-boost = false;
+          };
+        };
+    };
 
     # git rewrites hyprland.lua by unlinking it first (a checkout, a rebase's autostash). Hyprland
     # reloads in that instant, finds no file and raises its error bar, and keeps the bar after

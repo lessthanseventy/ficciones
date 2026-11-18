@@ -62,7 +62,7 @@ if not os.getenv("FICCIONES_HYPR_NO_AUTOSTART") then
         hl.exec_cmd("systemctl --user is-active -q graphical-session.target || sh -c 'systemctl --user reset-failed astal-shell; systemctl --user start astal-shell'")
         -- night light daemon; the shell's hub toggles it (hyprctl hyprsunset temperature / identity)
         hl.exec_cmd("hyprsunset")
-        hl.exec_cmd("easyeffects --hide-window --service-mode")
+
         hl.exec_cmd("hypridle")
         -- hyprexpo, which modules/arch puts in ~/.local/share. Until it loads, the plugin.hyprexpo.*
         -- keys in theme.lua are "unknown".
