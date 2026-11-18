@@ -368,6 +368,13 @@ in
     ];
 
     xdg = {
+      # tlon's house is a sibling repo's Godot project, run from where it is
+      desktopEntries.tlon-house = {
+        name = "The House";
+        comment = "What you texted yourself: open things, what is coming, notes";
+        exec = "godot --path ${builtins.dirOf repo}/tlon/house";
+        categories = [ "Utility" ];
+      };
       userDirs =
         let
           home = config.home.homeDirectory;
