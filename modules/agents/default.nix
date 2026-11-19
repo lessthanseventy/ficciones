@@ -135,8 +135,8 @@ in
       tmp=$(mktemp)
       if ${pkgs.jq}/bin/jq '.env.ZDOTDIR = (env.HOME + "/.claude/zsh")
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
-             | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") | not)))
-               + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}"] | join(":"))
+             | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") or endswith("-inline-image") | not)))
+               + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}", "${./mods/inline-image}"] | join(":"))
          | .autoCompactWindow = 433000
          | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"

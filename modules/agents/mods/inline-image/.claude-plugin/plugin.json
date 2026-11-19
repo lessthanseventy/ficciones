@@ -1,0 +1,1 @@
+{ "name": "inline-image", "version": "0.1.0", "description": "Draws a PNG the assistant sends with SendUserFile under that call's row in the transcript" }
