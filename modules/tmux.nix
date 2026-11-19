@@ -98,6 +98,9 @@ in
       set -g extended-keys-format csi-u
       set -as terminal-features 'xterm*:extkeys'
 
+      # A pane's kitty graphics reach the terminal only wrapped in passthrough (with focus-events).
+      set -g allow-passthrough on
+
       set -g status-keys emacs
       set -g mode-keys vi
       bind -T copy-mode-vi v send-keys -X begin-selection
