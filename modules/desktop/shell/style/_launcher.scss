@@ -62,7 +62,7 @@ window.sidecar-zone { background: transparent; }
 // gap + the ring (2), so it stays concentric with the window's own border, which carries focus.
 window.sidecar-frame-win { background: transparent; }
 .sidecar-frame { border: 2px solid $attention; border-radius: 16px; background: transparent; }
-window.spectrum-win { background: transparent; }
+window.spectrum-win { background: linear-gradient(to top, rgba($ground, 0.8), rgba($ground, 0)); }
 
 .backdrop .grid .gl { color: $body; font-size: 14px; letter-spacing: 0; min-height: 0; }
 .backdrop .grid.green .gl { color: $live; }
