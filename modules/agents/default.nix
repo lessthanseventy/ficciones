@@ -104,6 +104,9 @@ in
     }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/dbx-connections.age) {
       dbx-connections.file = ../../secrets/dbx-connections.age;
+    }
+    // lib.optionalAttrs (builtins.pathExists ../../secrets/calendar-work.age) {
+      calendar-work.file = ../../secrets/calendar-work.age;
     };
 
   # The four working rules (modules/agents/how-to-work.md), as Claude Code's global CLAUDE.md.

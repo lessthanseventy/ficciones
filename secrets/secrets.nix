@@ -18,4 +18,6 @@ in
   # array in dbx's connection shape, seeded create-if-absent at every `dbx-desktop` launch by
   # modules/desktop/scripts/dbx-seed.sh. Optional — the flake skips it until the file exists.
   "dbx-connections.age".publicKeys = all;
+  # The work calendar's private .ics link, which tlon's Server.Calendar reads as a feed.
+  "calendar-work.age".publicKeys = all;
 }
