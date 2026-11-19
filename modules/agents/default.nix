@@ -124,6 +124,7 @@ in
   # 433k, as Claude Code compacts 33k short of the figure: at 400k.
   # CLAUDE_CODE_PLUGIN_DIRS: the mods (the changes pane, which /changes and /diff open, among them),
   # each by its store path, since the plugin loader refuses a module reached through a home.file symlink.
+  # CLAUDE_CODE_FORCE_TERMINAL_IMAGES: under tmux the inline-image mod draws nothing without it.
   # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
   # diffSidebarOpen off, in ~/.claude.json: the app's own diff panel opens on an edit otherwise,
   # and while it shows the dock gets no columns, so that pane has nowhere to draw.
@@ -137,6 +138,7 @@ in
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
              | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") or endswith("-inline-image") | not)))
                + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}", "${./mods/inline-image}"] | join(":"))
+         | .env.CLAUDE_CODE_FORCE_TERMINAL_IMAGES = "1"
          | .autoCompactWindow = 433000
          | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"
