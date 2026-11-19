@@ -107,6 +107,9 @@ in
     }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/calendar-work.age) {
       calendar-work.file = ../../secrets/calendar-work.age;
+    }
+    // lib.optionalAttrs (builtins.pathExists ../../secrets/zoho-mail-password.age) {
+      zoho-mail-password.file = ../../secrets/zoho-mail-password.age;
     };
 
   # The four working rules (modules/agents/how-to-work.md), as Claude Code's global CLAUDE.md.
