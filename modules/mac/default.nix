@@ -129,6 +129,7 @@ in
             # the Mac's own plugin dirs stay; only the mods' store paths are swapped in
             if ${pkgs.jq}/bin/jq --arg pane "${../agents/mods/changes-pane}" --arg review "${../agents/mods/review-pane}" --arg rows "${../agents/mods/transcript-rows}" --arg image "${../agents/mods/inline-image}" '.theme = "custom:ficciones"
                  | .statusLine = {type: "command", command: "~/.claude/statusline-box.sh"}
+                 | .env.CLAUDE_CODE_FORCE_TERMINAL_IMAGES = "1"
                  | .autoCompactWindow = 433000
                  | .enabledPlugins["cc-plugin-diff@builtin"] = false
                  | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
