@@ -51,6 +51,10 @@ if [ -n "$used" ] && [ "${#L[@]}" -ge 2 ]; then
 	used=$(printf '%.0f' "$used")
 	L[1]=$(printf '%s' "${L[1]}" | sed -E "s/(ctx[^%]*[^0-9])[0-9]+%/\1${used}%/")
 fi
+# arena's rail shows the same share: hooks are not told the window's size
+if [ -n "$used" ] && [ -n "${TMUX_PANE:-}" ] && [ "$(tmux show -pqv -t "$TMUX_PANE" @arena_claude_ctx 2>/dev/null)" != "$used" ]; then
+	tmux set -p -t "$TMUX_PANE" @arena_claude_ctx "$used" 2>/dev/null
+fi
 
 # the session's meter beside its record (modules/agents/session-state.sh), for the desktop's rows:
 # a file of its own so the hook and the repaint never write over each other, written only on a change
