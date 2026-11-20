@@ -20,7 +20,7 @@ let
   # service below runs it headless; `server:console`/`:restart` drive the same
   # bin/server, so node + cookie agree via the release's own env.sh.
   serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
-  babylonRepo = "${config.home.homeDirectory}/projects/babylon";
+  babylonRepo = "${config.home.homeDirectory}/projects/arena/babylon";
 in
 {
   imports = [ ./claude.nix ];
@@ -146,8 +146,6 @@ in
   # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
   # diffSidebarOpen off, in ~/.claude.json: the app's own diff panel opens on an edit otherwise,
   # and while it shows the dock gets no columns, so that pane has nowhere to draw.
-  # babylon as every session's MCP server, the header naming its tmux pane (a claim's holder);
-  # Claude Code fills ${TMUX_PANE} in when it starts.
   home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     cfg="$HOME/.claude/settings.json"
     # a machine Claude Code has not run on yet has no file, and would get none of this
@@ -170,9 +168,7 @@ in
     state="$HOME/.claude.json"
     if [ -f "$state" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq '.diffSidebarOpen = false
-         | .mcpServers.babylon = {type: "http", url: "http://127.0.0.1:4050/",
-             headers: {"X-Babylon-Pane": "''${TMUX_PANE}"}}' "$state" > "$tmp"; then
+      if ${pkgs.jq}/bin/jq '.diffSidebarOpen = false' "$state" > "$tmp"; then
         run chmod 600 "$tmp"
         run mv -f "$tmp" "$state"
       else
@@ -306,8 +302,9 @@ in
     Install.WantedBy = [ "default.target" ];
   };
 
-  # babylon (~/projects/babylon): the sessions' tickets over MCP on loopback :4050. It runs the
-  # release babylon's own release task builds, and asks tmux (profile-owned) which panes run Claude.
+  # babylon (arena's babylon/, which arena's plugin hands every session): the sessions' tickets
+  # over MCP on loopback :4050. It runs the release babylon's own release task builds, and asks
+  # tmux (profile-owned) which panes run Claude.
   systemd.user.services.babylon = {
     Unit = {
       Description = "babylon — the Claude sessions' tickets, over MCP (loopback)";
