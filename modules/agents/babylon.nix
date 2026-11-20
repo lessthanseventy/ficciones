@@ -11,8 +11,11 @@ let
   home = config.home.homeDirectory;
   arenaRepo = "${home}/projects/arena";
   rel = "${home}/.local/share/babylon/rel/bin/babylon";
-  # tmux (profile-owned) is how it learns which panes run Claude
-  path = "${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin";
+  # tmux (profile-owned) is how it learns which panes run Claude; coreutils gives its pipeline
+  # `timeout`, which the Mac lacks; git, mise and claude run the gate and the review
+  path = "${
+    lib.makeBinPath [ pkgs.coreutils ]
+  }:${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin";
 in
 {
   home.packages = [
