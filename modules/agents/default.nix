@@ -289,4 +289,30 @@ in
     };
     Install.WantedBy = [ "default.target" ];
   };
+
+  # babylon (~/projects/babylon): the sessions' tickets over MCP on loopback :4050. It runs the
+  # release babylon's own release task builds, and asks tmux (profile-owned) which panes run Claude.
+  systemd.user.services.babylon = {
+    Unit = {
+      Description = "babylon — the Claude sessions' tickets, over MCP (loopback)";
+      After = [ "network.target" ];
+      ConditionPathExists = "%h/.local/share/babylon/rel/bin/babylon";
+    };
+    Service = {
+      Type = "exec";
+      Environment = [
+        "PATH=${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin"
+        "BABYLON_SERVE=1"
+        "BABYLON_PORT=4050"
+      ];
+      ExecStartPre = [
+        "/bin/sh -c 'for i in $(seq 60); do ${pgIsReady} -q -h /run/postgresql && exit 0; sleep 1; done; exit 1'"
+        "%h/.local/share/babylon/rel/bin/babylon eval Babylon.Release.migrate()"
+      ];
+      ExecStart = "%h/.local/share/babylon/rel/bin/babylon start";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install.WantedBy = [ "default.target" ];
+  };
 }
