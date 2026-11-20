@@ -53,6 +53,11 @@ merging main in. Rewriting history that is already pushed or shared is the human
     repo's Credo rules (`.credo.exs`) on the lines you touched.
   - Each run answers one JSON line with every failure's file, line and message: read it, never
     re-run to see more.
+  - **menard's gaps are tickets.** When menard gets in your way, could do a job better, or
+    something that should run through it does not (`zig build` and `zig test` today), file a
+    babylon ticket with repo `menard`: what you ran, what happened, what would have been better.
+    If it blocks you now, message the running menard session as well. Then carry on with the
+    workaround; a ticket is not a reason to stop.
 - Every public function you add or change has `@doc` and `@spec`.
 - Pattern matching over conditionals where appropriate.
 - **Avoid the anti-patterns in Elixir's own guide** (hexdocs.pm/elixir, "Anti-patterns"), above all:
