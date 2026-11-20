@@ -20,6 +20,7 @@ let
   # service below runs it headless; `server:console`/`:restart` drive the same
   # bin/server, so node + cookie agree via the release's own env.sh.
   serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
+  babylonRepo = "${config.home.homeDirectory}/projects/babylon";
 in
 {
   imports = [ ./claude.nix ];
@@ -91,6 +92,17 @@ in
       esac
       exec mise --cd ${tlonRepo} run "$task" -- "$@"
     '')
+
+    # `babylon` — the tickets from a shell, the checkout's own script; it reads the repo you are in
+    (pkgs.writeShellScriptBin "babylon" ''
+      export PATH=${
+        lib.makeBinPath [
+          pkgs.curl
+          pkgs.jq
+        ]
+      }:$PATH
+      exec ${babylonRepo}/bin/babylon "$@"
+    '')
   ];
 
   # age-encrypted secrets, decrypted at home:switch to $XDG_RUNTIME_DIR/agenix/<name>.
@@ -134,6 +146,8 @@ in
   # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
   # diffSidebarOpen off, in ~/.claude.json: the app's own diff panel opens on an edit otherwise,
   # and while it shows the dock gets no columns, so that pane has nowhere to draw.
+  # babylon as every session's MCP server, the header naming its tmux pane (a claim's holder);
+  # Claude Code fills ${TMUX_PANE} in when it starts.
   home.activation.claudeShellEnv = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     cfg="$HOME/.claude/settings.json"
     # a machine Claude Code has not run on yet has no file, and would get none of this
@@ -156,7 +170,9 @@ in
     state="$HOME/.claude.json"
     if [ -f "$state" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq '.diffSidebarOpen = false' "$state" > "$tmp"; then
+      if ${pkgs.jq}/bin/jq '.diffSidebarOpen = false
+         | .mcpServers.babylon = {type: "http", url: "http://127.0.0.1:4050/",
+             headers: {"X-Babylon-Pane": "''${TMUX_PANE}"}}' "$state" > "$tmp"; then
         run chmod 600 "$tmp"
         run mv -f "$tmp" "$state"
       else
