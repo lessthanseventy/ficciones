@@ -20,10 +20,12 @@ let
   # service below runs it headless; `server:console`/`:restart` drive the same
   # bin/server, so node + cookie agree via the release's own env.sh.
   serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
-  babylonRepo = "${config.home.homeDirectory}/projects/arena/babylon";
 in
 {
-  imports = [ ./claude.nix ];
+  imports = [
+    ./claude.nix
+    ./babylon.nix
+  ];
 
   # rbw — Bitwarden CLI with an unlock agent, for interactive password management.
   # Config here is non-secret/declarative; master password + vault stay with Bitwarden.
@@ -93,16 +95,6 @@ in
       exec mise --cd ${tlonRepo} run "$task" -- "$@"
     '')
 
-    # `babylon` — the tickets from a shell, the checkout's own script; it reads the repo you are in
-    (pkgs.writeShellScriptBin "babylon" ''
-      export PATH=${
-        lib.makeBinPath [
-          pkgs.curl
-          pkgs.jq
-        ]
-      }:$PATH
-      exec ${babylonRepo}/bin/babylon "$@"
-    '')
   ];
 
   # age-encrypted secrets, decrypted at home:switch to $XDG_RUNTIME_DIR/agenix/<name>.
@@ -296,33 +288,6 @@ in
         "${serverRel}/bin/server eval Server.Release.migrate()"
       ];
       ExecStart = "${serverRel}/bin/server start";
-      Restart = "on-failure";
-      RestartSec = 2;
-    };
-    Install.WantedBy = [ "default.target" ];
-  };
-
-  # babylon (arena's babylon/, which arena's plugin hands every session): the sessions' tickets
-  # over MCP on loopback :4050. It runs the release babylon's own release task builds, and asks
-  # tmux (profile-owned) which panes run Claude.
-  systemd.user.services.babylon = {
-    Unit = {
-      Description = "babylon — the Claude sessions' tickets, over MCP (loopback)";
-      After = [ "network.target" ];
-      ConditionPathExists = "%h/.local/share/babylon/rel/bin/babylon";
-    };
-    Service = {
-      Type = "exec";
-      Environment = [
-        "PATH=${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin"
-        "BABYLON_SERVE=1"
-        "BABYLON_PORT=4050"
-      ];
-      ExecStartPre = [
-        "/bin/sh -c 'for i in $(seq 60); do ${pgIsReady} -q -h /run/postgresql && exit 0; sleep 1; done; exit 1'"
-        "%h/.local/share/babylon/rel/bin/babylon eval Babylon.Release.migrate()"
-      ];
-      ExecStart = "%h/.local/share/babylon/rel/bin/babylon start";
       Restart = "on-failure";
       RestartSec = 2;
     };

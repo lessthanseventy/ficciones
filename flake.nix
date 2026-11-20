@@ -327,6 +327,7 @@
         modules = [
           ./modules/mac
           ./modules/agents/claude.nix
+          ./modules/agents/babylon.nix
           ./modules/tmux.nix
           ./modules/menard-host.nix
           {
