@@ -1,2 +1,7 @@
 # Inside the repo, where tlon keeps its threads' checkouts and a sandbox can write; wt's default sibling directory is outside both.
 worktree-path = "{{ repo_path }}/.worktrees/{{ branch | sanitize }}"
+
+# a new worktree starts with the builds and deps its repo's .worktreeinclude names, copied from the
+# primary checkout (reflinks on btrfs), not cold; a repo without one copies nothing
+[post-start]
+copy-ignored = "wt step copy-ignored --require-include >/dev/null 2>&1 || true"

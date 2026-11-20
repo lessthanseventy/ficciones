@@ -79,6 +79,8 @@ merging main in. Rewriting history that is already pushed or shared is the human
 - **A gate is its own call.** Run the check, read its answer, then push in a separate command.
   Never join a check to a push or a deploy in one command: with `;` the push runs whether it
   passed or not. Do not discard a tool's own summary to rebuild one with tail.
+  In a repo on babylon (its tickets and `submit_ticket`), the gate is babylon's: run the tests of
+  what you changed, commit, and `submit_ticket`; babylon runs the whole gate once, then lands it.
 - **Wait on notifications, not loops.** Start a long command once in the background and wait for its
   completion; no `sleep`/`until` poll loops left in a shell (they outlive you, and `pgrep -f` matches
   the loop itself). For state nothing will notify you about (a PR merging, a remote queue), use the
