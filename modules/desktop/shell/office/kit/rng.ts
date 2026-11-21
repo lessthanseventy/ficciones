@@ -8,5 +8,5 @@ export function mulberry32(seed: number) {
   }
 }
 
-/** the one door to chance in kit/ and rooms/: a draw in [0, 1). It reads `Math.random` at call time, so a test can pin it; `office:check` holds every other use out */
+/** the one door to chance in kit/: a draw in [0, 1). It reads `Math.random` at call time, so a test can pin it */
 export const random = (): number => Math.random()

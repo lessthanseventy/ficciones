@@ -1,4 +1,4 @@
-// The rail's stacked clock lines from tlon's office clockFace (kit/eggs.ts: 404 at 4:04, π at
+// The rail's stacked clock lines from the kit's clockFace (office/kit/eggs.ts: 404 at 4:04, π at
 // 3:14): pure, so node can test it.
 
 /** the hour and minute lines of a face; a joke face takes the first line alone */
