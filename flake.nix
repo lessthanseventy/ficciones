@@ -40,14 +40,6 @@
       url = "github:lgse/strata/v1.2.1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # tlon's office kit and rooms (office/{kit,rooms}) at its release pointer (`live`), baked into the desktop shell's bundle —
-    # the shell's office draws tlon's rail room. Pinned like any input: flake:bump moves it; the
-    # dev loop (shell:dev) reads the live checkout through modules/desktop/shell/office's links.
-    # From GitHub so every host can lock it; tlon's release:cut pushes `live` there.
-    tlon = {
-      url = "github:lessthanseventy/tlon/live";
-      flake = false;
-    };
   };
 
   outputs =
@@ -81,7 +73,6 @@
       # as a special arg, so the profile installs the package `nix build .#astal-shell` builds.
       astalShell = pkgs.callPackage ./modules/desktop/shell/package.nix {
         agsPackages = ags.packages.${system};
-        tlon = inputs.tlon;
       };
 
       # Expert, from its flake input (above).

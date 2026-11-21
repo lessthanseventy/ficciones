@@ -20,6 +20,6 @@ declare module "*.css" {
   export default content
 }
 
-// office/kit (tlon's, shared with its bun TUI) names this in a default argument the shell never
-// takes. gjs has no `process`: nothing of ours may read it.
+// office/kit names this in a default argument the shell never takes. gjs has no `process`:
+// nothing of ours may read it.
 declare const process: { env: Record<string, string | undefined> }

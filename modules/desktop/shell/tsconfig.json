@@ -36,8 +36,7 @@
     "verbatimModuleSyntax": true
   },
   "exclude": [
-    "node_modules",
-    "office"
+    "node_modules"
   ],
   "include": [
     "**/*.ts",

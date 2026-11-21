@@ -667,8 +667,7 @@
         "home-manager": "home-manager",
         "hyprexpo": "hyprexpo",
         "nixpkgs": "nixpkgs_3",
-        "strata": "strata",
-        "tlon": "tlon"
+        "strata": "strata"
       }
     },
     "strata": {
@@ -704,23 +703,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default-linux",
-        "type": "github"
-      }
-    },
-    "tlon": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1794225262,
-        "narHash": "sha256-aV2pVJX3S6DQHpGzngswAAl/jhOVrfPJ2//EbXu7Sbw=",
-        "owner": "lessthanseventy",
-        "repo": "tlon",
-        "rev": "92deecaf9cd4f9da4e8ae2d0b54a5a5a703313e2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "lessthanseventy",
-        "ref": "live",
-        "repo": "tlon",
         "type": "github"
       }
     },

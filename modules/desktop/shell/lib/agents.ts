@@ -9,8 +9,7 @@ import { fetch } from "ags/fetch"
 import GLib from "gi://GLib?version=2.0"
 import { logEvent } from "./log"
 
-// the snapshot's shape is tlon's (office/kit/types.ts, Server.Office's contract), shared with
-// every office surface
+// the snapshot's shape is tlon's (Server.Office's contract), held in office/kit/types.ts
 import type { Agents, ThreadView } from "../office/kit/types"
 export type { Agents, Archetype, Coworker, ModelChoice, ModelSpec, Note, Seat, Thread, ThreadView, Ticket, Visit } from "../office/kit/types"
 /** a thread's brief, the scope get_dossier hands an agent (GET /api/threads/:id) */

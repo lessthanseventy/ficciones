@@ -16,7 +16,6 @@
   runtimeShell,
   dart-sass,
   agsPackages,
-  tlon,
 }:
 
 let
@@ -95,13 +94,7 @@ stdenv.mkDerivation {
   ];
   buildInputs = astalLibs ++ [ gjs ] ++ extra;
 
-  # office/ holds links into the live tlon checkout for the dev loop; the store build takes the
-  # same two directories from the pinned tlon input instead
-  prePatch = bakePalette + ''
-    rm -rf office && mkdir office
-    cp -r ${tlon}/office/kit ${tlon}/office/rooms office/
-    chmod -R u+w office
-  '';
+  prePatch = bakePalette;
 
   # The shell brings its own stylesheet; a GTK_THEME from the session (theme.lua sets one for
   # the other GTK apps) would paint under it — grey popovers and bars. gio: lib/launch.ts starts
