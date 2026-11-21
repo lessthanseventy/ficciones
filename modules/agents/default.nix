@@ -245,6 +245,11 @@ in
     };
   };
 
+  # tlon's gate skips the house's checks where godot is missing; on this machine that is a failure.
+  # Set for sessions, for babylon (its gate runs tlon's) and for tlon's own service below.
+  home.sessionVariables.TLON_HOUSE_GATE = "required";
+  systemd.user.services.babylon.Service.Environment = [ "TLON_HOUSE_GATE=required" ];
+
   systemd.user.services.tlon = {
     Unit = {
       Description = "tlon — the always-up sovereign MCP channel (loopback)";
@@ -286,6 +291,7 @@ in
         "TLON_MEMORY_PASS=1"
         # the office's small talk, on the cheap ollama tier, only while an office watches
         "TLON_BANTER=1"
+        "TLON_HOUSE_GATE=required"
       ];
       # Seed + repair run at app boot (Server.Bootstrap); only the schema migration
       # is a pre-step.
