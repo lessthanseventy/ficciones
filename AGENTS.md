@@ -17,6 +17,7 @@ control loop, not two, and no second way to run anything:
 - `mise run flake:check` — the machine-level Nix gate.
 - `mise run home:switch` — install/update this machine into the user profile via home-manager.
 - `mise run machine:update` — apply the checkout to the live machine: home:switch, then restart the shell and tlon's server (the one update verb).
+- `mise run install` — what babylon runs after a landing: home:switch alone, so a landing restarts only the units it changed.
 
 Elixir, the server loop and menard's verbs live in tlon (`cd ~/projects/tlon &&
 mise tasks`).
