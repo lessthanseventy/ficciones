@@ -22,8 +22,8 @@ import { weather, glyph } from "../lib/weather"
 import { Channel } from "../lib/cava"
 import { WorkspacePop } from "../panes/Workspaces"
 import { captureShowing, watchThumbs } from "../lib/thumbs"
-import { railLines } from "../lib/clock-core"
-import { clockFace } from "../office/kit/eggs"
+import { clockFace, railLines } from "../lib/clock-core"
+
 
 /** Debug: `astal-shell pop ws <id>` opens that number's strip without a hover. */
 const wsPops = new Map<number, HoverPop>()

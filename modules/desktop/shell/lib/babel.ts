@@ -6,7 +6,7 @@
 import GLib from "gi://GLib?version=2.0"
 import Gio from "gi://Gio?version=2.0"
 import { execAsync } from "ags/process"
-import { foundLines } from "../office/kit/eggs"
+import { foundLines } from "./babel-core"
 import { PALETTE, type Hue } from "./palette"
 
 const DIR = `${GLib.get_user_cache_dir()}/astal-shell/babel`
@@ -66,7 +66,7 @@ const symbols = (r: () => number, n: number) => Array.from({ length: n }, () => 
  */
 function fragment(seed: number, w: number, n: number): { lines: string[]; real: boolean } {
   const r = rng(seed)
-  // the office's Library plants a meaningful sentence on one page in a thousand; so does this one
+  // one page in a thousand holds a sentence that means something
   const found = foundLines(w, rng(seed + 13))
   if (found) {
     const lines = Array.from({ length: n }, () => symbols(r, w))
