@@ -237,8 +237,6 @@ in
         osd-font = "ComicShannsMono Nerd Font";
       };
     };
-    home.sessionVariables.SUDO_ASKPASS = "${config.home.homeDirectory}/.local/bin/sudo-askpass";
-    home.sessionVariables.GOPATH = "${config.home.homeDirectory}/.local/share/go";
 
     # piper voices (the nix piper-tts ships none; pacman's piper-voices-en-* was 1.8 GB of every
     # voice, none in use — `say` is kokoro via litellm). Two general ones, pinned from the
