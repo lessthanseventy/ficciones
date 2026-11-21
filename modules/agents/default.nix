@@ -158,6 +158,7 @@ in
              | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") or endswith("-inline-image") | not)))
                + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}", "${./mods/inline-image}"] | join(":"))
          | .env.CLAUDE_CODE_FORCE_TERMINAL_IMAGES = "1"
+         | .env.TLON_HOUSE_GATE = "required"
          | .autoCompactWindow = 433000
          | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"
@@ -246,7 +247,8 @@ in
   };
 
   # tlon's gate skips the house's checks where godot is missing; on this machine that is a failure.
-  # Set for babylon (its gate runs tlon's), for tlon's own service below, and for shells in ../os/zshrc.
+  # Set for babylon (its gate runs tlon's), for tlon's own service below, for shells in ../os/zshrc,
+  # and for Claude Code's shells in claudeShellEnv (they take no export from the rc).
   systemd.user.services.babylon.Service.Environment = [ "TLON_HOUSE_GATE=required" ];
 
   systemd.user.services.tlon = {
