@@ -300,7 +300,6 @@ in
 
         # The palette as shell variables, for scripts that draw.
         "ficciones/palette.sh" = via "palette.sh";
-
       }
     ];
 

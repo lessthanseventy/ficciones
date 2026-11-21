@@ -12,7 +12,6 @@ import { logEvent } from "./log"
 import { outside } from "./launch"
 import { play } from "./sfx"
 import { openInOffice } from "./agents"
-
 import { showing as up, ofLevel, onBanner, request, arrived, soundFor, type Action, type Alert, type Kept } from "./alerts-core"
 
 export type { Action, Alert }

@@ -14,7 +14,6 @@
   lib,
   pkgs,
   repo,
-
   strata,
   ...
 }:
@@ -351,7 +350,6 @@ in
       uv
       libation
       piper-tts
-
       # screenshots: flameshot is Super+Shift+S only (hypr/scripts/shot-region.sh); the card is grim (shell/lib/capture.ts)
       flameshot
       # the clipboard history behind the rail's clipboard card and Super+V (hyprland.lua's

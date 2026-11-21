@@ -25,7 +25,6 @@ let
     "fzf.zsh" = r.fzfTheme;
     "tmux.conf" = r.tmuxStyle;
     "palette.sh" = r.envSh;
-
     "web.css" = r.webCss;
     "floorp-userChrome.css" = r.floorpUserChrome;
     "floorp-userContent.css" = r.floorpUserContent;
@@ -97,7 +96,6 @@ in
         "fzf/theme.zsh" = via "fzf.zsh";
         "btop/themes/ficciones.theme" = via "btop.theme";
         "ficciones/palette.sh" = via "palette.sh";
-
         "aerospace/aerospace.toml".source = ./aerospace.toml;
         # Karabiner's settings UI can't save through this read-only link; edit the repo copy.
         "karabiner/karabiner.json".source = ./karabiner.json;
