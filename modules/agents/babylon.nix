@@ -1,4 +1,4 @@
-# babylon (arena's babylon/, which arena's plugin hands every session): the sessions' tickets over
+# babylon (~/projects/babylon, which arena's plugin hands every session): the sessions' tickets over
 # MCP on loopback :4050, as a systemd unit on Linux and a launchd agent on the Mac. Each runs the
 # release babylon's own release task builds, which makes and migrates its SQLite file as it starts.
 {
@@ -27,7 +27,7 @@ in
           pkgs.jq
         ]
       }:$PATH
-      exec ${arenaRepo}/babylon/bin/babylon "$@"
+      exec ${home}/projects/babylon/bin/babylon "$@"
     '')
   ]
   # the Linux desktop links arena into ~/.local/bin, which the Mac's PATH lacks
