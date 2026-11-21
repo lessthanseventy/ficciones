@@ -14,7 +14,7 @@ import { closeKeys } from "../lib/keys"
 import { armClickaway, closeAny, disarmClickaway, clickawayField } from "./Clickaway"
 
 const ROW_CHARS = 44
-const shown = createComputed(() => { const b = board(); return rows(sessions(), (pane) => held(b, pane)) })
+const shown = createComputed(() => { const b = board(); return rows(sessions(), (s) => held(b, s)) })
 const asks = board(asking)
 
 let officeWin: Astal.Window | null = null

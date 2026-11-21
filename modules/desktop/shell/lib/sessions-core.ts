@@ -58,9 +58,9 @@ export const nextUp = (all: Session[]) => mine(all)[0] ?? null
 export type Row = { session: Session; ticket: Card | null; yours: boolean }
 
 /** the rail's rows: your sessions, each with the ticket its pane holds (`ticketOf`), your move first */
-export const rows = (all: Session[], ticketOf: (pane: string) => Card | null): Row[] =>
+export const rows = (all: Session[], ticketOf: (session: Session) => Card | null): Row[] =>
   mine(all)
-    .map((session) => { const ticket = ticketOf(session.pane); return { session, ticket, yours: session.state !== "working" || !!ticket?.ask } })
+    .map((session) => { const ticket = ticketOf(session); return { session, ticket, yours: session.state !== "working" || !!ticket?.ask } })
     .sort((a, b) => Number(b.yours) - Number(a.yours))
 
 /** a row's two lines: its mark, ticket and repo, whose move it is and for how long; then what it is doing or last heard */

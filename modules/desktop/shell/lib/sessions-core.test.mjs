@@ -70,7 +70,7 @@ const ask = { id: 1, question: "ship it?", options: ["yes", "no"] }
 
 test("the rail's rows carry each pane's ticket, your move first", () => {
   const all = [s("busy", "working"), s("asker", "working"), s("landed", "done"), s("blocked", "waiting")]
-  const of = (cards) => (pane) => cards.find((c) => c.claimed_by === pane) ?? null
+  const of = (cards) => (session) => cards.find((c) => c.claimed_by === session.pane) ?? null
   const got = rows(all, of([card(7, "%4"), card(8, "%5", { ask })]))
   assert.deepEqual(got.map((r) => [r.session.id, r.ticket?.id ?? null, r.yours]), [["blocked", null, true], ["landed", null, true], ["asker", 8, true], ["busy", 7, false]])
   assert.deepEqual(rows(all, () => null).map((r) => r.session.id), ["blocked", "landed", "asker", "busy"])
