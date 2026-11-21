@@ -14,7 +14,7 @@
   lib,
   pkgs,
   repo,
-  tlonRepo,
+
   strata,
   ...
 }:
@@ -199,10 +199,6 @@ in
 
     ficciones.desktop.shell.autostart = lib.mkDefault true;
 
-    # Claude Code skills tracked in tlon's adapters/skills; an out-of-store link so an edit lands
-    # without a switch
-    home.file.".claude/skills/drive-office".source =
-      config.lib.file.mkOutOfStoreSymlink "${tlonRepo}/adapters/skills/drive-office";
     # gh finds extensions only in its own dir, not on PATH: `gh stack` (GitHub's stacked PRs)
     home.file.".local/share/gh/extensions/gh-stack/gh-stack".source = "${pkgs.gh-stack}/bin/gh-stack";
     # sudo's askpass (scripts/sudo-askpass): random glyphs per keystroke; a tty or a dialog
@@ -355,17 +351,7 @@ in
       uv
       libation
       piper-tts
-      # the tlon office's arcade cabinets: it lists whichever of these it finds on PATH
-      ninvaders
-      myman
-      moon-buggy
-      nsnake
-      bastet
-      _2048-in-terminal
-      freesweep
-      nudoku
-      tty-solitaire
-      (import ./doom.nix { inherit pkgs; })
+
       # screenshots: flameshot is Super+Shift+S only (hypr/scripts/shot-region.sh); the card is grim (shell/lib/capture.ts)
       flameshot
       # the clipboard history behind the rail's clipboard card and Super+V (hyprland.lua's
