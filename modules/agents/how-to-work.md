@@ -96,6 +96,11 @@ merging main in. Rewriting history that is already pushed or shared is the human
   not only the good one. Before saying nothing is running, check your agents and background shells too.
 - **The shell is zsh.** An unquoted `$var` is not word-split, so never keep a command in a variable;
   use a function.
+- **A tmux server of your own is `-L`.** Start one for a probe or a test with
+  `tmux -L <name> -f /dev/null …` (or `-S <socket>`), carry the same `-L` on every later call, and
+  end it with `tmux -L <name> kill-server`. `TMUX_TMPDIR` does not make one private inside a pane:
+  `$TMUX` is set there and names the socket first, so the call lands on the server everyone is
+  in. Never type `kill-server` without `-L`/`-S`.
 - **Subagents get an explicit model** matched to the work: sonnet for specified builds, reviews and
   triage, haiku for one-liners; the top model only when the task needs it.
 - **Report long runs as they go:** one line per milestone, not silence until the end.
