@@ -231,6 +231,8 @@ run = [
   "mise --cd {{env.HOME}}/projects/tlon run server:restart",
 ]
 
+# babylon runs this in a tmux window, a scope of its own outside babylon.service's cgroup, so a
+# switch that restarts babylon does not kill the switch.
 [install]
 description = "after a landing: the home-manager profile applied from main (babylon runs it)"
 run = "mise run home:switch"
