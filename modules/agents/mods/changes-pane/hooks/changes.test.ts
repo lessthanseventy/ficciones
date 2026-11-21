@@ -403,7 +403,7 @@ test('a subagent has a row of its own, and a click narrows the feed to it', asyn
 })
 
 // Two repositories under one folder: git answers by the directory it is run in.
-const repos = (on: On, at: { cwd: string; run?: () => void }, trees: Record<string, string[]>, commons: Record<string, string> = {}) => {
+const repos = (on: On, at: { cwd: string; run?: () => void; gone?: string[] }, trees: Record<string, string[]>, commons: Record<string, string> = {}) => {
   on('session.start', async ($, e) => e)
   on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
   on('command.register', async () => ({ value: undefined }) as never)
@@ -416,6 +416,8 @@ const repos = (on: On, at: { cwd: string; run?: () => void }, trees: Record<stri
     const line = e.argv.join(' ')
     if (line.startsWith('delta')) return { value: { exitCode: 0, stdout: `\n${e.init?.stdin}`, stderr: '' } } as never
     const dir = e.init?.cwd ?? at.cwd
+    // a process cannot start in a directory that is not there
+    if (at.gone?.includes(dir)) throw new Error('$.process.run(git) failed to start: ENOENT')
     const root = Object.keys(trees).find(r => dir === r || dir.startsWith(`${r}/`))
     if (!root) return { value: { exitCode: 128, stdout: '', stderr: '' } } as never
     const names = trees[root]!
@@ -577,6 +579,31 @@ test('an edit in a worktree of the repository moves the pane there, and the next
   await $.tool.call({ tool: 'Read', file_path: '/etc/hosts' } as never)
   expect(await ui.find({ text: /^b\.ts/, in: 'changes' })).toBeDefined()
   expect(await ui.find({ text: /^a\.ts/, in: 'changes' })).toBeUndefined()
+})
+
+test('a worktree removed under the pane leaves it for where the session is, and leaves the row', async ($, on) => {
+  const clock = mock.clock(on)
+  const at: { cwd: string; gone?: string[] } = { cwd: '/w/app' }
+  const trees: Record<string, string[]> = { '/w/app': ['a.ts'], '/w/app-old': ['c.ts'], '/w/app-wt': ['b.ts'] }
+  repos(on, at, trees, { '/w/app-old': '/w/app/.git', '/w/app-wt': '/w/app/.git' })
+  await $.session.start({ cwd: at.cwd, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ plugin: 'changes-pane', surface: 'terminal', ...PANE } as never) as never as Mounted
+  await $.tool.call({ tool: 'Edit', file_path: '/w/app-old/c.ts', old_string: 'x', new_string: 'y' } as never)
+  await $.tool.call({ tool: 'Edit', file_path: '/w/app-wt/b.ts', old_string: 'x', new_string: 'y' } as never)
+  expect(await ui.find({ text: /^b\.ts/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^app-old 1$/ })).toBeDefined()
+
+  delete trees['/w/app-old']
+  delete trees['/w/app-wt']
+  at.gone = ['/w/app-old', '/w/app-wt']
+  await clock.advance(2000)
+  expect(await ui.find({ text: /could not read the changes/, in: 'changes' })).toBeUndefined()
+  expect(await ui.find({ text: /^a\.ts/, in: 'changes' })).toBeDefined()
+  expect(await ui.find({ text: /^commits · main · app$/, in: 'changes' })).toBeDefined()
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  await clock.advance(2000)
+  expect(await ui.find({ text: /app-old/ })).toBeUndefined()
+  expect(await ui.find({ text: /app-wt/ })).toBeUndefined()
 })
 
 test('a held pane redraws when the diff of a file it is not showing changes', async ($, on) => {

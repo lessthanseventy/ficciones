@@ -453,7 +453,14 @@ export const register: Register = on => {
         let hasChanged = false
         for (const [root, at] of known) {
           if (root === repo) continue
-          const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-uall'], { cwd: root })
+          const status = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v1', '-uall'], { cwd: root }).catch(() => null)
+          if (status?.exitCode !== 0) {
+            if (await where(root).catch(() => null)) continue
+            known.delete(root)
+            stamps.delete(root)
+            hasChanged = true
+            continue
+          }
           const dirty = status.stdout.split('\n').filter(Boolean).length
           hasChanged ||= dirty !== at.dirty
           at.dirty = dirty
@@ -529,15 +536,31 @@ export const register: Register = on => {
       shown.set(sha, { message, diffs: new Map([...texts].map(([path, text]) => [path, diffOf(text)])) })
     }
 
+    // A worktree removed under the pane: no process starts in it. The pane goes to where the session is.
+    const leave = async (gone: string) => {
+      known.delete(gone)
+      stamps.delete(gone)
+      const here = await where(await $.session.cwd()).catch(() => null)
+      if (here) enter(here)
+      else repo = shared = ''
+      isFollowing = true
+      void keep()
+    }
+
     const load = async () => {
       let jump: number | null = null
       // A move to another repository while this reads leaves it for the next pass.
       const at = repo
       const git = (...args: string[]) => $.process.run(['git', '--no-optional-locks', ...args], { cwd: at })
       // Without --no-optional-locks this poll takes the index lock and can fail Claude's own git commands.
-      const status = at === '' ? null : await git('status', '--porcelain=v1', '-z', '-uall')
+      const status = at === '' ? null : await git('status', '--porcelain=v1', '-z', '-uall').catch(() => null)
       if (!status || status.exitCode !== 0) {
         if (at !== repo) return
+        if (at !== '' && !(await where(at).catch(() => null))) {
+          await leave(at)
+          isStale = true
+          return
+        }
         files = []
         diffs = new Map()
         commits = []
