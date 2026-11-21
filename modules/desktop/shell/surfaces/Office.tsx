@@ -65,7 +65,7 @@ export default function Office() {
           <Panel title={"\u{f06a9}  OFFICE"} cssClasses={["card", "card-office"]} spacing={6}>
             <label cssClasses={["dim"]} label="no Claude sessions" xalign={0} visible={shown((l) => l.length === 0)} />
             <box orientation={Gtk.Orientation.VERTICAL}>
-              <For each={shown} id={(r: Row) => `${r.session.id} ${r.session.state} ${r.session.since} ${r.session.doing} ${r.session.said} ${r.ticket?.id} ${r.yours}`}>
+              <For each={shown} id={(r: Row) => `${r.session.id} ${r.session.state} ${r.session.since} ${r.session.doing} ${r.session.said} ${r.ticket?.id} ${r.ticket?.title} ${r.yours}`}>
                 {(r: Row) => (
                   <button cssClasses={["office-row", r.session.state, ...(r.yours ? ["yours"] : [])]} onClicked={() => { hideOffice(); void goTo(r.session) }} tooltipText={r.session.said ?? r.session.cwd}>
                     <box orientation={Gtk.Orientation.VERTICAL}>
