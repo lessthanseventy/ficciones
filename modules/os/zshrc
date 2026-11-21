@@ -309,6 +309,9 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 # Fun sudo password feedback (wrapper at ~/.local/bin/sudo)
 export SUDO_ASKPASS="$HOME/.local/bin/sudo-askpass"
 
+# tlon's gate fails where godot is missing, on this machine (the services get it in modules/agents)
+export TLON_HOUSE_GATE=required
+
 
 
 

@@ -246,8 +246,7 @@ in
   };
 
   # tlon's gate skips the house's checks where godot is missing; on this machine that is a failure.
-  # Set for sessions, for babylon (its gate runs tlon's) and for tlon's own service below.
-  home.sessionVariables.TLON_HOUSE_GATE = "required";
+  # Set for babylon (its gate runs tlon's), for tlon's own service below, and for shells in ../os/zshrc.
   systemd.user.services.babylon.Service.Environment = [ "TLON_HOUSE_GATE=required" ];
 
   systemd.user.services.tlon = {
