@@ -1,7 +1,7 @@
 // Glass: window transparency. With it on, terminals (ghostty) are always glass; every other window
 // is glass too until a video plays anywhere (lib/opaque.ts says so), then they all go opaque until
-// it stops. tlon's office is never glass (a window rule in hyprland.lua). Off, everything is
-// opaque. On/off and the opacity are settings (look.glass, look.glassOpacity).
+// it stops. Off, everything is opaque. On/off and the opacity are settings (look.glass,
+// look.glassOpacity).
 import { createState } from "ags"
 import GLib from "gi://GLib?version=2.0"
 import { timeout } from "ags/time"

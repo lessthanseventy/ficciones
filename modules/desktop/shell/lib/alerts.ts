@@ -12,8 +12,7 @@ import { logEvent } from "./log"
 import { outside } from "./launch"
 import { play } from "./sfx"
 import { openInOffice } from "./agents"
-import { hypr } from "./hypr"
-import { dispatchNow } from "./hyprlua"
+
 import { showing as up, ofLevel, onBanner, request, arrived, soundFor, type Action, type Alert, type Kept } from "./alerts-core"
 
 export type { Action, Alert }
@@ -93,16 +92,8 @@ export const snooze = (a: Alert, s = SNOOZE_S) => save({ ...kept.peek(), snoozed
 export const foldAway = (a: Alert) => setLater([...later.peek(), a.key])
 export const unfold = () => setLater([])
 
-/** Show thread `tid` where the operator works: the office TUI when its window is up (it polls the
- * server's focus request and opens it), else the rail's office. */
-export async function openThread(tid: number) {
-  // ghostty puts a 🔔 before the title when the TUI rings, so the end is what names it
-  const tui = hypr.get_clients().find((c) => c.title.endsWith("tlon office"))
-  if (!tui) return openInOffice(tid)
-  // the window first, whatever the network does; the TUI opens the thread when the request lands
-  dispatchNow(`hl.dsp.focus({ window = "address:0x${tui.address.replace(/^0x/, "")}" })`)
-  void fetch(`${API}/api/office/focus`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ thread_id: tid }) }).catch(() => {})
-}
+/** Show thread `tid` where the operator works: the rail's office. */
+export const openThread = (tid: number) => openInOffice(tid)
 
 /** the doc the reader sheet shows (surfaces/DocReader.tsx), or null when it is closed */
 export const [doc, setDoc] = createState<{ title: string; text: string } | null>(null)

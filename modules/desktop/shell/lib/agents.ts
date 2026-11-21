@@ -1,7 +1,7 @@
 // The Tlön roster + thread counts for the AGENTS pane and the office, and everything the office
 // does: the always-up service's operator API (/api/*, Server.MCP.OperatorAPI) — the snapshot is
-// GET /api/office (Server.Office.status, the same read the office TUI makes). Polled every 30 s,
-// and at once after a write (`refreshAgents`); "channel down" when the server is not up.
+// GET /api/office (Server.Office.status). Polled every 30 s, and at once after a write
+// (`refreshAgents`); "channel down" when the server is not up.
 import { createState } from "ags"
 import { interval } from "ags/time"
 import { execAsync } from "ags/process"
