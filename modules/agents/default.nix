@@ -78,12 +78,6 @@ in
     # the `claude` function in modules/os/zshrc sets it as CLAUDE_CODE_SHELL_PREFIX
     (pkgs.writeShellScriptBin "agent-work" (builtins.readFile ./agent-work.sh))
 
-    # `tlon` — the product launcher: the office TUI, a thin wrapper over its mise task.
-    (pkgs.writeShellScriptBin "tlon" ''
-      cd ${tlonRepo} || { echo "tlon: repo not found at ${tlonRepo}" >&2; exit 1; }
-      exec mise --cd ${tlonRepo} run office:run -- "$@"
-    '')
-
     # `house` — tlon's house window; `house widget` the small always-on-top one, `house demo`
     # the made-up one with no server.
     (pkgs.writeShellScriptBin "house" ''

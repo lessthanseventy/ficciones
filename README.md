@@ -4,7 +4,7 @@ One person's computer, as a repository: the installer, the desktop, the dotfiles
 wiring, declared in one place so the machine can be rebuilt on any box or in a throwaway VM and
 come back the same. Named after Borges' *Ficciones*, a collection of stories; this is a collection
 of modules. The programs it runs that are repos of their own, [tlon](https://github.com/lessthanseventy/tlon)
-(the AI office: server, TUI and Claude Code adapters) and [menard](https://github.com/lessthanseventy/menard)
+(the AI office: server, house and Claude Code adapters) and [menard](https://github.com/lessthanseventy/menard)
 (Elixir editing for agents), are pinned here by path and wired in, not vendored.
 
 ![The desktop in the uqbar palette: a rail of workspaces, clock and toggles down the left, a bar of meters across the top, the deck along the bottom, and the synthwavecity hack behind them, a striped sun setting over a neon grid](docs/screenshots/desktop.webp)
