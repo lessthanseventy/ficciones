@@ -114,6 +114,15 @@ in
     }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/zoho-mail-password.age) {
       zoho-mail-password.file = ../../secrets/zoho-mail-password.age;
+    }
+    // lib.optionalAttrs (builtins.pathExists ../../secrets/plaid-client-id.age) {
+      plaid-client-id.file = ../../secrets/plaid-client-id.age;
+    }
+    // lib.optionalAttrs (builtins.pathExists ../../secrets/plaid-secret.age) {
+      plaid-secret.file = ../../secrets/plaid-secret.age;
+    }
+    // lib.optionalAttrs (builtins.pathExists ../../secrets/plaid-access-token.age) {
+      plaid-access-token.file = ../../secrets/plaid-access-token.age;
     };
 
   # The four working rules (modules/agents/how-to-work.md), as Claude Code's global CLAUDE.md.

@@ -22,4 +22,8 @@ in
   "calendar-work.age".publicKeys = all;
   # A Zoho Mail app-specific password: tlon's home reads the personal mailbox over IMAP, read-only.
   "zoho-mail-password.age".publicKeys = all;
+  # Plaid: tlon's home reads the bank's transactions, read-only. The access token is the one linked account's.
+  "plaid-client-id.age".publicKeys = all;
+  "plaid-secret.age".publicKeys = all;
+  "plaid-access-token.age".publicKeys = all;
 }
