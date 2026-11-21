@@ -11,7 +11,7 @@ import GLib from "gi://GLib?version=2.0"
 import { logEvent } from "./log"
 import { outside } from "./launch"
 import { play } from "./sfx"
-import { openInOffice } from "./agents"
+
 import { showing as up, ofLevel, onBanner, request, arrived, soundFor, type Action, type Alert, type Kept } from "./alerts-core"
 
 export type { Action, Alert }
@@ -91,8 +91,6 @@ export const snooze = (a: Alert, s = SNOOZE_S) => save({ ...kept.peek(), snoozed
 export const foldAway = (a: Alert) => setLater([...later.peek(), a.key])
 export const unfold = () => setLater([])
 
-/** Show thread `tid` where the operator works: the rail's office. */
-export const openThread = (tid: number) => openInOffice(tid)
 
 /** the doc the reader sheet shows (surfaces/DocReader.tsx), or null when it is closed */
 export const [doc, setDoc] = createState<{ title: string; text: string } | null>(null)

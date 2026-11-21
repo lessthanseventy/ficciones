@@ -4,8 +4,7 @@
 // `>` verbs (mise tasks), `/` files (fd from ~), `:` run a shell line, `+` tell tlon's home a thing. Up/Down, Ctrl+j/k or Ctrl+n/p, Enter, Escape.
 import { parseSpec } from "../lib/timer"
 import { L, dispatch, sel as windowSel } from "../lib/hyprlua"
-import { agents } from "../lib/agents"
-import { openThread } from "../lib/alerts"
+
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -122,12 +121,11 @@ async function search(q: string) {
         // a shell line typed before that starts the same way rides along
         for (const r of recent(3, ["shell"]).filter((r) => r.key.startsWith(body))) { const it = recall(r); if (it) out.push(it) }
         const needle = body.toLowerCase()
-        // the shell's own actions by name, then an open window or a thread by its title
+        // the shell's own actions by name, then an open window by its title
         for (const [name, argv] of ACTIONS) if (name.includes(needle)) out.push({ glyph: "\u{f0493}", title: name, sub: "shell", key: `act:${name}`, run: () => execAsync(argv).then(() => void 0) })
         for (const c of Hyprland.get_default().get_clients().filter((c) => c.mapped && c.title.toLowerCase().includes(needle)).slice(0, 4))
           out.push({ glyph: "\u{f05af}", title: c.title.slice(0, 70), sub: `window · ws ${c.workspace?.name ?? "?"}`, key: `win:${c.address}`, run: () => dispatch(L.focusWindow(windowSel(c))) })
-        for (const t of agents.peek().threads.filter((t) => t.title.toLowerCase().includes(needle)).slice(0, 4))
-          out.push({ glyph: "\u{f06a9}", title: `#${t.id} ${t.title}`.slice(0, 70), sub: "thread", key: `thread:${t.id}`, run: () => openThread(t.id) })
+
         if (tm) out.unshift({ glyph: "\u{f051b}", title: tm.title, sub: "timer", key: `timer:${body}`, run: () => { tm.start() } })
       }
     } else if (m === "calc") {

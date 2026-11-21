@@ -26,8 +26,8 @@ import { Panel } from "../lib/tui"
 import { iconFor } from "../lib/icons"
 import { RuleV, RuleH } from "../lib/tui"
 import { pct, spark, hhmm } from "../lib/format"
-import { agents } from "../lib/agents"
-import { openThread } from "../lib/alerts"
+import { waitingOnYou } from "../lib/board"
+import { showOffice } from "./Office"
 import { tier } from "../lib/perf"
 import { quietOsd } from "./Osd"
 import { query } from "../lib/hyprsock"
@@ -262,18 +262,11 @@ function RecCell() {
   )
 }
 
-/** Who waits on you, in words, where the eye rests: the first thread and what it asks; a click opens it. */
+/** Who waits on you, in words, where the eye rests: the first ask or waiting Claude; a click opens the office rail. */
 function WaitingCell() {
-  const first = agents((a) => a.threads.find((t) => t.awaiting) ?? null)
-  const text = agents((a) => {
-    const t = a.threads.find((x) => x.awaiting)
-    if (!t) return ""
-    const more = a.threads.filter((x) => x.awaiting).length - 1
-    return `#${t.id} ${t.title} — ${t.prompt?.summary ?? t.awaiting}${more > 0 ? `  +${more}` : ""}`
-  })
   return (
-    <button cssClasses={["cell", "waiting", "clickable"]} visible={first((t) => !!t)} onClicked={() => { const t = first.peek(); if (t) void openThread(t.id) }}>
-      <label label={text} ellipsize={3} maxWidthChars={70} />
+    <button cssClasses={["cell", "waiting", "clickable"]} visible={waitingOnYou((w) => w.length > 0)} onClicked={() => showOffice()}>
+      <label label={waitingOnYou((w) => (w.length > 1 ? `${w[0]}  +${w.length - 1}` : w[0] ?? ""))} ellipsize={3} maxWidthChars={70} />
     </button>
   )
 }

@@ -1,7 +1,7 @@
 // node --test lib/sessions-core.test.mjs (mise shell:test): the pure half of lib/sessions.ts.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget } from "./sessions-core.ts"
+import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget, rows, rowLines, waiting } from "./sessions-core.ts"
 
 const s = (id, state, extra = {}) => ({ id, state, since: 1000, at: 1000, cwd: `/p/${id}`, repo: id, socket: "/tmp/tmux-1000/default", pane: `%${id.length}`, said: null, doing: null, ...extra })
 
@@ -63,4 +63,30 @@ test("a line says where, what and how long", () => {
 test("arena is reached by its socket's name", () => {
   assert.deepEqual(arenaTarget(s("a", "done")), ["-L", "default"])
   assert.deepEqual(arenaTarget(s("a", "done", { socket: "/tmp/tmux-1000/tlon-workspace-2" })), ["-L", "tlon-workspace-2"])
+})
+
+const card = (id, pane, extra = {}) => ({ id, status: "doing", title: `ticket ${id}`, repo: "r", claimed_by: pane, ask: null, ...extra })
+const ask = { id: 1, question: "ship it?", options: ["yes", "no"] }
+
+test("the rail's rows carry each pane's ticket, your move first", () => {
+  const all = [s("busy", "working"), s("asker", "working"), s("landed", "done"), s("blocked", "waiting")]
+  const of = (cards) => (pane) => cards.find((c) => c.claimed_by === pane) ?? null
+  const got = rows(all, of([card(7, "%4"), card(8, "%5", { ask })]))
+  assert.deepEqual(got.map((r) => [r.session.id, r.ticket?.id ?? null, r.yours]), [["blocked", null, true], ["landed", null, true], ["asker", 8, true], ["busy", 7, false]])
+  assert.deepEqual(rows(all, () => null).map((r) => r.session.id), ["blocked", "landed", "asker", "busy"])
+})
+
+test("a row says its ticket, whose move it is and what it is doing", () => {
+  const [busy] = rows([s("busy", "working", { doing: "Edit Office.tsx" })], () => card(7, "%4"))
+  assert.deepEqual(rowLines(busy, 1000 + 180), ["◌ #7 busy  working  3m", "Edit Office.tsx"])
+  const [idle] = rows([s("idle", "done", { said: "thanks" })], () => null)
+  assert.deepEqual(rowLines(idle, 1000 + 5), ["◉ idle  your move  5s", "thanks"])
+  const [fresh] = rows([s("fresh", "working")], () => card(9, "%5"))
+  assert.equal(rowLines(fresh, 1000)[1], "ticket 9")
+})
+
+test("what waits on you is the open asks, then the sessions waiting on an answer", () => {
+  const all = [s("busy", "working"), s("stuck", "waiting", { doing: "Bash rm -rf" }), s("quiet", "waiting")]
+  assert.deepEqual(waiting(all, [card(8, "%5", { ask })]), ["#8 asks: ship it?", "quiet waits", "stuck waits: Bash rm -rf"])
+  assert.deepEqual(waiting([s("busy", "working")], []), [])
 })

@@ -1,8 +1,8 @@
 // The deck: the bottom of the screen. A one-line row on every monitor — pinned attention
 // (critical notices, an agent waiting on you) on the left, the command log's tail through the
 // middle, now-playing (transport, a marquee title, the media card in a popover) / the timer
-// (its popover) / agents on the right — and, pulled up over it (Super+C, a click on the
-// activity segment), a wide drawer: the full log with source filters and the agents roster.
+// (its popover) / your Claudes / babylon's board on the right — and, pulled up over it (Super+C,
+// a click on the activity segment), a wide drawer: the full log with source filters.
 // A monitor showing a fullscreen window has no row.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
@@ -19,16 +19,15 @@ import { log, logEvent, type Entry, type Src } from "../lib/log"
 import { hhmm, duration } from "../lib/format"
 import { execAsync } from "ags/process"
 import { timer, left, stopTimer, startCountdown, startPomodoro, parseSpec } from "../lib/timer"
-import { agents } from "../lib/agents"
+import { board, boardLine, waitingOnYou } from "../lib/board"
 import { sessions, readAt, mine, tally, mark, line, goTo, type Session } from "../lib/sessions"
 import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
 import { fullscreenMonitors } from "../lib/hypr"
 import { MediaCard } from "../panes/Media"
 import { soundPids, playerSounding, volumeWheel } from "../lib/sound"
-import { AgentsCard } from "../panes/Agents"
+
 import { armClickaway, disarmClickaway, closeOnPress, closeAny, clickawayField } from "./Clickaway"
-import { focus, focused, cursor, cursorOf, cycleFocus, move, jump, select } from "../lib/nav"
-import { threads } from "../panes/Agents"
+import { focus, focused, cursor, cursorOf, cycleFocus, move, jump } from "../lib/nav"
 import { hoverPopover } from "../lib/hover"
 import { showOffice, toggleOffice } from "./Office"
 
@@ -101,7 +100,7 @@ function Line({ e, wide = false }: { e: Entry; wide?: boolean }) {
   )
 }
 
-/** Open the office rail (the TODAY card's "agents await you" line, `astal-shell show drawer agents`). */
+/** Open the office rail (the TODAY card's waiting line, `astal-shell show drawer agents`). */
 export const popAgents = () => showOffice()
 
 // ── the row ───────────────────────────────────────────────────────────────────────────────
@@ -195,16 +194,11 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             </Panel>
           </popover>
         </menubutton>
-        {/* the Tlön roster: warm/total, pink with a ! when someone awaits you; toggles the office rail */}
-        <button cssClasses={agents((a) => ["cell", "deck-agents", "clickable", ...(a.awaiting > 0 ? ["await"] : !a.ok && a.note !== "…" ? ["down"] : [])])} onClicked={() => toggleOffice(gdkmonitor)}>
+        {/* babylon's board in a line, or how many wait on you; toggles the office rail */}
+        <button cssClasses={waitingOnYou((w) => ["cell", "deck-agents", "clickable", ...(w.length > 0 ? ["await"] : [])])} onClicked={() => toggleOffice(gdkmonitor)}>
           <box spacing={6}>
             <label cssClasses={["pink"]} label={"\u{f06a9}"} />
-            <label cssClasses={["pink"]} label={agents((a) => {
-              if (!a.ok) return a.note === "…" ? "…" : "tlön down"
-              if (a.awaiting > 0) return `${a.awaiting} waiting`
-              const working = a.roster.filter((r) => r.thinking).length
-              return `${working} working · ${a.roster.length - working} idle`
-            })} />
+            <label cssClasses={["pink"]} label={createComputed(() => { const w = waitingOnYou(), b = board(); return w.length > 0 ? `${w.length} waiting` : boardLine(b) })} />
           </box>
         </button>
       </box>
@@ -304,12 +298,12 @@ function TimerPane() {
 export default function Deck() {
   // closes on Esc / q or a click outside — not on the pointer leaving. The rest is lazygit:
   // Tab / Shift+Tab cycle the pane, j/k or the arrows move its cursor, g/G jump, Enter acts
-  // (LOG: copy the line; AGENTS: pick the row), 1–6 pick a log source, 0 or a = all.
+  // (LOG: copy the line), 1–6 pick a log source, 0 or a = all.
   // CAPTURE: the list widget under the pointer owns GTK focus and would swallow Tab, the
   // arrows and Enter before a bubble-phase handler on the window ever saw them
   const K = Gdk
   // FILTERS is the chip row (all + the sources): h/l along it, Enter picks the chip
-  const count = () => { const f = focus.peek(); return f === "FILTERS" ? SRCS.length + 1 : f === "LOG" ? logShown.peek().length : threads.peek().length }
+  const count = () => (focus.peek() === "FILTERS" ? SRCS.length + 1 : logShown.peek().length)
   const horizontal = () => focus.peek() === "FILTERS"
   const keys = closeKeys({ close: hideDeck, q: true, capture: true, onKey: (kv, mods) => {
     const shift = !!(mods & Gdk.ModifierType.SHIFT_MASK)
@@ -327,10 +321,10 @@ export default function Deck() {
     if (kv === K.KEY_Return || kv === K.KEY_KP_Enter || kv === K.KEY_space) {
       const f = focus.peek()
       if (f === "FILTERS") { const i = cursor.peek().FILTERS; pickSrc(i === 0 ? null : SRCS[i - 1]) }
-      else if (f === "LOG") {
+      else {
         const e = logShown.peek()[cursor.peek().LOG]
         if (e) { execAsync(["wl-copy", `${hhmm(e.t)}  ${e.src}  ${e.text}`]).catch(() => {}); logEvent("shell", "log line copied", "dim") }
-      } else select("AGENTS", cursor.peek().AGENTS)
+      }
       return true
     }
     return false
@@ -366,7 +360,7 @@ export default function Deck() {
         />
         <box cssClasses={["sheet", "bottom"]} spacing={12} heightRequest={400} vexpand={false} valign={Gtk.Align.END}>
           <Panel title={"\u{f0a0d}  LOG"} cssClasses={focused("LOG")((f) => ["card", "card-log", ...(f ? ["focused"] : [])])} hexpand><LogPane /></Panel>
-          <Panel title={"\u{f06a9}  AGENTS"} cssClasses={focused("AGENTS")((f) => ["card", "card-agents", ...(f ? ["focused"] : [])])}><AgentsCard /></Panel>
+
         </box>
         <box cssClasses={["keys", "deck-keys"]} spacing={12}>
           <label label="Tab pane" /><label label="j/k move · h/l along the chips" /><label label="Enter act" /><label label="Esc close" />

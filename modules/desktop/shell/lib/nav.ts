@@ -1,13 +1,13 @@
 // The drawer's lazygit state: which pane has focus, and a cursor inside each pane. Tab cycles
-// the focus — the log's filter chips, the log, the agents — j/k (or h/l along the chips) move
+// the focus — the log's filter chips, the log — j/k (or h/l along the chips) move
 // the cursor in it, Enter acts (Deck.tsx wires the keys; Andrew, 2026-09-07).
 import { createState } from "ags"
 
-export const PANES = ["FILTERS", "LOG", "AGENTS"] as const
+export const PANES = ["FILTERS", "LOG"] as const
 export type Pane = (typeof PANES)[number]
 
 export const [focus, setFocus] = createState<Pane>("LOG")
-export const [cursor, setCursor] = createState<Record<Pane, number>>({ FILTERS: 0, LOG: 0, AGENTS: 0 })
+export const [cursor, setCursor] = createState<Record<Pane, number>>({ FILTERS: 0, LOG: 0 })
 
 export const cursorOf = (p: Pane) => cursor((c) => c[p])
 export const focused = (p: Pane) => focus((f) => f === p)
@@ -26,7 +26,4 @@ export function jump(i: number, count: number) {
   if (count <= 0) return
   setCursor((c) => ({ ...c, [p]: Math.max(0, Math.min(count - 1, i)) }))
 }
-export function select(p: Pane, i: number) {
-  setFocus(p)
-  setCursor((c) => ({ ...c, [p]: i }))
-}
+

@@ -69,7 +69,7 @@ window.deck-drawer { background: transparent; }
 .deck-media .tp { padding: 0 $sp-1; min-height: 0; min-width: 0; label { color: $key; } &:hover label { color: $max-contrast; } }
 .deck-title > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
 .deck-agents.await { background: $attention; label { color: $field-ink; } }
-.deck-agents.down { background: $alarm; label { color: $field-ink; } }
+
 .deck-sessions.await { background: $attention; label { color: $field-ink; } }
 .card-sessions .session-row { background: none; border: none; box-shadow: none; padding: 2px $sp-1; border-radius: 0; label { color: $body; } }
 .card-sessions .session-row.waiting label { color: $attention; }
@@ -82,9 +82,10 @@ window.deck-drawer { background: transparent; }
 // the chip row under the keyboard: the chip under the cursor wears the accent edge
 .deck-filters .filter.cursor { box-shadow: inset 0 -3px 0 $body; }
 .deck-filters.focused { border-bottom: $rule solid $body; }
-// the agents pane's brief: the selected thread's dossier under the rows
-.card-agents .thread-row { min-height: 24px; padding: 0 $sp-1; }
-.card-agents .brief { padding: $sp-1 0 0; .msg label { min-height: 20px; } }
-.card-agents { min-width: 420px; }
-// a picked choice on the office's cards: the action outline turns inverse, ink included
-.card-agents .act.chip { background: $cursor-field; border-color: $cursor-field; label { color: $field-ink; } }
+// the office rail's rows: a Claude or an ask, two lines each; yours to move wear the attention hue
+.card-office { min-width: 420px; }
+.card-office .office-row { background: none; border: none; box-shadow: none; padding: 2px $sp-1; border-radius: 0; }
+.card-office .office-row.working .head { color: $live; }
+.card-office .office-row.yours .head, .card-office .office-row.ask .head { color: $attention; }
+.card-office .office-row:hover { background: $cursor-field; label { color: $max-contrast; } }
+.card-office .board-line { color: $key; }

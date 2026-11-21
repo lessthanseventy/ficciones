@@ -20,6 +20,3 @@ declare module "*.css" {
   export default content
 }
 
-// office/kit names this in a default argument the shell never takes. gjs has no `process`:
-// nothing of ours may read it.
-declare const process: { env: Record<string, string | undefined> }

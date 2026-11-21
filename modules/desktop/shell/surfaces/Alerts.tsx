@@ -15,7 +15,7 @@ import { setting } from "../lib/settings"
 import { putsAway, withNote } from "../lib/alerts-core"
 import { hhmm } from "../lib/format"
 import { logEvent } from "../lib/log"
-import { openThread, alarms, banner, holdBanner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
+import { alarms, banner, holdBanner, stickies, infos, folded, act, dismiss, snooze, foldAway, unfold, type Alert, type Action } from "../lib/alerts"
 
 // a card's window holds no keyboard unless a reply is open (replyKeymode), so Ctrl+C on a selection
 // never reaches it: Copy puts the card's text on the clipboard instead
@@ -45,7 +45,7 @@ function answersOf(a: Alert): Action[] {
 }
 
 // the banner takes the keyboard when asked to (`astal-shell decision`, Super+Y), never by appearing:
-// then 1–9 answer, o opens the thread, l puts it away for later, Esc hands the keys back
+// then 1–9 answer, l puts it away for later, Esc hands the keys back
 const [bannerKeys, setBannerKeys] = createState(false)
 banner.subscribe(() => { if (!banner.peek()) setBannerKeys(false) })
 export function focusDecision(): string {
@@ -63,7 +63,7 @@ function bannerKey(kv: number): boolean {
     // one that takes text is opened with the pointer: its box is the card's own state
     return x && !x.input ? done(() => void act(a, x)) : false
   }
-  if (kv === Gdk.KEY_o && a.thread_id) return done(() => void openThread(a.thread_id!))
+
   if (kv === Gdk.KEY_l) return done(() => foldAway(a))
   return false
 }
@@ -168,7 +168,7 @@ export function Stickies() {
           <Panel title={`tlön · ${a.kind.replace("_", " ")}`} cssClasses={["toast", "alert-sticky"]} spacing={4}>
             <label selectable cssClasses={["summary"]} label={a.thread_id ? `#${a.thread_id} ${a.title}` : a.title} xalign={0} wrap maxWidthChars={44} />
             <label selectable cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={48} />
-            <Actions a={a} host="toasts" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }, copy(a), ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
+            <Actions a={a} host="toasts" extra={[{ label: "Later", run: () => foldAway(a) }, copy(a), ...(putsAway(a) ? [] : [{ label: "Dismiss", run: () => dismiss(a) }])]} />
           </Panel>
         )}
       </For>
@@ -194,7 +194,7 @@ function Info({ a }: { a: Alert }) {
         }}
       />
       <box cssClasses={["actions"]} spacing={8}>
-        <button cssClasses={["act", "dim"]} visible={!!a.thread_id} onClicked={() => { dismiss(a); void openThread(a.thread_id!) }}><label label="Open" /></button>
+
         <button cssClasses={["act", "dim"]} onClicked={() => dismiss(a)}><label label="Dismiss" /></button>
       </box>
     </Panel>
@@ -238,8 +238,8 @@ export function DecisionBanner() {
             <Panel title={`⚑ tlön needs a decision${a.thread_id ? ` · #${a.thread_id}` : ""}`} cssClasses={["alert-banner"]} spacing={6}>
               <label selectable cssClasses={["summary"]} label={a.title} xalign={0} wrap maxWidthChars={70} />
               <label selectable cssClasses={["body"]} label={a.body ?? ""} visible={!!a.body} xalign={0} wrap maxWidthChars={80} />
-              <Actions a={a} host="banner" extra={[...(a.thread_id ? [{ label: "Open", run: () => openThread(a.thread_id!) }] : []), { label: "Later", run: () => foldAway(a) }, copy(a)]} />
-              <label cssClasses={["hint"]} label={bannerKeys((k) => (k ? "1–9 answer  ·  o open  ·  l later  ·  Esc back" : "Super+Y to answer by key"))} xalign={0} />
+              <Actions a={a} host="banner" extra={[{ label: "Later", run: () => foldAway(a) }, copy(a)]} />
+              <label cssClasses={["hint"]} label={bannerKeys((k) => (k ? "1–9 answer  ·  l later  ·  Esc back" : "Super+Y to answer by key"))} xalign={0} />
             </Panel>
           )
         }

@@ -8,7 +8,7 @@ wears the same generated palette; none owns state.
 | **asterion** (Neovim) | `~/projects/asterion`, linked at `~/.config/nvim` | code · diffs · review · the Tlön sidebar, thread buffers and composer · a coworker terminal | `nvim`, then `<leader>oo` |
 | **office** (TUI) | tlon's `office/` | the pixel-art room over the server: who works, who waits on you, the worklines; every thread, coworker, ticket, triage, health and schedule a key away | `tlon` |
 | **web** (LiveView) | `modules/server/lib/server/web` | the same sidebar · thread · composer in a browser, live on the Bus — from a phone over tailscale | `mise run server:web` → http://127.0.0.1:4042 |
-| **shell** (astal) | `modules/desktop/shell` | rail, bar, launcher (`>` verbs), deck panes (Agents…), notifications, OSD, lock, theme toggle | always up (`astal-shell.service`) |
+| **shell** (astal) | `modules/desktop/shell` | rail, bar, launcher (`>` verbs), the deck, the office rail, notifications, OSD, lock, theme toggle | always up (`astal-shell.service`) |
 
 The server (`modules/server`, `tlon.service`) is not a surface: it is the record — threads,
 facts, checks, todos, worklines — and the MCP channel the coworkers speak. The operator reaches
@@ -29,7 +29,7 @@ The scroll wheel means one thing per place, and the same thing wherever it appea
 | the bar's battery cell | brightness | 5 % |
 | the rail's volume item | volume | 2 %, capped at 100 % |
 | the deck's now-playing cell | volume (the same function) | 2 %, capped at 100 % |
-| anywhere else | nothing; the office canvas and the launcher have no wheel on purpose | |
+| anywhere else | nothing; the launcher has no wheel on purpose | |
 
 ## What opens on hover, what on click
 
@@ -49,5 +49,13 @@ mutes it, as it mutes toasts. The WAVs live in `modules/desktop/shell/assets/sfx
 chime is the same one the Claude Code plugin plays, and the landing toast says what the plugin's
 does: the server's own alert row (`#<id> landed — <title>`).
 
-**The rail clock keeps the office's joke.** It reads the time through the kit's `clockFace`
-(`office/kit/eggs.ts`): at 4:04 it says `404` (the time cannot be found), at 3:14 `π`.
+**The rail clock has its jokes.** It reads the time through `clockFace` (`lib/clock-core.ts`):
+at 4:04 it says `404` (the time cannot be found), at 3:14 `π`.
+
+**The office rail lists the Claudes, not a room.** The deck's board cell (or Super+U) opens a
+plain list on the right: every Claude session from `$XDG_RUNTIME_DIR/sessions`, each with the
+babylon ticket its pane holds, what it is doing and whose move it is, yours first; then
+babylon's board in a line (doing, review, asks, auto, hold) from
+`$XDG_RUNTIME_DIR/babylon/board.json`, and a row per open ask. A row focuses that Claude's pane
+in arena. An ask focuses arena, where the board is `Alt+b`: nothing outside arena can open a
+card on it.

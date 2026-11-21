@@ -1,6 +1,7 @@
 // The pure half of lib/sessions.ts: the records Claude Code's session hook keeps in
-// $XDG_RUNTIME_DIR/sessions (modules/agents/session-state.sh), read for the bar.
+// $XDG_RUNTIME_DIR/sessions (modules/agents/session-state.sh), read for the deck and the office rail.
 import type { Sfx } from "./sfx-core"
+import type { Card } from "./board-core"
 
 export type State = "working" | "done" | "waiting"
 export type Session = {
@@ -53,6 +54,26 @@ export const mine = (all: Session[]) =>
   all.filter((s) => !isCrew(s)).sort((a, b) => ORDER[a.state] - ORDER[b.state] || a.repo.localeCompare(b.repo))
 
 export const nextUp = (all: Session[]) => mine(all)[0] ?? null
+
+export type Row = { session: Session; ticket: Card | null; yours: boolean }
+
+/** the rail's rows: your sessions, each with the ticket its pane holds (`ticketOf`), your move first */
+export const rows = (all: Session[], ticketOf: (pane: string) => Card | null): Row[] =>
+  mine(all)
+    .map((session) => { const ticket = ticketOf(session.pane); return { session, ticket, yours: session.state !== "working" || !!ticket?.ask } })
+    .sort((a, b) => Number(b.yours) - Number(a.yours))
+
+/** a row's two lines: its mark, ticket and repo, whose move it is and for how long; then what it is doing or last heard */
+export const rowLines = (r: Row, now: number): [string, string] => [
+  [`${MARK[r.session.state]} ${r.ticket ? `#${r.ticket.id} ` : ""}${r.session.repo}`, r.yours ? "your move" : "working", ago(now - r.session.since)].join("  "),
+  r.session.doing ?? r.session.said ?? r.ticket?.title ?? "",
+]
+
+/** what waits on you, in words: babylon's open asks (`asks`), then the sessions waiting on an answer */
+export const waiting = (all: Session[], asks: Card[]): string[] => [
+  ...asks.flatMap((t) => (t.ask ? [`#${t.id} asks: ${t.ask.question}`] : [])),
+  ...mine(all).filter((s) => s.state === "waiting").map((s) => `${s.repo} waits${s.doing ? `: ${s.doing}` : ""}`),
+]
 
 export function tally(list: Session[]): Tally {
   const t: Tally = { working: 0, done: 0, waiting: 0 }

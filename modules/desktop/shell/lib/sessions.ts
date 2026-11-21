@@ -13,7 +13,8 @@ import { logEvent } from "./log"
 import { parse, metered, alive, chimes, arenaTarget, type Session } from "./sessions-core"
 
 export type { Session }
-export { mine, tally, mark, nextUp, line, isCrew } from "./sessions-core"
+export type { Row } from "./sessions-core"
+export { mine, tally, mark, nextUp, line, isCrew, rows, rowLines } from "./sessions-core"
 
 const DIR = `${GLib.get_user_runtime_dir()}/sessions`
 const ARENA = "com.ghostty.arena"
@@ -90,6 +91,20 @@ monitor.connect("changed", () => {
 })
 interval(60_000, () => void refresh())
 
+const arenaWindow = () => hypr.get_clients().find((c) => c.class === ARENA)
+const focusArena = (address: string) => dispatchNow(L.focusWindow(`address:0x${address.replace(/^0x/, "")}`))
+function openArena(...args: string[]) {
+  const cmd = ["ghostty", "--title=arena", `--class=${ARENA}`, "-e", "arena", ...args]
+  dispatchNow(`hl.dsp.exec_cmd(${JSON.stringify(cmd.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" "))})`)
+}
+
+/** Put arena in front of you, opened if none is up: its board is Alt+b there, and nothing outside arena can open a card on it. */
+export function goToArena() {
+  const arena = arenaWindow()
+  if (arena) focusArena(arena.address)
+  else openArena()
+}
+
 /** Put `s` in front of you: arena's window focused on its pane, arena opened on it if none is up. */
 export async function goTo(s: Session) {
   if (!s.pane) return logEvent("agent", `${s.repo}: not in tmux, nowhere to go`, "warn")
@@ -97,15 +112,14 @@ export async function goTo(s: Session) {
   try {
     await tmux("select-window", "-t", s.pane)
     await tmux("select-pane", "-t", s.pane)
-    const arena = hypr.get_clients().find((c) => c.class === ARENA)
+    const arena = arenaWindow()
     if (arena) {
-      dispatchNow(L.focusWindow(`address:0x${arena.address.replace(/^0x/, "")}`))
+      focusArena(arena.address)
       const clients = await tmux("list-clients", "-F", "#{client_control_mode} #{client_name}")
       for (const c of clients.split("\n")) if (c.startsWith("1 ")) await tmux("switch-client", "-c", c.slice(2), "-t", s.pane)
     } else {
       const session = (await tmux("display-message", "-p", "-t", s.pane, "#{session_name}")).trim()
-      const cmd = ["ghostty", "--title=arena", `--class=${ARENA}`, "-e", "arena", ...arenaTarget(s), session]
-      dispatchNow(`hl.dsp.exec_cmd(${JSON.stringify(cmd.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" "))})`)
+      openArena(...arenaTarget(s), session)
     }
   } catch (e) { logEvent("agent", `go to ${s.repo}: ${String(e)}`, "warn") }
 }

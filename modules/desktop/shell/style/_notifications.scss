@@ -40,7 +40,7 @@ window.osd { background: transparent; }
 // the keyboard cursor (lib/nav): inverse video, the palette's "active" — an amber field, black
 // ink on every label in the row (a tinted field left amber text on amber: Andrew, 2026-09-07)
 .vlist > row:selected { background: $body; box-shadow: none; }
-.vlist > row:selected .logline label, .vlist > row:selected .thread-row label, .vlist > row:selected label { color: $field-ink; }
+.vlist > row:selected .logline label, .vlist > row:selected label { color: $field-ink; }
 
 // ── tlon's alerts (surfaces/Alerts.tsx) ────────────────────────────────────
 // sticky: a toast in tlon's colour that stays; the decision banner: top centre, the attention

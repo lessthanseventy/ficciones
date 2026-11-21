@@ -1,9 +1,10 @@
-// TODAY: what needs me, one list — notices not yet dismissed, the agenda (khal), the agents
-// awaiting an answer. Each row is a click: a notice dismisses, an agent line opens the roster.
+// TODAY: what needs me, one list — notices not yet dismissed, the agenda (khal), the asks and
+// Claudes waiting on an answer. Each row is a click: a notice dismisses, the waiting line opens
+// the office rail.
 import Gtk from "gi://Gtk?version=4.0"
 import { For, createComputed } from "ags"
 import { agenda } from "./Calendar"
-import { agents } from "../lib/agents"
+import { waitingOnYou } from "../lib/board"
 import { popAgents } from "../surfaces/Deck"
 import { urgencyOf, groups, dismissGroup } from "../surfaces/Notifications"
 
@@ -11,10 +12,10 @@ type Row = { key: string; glyph: string; cls: string; text: string; sub?: string
 
 export function TodayCard() {
   const rows = createComputed((): Row[] => {
-    const ns = groups(), ag = agenda(), a = agents()
+    const ns = groups(), ag = agenda(), w = waitingOnYou()
     const out: Row[] = []
-    if (a.awaiting > 0)
-      out.push({ key: "agents", glyph: "\u{f06a9}", cls: "pink", text: `${a.awaiting} ${a.awaiting === 1 ? "agent awaits" : "agents await"} you`, onClick: popAgents })
+    if (w.length > 0)
+      out.push({ key: "agents", glyph: "\u{f06a9}", cls: "pink", text: w.length === 1 ? w[0] : `${w.length} wait on you`, onClick: popAgents })
     for (const g of ns.slice(0, 40)) {
       const n = g.head
       const u = urgencyOf(n)
