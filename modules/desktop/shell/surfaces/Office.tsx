@@ -1,6 +1,6 @@
 // The office: a rail on the right (the deck's board cell toggles it, `astal-shell toggle office`)
 // listing the Claudes running, your move first, then babylon's board in a line and its open asks.
-// A row takes you to that Claude's pane in arena; an ask takes you to arena, where the board is.
+// A row takes you to that Claude's pane in arena; an ask takes you to its card on arena's board.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -36,7 +36,7 @@ export function hideOffice() {
 }
 export function toggleOffice(on?: Gdk.Monitor) { if (officeWin?.visible) hideOffice(); else showOffice(on) }
 
-const askTip = (t: Card) => [t.title, "", t.ask?.question ?? "", ...(t.ask?.options ?? []).map((o, i) => `${i + 1}  ${o}`), "", "answered on arena's board: Alt+b"].join("\n")
+const askTip = (t: Card) => [t.title, "", t.ask?.question ?? "", ...(t.ask?.options ?? []).map((o, i) => `${i + 1}  ${o}`), "", "answered on arena's board"].join("\n")
 
 export default function Office() {
   return (
@@ -81,7 +81,7 @@ export default function Office() {
             <box orientation={Gtk.Orientation.VERTICAL}>
               <For each={asks} id={(t: Card) => `${t.id} ${t.ask?.id}`}>
                 {(t: Card) => (
-                  <button cssClasses={["office-row", "ask"]} onClicked={() => { hideOffice(); goToArena() }} tooltipText={askTip(t)}>
+                  <button cssClasses={["office-row", "ask"]} onClicked={() => { hideOffice(); goToArena(t.id, board.peek()?.socket ?? null) }} tooltipText={askTip(t)}>
                     <box orientation={Gtk.Orientation.VERTICAL}>
                       <label cssClasses={["head"]} label={`? #${t.id} ${t.repo}  asks you`} xalign={0} ellipsize={3} maxWidthChars={ROW_CHARS} />
                       <label cssClasses={["dim", "sm"]} label={t.ask?.question.replace(/\s+/g, " ") ?? ""} xalign={0} ellipsize={3} maxWidthChars={ROW_CHARS} />
@@ -90,7 +90,7 @@ export default function Office() {
                 )}
               </For>
             </box>
-            <label cssClasses={["dim", "sm"]} label="click a row: its Claude in arena · an ask: arena, the board is Alt+b · esc" xalign={0} wrap maxWidthChars={ROW_CHARS} />
+            <label cssClasses={["dim", "sm"]} label="click a row: its Claude in arena · an ask: its card on arena's board · esc" xalign={0} wrap maxWidthChars={ROW_CHARS} />
           </Panel>
         </scrolledwindow>
       </box>

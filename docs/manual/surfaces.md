@@ -57,5 +57,5 @@ plain list on the right: every Claude session from `$XDG_RUNTIME_DIR/sessions`, 
 babylon ticket its pane holds, what it is doing and whose move it is, yours first; then
 babylon's board in a line (doing, review, asks, auto, hold) from
 `$XDG_RUNTIME_DIR/babylon/board.json`, and a row per open ask. A row focuses that Claude's pane
-in arena. An ask focuses arena, where the board is `Alt+b`: nothing outside arena can open a
-card on it.
+in arena. An ask focuses arena and opens its board on that card (`arena board <id>`), the ask's
+popup over it.

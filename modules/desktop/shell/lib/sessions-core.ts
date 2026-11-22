@@ -108,4 +108,7 @@ export const line = (s: Session, now: number) =>
   [`${MARK[s.state]} ${s.repo}`, s.doing ?? s.said, ago(now - s.since), s.ctx === undefined ? null : `ctx ${s.ctx}%`].filter(Boolean).join("  ")
 
 /** the `-L` that reaches the session's tmux server */
-export const arenaTarget = (s: Session) => ["-L", s.socket.split("/").pop() || "default"]
+export const arenaTarget = (s: { socket: string }) => ["-L", s.socket.split("/").pop() || "default"]
+
+/** what `arena` takes to open its board on ticket `id`; `socket` is the board's tmux server, null for the default one */
+export const boardArgs = (id: number, socket: string | null) => [...(socket ? arenaTarget({ socket }) : []), "board", String(id)]

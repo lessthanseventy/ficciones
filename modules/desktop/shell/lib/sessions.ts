@@ -10,7 +10,7 @@ import { play } from "./sfx"
 import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
-import { parse, metered, alive, chimes, arenaTarget, type Session } from "./sessions-core"
+import { parse, metered, alive, chimes, arenaTarget, boardArgs, type Session } from "./sessions-core"
 
 export type { Session }
 export type { Row } from "./sessions-core"
@@ -98,11 +98,13 @@ function openArena(...args: string[]) {
   dispatchNow(`hl.dsp.exec_cmd(${JSON.stringify(cmd.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" "))})`)
 }
 
-/** Put arena in front of you, opened if none is up: its board is Alt+b there, and nothing outside arena can open a card on it. */
-export function goToArena() {
+/** Put arena in front of you with its board open on ticket `id`, arena opened so if none is up. `socket` is the board's tmux server. */
+export function goToArena(id: number, socket: string | null) {
+  const args = boardArgs(id, socket)
   const arena = arenaWindow()
-  if (arena) focusArena(arena.address)
-  else openArena()
+  if (!arena) return openArena(...args)
+  focusArena(arena.address)
+  execAsync(["arena", ...args]).catch((e) => logEvent("agent", `arena board ${id}: ${String(e)}`, "warn"))
 }
 
 /** Put `s` in front of you: arena's window focused on its pane, arena opened on it if none is up. */

@@ -1,7 +1,7 @@
 // node --test lib/sessions-core.test.mjs (mise shell:test): the pure half of lib/sessions.ts.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget, rows, rowLines, waiting } from "./sessions-core.ts"
+import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget, boardArgs, rows, rowLines, waiting } from "./sessions-core.ts"
 
 const s = (id, state, extra = {}) => ({ id, state, since: 1000, at: 1000, cwd: `/p/${id}`, repo: id, socket: "/tmp/tmux-1000/default", pane: `%${id.length}`, said: null, doing: null, ...extra })
 
@@ -63,6 +63,11 @@ test("a line says where, what and how long", () => {
 test("arena is reached by its socket's name", () => {
   assert.deepEqual(arenaTarget(s("a", "done")), ["-L", "default"])
   assert.deepEqual(arenaTarget(s("a", "done", { socket: "/tmp/tmux-1000/tlon-workspace-2" })), ["-L", "tlon-workspace-2"])
+})
+
+test("arena's board opens on a ticket, on the board's own tmux server", () => {
+  assert.deepEqual(boardArgs(277, null), ["board", "277"])
+  assert.deepEqual(boardArgs(277, "/tmp/tmux-1000/tlon-workspace-2"), ["-L", "tlon-workspace-2", "board", "277"])
 })
 
 const card = (id, pane, extra = {}) => ({ id, status: "doing", title: `ticket ${id}`, repo: "r", claimed_by: pane, ask: null, ...extra })
