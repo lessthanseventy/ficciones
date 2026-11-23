@@ -21,3 +21,9 @@ test("the asking cards are those with a question open, whatever their column", (
   assert.deepEqual(asking(null), [])
 })
 
+
+test("an item with no action list still counts, with no actions", () => {
+  const raw = [{ id: "a", kind: "ask", text: "x" }, { id: "b", kind: "ask", text: "y", actions: [{ key: "k", label: "L", argv: ["go"] }] }]
+  const b = parse(JSON.stringify({ tickets: [], auto: { on: true }, needs_you: raw }))
+  assert.deepEqual(b.needsYou.map((i) => i.actions.length), [0, 1])
+})

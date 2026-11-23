@@ -4,14 +4,14 @@
 export type Action = { key: string; label: string; argv: string[] | null }
 export type Item = { id: string; kind: string; ticket: number | null; repo: string; text: string; actions: Action[] }
 
-/** Items with an id, a text and an action list; the rest of the board's `needs_you` is not ours to guess at. */
+/** Items with an id and a text, one per such entry, so the count is the board's; an entry with no action list has no actions. The rest of `needs_you` is not ours to guess at. */
 export function items(raw: unknown): Item[] {
   if (!Array.isArray(raw)) return []
   return raw.filter(
-    (i) => typeof i?.id === "string" && typeof i?.text === "string" && Array.isArray(i?.actions),
+    (i) => typeof i?.id === "string" && typeof i?.text === "string",
   ).map((i) => ({
     id: i.id, kind: String(i.kind), ticket: typeof i.ticket === "number" ? i.ticket : null, repo: String(i.repo ?? ""), text: i.text,
-    actions: i.actions.filter((a: Action) => typeof a?.label === "string").map((a: Action) => ({
+    actions: (Array.isArray(i.actions) ? i.actions : []).filter((a: Action) => typeof a?.label === "string").map((a: Action) => ({
       key: String(a.key), label: a.label, argv: Array.isArray(a.argv) ? a.argv.map(String) : null,
     })),
   }))
