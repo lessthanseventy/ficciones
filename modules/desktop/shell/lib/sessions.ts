@@ -1,5 +1,5 @@
 // Every Claude Code session on the machine, from the records its hook keeps in
-// $XDG_RUNTIME_DIR/sessions (modules/agents/session-state.sh): read again whenever the directory
+// $XDG_RUNTIME_DIR/sessions (arena's plugin): read again whenever the directory
 // changes, and once a minute so the times move on and a crashed session's record drops off.
 import { createState } from "ags"
 import { interval } from "ags/time"

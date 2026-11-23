@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The Claude sessions' records that ./session-state.sh keeps in $XDG_RUNTIME_DIR/sessions.
+# The Claude sessions' records that arena's plugin keeps in $XDG_RUNTIME_DIR/sessions.
 #   session set goal|next TEXT [WHO]  WHO is a repo or the start of an id; left out, this pane's session
 #   session brief                     your sessions, the ones that are your move first
 dir="${XDG_RUNTIME_DIR:-/tmp}/sessions"

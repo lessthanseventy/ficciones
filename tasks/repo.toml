@@ -42,10 +42,6 @@ run = "scripts/check-menard-verbs.sh || exit 1; cmp modules/agents/mods/changes-
 description = "the CLAUDE_CODE_SHELL_PREFIX wrapper runs a command intact, pinned to the E-cores"
 run = "modules/agents/agent-work.test.sh"
 
-["check:session-state"]
-description = "the Claude Code hook that keeps each session's record writes what it should, and marks no pane"
-run = "modules/agents/session-state.test.sh"
-
 ["check:menard-scope"]
 description = "menard edit and write are allowed by hook only inside a ticket worktree"
 run = "modules/agents/menard-scope.test.sh"
@@ -73,4 +69,4 @@ run = "command -v ags >/dev/null || { echo 'check:shell — no ags on PATH, not 
 
 ["check"]
 description = "Everything green: the names gate, the cap hook, the session hook and command, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "check:agent-work", "check:session-state", "check:menard-scope", "check:allow-merge", "check:asterion-seed", "check:asterion", "check:session", "check:mods", "check:shell", "manual:check", "flake:check"]
+depends = ["check:names", "check:cap-hook", "check:agent-work", "check:menard-scope", "check:allow-merge", "check:asterion-seed", "check:asterion", "check:session", "check:mods", "check:shell", "manual:check", "flake:check"]

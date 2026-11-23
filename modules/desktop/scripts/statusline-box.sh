@@ -56,7 +56,7 @@ if [ -n "$used" ] && [ -n "${TMUX_PANE:-}" ] && [ "$(tmux show -pqv -t "$TMUX_PA
 	tmux set -p -t "$TMUX_PANE" @arena_claude_ctx "$used" 2>/dev/null
 fi
 
-# the session's meter beside its record (modules/agents/session-state.sh), for the desktop's rows:
+# the session's meter beside its record (arena's plugin), for the desktop's rows:
 # a file of its own so the hook and the repaint never write over each other, written only on a change
 id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
 meters="${XDG_RUNTIME_DIR:-/tmp}/sessions"

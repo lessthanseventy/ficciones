@@ -1,5 +1,5 @@
 // The pure half of lib/sessions.ts: the records Claude Code's session hook keeps in
-// $XDG_RUNTIME_DIR/sessions (modules/agents/session-state.sh), read for the deck.
+// $XDG_RUNTIME_DIR/sessions (arena's plugin), read for the deck.
 import type { Sfx } from "./sfx-core"
 import type { Card } from "./board-core"
 

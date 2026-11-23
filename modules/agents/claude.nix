@@ -1,36 +1,21 @@
-# The Claude Code wiring every machine gets, the work Mac too: the hooks keeping each session's
-# record in $XDG_RUNTIME_DIR/sessions (./session-state.sh), which the desktop shell reads, and
-# `session` with /goal and /brief over them; arena's plugin, whose hooks mark its windows; and the
-# shells' env, nothing in which waits on a human. The shell snapshot keeps only PATH, so the env
-# cannot live in an rc. No EDITOR: Claude Code's ctrl+g uses it.
-# All of it is merged into settings.json, which Claude Code rewrites: the session hooks replace any
-# earlier copy of themselves (and the inline arena hooks they grew from) and leave every other hook be.
+# The Claude Code wiring every machine gets, the work Mac too: `session` with /goal and /brief over
+# the session records arena's plugin writes in $XDG_RUNTIME_DIR/sessions; the menard-scope hook;
+# arena's plugin, whose hooks mark its windows; and the shells' env, nothing in which waits on a
+# human. The shell snapshot keeps only PATH, so the env cannot live in an rc. No EDITOR: Claude
+# Code's ctrl+g uses it.
+# All of it is merged into settings.json, which Claude Code rewrites: the hooks replace any earlier
+# copy of themselves (and the session-state and inline arena hooks they grew from) and leave every
+# other hook be.
 { lib, pkgs, ... }:
 let
-  sessionStateBin = pkgs.writeShellScript "session-state" (
-    "PATH=${pkgs.jq}/bin:$PATH\n" + builtins.readFile ./session-state.sh
-  );
+
   menardScopeBin = pkgs.writeShellScript "menard-scope" (
     "PATH=${pkgs.jq}/bin:${pkgs.coreutils}/bin:$PATH\n" + builtins.readFile ./menard-scope.sh
   );
   allowMerge = builtins.readFile ./allow-merge.jq;
-  sessionState = event: {
-    hooks = [
-      {
-        type = "command";
-        command = "${sessionStateBin} ${event}";
-      }
-    ];
-  };
+
   sessionHooks = pkgs.writeText "session-hooks.json" (
     builtins.toJSON {
-      SessionStart = [ (sessionState "start") ];
-      UserPromptSubmit = [ (sessionState "prompt") ];
-      PostToolUse = [ (sessionState "tool") ];
-      # a tool that fails after its permission was granted: no PostToolUse comes, and nothing
-      # else would take the record off "waiting"
-      PostToolUseFailure = [ (sessionState "tool") ];
-      Stop = [ (sessionState "stop") ];
       PreToolUse = [
         {
           matcher = "mcp__plugin_menard_menard__(edit|write)";
@@ -42,10 +27,6 @@ let
           ];
         }
       ];
-      Notification = [
-        ((sessionState "waiting") // { matcher = "permission_prompt|elicitation_dialog"; })
-      ];
-      SessionEnd = [ (sessionState "end") ];
     }
   );
   allowRules = import ./claude-allow.nix;
@@ -85,8 +66,10 @@ in
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
              | map(select(. != "" and . != $arena)) + (if $has_arena then [$arena] else [] end) | join(":"))
          | ${allowMerge}
-         | .hooks = reduce ($sessions[0] | to_entries[]) as $e (.hooks // {};
-           .[$e.key] = [(.[$e.key] // [])[] | select(tostring | test("@arena_claude|-session-state |-menard-scope ") | not)] + $e.value)' "$cfg" > "$tmp"; then
+         | .hooks = (((.hooks // {})
+             | map_values(map(select(tostring | test("@arena_claude|-session-state |-menard-scope ") | not)))
+             | with_entries(select(.value != [])))
+           | reduce ($sessions[0] | to_entries[]) as $e (.; .[$e.key] += $e.value))' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"
         run mv -f "$tmp" "$cfg"
         run sh -c 'printf "%s\n" "$1" > "$2"' _ "$allow" "$record"
