@@ -35,6 +35,9 @@ tmp=$(mktemp "$dir/.$id.XXXXXX") || exit 0
 if jq --argjson prev "$prev" --arg event "$event" --arg state "$state" \
 	--arg repo "${top##*/}" --arg socket "${TMUX%%,*}" --arg pane "$pane" --argjson now "$(date +%s)" '
 	def short: gsub("\\s+"; " ") | if length > 72 then .[:71] + "…" else . end;
+	def said: gsub("\\s+"; " ") | capture("^ ?<cross-session-message(?<attrs>[^>]*)>(?<text>.*?)(</cross-session-message>)? ?$") as $m
+		| ($m.attrs | capture("from-name=\"(?<n>[^\"]*)\"").n // "another session") + ": " + $m.text
+		| short;
 	def doing: (.tool_input // {}) as $t | .tool_name as $tool
 		| if $t.description then $t.description
 			elif $t.file_path then "\($tool) \($t.file_path | sub(".*/"; ""))"
@@ -43,7 +46,7 @@ if jq --argjson prev "$prev" --arg event "$event" --arg state "$state" \
 	. as $in | { id: $in.session_id, state: $state,
 	  since: (if $prev.state == $state then $prev.since else $now end),
 	  at: $now, cwd: $in.cwd, repo: $repo, socket: $socket, pane: $pane,
-	  said: (if $event == "prompt" then ($in.prompt // "" | short) else $prev.said end),
+	  said: (if $event == "prompt" then ($in.prompt // "" | said // short) else $prev.said end),
 	  doing: (if $event == "tool" then ($in | doing) elif $event == "prompt" then null else $prev.doing end),
 	  goal: $prev.goal, next: $prev.next }
 	' >"$tmp" 2>/dev/null <<<"$input"; then

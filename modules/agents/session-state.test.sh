@@ -62,10 +62,16 @@ is .state working "a stop with work in the background is still at work"
 send stop '{background_tasks: [{status: "completed"}]}'
 is .state "done" "a stop with nothing running is done"
 is .said "make the bar know about my sessions" "the ask outlives the turn"
+
 is .goal "a bar that knows" "so does the goal"
 is .next "wire the inotify" "and the next step"
 send start '{source: "resume"}'
 is .state "done" "a resumed session keeps its record"
+
+send prompt '{prompt: "<cross-session-message from=\"uds:/run/x.sock\" from-name=\"orchestrator\" from-mode=\"auto\">Orchestrator here,\nfor #427</cross-session-message>"}'
+is .said "orchestrator: Orchestrator here, for #427" "a message from another session says who, not the tag"
+send prompt '{prompt: "<cross-session-message from=\"uds:/run/x.sock\">hi</cross-session-message>"}'
+is .said "another session: hi" "an unnamed sender"
 
 echo '{"session_id": "../x"}' | bash "$hook" tool
 claim "a session id cannot leave the dir" test ! -e "$work/run/x.json"
