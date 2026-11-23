@@ -78,6 +78,8 @@ send prompt '{prompt: "<cross-session-message from=\"u\" from-name=\"a\">one</cr
 is .said "a: one" "back-to-back messages show the first"
 send prompt '{prompt: "<cross-session-message from=\"u\" from-name=\"a\">one</cross-session-message>\nand then some"}'
 is .said "a: one" "text after the closing tag"
+send prompt '{prompt: "why <cross-session-message from-name=\"x\">y</cross-session-message> raw?"}'
+is .said "why <cross-session-message from-name=\"x\">y</cross-session-message> raw?" "a tag quoted mid-sentence stays as typed"
 
 echo '{"session_id": "../x"}' | bash "$hook" tool
 claim "a session id cannot leave the dir" test ! -e "$work/run/x.json"

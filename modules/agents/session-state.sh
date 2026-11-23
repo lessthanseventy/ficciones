@@ -35,7 +35,7 @@ tmp=$(mktemp "$dir/.$id.XXXXXX") || exit 0
 if jq --argjson prev "$prev" --arg event "$event" --arg state "$state" \
 	--arg repo "${top##*/}" --arg socket "${TMUX%%,*}" --arg pane "$pane" --argjson now "$(date +%s)" '
 	def short: gsub("\\s+"; " ") | if length > 72 then .[:71] + "…" else . end;
-	def said: gsub("\\s+"; " ") | capture("<cross-session-message(?<attrs>[^>]*)>(?<text>.*?)(</cross-session-message>|$)") as $m
+	def said: gsub("\\s+"; " ") | capture("^ ?<cross-session-message(?<attrs>[^>]*)>(?<text>.*?)(</cross-session-message>|$)") as $m
 		| ($m.attrs | capture("from-name=\"(?<n>[^\"]+)\"").n // "another session") + ": " + ($m.text | sub(" $"; ""))
 		| short;
 	def doing: (.tool_input // {}) as $t | .tool_name as $tool
