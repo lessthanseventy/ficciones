@@ -37,6 +37,7 @@ import { toggleQuake } from "./lib/quake"
 import { setGlass, toggleGlass } from "./lib/glass"
 import { cards } from "./lib/hover"
 import { getCli, setCli, setting } from "./lib/settings"
+import "./lib/needs"
 import "./lib/night"
 import "./lib/opaque"
 

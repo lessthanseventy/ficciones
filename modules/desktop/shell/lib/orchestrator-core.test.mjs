@@ -6,18 +6,19 @@ import { parse } from "./board-core.ts"
 
 const card = (id, extra = {}) => ({ id, status: "todo", title: `t${id}`, repo: "x", claimed_by: null, ask: null, stage: null, blocked_by: [], ...extra })
 const ask = { id: 1, question: "q", options: [] }
-const board = (tickets = [], extra = {}) => ({ tickets, auto: { on: true, cap: 2, working: 0 }, hold: false, socket: null, needsYou: 0, orchestrator: { on: true, running: true }, ...extra })
+const needs = (n) => Array.from({ length: n }, (_, k) => ({ id: `ask:${k}`, kind: "ask", ticket: k, repo: "x", text: "t", actions: [] }))
+const board = (tickets = [], extra = {}) => ({ tickets, auto: { on: true, cap: 2, working: 0 }, hold: false, socket: null, needsYou: [], orchestrator: { on: true, running: true }, ...extra })
 const session = (state, since = 100) => ({ id: "o", state, since, at: since, cwd: "", repo: "orchestrator", socket: "", pane: "%1", said: null, doing: null })
 
 test("N is the length of needs_you, whatever the tickets say", () => {
   const raw = (extra) => JSON.stringify({ tickets: [card(1, { ask })], auto: { on: true, cap: 2, working: 0 }, orchestrator: { on: true, running: true }, ...extra })
-  assert.equal(cell(parse(raw({ needs_you: [{ id: "a" }, { id: "b" }] })), null).text, "▲ 2 · orchestrator: idle")
+  assert.equal(cell(parse(raw({ needs_you: [{ id: "a", text: "t", actions: [] }, { id: "b", text: "t", actions: [] }] })), null).text, "▲ 2 · orchestrator: idle")
   assert.equal(cell(parse(raw({})), null).text, "▲ 0 · orchestrator: idle")
   assert.equal(cell(null, null).text, "▲ 0 · orchestrator: restarting")
 })
 
 test("the cell says each state the session record gives", () => {
-  const b = board([card(1, { ask })], { needsYou: 3 })
+  const b = board([card(1, { ask })], { needsYou: needs(3) })
   assert.equal(cell(b, session("working")).text, "▲ 3 · orchestrator: working")
   assert.equal(cell(b, session("done")).text, "▲ 3 · orchestrator: idle")
   assert.equal(cell(b, null).text, "▲ 3 · orchestrator: idle")
@@ -35,7 +36,7 @@ test("restarting is on and not running; off is kept off and not running", () => 
 
 test("▲ 0 is dim and keeps its place, a count is not", () => {
   assert.equal(cell(board(), session("done")).dim, true)
-  assert.equal(cell(board([], { needsYou: 1 }), session("done")).dim, false)
+  assert.equal(cell(board([], { needsYou: needs(1) }), session("done")).dim, false)
 })
 
 test("after a tell the cell says on it, whatever the session says, until its turn lands", () => {

@@ -118,10 +118,10 @@ const shell: Shell = {
 /** The one way the shell sends you somewhere: arena's window focused, then arena told `args`; `open` starts one when none is running. */
 const toArena = (args: string[], open: () => void) => toArenaWith(args, open, shell)
 
+/** Put arena in front of you with `args` (arena board N, arena inbox). */
+export const goToArena = (args: string[]) => void toArena(args, () => openArena(...args))
+
 /** Put arena in front of you with its inbox (Your move) open. `socket` is the board's tmux server. */
-export function goToInbox(socket: string | null) {
-  const args = inboxArgs(socket)
-  void toArena(args, () => openArena(...args))
-}
+export const goToInbox = (socket: string | null) => goToArena(inboxArgs(socket))
 
 void refresh()

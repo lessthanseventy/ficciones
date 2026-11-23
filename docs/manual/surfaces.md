@@ -58,3 +58,8 @@ the orchestrator's session record (working, waits on you, idle, restarting, off)
 arena on its inbox (`arena inbox`). `SUPER+U` opens a one-line entry, `tell the orchestrator ❯`: Enter
 runs `babylon tell "<line>"` and closes it (the cell then says `on it`, then `answered`, until its
 next click); a refusal stays in the entry with babylon's reason; Esc sends nothing.
+
+**Each item in `needs_you` is a desktop notice** (`lib/needs.ts`): `▲ N need you` over the item's first row,
+raised once per item id, taken back when the id leaves `needs_you`, and not raised while arena's window
+has focus. A click on the body runs `arena board <ticket>` (`arena inbox` for an item with no ticket); the
+buttons are the item's actions that have an argv (go/no, an ask's options), run as given. Words and picks stay in arena.
