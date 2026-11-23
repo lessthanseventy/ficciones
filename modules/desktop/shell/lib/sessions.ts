@@ -10,7 +10,7 @@ import { play } from "./sfx"
 import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
-import { tellArena } from "./arena-go"
+import { toArena as toArenaWith, goToSession, type Shell } from "./arena-go"
 import { parse, metered, alive, chimes, arenaTarget, boardArgs, paneArgs, findArena, type Session } from "./sessions-core"
 
 export type { Session }
@@ -111,12 +111,17 @@ function notice(text: string) {
   execAsync(["notify-send", "-a", "arena", "arena", text]).catch(() => {})
 }
 
-/** The one way the shell sends you somewhere: arena's window focused, then arena told `args`; `open` starts one when none is running. */
-function toArena(args: string[], open: () => void) {
-  const arena = arenaWindow()
-  if (arena) focusArena(arena.address)
-  return tellArena(args, { run, open, notify: notice, log: (t) => logEvent("agent", t, "warn") })
+const shell: Shell = {
+  run,
+  open: () => {},
+  notify: notice,
+  log: (t) => logEvent("agent", t, "warn"),
+  arena: arenaWindow,
+  focus: focusArena,
 }
+
+/** The one way the shell sends you somewhere: arena's window focused, then arena told `args`; `open` starts one when none is running. */
+const toArena = (args: string[], open: () => void) => toArenaWith(args, open, shell)
 
 /** Put arena in front of you with its board open on ticket `id`. `socket` is the board's tmux server. */
 export function goToArena(id: number, socket: string | null) {
@@ -125,15 +130,14 @@ export function goToArena(id: number, socket: string | null) {
 }
 
 /** Put `s` in front of you: its pane shown in the arena that is open, or in one opened on it. */
-export async function goTo(s: Session) {
-  if (!s.pane) return notice(`${s.repo} is not in tmux, nowhere to go`)
-  await toArena(paneArgs(s), async () => {
+export function goTo(s: Session) {
+  return goToSession(s, paneArgs(s), async () => {
     try {
       const tmux = (...a: string[]) => execAsync(["tmux", "-S", s.socket, ...a])
       const session = (await tmux("display-message", "-p", "-t", s.pane, "#{session_name}")).trim()
       openArena(...arenaTarget(s), session)
     } catch (e) { logEvent("agent", `go to ${s.repo}: ${String(e)}`, "warn"); notice(`could not open arena on ${s.repo}`) }
-  })
+  }, shell)
 }
 
 void refresh()
