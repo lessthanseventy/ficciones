@@ -43,3 +43,17 @@ test("babylon missing from PATH is a refusal too", async () => {
   assert.equal(r.ok, false)
   assert.match(r.reason, /ENOENT/)
 })
+
+test("the house is told through `asterion -- --tell <line>`", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tell-"))
+  const log = join(dir, "argv")
+  writeFileSync(join(dir, "asterion"), `#!/bin/sh\nprintf '%s\\n' "$@" > ${log}\n`)
+  chmodSync(join(dir, "asterion"), 0o755)
+  const run = (argv) => new Promise((res, rej) => {
+    const p = spawn(argv[0], argv.slice(1), { env: { ...process.env, PATH: `${dir}:${process.env.PATH}` } })
+    p.on("error", rej)
+    p.on("close", (code) => res({ code, err: "" }))
+  })
+  assert.deepEqual(await sendTell("buy milk; 'now'", run, "house"), { ok: true })
+  assert.deepEqual(readFileSync(log, "utf8").trim().split("\n"), ["--", "--tell", "buy milk; 'now'"])
+})

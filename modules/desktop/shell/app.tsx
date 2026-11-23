@@ -90,7 +90,7 @@ app.start({
       return res("ok")
     }
     if (verb === "toggle" && what === "tell") {
-      toggleTell()
+      toggleTell(tab === "house" ? "house" : "work")
       return res("ok")
     }
     if (verb === "toggle" && what === "clipboard") {
@@ -173,7 +173,7 @@ app.start({
     }
     if (verb === "get") return res(getCli(what))
     if (verb === "set") return res(setCli(what, argv.slice(2).join(" ")))
-    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | decision | toggle drawer|hub|deck|dashboard|settings [backdrop|look|notifications|feel]|launcher|tell|clipboard|cheatsheet|weather | crt [off|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | display send | theme [NAME|toggle] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar] | pop ws N | pop card NAME | quake | super down|up")
+    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | decision | toggle drawer|hub|deck|dashboard|settings [backdrop|look|notifications|feel]|launcher|tell [house]|clipboard|cheatsheet|weather | crt [off|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | display send | theme [NAME|toggle] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar] | pop ws N | pop card NAME | quake | super down|up")
   },
   main() {
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;

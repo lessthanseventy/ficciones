@@ -96,6 +96,11 @@
  },
  {
   "group": "shell",
+  "keys": "SUPER+SHIFT+U",
+  "does": "tell the house"
+ },
+ {
+  "group": "shell",
   "keys": "SUPER+B",
   "does": "calendar"
  },

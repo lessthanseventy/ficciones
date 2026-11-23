@@ -1,5 +1,5 @@
-// Tell the orchestrator: a one-line entry at the top of the screen (Super+U). Enter runs
-// `babylon tell "<line>"` and closes; a refusal stays open with babylon's reason; Esc sends nothing.
+// Tell the orchestrator (Super+U) or the house (Super+Shift+U): a one-line entry at the top of the screen. Enter runs
+// `babylon tell "<line>"` or `asterion -- --tell "<line>"` and closes; a refusal stays open with its reason; Esc sends nothing.
 import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
@@ -11,12 +11,13 @@ import { closeKeys } from "../lib/keys"
 import { clickawayField } from "./Clickaway"
 import { Panel } from "../lib/tui"
 import { noteTold } from "../lib/orchestrator"
-import { sendTell, type Run } from "../lib/tell-core"
+import { sendTell, type Dest, type Run } from "../lib/tell-core"
 
 let win: Astal.Window | null = null
 let entry: Gtk.Entry | null = null
 const [refusal, setRefusal] = createState("")
 let sending = false
+const [dest, setDest] = createState<Dest>("work")
 
 const run: Run = (argv) =>
   new Promise((resolve, reject) => {
@@ -35,23 +36,24 @@ async function send() {
   if (!line || sending) return
   sending = true
   const at = Math.floor(Date.now() / 1000)
-  const sent = await sendTell(line, run)
+  const sent = await sendTell(line, run, dest.peek())
   sending = false
   if (!sent.ok) return setRefusal(sent.reason)
-  noteTold(at)
+  if (dest.peek() === "work") noteTold(at)
   hide()
 }
 
-export function showTell() {
+export function showTell(to: Dest = "work") {
   if (!win) return
   const name = Hyprland.get_default().focusedMonitor?.name
   const mon = app.get_monitors().find((x) => x.connector === name)
   if (mon) win.gdkmonitor = mon
   setRefusal("")
+  setDest(to)
   win.visible = true
   if (entry) { entry.text = ""; entry.grab_focus() }
 }
-export function toggleTell() { if (win?.visible) hide(); else showTell() }
+export function toggleTell(to: Dest = "work") { if (win?.visible) hide(); else showTell(to) }
 
 export default function Tell() {
   const onKey = (kv: number) => {
@@ -78,9 +80,9 @@ export default function Tell() {
       <overlay>
         <box cssClasses={["clickaway-field"]} hexpand vexpand $={(self) => clickawayField(self, hide)} />
         <box $type="overlay" halign={Gtk.Align.CENTER} valign={Gtk.Align.START} marginTop={60}>
-          <Panel title="TELL" cssClasses={["launch-pane", "focused"]} spacing={4}>
+          <Panel title={dest((d) => (d === "house" ? "TELL HOUSE" : "TELL"))} cssClasses={["launch-pane", "focused"]} spacing={4}>
             <box cssClasses={["prompt"]} spacing={8}>
-              <label cssClasses={["ps"]} label="tell the orchestrator ❯" />
+              <label cssClasses={["ps"]} label={dest((d) => (d === "house" ? "tell the house ❯" : "tell the orchestrator ❯"))} />
               <entry $={(self) => (entry = self)} hexpand onNotifyText={() => setRefusal("")} placeholderText="" />
               <label cssClasses={["hint"]} label="Enter sends · Esc closes" />
             </box>

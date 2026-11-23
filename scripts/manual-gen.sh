@@ -26,7 +26,7 @@ WORDS = {
     "toggle launcher": "launcher", "toggle clipboard": "clipboard history", "toggle cheatsheet": "this sheet",
     "toggle drawer": "calendar drawer", "toggle hub": "notifications", "toggle deck": "deck: log · media · timer",
     "toggle dashboard": "dashboard", "toggle settings": "settings", "toggle weather": "weather",
-    "toggle tell": "tell the orchestrator", "show drawer calendar": "calendar", "backdrop": "backdrop: next mode",
+    "toggle tell": "tell the orchestrator", "toggle tell house": "tell the house", "show drawer calendar": "calendar", "backdrop": "backdrop: next mode",
     "theme": "light / dark", "crt": "crt scanlines", "glass": "glass", "sidecar toggle": "pin as sidecar",
     "colresize narrower": "column narrower", "colresize wider": "column wider", "quake": "drop-down terminal",
     "focus l": "focus left", "focus r": "focus right", "display send": "window to the other screen",
