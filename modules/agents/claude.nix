@@ -13,6 +13,7 @@ let
   menardScopeBin = pkgs.writeShellScript "menard-scope" (
     "PATH=${pkgs.jq}/bin:${pkgs.coreutils}/bin:$PATH\n" + builtins.readFile ./menard-scope.sh
   );
+  allowMerge = builtins.readFile ./allow-merge.jq;
   sessionState = event: {
     hooks = [
       {
@@ -68,22 +69,27 @@ in
   home.activation.claudeSessionHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     allow='${builtins.toJSON allowRules}'
     cfg="$HOME/.claude/settings.json"
+    record="$HOME/.claude/.ficciones-allow.json"
+    prev='[]'
+    [ -f "$record" ] && prev=$(cat "$record")
+    dead='["Write(~/projects/*/.worktrees/**)","Write(~/.cache/babylon/work/**)"]'
     arena="$HOME/projects/arena"
     has_arena=false
     [ -f "$arena/hooks/hooks.json" ] && has_arena=true
     [ -f "$cfg" ] || { run mkdir -p "$HOME/.claude"; run sh -c 'echo "{}" > "$1"' _ "$cfg"; }
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena" --argjson allow "$allow" --argjson has_arena "$has_arena" '.env += {
+      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena" --argjson allow "$allow" --argjson prev "$prev" --argjson dead "$dead" --argjson has_arena "$has_arena" '.env += {
            GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
            GIT_TERMINAL_PROMPT: "0" }
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
              | map(select(. != "" and . != $arena)) + (if $has_arena then [$arena] else [] end) | join(":"))
-         | .permissions.allow = ((.permissions.allow // []) - $allow + $allow)
+         | ${allowMerge}
          | .hooks = reduce ($sessions[0] | to_entries[]) as $e (.hooks // {};
            .[$e.key] = [(.[$e.key] // [])[] | select(tostring | test("@arena_claude|-session-state |-menard-scope ") | not)] + $e.value)' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"
         run mv -f "$tmp" "$cfg"
+        run sh -c 'printf "%s\n" "$1" > "$2"' _ "$allow" "$record"
       else
         rm -f "$tmp"
       fi
