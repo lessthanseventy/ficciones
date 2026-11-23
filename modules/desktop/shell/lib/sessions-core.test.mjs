@@ -1,7 +1,7 @@
 // node --test lib/sessions-core.test.mjs (mise shell:test): the pure half of lib/sessions.ts.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget, boardArgs, rows, rowLines, waiting } from "./sessions-core.ts"
+import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget, boardArgs, findArena, rows, rowLines, waiting } from "./sessions-core.ts"
 
 const s = (id, state, extra = {}) => ({ id, state, since: 1000, at: 1000, cwd: `/p/${id}`, repo: id, socket: "/tmp/tmux-1000/default", pane: `%${id.length}`, said: null, doing: null, ...extra })
 
@@ -94,4 +94,13 @@ test("what waits on you is the open asks, then the sessions waiting on an answer
   const all = [s("busy", "working"), s("stuck", "waiting", { doing: "Bash rm -rf" }), s("quiet", "waiting")]
   assert.deepEqual(waiting(all, [card(8, "%5", { ask })]), ["#8 asks: ship it?", "quiet waits", "stuck waits: Bash rm -rf"])
   assert.deepEqual(waiting([s("busy", "working")], []), [])
+})
+
+test("arena's window is found by its title on Ghostty's own class, or the class it was started with", () => {
+  const term = { class: "com.mitchellh.ghostty", title: "zsh", address: "0x1" }
+  const arena = { class: "com.mitchellh.ghostty", title: "arena", address: "0x2" }
+  assert.equal(findArena([term, { class: "firefox", title: "arena" }, arena]), arena)
+  const own = { class: "com.ghostty.arena", title: "arena", address: "0x3" }
+  assert.equal(findArena([own]), own)
+  assert.equal(findArena([term]), undefined)
 })

@@ -10,7 +10,7 @@ import { play } from "./sfx"
 import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
-import { parse, metered, alive, chimes, arenaTarget, boardArgs, type Session } from "./sessions-core"
+import { parse, metered, alive, chimes, arenaTarget, boardArgs, findArena, type Session } from "./sessions-core"
 
 export type { Session }
 export type { Row } from "./sessions-core"
@@ -91,7 +91,7 @@ monitor.connect("changed", () => {
 })
 interval(60_000, () => void refresh())
 
-const arenaWindow = () => hypr.get_clients().find((c) => c.class === ARENA)
+const arenaWindow = () => findArena(hypr.get_clients())
 const focusArena = (address: string) => dispatchNow(L.focusWindow(`address:0x${address.replace(/^0x/, "")}`))
 function openArena(...args: string[]) {
   const cmd = ["ghostty", "--title=arena", `--class=${ARENA}`, "-e", "arena", ...args]
