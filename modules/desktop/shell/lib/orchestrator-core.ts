@@ -15,15 +15,9 @@ export function followTold(told: Told, session: Session | null): Told {
   return told
 }
 
-/** what arena's header counts: open asks, open proposals, and send-backs no Claude holds and nothing blocks */
-export function yourMove(b: Board | null): number {
-  if (!b) return 0
-  const free = b.tickets.filter((t) => t.stage === "failed" && t.status === "doing" && !t.claimed_by && !t.blocked_by?.length)
-  return b.tickets.filter((t) => t.ask).length + b.proposals + free.length
-}
 
 export function cell(b: Board | null, session: Session | null, told: Told = null): Cell {
-  const n = yourMove(b)
+  const n = b?.needsYou ?? 0
   const head = `▲ ${n} · orchestrator: `
   const o = b?.orchestrator
   const state = !o?.running ? (o?.on === false ? "off" : "restarting") : told ? (told.phase === "answered" ? "answered" : "on it") : session?.state === "working" ? "working" : session?.state === "waiting" ? "waits on you" : "idle"
