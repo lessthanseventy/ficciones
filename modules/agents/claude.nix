@@ -2,8 +2,8 @@
 # the session records arena's plugin writes in $XDG_RUNTIME_DIR/sessions; the menard-scope hook;
 # arena's plugin, whose hooks mark its windows; and the shells' env, nothing in which waits on a
 # human. The plugin loads only where ~/projects/arena exists, and only it writes the records: a
-# machine without that checkout has `session` but no records. The shell snapshot keeps only PATH, so the env cannot live in an rc. No EDITOR: Claude
-# Code's ctrl+g uses it.
+# machine without that checkout has `session` but no records. The shell snapshot keeps only PATH,
+# so the env cannot live in an rc. No EDITOR: Claude Code's ctrl+g uses it.
 # All of it is merged into settings.json, which Claude Code rewrites: the hooks replace any earlier
 # copy of themselves (and the session-state and inline arena hooks they grew from) and leave every
 # other hook be.
