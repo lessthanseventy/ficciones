@@ -20,7 +20,6 @@ in
 board
 ++ [
   "Edit(~/projects/*/.worktrees/**)"
-  "Write(~/.cache/babylon/work/**)"
   "Edit(~/.cache/babylon/work/**)"
   "mcp__plugin_menard_menard__edit"
   "mcp__plugin_menard_menard__write"

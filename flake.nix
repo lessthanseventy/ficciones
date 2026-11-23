@@ -298,16 +298,14 @@
               ]
               ++ [
                 "Edit(~/projects/*/.worktrees/**)"
-                "Write(~/.cache/babylon/work/**)"
                 "Edit(~/.cache/babylon/work/**)"
                 "mcp__plugin_menard_menard__edit"
                 "mcp__plugin_menard_menard__write"
               ];
             missing = builtins.filter (r: !(builtins.elem r allow)) expected;
-            forbidden = builtins.filter (r: builtins.elem r allow) [
-              "mcp__plugin_arena_babylon__answer_proposal"
-              "Write(~/projects/*/.worktrees/**)"
-            ];
+            forbidden =
+              builtins.filter (r: builtins.elem r allow) [ "mcp__plugin_arena_babylon__answer_proposal" ]
+              ++ builtins.filter (pkgs.lib.hasPrefix "Write(") allow;
           in
           assert pkgs.lib.assertMsg (missing == [ ]) "claude-allow: missing ${builtins.toJSON missing}";
           assert pkgs.lib.assertMsg (
