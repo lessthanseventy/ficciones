@@ -20,7 +20,7 @@ export function items(raw: unknown): Item[] {
 export type Ask = { id: number; question: string; options: string[] }
 export type Card = { id: number; status: string; title: string; repo: string; claimed_by: string | null; ask: Ask | null; stage?: string | null; blocked_by?: number[] }
 /** `socket` is the tmux server every `claimed_by` is a pane of; null when the board does not say */
-export type Board = { tickets: Card[]; auto: { on: boolean; cap: number; working: number }; hold: boolean; socket: string | null; needsYou: Item[]; orchestrator: { on: boolean; running: boolean } | null }
+export type Board = { tickets: Card[]; auto: { on: boolean; cap: number; working: number; repo_caps?: Record<string, number> }; hold: boolean; socket: string | null; needsYou: Item[]; orchestrator: { on: boolean; running: boolean } | null }
 
 export function parse(text: string): Board | null {
   try {

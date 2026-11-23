@@ -263,14 +263,18 @@ function RecCell() {
   )
 }
 
-/** What waits on you and what the orchestrator is doing, in one cell; a click opens arena on its inbox. */
+/** What waits on you and what the orchestrator is doing, in one cell; working/cap, held and paused repos beside them; a click opens arena on its inbox. */
 function OrchestratorCell() {
   return (
     <button
       cssClasses={orchestratorCell((c) => ["cell", "orch", "clickable", ...(c.dim ? ["dim"] : []), ...(c.attention ? ["await"] : [])])}
       onClicked={() => { noteShown(); goToInbox(board.peek()?.socket ?? null) }}
     >
-      <label label={orchestratorCell((c) => c.text)} />
+      <box>
+        <label label={orchestratorCell((c) => c.text)} />
+        <label cssClasses={["held"]} label={orchestratorCell((c) => c.held)} visible={orchestratorCell((c) => c.held !== "")} />
+        <label label={orchestratorCell((c) => c.paused)} visible={orchestratorCell((c) => c.paused !== "")} />
+      </box>
     </button>
   )
 }
