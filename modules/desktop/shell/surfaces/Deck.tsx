@@ -185,7 +185,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
                 <label cssClasses={["dim"]} label="no Claude sessions" xalign={0} visible={sessions((all) => mine(all).length === 0)} />
                 <For each={sessions(mine)} id={(s: Session) => `${s.id} ${s.state} ${s.since} ${s.doing} ${s.ctx}`}>
                   {(s: Session) => (
-                    <button cssClasses={["session-row", s.state]} onClicked={() => void goTo(s)} tooltipText={s.said ?? s.cwd}>
+                    <button cssClasses={["session-row", s.state]} onClicked={(self) => { let w = self.get_parent(); while (w && !(w instanceof Gtk.Popover)) w = w.get_parent(); (w as Gtk.Popover | null)?.popdown(); void goTo(s) }} tooltipText={s.said ?? s.cwd}>
                       <label label={readAt((t) => line(s, t))} xalign={0} />
                     </button>
                   )}

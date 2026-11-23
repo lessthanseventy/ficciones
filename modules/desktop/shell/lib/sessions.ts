@@ -10,7 +10,7 @@ import { play } from "./sfx"
 import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
-import { parse, metered, alive, chimes, arenaTarget, boardArgs, findArena, type Session } from "./sessions-core"
+import { parse, metered, alive, chimes, arenaTarget, boardArgs, paneArgs, findArena, type Session } from "./sessions-core"
 
 export type { Session }
 export type { Row } from "./sessions-core"
@@ -109,21 +109,27 @@ export function goToArena(id: number, socket: string | null) {
 
 /** Put `s` in front of you: arena's window focused on its pane, arena opened on it if none is up. */
 export async function goTo(s: Session) {
-  if (!s.pane) return logEvent("agent", `${s.repo}: not in tmux, nowhere to go`, "warn")
+  if (!s.pane) return logEvent("agent", `${s.repo} is not in tmux, nowhere to go`, "warn")
   const tmux = (...a: string[]) => execAsync(["tmux", "-S", s.socket, ...a])
   try {
-    await tmux("select-window", "-t", s.pane)
-    await tmux("select-pane", "-t", s.pane)
     const arena = arenaWindow()
     if (arena) {
       focusArena(arena.address)
-      const clients = await tmux("list-clients", "-F", "#{client_control_mode} #{client_name}")
-      for (const c of clients.split("\n")) if (c.startsWith("1 ")) await tmux("switch-client", "-c", c.slice(2), "-t", s.pane)
+      try { await execAsync(["arena", ...paneArgs(s)]) } catch { await selectByTmux(s, tmux) }
     } else {
+      await tmux("select-window", "-t", s.pane)
+      await tmux("select-pane", "-t", s.pane)
       const session = (await tmux("display-message", "-p", "-t", s.pane, "#{session_name}")).trim()
       openArena(...arenaTarget(s), session)
     }
   } catch (e) { logEvent("agent", `go to ${s.repo}: ${String(e)}`, "warn") }
+}
+
+async function selectByTmux(s: Session, tmux: (...a: string[]) => Promise<string>) {
+  await tmux("select-window", "-t", s.pane)
+  await tmux("select-pane", "-t", s.pane)
+  const clients = await tmux("list-clients", "-F", "#{client_control_mode} #{client_name}")
+  for (const c of clients.split("\n")) if (c.startsWith("1 ")) await tmux("switch-client", "-c", c.slice(2), "-t", s.pane)
 }
 
 void refresh()

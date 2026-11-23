@@ -1,7 +1,7 @@
 // node --test lib/sessions-core.test.mjs (mise shell:test): the pure half of lib/sessions.ts.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget, boardArgs, findArena, rows, rowLines, waiting } from "./sessions-core.ts"
+import { parse, metered, alive, isCrew, mine, tally, mark, nextUp, chimes, line, arenaTarget, boardArgs, paneArgs, findArena, rows, rowLines, waiting } from "./sessions-core.ts"
 
 const s = (id, state, extra = {}) => ({ id, state, since: 1000, at: 1000, cwd: `/p/${id}`, repo: id, socket: "/tmp/tmux-1000/default", pane: `%${id.length}`, said: null, doing: null, ...extra })
 
@@ -103,4 +103,9 @@ test("arena's window is found by its title on Ghostty's own class, or the class 
   const own = { class: "com.ghostty.arena", title: "arena", address: "0x3" }
   assert.equal(findArena([own]), own)
   assert.equal(findArena([term]), undefined)
+})
+
+test("a session's pane is shown by arena on the session's own tmux server", () => {
+  assert.deepEqual(paneArgs(s("menard", "working", { pane: "%290" })), ["-L", "default", "pane", "%290"])
+  assert.deepEqual(paneArgs(s("a", "working", { socket: "/tmp/tmux-1000/tlon-workspace-3", pane: "%4" })), ["-L", "tlon-workspace-3", "pane", "%4"])
 })

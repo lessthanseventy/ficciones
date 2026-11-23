@@ -116,3 +116,6 @@ export const boardArgs = (id: number, socket: string | null) => [...(socket ? ar
 /** arena's window in a client list: Ghostty joins a running instance and ignores `--class`, so the class is Ghostty's own or the one asked for, and the title `arena` (set by `--title`) tells it from other terminals */
 export const findArena = <C extends { class: string; title: string }>(clients: C[]): C | undefined =>
   clients.find((c) => (c.class === "com.mitchellh.ghostty" || c.class === "com.ghostty.arena") && c.title === "arena")
+
+/** what `arena` takes to show pane `s.pane` in the running arena */
+export const paneArgs = (s: { socket: string; pane: string }) => [...arenaTarget(s), "pane", s.pane]
