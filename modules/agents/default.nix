@@ -90,14 +90,9 @@ in
     # `asterion` — tlon's house window, the built app; `asterion dev` runs it from source,
     # `asterion widget` the small always-on-top one, `asterion demo` the made-up one with no server.
     (pkgs.writeShellScriptBin "asterion" ''
-      ${asterionSeed}
-      cd ${tlonRepo} || { echo "asterion: repo not found at ${tlonRepo}" >&2; exit 1; }
-      case "''${1:-}" in
-        widget | demo) task="house:$1"; shift ;;
-        dev) task=house:run; shift ;;
-        *) task=house:app ;;
-      esac
-      exec mise --cd ${tlonRepo} run "$task" -- "$@"
+      ASTERION_SEED=${asterionSeed}
+      ASTERION_REPO=${tlonRepo}
+      ${builtins.readFile ./asterion.sh}
     '')
     (pkgs.writeShellScriptBin "house" ''exec asterion "$@"'')
 
