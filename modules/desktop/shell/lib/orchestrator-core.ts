@@ -15,7 +15,6 @@ export function followTold(told: Told, session: Session | null): Told {
   return told
 }
 
-
 export function cell(b: Board | null, session: Session | null, told: Told = null): Cell {
   const n = b?.needsYou ?? 0
   const head = `▲ ${n} · orchestrator: `
