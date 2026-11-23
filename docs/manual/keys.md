@@ -188,5 +188,5 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 |---|---|
 | `SUPER+O` | overview |
 | `CTRL+ALT+Delete` | leave Hyprland |
-| `CTRL+SUPER+SHIFT+P` | screens off |
+| `CTRL+SHIFT+ALT+P` | screens off |
 

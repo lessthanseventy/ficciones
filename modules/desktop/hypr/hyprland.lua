@@ -156,6 +156,8 @@ hl.config({
         swallow_regex = "^com\\.mitchellh\\.ghostty$",
         animate_mouse_windowdragging = true,
         animate_manual_resizes = true,
+        key_press_enables_dpms = true,
+        mouse_move_enables_dpms = true,
     },
 
     render = { direct_scanout = 0 },
@@ -659,4 +661,4 @@ bind("CTRL + ALT + L", exec("loginctl lock-session"))
 bind("CTRL + " .. M .. " + R", exec("sh -c 'pkill -x gjs; systemctl --user reset-failed astal-shell; systemctl --user restart astal-shell'")) -- restart the shell
 bind("CTRL + ALT + Delete", hl.dsp.exit())
 bind("CTRL + SHIFT + ALT + " .. M .. " + Delete", exec("systemctl poweroff"))
-bind("CTRL + " .. M .. " + SHIFT + P", hl.dsp.dpms({ action = "off" }))
+bind("CTRL + SHIFT + ALT + P", hl.dsp.dpms({ action = "off" }))
