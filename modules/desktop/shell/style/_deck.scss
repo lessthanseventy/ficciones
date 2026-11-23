@@ -68,24 +68,10 @@ window.deck-drawer { background: transparent; }
 .deck-filters .filter.off { border-color: $structure; label { color: $meta; } }
 .deck-media .tp { padding: 0 $sp-1; min-height: 0; min-width: 0; label { color: $key; } &:hover label { color: $max-contrast; } }
 .deck-title > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
-.deck-agents.await { background: $attention; label { color: $field-ink; } }
-
-.deck-sessions.await { background: $attention; label { color: $field-ink; } }
-.card-sessions .session-row { background: none; border: none; box-shadow: none; padding: 2px $sp-1; border-radius: 0; label { color: $body; } }
-.card-sessions .session-row.waiting label { color: $attention; }
-.card-sessions .session-row.working label { color: $live; }
-.card-sessions .session-row:hover { background: $cursor-field; label { color: $max-contrast; } }
-.deck-agents > button, .deck-timer > button, .deck-sessions > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
+.deck-timer > button { background: none; border: none; box-shadow: none; padding: 0; min-height: 0; min-width: 0; border-radius: 0; }
 
 // the drawer's key hints, under the sheet
 .deck-keys { background: $ground; padding: 2px $sp-3 $sp-1; label { color: $meta; font-size: $size-sm; } }
 // the chip row under the keyboard: the chip under the cursor wears the accent edge
 .deck-filters .filter.cursor { box-shadow: inset 0 -3px 0 $body; }
 .deck-filters.focused { border-bottom: $rule solid $body; }
-// the office rail's rows: a Claude or an ask, two lines each; yours to move wear the attention hue
-.card-office { min-width: 420px; }
-.card-office .office-row { background: none; border: none; box-shadow: none; padding: 2px $sp-1; border-radius: 0; }
-.card-office .office-row.working .head { color: $live; }
-.card-office .office-row.yours .head, .card-office .office-row.ask .head { color: $attention; }
-.card-office .office-row:hover { background: $cursor-field; label { color: $max-contrast; } }
-.card-office .board-line { color: $key; }

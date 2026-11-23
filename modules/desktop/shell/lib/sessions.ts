@@ -10,19 +10,15 @@ import { play } from "./sfx"
 import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
-import { toArena as toArenaWith, goToSession, type Shell } from "./arena-go"
-import { parse, metered, alive, chimes, arenaTarget, boardArgs, paneArgs, findArena, type Session } from "./sessions-core"
+import { toArena as toArenaWith, type Shell } from "./arena-go"
+import { parse, metered, alive, chimes, arenaTarget, findArena, type Session } from "./sessions-core"
 
 export type { Session }
-export type { Row } from "./sessions-core"
-export { mine, tally, mark, nextUp, line, isCrew, rows, rowLines } from "./sessions-core"
 
 const DIR = `${GLib.get_user_runtime_dir()}/sessions`
 const ARENA = "com.ghostty.arena"
 
 export const [sessions, setSessions] = createState<Session[]>([])
-/** when the records were last read: the rows' times follow it */
-export const [readAt, setReadAt] = createState(Date.now() / 1000)
 
 function text(path: string): string | null {
   try {
@@ -73,7 +69,6 @@ async function refresh() {
     const before = new Map(sessions.peek().map((s) => [s.id, s]))
     for (const sfx of new Set(chimes(before, now, at))) play(sfx)
     setSessions(now)
-    setReadAt(Date.now() / 1000)
   } finally {
     reading = false
     if (again) { again = false; void refresh() }
@@ -123,27 +118,10 @@ const shell: Shell = {
 /** The one way the shell sends you somewhere: arena's window focused, then arena told `args`; `open` starts one when none is running. */
 const toArena = (args: string[], open: () => void) => toArenaWith(args, open, shell)
 
-/** Put arena in front of you with its board open on ticket `id`. `socket` is the board's tmux server. */
-export function goToArena(id: number, socket: string | null) {
-  const args = boardArgs(id, socket)
-  void toArena(args, () => openArena(...args))
-}
-
 /** Put arena in front of you with its inbox (Your move) open. `socket` is the board's tmux server. */
 export function goToInbox(socket: string | null) {
   const args = [...(socket ? arenaTarget({ socket }) : []), "inbox"]
   void toArena(args, () => openArena(...args))
-}
-
-/** Put `s` in front of you: its pane shown in the arena that is open, or in one opened on it. */
-export function goTo(s: Session) {
-  return goToSession(s, paneArgs(s), async () => {
-    try {
-      const tmux = (...a: string[]) => execAsync(["tmux", "-S", s.socket, ...a])
-      const session = (await tmux("display-message", "-p", "-t", s.pane, "#{session_name}")).trim()
-      openArena(...arenaTarget(s), session)
-    } catch (e) { logEvent("agent", `go to ${s.repo}: ${String(e)}`, "warn"); notice(`could not open arena on ${s.repo}`) }
-  }, shell)
 }
 
 void refresh()

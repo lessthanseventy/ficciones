@@ -7,8 +7,6 @@ import { parse, asking, type Board } from "./board-core"
 import { sessions } from "./sessions"
 import { waiting } from "./sessions-core"
 
-export type { Ask, Board, Card } from "./board-core"
-export { asking, held, boardLine } from "./board-core"
 
 const FILE = `${GLib.get_user_runtime_dir()}/babylon/board.json`
 

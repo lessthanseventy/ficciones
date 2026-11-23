@@ -4,8 +4,8 @@
 import Gtk from "gi://Gtk?version=4.0"
 import { For, createComputed } from "ags"
 import { agenda } from "./Calendar"
-import { waitingOnYou } from "../lib/board"
-import { popAgents } from "../surfaces/Deck"
+import { board, waitingOnYou } from "../lib/board"
+import { goToInbox } from "../lib/sessions"
 import { urgencyOf, groups, dismissGroup } from "../surfaces/Notifications"
 
 type Row = { key: string; glyph: string; cls: string; text: string; sub?: string; onClick?: () => void }
@@ -15,7 +15,7 @@ export function TodayCard() {
     const ns = groups(), ag = agenda(), w = waitingOnYou()
     const out: Row[] = []
     if (w.length > 0)
-      out.push({ key: "agents", glyph: "\u{f06a9}", cls: "pink", text: w.length === 1 ? w[0] : `${w.length} wait on you`, onClick: popAgents })
+      out.push({ key: "agents", glyph: "\u{f06a9}", cls: "pink", text: w.length === 1 ? w[0] : `${w.length} wait on you`, onClick: () => goToInbox(board.peek()?.socket ?? null) })
     for (const g of ns.slice(0, 40)) {
       const n = g.head
       const u = urgencyOf(n)

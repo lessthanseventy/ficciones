@@ -28,8 +28,6 @@ import { sendToOtherScreen } from "./lib/display"
 import { setCrt, cycleCrt, MODES, type Crt } from "./lib/crt"
 import Spectrum from "./surfaces/Spectrum"
 import Backdrop, { setBackdrop, MODE_NAMES, type BackdropMode } from "./surfaces/Backdrop"
-import { popAgents } from "./surfaces/Deck"
-import Office, { toggleOffice } from "./surfaces/Office"
 import Dashboard, { toggleDashboard } from "./surfaces/Dashboard"
 import Osd from "./surfaces/Osd"
 import { setTheme, THEMES, applyShellTheme, applyDesktop, type Theme } from "./lib/theme"
@@ -84,10 +82,6 @@ app.start({
     // verbs still land
     if (verb === "toggle" && (what === "drawer" || what === "calendar")) {
       toggleCalendarPop()
-      return res("ok")
-    }
-    if (verb === "toggle" && what === "office") {
-      toggleOffice()
       return res("ok")
     }
     if (verb === "toggle" && what === "launcher") {
@@ -169,14 +163,12 @@ app.start({
       return res("ok")
     }
     if (verb === "show" && what === "drawer") {
-      // agents left the info surface for the rail; the old verb still lands there
-      if (tab === "agents") popAgents()
-      else toggleCalendarPop()
+      toggleCalendarPop()
       return res("ok")
     }
     if (verb === "get") return res(getCli(what))
     if (verb === "set") return res(setCli(what, argv.slice(2).join(" ")))
-    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | decision | toggle drawer|hub|deck|office|dashboard|settings [backdrop|look|notifications|feel]|launcher|clipboard|cheatsheet|weather | crt [off|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | display send | theme [NAME|toggle] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar|agents] | pop ws N | pop card NAME | quake | super down|up")
+    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | decision | toggle drawer|hub|deck|dashboard|settings [backdrop|look|notifications|feel]|launcher|clipboard|cheatsheet|weather | crt [off|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | display send | theme [NAME|toggle] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar] | pop ws N | pop card NAME | quake | super down|up")
   },
   main() {
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;
@@ -194,7 +186,6 @@ app.start({
     startAlerts()
     Hub()
     Deck()
-    Office()
     startHotEdge()
     // the live theme's stylesheet over the bundled default (the same css when they agree); from
     // source (shell:dev) the bundled css is the working tree's, and the installed one would hide

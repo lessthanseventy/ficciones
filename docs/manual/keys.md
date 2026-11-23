@@ -1,7 +1,7 @@
 # Keys
 
 Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — edit THAT, never this file.
-131 binds. `SUPER` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).
+130 binds. `SUPER` is the main modifier. The shell draws the live sheet too (`astal-shell toggle cheatsheet`, bound under launch).
 
 ## launch
 
@@ -30,7 +30,6 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `SUPER+SHIFT+I` | calendar drawer |
 | `SUPER+N` | notifications |
 | `SUPER+C` | deck: log · media · agents · timer |
-| `SUPER+U` | agents |
 | `SUPER+B` | calendar |
 | `ALT+Space` | launcher |
 | `SUPER+V` | clipboard history |

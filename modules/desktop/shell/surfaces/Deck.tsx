@@ -1,7 +1,7 @@
 // The deck: the bottom of the screen. A one-line row on every monitor — pinned attention
 // (critical notices, an agent waiting on you) on the left, the command log's tail through the
 // middle, now-playing (transport, a marquee title, the media card in a popover) / the timer
-// (its popover) / your Claudes / babylon's board on the right — and, pulled up over it (Super+C,
+// (its popover) on the right — and, pulled up over it (Super+C,
 // a click on the activity segment), a wide drawer: the full log with source filters.
 // A monitor showing a fullscreen window has no row.
 import app from "ags/gtk4/app"
@@ -19,8 +19,6 @@ import { log, logEvent, type Entry, type Src } from "../lib/log"
 import { hhmm, duration } from "../lib/format"
 import { execAsync } from "ags/process"
 import { timer, left, stopTimer, startCountdown, startPomodoro, parseSpec } from "../lib/timer"
-import { board, boardLine, waitingOnYou } from "../lib/board"
-import { sessions, readAt, mine, tally, mark, line, goTo, type Session } from "../lib/sessions"
 import { groups, dismissGroup, urgencyOf, type Group } from "./Notifications"
 import { fullscreenMonitors } from "../lib/hypr"
 import { MediaCard } from "../panes/Media"
@@ -28,8 +26,7 @@ import { soundPids, playerSounding, volumeWheel } from "../lib/sound"
 
 import { armClickaway, disarmClickaway, closeOnPress, closeAny, clickawayField } from "./Clickaway"
 import { focus, focused, cursor, cursorOf, cycleFocus, move, jump } from "../lib/nav"
-import { hoverPopover, type HoverPop } from "../lib/hover"
-import { showOffice, toggleOffice } from "./Office"
+import { hoverPopover } from "../lib/hover"
 
 const TAIL = 2 // the activity segment: the last couple of events; the drawer has the rest
 const SRCS: Src[] = ["shell", "notice", "agent", "hypr", "journal", "sys"]
@@ -100,12 +97,8 @@ function Line({ e, wide = false }: { e: Entry; wide?: boolean }) {
   )
 }
 
-/** Open the office rail (the TODAY card's waiting line, `astal-shell show drawer agents`). */
-export const popAgents = () => showOffice()
-
 // ── the row ───────────────────────────────────────────────────────────────────────────────
 export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
-  let sessionsPop: HoverPop | undefined
   const tail = log((l) => l.slice(-TAIL))
   const crit = critical()
   // the one toggle for the drawer: closeOnPress leaves the log alone (see Clickaway), so a
@@ -174,34 +167,6 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
             <Panel title={"\u{f051b}  TIMER"} cssClasses={["card", "card-timer"]}><TimerPane /></Panel>
           </popover>
         </menubutton>
-        {/* your own Claude sessions, in arena's marks; hover lists them, a row takes you to its pane */}
-        <menubutton cssClasses={sessions((all) => ["cell", "deck-sessions", "clickable", ...(tally(mine(all)).waiting > 0 ? ["await"] : [])])} direction={Gtk.ArrowType.UP} $={(self) => { sessionsPop = hoverPopover(self, "deck") }}>
-          <box spacing={6}>
-            <label cssClasses={["live"]} label={"\u{f0b79}"} />
-            <label cssClasses={["live"]} label={sessions((all) => mark(tally(mine(all))))} />
-          </box>
-          <popover cssClasses={["pop", "pop-sessions"]}>
-            <Panel title={"\u{f0b79}  SESSIONS"} cssClasses={["card", "card-sessions"]}>
-              <box orientation={Gtk.Orientation.VERTICAL}>
-                <label cssClasses={["dim"]} label="no Claude sessions" xalign={0} visible={sessions((all) => mine(all).length === 0)} />
-                <For each={sessions(mine)} id={(s: Session) => `${s.id} ${s.state} ${s.since} ${s.doing} ${s.ctx}`}>
-                  {(s: Session) => (
-                    <button cssClasses={["session-row", s.state]} onClicked={() => { sessionsPop?.close(); void goTo(s) }} tooltipText={s.said ?? s.cwd}>
-                      <label label={readAt((t) => line(s, t))} xalign={0} />
-                    </button>
-                  )}
-                </For>
-              </box>
-            </Panel>
-          </popover>
-        </menubutton>
-        {/* babylon's board in a line, or how many wait on you; toggles the office rail */}
-        <button cssClasses={waitingOnYou((w) => ["cell", "deck-agents", "clickable", ...(w.length > 0 ? ["await"] : [])])} onClicked={() => toggleOffice(gdkmonitor)}>
-          <box spacing={6}>
-            <label cssClasses={["pink"]} label={"\u{f06a9}"} />
-            <label cssClasses={["pink"]} label={createComputed(() => { const w = waitingOnYou(), b = board(); return w.length > 0 ? `${w.length} waiting` : boardLine(b) })} />
-          </box>
-        </button>
       </box>
     </window>
   )

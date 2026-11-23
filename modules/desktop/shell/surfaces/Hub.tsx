@@ -16,7 +16,6 @@ import { VList } from "../lib/vlist"
 import { Toggles } from "../panes/Toggles"
 import { isFullscreen } from "../lib/hypr"
 import { deckVisible } from "./Deck"
-import { officeVisible } from "./Office"
 import { armClickaway, closeAny, disarmClickaway, clickawayField } from "./Clickaway"
 import { setting } from "../lib/settings"
 import { closeKeys } from "../lib/keys"
@@ -96,7 +95,7 @@ export function startHotEdge() {
     // pointer leaving. The office rail lies along this same edge, so the
     // edge is quiet while it is open too
     // spent while open, as after a dwell: closed with the pointer still parked on the edge, it stays closed
-    if (hubWin?.visible || deckVisible() || officeVisible()) { since = Date.now() + 1e9; return }
+    if (hubWin?.visible || deckVisible()) { since = Date.now() + 1e9; return }
     // the right edge only: the deck opens on a click (Andrew, 2026-09-07: no hover for it)
     const mons = Hyprland.get_default().get_monitors()
     // cursorpos is in layout coordinates, a monitor's size in pixels of its mode

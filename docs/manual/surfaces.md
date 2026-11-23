@@ -8,7 +8,7 @@ wears the same generated palette; none owns state.
 | **asterion** (Neovim) | `~/projects/asterion`, linked at `~/.config/nvim` | code · diffs · review · the Tlön sidebar, thread buffers and composer · a coworker terminal | `nvim`, then `<leader>oo` |
 | **office** (TUI) | tlon's `office/` | the pixel-art room over the server: who works, who waits on you, the worklines; every thread, coworker, ticket, triage, health and schedule a key away | `tlon` |
 | **web** (LiveView) | `modules/server/lib/server/web` | the same sidebar · thread · composer in a browser, live on the Bus — from a phone over tailscale | `mise run server:web` → http://127.0.0.1:4042 |
-| **shell** (astal) | `modules/desktop/shell` | rail, bar, launcher (`>` verbs), the deck, the office rail, notifications, OSD, lock, theme toggle | always up (`astal-shell.service`) |
+| **shell** (astal) | `modules/desktop/shell` | rail, bar, launcher (`>` verbs), the deck, notifications, OSD, lock, theme toggle | always up (`astal-shell.service`) |
 
 The server (`modules/server`, `tlon.service`) is not a surface: it is the record — threads,
 facts, checks, todos, worklines — and the MCP channel the coworkers speak. The operator reaches
@@ -52,10 +52,7 @@ does: the server's own alert row (`#<id> landed — <title>`).
 **The rail clock has its jokes.** It reads the time through `clockFace` (`lib/clock-core.ts`):
 at 4:04 it says `404` (the time cannot be found), at 3:14 `π`.
 
-**The office rail lists the Claudes, not a room.** The deck's board cell (or Super+U) opens a
-plain list on the right: every Claude session from `$XDG_RUNTIME_DIR/sessions`, each with the
-babylon ticket its pane holds, what it is doing and whose move it is, yours first; then
-babylon's board in a line (doing, review, asks, auto, hold) from
-`$XDG_RUNTIME_DIR/babylon/board.json`, and a row per open ask. A row focuses that Claude's pane
-in arena. An ask focuses arena and opens its board on that card (`arena board <id>`), the ask's
-popup over it.
+**The bar's orchestrator cell says what waits on you.** `▲ N · orchestrator: <state>`: N is the
+open asks, proposals and free send-backs from `$XDG_RUNTIME_DIR/babylon/board.json`, the state is
+the orchestrator's session record (working, waits on you, idle, restarting, off). A click opens
+arena on its inbox (`arena inbox`).

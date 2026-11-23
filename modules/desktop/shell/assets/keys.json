@@ -91,11 +91,6 @@
  },
  {
   "group": "shell",
-  "keys": "SUPER+U",
-  "does": "agents"
- },
- {
-  "group": "shell",
   "keys": "SUPER+B",
   "does": "calendar"
  },
