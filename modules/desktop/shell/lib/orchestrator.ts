@@ -20,8 +20,15 @@ async function findPane() {
   if (!socket) return setPane(null)
   try {
     const out = await execAsync(["tmux", "-S", socket, "list-panes", "-t", `=${SESSION}:`, "-F", "#{pane_id}"])
-    if (looked === socket) setPane(out.split("\n")[0] || null)
-  } catch { if (looked === socket) setPane(null) }
+    if (looked !== socket) return
+    const id = out.split("\n")[0] || null
+    if (!id) looked = undefined
+    setPane(id)
+  } catch {
+    if (looked !== socket) return
+    looked = undefined
+    setPane(null)
+  }
 }
 board.subscribe(() => void findPane())
 void findPane()
