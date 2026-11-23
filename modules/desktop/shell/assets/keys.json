@@ -653,10 +653,5 @@
   "group": "other",
   "keys": "CTRL+ALT+Delete",
   "does": "leave Hyprland"
- },
- {
-  "group": "other",
-  "keys": "CTRL+SHIFT+ALT+P",
-  "does": "screens off"
  }
 ]

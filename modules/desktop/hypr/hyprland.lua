@@ -661,4 +661,3 @@ bind("CTRL + ALT + L", exec("loginctl lock-session"))
 bind("CTRL + " .. M .. " + R", exec("sh -c 'pkill -x gjs; systemctl --user reset-failed astal-shell; systemctl --user restart astal-shell'")) -- restart the shell
 bind("CTRL + ALT + Delete", hl.dsp.exit())
 bind("CTRL + SHIFT + ALT + " .. M .. " + Delete", exec("systemctl poweroff"))
-bind("CTRL + SHIFT + ALT + P", hl.dsp.dpms({ action = "off" }))

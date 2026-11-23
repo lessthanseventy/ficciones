@@ -19,7 +19,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 | `check:asterion` | asterion, asterion dev/widget/demo and house reach house:app, house:run, house:widget and house:demo |
 | `check:asterion-seed` | Asterion's calendar feed and own bot token are seeded once from agenix, at 0600 |
 | `check:cap-hook` | the hook that refuses cap piped into a filter reaches every verdict it should |
-| `check:hypr-dpms` | the screens-off bind is not a trap: a key press or mouse move wakes them, and no monitor chord is one key from it |
+| `check:hypr-dpms` | screens-off is not a trap: no bind turns the screens off, and a key press or mouse move wakes them |
 | `check:menard-scope` | menard edit and write are allowed by hook only inside a ticket worktree |
 | `check:mods` | the Claude Code mods' own tests, in Claude's harness (bare bun cannot resolve claude-code/testing), their list of menard's verbs against menard's, and the review pane's copy of the diff reader against the changes pane's (a mod may import only its own files) |
 | `check:names` | names-exist gate: every mise task a guide names must exist (grep, offline, fast) |

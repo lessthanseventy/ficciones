@@ -59,7 +59,7 @@ description = "asterion, asterion dev/widget/demo and house reach house:app, hou
 run = "modules/agents/asterion.test.sh"
 
 ["check:hypr-dpms"]
-description = "the screens-off bind is not a trap: a key press or mouse move wakes them, and no monitor chord is one key from it"
+description = "screens-off is not a trap: no bind turns the screens off, and a key press or mouse move wakes them"
 run = "scripts/hypr-dpms.test.sh"
 
 ["check:sandbox-sweep"]
