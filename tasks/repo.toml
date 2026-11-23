@@ -58,6 +58,10 @@ run = "modules/agents/asterion-seed.test.sh"
 description = "asterion, asterion dev/widget/demo and house reach house:app, house:run, house:widget and house:demo"
 run = "modules/agents/asterion.test.sh"
 
+["check:sandbox-sweep"]
+description = "the sweep removes the placeholders a killed Claude sandbox leaves, and nothing live, tracked or real"
+run = "modules/agents/sandbox-sweep.test.sh"
+
 ["check:session"]
 description = "the session command sets a session's goal and next, and briefs them"
 run = "modules/agents/session.test.sh"
@@ -69,4 +73,4 @@ run = "command -v ags >/dev/null || { echo 'check:shell — no ags on PATH, not 
 
 ["check"]
 description = "Everything green: the names gate, the cap hook, the session hook and command, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "check:agent-work", "check:menard-scope", "check:allow-merge", "check:asterion-seed", "check:asterion", "check:session", "check:mods", "check:shell", "manual:check", "flake:check"]
+depends = ["check:names", "check:cap-hook", "check:agent-work", "check:menard-scope", "check:allow-merge", "check:asterion-seed", "check:asterion", "check:session", "check:sandbox-sweep", "check:mods", "check:shell", "manual:check", "flake:check"]

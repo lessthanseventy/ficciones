@@ -318,4 +318,32 @@ in
     };
     Install.WantedBy = [ "default.target" ];
   };
+
+  systemd.user.services.sandbox-sweep = {
+    Unit.Description = "remove the placeholders a killed Claude sandbox leaves under ~/projects";
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${
+        pkgs.writeShellScript "sandbox-sweep" (
+          "PATH=${
+            lib.makeBinPath [
+              pkgs.findutils
+              pkgs.coreutils
+              pkgs.gnugrep
+              pkgs.git
+            ]
+          }\n"
+          + builtins.readFile ./sandbox-sweep.sh
+        )
+      } %h/projects";
+    };
+  };
+  systemd.user.timers.sandbox-sweep = {
+    Unit.Description = "sweep stale Claude sandbox placeholders every ten minutes";
+    Timer = {
+      OnBootSec = "2min";
+      OnUnitActiveSec = "10min";
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
 }
