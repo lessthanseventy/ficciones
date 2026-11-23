@@ -21,6 +21,4 @@ board
 ++ [
   "Edit(~/projects/*/.worktrees/**)"
   "Edit(~/.cache/babylon/work/**)"
-  "mcp__plugin_menard_menard__edit"
-  "mcp__plugin_menard_menard__write"
 ]

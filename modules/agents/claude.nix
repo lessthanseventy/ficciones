@@ -10,6 +10,9 @@ let
   sessionStateBin = pkgs.writeShellScript "session-state" (
     "PATH=${pkgs.jq}/bin:$PATH\n" + builtins.readFile ./session-state.sh
   );
+  menardScopeBin = pkgs.writeShellScript "menard-scope" (
+    "PATH=${pkgs.jq}/bin:${pkgs.coreutils}/bin:$PATH\n" + builtins.readFile ./menard-scope.sh
+  );
   sessionState = event: {
     hooks = [
       {
@@ -27,6 +30,17 @@ let
       # else would take the record off "waiting"
       PostToolUseFailure = [ (sessionState "tool") ];
       Stop = [ (sessionState "stop") ];
+      PreToolUse = [
+        {
+          matcher = "mcp__plugin_menard_menard__(edit|write)";
+          hooks = [
+            {
+              type = "command";
+              command = "${menardScopeBin} scope";
+            }
+          ];
+        }
+      ];
       Notification = [
         ((sessionState "waiting") // { matcher = "permission_prompt|elicitation_dialog"; })
       ];
@@ -48,7 +62,8 @@ in
   # The routine board tools are allowed outright (auto mode's check otherwise stops a session on
   # them), and so is writing inside a ticket's own worktree (wt's, or babylon's under
   # ~/.cache/babylon/work). menard's edit and write are MCP tools, which the Write/Edit path rules
-  # never match, so they are named and cannot be scoped to a path. Not allowed: answer_proposal, which
+  # never match, so a PreToolUse hook (./menard-scope.sh) allows them inside those worktrees and
+  # leaves every other path to the prompt. Not allowed: answer_proposal, which
   # babylon refuses a Claude anyway, pushes, and deletes.
   home.activation.claudeSessionHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     allow='${builtins.toJSON allowRules}'
@@ -66,7 +81,7 @@ in
              | map(select(. != "" and . != $arena)) + (if $has_arena then [$arena] else [] end) | join(":"))
          | .permissions.allow = ((.permissions.allow // []) - $allow + $allow)
          | .hooks = reduce ($sessions[0] | to_entries[]) as $e (.hooks // {};
-           .[$e.key] = [(.[$e.key] // [])[] | select(tostring | test("@arena_claude|-session-state ") | not)] + $e.value)' "$cfg" > "$tmp"; then
+           .[$e.key] = [(.[$e.key] // [])[] | select(tostring | test("@arena_claude|-session-state |-menard-scope ") | not)] + $e.value)' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"
         run mv -f "$tmp" "$cfg"
       else
