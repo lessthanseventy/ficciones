@@ -20,7 +20,7 @@ expect none "write in the main checkout" /x "{code: \"x\", file: \"/home/t/proje
 expect allow "babylon work dir" /x '{edits: [{file: "/home/t/.cache/babylon/work/t2/a.ex"}]}'
 expect none "main checkout" /home/t/projects/r '{edits: [{file: "lib/a.ex"}]}'
 expect none "dotfile" $wt '{edits: [{file: "/home/t/.zshrc"}]}'
-expect none "dotdot escape" $wt '{edits: [{file: "../../../lib/a.ex"}]}'
-expect none "one bad file among good" $wt "{edits: [{file: \"a.ex\"}, {file: \"/etc/hosts\"}]}"
+expect none "dotdot escape" $wt "{edits: [{file: \"$wt/../../x/lib/a.ex\"}]}"
+expect none "one bad file among good" $wt "{edits: [{file: \"$wt/a.ex\"}, {file: \"/etc/hosts\"}]}"
 expect none "no path at all" $wt '{}'
 exit $bad
