@@ -29,7 +29,7 @@ Generated from `modules/desktop/hypr/hyprland.lua` by `mise run manual:gen` — 
 | `SUPER+I` | calendar drawer |
 | `SUPER+SHIFT+I` | calendar drawer |
 | `SUPER+N` | notifications |
-| `SUPER+C` | deck: log · media · agents · timer |
+| `SUPER+C` | deck: log · media · timer |
 | `SUPER+B` | calendar |
 | `ALT+Space` | launcher |
 | `SUPER+V` | clipboard history |

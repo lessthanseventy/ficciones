@@ -87,7 +87,7 @@
  {
   "group": "shell",
   "keys": "SUPER+C",
-  "does": "deck: log · media · agents · timer"
+  "does": "deck: log · media · timer"
  },
  {
   "group": "shell",

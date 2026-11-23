@@ -7,7 +7,6 @@ import { parse, asking, type Board } from "./board-core"
 import { sessions } from "./sessions"
 import { waiting } from "./sessions-core"
 
-
 const FILE = `${GLib.get_user_runtime_dir()}/babylon/board.json`
 
 export const [board, setBoard] = createState<Board | null>(null)

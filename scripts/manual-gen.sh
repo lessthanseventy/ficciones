@@ -24,7 +24,7 @@ WS = {"r+1": "next workspace", "r-1": "previous workspace", "previous": "the wor
 WORDS = {
     # the shell's verbs (astal-shell … and shell-req.sh …)
     "toggle launcher": "launcher", "toggle clipboard": "clipboard history", "toggle cheatsheet": "this sheet",
-    "toggle drawer": "calendar drawer", "toggle hub": "notifications", "toggle deck": "deck: log · media · agents · timer",
+    "toggle drawer": "calendar drawer", "toggle hub": "notifications", "toggle deck": "deck: log · media · timer",
     "toggle dashboard": "dashboard", "toggle settings": "settings", "toggle weather": "weather",
     "show drawer agents": "agents", "show drawer calendar": "calendar", "backdrop": "backdrop: next mode",
     "theme": "light / dark", "crt": "crt scanlines", "glass": "glass", "sidecar toggle": "pin as sidecar",

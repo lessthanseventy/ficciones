@@ -54,7 +54,7 @@ const sh = (...verb: string[]) => ["astal-shell", ...verb]
 const ACTIONS: [string, string[]][] = [
   ["lock", ["loginctl", "lock-session"]], ["suspend", ["systemctl", "suspend"]],
   ["theme: light / dark", sh("theme", "toggle")], ["glass", sh("glass")], ["crt scanlines", sh("crt")], ["backdrop: next mode", sh("backdrop")],
-  ["notifications", sh("toggle", "hub")], ["deck", sh("toggle", "deck")], ["office", sh("toggle", "office")], ["dashboard", sh("toggle", "dashboard")],
+  ["notifications", sh("toggle", "hub")], ["deck", sh("toggle", "deck")], ["dashboard", sh("toggle", "dashboard")],
   ["settings", sh("toggle", "settings")], ["keys", sh("toggle", "cheatsheet")], ["weather", sh("toggle", "weather")], ["calendar", sh("toggle", "drawer")],
   ["clipboard", sh("toggle", "clipboard")], ["answer the decision", sh("decision")], ["pin as sidecar", sh("sidecar", "toggle")],
 ]

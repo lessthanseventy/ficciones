@@ -1,6 +1,6 @@
 // TODAY: what needs me, one list — notices not yet dismissed, the agenda (khal), the asks and
 // Claudes waiting on an answer. Each row is a click: a notice dismisses, the waiting line opens
-// the office rail.
+// arena's inbox.
 import Gtk from "gi://Gtk?version=4.0"
 import { For, createComputed } from "ags"
 import { agenda } from "./Calendar"
