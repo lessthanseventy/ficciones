@@ -1,7 +1,7 @@
 // node --test lib/orchestrator-core.test.mjs (mise shell:test): the bar's orchestrator cell from a fake session record and board.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { cell, followTold, yourMove } from "./orchestrator-core.ts"
+import { cell, yourMove } from "./orchestrator-core.ts"
 
 const card = (id, extra = {}) => ({ id, status: "todo", title: `t${id}`, repo: "x", claimed_by: null, ask: null, stage: null, blocked_by: [], ...extra })
 const ask = { id: 1, question: "q", options: [] }
@@ -18,33 +18,23 @@ test("N counts asks, proposals and free send-backs only", () => {
 
 test("the cell says each state the session record gives", () => {
   const b = board([card(1, { ask })], { proposals: 2 })
-  assert.equal(cell(b, session("working"), null).text, "▲ 3 · orchestrator: working")
-  assert.equal(cell(b, session("done"), null).text, "▲ 3 · orchestrator: idle")
-  assert.equal(cell(b, null, null).text, "▲ 3 · orchestrator: idle")
-  const waits = cell(b, session("waiting"), null)
+  assert.equal(cell(b, session("working")).text, "▲ 3 · orchestrator: working")
+  assert.equal(cell(b, session("done")).text, "▲ 3 · orchestrator: idle")
+  assert.equal(cell(b, null).text, "▲ 3 · orchestrator: idle")
+  const waits = cell(b, session("waiting"))
   assert.equal(waits.text, "▲ 3 · orchestrator: waits on you")
   assert.equal(waits.attention, true)
-  assert.equal(cell(b, session("working"), null).attention, false)
+  assert.equal(cell(b, session("working")).attention, false)
 })
 
 test("restarting is on and not running; off is kept off and not running", () => {
-  assert.equal(cell(board([], { orchestrator: { on: true, running: false } }), null, null).text, "▲ 0 · orchestrator: restarting")
-  assert.equal(cell(board([], { orchestrator: { on: false, running: false } }), null, null).text, "▲ 0 · orchestrator: off")
-  assert.equal(cell(null, null, null).text, "▲ 0 · orchestrator: restarting")
+  assert.equal(cell(board([], { orchestrator: { on: true, running: false } }), null).text, "▲ 0 · orchestrator: restarting")
+  assert.equal(cell(board([], { orchestrator: { on: false, running: false } }), null).text, "▲ 0 · orchestrator: off")
+  assert.equal(cell(null, null).text, "▲ 0 · orchestrator: restarting")
 })
 
 test("▲ 0 is dim and keeps its place, a count is not", () => {
-  assert.equal(cell(board(), session("done"), null).dim, true)
-  assert.equal(cell(board([], { proposals: 1 }), session("done"), null).dim, false)
+  assert.equal(cell(board(), session("done")).dim, true)
+  assert.equal(cell(board([], { proposals: 1 }), session("done")).dim, false)
 })
 
-test("after a tell the cell says on it, then answered when a turn lands after it", () => {
-  const told = { at: 200, phase: "on it" }
-  assert.equal(cell(board(), session("done", 150), told).text, "▲ 0 · orchestrator: on it")
-  assert.deepEqual(followTold(told, session("done", 150)), told)
-  assert.deepEqual(followTold(told, session("working", 210)), told)
-  const answered = followTold(told, session("done", 260))
-  assert.equal(answered.phase, "answered")
-  assert.equal(cell(board(), session("done", 260), answered).text, "▲ 0 · orchestrator: answered")
-  assert.equal(followTold(null, session("done", 260)), null)
-})

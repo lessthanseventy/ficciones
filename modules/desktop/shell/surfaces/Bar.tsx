@@ -27,7 +27,7 @@ import { iconFor } from "../lib/icons"
 import { RuleV, RuleH } from "../lib/tui"
 import { pct, spark, hhmm } from "../lib/format"
 import { board } from "../lib/board"
-import { orchestratorCell, noteShown } from "../lib/orchestrator"
+import { orchestratorCell } from "../lib/orchestrator"
 import { goToInbox } from "../lib/sessions"
 import { tier } from "../lib/perf"
 import { quietOsd } from "./Osd"
@@ -268,7 +268,7 @@ function OrchestratorCell() {
   return (
     <button
       cssClasses={orchestratorCell((c) => ["cell", "orch", "clickable", ...(c.dim ? ["dim"] : []), ...(c.attention ? ["await"] : [])])}
-      onClicked={() => { noteShown(); goToInbox(board.peek()?.socket ?? null) }}
+      onClicked={() => goToInbox(board.peek()?.socket ?? null)}
     >
       <label label={orchestratorCell((c) => c.text)} />
     </button>
