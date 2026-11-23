@@ -113,6 +113,9 @@ export const arenaTarget = (s: { socket: string }) => ["-L", s.socket.split("/")
 /** what `arena` takes to open its board on ticket `id`; `socket` is the board's tmux server, null for the default one */
 export const boardArgs = (id: number, socket: string | null) => [...(socket ? arenaTarget({ socket }) : []), "board", String(id)]
 
+/** what `arena` takes to open its inbox (Your move); `socket` is the board's tmux server, null for the default one */
+export const inboxArgs = (socket: string | null) => [...(socket ? arenaTarget({ socket }) : []), "inbox"]
+
 /** arena's window in a client list: Ghostty joins a running instance and ignores `--class`, so the class is Ghostty's own or the one asked for, and the title `arena` (set by `--title`) tells it from other terminals */
 export const findArena = <C extends { class: string; title: string }>(clients: C[]): C | undefined =>
   clients.find((c) => (c.class === "com.mitchellh.ghostty" || c.class === "com.ghostty.arena") && c.title === "arena")

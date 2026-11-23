@@ -11,7 +11,7 @@ import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
 import { toArena as toArenaWith, type Shell } from "./arena-go"
-import { parse, metered, alive, chimes, arenaTarget, findArena, type Session } from "./sessions-core"
+import { parse, metered, alive, chimes, inboxArgs, findArena, type Session } from "./sessions-core"
 
 export type { Session }
 
@@ -120,7 +120,7 @@ const toArena = (args: string[], open: () => void) => toArenaWith(args, open, sh
 
 /** Put arena in front of you with its inbox (Your move) open. `socket` is the board's tmux server. */
 export function goToInbox(socket: string | null) {
-  const args = [...(socket ? arenaTarget({ socket }) : []), "inbox"]
+  const args = inboxArgs(socket)
   void toArena(args, () => openArena(...args))
 }
 
