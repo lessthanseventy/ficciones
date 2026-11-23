@@ -46,6 +46,10 @@ run = "modules/agents/agent-work.test.sh"
 description = "the Claude Code hook that keeps each session's record writes what it should, and marks no pane"
 run = "modules/agents/session-state.test.sh"
 
+["check:asterion-seed"]
+description = "Asterion's calendar feed and own bot token are seeded once from agenix, at 0600"
+run = "modules/agents/asterion-seed.test.sh"
+
 ["check:session"]
 description = "the session command sets a session's goal and next, and briefs them"
 run = "modules/agents/session.test.sh"
@@ -57,4 +61,4 @@ run = "command -v ags >/dev/null || { echo 'check:shell — no ags on PATH, not 
 
 ["check"]
 description = "Everything green: the names gate, the cap hook, the session hook and command, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "check:agent-work", "check:session-state", "check:session", "check:mods", "check:shell", "manual:check", "flake:check"]
+depends = ["check:names", "check:cap-hook", "check:agent-work", "check:session-state", "check:asterion-seed", "check:session", "check:mods", "check:shell", "manual:check", "flake:check"]

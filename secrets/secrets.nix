@@ -14,6 +14,9 @@ in
   "ollama-api-key.age".publicKeys = all;
   # The Telegram bot tlon's home inbox polls (Server.Home.Telegram): the token @BotFather gave.
   "telegram-bot-token.age".publicKeys = all;
+  # Asterion's own Telegram bot (a second bot @BotFather made, named Asterion), seeded into the app's
+  # user://. Never tlon's telegram-bot-token: two pollers on one token is a getUpdates 409.
+  "asterion-telegram-token.age".publicKeys = all;
   # dbx connections that must not sit in this public repo (prod hosts, users, passwords): a JSON
   # array in dbx's connection shape, seeded create-if-absent at every `dbx-desktop` launch by
   # modules/desktop/scripts/dbx-seed.sh. Optional — the flake skips it until the file exists.

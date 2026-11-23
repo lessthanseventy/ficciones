@@ -20,6 +20,15 @@ let
   # service below runs it headless; `server:console`/`:restart` drive the same
   # bin/server, so node + cookie agree via the release's own env.sh.
   serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
+  asterionSeed = pkgs.writeShellScript "asterion-seed" ''
+    export PATH=${
+      pkgs.lib.makeBinPath [
+        pkgs.jq
+        pkgs.coreutils
+      ]
+    }:$PATH
+    ${builtins.readFile ./asterion-seed.sh}
+  '';
 in
 {
   imports = [
@@ -81,6 +90,7 @@ in
     # `house` — tlon's house window; `house widget` the small always-on-top one, `house demo`
     # the made-up one with no server.
     (pkgs.writeShellScriptBin "house" ''
+      ${asterionSeed}
       cd ${tlonRepo} || { echo "house: repo not found at ${tlonRepo}" >&2; exit 1; }
       case "''${1:-}" in
         widget | demo) task="house:$1"; shift ;;
@@ -91,6 +101,12 @@ in
 
   ];
 
+  # Asterion's calendar feed and own bot token, seeded from the secrets below into its user://
+  # (create-if-absent). Also run by `house`: at a switch the secrets may not be decrypted yet.
+  home.activation.asterionSeed = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${asterionSeed}
+  '';
+
   # age-encrypted secrets, decrypted at home:switch to $XDG_RUNTIME_DIR/agenix/<name>.
   # Gated on pathExists so the flake evaluates before the first secret is created.
   age.secrets =
@@ -99,6 +115,9 @@ in
     }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/telegram-bot-token.age) {
       telegram-bot-token.file = ../../secrets/telegram-bot-token.age;
+    }
+    // lib.optionalAttrs (builtins.pathExists ../../secrets/asterion-telegram-token.age) {
+      asterion-telegram-token.file = ../../secrets/asterion-telegram-token.age;
     }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/dbx-connections.age) {
       dbx-connections.file = ../../secrets/dbx-connections.age;
