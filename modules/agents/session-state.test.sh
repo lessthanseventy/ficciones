@@ -72,6 +72,12 @@ send prompt '{prompt: "<cross-session-message from=\"uds:/run/x.sock\" from-name
 is .said "orchestrator: Orchestrator here, for #427" "a message from another session says who, not the tag"
 send prompt '{prompt: "<cross-session-message from=\"uds:/run/x.sock\">hi</cross-session-message>"}'
 is .said "another session: hi" "an unnamed sender"
+send prompt '{prompt: "<cross-session-message from=\"u\" from-name=\"\">hi</cross-session-message>"}'
+is .said "another session: hi" "an empty sender name"
+send prompt '{prompt: "<cross-session-message from=\"u\" from-name=\"a\">one</cross-session-message>\n<cross-session-message from=\"u\" from-name=\"b\">two</cross-session-message>"}'
+is .said "a: one" "back-to-back messages show the first"
+send prompt '{prompt: "<cross-session-message from=\"u\" from-name=\"a\">one</cross-session-message>\nand then some"}'
+is .said "a: one" "text after the closing tag"
 
 echo '{"session_id": "../x"}' | bash "$hook" tool
 claim "a session id cannot leave the dir" test ! -e "$work/run/x.json"
