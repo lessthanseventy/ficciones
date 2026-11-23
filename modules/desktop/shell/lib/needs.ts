@@ -8,7 +8,7 @@ import { hypr } from "./hypr"
 import { logEvent } from "./log"
 import { goToArena } from "./sessions"
 import { findArena, itemArgs } from "./sessions-core"
-import { HINT, chosen, noticeArgv, plan } from "./needs-core"
+import { HINT, chosen, noticeArgv, parseRaised, plan } from "./needs-core"
 import type { Item } from "./board-core"
 
 const notifd = Notifd.get_default()
@@ -17,8 +17,7 @@ const STATE = `${GLib.get_user_state_dir()}/astal-shell/needs-raised.json`
 function load(): string[] {
   try {
     const [ok, bytes] = GLib.file_get_contents(STATE)
-    const ids: unknown = ok ? JSON.parse(new TextDecoder().decode(bytes)) : []
-    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : []
+    return ok ? parseRaised(new TextDecoder().decode(bytes)) : []
   } catch { return [] }
 }
 

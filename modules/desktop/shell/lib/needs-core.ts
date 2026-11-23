@@ -11,6 +11,14 @@ export function plan(raised: ReadonlySet<string>, now: Item[], arenaInFront: boo
   }
 }
 
+/** The ids saved in needs-raised.json; anything corrupt or not a list of strings yields only what is valid. */
+export function parseRaised(text: string): string[] {
+  try {
+    const ids: unknown = JSON.parse(text)
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : []
+  } catch { return [] }
+}
+
 export const HINT = "x-needs-you"
 
 

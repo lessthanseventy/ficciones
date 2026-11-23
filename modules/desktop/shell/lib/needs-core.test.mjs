@@ -1,7 +1,7 @@
 // node --test lib/needs-core.test.mjs (mise shell:test): which notices a needs_you list raises and closes.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { plan, noticeArgv, chosen } from "./needs-core.ts"
+import { plan, noticeArgv, chosen, parseRaised } from "./needs-core.ts"
 import { items } from "./board-core.ts"
 import { itemArgs } from "./sessions-core.ts"
 
@@ -19,6 +19,18 @@ test("a new id is raised once, a gone id is closed", () => {
   assert.deepEqual(first.raise.map((i) => i.id), ["proposal:3", "ask:5"])
   assert.deepEqual(plan(new Set(["proposal:3", "ask:5"]), [proposal, words], false), { raise: [], seen: [], close: [] })
   assert.deepEqual(plan(new Set(["proposal:3", "ask:5"]), [words], false).close, ["proposal:3"])
+})
+
+test("parseRaised keeps string ids and survives a corrupt file", () => {
+  assert.deepEqual(parseRaised('["proposal:3","ask:5"]'), ["proposal:3", "ask:5"])
+  assert.deepEqual(parseRaised('["a",3,null,{"x":1},"b"]'), ["a", "b"])
+  for (const bad of ["", "{", "null", '{"a":1}', '"ask:5"', "7"]) assert.deepEqual(parseRaised(bad), [])
+})
+
+test("ids loaded after a restart are not raised again", () => {
+  const loaded = new Set(parseRaised('["proposal:3","ask:5"]'))
+  assert.deepEqual(plan(loaded, [proposal, words], false), { raise: [], seen: [], close: [] })
+  assert.deepEqual(plan(loaded, [words], false).close, ["proposal:3"])
 })
 
 test("with arena in front nothing is raised, and what arrived is marked seen", () => {
