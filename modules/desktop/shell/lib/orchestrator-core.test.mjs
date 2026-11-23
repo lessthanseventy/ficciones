@@ -38,7 +38,6 @@ test("▲ 0 is dim and keeps its place, a count is not", () => {
   assert.equal(cell(board([], { proposals: 1 }), session("done")).dim, false)
 })
 
-
 test("after a tell the cell says on it, whatever the session says, until its turn lands", () => {
   const sent = { at: 200, phase: "sent" }
   assert.equal(cell(board(), session("done", 150), sent).text, "▲ 0 · orchestrator: on it")
