@@ -274,6 +274,47 @@
             + "touch $out\n"
           );
 
+        # the rules that stop a session on routine board calls and worktree edits, spelled out
+        # here so dropping one from claude-allow.nix fails the gate
+        claude-allow =
+          let
+            allow = import ./modules/agents/claude-allow.nix;
+            expected =
+              map (t: "mcp__plugin_arena_babylon__" + t) [
+                "claim_ticket"
+                "submit_ticket"
+                "release_ticket"
+                "file_ticket"
+                "update_ticket"
+                "bump_ticket"
+                "link_tickets"
+                "unlink_tickets"
+                "get_ticket"
+                "list_tickets"
+                "inbox"
+                "propose"
+                "list_proposals"
+                "answer_ask"
+              ]
+              ++ [
+                "Edit(~/projects/*/.worktrees/**)"
+                "Write(~/.cache/babylon/work/**)"
+                "Edit(~/.cache/babylon/work/**)"
+                "mcp__plugin_menard_menard__edit"
+                "mcp__plugin_menard_menard__write"
+              ];
+            missing = builtins.filter (r: !(builtins.elem r allow)) expected;
+            forbidden = builtins.filter (r: builtins.elem r allow) [
+              "mcp__plugin_arena_babylon__answer_proposal"
+              "Write(~/projects/*/.worktrees/**)"
+            ];
+          in
+          assert pkgs.lib.assertMsg (missing == [ ]) "claude-allow: missing ${builtins.toJSON missing}";
+          assert pkgs.lib.assertMsg (
+            forbidden == [ ]
+          ) "claude-allow: must not allow ${builtins.toJSON forbidden}";
+          pkgs.runCommand "claude-allow" { } "touch $out";
+
         # a broken close shader shows only as a window that closes without burning
         burn-shader =
           let
