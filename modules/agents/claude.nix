@@ -51,6 +51,10 @@ let
   ];
   allowRules = board ++ [
     "Edit(~/projects/*/.worktrees/**)"
+    "Write(~/.cache/babylon/work/**)"
+    "Edit(~/.cache/babylon/work/**)"
+    "mcp__plugin_menard_menard__edit"
+    "mcp__plugin_menard_menard__write"
   ];
 in
 {
@@ -64,7 +68,9 @@ in
 
   # arena is a sibling checkout, loaded from where it is so a pull there is the update.
   # The routine board tools are allowed outright (auto mode's check otherwise stops a session on
-  # them), and so is writing inside a ticket's own worktree. Not allowed: answer_proposal, which
+  # them), and so is writing inside a ticket's own worktree (wt's, or babylon's under
+  # ~/.cache/babylon/work). menard's edit and write are MCP tools, which the Write/Edit path rules
+  # never match, so they are named and cannot be scoped to a path. Not allowed: answer_proposal, which
   # babylon refuses a Claude anyway, pushes, and deletes.
   home.activation.claudeSessionHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     allow='${builtins.toJSON allowRules}'
