@@ -69,6 +69,9 @@ surgical changes, and goal-driven execution against a check you can run. The fla
 as `~/.claude/CLAUDE.md`, so it is already in your context; this section
 exists so a reader of the repo knows where the law comes from and edits the one source.
 
+Design and UI work in the shell follows arena's `docs/principles.md` (`~/projects/arena/docs/principles.md`,
+or `github.com/lessthanseventy/arena/blob/main/docs/principles.md`): the rules every design and build is held to.
+
 ## The rules most likely to be broken by accident
 
 - **`nix` runs from the agent tools now** (Arch's nix, not Determinate — see the Nix machine-truth
