@@ -14,7 +14,7 @@ expect() {
 	fi
 }
 wt=/home/t/projects/r/.worktrees/t1
-expect allow "relative edit in a worktree" $wt '{edits: [{file: "lib/a.ex"}]}'
+expect none "relative path" $wt '{edits: [{file: "lib/a.ex"}]}'
 expect allow "absolute write in a worktree" /x "{file: \"$wt/a.ex\"}"
 expect allow "babylon work dir" /x '{edits: [{file: "/home/t/.cache/babylon/work/t2/a.ex"}]}'
 expect none "main checkout" /home/t/projects/r '{edits: [{file: "lib/a.ex"}]}'

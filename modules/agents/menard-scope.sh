@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # PreToolUse hook for menard's edit and write: allow only when every target path is inside a
 # ticket worktree; anything else prints nothing, so the normal permission prompt decides.
+# A relative path never passes: menard resolves it from its own shell directory, not the payload cwd.
 in=$(cat)
-cwd=$(jq -r '.cwd // empty' <<<"$in")
 files=$(jq -r '[.tool_input.file?, .tool_input.path?, (.tool_input.edits[]?.file?)] | map(select(type == "string")) | .[]' <<<"$in")
 [ -n "$files" ] || exit 0
 while IFS= read -r f; do
 	case "$f" in
 	/*) ;;
-	*) f="$cwd/$f" ;;
+	*) exit 0 ;;
 	esac
 	f=$(realpath -m -- "$f")
 	case "$f" in
