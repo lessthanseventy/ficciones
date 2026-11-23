@@ -1,7 +1,7 @@
 // node --test lib/orchestrator-core.test.mjs (mise shell:test): the bar's orchestrator cell from a fake session record and board.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { cell, yourMove } from "./orchestrator-core.ts"
+import { cell, followTold, yourMove } from "./orchestrator-core.ts"
 
 const card = (id, extra = {}) => ({ id, status: "todo", title: `t${id}`, repo: "x", claimed_by: null, ask: null, stage: null, blocked_by: [], ...extra })
 const ask = { id: 1, question: "q", options: [] }
@@ -38,3 +38,34 @@ test("▲ 0 is dim and keeps its place, a count is not", () => {
   assert.equal(cell(board([], { proposals: 1 }), session("done")).dim, false)
 })
 
+
+test("after a tell the cell says on it, whatever the session says, until its turn lands", () => {
+  const sent = { at: 200, phase: "sent" }
+  assert.equal(cell(board(), session("done", 150), sent).text, "▲ 0 · orchestrator: on it")
+  assert.equal(cell(board(), session("waiting", 150), sent).attention, false)
+})
+
+test("on it: a turn that starts after the tell, then answered when it ends", () => {
+  const sent = { at: 200, phase: "sent" }
+  assert.deepEqual(followTold(sent, session("done", 150)), sent)
+  assert.deepEqual(followTold(sent, session("working", 150)), sent)
+  const onIt = followTold(sent, session("working", 210))
+  assert.equal(onIt.phase, "on it")
+  assert.deepEqual(followTold(onIt, session("working", 210)), onIt)
+  const answered = followTold(onIt, session("done", 260))
+  assert.equal(answered.phase, "answered")
+  assert.equal(cell(board(), session("done", 260), answered).text, "▲ 0 · orchestrator: answered")
+  assert.deepEqual(followTold(answered, session("working", 300)), answered)
+})
+
+test("a held line: the turn running at the tell ending is not the answer, the next turn is", () => {
+  const sent = { at: 200, phase: "sent" }
+  assert.deepEqual(followTold(sent, session("working", 150)), sent)
+  assert.deepEqual(followTold(sent, session("done", 260)), sent)
+  assert.equal(followTold(sent, session("working", 270)).phase, "on it")
+})
+
+test("no told, no session: nothing moves", () => {
+  assert.equal(followTold(null, session("done", 260)), null)
+  assert.deepEqual(followTold({ at: 1, phase: "sent" }, null), { at: 1, phase: "sent" })
+})

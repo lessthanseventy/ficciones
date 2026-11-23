@@ -91,6 +91,11 @@
  },
  {
   "group": "shell",
+  "keys": "SUPER+U",
+  "does": "tell the orchestrator"
+ },
+ {
+  "group": "shell",
   "keys": "SUPER+B",
   "does": "calendar"
  },

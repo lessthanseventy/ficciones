@@ -55,4 +55,6 @@ at 4:04 it says `404` (the time cannot be found), at 3:14 `π`.
 **The bar's orchestrator cell says what waits on you.** `▲ N · orchestrator: <state>`: N is the
 open asks, proposals and free send-backs from `$XDG_RUNTIME_DIR/babylon/board.json`, the state is
 the orchestrator's session record (working, waits on you, idle, restarting, off). A click opens
-arena on its inbox (`arena inbox`).
+arena on its inbox (`arena inbox`). `SUPER+U` opens a one-line entry, `tell the orchestrator ❯`: Enter
+runs `babylon tell "<line>"` and closes it (the cell then says `on it`, then `answered`, until its
+next click); a refusal stays in the entry with babylon's reason; Esc sends nothing.

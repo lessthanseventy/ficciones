@@ -462,6 +462,7 @@ bind(M .. " + C", exec(shell .. "/shell-req.sh toggle deck"))
 -- shell). non_consuming: every Super+key bind still fires
 hl.bind("SUPER_L", function() hl.exec_cmd(shell .. "/shell-req.sh super down") end, { non_consuming = true })
 hl.bind("SUPER_L", function() hl.exec_cmd(shell .. "/shell-req.sh super up") end, { non_consuming = true, release = true })
+bind(M .. " + U", exec("astal-shell toggle tell"))
 bind(M .. " + B", exec("astal-shell show drawer calendar"))
 bind("ALT + Space", exec("astal-shell toggle launcher"))
 

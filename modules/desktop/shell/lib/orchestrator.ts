@@ -3,11 +3,12 @@ import { createComputed, createState } from "ags"
 import { execAsync } from "ags/process"
 import { board } from "./board"
 import { sessions } from "./sessions"
-import { cell } from "./orchestrator-core"
+import { cell, followTold, type Told } from "./orchestrator-core"
 
 const SESSION = "orchestrator"
 
 const [pane, setPane] = createState<string | null>(null)
+const [told, setTold] = createState<Told>(null)
 
 // the board does not name the orchestrator's pane: ask tmux for the one in its session
 async function findPane() {
@@ -23,4 +24,10 @@ void findPane()
 
 const session = createComputed(() => sessions().find((s) => s.pane === pane()) ?? null)
 
-export const orchestratorCell = createComputed(() => cell(board(), session()))
+session.subscribe(() => setTold(followTold(told.peek(), session.peek())))
+
+/** A line was told to the orchestrator: the cell says `on it`, then `answered`, until the next click on it. */
+export const noteTold = () => setTold({ at: Date.now() / 1000, phase: "sent" })
+export const noteShown = () => setTold(null)
+
+export const orchestratorCell = createComputed(() => cell(board(), session(), told()))

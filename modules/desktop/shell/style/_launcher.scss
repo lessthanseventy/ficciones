@@ -18,6 +18,7 @@ window.launcher { background: transparent; }
   }
   .hint { color: $meta; font-size: $size-sm; }
 }
+.tell .refusal { color: $attention; margin-top: $sp-2; }
 .results { margin-top: $sp-2; }
 .result {
   min-height: $cell-h;
