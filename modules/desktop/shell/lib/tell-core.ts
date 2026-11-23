@@ -14,7 +14,7 @@ export async function sendTell(line: string, run: Run, dest: Dest = "work"): Pro
   try {
     const { code, err } = await run(argvFor(dest, line))
     if (code === 0) return { ok: true }
-    return { ok: false, reason: err.trim().split("\n")[0] || `${argvFor(dest, "")[0]} tell exited ${code}` }
+    return { ok: false, reason: err.trim().split("\n")[0] || `${argvFor(dest, "").slice(0, -1).join(" ")} exited ${code}` }
   } catch (e) {
     return { ok: false, reason: String(e) }
   }

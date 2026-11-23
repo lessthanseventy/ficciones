@@ -7,11 +7,11 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { sendTell } from "./tell-core.ts"
 
-function fake(exit, stderr = "") {
+function fake(exit, stderr = "", bin = "babylon") {
   const dir = mkdtempSync(join(tmpdir(), "tell-"))
   const log = join(dir, "argv")
-  writeFileSync(join(dir, "babylon"), `#!/bin/sh\nprintf '%s\\n' "$@" > ${log}\nprintf '%s' '${stderr}' >&2\nexit ${exit}\n`)
-  chmodSync(join(dir, "babylon"), 0o755)
+  writeFileSync(join(dir, bin), `#!/bin/sh\nprintf '%s\\n' "$@" > ${log}\nprintf '%s' '${stderr}' >&2\nexit ${exit}\n`)
+  chmodSync(join(dir, bin), 0o755)
   const run = (argv) => new Promise((res, rej) => {
     const p = spawn(argv[0], argv.slice(1), { env: { ...process.env, PATH: `${dir}:${process.env.PATH}` } })
     let err = ""
@@ -56,4 +56,9 @@ test("the house is told through `asterion -- --tell <line>`", async () => {
   })
   assert.deepEqual(await sendTell("buy milk; 'now'", run, "house"), { ok: true })
   assert.deepEqual(readFileSync(log, "utf8").trim().split("\n"), ["--", "--tell", "buy milk; 'now'"])
+})
+
+test("a silent house refusal names `asterion -- --tell`", async () => {
+  const f = fake(3, "", "asterion")
+  assert.deepEqual(await sendTell("hello", f.run, "house"), { ok: false, reason: "asterion -- --tell exited 3" })
 })
