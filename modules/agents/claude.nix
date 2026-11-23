@@ -50,7 +50,6 @@ let
     "answer_ask"
   ];
   allowRules = board ++ [
-    "Write(~/projects/*/.worktrees/**)"
     "Edit(~/projects/*/.worktrees/**)"
   ];
 in
