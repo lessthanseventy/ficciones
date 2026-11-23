@@ -5,8 +5,7 @@ import { parse, asking } from "./board-core.ts"
 
 const card = (id, status, extra = {}) => ({ id, status, title: `ticket ${id}`, repo: "ficciones", claimed_by: null, ask: null, ...extra })
 const board = (tickets, extra = {}) => ({ tickets, auto: { on: true, cap: 2, working: 1 }, hold: false, socket: null, proposals: 0, orchestrator: { on: true, running: true }, ...extra })
-
-const ask = { id: 4, question: "which way out?", options: ["vendor", "remove"] }
+const ask ={ id: 4, question: "which way out?", options: ["vendor", "remove"] }
 
 test("a board parses, and anything else is dropped", () => {
   const b = board([card(1, "doing")])

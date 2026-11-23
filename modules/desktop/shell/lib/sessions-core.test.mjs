@@ -37,7 +37,6 @@ test("yours come most pressing first: waiting, done, then at work", () => {
   assert.equal(nextUp([]), null)
 })
 
-
 test("a session that starts waiting rings; a long turn that lands chimes; a short one is quiet", () => {
   const before = new Map([["a", s("a", "working", { since: 0 })], ["b", s("b", "working", { since: 950 })]])
   assert.deepEqual(chimes(before, [s("a", "waiting")], 1000), ["decision"])
@@ -47,12 +46,10 @@ test("a session that starts waiting rings; a long turn that lands chimes; a shor
   assert.deepEqual(chimes(new Map(), [s("new", "done")], 1000), [])
 })
 
-
 test("arena is reached by its socket's name", () => {
   assert.deepEqual(arenaTarget(s("a", "done")), ["-L", "default"])
   assert.deepEqual(arenaTarget(s("a", "done", { socket: "/tmp/tmux-1000/tlon-workspace-2" })), ["-L", "tlon-workspace-2"])
 })
-
 
 test("arena's inbox opens on the board's own tmux server", () => {
   assert.deepEqual(inboxArgs(null), ["inbox"])

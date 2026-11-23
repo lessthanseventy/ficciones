@@ -64,7 +64,6 @@ function shell(f, window) {
   return { sh, order }
 }
 
-
 test("toArena focuses first and passes the args through", async () => {
   const f = fake(0)
   const { sh, order } = shell(f, { address: "0xabc" })
