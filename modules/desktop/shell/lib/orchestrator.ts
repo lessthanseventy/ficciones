@@ -11,13 +11,17 @@ const [pane, setPane] = createState<string | null>(null)
 const [told, setTold] = createState<Told>(null)
 
 // the board does not name the orchestrator's pane: ask tmux for the one in its session
+let looked: string | null | undefined
 async function findPane() {
   const b = board.peek()
-  if (!b?.orchestrator?.running || !b.socket) return setPane(null)
+  const socket = b?.orchestrator?.running ? (b.socket ?? null) : null
+  if (socket === looked) return
+  looked = socket
+  if (!socket) return setPane(null)
   try {
-    const out = await execAsync(["tmux", "-S", b.socket, "list-panes", "-t", SESSION, "-F", "#{pane_id}"])
-    setPane(out.split("\n")[0] || null)
-  } catch { setPane(null) }
+    const out = await execAsync(["tmux", "-S", socket, "list-panes", "-t", `=${SESSION}:`, "-F", "#{pane_id}"])
+    if (looked === socket) setPane(out.split("\n")[0] || null)
+  } catch { if (looked === socket) setPane(null) }
 }
 board.subscribe(() => void findPane())
 void findPane()
