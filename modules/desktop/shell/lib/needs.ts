@@ -1,6 +1,7 @@
 // Desktop notices for board.json's needs_you (lib/needs-core.ts): one per item id, taken back when
 // the id leaves, none while arena's window is the one in focus. Their actions run the item's argv.
 import Gio from "gi://Gio?version=2.0"
+import GLib from "gi://GLib?version=2.0"
 import Notifd from "gi://AstalNotifd"
 import { board } from "./board"
 import { hypr } from "./hypr"
@@ -11,7 +12,25 @@ import { HINT, chosen, noticeArgv, plan } from "./needs-core"
 import type { Item } from "./board-core"
 
 const notifd = Notifd.get_default()
-const raised = new Map<string, Gio.Subprocess | null>()
+const STATE = `${GLib.get_user_state_dir()}/astal-shell/needs-raised.json`
+
+function load(): string[] {
+  try {
+    const [ok, bytes] = GLib.file_get_contents(STATE)
+    const ids: unknown = ok ? JSON.parse(new TextDecoder().decode(bytes)) : []
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : []
+  } catch { return [] }
+}
+
+function save() {
+  try {
+    GLib.mkdir_with_parents(GLib.path_get_dirname(STATE), 0o755)
+    GLib.file_set_contents(STATE, JSON.stringify([...raised.keys()]))
+  } catch (e) { logEvent("agent", `needs state: ${String(e)}`, "warn") }
+}
+
+// Ids raised before a restart stay raised: the notices died with the old shell, but they were seen.
+const raised = new Map<string, Gio.Subprocess | null>(load().map((id) => [id, null]))
 
 const inFront = () => {
   const f = hypr.focusedClient
@@ -57,6 +76,7 @@ function follow() {
   for (const id of p.close) close(id)
   for (const id of p.seen) raised.set(id, null)
   for (const i of p.raise) raise(i, b.needsYou.length, b.socket)
+  if (p.close.length || p.seen.length) save()
 }
 
 board.subscribe(follow)
