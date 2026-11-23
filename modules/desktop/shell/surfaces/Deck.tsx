@@ -28,7 +28,7 @@ import { soundPids, playerSounding, volumeWheel } from "../lib/sound"
 
 import { armClickaway, disarmClickaway, closeOnPress, closeAny, clickawayField } from "./Clickaway"
 import { focus, focused, cursor, cursorOf, cycleFocus, move, jump } from "../lib/nav"
-import { hoverPopover } from "../lib/hover"
+import { hoverPopover, type HoverPop } from "../lib/hover"
 import { showOffice, toggleOffice } from "./Office"
 
 const TAIL = 2 // the activity segment: the last couple of events; the drawer has the rest
@@ -105,6 +105,7 @@ export const popAgents = () => showOffice()
 
 // ── the row ───────────────────────────────────────────────────────────────────────────────
 export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
+  let sessionsPop: HoverPop | undefined
   const tail = log((l) => l.slice(-TAIL))
   const crit = critical()
   // the one toggle for the drawer: closeOnPress leaves the log alone (see Clickaway), so a
@@ -174,7 +175,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
           </popover>
         </menubutton>
         {/* your own Claude sessions, in arena's marks; hover lists them, a row takes you to its pane */}
-        <menubutton cssClasses={sessions((all) => ["cell", "deck-sessions", "clickable", ...(tally(mine(all)).waiting > 0 ? ["await"] : [])])} direction={Gtk.ArrowType.UP} $={(self) => hoverPopover(self, "deck")}>
+        <menubutton cssClasses={sessions((all) => ["cell", "deck-sessions", "clickable", ...(tally(mine(all)).waiting > 0 ? ["await"] : [])])} direction={Gtk.ArrowType.UP} $={(self) => { sessionsPop = hoverPopover(self, "deck") }}>
           <box spacing={6}>
             <label cssClasses={["live"]} label={"\u{f0b79}"} />
             <label cssClasses={["live"]} label={sessions((all) => mark(tally(mine(all))))} />
@@ -185,7 +186,7 @@ export function DeckRow({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
                 <label cssClasses={["dim"]} label="no Claude sessions" xalign={0} visible={sessions((all) => mine(all).length === 0)} />
                 <For each={sessions(mine)} id={(s: Session) => `${s.id} ${s.state} ${s.since} ${s.doing} ${s.ctx}`}>
                   {(s: Session) => (
-                    <button cssClasses={["session-row", s.state]} onClicked={(self) => { let w = self.get_parent(); while (w && !(w instanceof Gtk.Popover)) w = w.get_parent(); (w as Gtk.Popover | null)?.popdown(); void goTo(s) }} tooltipText={s.said ?? s.cwd}>
+                    <button cssClasses={["session-row", s.state]} onClicked={() => { sessionsPop?.close(); void goTo(s) }} tooltipText={s.said ?? s.cwd}>
                       <label label={readAt((t) => line(s, t))} xalign={0} />
                     </button>
                   )}

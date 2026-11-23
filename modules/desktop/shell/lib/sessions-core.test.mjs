@@ -106,6 +106,6 @@ test("arena's window is found by its title on Ghostty's own class, or the class 
 })
 
 test("a session's pane is shown by arena on the session's own tmux server", () => {
-  assert.deepEqual(paneArgs(s("menard", "working", { pane: "%290" })), ["-L", "default", "pane", "%290"])
-  assert.deepEqual(paneArgs(s("a", "working", { socket: "/tmp/tmux-1000/tlon-workspace-3", pane: "%4" })), ["-L", "tlon-workspace-3", "pane", "%4"])
+  assert.deepEqual(paneArgs(s("menard", "working", { pane: "%290" })), ["-L", "default", "show", "%290"])
+  assert.deepEqual(paneArgs(s("a", "working", { socket: "/tmp/tmux-1000/tlon-workspace-3", pane: "%4" })), ["-L", "tlon-workspace-3", "show", "%4"])
 })

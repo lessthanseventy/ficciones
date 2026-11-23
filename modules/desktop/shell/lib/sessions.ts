@@ -10,6 +10,7 @@ import { play } from "./sfx"
 import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
+import { tellArena } from "./arena-go"
 import { parse, metered, alive, chimes, arenaTarget, boardArgs, paneArgs, findArena, type Session } from "./sessions-core"
 
 export type { Session }
@@ -98,38 +99,41 @@ function openArena(...args: string[]) {
   dispatchNow(`hl.dsp.exec_cmd(${JSON.stringify(cmd.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" "))})`)
 }
 
-/** Put arena in front of you with its board open on ticket `id`, arena opened so if none is up. `socket` is the board's tmux server. */
+const run = (argv: string[]) =>
+  new Promise<number>((resolve, reject) => {
+    try {
+      const p = Gio.Subprocess.new(argv, Gio.SubprocessFlags.STDERR_SILENCE)
+      p.wait_async(null, (_, r) => { try { p.wait_finish(r); resolve(p.get_exit_status()) } catch (e) { reject(e) } })
+    } catch (e) { reject(e) }
+  })
+
+function notice(text: string) {
+  execAsync(["notify-send", "-a", "arena", "arena", text]).catch(() => {})
+}
+
+/** The one way the shell sends you somewhere: arena's window focused, then arena told `args`; `open` starts one when none is running. */
+function toArena(args: string[], open: () => void) {
+  const arena = arenaWindow()
+  if (arena) focusArena(arena.address)
+  return tellArena(args, { run, open, notify: notice, log: (t) => logEvent("agent", t, "warn") })
+}
+
+/** Put arena in front of you with its board open on ticket `id`. `socket` is the board's tmux server. */
 export function goToArena(id: number, socket: string | null) {
   const args = boardArgs(id, socket)
-  const arena = arenaWindow()
-  if (!arena) return openArena(...args)
-  focusArena(arena.address)
-  execAsync(["arena", ...args]).catch((e) => logEvent("agent", `arena board ${id}: ${String(e)}`, "warn"))
+  void toArena(args, () => openArena(...args))
 }
 
-/** Put `s` in front of you: arena's window focused on its pane, arena opened on it if none is up. */
+/** Put `s` in front of you: its pane shown in the arena that is open, or in one opened on it. */
 export async function goTo(s: Session) {
-  if (!s.pane) return logEvent("agent", `${s.repo} is not in tmux, nowhere to go`, "warn")
-  const tmux = (...a: string[]) => execAsync(["tmux", "-S", s.socket, ...a])
-  try {
-    const arena = arenaWindow()
-    if (arena) {
-      focusArena(arena.address)
-      try { await execAsync(["arena", ...paneArgs(s)]) } catch { await selectByTmux(s, tmux) }
-    } else {
-      await tmux("select-window", "-t", s.pane)
-      await tmux("select-pane", "-t", s.pane)
+  if (!s.pane) return notice(`${s.repo} is not in tmux, nowhere to go`)
+  await toArena(paneArgs(s), async () => {
+    try {
+      const tmux = (...a: string[]) => execAsync(["tmux", "-S", s.socket, ...a])
       const session = (await tmux("display-message", "-p", "-t", s.pane, "#{session_name}")).trim()
       openArena(...arenaTarget(s), session)
-    }
-  } catch (e) { logEvent("agent", `go to ${s.repo}: ${String(e)}`, "warn") }
-}
-
-async function selectByTmux(s: Session, tmux: (...a: string[]) => Promise<string>) {
-  await tmux("select-window", "-t", s.pane)
-  await tmux("select-pane", "-t", s.pane)
-  const clients = await tmux("list-clients", "-F", "#{client_control_mode} #{client_name}")
-  for (const c of clients.split("\n")) if (c.startsWith("1 ")) await tmux("switch-client", "-c", c.slice(2), "-t", s.pane)
+    } catch (e) { logEvent("agent", `go to ${s.repo}: ${String(e)}`, "warn"); notice(`could not open arena on ${s.repo}`) }
+  })
 }
 
 void refresh()

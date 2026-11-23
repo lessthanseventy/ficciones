@@ -118,4 +118,4 @@ export const findArena = <C extends { class: string; title: string }>(clients: C
   clients.find((c) => (c.class === "com.mitchellh.ghostty" || c.class === "com.ghostty.arena") && c.title === "arena")
 
 /** what `arena` takes to show pane `s.pane` in the running arena */
-export const paneArgs = (s: { socket: string; pane: string }) => [...arenaTarget(s), "pane", s.pane]
+export const paneArgs = (s: { socket: string; pane: string }) => [...arenaTarget(s), "show", s.pane]
