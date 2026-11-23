@@ -1,12 +1,11 @@
-// node --test lib/arena-go.test.mjs (mise shell:test): tellArena, toArena and goToSession against a fake `arena` on PATH.
+// node --test lib/arena-go.test.mjs (mise shell:test): tellArena and toArena against a fake `arena` on PATH.
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
 import { mkdtempSync, writeFileSync, chmodSync, readFileSync, existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { tellArena, goToSession, toArena } from "./arena-go.ts"
-import { paneArgs } from "./sessions-core.ts"
+import { tellArena, toArena } from "./arena-go.ts"
 
 function fake(exit) {
   const dir = mkdtempSync(join(tmpdir(), "arena-go-"))
@@ -23,7 +22,7 @@ function fake(exit) {
   return { go, calls, argv: () => (existsSync(log) ? readFileSync(log, "utf8").trim() : null) }
 }
 
-const args = paneArgs({ socket: "/tmp/tmux-1000/default", pane: "%290" })
+const args = ["-L", "default", "show", "%290"]
 
 test("a click on a session runs arena show on its pane and nothing else", async () => {
   const f = fake(0)
@@ -65,40 +64,6 @@ function shell(f, window) {
   return { sh, order }
 }
 
-const session = { repo: "ficciones", socket: "/tmp/tmux-1000/default", pane: "%290" }
-
-test("goTo focuses the arena window, then tells arena to show the pane", async () => {
-  const f = fake(0)
-  const { sh, order } = shell(f, { address: "0xabc" })
-  await goToSession(session, args, () => assert.fail("no open"), sh)
-  assert.deepEqual(order, ["focus 0xabc", "tell"])
-  assert.equal(f.argv(), "-L default show %290")
-})
-
-test("goTo with no arena window only tells arena", async () => {
-  const f = fake(0)
-  const { sh, order } = shell(f, undefined)
-  await goToSession(session, args, () => assert.fail("no open"), sh)
-  assert.deepEqual(order, ["tell"])
-})
-
-test("goTo opens through the callback when no arena is running", async () => {
-  const f = fake(3)
-  const { sh } = shell(f, undefined)
-  let opened = 0
-  await goToSession(session, args, () => opened++, sh)
-  assert.equal(opened, 1)
-  assert.equal(f.calls.open, 0)
-})
-
-test("goTo on a session outside tmux says so and runs nothing", async () => {
-  const f = fake(0)
-  const { sh, order } = shell(f, { address: "0xabc" })
-  await goToSession({ ...session, pane: "" }, args, () => assert.fail("no open"), sh)
-  assert.deepEqual(f.calls.notice, ["ficciones is not in tmux, nowhere to go"])
-  assert.deepEqual(order, [])
-  assert.equal(f.argv(), null)
-})
 
 test("toArena focuses first and passes the args through", async () => {
   const f = fake(0)

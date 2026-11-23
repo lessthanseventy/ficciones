@@ -19,10 +19,8 @@ export type Session = {
   ctx?: number
   model?: string | null
 }
-export type Tally = Record<State, number>
 
 const STATES: State[] = ["working", "done", "waiting"]
-const MARK: Record<State, string> = { working: "◌", done: "◉", waiting: "▲" }
 const ORDER: Record<State, number> = { waiting: 0, done: 1, working: 2 }
 /** a turn this long that lands is worth a chime: you have likely looked away */
 const LONG_TURN_S = 120
@@ -55,36 +53,11 @@ export const mine = (all: Session[]) =>
 
 export const nextUp = (all: Session[]) => mine(all)[0] ?? null
 
-export type Row = { session: Session; ticket: Card | null; yours: boolean }
-
-/** the rail's rows: your sessions, each with the ticket its pane holds (`ticketOf`), your move first */
-export const rows = (all: Session[], ticketOf: (session: Session) => Card | null): Row[] =>
-  mine(all)
-    .map((session) => { const ticket = ticketOf(session); return { session, ticket, yours: session.state !== "working" || !!ticket?.ask } })
-    .sort((a, b) => Number(b.yours) - Number(a.yours))
-
-/** a row's two lines: its mark, ticket and repo, whose move it is and for how long; then what it is doing or last heard */
-export const rowLines = (r: Row, now: number): [string, string] => [
-  [`${MARK[r.session.state]} ${r.ticket ? `#${r.ticket.id} ` : ""}${r.session.repo}`, r.yours ? "your move" : "working", ago(now - r.session.since)].join("  "),
-  r.session.doing ?? r.session.said ?? r.ticket?.title ?? "",
-]
-
 /** what waits on you, in words: babylon's open asks (`asks`), then the sessions waiting on an answer */
 export const waiting = (all: Session[], asks: Card[]): string[] => [
   ...asks.flatMap((t) => (t.ask ? [`#${t.id} asks: ${t.ask.question}`] : [])),
   ...mine(all).filter((s) => s.state === "waiting").map((s) => `${s.repo} waits${s.doing ? `: ${s.doing}` : ""}`),
 ]
-
-export function tally(list: Session[]): Tally {
-  const t: Tally = { working: 0, done: 0, waiting: 0 }
-  for (const s of list) t[s.state]++
-  return t
-}
-
-export function mark(t: Tally) {
-  const parts = (["waiting", "done", "working"] as State[]).filter((k) => t[k] > 0).map((k) => `${MARK[k]}${t[k]}`)
-  return parts.length ? parts.join(" ") : "no sessions"
-}
 
 /** the sounds a change from `before` to `after` earns */
 export function chimes(before: Map<string, Session>, after: Session[], now: number): Sfx[] {
@@ -98,20 +71,8 @@ export function chimes(before: Map<string, Session>, after: Session[], now: numb
   return out
 }
 
-function ago(s: number) {
-  if (s < 60) return `${Math.max(0, Math.round(s))}s`
-  if (s < 3600) return `${Math.floor(s / 60)}m`
-  return `${Math.floor(s / 3600)}h`
-}
-
-export const line = (s: Session, now: number) =>
-  [`${MARK[s.state]} ${s.repo}`, s.doing ?? s.said, ago(now - s.since), s.ctx === undefined ? null : `ctx ${s.ctx}%`].filter(Boolean).join("  ")
-
 /** the `-L` that reaches the session's tmux server */
 export const arenaTarget = (s: { socket: string }) => ["-L", s.socket.split("/").pop() || "default"]
-
-/** what `arena` takes to open its board on ticket `id`; `socket` is the board's tmux server, null for the default one */
-export const boardArgs = (id: number, socket: string | null) => [...(socket ? arenaTarget({ socket }) : []), "board", String(id)]
 
 /** what `arena` takes to open its inbox (Your move); `socket` is the board's tmux server, null for the default one */
 export const inboxArgs = (socket: string | null) => [...(socket ? arenaTarget({ socket }) : []), "inbox"]
@@ -119,6 +80,3 @@ export const inboxArgs = (socket: string | null) => [...(socket ? arenaTarget({ 
 /** arena's window in a client list: Ghostty joins a running instance and ignores `--class`, so the class is Ghostty's own or the one asked for, and the title `arena` (set by `--title`) tells it from other terminals */
 export const findArena = <C extends { class: string; title: string }>(clients: C[]): C | undefined =>
   clients.find((c) => (c.class === "com.mitchellh.ghostty" || c.class === "com.ghostty.arena") && c.title === "arena")
-
-/** what `arena` takes to show pane `s.pane` in the running arena */
-export const paneArgs = (s: { socket: string; pane: string }) => [...arenaTarget(s), "show", s.pane]
