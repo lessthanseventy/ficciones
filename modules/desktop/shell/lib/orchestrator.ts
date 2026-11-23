@@ -26,8 +26,8 @@ const session = createComputed(() => sessions().find((s) => s.pane === pane()) ?
 
 session.subscribe(() => setTold(followTold(told.peek(), session.peek())))
 
-/** A line was told to the orchestrator: the cell says `on it`, then `answered`, until the next click on it. */
-export const noteTold = () => setTold({ at: Date.now() / 1000, phase: "sent" })
+/** A line was told at `at`: the cell says `on it`, then `answered`, until the next click on it. The turn may already be running. */
+export const noteTold = (at: number) => setTold(followTold({ at, phase: "sent" }, session.peek()))
 export const noteShown = () => setTold(null)
 
 export const orchestratorCell = createComputed(() => cell(board(), session(), told()))

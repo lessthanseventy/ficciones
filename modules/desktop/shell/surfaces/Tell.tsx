@@ -34,10 +34,11 @@ async function send() {
   const line = entry?.text.trim() ?? ""
   if (!line || sending) return
   sending = true
+  const at = Math.floor(Date.now() / 1000)
   const sent = await sendTell(line, run)
   sending = false
   if (!sent.ok) return setRefusal(sent.reason)
-  noteTold()
+  noteTold(at)
   hide()
 }
 

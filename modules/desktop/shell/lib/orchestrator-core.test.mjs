@@ -69,3 +69,18 @@ test("no told, no session: nothing moves", () => {
   assert.equal(followTold(null, session("done", 260)), null)
   assert.deepEqual(followTold({ at: 1, phase: "sent" }, null), { at: 1, phase: "sent" })
 })
+
+test("the tell is stamped before babylon runs, so the turn it starts is at or after it, even in the same second", () => {
+  const sent = { at: 200, phase: "sent" }
+  assert.equal(followTold(sent, session("working", 200)).phase, "on it")
+  assert.deepEqual(followTold(sent, session("working", 199)), sent)
+})
+
+test("a turn already running when the told is set is seen at once, and its end answers", () => {
+  // the order of events in Tell.tsx: stamp, babylon runs, the working record lands, then noteTold evaluates against it
+  const at = 200
+  const running = session("working", 201)
+  const told = followTold({ at, phase: "sent" }, running)
+  assert.equal(told.phase, "on it")
+  assert.equal(followTold(told, session("done", 230)).phase, "answered")
+})
