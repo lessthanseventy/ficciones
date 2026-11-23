@@ -396,11 +396,11 @@ in
     ];
 
     xdg = {
-      # tlon's house is a sibling repo's Godot project, run from where it is
-      desktopEntries.tlon-house = {
-        name = "The House";
+      # tlon's Asterion is a sibling repo's Godot project; `asterion` runs its installed build
+      desktopEntries.asterion = {
+        name = "Asterion";
         comment = "What you texted yourself: open things, what is coming, notes";
-        exec = "house";
+        exec = "asterion";
         categories = [ "Utility" ];
       };
       userDirs =

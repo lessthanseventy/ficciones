@@ -87,22 +87,24 @@ in
     # the `claude` function in modules/os/zshrc sets it as CLAUDE_CODE_SHELL_PREFIX
     (pkgs.writeShellScriptBin "agent-work" (builtins.readFile ./agent-work.sh))
 
-    # `house` — tlon's house window; `house widget` the small always-on-top one, `house demo`
-    # the made-up one with no server.
-    (pkgs.writeShellScriptBin "house" ''
+    # `asterion` — tlon's house window, the built app; `asterion dev` runs it from source,
+    # `asterion widget` the small always-on-top one, `asterion demo` the made-up one with no server.
+    (pkgs.writeShellScriptBin "asterion" ''
       ${asterionSeed}
-      cd ${tlonRepo} || { echo "house: repo not found at ${tlonRepo}" >&2; exit 1; }
+      cd ${tlonRepo} || { echo "asterion: repo not found at ${tlonRepo}" >&2; exit 1; }
       case "''${1:-}" in
         widget | demo) task="house:$1"; shift ;;
-        *) task=house:run ;;
+        dev) task=house:run; shift ;;
+        *) task=house:app ;;
       esac
       exec mise --cd ${tlonRepo} run "$task" -- "$@"
     '')
+    (pkgs.writeShellScriptBin "house" ''exec asterion "$@"'')
 
   ];
 
   # Asterion's calendar feed and own bot token, seeded from the secrets below into its user://
-  # (create-if-absent). Also run by `house`: at a switch the secrets may not be decrypted yet.
+  # (create-if-absent). Also run by `asterion`: at a switch the secrets may not be decrypted yet.
   home.activation.asterionSeed = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     run ${asterionSeed}
   '';
