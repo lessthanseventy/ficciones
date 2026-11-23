@@ -26,8 +26,9 @@ import { Panel } from "../lib/tui"
 import { iconFor } from "../lib/icons"
 import { RuleV, RuleH } from "../lib/tui"
 import { pct, spark, hhmm } from "../lib/format"
-import { waitingOnYou } from "../lib/board"
-import { showOffice } from "./Office"
+import { board } from "../lib/board"
+import { orchestratorCell, noteShown } from "../lib/orchestrator"
+import { goToInbox } from "../lib/sessions"
 import { tier } from "../lib/perf"
 import { quietOsd } from "./Osd"
 import { query } from "../lib/hyprsock"
@@ -262,11 +263,14 @@ function RecCell() {
   )
 }
 
-/** Who waits on you, in words, where the eye rests: the first ask or waiting Claude; a click opens the office rail. */
-function WaitingCell() {
+/** What waits on you and what the orchestrator is doing, in one cell; a click opens arena on its inbox. */
+function OrchestratorCell() {
   return (
-    <button cssClasses={["cell", "waiting", "clickable"]} visible={waitingOnYou((w) => w.length > 0)} onClicked={() => showOffice()}>
-      <label label={waitingOnYou((w) => (w.length > 1 ? `${w[0]}  +${w.length - 1}` : w[0] ?? ""))} ellipsize={3} maxWidthChars={70} />
+    <button
+      cssClasses={orchestratorCell((c) => ["cell", "orch", "clickable", ...(c.dim ? ["dim"] : []), ...(c.attention ? ["await"] : [])])}
+      onClicked={() => { noteShown(); goToInbox(board.peek()?.socket ?? null) }}
+    >
+      <label label={orchestratorCell((c) => c.text)} />
     </button>
   )
 }
@@ -337,7 +341,7 @@ export default function Bar({ gdkmonitor }: { gdkmonitor: Gdk.Monitor }) {
       <box>
         <Windows connector={gdkmonitor.connector ?? ""} />
         <box hexpand />
-        <WaitingCell />
+        <OrchestratorCell />
         <NextUpCell />
         <box hexpand />
         <StateCells />

@@ -129,6 +129,12 @@ export function goToArena(id: number, socket: string | null) {
   void toArena(args, () => openArena(...args))
 }
 
+/** Put arena in front of you with its inbox (Your move) open. `socket` is the board's tmux server. */
+export function goToInbox(socket: string | null) {
+  const args = [...(socket ? arenaTarget({ socket }) : []), "inbox"]
+  void toArena(args, () => openArena(...args))
+}
+
 /** Put `s` in front of you: its pane shown in the arena that is open, or in one opened on it. */
 export function goTo(s: Session) {
   return goToSession(s, paneArgs(s), async () => {
