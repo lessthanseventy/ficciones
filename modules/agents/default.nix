@@ -293,8 +293,6 @@ in
         "TLON_START_MCP=1"
         "TLON_START_SWITCHBOARD=1"
         "TLON_START_ATTENTION=1"
-        # the home's inbox polls the Telegram bot: this node only (a second poller takes its messages)
-        "TLON_START_HOME_INBOX=1"
         "TLON_WHISPER_MODEL=${
           pkgs.fetchurl {
             url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin";
