@@ -210,8 +210,8 @@ rec {
       export type Role = keyof typeof ROLE
     '';
 
-  # ---- Neovim (asterion): the palette as a Lua table --------------------------------------
-  # asterion reads ~/.config/ficciones/theme/nvim-palette.lua at startup and names ROLES; the
+  # ---- Neovim (nvim-config): the palette as a Lua table --------------------------------------
+  # nvim-config reads ~/.config/ficciones/theme/nvim-palette.lua at startup and names ROLES; the
   # base16 slots feed base16-nvim for syntax. Syntax hues are a CATEGORY tier (like the shell's
   # `$cat-*`): code needs more distinct colours than the roles carry, so those slots bind hues
   # directly, on purpose, here and nowhere in the editor.

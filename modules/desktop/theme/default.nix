@@ -248,7 +248,7 @@ in
               name = "ficciones";
               inherit (palettes.${name}) light;
             };
-            # Neovim (asterion, a sibling repo): roles + base16 as a Lua table, read at startup.
+            # Neovim (nvim-config, a sibling repo): roles + base16 as a Lua table, read at startup.
             "ficciones/themes/${name}/nvim-palette.lua".text = r.nvimPalette {
               inherit name;
               inherit (palettes.${name}) light;
