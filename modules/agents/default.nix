@@ -166,8 +166,8 @@ in
       tmp=$(mktemp)
       if ${pkgs.jq}/bin/jq '.env.ZDOTDIR = (env.HOME + "/.claude/zsh")
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
-             | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") or endswith("-inline-image") | not)))
-               + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}", "${./mods/inline-image}"] | join(":"))
+             | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") or endswith("-inline-image") or endswith("-next-step") | not)))
+               + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}", "${./mods/inline-image}", "${./mods/next-step}"] | join(":"))
          | .env.CLAUDE_CODE_FORCE_TERMINAL_IMAGES = "1"
          | .env.TLON_HOUSE_GATE = "required"
          | .autoCompactWindow = 433000
