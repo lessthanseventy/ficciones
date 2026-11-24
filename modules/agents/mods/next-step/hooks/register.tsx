@@ -20,7 +20,8 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('prompt.submit', async ($, e, next) => {
+  // A turn the box did not send (another session's message, a task's notice) leaves the ghost text up.
+  on('prompt.submit', { origin: { kind: 'composer' } }, async ($, e, next) => {
     await update($, suggestion, () => null)
     return next(e)
   })

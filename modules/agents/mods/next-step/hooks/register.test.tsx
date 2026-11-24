@@ -19,7 +19,11 @@ const ENGINE = { kind: 'suggestion' } as const
 
 // The kit raises the box's own events, which a plugin cannot call and so are not typed on its `$`.
 const box = ($: Engine) =>
-  $.prompt as unknown as { edit: EngineCall<'prompt.edit'>; change: EngineCall<'prompt.change'> }
+  $.prompt as unknown as {
+    edit: EngineCall<'prompt.edit'>
+    change: EngineCall<'prompt.change'>
+    submit: EngineCall<'prompt.submit'>
+  }
 
 const SURFACES = ['terminal', 'desktop'] as const
 
@@ -63,6 +67,19 @@ test('a recalled history entry takes the button away', async ($, on) => {
   await $.prompt.suggest({ text: 'go', origin: ENGINE })
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   await box($).change({ text: 'an old prompt', cursor: 13, origin: { kind: 'history' } })
+  expect(await ui.find({ key: 'next-step' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a turn the box did not send, a message from another session, keeps the button', async ($, on) => {
+  on('prompt.suggest', () => ({ isShown: true }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+
+  await $.prompt.suggest({ text: 'go', origin: ENGINE })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await box($).submit({ text: 'orchestrator: drive 837', origin: { kind: 'peer' }, wait: false })
+  expect(await ui.find({ key: 'next-step' })).toBeDefined()
+  await box($).submit({ text: 'go on', origin: { kind: 'composer' }, wait: false })
   expect(await ui.find({ key: 'next-step' })).toBeUndefined()
   await ui.unmount()
 })
