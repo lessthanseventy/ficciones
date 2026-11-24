@@ -14,6 +14,7 @@ const MAX_GROUP_LINES = 12
 const MAX_KEPT_DURATIONS = 2000
 // each is a call's whole output
 const MAX_KEPT_REPLIES = 500
+const ORCHESTRATOR_SESSION = 'orchestrator'
 
 // The calls drawn as one line each; any other tool keeps Claude Code's own row.
 const ROWED = new Set(['Bash', 'Read', 'Edit', 'Write', 'Grep', 'Glob'])
@@ -84,6 +85,7 @@ function callRow($: Ui, e: unknown, opened: Set<string>, id: string, call: Call,
 
 export const register: Register = on => {
   let canDraw = false
+  let isOrchestrator = false
   let turnLines: string[] = []
   const summaries = new Map<number, string>()
   const opened = new Set<string>()
@@ -94,6 +96,9 @@ export const register: Register = on => {
   // VS Code and mobile draw a call their own way
   on('session.start', async ($, e, next) => {
     canDraw = e.surface === 'terminal' || e.surface === 'desktop'
+    // babylon starts the orchestrator in tmux's session of that name; its column is too narrow for a box that repeats its own reply
+    const named = await $.process.run(['sh', '-c', 'tmux display-message -p -t "$TMUX_PANE" "#{session_name}"'])
+    isOrchestrator = named.exitCode === 0 && named.stdout.trim() === ORCHESTRATOR_SESSION
     // a resumed session draws its old turns again, each still known by its duration
     const kept = await $.store.get('summaries')
     if (Array.isArray(kept)) for (const [durationMs, text] of kept as [number, string][]) summaries.set(durationMs, text)
@@ -111,7 +116,7 @@ export const register: Register = on => {
     if (e.agentId !== undefined) return done
     const lines = turnLines
     turnLines = []
-    if (!canDraw || e.reason !== 'answer' || lines.length < MIN_TURN_CALLS) return done
+    if (!canDraw || isOrchestrator || e.reason !== 'answer' || lines.length < MIN_TURN_CALLS) return done
     // not awaited: the turn ends now and the line arrives under it
     void $.model.complete({ model: 'haiku', prompt: SUMMARISE + lines.join('\n'), maxTokens: 200, effort: 'low', timeoutMs: SUMMARY_MS }).then(reply => {
       if (!reply.isAnswered) return
@@ -124,7 +129,7 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
-    const summary = summaries.get(e.props.durationMs)
+    const summary = isOrchestrator ? undefined : summaries.get(e.props.durationMs)
     if (summary === undefined) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     return (

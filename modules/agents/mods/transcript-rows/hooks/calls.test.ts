@@ -1,3 +1,4 @@
+import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 import { callText, lastSaid, menardSaid, patchCounts, shellEdits, steps, took, turnLine, whyFailed } from './calls'
@@ -105,4 +106,35 @@ test('control characters in a call are shown as characters the engine draws', as
   expect(callText({ tool: 'Bash', input: { command: 'make\tall' }, output: { stdout: 'a\x1b[1mb\r\nc\x7f\x9b\n', stderr: '' } })).toEqual(['$ make    all', 'a␛[1mb', 'c␡�'])
   expect(callText({ tool: 'Edit', input: { file_path: '/r/Makefile' }, output: { structuredPatch: [{ lines: ['+\tcc'] }] } })).toEqual(['/r/Makefile', '+    cc'])
   expect(turnLine({ tool: 'Bash', input: { command: 'printf a\tb\x1b' } }, false)).toBe('Bash printf a    b␛')
+})
+
+type Ctx = Parameters<Parameters<typeof test>[1]>[0]
+
+const turnIn = async ($: Ctx, on: On, session: string) => {
+  const asked: string[] = []
+  on('session.start', async (_$, e) => e)
+  on('turn.start', async () => ({ turnId: 't1' }) as never)
+  on('turn.complete', async () => ({ answer: '', text: '' }) as never)
+  on('tool.call', async () => ({ result: '' }) as never)
+  on('store.get', async () => ({ value: undefined }) as never)
+  on('store.set', async () => ({ value: undefined }) as never)
+  on('process.run', async () => ({ value: { exitCode: 0, stdout: `${session}\n`, stderr: '' } }) as never)
+  on('model.complete', async (_$, e) => {
+    asked.push(e.prompt)
+    return { value: { isAnswered: true, text: 'Edited things.' } } as never
+  })
+  await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: true })
+  await $.turn.start({ turnId: 't1' } as never)
+  for (let i = 0; i < 5; i++) await $.tool.call({ tool: 'Bash', command: `echo ${i}`, tool_use_id: `t${i}` } as never)
+  await $.turn.complete({ reason: 'answer', durationMs: 1234, answer: '' } as never)
+  await new Promise(done => setTimeout(done, 20))
+  return asked
+}
+
+test("a worker's long turn is summarised for its box", async ($, on) => {
+  expect(await turnIn($, on, 'ficciones')).toHaveLength(1)
+})
+
+test("the orchestrator's session gets no turn box", async ($, on) => {
+  expect(await turnIn($, on, 'orchestrator')).toEqual([])
 })
