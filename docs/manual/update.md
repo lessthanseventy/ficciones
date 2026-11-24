@@ -14,7 +14,7 @@ hand-pinned packages) — then `machine:update` applies it. Gates before either:
 What each step touches:
 
 - **home:switch** — the home-manager profile: every rendered theme file, the out-of-store
-  links (`~/.config/hypr/hyprland.lua`, `~/.config/nvim` → asterion), user packages, the shell
+  links (`~/.config/hypr/hyprland.lua`, `~/.config/nvim` → nvim-config), user packages, the shell
   package, git hooks (`core.hooksPath` → `scripts/git-hooks`).
 - **shell:restart** — the astal shell user unit (`Restart=on-failure`; the idle inhibitor is a
   logind FD, so a restart drops and re-takes it).
@@ -25,4 +25,4 @@ What each step touches:
   `tlon_console_*` themselves — a local Postgres is a prerequisite for `mise run check`.
 
 Live-editable without any of that: `hyprland.lua` (hyprctl reload on save via the git hooks),
-asterion (`~/.config/nvim` is the repo), the shell from source (`mise run shell:dev`).
+nvim-config (`~/.config/nvim` is the repo), the shell from source (`mise run shell:dev`).

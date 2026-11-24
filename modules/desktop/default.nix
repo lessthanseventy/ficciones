@@ -336,7 +336,7 @@ in
       pamixer
       playerctl
       bluetui
-      # asterion (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform's
+      # nvim-config (neovim) system deps: nvim-treesitter main compiles parsers with the CLI; conform's
       # stylua and shfmt come from modules/menard-host.nix
       tree-sitter
       lazydocker
@@ -455,12 +455,12 @@ in
       # CRT screen shaders, switched by path (hyprctl keyword decoration:screen_shader …).
       "hypr/shaders/crt-full.glsl" = linkTo "shaders/crt-full.glsl";
 
-      # Neovim = asterion, a SIBLING repo (master plan 2026-09-17 §3): the whole config dir as one
+      # Neovim = nvim-config, a SIBLING repo (master plan 2026-09-17 §3): the whole config dir as one
       # out-of-store link, so an edit there is live and lazy.nvim owns plugins (lazy-lock.json in
       # that repo). Nix owns only nvim's system deps (below) and the rendered palette file. The
       # December config (claudevim) was moved to ~/projects/claudevim as a quarry.
       "nvim" = {
-        source = config.lib.file.mkOutOfStoreSymlink "${builtins.dirOf repo}/asterion";
+        source = config.lib.file.mkOutOfStoreSymlink "${builtins.dirOf repo}/nvim-config";
       };
     };
 
