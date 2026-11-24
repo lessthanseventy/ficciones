@@ -16,13 +16,16 @@ git -C "$r" add -f .gitmodules
 placeholder "$r/live/.mcp.json"
 placeholder "$r/node_modules/.mcp.json"
 placeholder "$r/notes"
+w="$t/work"
+git -C "$t" init -q work
+placeholder "$w/.git/config.lock"
 placeholder "$r/.claude/agents/x.md"
 : >"$r/.zshrc" && touch -d '-5 min' "$r/.zshrc"
 echo real >"$r/.profile" && touch -d '-5 min' "$r/.profile" && chmod 444 "$r/.profile"
 : >"$r/.vscode" && chmod 444 "$r/.vscode"
 
 printf '1 0 0:1 / %s rw - x x rw\n' "$r/live/.mcp.json" >"$t/mountinfo"
-SANDBOX_SWEEP_MOUNTINFO="$t/mountinfo" bash "$sweep" "$r" >/dev/null
+SANDBOX_SWEEP_MOUNTINFO="$t/mountinfo" bash "$sweep" "$r" "$w" >/dev/null
 
 bad=0
 expect() {
@@ -40,6 +43,10 @@ expect kept .gitmodules
 expect kept live/.mcp.json
 expect kept node_modules/.mcp.json
 expect kept notes
+[ -e "$w/.git/config.lock" ] && {
+	echo "WRONG second root: config.lock kept"
+	bad=1
+} || echo "ok    gone second root .git/config.lock"
 expect kept .claude/agents/x.md
 expect kept .zshrc
 expect kept .profile

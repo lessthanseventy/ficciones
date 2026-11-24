@@ -320,7 +320,7 @@ in
   };
 
   systemd.user.services.sandbox-sweep = {
-    Unit.Description = "remove the placeholders a killed Claude sandbox leaves under ~/projects";
+    Unit.Description = "remove the placeholders a killed Claude sandbox leaves under ~/projects and babylon's work root";
     Service = {
       Type = "oneshot";
       ExecStart = "${
@@ -335,7 +335,7 @@ in
           }\n"
           + builtins.readFile ./sandbox-sweep.sh
         )
-      } %h/projects";
+      } %h/projects %h/.cache/babylon/work";
     };
   };
   systemd.user.timers.sandbox-sweep = {
