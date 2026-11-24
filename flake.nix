@@ -313,6 +313,9 @@
           assert pkgs.lib.assertMsg (
             forbidden == [ ]
           ) "claude-allow: must not allow ${builtins.toJSON forbidden}";
+          assert pkgs.lib.assertMsg (
+            (import ./modules/agents/claude-env.nix).CLAUDE_CODE_AUTO_MODE_SERVER == "0"
+          ) "claude-env: auto mode's server-side review must stay off";
           pkgs.runCommand "claude-allow" { } "touch $out";
 
         # a broken close shader shows only as a window that closes without burning

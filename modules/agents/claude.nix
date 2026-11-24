@@ -31,6 +31,7 @@ let
     }
   );
   allowRules = import ./claude-allow.nix;
+  sessionEnv = import ./claude-env.nix;
 in
 {
   home.packages = [
@@ -50,6 +51,7 @@ in
   # babylon refuses a Claude anyway, pushes, and deletes.
   home.activation.claudeSessionHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     allow='${builtins.toJSON allowRules}'
+    env='${builtins.toJSON sessionEnv}'
     cfg="$HOME/.claude/settings.json"
     record="$HOME/.claude/.ficciones-allow.json"
     prev='[]'
@@ -61,9 +63,7 @@ in
     [ -f "$cfg" ] || { run mkdir -p "$HOME/.claude"; run sh -c 'echo "{}" > "$1"' _ "$cfg"; }
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena" --argjson allow "$allow" --argjson prev "$prev" --argjson dead "$dead" --argjson has_arena "$has_arena" '.env += {
-           GIT_EDITOR: "true", PAGER: "cat", GIT_PAGER: "cat", MANPAGER: "cat",
-           GIT_TERMINAL_PROMPT: "0" }
+      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena" --argjson allow "$allow" --argjson env "$env" --argjson prev "$prev" --argjson dead "$dead" --argjson has_arena "$has_arena" '.env += $env
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
              | map(select(. != "" and . != $arena)) + (if $has_arena then [$arena] else [] end) | join(":"))
          | ${allowMerge}
