@@ -38,8 +38,12 @@ in
   # profile's bin leads; coreutils is there for the Mac's `timeout`, which it only needs there.
   home.activation.babylonService = lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
     if [ -x ${babylonBin} ]; then
-      PATH=${config.home.profileDirectory}/bin:${lib.makeBinPath [ pkgs.coreutils ]}:$PATH \
-        run ${babylonBin} install
+      if out=$(PATH=${config.home.profileDirectory}/bin:${lib.makeBinPath [ pkgs.coreutils ]}:$PATH \
+        run ${babylonBin} install 2>&1); then
+        printf '%s\n' "$out"
+      else
+        printf 'babylon: install failed: %s\n' "$(printf '%s\n' "$out" | tail -n 1)" >&2
+      fi
     fi
   '';
 
