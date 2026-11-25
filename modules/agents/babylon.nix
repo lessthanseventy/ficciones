@@ -32,10 +32,11 @@ in
     pkgs.writeShellScriptBin "arena" ''exec ${arenaRepo}/zig-out/bin/arena "$@"''
   );
 
-  # After linkGeneration so a unit this profile used to link is gone before babylon writes its own.
+  # After reloadSystemd, which stops a unit the new generation no longer links: install then starts
+  # babylon again, and never leaves it stopped by that step.
   # install puts the PATH it finds (tmux, git, mise, claude, jq, curl) into the service, so the
   # profile's bin leads; coreutils is there for the Mac's `timeout`, which it only needs there.
-  home.activation.babylonService = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+  home.activation.babylonService = lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
     if [ -x ${babylonBin} ]; then
       PATH=${config.home.profileDirectory}/bin:${lib.makeBinPath [ pkgs.coreutils ]}:$PATH \
         run ${babylonBin} install
