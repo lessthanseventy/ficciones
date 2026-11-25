@@ -53,8 +53,11 @@ merging main in. Rewriting history that is already pushed or shared is the human
     repo's Credo rules (`.credo.exs`) on the lines you touched.
   - Each run answers one JSON line with every failure's file, line and message: read it, never
     re-run to see more.
+  - Zig builds and tests go through `menard run test|check|compile`, never bare `zig build` or
+    `zig test`: it kills the process group at the end, reaps orphaned compilers and ends a wait on
+    a stuck cache lock with the holder named.
   - **menard's gaps are tickets.** When menard gets in your way, could do a job better, or
-    something that should run through it does not (`zig build` and `zig test` today), file a
+    something that should run through it does not, file a
     babylon ticket with repo `menard`: what you ran, what happened, what would have been better.
     If it blocks you now, message the running menard session as well. Then carry on with the
     workaround; a ticket is not a reason to stop.
