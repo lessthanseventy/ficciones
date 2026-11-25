@@ -3,6 +3,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { parse, metered, alive, isCrew, mine, nextUp, chimes, arenaTarget, inboxArgs, findArena, waiting } from "./sessions-core.ts"
 
+const yes = () => true
 const s = (id, state, extra = {}) => ({ id, state, since: 1000, at: 1000, cwd: `/p/${id}`, repo: id, socket: "/tmp/tmux-1000/default", pane: `%${id.length}`, said: null, doing: null, ...extra })
 
 test("a record parses, and anything else is dropped", () => {
@@ -19,10 +20,12 @@ test("the statusline's meter joins its record; a bad one is left out", () => {
 
 test("a record whose tmux pane is gone is stale; one outside tmux is, once a day has passed without a word", () => {
   const live = new Set(["/tmp/tmux-1000/default %6"])
-  assert.equal(alive(s("menard", "done"), live, 1000), true)
-  assert.equal(alive(s("ficciones", "done"), live, 1000), false)
-  assert.equal(alive(s("solo", "done", { socket: "", pane: "", at: 1000 }), live, 1000 + 3600), true)
-  assert.equal(alive(s("solo", "done", { socket: "", pane: "", at: 1000 }), live, 1000 + 86400), false)
+  assert.equal(alive(s("menard", "done"), live, 1000, yes), true)
+  assert.equal(alive(s("ficciones", "done"), live, 1000, yes), false)
+  assert.equal(alive(s("solo", "done", { socket: "", pane: "", at: 1000 }), live, 1000 + 3600, yes), true)
+  assert.equal(alive(s("solo", "done", { socket: "", pane: "", at: 1000 }), live, 1000 + 86400, yes), false)
+  assert.equal(alive(s("solo", "done", { socket: "", pane: "", at: 1000 }), live, 1000 + 3600, (cwd) => cwd !== "/p/solo"), false)
+  assert.equal(alive(s("menard", "done"), live, 1000, () => false), true)
 })
 
 test("the crew is any session on a tlon workspace's tmux server", () => {

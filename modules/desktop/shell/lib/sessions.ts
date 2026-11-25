@@ -65,7 +65,7 @@ async function refresh() {
     const all = records()
     const live = await livePanes(all)
     const at = Date.now() / 1000
-    const now = all.filter((s) => alive(s, live, at))
+    const now = all.filter((s) => alive(s, live, at, (cwd) => GLib.file_test(cwd, GLib.FileTest.IS_DIR)))
     const before = new Map(sessions.peek().map((s) => [s.id, s]))
     for (const sfx of new Set(chimes(before, now, at))) play(sfx)
     setSessions(now)

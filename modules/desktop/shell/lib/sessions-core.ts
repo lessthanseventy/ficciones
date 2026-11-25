@@ -39,12 +39,12 @@ export function metered(s: Session, text: string | null): Session {
   } catch { return s }
 }
 
-/** a session outside tmux has no pane to ask after: one silent this long has likely crashed */
+/** a session outside tmux has no pane to ask after: one silent this long, or whose cwd is gone, has likely crashed */
 const SILENT_S = 24 * 3600
 
 /** `live` holds "<socket> <pane>" for every pane the tmux servers have; a crash leaves a record behind */
-export const alive = (s: Session, live: Set<string>, now: number) =>
-  s.pane ? live.has(`${s.socket} ${s.pane}`) : now - s.at < SILENT_S
+export const alive = (s: Session, live: Set<string>, now: number, cwdExists: (cwd: string) => boolean) =>
+  s.pane ? live.has(`${s.socket} ${s.pane}`) : now - s.at < SILENT_S && cwdExists(s.cwd)
 
 export const isCrew = (s: Session) => /\/tlon-workspace-[^/]*$/.test(s.socket)
 
