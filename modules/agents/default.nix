@@ -258,9 +258,9 @@ in
   };
 
   # tlon's gate skips the house's checks where godot is missing; on this machine that is a failure.
-  # Set for babylon (its gate runs tlon's), for tlon's own service below, for shells in ../os/zshrc,
-  # and for Claude Code's shells in claudeShellEnv (they take no export from the rc).
-  systemd.user.services.babylon.Service.Environment = [ "TLON_HOUSE_GATE=required" ];
+  # Set for babylon (a drop-in in babylon.nix; its gate runs tlon's), for tlon's own service below,
+  # for shells in ../os/zshrc, and for Claude Code's shells in claudeShellEnv (they take no export
+  # from the rc).
 
   systemd.user.services.tlon = {
     Unit = {
