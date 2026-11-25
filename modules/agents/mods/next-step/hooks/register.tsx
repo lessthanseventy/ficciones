@@ -1,15 +1,37 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
+import { parseBoard, startable, waiting } from './board'
+
 const suggestion = atom({ plugin: 'next-step', key: 'suggestion' } as const, null)
 
 const PREFIX = 'next '
+const ORCHESTRATOR_SESSION = 'orchestrator'
 
 export const register: Register = on => {
+  let isOrchestrator = false
+
+  on('session.start', async ($, e, next) => {
+    const named = await $.process.run(['sh', '-c', 'tmux display-message -p -t "$TMUX_PANE" "#{session_name}"'])
+    isOrchestrator = named.exitCode === 0 && named.stdout.trim() === ORCHESTRATOR_SESSION
+    return next(e)
+  })
+
   // The button carries the suggestion, so the box's own ghost text is held back.
+  // On the orchestrator's pane, what waits on the human comes first, and a suggestion to start a ticket auto will start, or cannot, is dropped.
   on('prompt.suggest', async ($, e) => {
-    if (e.text.trim() === '') return { isShown: false }
-    await update($, suggestion, () => e.text)
+    let shown: { label: string; text: string | null; argv: string[] | null } | null =
+      e.text.trim() === '' ? null : { label: e.text, text: e.text, argv: null }
+    if (isOrchestrator) {
+      const file = await $.process.run(['sh', '-c', 'cat "$XDG_RUNTIME_DIR/babylon/board.json"'])
+      const board = file.exitCode === 0 ? parseBoard(file.stdout) : null
+      if (board !== null) {
+        const waits = waiting(board)
+        if (waits !== null) shown = { label: waits.label, text: null, argv: waits.ticket === null ? ['arena', 'inbox'] : ['arena', 'board', String(waits.ticket)] }
+        else if (shown !== null && !startable(e.text, board)) shown = null
+      }
+    }
+    await update($, suggestion, () => shown)
     return { isShown: false }
   })
 
@@ -30,18 +52,19 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const text = await read($, suggestion)
-    if (text === null || e.props.hasSurvey || e.props.isWorking) return next(e)
+    const shown = await read($, suggestion)
+    if (shown === null || e.props.hasSurvey || e.props.isWorking) return next(e)
 
     const { Box, Button, Text } = $.ui.resolve(e)
     const send = async () => {
       await update($, suggestion, () => null)
-      await $.prompt.submit({ text, asUser: true })
+      if (shown.argv !== null) await $.process.run(shown.argv)
+      else await $.prompt.submit({ text: shown.text ?? shown.label, asUser: true })
     }
 
     // "next " before it, "[ " and " ]" around it.
     const room = Math.max(1, e.props.bodyColumns - PREFIX.length - 4)
-    const label = [...text].length > room ? `${[...text].slice(0, room - 1).join('')}…` : text
+    const label = [...shown.label].length > room ? `${[...shown.label].slice(0, room - 1).join('')}…` : shown.label
 
     return (
       <Box>

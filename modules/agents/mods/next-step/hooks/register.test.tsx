@@ -1,4 +1,5 @@
 import { expect, test } from 'claude-code/testing'
+import type { On } from 'claude-code'
 import type { Engine, EngineCall } from 'claude-code/testing'
 
 const BAND = {
@@ -111,5 +112,72 @@ test('a blank suggestion draws nothing', async ($) => {
   await $.prompt.suggest({ text: '  ', origin: ENGINE })
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await ui.find({ key: 'next-step' })).toBeUndefined()
+  await ui.unmount()
+})
+
+const card = (id: number, status: string, repo: string, claimed_by: string | null = null) => ({ id, status, repo, claimed_by })
+const BOARD = {
+  auto: { on: true, cap: 6, repo_caps: { arena: 2 } },
+  tickets: [card(908, 'todo', 'arena'), card(910, 'todo', 'arena'), card(911, 'todo', 'tlon', '%9'), card(912, 'todo', 'tlon'), card(1, 'doing', 'arena', '%1'), card(2, 'doing', 'arena', '%2')],
+  plan: { next: [{ ticket: 908 }] },
+  needs_you: [] as unknown[],
+}
+
+// An orchestrator pane over the given board. `offer` runs one suggestion through it and returns the button's text; `press` clicks it and returns what ran.
+const orchestrator = async ($: Engine, on: On, board: object) => {
+  const ran: string[][] = []
+  on('session.start', (_, e) => e)
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('process.run', (_, e) => {
+    const joined = e.argv.join(' ')
+    if (joined.includes('tmux')) return { value: { exitCode: 0, stdout: 'orchestrator\n', stderr: '' } } as never
+    if (joined.includes('board.json')) return { value: { exitCode: 0, stdout: JSON.stringify(board), stderr: '' } } as never
+    ran.push(e.argv)
+    return { value: { exitCode: 0, stdout: '', stderr: '' } } as never
+  })
+  await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: true })
+  const offer = async (text: string) => {
+    await $.prompt.suggest({ text, origin: ENGINE })
+    const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+    const button = await ui.find({ key: 'next-step' })
+    if (button !== undefined) await ui.press({ key: 'next-step' })
+    await ui.unmount()
+    return button?.text
+  }
+  return { offer, ran }
+}
+
+test('on the orchestrator, a start for a ticket in next, a claimed one, or one over its repo cap is never offered', async ($, on) => {
+  const { offer } = await orchestrator($, on, BOARD)
+  for (const id of [908, 911, 910]) expect(await offer(`start #${id}`)).toBeUndefined()
+})
+
+test('on the orchestrator, a start for a free todo ticket outside next is offered', async ($, on) => {
+  const { offer } = await orchestrator($, on, BOARD)
+  expect(await offer('start #912')).toBe('start #912')
+})
+
+test('on the orchestrator, a to-try check replaces the suggestion and a click focuses it in arena', async ($, on) => {
+  const { offer, ran } = await orchestrator($, on, { ...BOARD, needs_you: [{ kind: 'try', ticket: 922, text: 'try the pane' }] })
+  expect(await offer('start #912')).toBe('try #922')
+  expect(ran).toEqual([['arena', 'board', '922']])
+})
+
+test('on the orchestrator, a waiting item with no ticket opens the inbox', async ($, on) => {
+  const { offer, ran } = await orchestrator($, on, { ...BOARD, needs_you: [{ kind: 'proposal', ticket: null, text: 'start #5?' }] })
+  expect(await offer('')).toBe('answer: start #5?')
+  expect(ran).toEqual([['arena', 'inbox']])
+})
+
+test('on the orchestrator, a suggestion that names no ticket is kept', async ($, on) => {
+  const { offer } = await orchestrator($, on, BOARD)
+  expect(await offer('look at what just landed')).toBe('look at what just landed')
+})
+
+test('another pane keeps the suggestion whatever the board says', async ($, on) => {
+  on('prompt.suggest', () => ({ isShown: true }))
+  await $.prompt.suggest({ text: 'start #908', origin: ENGINE })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await ui.find({ key: 'next-step' }))?.text).toBe('start #908')
   await ui.unmount()
 })
