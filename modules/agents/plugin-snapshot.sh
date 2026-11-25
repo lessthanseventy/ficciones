@@ -11,8 +11,9 @@ roots="${XDG_STATE_HOME:-$HOME/.local/state}/claude-plugin-roots"
 root() {
 	name=$1 path=$2
 	mkdir -p "$roots/$name"
-	link="$roots/$name/$(basename "$path")"
-	nix-store --add-root "$link" --indirect --realise "$path" >/dev/null
+	top=$(printf '%s\n' "$path" | cut -d/ -f1-4)
+	link="$roots/$name/$(basename "$top")"
+	nix-store --add-root "$link" --indirect --realise "$top" >/dev/null
 	touch -h "$link"
 	# shellcheck disable=SC2012
 	ls -t "$roots/$name" | tail -n +$((KEEP + 1)) | while read -r old; do rm -f "$roots/$name/$old"; done
