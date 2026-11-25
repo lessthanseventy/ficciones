@@ -126,9 +126,13 @@ const BOARD = {
 // An orchestrator pane over the given board. `offer` ends a turn with the given reply, then asks for a suggestion and returns the button's text; `ran` is what a click ran.
 const orchestrator = async ($: Engine, on: On, board: object) => {
   const ran: string[][] = []
+  const sent: string[] = []
   on('session.start', (_, e) => e)
   on('turn.complete', (_, e) => ({ text: e.answer }))
-  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('prompt.submit', (_, e) => {
+    sent.push(e.text)
+    return { text: e.text }
+  })
   on('process.run', (_, e) => {
     const joined = e.argv.join(' ')
     if (joined.includes('tmux')) return { value: { exitCode: 0, stdout: 'orchestrator\n', stderr: '' } } as never
@@ -146,7 +150,7 @@ const orchestrator = async ($: Engine, on: On, board: object) => {
     await ui.unmount()
     return button?.text
   }
-  return { offer, ran }
+  return { offer, ran, sent }
 }
 
 test('on the orchestrator, the button is its own next: line, not Claude Code suggestion', async ($, on) => {
@@ -175,16 +179,29 @@ test('on the orchestrator with auto off, a next: start for a ticket in next is o
   expect(await offer('next: start #912')).toBe('start #912')
 })
 
-test('on the orchestrator, a to-try check comes before the next: line and a click focuses it in arena', async ($, on) => {
-  const { offer, ran } = await orchestrator($, on, { ...BOARD, needs_you: [{ kind: 'try', ticket: 922, text: 'try the pane' }] })
-  expect(await offer('next: start #912')).toBe('try #922')
-  expect(ran).toEqual([['arena', 'board', '922']])
+test('on the orchestrator, a line naming a ticket goes to its card and types nothing', async ($, on) => {
+  const { offer, ran } = await orchestrator($, on, BOARD)
+  expect(await offer('next: try #912')).toBe('try #912')
+  expect(ran).toEqual([['arena', 'board', '912']])
 })
 
-test('on the orchestrator, a waiting item with no ticket opens the inbox even with next: none', async ($, on) => {
-  const { offer, ran } = await orchestrator($, on, { ...BOARD, needs_you: [{ kind: 'proposal', ticket: null, text: 'start #5?' }] })
-  expect(await offer('next: none')).toBe('answer: start #5?')
+test('on the orchestrator, a line naming a proposal opens the inbox', async ($, on) => {
+  const { offer, ran } = await orchestrator($, on, BOARD)
+  expect(await offer('next: go on proposal 7')).toBe('go on proposal 7')
   expect(ran).toEqual([['arena', 'inbox']])
+})
+
+test('on the orchestrator, any other line is sent as the human, whatever waits on them', async ($, on) => {
+  const board = { ...BOARD, needs_you: [{ kind: 'try', ticket: 922, text: 'try the pane' }] }
+  const { offer, ran, sent } = await orchestrator($, on, board)
+  expect(await offer('next: yes, cut the strip')).toBe('yes, cut the strip')
+  expect(sent).toEqual(['yes, cut the strip'])
+  expect(ran).toEqual([])
+})
+
+test('on the orchestrator, a line naming a ticket the board no longer has is hidden', async ($, on) => {
+  const { offer } = await orchestrator($, on, BOARD)
+  expect(await offer('next: try #999')).toBeUndefined()
 })
 
 test('another pane keeps the suggestion whatever the board says', async ($, on) => {

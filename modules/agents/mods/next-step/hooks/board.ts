@@ -6,8 +6,6 @@ export type Board = {
   needs_you: Waiting[]
 }
 
-// The human's own word for what a needs_you row asks of them.
-const VERB: Record<string, string> = { try: 'try', ask: 'answer', human: 'answer', look: 'look at', proposal: 'answer', sendback: 'look at' }
 
 export const parseBoard = (text: string): Board | null => {
   try {
@@ -18,18 +16,22 @@ export const parseBoard = (text: string): Board | null => {
   }
 }
 
-/** What waits on the human, as a button label; null when nothing does. */
-export const waiting = (b: Board): { label: string; ticket: number | null } | null => {
-  const top = b.needs_you[0]
-  if (top === undefined) return null
-  const verb = VERB[top.kind] ?? 'open'
-  return { label: top.ticket === null ? `${verb}: ${top.text}` : `${verb} #${top.ticket}`, ticket: top.ticket }
+const PROPOSAL = /\bproposal\s+#?\d+/i
+const ITEM = /^\s*(?:try|answer|look at)\b[^#]*#(\d+)/i
+
+/** The board item a line names: a ticket's card, the inbox for a proposal or ask; null for a plain reply. */
+export const item = (text: string): { argv: string[]; ticket: number | null } | null => {
+  if (PROPOSAL.test(text)) return { argv: ['arena', 'inbox'], ticket: null }
+  const id = ITEM.exec(text)?.[1]
+  return id === undefined ? null : { argv: ['arena', 'board', id], ticket: Number(id) }
 }
 
 const START = /^\s*(?:start|drive|work(?: on)?)\s+#?(\d+)\b/i
 
 /** A suggestion that starts a ticket is kept only when that ticket is a free todo that auto will not start itself and its repo has room. */
 export const startable = (text: string, b: Board): boolean => {
+  const named = item(text)?.ticket
+  if (named != null) return b.tickets.some(c => c.id === named && c.status !== 'done')
   const id = START.exec(text)?.[1]
   if (id === undefined) return true
   const t = b.tickets.find(c => c.id === Number(id))
