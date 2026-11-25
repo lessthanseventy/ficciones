@@ -402,6 +402,7 @@
           ./modules/desktop
           ./modules/arch
           ./modules/tmux.nix
+          ./modules/meatcheck.nix
           ./modules/menard-host.nix
           # agenix: decrypt age secrets at activation with the box's ssh key (identityPaths
           # defaults to ~/.ssh/id_ed25519 — ours). modules/agents declares the secrets.
