@@ -219,11 +219,28 @@ test('on the orchestrator, a choice is one button per option and pressing one se
   expect(sent).toEqual(['b'])
 })
 
-test('on the orchestrator, typing a digit in an empty prompt presses that option', async ($, on) => {
+const digit = (n: string, meta: boolean) => ({ origin: { kind: 'composer' }, text: '', cursor: 0, start: 0, end: 0, inputText: n, key: { key: n, ...(meta ? { meta: true } : {}) } }) as never
+
+test('on the orchestrator, Alt+digit presses that option and a bare digit types', async ($, on) => {
+  on('prompt.edit', (_, e) => ({ text: e.inputText, cursor: e.inputText.length }))
   const { offer, sent } = await choice($, on)
   await offer('next: a | b | c')
-  await box($).edit({ origin: { kind: 'composer' }, text: '', cursor: 0, start: 0, end: 0, inputText: '3' })
+  expect(await box($).edit(digit('2', false))).toEqual({ text: '2', cursor: 1 })
+  expect(sent).toEqual([])
+  await offer('next: a | b | c')
+  await box($).edit(digit('3', true))
   expect(sent).toEqual(['c'])
+})
+
+test('Alt+digit does nothing while the buttons are hidden or when there is one option', async ($, on) => {
+  const c = await choice($, on)
+  await c.offer('next: a | b')
+  await $.ui.mount({ ...BAND, props: { ...BAND.props, isWorking: true }, surface: 'terminal' })
+  await box($).edit(digit('2', true))
+  expect(c.sent).toEqual([])
+  await c.offer('next: a')
+  await box($).edit(digit('1', true))
+  expect(c.sent).toEqual([])
 })
 
 test('on the orchestrator, a board item or a plain line stays one button', async ($, on) => {

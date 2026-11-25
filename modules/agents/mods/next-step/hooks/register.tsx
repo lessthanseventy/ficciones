@@ -50,16 +50,19 @@ export const register: Register = on => {
     return { isShown: false }
   })
 
+  let isBandHidden = false
+
+  // Alt+1…9 press the Nth button, only while a choice is on screen; bare digits always type.
   on('prompt.edit', async ($, e, next) => {
-    const options = await read($, suggestion)
-    const digit = /^[1-9]$/.test(e.inputText) && e.text === '' ? Number(e.inputText) : 0
-    const chosen = options?.[digit - 1]
-    if (chosen === undefined) {
+    const digit = e.key?.meta === true && /^[1-9]$/.test(e.key.key) ? Number(e.key.key) : 0
+    if (digit === 0) {
       await update($, suggestion, () => null)
       return next(e)
     }
-    await choose($, chosen)
-    return { text: '', cursor: 0 }
+    const options = await read($, suggestion)
+    const chosen = options !== null && options.length > 1 && !isBandHidden ? options[digit - 1] : undefined
+    if (chosen !== undefined) await choose($, chosen)
+    return { text: e.text, cursor: e.cursor }
   })
 
   on('prompt.change', async ($, e, next) => {
@@ -75,7 +78,8 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const shown = await read($, suggestion)
-    if (shown === null || e.props.hasSurvey || e.props.isWorking) return next(e)
+    isBandHidden = e.props.hasSurvey || e.props.isWorking
+    if (shown === null || isBandHidden) return next(e)
 
     const { Box, Button, Text } = $.ui.resolve(e)
 
