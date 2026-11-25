@@ -162,6 +162,9 @@ in
     cfg="$HOME/.claude/settings.json"
     # a machine Claude Code has not run on yet has no file, and would get none of this
     [ -f "$cfg" ] || { run mkdir -p "$HOME/.claude"; run sh -c 'echo "{}" > "$1"' _ "$cfg"; }
+    for mod in ${./mods/changes-pane} ${./mods/review-pane} ${./mods/transcript-rows} ${./mods/inline-image} ${./mods/next-step}; do
+      PATH=/usr/bin:/nix/var/nix/profiles/default/bin:$PATH sh ${./plugin-snapshot.sh} root "mod-$(basename "$mod" | cut -d- -f2-)" "$mod" || true
+    done
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
       if ${pkgs.jq}/bin/jq '.env.ZDOTDIR = (env.HOME + "/.claude/zsh")

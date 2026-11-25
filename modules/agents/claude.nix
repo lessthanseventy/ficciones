@@ -43,7 +43,9 @@ in
   home.file.".claude/skills/goal/SKILL.md".source = ./skills/goal/SKILL.md;
   home.file.".claude/skills/brief/SKILL.md".source = ./skills/brief/SKILL.md;
 
-  # arena and babylon are sibling checkouts, loaded from where they are so a pull there is the update.
+  # arena and babylon are sibling checkouts; each switch (babylon's install runs one after a landing)
+  # loads a store snapshot of their plugin files, not the checkout, so a hook a landing removes
+  # cannot break a session that read hooks.json before it (./plugin-snapshot.sh keeps the last few).
   # The routine board tools are allowed outright (auto mode's check otherwise stops a session on
   # them), and so is writing inside a ticket's own worktree (wt's, or babylon's under
   # ~/.cache/babylon/work). menard's edit and write are MCP tools, which the Write/Edit path rules
@@ -64,12 +66,17 @@ in
     babylon="$HOME/projects/babylon"
     has_babylon=false
     [ -f "$babylon/hooks/hooks.json" ] && has_babylon=true
+    snap() { PATH=/usr/bin:/nix/var/nix/profiles/default/bin:$PATH sh ${./plugin-snapshot.sh} snapshot "$1" "$2" || printf '%s\n' "$1"; }
+    arena_dir="$arena"
+    babylon_dir="$babylon"
+    $has_arena && arena_dir=$(snap "$arena" arena-plugin)
+    $has_babylon && babylon_dir=$(snap "$babylon" babylon-plugin)
     [ -f "$cfg" ] || { run mkdir -p "$HOME/.claude"; run sh -c 'echo "{}" > "$1"' _ "$cfg"; }
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena" --arg babylon "$babylon" --argjson has_babylon "$has_babylon" --argjson allow "$allow" --argjson env "$env" --argjson prev "$prev" --argjson dead "$dead" --argjson has_arena "$has_arena" '.env += $env
+      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena_dir" --arg babylon "$babylon_dir" --arg arena_live "$arena" --arg babylon_live "$babylon" --argjson has_babylon "$has_babylon" --argjson allow "$allow" --argjson env "$env" --argjson prev "$prev" --argjson dead "$dead" --argjson has_arena "$has_arena" '.env += $env
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
-             | map(select(. != "" and . != $arena and . != $babylon)) + (if $has_arena then [$arena] else [] end)
+             | map(select(. != "" and . != $arena_live and . != $babylon_live and (endswith("-arena-plugin") or endswith("-babylon-plugin") | not))) + (if $has_arena then [$arena] else [] end)
                + (if $has_babylon then [$babylon] else [] end) | join(":"))
          | ${allowMerge}
          | .hooks = (((.hooks // {})
