@@ -1,7 +1,8 @@
 # The Claude Code wiring every machine gets, the work Mac too: `session` with /goal and /brief over
 # the session records arena's plugin writes in $XDG_RUNTIME_DIR/sessions; the menard-scope hook;
-# arena's plugin, whose hooks mark its windows; and the shells' env, nothing in which waits on a
-# human. The plugin loads only where ~/projects/arena exists, and only it writes the records: a
+# arena's plugin, whose hooks mark its windows, and babylon's, its tickets' MCP server and hooks;
+# and the shells' env, nothing in which waits on a human. Each plugin loads only where its checkout
+# exists, and only arena's writes the records: a
 # machine without that checkout has `session` but no records. The shell snapshot keeps only PATH,
 # so the env cannot live in an rc. No EDITOR: Claude Code's ctrl+g uses it.
 # All of it is merged into settings.json, which Claude Code rewrites: the hooks replace any earlier
@@ -42,7 +43,7 @@ in
   home.file.".claude/skills/goal/SKILL.md".source = ./skills/goal/SKILL.md;
   home.file.".claude/skills/brief/SKILL.md".source = ./skills/brief/SKILL.md;
 
-  # arena is a sibling checkout, loaded from where it is so a pull there is the update.
+  # arena and babylon are sibling checkouts, loaded from where they are so a pull there is the update.
   # The routine board tools are allowed outright (auto mode's check otherwise stops a session on
   # them), and so is writing inside a ticket's own worktree (wt's, or babylon's under
   # ~/.cache/babylon/work). menard's edit and write are MCP tools, which the Write/Edit path rules
@@ -60,12 +61,16 @@ in
     arena="$HOME/projects/arena"
     has_arena=false
     [ -f "$arena/hooks/hooks.json" ] && has_arena=true
+    babylon="$HOME/projects/babylon"
+    has_babylon=false
+    [ -f "$babylon/hooks/hooks.json" ] && has_babylon=true
     [ -f "$cfg" ] || { run mkdir -p "$HOME/.claude"; run sh -c 'echo "{}" > "$1"' _ "$cfg"; }
     if [ -f "$cfg" ]; then
       tmp=$(mktemp)
-      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena" --argjson allow "$allow" --argjson env "$env" --argjson prev "$prev" --argjson dead "$dead" --argjson has_arena "$has_arena" '.env += $env
+      if ${pkgs.jq}/bin/jq --slurpfile sessions ${sessionHooks} --arg arena "$arena" --arg babylon "$babylon" --argjson has_babylon "$has_babylon" --argjson allow "$allow" --argjson env "$env" --argjson prev "$prev" --argjson dead "$dead" --argjson has_arena "$has_arena" '.env += $env
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
-             | map(select(. != "" and . != $arena)) + (if $has_arena then [$arena] else [] end) | join(":"))
+             | map(select(. != "" and . != $arena and . != $babylon)) + (if $has_arena then [$arena] else [] end)
+               + (if $has_babylon then [$babylon] else [] end) | join(":"))
          | ${allowMerge}
          | .hooks = (((.hooks // {})
              | map_values(map(select(tostring | test("@arena_claude|-session-state |-menard-scope ") | not)))
