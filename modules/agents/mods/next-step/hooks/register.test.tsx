@@ -121,6 +121,7 @@ const BOARD = {
   tickets: [card(908, 'todo', 'arena'), card(910, 'todo', 'arena'), card(911, 'todo', 'tlon', '%9'), card(912, 'todo', 'tlon'), card(1, 'doing', 'arena', '%1'), card(2, 'doing', 'arena', '%2')],
   plan: { next: [{ ticket: 908 }] },
   needs_you: [] as unknown[],
+  proposals: [{ id: 7 }],
 }
 
 // An orchestrator pane over the given board. `offer` ends a turn with the given reply, then asks for a suggestion and returns the button's text; `ran` is what a click ran.
@@ -189,6 +190,33 @@ test('on the orchestrator, a line naming a proposal opens the inbox', async ($, 
   const { offer, ran } = await orchestrator($, on, BOARD)
   expect(await offer('next: go on proposal 7')).toBe('go on proposal 7')
   expect(ran).toEqual([['arena', 'inbox']])
+})
+
+test('on the orchestrator, a line that only mentions a proposal or ticket is a reply and is sent', async ($, on) => {
+  const { offer, ran, sent } = await orchestrator($, on, BOARD)
+  for (const reply of ['yes, cut it per proposal 4', 'try again once #5 lands', 'look at #912', "try #912's send-back"]) {
+    expect(await offer(`next: ${reply}`)).toBe(reply)
+  }
+  expect(ran).toEqual([])
+  expect(sent).toHaveLength(4)
+})
+
+test('on the orchestrator, a proposal the board no longer lists is hidden', async ($, on) => {
+  const { offer } = await orchestrator($, on, BOARD)
+  expect(await offer('next: go on proposal 9')).toBeUndefined()
+})
+
+test("on the orchestrator, a send-back line goes to its card", async ($, on) => {
+  const { offer, ran } = await orchestrator($, on, BOARD)
+  expect(await offer("next: look at #912's send-back")).toBe("look at #912's send-back")
+  expect(ran).toEqual([['arena', 'board', '912']])
+})
+
+test('on the orchestrator, an answer line shows only while its ticket has an open ask', async ($, on) => {
+  const tickets = BOARD.tickets.map(c => (c.id === 912 ? { ...c, ask: { id: 3 } } : c))
+  const { offer } = await orchestrator($, on, { ...BOARD, tickets })
+  expect(await offer('next: answer #912')).toBe('answer #912')
+  expect(await offer('next: answer #910')).toBeUndefined()
 })
 
 test('on the orchestrator, any other line is sent as the human, whatever waits on them', async ($, on) => {
