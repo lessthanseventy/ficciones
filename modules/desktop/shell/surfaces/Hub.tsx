@@ -5,13 +5,12 @@ import app from "ags/gtk4/app"
 import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Gdk from "gi://Gdk?version=4.0"
-import Notifd from "gi://AstalNotifd"
 import Hyprland from "gi://AstalHyprland"
 import { createState } from "ags"
 import { interval } from "ags/time"
 import { query } from "../lib/hyprsock"
 import { Panel } from "../lib/tui"
-import { NoticeCard, groups } from "./Notifications"
+import { NoticeCard, groups, clearAll } from "./Notifications"
 import { VList } from "../lib/vlist"
 import { Toggles } from "../panes/Toggles"
 import { isFullscreen } from "../lib/hypr"
@@ -20,7 +19,6 @@ import { armClickaway, closeAny, disarmClickaway, clickawayField } from "./Click
 import { setting } from "../lib/settings"
 import { closeKeys } from "../lib/keys"
 
-const notifd = Notifd.get_default()
 
 // The history is a virtualised list (lib/vlist): only the cards on screen exist as widgets,
 // however long the backlog — ags's For built one per notice and detached/reattached them all
@@ -34,7 +32,7 @@ function History() {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
       <box spacing={8} cssClasses={["hub-head"]}>
         <label cssClasses={["k"]} label={head} hexpand xalign={0} />
-        <button cssClasses={["act"]} onClicked={() => notifd.get_notifications().forEach((n) => n.dismiss())}><label label="clear all" /></button>
+        <button cssClasses={["act"]} onClicked={clearAll}><label label="clear all" /></button>
       </box>
       <scrolledwindow cssClasses={["history"]} hscrollbarPolicy={Gtk.PolicyType.NEVER} vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC} overlayScrolling={false} propagateNaturalHeight>
         <VList

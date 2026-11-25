@@ -11,7 +11,8 @@ import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import Notifd from "gi://AstalNotifd"
 import Hyprland from "gi://AstalHyprland"
-import { For, createState, createComputed, createBinding, onCleanup, type Accessor } from "ags"
+import GLib from "gi://GLib?version=2.0"
+import { For, createState, createComputed, onCleanup, type Accessor } from "ags"
 import { hubOpen } from "./Hub"
 import { timeout, type Timer } from "ags/time"
 import { Panel } from "../lib/tui"
@@ -49,9 +50,25 @@ const notifd = Notifd.get_default()
 notifd.dontDisturb = setting("notify.dnd").peek()
 notifd.connect("notify::dont-disturb", () => setSetting("notify.dnd", notifd.dontDisturb))
 setting("notify.dnd").subscribe(() => { if (notifd.dontDisturb !== setting("notify.dnd").peek()) notifd.dontDisturb = setting("notify.dnd").peek() })
+const newestFirst = () => [...notifd.notifications].sort((a, b) => b.time - a.time)
+const [snapshot, setSnapshot] = createState(newestFirst())
+let snapPending = false
+// every dismiss fires notify::notifications; a thousand in one loop turn re-sorted, regrouped and
+// re-diffed the list a thousand times (~15 s). One idle refresh answers the whole burst.
+notifd.connect("notify::notifications", () => {
+  if (snapPending) return
+  snapPending = true
+  GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => { snapPending = false; setSnapshot(newestFirst()); return GLib.SOURCE_REMOVE })
+})
 /** Every undismissed notice, newest first. */
-export const notices: Accessor<Notifd.Notification[]> =
-  createBinding(notifd, "notifications")((ns) => [...ns].sort((a, b) => b.time - a.time))
+export const notices: Accessor<Notifd.Notification[]> = snapshot
+
+/** The history keeps this many; the oldest are dismissed past it. */
+export const HISTORY_MAX = 100
+/** Dismiss every notice. */
+export function clearAll() {
+  for (const n of notifd.notifications) n.dismiss()
+}
 /** The same, folded — what every surface renders. */
 export const groups: Accessor<Group[]> = notices(groupNotices)
 
@@ -126,6 +143,7 @@ export default function Notifications() {
   notifd.connect("notified", (_, id) => {
     const n = notifd.get_notification(id)
     if (!n) return
+    for (const o of newestFirst().slice(HISTORY_MAX)) o.dismiss()
     const u = urgencyOf(n)
     logEvent("notice", `${n.appName || "notice"}: ${n.summary}`, u === "critical" ? "crit" : u === "low" ? "dim" : "normal")
     // toasts go to an external monitor whenever one is plugged in, wherever the pointer is; the
