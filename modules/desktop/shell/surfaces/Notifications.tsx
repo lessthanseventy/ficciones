@@ -50,7 +50,7 @@ const notifd = Notifd.get_default()
 notifd.dontDisturb = setting("notify.dnd").peek()
 notifd.connect("notify::dont-disturb", () => setSetting("notify.dnd", notifd.dontDisturb))
 setting("notify.dnd").subscribe(() => { if (notifd.dontDisturb !== setting("notify.dnd").peek()) notifd.dontDisturb = setting("notify.dnd").peek() })
-const newestFirst = () => [...notifd.notifications].sort((a, b) => b.time - a.time)
+const newestFirst = () => [...notifd.notifications].sort((a, b) => b.time - a.time || b.id - a.id)
 const [snapshot, setSnapshot] = createState(newestFirst())
 let snapPending = false
 // every dismiss fires notify::notifications; a thousand in one loop turn re-sorted, regrouped and
