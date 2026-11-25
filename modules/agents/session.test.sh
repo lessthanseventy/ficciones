@@ -20,6 +20,10 @@ rec bbbb2222 menard "done" %2
 rec cccc3333 menard idle %3
 rec dddd4444 tlon waiting %4 /tmp/tlon-workspace-x
 rec eeee5555 gone "done" %9
+rec gggg7777 headless "done" ""
+jq --arg c "$work/vanished" '.cwd = $c' "$work/run/sessions/gggg7777.json" >"$work/g" && mv "$work/g" "$work/run/sessions/gggg7777.json"
+rec hhhh8888 headlive "done" ""
+jq --arg c "$work" '.cwd = $c' "$work/run/sessions/hhhh8888.json" >"$work/g" && mv "$work/g" "$work/run/sessions/hhhh8888.json"
 bad=0
 claim() {
 	local what=$1
@@ -52,6 +56,8 @@ claim "only goal and next are set" test $? = 1
 
 out=$(bash "$cmd" brief)
 want="your move
+  headlive hhhh8888  done 5m
+    said  the ask
   menard bbbb2222  done 5m
     next  review it
     said  the ask
@@ -67,4 +73,5 @@ parked
 claim "the brief groups them, your move first" test "$out" = "$want"
 [ "$out" = "$want" ] || diff <(echo "$want") <(echo "$out")
 claim "and leaves out the crew and the crashed" test -z "$(grep -E 'tlon|gone' <<<"$out")"
+claim "and a paneless record whose cwd is gone, keeping one whose cwd exists" test -z "$(grep headless <<<"$out")"
 exit $bad

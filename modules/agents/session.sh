@@ -8,15 +8,21 @@ die() {
 	exit 1
 }
 
-# every record of yours whose pane is still there: a crash leaves its record behind
+# every record of yours whose pane is still there: a crash leaves its record behind.
+# A paneless record (a headless run) is kept only while its cwd exists.
 records() {
-	local live='' sock
+	local live='' sock cwd gone=''
+	while IFS= read -r cwd; do
+		[ -d "$cwd" ] || gone+="$cwd"$'\n'
+	done < <(cat "$dir"/*.json 2>/dev/null | jq -r 'select(.pane == "") | .cwd // empty' | sort -u)
 	for sock in $(cat "$dir"/*.json 2>/dev/null | jq -r '.socket // empty' | sort -u); do
 		live+=$(tmux -S "$sock" list-panes -a -F "$sock #{pane_id}" 2>/dev/null)$'\n'
 	done
-	cat "$dir"/*.json 2>/dev/null | jq -s --arg live "$live" '($live | split("\n")) as $l
+	cat "$dir"/*.json 2>/dev/null | jq -s --arg live "$live" --arg gone "$gone" '($live | split("\n")) as $l
+		| ($gone | split("\n")) as $g
 		| map(select((.socket // "" | test("/tlon-workspace-[^/]*$")) | not)
-			| select(.pane == "" or ("\(.socket) \(.pane)" as $k | $l | index($k))))'
+			| select((.pane == "" and ((.cwd // "") as $c | $g | index($c) | not))
+				or ("\(.socket) \(.pane)" as $k | $l | index($k))))'
 }
 
 set_field() {
