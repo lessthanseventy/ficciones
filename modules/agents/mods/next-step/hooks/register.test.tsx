@@ -157,6 +157,11 @@ test('on the orchestrator, a start for a free todo ticket outside next is offere
   expect(await offer('start #912')).toBe('start #912')
 })
 
+test('on the orchestrator with auto off, a start for a ticket in next is offered', async ($, on) => {
+  const { offer } = await orchestrator($, on, { ...BOARD, auto: { ...BOARD.auto, on: false }, plan: { next: [{ ticket: 912 }] } })
+  expect(await offer('start #912')).toBe('start #912')
+})
+
 test('on the orchestrator, a to-try check replaces the suggestion and a click focuses it in arena', async ($, on) => {
   const { offer, ran } = await orchestrator($, on, { ...BOARD, needs_you: [{ kind: 'try', ticket: 922, text: 'try the pane' }] })
   expect(await offer('start #912')).toBe('try #922')

@@ -34,7 +34,7 @@ export const startable = (text: string, b: Board): boolean => {
   if (id === undefined) return true
   const t = b.tickets.find(c => c.id === Number(id))
   if (t === undefined || t.status !== 'todo' || t.claimed_by !== null) return false
-  if (b.plan.next.some(n => n.ticket === t.id)) return false
+  if (b.auto.on && b.plan.next.some(n => n.ticket === t.id)) return false
   const busy = b.tickets.filter(c => c.repo === t.repo && c.status === 'doing').length
   return busy < (b.auto.repo_caps?.[t.repo] ?? b.auto.cap)
 }
