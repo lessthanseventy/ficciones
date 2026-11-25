@@ -123,10 +123,11 @@ const BOARD = {
   needs_you: [] as unknown[],
 }
 
-// An orchestrator pane over the given board. `offer` runs one suggestion through it and returns the button's text; `press` clicks it and returns what ran.
+// An orchestrator pane over the given board. `offer` ends a turn with the given reply, then asks for a suggestion and returns the button's text; `ran` is what a click ran.
 const orchestrator = async ($: Engine, on: On, board: object) => {
   const ran: string[][] = []
   on('session.start', (_, e) => e)
+  on('turn.complete', (_, e) => ({ text: e.answer }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('process.run', (_, e) => {
     const joined = e.argv.join(' ')
@@ -136,8 +137,9 @@ const orchestrator = async ($: Engine, on: On, board: object) => {
     return { value: { exitCode: 0, stdout: '', stderr: '' } } as never
   })
   await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: true })
-  const offer = async (text: string) => {
-    await $.prompt.suggest({ text, origin: ENGINE })
+  const offer = async (reply: string, suggestion = 'claude code suggests this') => {
+    await $.turn.complete({ turnId: 't', reason: 'answer', answer: reply } as never)
+    await $.prompt.suggest({ text: suggestion, origin: ENGINE })
     const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
     const button = await ui.find({ key: 'next-step' })
     if (button !== undefined) await ui.press({ key: 'next-step' })
@@ -147,36 +149,42 @@ const orchestrator = async ($: Engine, on: On, board: object) => {
   return { offer, ran }
 }
 
-test('on the orchestrator, a start for a ticket in next, a claimed one, or one over its repo cap is never offered', async ($, on) => {
+test('on the orchestrator, the button is its own next: line, not Claude Code suggestion', async ($, on) => {
   const { offer } = await orchestrator($, on, BOARD)
-  for (const id of [908, 911, 910]) expect(await offer(`start #${id}`)).toBeUndefined()
+  expect(await offer('Landed #5.\nnext: look at what just landed')).toBe('look at what just landed')
 })
 
-test('on the orchestrator, a start for a free todo ticket outside next is offered', async ($, on) => {
+test('on the orchestrator, next: none and a reply with no line show nothing', async ($, on) => {
   const { offer } = await orchestrator($, on, BOARD)
-  expect(await offer('start #912')).toBe('start #912')
+  expect(await offer('All quiet.\nnext: none')).toBeUndefined()
+  expect(await offer('All quiet.')).toBeUndefined()
 })
 
-test('on the orchestrator with auto off, a start for a ticket in next is offered', async ($, on) => {
+test('on the orchestrator, a next: start for a ticket in next, a claimed one, or one over its repo cap is never offered', async ($, on) => {
+  const { offer } = await orchestrator($, on, BOARD)
+  for (const id of [908, 911, 910]) expect(await offer(`next: start #${id}`)).toBeUndefined()
+})
+
+test('on the orchestrator, a next: start for a free todo ticket outside next is offered', async ($, on) => {
+  const { offer } = await orchestrator($, on, BOARD)
+  expect(await offer('next: start #912')).toBe('start #912')
+})
+
+test('on the orchestrator with auto off, a next: start for a ticket in next is offered', async ($, on) => {
   const { offer } = await orchestrator($, on, { ...BOARD, auto: { ...BOARD.auto, on: false }, plan: { next: [{ ticket: 912 }] } })
-  expect(await offer('start #912')).toBe('start #912')
+  expect(await offer('next: start #912')).toBe('start #912')
 })
 
-test('on the orchestrator, a to-try check replaces the suggestion and a click focuses it in arena', async ($, on) => {
+test('on the orchestrator, a to-try check comes before the next: line and a click focuses it in arena', async ($, on) => {
   const { offer, ran } = await orchestrator($, on, { ...BOARD, needs_you: [{ kind: 'try', ticket: 922, text: 'try the pane' }] })
-  expect(await offer('start #912')).toBe('try #922')
+  expect(await offer('next: start #912')).toBe('try #922')
   expect(ran).toEqual([['arena', 'board', '922']])
 })
 
-test('on the orchestrator, a waiting item with no ticket opens the inbox', async ($, on) => {
+test('on the orchestrator, a waiting item with no ticket opens the inbox even with next: none', async ($, on) => {
   const { offer, ran } = await orchestrator($, on, { ...BOARD, needs_you: [{ kind: 'proposal', ticket: null, text: 'start #5?' }] })
-  expect(await offer('')).toBe('answer: start #5?')
+  expect(await offer('next: none')).toBe('answer: start #5?')
   expect(ran).toEqual([['arena', 'inbox']])
-})
-
-test('on the orchestrator, a suggestion that names no ticket is kept', async ($, on) => {
-  const { offer } = await orchestrator($, on, BOARD)
-  expect(await offer('look at what just landed')).toBe('look at what just landed')
 })
 
 test('another pane keeps the suggestion whatever the board says', async ($, on) => {

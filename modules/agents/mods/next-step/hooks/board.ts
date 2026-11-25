@@ -38,3 +38,11 @@ export const startable = (text: string, b: Board): boolean => {
   const busy = b.tickets.filter(c => c.repo === t.repo && c.status === 'doing').length
   return busy < (b.auto.repo_caps?.[t.repo] ?? b.auto.cap)
 }
+
+const NEXT_LINE = /^[ \t]*next:[ \t]*(.*?)[ \t]*$/gim
+
+/** The move named by the last `next: <move>` line of a reply; null when there is none or it says `none`. */
+export const nextLine = (reply: string): string | null => {
+  const move = [...reply.matchAll(NEXT_LINE)].at(-1)?.[1] ?? ''
+  return move === '' || /^none\.?$/i.test(move) ? null : move
+}
