@@ -238,6 +238,7 @@ test('Alt+digit does nothing while the buttons are hidden or when there is one o
   await $.ui.mount({ ...BAND, props: { ...BAND.props, isWorking: true }, surface: 'terminal' })
   await box($).edit(digit('2', true))
   expect(c.sent).toEqual([])
+  await $.ui.mount({ ...BAND, surface: 'terminal' })
   await c.offer('next: a')
   await box($).edit(digit('1', true))
   expect(c.sent).toEqual([])
