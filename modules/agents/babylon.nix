@@ -1,7 +1,8 @@
 # babylon (~/projects/babylon, which arena's plugin hands every session): the sessions' tickets over
 # MCP on loopback :4050. babylon writes and starts its own user service (systemd unit on Linux,
 # launchd agent on the Mac) with `babylon install`; activation runs it, so the unit is babylon's one
-# definition and a switch only rewrites it when it changed.
+# definition. It rewrites the unit on every switch and enables --now, which leaves a running
+# service running.
 {
   config,
   lib,
