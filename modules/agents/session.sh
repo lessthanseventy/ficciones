@@ -19,7 +19,7 @@ records() {
 		live+=$(tmux -S "$sock" list-panes -a -F "$sock #{pane_id}" 2>/dev/null)$'\n'
 	done
 	cat "$dir"/*.json 2>/dev/null | jq -s --arg live "$live" --arg gone "$gone" '($live | split("\n")) as $l
-		| ($gone | split("\n")) as $g
+		| ($gone | split("\n") | map(select(. != ""))) as $g
 		| map(select((.socket // "" | test("/tlon-workspace-[^/]*$")) | not)
 			| select((.pane == "" and ((.cwd // "") as $c | $g | index($c) | not))
 				or ("\(.socket) \(.pane)" as $k | $l | index($k))))'
