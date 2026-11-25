@@ -84,10 +84,31 @@ test('a turn the box did not send, a message from another session, keeps the but
   await ui.unmount()
 })
 
-test('a suggestion the box did not show draws nothing', async ($, on) => {
-  on('prompt.suggest', () => ({ isShown: false }))
+test('the box keeps no ghost text of its own while the button carries the line', async ($, on) => {
+  on('prompt.suggest', () => ({ isShown: true }))
 
-  await $.prompt.suggest({ text: 'go', origin: ENGINE })
+  expect(await $.prompt.suggest({ text: 'go', origin: ENGINE })).toEqual({ isShown: false })
+})
+
+test('a long suggestion is cut with an ellipsis to fit the band, and a press still sends all of it', async ($, on) => {
+  const sent: string[] = []
+  on('prompt.submit', (_, e) => {
+    sent.push(e.text)
+    return { text: e.text }
+  })
+  const text = 'end t642 and t455 if nothing uncommitted, then drive the rest of the stack'
+
+  await $.prompt.suggest({ text, origin: ENGINE })
+  const ui = await $.ui.mount({ ...BAND, props: { ...BAND.props, bodyColumns: 30 }, surface: 'terminal' })
+  const button = await ui.find({ key: 'next-step' })
+  expect(button?.text).toBe('end t642 and t455 if…')
+  await ui.press({ key: 'next-step' })
+  expect(sent).toEqual([text])
+  await ui.unmount()
+})
+
+test('a blank suggestion draws nothing', async ($) => {
+  await $.prompt.suggest({ text: '  ', origin: ENGINE })
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await ui.find({ key: 'next-step' })).toBeUndefined()
   await ui.unmount()
