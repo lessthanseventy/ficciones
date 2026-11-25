@@ -13,6 +13,8 @@ let
   home = config.home.homeDirectory;
   arenaRepo = "${home}/projects/arena";
   babylonBin = "${home}/projects/babylon/bin/babylon";
+  # Repos whose landings wait on their local main for `babylon push`; every other repo pushes on landing.
+  offerRepos = "arena:ficciones:menard:tlon";
 in
 {
   home.packages = [
@@ -38,7 +40,8 @@ in
   # profile's bin leads; coreutils is there for the Mac's `timeout`, which it only needs there.
   home.activation.babylonService = lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
     if [ -x ${babylonBin} ]; then
-      if out=$(PATH=${config.home.profileDirectory}/bin:${lib.makeBinPath [ pkgs.coreutils ]}:$PATH \
+      if out=$(BABYLON_OFFER=${offerRepos} \
+        PATH=${config.home.profileDirectory}/bin:${lib.makeBinPath [ pkgs.coreutils ]}:$PATH \
         run ${babylonBin} install 2>&1); then
         printf '%s\n' "$out"
       else
