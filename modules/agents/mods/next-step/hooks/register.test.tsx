@@ -154,6 +154,25 @@ const orchestrator = async ($: Engine, on: On, board: object) => {
   return { offer, ran, sent }
 }
 
+// Like `offer`, but keeps the band mounted and returns every button's text, in order.
+const choice = async ($: Engine, on: On) => {
+  const { sent } = await orchestrator($, on, BOARD)
+  let ui: Awaited<ReturnType<Engine['ui']['mount']>> | undefined
+  const offer = async (reply: string) => {
+    await ui?.unmount()
+    await $.turn.complete({ turnId: 't', reason: 'answer', answer: reply } as never)
+    await $.prompt.suggest({ text: 'claude code suggests this', origin: ENGINE })
+    ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+    const labels: string[] = []
+    for (const key of ['next-step', ...[0, 1, 2, 3, 4].map(i => `next-step-${i}`)]) {
+      const button = await ui.find({ key })
+      if (button !== undefined) labels.push(button.text)
+    }
+    return labels
+  }
+  return { offer, sent, get ui() { return ui as NonNullable<typeof ui> } }
+}
+
 test('on the orchestrator, the button is its own next: line, not Claude Code suggestion', async ($, on) => {
   const { offer } = await orchestrator($, on, BOARD)
   expect(await offer('Landed #5.\nnext: look at what just landed')).toBe('look at what just landed')
@@ -190,6 +209,32 @@ test('on the orchestrator, a line naming a proposal opens the inbox', async ($, 
   const { offer, ran } = await orchestrator($, on, BOARD)
   expect(await offer('next: go on proposal 7')).toBe('go on proposal 7')
   expect(ran).toEqual([['arena', 'inbox']])
+})
+
+test('on the orchestrator, a choice is one button per option and pressing one sends it', async ($, on) => {
+  const c = await choice($, on)
+  const { offer, sent } = c
+  expect(await offer('next: a | b | c')).toEqual(['a', 'b', 'c'])
+  await c.ui.press({ key: 'next-step-1' })
+  expect(sent).toEqual(['b'])
+})
+
+test('on the orchestrator, typing a digit in an empty prompt presses that option', async ($, on) => {
+  const { offer, sent } = await choice($, on)
+  await offer('next: a | b | c')
+  await box($).edit({ origin: { kind: 'composer' }, text: '', cursor: 0, start: 0, end: 0, inputText: '3' })
+  expect(sent).toEqual(['c'])
+})
+
+test('on the orchestrator, a board item or a plain line stays one button', async ($, on) => {
+  const { offer } = await choice($, on)
+  expect(await offer('next: try #912')).toEqual(['try #912'])
+  expect(await offer('next: yes, cut the strip')).toEqual(['yes, cut the strip'])
+})
+
+test('on the orchestrator, an option the board refuses is dropped from a choice', async ($, on) => {
+  const { offer } = await choice($, on)
+  expect(await offer('next: try #999 | b')).toEqual(['b'])
 })
 
 test('on the orchestrator, a line that only mentions a proposal or ticket is a reply and is sent', async ($, on) => {
