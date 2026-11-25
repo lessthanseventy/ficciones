@@ -29,10 +29,10 @@ in
       exec ${babylonBin} "$@"
     '')
   ]
-  # the Linux desktop links arena into ~/.local/bin, which the Mac's PATH lacks
-  ++ lib.optional pkgs.stdenv.hostPlatform.isDarwin (
-    pkgs.writeShellScriptBin "arena" ''exec ${arenaRepo}/zig-out/bin/arena "$@"''
-  );
+  # arena, in the profile's bin: a Claude session's PATH has that and not ~/.local/bin
+  ++ [
+    (pkgs.writeShellScriptBin "arena" ''exec ${arenaRepo}/zig-out/bin/arena "$@"'')
+  ];
 
   # After reloadSystemd, which stops a unit the new generation no longer links: install then starts
   # babylon again, and never leaves it stopped by that step.
