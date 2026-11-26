@@ -1,1 +1,0 @@
-{ "name": "next-step", "version": "0.1.0", "author": { "name": "Andrew Moore" }, "description": "The prompt's ghost suggestion as a button above the input: a click sends it", "types": "./types/index.d.ts" }

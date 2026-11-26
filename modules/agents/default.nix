@@ -162,7 +162,7 @@ in
     cfg="$HOME/.claude/settings.json"
     # a machine Claude Code has not run on yet has no file, and would get none of this
     [ -f "$cfg" ] || { run mkdir -p "$HOME/.claude"; run sh -c 'echo "{}" > "$1"' _ "$cfg"; }
-    for mod in ${./mods/changes-pane} ${./mods/review-pane} ${./mods/transcript-rows} ${./mods/inline-image} ${./mods/next-step}; do
+    for mod in ${./mods/changes-pane} ${./mods/review-pane} ${./mods/transcript-rows} ${./mods/inline-image}; do
       PATH=/usr/bin:/nix/var/nix/profiles/default/bin:$PATH sh ${./plugin-snapshot.sh} root "mod-$(basename "$mod")" "$mod" || true
     done
     if [ -f "$cfg" ]; then
@@ -170,7 +170,7 @@ in
       if ${pkgs.jq}/bin/jq '.env.ZDOTDIR = (env.HOME + "/.claude/zsh")
          | .env.CLAUDE_CODE_PLUGIN_DIRS = ((.env.CLAUDE_CODE_PLUGIN_DIRS // "") | split(":")
              | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") or endswith("-inline-image") or endswith("-next-step") | not)))
-               + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}", "${./mods/inline-image}", "${./mods/next-step}"] | join(":"))
+               + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}", "${./mods/inline-image}"] | join(":"))
          | .env.CLAUDE_CODE_FORCE_TERMINAL_IMAGES = "1"
          | .env.TLON_HOUSE_GATE = "required"
          | .autoCompactWindow = 433000

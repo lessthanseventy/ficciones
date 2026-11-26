@@ -156,7 +156,7 @@ lists them and `docs/manual/tasks.md` is generated from that list.
 
 `modules/agents/how-to-work.md` is installed as `~/.claude/CLAUDE.md`: the four rules and the code
 standards every agent on this machine works by. Beside it live the skills (`agent-browser`,
-`agent-desktop`, `brief`, `goal`), the mods (`changes-pane`, `review-pane`, `transcript-rows`, `inline-image`, `next-step`) and
+`agent-desktop`, `brief`, `goal`), the mods (`changes-pane`, `review-pane`, `transcript-rows`, `inline-image`) and
 the agents' zsh. Each repo adds its own law in `AGENTS.md`; this one's is at the root.
 
 ## Where to start reading
