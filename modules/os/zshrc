@@ -91,6 +91,9 @@ plugins=(
   fzf-tab
 )
 
+# babylon's completion, straight from its checkout; omz's compinit below picks it up
+fpath=($HOME/projects/babylon/completions $fpath)
+
 # Suppress non-fatal "bad floating point constant" error from oh-my-zsh async prompt
 # (known zsh 5.9.1 issue — cosmetic only, does not affect functionality)
 source $ZSH/oh-my-zsh.sh 2> >(grep -v 'bad floating point constant' >&2)
