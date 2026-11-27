@@ -56,6 +56,9 @@ for variant in "$tmp/cpl" "$tmp/cpl-no5h"; do
 	fable=$(line_of '✦  fable' "$out")
 	[ -n "$wk" ] && [ -n "$fable" ] || fail "wk or fable line missing ($variant)"
 	[ "${#wk}" = "${#fable}" ] || fail "fable line does not end under wk ($variant)"
+	for row in "$wk" "$fable"; do
+		case "$row" in *[!\ ]' │') ;; *) fail "row does not end at the box's right edge: $row ($variant)" ;; esac
+	done
 	case "$fable" in *' '✦*) ;; *) fail "fable is not set off to the right ($variant)" ;; esac
 	first=$(sed -n 1p <<<"$out")
 	last=$(tail -1 <<<"$out")
