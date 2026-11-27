@@ -46,6 +46,23 @@ for seg in /projects/ficciones '⎇ Opus 5.5' '◆ medium' '󰧑  ctx 12%' '⏱ 
 done
 [ "$(printf '%s\n' "$narrow" | wc -l)" -gt 4 ] || fail "45 columns did not wrap"
 
+# wrapped usage line: ctx/5h in the left column, wk/fable right-aligned in the right one
+line_of() { grep -F -- "$1" <<<"$2" | head -1; }
+sed -e "s/ ◱ 30% //" "$tmp/cpl" >"$tmp/cpl-no5h"
+chmod +x "$tmp/cpl-no5h"
+for variant in "$tmp/cpl" "$tmp/cpl-no5h"; do
+	out=$(render TMUX_PANE=%1 STUB_WIDTH=45 CLAUDE_POWERLINE="$variant")
+	wk=$(line_of '▦  wk' "$out")
+	fable=$(line_of '✦  fable' "$out")
+	[ -n "$wk" ] && [ -n "$fable" ] || fail "wk or fable line missing ($variant)"
+	[ "${#wk}" = "${#fable}" ] || fail "fable line does not end under wk ($variant)"
+	case "$fable" in *' '✦*) ;; *) fail "fable is not set off to the right ($variant)" ;; esac
+	first=$(sed -n 1p <<<"$out")
+	last=$(tail -1 <<<"$out")
+	case "$first" in ╭*╮) ;; *) fail "box not closed at top ($variant)" ;; esac
+	case "$last" in ╰*╯) ;; *) fail "box not closed at bottom ($variant)" ;; esac
+done
+
 tiny=$(render TMUX_PANE=%1 STUB_WIDTH=14)
 while IFS= read -r l; do
 	[ "${#l}" -le 14 ] || fail "wider than 14: $l"

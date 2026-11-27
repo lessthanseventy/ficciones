@@ -161,9 +161,21 @@ printf '%s\n' "${L[@]}" | awk -v b="$BORDER" -v r="$RESET" -v inner=$((width > 4
     return o "…\033[0m"
   }
   function emit(s,   w) { out[++m] = s; w = vislen(s); if (w > max) max = w }
+  function emit2(l, rt_,   w) { out[++m] = l; rt[m] = rt_; w = vislen(l) + vislen(rt_) + (l != "" && rt_ != "" ? 2 : 0); if (w > max) max = w }
   {
     if (inner == 0 || vislen($0) <= inner) { line = $0; gsub(/\001/, "", line); emit(line); next }
-    k = split($0, seg, "\001"); cur = ""; curw = 0; curt = 0; carry = ""
+    k = split($0, seg, "\001")
+    if (NR == 2) {
+      nl = 0; nr = 0; ok = 1
+      for (i = 1; i <= k; i++) {
+        t = seg[i]; gsub(/ /, "", t); if (vislen(t) == 0) continue
+        if (seg[i] ~ /▦|✦/) rc[++nr] = rtrim(seg[i]); else lc[++nl] = rtrim(seg[i])
+      }
+      rows = nl > nr ? nl : nr
+      for (j = 1; j <= rows; j++) if (vislen(lc[j]) + vislen(rc[j]) + (lc[j] != "" && rc[j] != "" ? 2 : 0) > inner) ok = 0
+      if (ok) { for (j = 1; j <= rows; j++) emit2(lc[j], rc[j]); next }
+    }
+    cur = ""; curw = 0; curt = 0; carry = ""
     for (i = 1; i <= k; i++) {
       p = carry seg[i]; carry = ""
       t = p; gsub(/ /, "", t); if (vislen(t) == 0) { carry = p; continue }
@@ -179,9 +191,9 @@ printf '%s\n' "${L[@]}" | awk -v b="$BORDER" -v r="$RESET" -v inner=$((width > 4
     bar = ""; for (i = 0; i < max + 2; i++) bar = bar "─"
     print b "╭" bar "╮" r
     for (n = 1; n <= m; n++) {
-      pad = max - vislen(out[n])
+      pad = max - vislen(out[n]) - vislen(rt[n])
       sp = ""; for (i = 0; i < pad; i++) sp = sp " "
-      print b "│" r " " out[n] sp " " b "│" r
+      print b "│" r " " out[n] sp rt[n] " " b "│" r
     }
     print b "╰" bar "╯" r
   }'
