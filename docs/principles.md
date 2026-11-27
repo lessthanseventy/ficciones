@@ -63,3 +63,26 @@ A review of a design or a UI change checks it against them.
     The full text (title, why, checks, body) is one step away: the pick, a hover, `space` for the
     modal, or the peek. Never the long form on every row at once: Next is one line per row, with
     the why on the picked row only.
+14. **Nothing is flat.** Every channel carries meaning, together with the words, never instead of
+    them (rule 12).
+    - **Colour:** each kind of thing has its colour, in every screen. A repo has its own colour, on
+      the `▌` edge and its name. A ticket `#N` is in the accent. State is in its role colour (ok
+      green, warn amber, fail red, waiting calm). Headings are in the accent. Hashes, ids and paths
+      are dim.
+    - **Dim what is quiet:** zero counts, clean, even, done and old are dim. What is non-zero,
+      dirty, ahead or needs you is bright, so the eye lands on what isn't quiet.
+    - **Indentation shows belonging:** a thing's details sit indented under it, and a group's
+      members under its heading.
+    - **Spacing shows grouping:** one blank row between sections, each section headed and boxed or
+      ruled like the board's windows. There is padding inside a box, and no text touches a border.
+    - **A section is as tall as what it holds:** an empty one is one dim line ("clean"), not a tall
+      blank box.
+
+    A screen made of same-coloured lines at one indent breaks this rule.
+15. **Anything a key does, a click does too.** The mirror of rule 7: a key with no click is a bug.
+    - Every row and list item picks on a click, and opens (`⏎`/`space`) on a click of what is
+      already picked.
+    - Every section, tab and pane focuses on a click.
+    - Every key in a foot bar is a clickable button.
+    - Hover shows the peek (rule 4) wherever a peek exists, and a row's hover lights it (rule 6),
+      unmarked but visible as a lighter ground.
