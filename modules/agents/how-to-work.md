@@ -78,6 +78,15 @@ merging main in. Rewriting history that is already pushed or shared is the human
 ## Corrections that hold everywhere
 
 - **A flaky test gets fixed, never re-run to green.** Find the nondeterminism and fix it.
+- **A red test asks which side is wrong.** Before changing code to pass a test, or a test to pass
+  the code, decide which is wrong:
+  - the code broke what the test means: fix the code;
+  - the test holds an old design, a detail nobody relies on, or the wrong thing: rewrite it to what
+    matters now, or delete it;
+  - a change of design moved both: say so.
+
+  A changed or deleted assertion says why in the commit: what it meant, and why that no longer
+  holds. Changing an expected value to whatever the code now returns, with no why, is not a fix.
 - **Second sighting, root cause.** A bug or quirk seen twice gets its cause found and fixed at the
   source, not another workaround. That includes your own tooling.
 - **Check the read before a write.** In a read-modify-write over many items, assert each read
