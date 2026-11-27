@@ -579,6 +579,27 @@ in
         // level;
     };
 
+    # The journal keeps only hours here, so each Bluetooth drop's reason (Timeout = radio lost,
+    # Remote = the device hung up, Local = this host) is kept in its own file.
+    systemd.user.services.bt-drop-log = {
+      Unit.Description = "log why each Bluetooth device disconnects";
+      Service = {
+        ExecStart = pkgs.writeShellScript "bt-drop-log" ''
+          log=${config.xdg.stateHome}/bt-drops.log
+          ${pkgs.glib}/bin/gdbus monitor --system --dest org.bluez | while IFS= read -r line; do
+            case $line in
+              *Device1.Disconnected*)
+                printf '%s %s\n' "$(${pkgs.coreutils}/bin/date -Is)" "$line" >>"$log"
+                printf '%s\n' "$line"
+                ;;
+            esac
+          done
+        '';
+        Restart = "on-failure";
+      };
+      Install.WantedBy = [ "default.target" ];
+    };
+
     # git rewrites hyprland.lua by unlinking it first (a checkout, a rebase's autostash). Hyprland
     # reloads in that instant, finds no file and raises its error bar, and keeps the bar after
     # the file is back. Once the file settles: reload if the errors are still listed, and take
