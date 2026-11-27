@@ -447,6 +447,7 @@ local shell = hyprdir .. "/scripts"
 bind(M .. " + Return", exec("ghostty"))
 
 bind(M .. " + CTRL + Return", exec("ghostty --title=arena --class=com.ghostty.arena -e arena")) -- tmux sessions as a strip
+bind(M .. " + SHIFT + Return", exec(shell .. "/arena-needs-you.sh")) -- arena forward, on what needs you
 bind(M .. " + E", exec("strata"))
 bind(M .. " + W", exec("floorp"))
 bind(M .. " + X", exec("kate"))

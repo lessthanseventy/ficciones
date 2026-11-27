@@ -11,6 +11,11 @@
  },
  {
   "group": "launch",
+  "keys": "SUPER+SHIFT+Return",
+  "does": "arena forward, on what needs you"
+ },
+ {
+  "group": "launch",
   "keys": "SUPER+E",
   "does": "files"
  },
