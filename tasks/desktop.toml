@@ -177,6 +177,18 @@ sudo systemctl enable keyd
 sudo systemctl restart keyd
 '''
 
+# The upstream unit runs the daemon at -vv, a DEBUG line per CLI call; the shell asks every 5 s.
+["mullvad:quiet"]
+description = "machine (sudo): run the Mullvad daemon at its default level (errors), not the upstream unit's -vv DEBUG"
+run = '''
+set -euo pipefail
+printf '%s\n' '[Service]' 'ExecStart=' \
+	'ExecStart=/usr/bin/mullvad-daemon --disable-stdout-timestamps' |
+	sudo install -Dm644 /dev/stdin /etc/systemd/system/mullvad-daemon.service.d/quiet.conf
+sudo systemctl daemon-reload
+sudo systemctl restart mullvad-daemon
+'''
+
 ["timezone:install"]
 description = "machine (sudo): once on Arch — automatic-timezoned (AUR), allowed in geoclue, so the system zone follows the machine"
 run = '''
