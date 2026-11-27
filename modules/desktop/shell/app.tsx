@@ -10,9 +10,6 @@ import style from "./style/main.scss"
 import Rail, { toggleCalendarPop, toggleWeatherPop, popWorkspace } from "./surfaces/Rail"
 import Bar from "./surfaces/Bar"
 import Notifications from "./surfaces/Notifications"
-import { DecisionBanner, Alarms, focusDecision } from "./surfaces/Alerts"
-import DocReader from "./surfaces/DocReader"
-import { startAlerts } from "./lib/alerts"
 import Hub, { startHotEdge, toggleHub } from "./surfaces/Hub"
 import Deck, { DeckRow, toggleDeck } from "./surfaces/Deck"
 import { logEvent } from "./lib/log"
@@ -116,7 +113,6 @@ app.start({
       setBackdrop(!what ? "cycle" : names.includes(what) ? (what === "rule30" ? "rule 30" : what) as any : "cycle")
       return res("ok")
     }
-    if (verb === "decision") return res(focusDecision())
     if (verb === "crt") {
       if (what && (MODES as readonly string[]).includes(what)) setCrt(what as Crt)
       else cycleCrt()
@@ -174,7 +170,7 @@ app.start({
     }
     if (verb === "get") return res(getCli(what))
     if (verb === "set") return res(setCli(what, argv.slice(2).join(" ")))
-    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | decision | toggle drawer|hub|deck|dashboard|settings [backdrop|look|notifications|feel]|launcher|tell [house]|clipboard|cheatsheet|weather | crt [off|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | display send | theme [NAME|toggle] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar] | pop ws N | pop card NAME | quake | super down|up")
+    res("usage: astal-shell get [KEY] | set KEY VALUE | capture … | toggle drawer|hub|deck|dashboard|settings [backdrop|look|notifications|feel]|launcher|tell [house]|clipboard|cheatsheet|weather | crt [off|full] | backdrop [cycle|toggle|zen|photo|random|lorenz|babel|life|boids|rule30|pipes|bonsai|maze|stars|flow|ant|rain] | glass [on|off] | display send | theme [NAME|toggle] | sidecar [toggle|pin|unpin] | colresize narrower|wider | focus l|r | show drawer [calendar] | pop ws N | pop card NAME | quake | super down|up")
   },
   main() {
     // ags's `app` is typed against its own copy of GObject, not gnim's (ags 3.1 under TS 5.9;
@@ -187,9 +183,6 @@ app.start({
     // gnim cannot nest a <For> inside a fragment, so the drawer is created outright and the
     // per-monitor bars come back as the tree.
     Notifications()
-    DecisionBanner()
-    DocReader()
-    startAlerts()
     Hub()
     Deck()
     startHotEdge()
@@ -219,7 +212,6 @@ app.start({
             <DeckRow gdkmonitor={monitor} />
             <Backdrop gdkmonitor={monitor} />
             <Spectrum gdkmonitor={monitor} />
-            <Alarms gdkmonitor={monitor} />
           </This>
         )}
       </For>

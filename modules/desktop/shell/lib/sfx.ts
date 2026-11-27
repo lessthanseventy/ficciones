@@ -1,4 +1,4 @@
-// The shell's sound effects: a decision alert arrives, a landing, a deck timer ends. Played through
+// The shell's sound effects: a session waits, a landing, a deck timer ends. Played through
 // pw-play (the same PipeWire the rest of lib/sound.ts reads); setting `sound.sfx`, muted by do-not-disturb.
 import { execAsync } from "ags/process"
 import { setting } from "./settings"

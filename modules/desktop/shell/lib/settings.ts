@@ -1,6 +1,6 @@
 // The shell's settings: one JSON file every surface reads, written by the Settings surface and
 // `astal-shell set`; a hand edit applies live. A setting is a choice; where things are (pinned
-// windows, frecency, dismissed alerts) is state, and stays under ~/.local/state/astal-shell.
+// windows, frecency) is state, and stays under ~/.local/state/astal-shell.
 import GLib from "gi://GLib?version=2.0"
 import Gio from "gi://Gio?version=2.0"
 import { createState, type Accessor, type Setter } from "ags"
@@ -48,7 +48,7 @@ const DEFAULTS = {
   "sound.vizFps": 30,
   /** bars per channel in the rail's visualiser */
   "sound.vizBars": 24,
-  /** a short sound for a decision alert, a landing, a timer's end; do-not-disturb mutes it */
+  /** a short sound for a session that waits, a landing, a timer's end; do-not-disturb mutes it */
   "sound.sfx": true,
   /** how long the pointer rests on a bar item before its card opens */
   "feel.hoverDwellMs": 500,

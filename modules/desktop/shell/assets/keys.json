@@ -126,11 +126,6 @@
  },
  {
   "group": "shell",
-  "keys": "SUPER+Y",
-  "does": "answer the decision banner by key"
- },
- {
-  "group": "shell",
   "keys": "SUPER+SHIFT+C",
   "does": "crt scanlines"
  },

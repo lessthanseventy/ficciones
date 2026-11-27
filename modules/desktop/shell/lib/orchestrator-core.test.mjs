@@ -102,14 +102,14 @@ test("hold adds held as its own piece, for the warning colour", () => {
 })
 
 test("a repo at cap 0 is paused; several are joined; a repo above 0 is not", () => {
-  assert.equal(cell(withAuto({ repo_caps: { tlon: 0, arena: 1 } }), session("done")).paused, " · tlon paused")
-  assert.equal(cell(withAuto({ repo_caps: { tlon: 0, menard: 0 } }), session("done")).paused, " · menard, tlon paused")
+  assert.equal(cell(withAuto({ repo_caps: { babylon: 0, arena: 1 } }), session("done")).paused, " · babylon paused")
+  assert.equal(cell(withAuto({ repo_caps: { babylon: 0, menard: 0 } }), session("done")).paused, " · babylon, menard paused")
   assert.equal(cell(withAuto({ repo_caps: { arena: 1 } }), session("done")).paused, "")
 })
 
 test("narrow: the paused part goes first, then the orchestrator state, never the count", () => {
-  const b = withAuto({ repo_caps: { tlon: 0 } }, { hold: true })
-  const whole = "▲ 2 · 5/6 · orchestrator: idle · held · tlon paused"
+  const b = withAuto({ repo_caps: { babylon: 0 } }, { hold: true })
+  const whole = "▲ 2 · 5/6 · orchestrator: idle · held · babylon paused"
   const at = (w) => { const c = cell(b, session("done"), null, w); return c.text + c.held + c.paused }
   assert.equal(at(whole.length), whole)
   assert.equal(at(whole.length - 1), "▲ 2 · 5/6 · orchestrator: idle · held")

@@ -1,7 +1,7 @@
 // node --test lib/sessions-core.test.mjs (mise shell:test): the pure half of lib/sessions.ts.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parse, metered, alive, isCrew, mine, nextUp, chimes, arenaTarget, inboxArgs, findArena, waiting } from "./sessions-core.ts"
+import { parse, metered, alive, mine, nextUp, chimes, arenaTarget, inboxArgs, findArena, waiting } from "./sessions-core.ts"
 
 const yes = () => true
 const s = (id, state, extra = {}) => ({ id, state, since: 1000, at: 1000, cwd: `/p/${id}`, repo: id, socket: "/tmp/tmux-1000/default", pane: `%${id.length}`, said: null, doing: null, ...extra })
@@ -28,13 +28,8 @@ test("a record whose tmux pane is gone is stale; one outside tmux is, once a day
   assert.equal(alive(s("menard", "done"), live, 1000, () => false), true)
 })
 
-test("the crew is any session on a tlon workspace's tmux server", () => {
-  assert.equal(isCrew(s("a", "working", { socket: "/tmp/tmux-1000/tlon-workspace-3" })), true)
-  assert.equal(isCrew(s("a", "working")), false)
-})
-
 test("yours come most pressing first: waiting, done, then at work", () => {
-  const all = [s("b", "working"), s("crew", "waiting", { socket: "/tmp/tmux-1000/tlon-workspace-1" }), s("c", "done"), s("a", "waiting")]
+  const all = [s("b", "working"), s("c", "done"), s("a", "waiting")]
   assert.deepEqual(mine(all).map((x) => x.id), ["a", "c", "b"])
   assert.equal(nextUp(all).id, "a")
   assert.equal(nextUp([]), null)
@@ -51,12 +46,12 @@ test("a session that starts waiting rings; a long turn that lands chimes; a shor
 
 test("arena is reached by its socket's name", () => {
   assert.deepEqual(arenaTarget(s("a", "done")), ["-L", "default"])
-  assert.deepEqual(arenaTarget(s("a", "done", { socket: "/tmp/tmux-1000/tlon-workspace-2" })), ["-L", "tlon-workspace-2"])
+  assert.deepEqual(arenaTarget(s("a", "done", { socket: "/tmp/tmux-1000/board-2" })), ["-L", "board-2"])
 })
 
 test("arena's inbox opens on the board's own tmux server", () => {
   assert.deepEqual(inboxArgs(null), ["inbox"])
-  assert.deepEqual(inboxArgs("/tmp/tmux-1000/tlon-workspace-2"), ["-L", "tlon-workspace-2", "inbox"])
+  assert.deepEqual(inboxArgs("/tmp/tmux-1000/board-2"), ["-L", "board-2", "inbox"])
 })
 
 const card = (id, pane, extra = {}) => ({ id, status: "doing", title: `ticket ${id}`, repo: "r", claimed_by: pane, ask: null, ...extra })

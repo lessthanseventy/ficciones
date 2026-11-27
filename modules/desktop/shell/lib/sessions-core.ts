@@ -46,10 +46,8 @@ const SILENT_S = 24 * 3600
 export const alive = (s: Session, live: Set<string>, now: number, cwdExists: (cwd: string) => boolean) =>
   s.pane ? live.has(`${s.socket} ${s.pane}`) : now - s.at < SILENT_S && cwdExists(s.cwd)
 
-export const isCrew = (s: Session) => /\/tlon-workspace-[^/]*$/.test(s.socket)
-
 export const mine = (all: Session[]) =>
-  all.filter((s) => !isCrew(s)).sort((a, b) => ORDER[a.state] - ORDER[b.state] || a.repo.localeCompare(b.repo))
+  [...all].sort((a, b) => ORDER[a.state] - ORDER[b.state] || a.repo.localeCompare(b.repo))
 
 export const nextUp = (all: Session[]) => mine(all)[0] ?? null
 
