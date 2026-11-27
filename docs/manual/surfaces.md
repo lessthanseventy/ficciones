@@ -1,22 +1,14 @@
 # Surfaces
 
-Three surfaces, one brain. Every one reads the same `Server.*` contexts over the same Bus and
-wears the same generated palette; none owns state.
+Two surfaces, one generated palette.
 
 | Surface | Where | Day-to-day job | Open it |
 |---|---|---|---|
-| **nvim-config** (Neovim) | `~/projects/nvim-config`, linked at `~/.config/nvim` | code · diffs · review · the Tlön sidebar, thread buffers and composer · a coworker terminal | `nvim`, then `<leader>oo` |
-| **office** (TUI) | tlon's `office/` | the pixel-art room over the server: who works, who waits on you, the worklines; every thread, coworker, ticket, triage, health and schedule a key away | `tlon` |
-| **web** (LiveView) | `modules/server/lib/server/web` | the same sidebar · thread · composer in a browser, live on the Bus — from a phone over tailscale | `mise run server:web` → http://127.0.0.1:4042 |
+| **nvim-config** (Neovim) | `~/projects/nvim-config`, linked at `~/.config/nvim` | code · diffs · review | `nvim` |
 | **shell** (astal) | `modules/desktop/shell` | rail, bar, launcher (`>` verbs), the deck, notifications, OSD, lock, theme toggle | always up (`astal-shell.service`) |
 
-The server (`modules/server`, `tlon.service`) is not a surface: it is the record — threads,
-facts, checks, todos, worklines — and the MCP channel the coworkers speak. The operator reaches
-it from any surface; from a shell, `mise run server:dossier -- <id>` and `server:post`.
-
-**Rule of thumb.** If it is about *one thread's work* (read it, reply, review the diff, watch
-the coworker), you are in Neovim. If it is *everything at once*, the office. If it is *the
-machine* (volume, workspace, a verb, a toast), the shell.
+**Rule of thumb.** If it is about *the code* (read it, edit it, review the diff), you are in
+Neovim. If it is *the machine* (volume, workspace, a verb, a toast), the shell.
 
 ## The shell's wheel
 
@@ -42,12 +34,10 @@ The scroll wheel means one thing per place, and the same thing wherever it appea
 
 The dwell, the grace after the pointer leaves and the hot edge are in Settings, under FEEL.
 
-**The shell makes sound.** A short effect plays when a decision alert arrives, when a tlon
-landing lands, and when a deck timer or pomodoro phase ends (`lib/sfx.ts`, through `pw-play`).
+**The shell makes sound.** A short effect plays when a session starts waiting on you, when a long
+turn lands, and when a deck timer or pomodoro phase ends (`lib/sfx.ts`, through `pw-play`).
 Setting `sound.sfx` (Settings, "sound effects"; on by default) turns it off, and do-not-disturb
-mutes it, as it mutes toasts. The WAVs live in `modules/desktop/shell/assets/sfx/`; the landing
-chime is the same one the Claude Code plugin plays, and the landing toast says what the plugin's
-does: the server's own alert row (`#<id> landed — <title>`).
+mutes it, as it mutes toasts. The WAVs live in `modules/desktop/shell/assets/sfx/`.
 
 **The rail clock has its jokes.** It reads the time through `clockFace` (`lib/clock-core.ts`):
 at 4:04 it says `404` (the time cannot be found), at 3:14 `π`.

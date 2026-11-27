@@ -2,9 +2,8 @@
 
 This repository is one person's whole machine: an installer, dotfiles, a desktop, and the agent wiring,
 as Nix-shaped modules under `modules/`. It is named *ficciones* after the Borges collection: the machine
-holds the stories. The apps it runs are their own repos, pinned here by path — **tlon**
-(`~/projects/tlon`: the server, the office, the Claude Code adapters, with its own `AGENTS.md` and
-loop) and **menard** (`~/projects/menard`). Read
+holds the stories. The apps it runs are their own repos, pinned here by path — **menard**
+(`~/projects/menard`, with its own `AGENTS.md` and loop). Read
 `docs/plans/2026-08-14-machine-v2-and-funes-design.md` before reshaping anything here — it is the
 design and every decision behind it.
 
@@ -16,11 +15,10 @@ control loop, not two, and no second way to run anything:
 - `mise run check` — the green-before-commit gate: every `check:*` task, the manual's drift check and the flake (its `depends` in `tasks/repo.toml` is the list).
 - `mise run flake:check` — the machine-level Nix gate.
 - `mise run home:switch` — install/update this machine into the user profile via home-manager.
-- `mise run machine:update` — apply the checkout to the live machine: home:switch, then restart the shell and tlon's server (the one update verb).
+- `mise run machine:update` — apply the checkout to the live machine: home:switch, then restart the shell (the one update verb).
 - `mise run install` — what babylon runs after a landing: home:switch alone, so a landing restarts only the units it changed.
 
-Elixir, the server loop and menard's verbs live in tlon (`cd ~/projects/tlon &&
-mise tasks`).
+Elixir and menard's verbs live in menard (`cd ~/projects/menard && mise tasks`).
 
 mise owns dev runtimes; Nix owns packaging and the system. **If a command belongs in the loop, it becomes
 a task in `tasks/<group>.toml` (mise.toml includes them)** — never a prose instruction that drifts out of sync with what actually runs.

@@ -3,8 +3,7 @@
 One person's computer, as a repository: the installer, the desktop, the dotfiles and the agent
 wiring, declared in one place so the machine can be rebuilt on any box or in a throwaway VM and
 come back the same. Named after Borges' *Ficciones*, a collection of stories; this is a collection
-of modules. The programs it runs that are repos of their own, [tlon](https://github.com/lessthanseventy/tlon)
-(the AI office: server, house and Claude Code adapters) and [menard](https://github.com/lessthanseventy/menard)
+of modules. The programs it runs that are repos of their own, like [menard](https://github.com/lessthanseventy/menard)
 (Elixir editing for agents), are pinned here by path and wired in, not vendored.
 
 ![The desktop in the uqbar palette: a rail of workspaces, clock and toggles down the left, a bar of meters across the top, the deck along the bottom, and the synthwavecity hack behind them, a striped sun setting over a neon grid](docs/screenshots/desktop.webp)
@@ -16,8 +15,7 @@ of modules. The programs it runs that are repos of their own, [tlon](https://git
   notifications, OSD and lock, all in layers rather than windows.
 - **Four palettes, one theme.** Every surface on the machine is generated from one palette file,
   and every colour pair is held to WCAG AAA.
-- **Agent wiring.** The rules every coding agent here works by, its skills and mods, and the
-  office (tlon) that staffs them.
+- **Agent wiring.** The rules every coding agent here works by, its skills and mods.
 - **One loop.** Every command a human or an agent runs is a mise task, and `mise run check` is
   the gate.
 
@@ -37,7 +35,6 @@ each dashboard pane is one file in `panes/`.
 <td><img src="docs/screenshots/cheatsheet.webp" alt="The cheatsheet: every keybinding in columns by group, launch, shell, focus, move and size, layout and workspaces, with a filter box at the top"><br><b>Cheatsheet</b>: every bind, read live from the compositor, with a filter.</td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/office.webp" alt="The office panel down the right edge: the ticket pipeline from tickets through spec, plan, build, verify and review, an empty row of desks, and a lounge of pixel-art coworkers with their names"><br><b>Office</b>: tlon's room in a panel: the ticket pipeline, who is at a desk, and the crew in the lounge.</td>
 <td><img src="docs/screenshots/weather.webp" alt="The weather popover beside the rail: the current temperature, an hourly strip and a five-day forecast with temperature bars"><br><b>Weather</b>: a popover from the rail; the calendar, volume and network are the same.</td>
 </tr>
 </table>
@@ -142,8 +139,7 @@ lists them and `docs/manual/tasks.md` is generated from that list.
 - `mise run flake:check`: evaluate and build this host's closures, the machine-level gate.
 - `mise run home:switch` (`home:switch:mac` on the Mac): apply the home-manager profile. The
   human's to run: building the machine is a change the human owns.
-- `mise run machine:update`: the one update verb. `home:switch`, then restart the shell and tlon's
-  server.
+- `mise run machine:update`: the one update verb. `home:switch`, then restart the shell.
 - `mise run manual:gen` and `manual:check`: regenerate the manual's pages from their sources, and
   fail when one has drifted.
 - `mise run cap -- CMD`: run a command once, log all of it, print its exit, failures and tail.
