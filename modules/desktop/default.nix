@@ -586,7 +586,7 @@ in
       Service = {
         ExecStart = pkgs.writeShellScript "bt-drop-log" ''
           log=${config.xdg.stateHome}/bt-drops.log
-          ${pkgs.glib}/bin/gdbus monitor --system --dest org.bluez | while IFS= read -r line; do
+          ${pkgs.coreutils}/bin/stdbuf -oL ${pkgs.glib}/bin/gdbus monitor --system --dest org.bluez | while IFS= read -r line; do
             case $line in
               *Device1.Disconnected*)
                 printf '%s %s\n' "$(${pkgs.coreutils}/bin/date -Is)" "$line" >>"$log"
