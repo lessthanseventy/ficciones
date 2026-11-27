@@ -6,5 +6,5 @@ rc=$?
 case $rc in
 0) exec hyprctl dispatch 'hl.dsp.focus({ window = "class:^com.ghostty.arena$" })' ;;
 3) exec ghostty --title=arena --class=com.ghostty.arena -e arena ;;
-*) exec notify-send "arena inbox failed" "exit $rc" ;;
+*) notify-send "arena inbox failed" "exit $rc"; exit "$rc" ;;
 esac
