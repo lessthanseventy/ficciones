@@ -82,3 +82,16 @@ export const findArena = <C extends { class: string; title: string }>(clients: C
 /** what `arena` takes to open on a needs-you item: its ticket's card, or the inbox when it has no ticket */
 export const itemArgs = (ticket: number | null, socket: string | null) =>
   ticket === null ? inboxArgs(socket) : [...(socket ? arenaTarget({ socket }) : []), "board", String(ticket)]
+
+/** what a fresh arena launches with: `show` and `inbox` only tell a running arena (and exit 3 when none runs), so they are dropped; `board N` opens on its card itself */
+export function launchArgs(args: string[]): string[] {
+  const out: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "show") i++
+    else if (args[i] !== "inbox") out.push(args[i])
+  }
+  return out
+}
+
+/** whether `args` tell a running arena (show/inbox) rather than open one on something */
+export const tellsOnly = (args: string[]) => args.includes("show") || args.includes("inbox")
