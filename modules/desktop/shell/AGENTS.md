@@ -26,8 +26,8 @@ Hyprland stacks BACKGROUND < BOTTOM < windows < TOP < fullscreen windows < OVERL
 - BOTTOM: `spectrum`, so it shows over both.
 - TOP (exclusive zones; a floating window cannot cover them): `rail`, `bar`, `deck`, and the
   sidecar. A panel's clickaway field is inside the panel's own OVERLAY window.
-- OVERLAY (must show over a fullscreen app): `osd`, `decision` banner, `alarm`, notifications, and
-  the summoned panels (launcher, hub, dashboard, settings, cheatsheet, docreader, deck
+- OVERLAY (must show over a fullscreen app): `osd`, notifications, and
+  the summoned panels (launcher, hub, dashboard, settings, cheatsheet, deck
   drawer). A panel is only up while summoned, so covering a capture tool then is intended.
 - A capture tool that must sit above the rails is made FULLSCREEN by a window rule (flameshot's
   `flameshot-overlay` in `hypr/hyprland.lua`), not by hiding the rails. A new overlay-style window
