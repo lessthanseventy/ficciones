@@ -80,7 +80,7 @@ A review of a design or a UI change checks it against them.
 
     A screen made of same-coloured lines at one indent breaks this rule.
 15. **Anything a key does, a click does too.** The mirror of rule 7: a key with no click is a bug.
-    - Every row and list item picks on a click, and opens (`⏎`/`space`) on a click of what is
+    - Every row and list item picks on a click, and opens (`space`) on a click of what is
       already picked.
     - Every section, tab and pane focuses on a click.
     - Every key in a foot bar is a clickable button.
