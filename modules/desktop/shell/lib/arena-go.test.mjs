@@ -71,3 +71,37 @@ test("toArena focuses first and passes the args through", async () => {
   assert.deepEqual(order, ["focus 0xabc", "tell"])
   assert.equal(f.argv(), "board 7")
 })
+
+function scripted(codes) {
+  const calls = { run: 0, open: 0, notice: [], log: [] }
+  const go = {
+    run: async () => codes[Math.min(calls.run++, codes.length - 1)],
+    open: () => calls.open++,
+    notify: (t) => calls.notice.push(t),
+    log: (t) => calls.log.push(t),
+  }
+  return { go, calls }
+}
+
+test("a just-opened arena is told once it answers: exit 3 twice then 0 is three runs, no notice, no second open", async () => {
+  const { tellOpened } = await import("./arena-go.ts")
+  const f = scripted([3, 3, 0])
+  await tellOpened(["inbox"], f.go, async () => {})
+  assert.deepEqual([f.calls.run, f.calls.open, f.calls.notice, f.calls.log], [3, 0, [], []])
+})
+
+test("a just-opened arena that never answers gives one notice and one log line", async () => {
+  const { tellOpened } = await import("./arena-go.ts")
+  const f = scripted([3])
+  await tellOpened(["inbox"], f.go, async () => {}, 250, 1000)
+  assert.equal(f.calls.run, 5)
+  assert.equal(f.calls.notice.length, 1)
+  assert.equal(f.calls.log.length, 1)
+})
+
+test("a just-opened arena that fails another way is reported once and not retried", async () => {
+  const { tellOpened } = await import("./arena-go.ts")
+  const f = scripted([1])
+  await tellOpened(["inbox"], f.go, async () => {})
+  assert.deepEqual([f.calls.run, f.calls.notice.length], [1, 1])
+})

@@ -10,7 +10,7 @@ import { play } from "./sfx"
 import { dispatchNow, L } from "./hyprlua"
 import { hypr } from "./hypr"
 import { logEvent } from "./log"
-import { toArena as toArenaWith, type Shell } from "./arena-go"
+import { toArena as toArenaWith, tellOpened, type Shell } from "./arena-go"
 import { parse, metered, alive, chimes, inboxArgs, findArena, launchArgs, tellsOnly, type Session } from "./sessions-core"
 
 export type { Session }
@@ -94,6 +94,8 @@ function openArena(...args: string[]) {
   dispatchNow(`hl.dsp.exec_cmd(${JSON.stringify(cmd.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" "))})`)
 }
 
+const sleep = (ms: number) => new Promise<void>((r) => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { r(); return GLib.SOURCE_REMOVE }))
+
 const run = (argv: string[]) =>
   new Promise<number>((resolve, reject) => {
     try {
@@ -122,7 +124,7 @@ const toArena = (args: string[], open: () => void) => toArenaWith(args, open, sh
 export const goToArena = (args: string[]) =>
   void toArena(args, () => {
     openArena(...launchArgs(args))
-    if (tellsOnly(args)) GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => { void run(["arena", ...args]); return GLib.SOURCE_REMOVE })
+    if (tellsOnly(args)) void tellOpened(args, shell, sleep)
   })
 
 /** Put arena in front of you with its inbox (Your move) open. `socket` is the board's tmux server. */

@@ -14,18 +14,35 @@ export type Go = {
 }
 
 /** Tell the running arena `args`; exit 3 means none is running, so `open` starts one. */
-export async function tellArena(args: string[], go: Go) {
+export async function tellArena(args: string[], go: Go): Promise<"told" | "none" | "failed"> {
   const said = `arena ${args.join(" ")}`
   try {
     const code = await go.run(["arena", ...args])
-    if (code === 0) return
-    if (code === NO_ARENA) return go.open()
+    if (code === 0) return "told"
+    if (code === NO_ARENA) {
+      go.open()
+      return "none"
+    }
     go.log(`${said} exited ${code}`)
     go.notify(`${said} failed (exit ${code})`)
+    return "failed"
   } catch (e) {
     go.log(`${said}: ${String(e)}`)
     go.notify(`${said} failed: ${String(e)}`)
+    return "failed"
   }
+}
+
+/** Tell an arena that was just opened: retry on exit 3 every `every` ms until `within` ms have passed, then say it never came up. Any other outcome is `tellArena`'s own. */
+export async function tellOpened(args: string[], go: Go, sleep: (ms: number) => Promise<void>, every = 250, within = 10_000) {
+  const quiet = { ...go, open: () => {} }
+  for (let waited = 0; waited <= within; waited += every) {
+    if ((await tellArena(args, quiet)) !== "none") return
+    await sleep(every)
+  }
+  const said = `arena ${args.join(" ")}`
+  go.log(`${said}: no arena came up within ${within} ms`)
+  go.notify(`${said}: arena did not start`)
 }
 
 export type Shell = Go & {

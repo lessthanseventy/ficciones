@@ -73,7 +73,6 @@ test("arena's window is found by its title on Ghostty's own class, or the class 
   assert.equal(findArena([term]), undefined)
 })
 
-
 test("launchArgs drops the verbs that only tell a running arena", async () => {
   const { launchArgs, tellsOnly } = await import("./sessions-core.ts")
   assert.deepEqual(launchArgs(["-L", "b", "inbox"]), ["-L", "b"])
