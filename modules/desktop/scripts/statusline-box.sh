@@ -33,6 +33,8 @@ fi
 raw=$(printf '%s' "$input" | "$CPL" 2>/dev/null |
 	sed -e 's/◔/󰧑  ctx/g' -e 's/◱/⏱  5h/g' -e 's/◑/▦  wk/g')
 mapfile -t L <<<"$raw"
+# \001 marks where a segment starts: the box wraps only there
+L[0]=$(printf '%s' "${L[0]}" | sed -E 's/((\x1b\[48;2;[0-9;]*m\x1b\[38;2;[0-9;]*m)+) /\x01\1 /g')
 
 # ctx: trust Claude Code's own used_percentage (its compaction popup keys off this); claude-powerline
 # recomputes from raw token counts and under-reads badly (60% shown at the ~90% popup)
@@ -88,7 +90,7 @@ fi
 
 effort=$(printf '%s' "$input" | jq -r '.effort.level // empty' 2>/dev/null)
 if [ -n "$effort" ] && [ "${#L[@]}" -ge 1 ]; then
-	L[0]="${L[0]} ${WARM}◆ ${effort}${RESET}"
+	L[0]="${L[0]}"$'\001'" ${WARM}◆ ${effort}${RESET}"
 fi
 
 # background agents: unanswered Agent / background-Bash tool uses in the transcript
@@ -118,7 +120,7 @@ print(sum(1 for i in started if i not in done))
 ' 2>/dev/null || echo 0)
 fi
 if [ "${agents:-0}" -gt 0 ] && [ "${#L[@]}" -ge 1 ]; then
-	L[0]="${L[0]} ${PINK}⚑ ${agents} agent$([ "$agents" -ne 1 ] && echo s)${RESET}"
+	L[0]="${L[0]}"$'\001'" ${PINK}⚑ ${agents} agent$([ "$agents" -ne 1 ] && echo s)${RESET}"
 fi
 
 if [ "${#L[@]}" -ge 2 ]; then
@@ -133,22 +135,53 @@ if [ "${#L[@]}" -ge 2 ]; then
           for (i = 2; i <= n; i++) {
             pct = 0;
             if (match(seg[i], /[0-9]+%/)) pct = substr(seg[i], RSTART, RLENGTH - 1) + 0;
-            out = out pick(pct) seg[i] "\033[0m";
+            out = out "\001" pick(pct) seg[i] "\033[0m";
           }
           printf "%s", out;
         }')
 fi
 
-printf '%s\n' "${L[@]}" | awk -v b="$BORDER" -v r="$RESET" '
+# the box is the pane's width: segments pack onto lines that fit, a segment wider than the pane is cut
+width=
+[ -n "${TMUX_PANE:-}" ] && width=$(tmux display -p -t "$TMUX_PANE" '#{pane_width}' 2>/dev/null)
+[[ "$width" =~ ^[0-9]+$ ]] || width=0
+
+printf '%s\n' "${L[@]}" | awk -v b="$BORDER" -v r="$RESET" -v inner=$((width > 4 ? width - 4 : 0)) '
   function vislen(s,   t) { t = s; gsub(/\033\[[0-9;?]*[a-zA-Z]/, "", t); return length(t) }
-  { lines[NR] = $0; w = vislen($0); if (w > max) max = w }
+  function trail(s) { if (match(s, / +(\033\[[0-9;?]*[a-zA-Z])*$/)) { s = substr(s, RSTART); gsub(/[^ ]/, "", s); return length(s) } return 0 }
+  function rtrim(s,   t) {
+    if (!match(s, / +(\033\[[0-9;?]*[a-zA-Z])*$/)) return s
+    t = substr(s, RSTART); gsub(/ /, "", t); return substr(s, 1, RSTART - 1) t
+  }
+  function cut(s, n,   o, v, c) {
+    while (s != "" && v < n - 1) {
+      if (match(s, /^\033\[[0-9;?]*[a-zA-Z]/)) { o = o substr(s, 1, RLENGTH); s = substr(s, RLENGTH + 1); continue }
+      o = o substr(s, 1, 1); s = substr(s, 2); v++
+    }
+    return o "…\033[0m"
+  }
+  function emit(s,   w) { out[++m] = s; w = vislen(s); if (w > max) max = w }
+  {
+    if (inner == 0 || vislen($0) <= inner) { line = $0; gsub(/\001/, "", line); emit(line); next }
+    k = split($0, seg, "\001"); cur = ""; curw = 0; curt = 0; carry = ""
+    for (i = 1; i <= k; i++) {
+      p = carry seg[i]; carry = ""
+      t = p; gsub(/ /, "", t); if (vislen(t) == 0) { carry = p; continue }
+      w = vislen(p); t = trail(p)
+      if (w - t > inner) { p = cut(rtrim(p), inner); w = inner; t = 0 }
+      if (cur == "") { cur = p; curw = w; curt = t }
+      else if (curw + w - t <= inner) { cur = cur p; curw += w; curt = t }
+      else { emit(rtrim(cur)); cur = p; curw = w; curt = t }
+    }
+    if (cur != "") emit(rtrim(cur))
+  }
   END {
     bar = ""; for (i = 0; i < max + 2; i++) bar = bar "─"
     print b "╭" bar "╮" r
-    for (n = 1; n <= NR; n++) {
-      pad = max - vislen(lines[n])
+    for (n = 1; n <= m; n++) {
+      pad = max - vislen(out[n])
       sp = ""; for (i = 0; i < pad; i++) sp = sp " "
-      print b "│" r " " lines[n] sp " " b "│" r
+      print b "│" r " " out[n] sp " " b "│" r
     }
     print b "╰" bar "╯" r
   }'
