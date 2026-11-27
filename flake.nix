@@ -65,9 +65,6 @@
       # Hardcoded, not `self`: consumers load the REAL files so a dev edit is picked up,
       # not a stale store snapshot. Single-user machine, fixed home dir.
       repo = "/home/andrew/projects/ficciones";
-      # tlon — its own repo: the server, the office and the Claude Code adapters. The flake
-      # runs the service from its release.
-      tlonRepo = "/home/andrew/projects/tlon";
 
       # The desktop shell (modules/desktop/shell). Built here once and handed to home-manager
       # as a special arg, so the profile installs the package `nix build .#astal-shell` builds.
@@ -375,13 +372,12 @@
       };
 
       # The gradual-adoption path: home-manager on the existing Arch install, applied
-      # without touching the OS. Carries the tlon service and the Claude Code wiring.
+      # without touching the OS. Carries the Claude Code wiring.
       homeConfigurations.personalbox = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         extraSpecialArgs = {
           inherit
             repo
-            tlonRepo
             astalShell
             hyprexpo
             dbx
@@ -394,8 +390,6 @@
           });
           agenixPackage = agenix.packages.${system}.default;
           expertPackages = inputs.expert.packages;
-          # Arch's Postgres is the system's, not this profile's
-          pgIsReady = "/usr/bin/pg_isready";
         };
         modules = [
           # The Hyprland stack, symlinked back to the working tree so it stays live-editable.

@@ -14,7 +14,7 @@ let
   arenaRepo = "${home}/projects/arena";
   babylonBin = "${home}/projects/babylon/bin/babylon";
   # Repos whose landings wait on their local main for `babylon push`; every other repo pushes on landing.
-  offerRepos = "arena:ficciones:menard:tlon";
+  offerRepos = "arena:ficciones:menard";
 in
 {
   home.packages = [
@@ -49,15 +49,4 @@ in
       fi
     fi
   '';
-
-  # install owns babylon.service, so what this machine adds to it is a drop-in beside it.
-  # tlon's gate skips the house's checks where godot is missing; here that is a failure.
-  xdg.configFile."systemd/user/babylon.service.d/house-gate.conf" =
-    lib.mkIf pkgs.stdenv.hostPlatform.isLinux
-      {
-        text = ''
-          [Service]
-          Environment=TLON_HOUSE_GATE=required
-        '';
-      };
 }

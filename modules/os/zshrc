@@ -128,7 +128,7 @@ function tt() {
 
 # A session and everything it runs go in agents.slice: one handle on all of them (modules/agents/default.nix sets its weight).
 # Its commands, hooks and MCP servers run through agent-work, on the E-cores. Claude Code takes
-# the prefix only as a resolved absolute path; never in settings.json, or tlon's coworkers get it too.
+# the prefix only as a resolved absolute path; never in settings.json.
 function claude() {
   local work=${commands[agent-work]}
   CLAUDE_CODE_SHELL_PREFIX=${work:+${work:A}} systemd-run --user --scope --quiet --collect --slice=agents.slice -- claude "$@"
@@ -259,8 +259,7 @@ alias ua-update-all='export TMPFILE="$(mktemp)"; \
       && ua-drop-caches \
       && paru -Syyu --noconfirm'
 # everything: Arch (paru), then the flake's pins (committed, flake.lock alone, when they moved) and
-# the home-manager profile. home:switch starts the tlon service if it was stopped (home-manager starts
-# the units it manages); machine:update would also restart a running one.
+# the home-manager profile. machine:update then restarts the shell.
 alias upall='ua-update-all \
   && mise --cd ~/projects/ficciones run flake:bump \
   && { git -C ~/projects/ficciones diff --quiet -- flake.lock \
@@ -313,9 +312,6 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 export SUDO_ASKPASS="$HOME/.local/bin/sudo-askpass"
 
 export GOPATH="$HOME/.local/share/go"
-
-# tlon's gate fails where godot is missing, on this machine (the services get it in modules/agents)
-export TLON_HOUSE_GATE=required
 
 
 

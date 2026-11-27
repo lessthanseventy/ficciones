@@ -9,23 +9,23 @@ let
   all = [ andrew ];
 in
 {
-  # ollama.com API key — read non-interactively by tlon and dbx, so it lives here rather
+  # ollama.com API key — read non-interactively by dbx, so it lives here rather
   # than rbw (needs interactive unlock). Rotate with `agenix -e secrets/ollama-api-key.age`.
   "ollama-api-key.age".publicKeys = all;
-  # The Telegram bot tlon's home inbox polls (Server.Home.Telegram): the token @BotFather gave.
+  # Read by nothing and not wired at switch; can be deleted.
   "telegram-bot-token.age".publicKeys = all;
   # Asterion's own Telegram bot (a second bot @BotFather made, named Asterion), seeded into the app's
-  # user://. Never tlon's telegram-bot-token: two pollers on one token is a getUpdates 409.
+  # user://.
   "asterion-telegram-token.age".publicKeys = all;
   # dbx connections that must not sit in this public repo (prod hosts, users, passwords): a JSON
   # array in dbx's connection shape, seeded create-if-absent at every `dbx-desktop` launch by
   # modules/desktop/scripts/dbx-seed.sh. Optional — the flake skips it until the file exists.
   "dbx-connections.age".publicKeys = all;
-  # The work calendar's private .ics link, which tlon's Server.Calendar reads as a feed.
+  # The work calendar's private .ics link, seeded into Asterion's calendar feed (modules/agents/asterion-seed.sh).
   "calendar-work.age".publicKeys = all;
-  # A Zoho Mail app-specific password: tlon's home reads the personal mailbox over IMAP, read-only.
+  # A Zoho Mail app-specific password. Read by nothing and not wired at switch; can be deleted.
   "zoho-mail-password.age".publicKeys = all;
-  # Plaid: tlon's home reads the bank's transactions, read-only. The access token is the one linked account's.
+  # Plaid: Asterion reads the bank's transactions, read-only, straight from $XDG_RUNTIME_DIR/agenix. The access token is the one linked account's.
   "plaid-client-id.age".publicKeys = all;
   "plaid-secret.age".publicKeys = all;
   "plaid-access-token.age".publicKeys = all;

@@ -224,11 +224,10 @@ run = "scripts/headless-desktop.test.sh"
 # the order their dependencies require. Moving the pins is a separate, committable step
 # (flake:bump), not part of applying.
 ["machine:update"]
-description = "machine: apply the checkout to the live machine — home:switch, then restart the shell and the server"
+description = "machine: apply the checkout to the live machine — home:switch, then restart the shell"
 run = [
   "mise run home:switch",
   "mise run shell:restart",
-  "mise --cd {{env.HOME}}/projects/tlon run server:restart",
 ]
 
 # babylon runs this in a tmux window, a scope of its own outside babylon.service's cgroup, so a

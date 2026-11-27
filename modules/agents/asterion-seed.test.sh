@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# asterion-seed.sh seeds each file once, from its own secret, at 0600, and never from tlon's bot token
+# asterion-seed.sh seeds each file once, from its own secret, at 0600
 seed="$(cd "$(dirname "$0")" && pwd)/asterion-seed.sh"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -14,7 +14,6 @@ check() {
 	fi
 }
 printf 'https://cal.example/x.ics\n' >"$work/run/agenix/calendar-work"
-printf '111:server-bot\n' >"$work/run/agenix/telegram-bot-token"
 
 bash "$seed"
 check test "$(jq -r .url "$d/house_calendar.json")" = "https://cal.example/x.ics"

@@ -51,7 +51,7 @@ test('a shell command of several steps is named by them', async () => {
 
 test('a variable set from a command names that command, and a lone step drops its cd', async () => {
   expect(steps('a=$(grep -n "x" flake.nix | cut -d: -f1) && sed -i "${a}d" flake.nix')).toEqual(['grep', 'sed'])
-  expect(turnLine({ tool: 'Bash', input: { command: 'cd ~/projects/tlon && grep -rn x lib' } }, false)).toBe('Bash grep -rn x lib')
+  expect(turnLine({ tool: 'Bash', input: { command: 'cd ~/projects/menard && grep -rn x lib' } }, false)).toBe('Bash grep -rn x lib')
 })
 
 test('a failed call says why in its first words', async () => {

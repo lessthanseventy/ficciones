@@ -9,5 +9,5 @@ yarn = "4.18.1"
 zig = "0.17.1"
 
 [settings]
-trusted_config_paths = ["/home/andrew/projects", "/home/andrew/.cache/tlon-scratch"]
+trusted_config_paths = ["/home/andrew/projects"]
 not_found_auto_install = false

@@ -22,9 +22,7 @@ let
 in
 {
   # tmux — flake-managed (adopted from the standalone ~/.config/tmux/tmux.conf
-  # repo): mouse, extended-keys, resurrect+continuum (ANDREW's session persistence
-  # — coworkers run on their own `-L tlon-workspace-<id>` servers with a persistence-
-  # free config, see Server.Profiles), yank, tmux-thumbs, tmux-fzf, tmux-tea. No status-script chrome
+  # repo): mouse, extended-keys, resurrect+continuum (ANDREW's session persistence), yank, tmux-thumbs, tmux-fzf, tmux-tea. No status-script chrome
   # (gitmux/cpu/battery). Old file backed up on `home:switch` via the -b flag.
   programs.tmux = {
     enable = true;
@@ -52,11 +50,9 @@ in
         '';
       }
       {
-        # Persistence is for ANDREW's tmux only. Coworkers (Tlön's Claude Code seats) run on
-        # their own per-workspace tmux servers (tmux -L tlon-workspace-<id>, persistence-free
-        # config from Server.Profiles) and come up FRESH every rebuild — agent harnesses are
-        # deliberately NOT in @resurrect-processes: auto-relaunching an agent at restore
-        # hands it stale identity/env and silently burns model budget.
+        # Persistence is for ANDREW's tmux only. Agent harnesses are deliberately NOT in
+        # @resurrect-processes: auto-relaunching an agent at restore hands it stale identity/env
+        # and silently burns model budget.
         plugin = continuum;
         extraConfig = ''
           set -g @continuum-restore 'on'
@@ -107,7 +103,7 @@ in
       bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "${copy}"
 
       # Lean status bar — session + window tabs, NO script churn (gitmux/cpu/battery
-      # dropped). Load-bearing in Tlön: this is how the coworker windows show/click.
+      # dropped).
       set -g status-position top
       set -g status-interval 15
       set -g status-justify absolute-centre

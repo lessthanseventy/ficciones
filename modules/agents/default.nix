@@ -1,4 +1,4 @@
-# The agent wiring as one home-manager module: tlon's service and slices, the agenix secrets,
+# The agent wiring as one home-manager module: the agent slice, the agenix secrets,
 # Claude Code's rules, skills, mods and shell, and the git config. Needs agenix's home-manager
 # module beside it; the user and state version are the importer's.
 {
@@ -6,20 +6,13 @@
   lib,
   pkgs,
   repo,
-  tlonRepo,
   dbx,
   agentBrowser,
   agentDesktop,
   agenixPackage,
-  pgIsReady,
   ...
 }:
 let
-  # The server's self-contained release, built in tlon's `.release` checkout at its release
-  # pointer (tlon's `release:cut` task moves it; a merge to main deploys nothing). The
-  # service below runs it headless; `server:console`/`:restart` drive the same
-  # bin/server, so node + cookie agree via the release's own env.sh.
-  serverRel = "${tlonRepo}/.release/server/_build/prod/rel/server";
   asterionSeed = pkgs.writeShellScript "asterion-seed" ''
     export PATH=${
       pkgs.lib.makeBinPath [
@@ -53,17 +46,14 @@ in
     };
   };
 
-  # watchexec backs scripts/watch.sh's change-triggered test runner. LSP servers for
-  # tlon's adapters/lsp (hover/definition/references/diagnostics as agent tools) — all
+  # watchexec backs scripts/watch.sh's change-triggered test runner. The language servers are
+  # what Claude Code's LSP tool (hover/definition/references/diagnostics) spawns by name, all
   # flake-managed so the next box gets them (Expert, the Elixir one, comes with
-  # modules/menard-host.nix). The adapter registry in tlon's adapters/lspd/src/adapters.ts
-  # spawns these by name — adding a language is an adapter object + usually a package here.
+  # modules/menard-host.nix).
   home.packages = [
     dbx
     pkgs.watchexec
     pkgs.worktrunk
-    # tlon's home inbox transcribes voice notes on this machine (Server.Home.Ear)
-    pkgs.whisper-cpp
     agentBrowser
     agentDesktop
     pkgs.typescript-language-server
@@ -87,11 +77,11 @@ in
     # the `claude` function in modules/os/zshrc sets it as CLAUDE_CODE_SHELL_PREFIX
     (pkgs.writeShellScriptBin "agent-work" (builtins.readFile ./agent-work.sh))
 
-    # `asterion` — tlon's house window, the built app; `asterion dev` runs it from source,
+    # `asterion` — the house window, the built app; `asterion dev` runs it from source,
     # `asterion widget` the small always-on-top one, `asterion demo` the made-up one with no server.
     (pkgs.writeShellScriptBin "asterion" ''
       ASTERION_SEED=${asterionSeed}
-      ASTERION_REPO=${tlonRepo}
+      ASTERION_REPO=${config.home.homeDirectory}/projects/asterion
       ${builtins.readFile ./asterion.sh}
     '')
     (pkgs.writeShellScriptBin "house" ''exec asterion "$@"'')
@@ -110,9 +100,6 @@ in
     lib.optionalAttrs (builtins.pathExists ../../secrets/ollama-api-key.age) {
       ollama-api-key.file = ../../secrets/ollama-api-key.age;
     }
-    // lib.optionalAttrs (builtins.pathExists ../../secrets/telegram-bot-token.age) {
-      telegram-bot-token.file = ../../secrets/telegram-bot-token.age;
-    }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/asterion-telegram-token.age) {
       asterion-telegram-token.file = ../../secrets/asterion-telegram-token.age;
     }
@@ -121,9 +108,6 @@ in
     }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/calendar-work.age) {
       calendar-work.file = ../../secrets/calendar-work.age;
-    }
-    // lib.optionalAttrs (builtins.pathExists ../../secrets/zoho-mail-password.age) {
-      zoho-mail-password.file = ../../secrets/zoho-mail-password.age;
     }
     // lib.optionalAttrs (builtins.pathExists ../../secrets/plaid-client-id.age) {
       plaid-client-id.file = ../../secrets/plaid-client-id.age;
@@ -154,7 +138,6 @@ in
   # CLAUDE_CODE_PLUGIN_DIRS: the mods (the changes pane, which /changes and /diff open, among them),
   # each by its store path, since the plugin loader refuses a module reached through a home.file symlink.
   # CLAUDE_CODE_FORCE_TERMINAL_IMAGES: under tmux the inline-image mod draws nothing without it.
-  # TLON_HOUSE_GATE: a missing godot fails tlon's gate here; these shells take no export from the rc.
   # cc-plugin-diff off: where it is available it docks a Diff tab that takes over from that pane.
   # diffSidebarOpen off, in ~/.claude.json: the app's own diff panel opens on an edit otherwise,
   # and while it shows the dock gets no columns, so that pane has nowhere to draw.
@@ -172,7 +155,6 @@ in
              | map(select(. != "" and (endswith("-changes-pane") or endswith("-review-pane") or endswith("-transcript-rows") or endswith("-inline-image") or endswith("-next-step") | not)))
                + ["${./mods/changes-pane}", "${./mods/review-pane}", "${./mods/transcript-rows}", "${./mods/inline-image}"] | join(":"))
          | .env.CLAUDE_CODE_FORCE_TERMINAL_IMAGES = "1"
-         | .env.TLON_HOUSE_GATE = "required"
          | .autoCompactWindow = 433000
          | .enabledPlugins["cc-plugin-diff@builtin"] = false' "$cfg" > "$tmp"; then
         run chmod 600 "$tmp"
@@ -205,48 +187,9 @@ in
   home.file.".config/mise/config.toml".source =
     config.lib.file.mkOutOfStoreSymlink "${repo}/modules/os/mise.toml";
 
-  # The node cookie the service and its remote shells share (rel/env.sh.eex reads it into
-  # RELEASE_COOKIE; `server:console`, `server:dev` and tlon-cli.sh rpc use it): written once, 0600, never
-  # rotated by a switch — a rotation would cut a running remote shell off its node.
-  home.activation.tlonCookie = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    f="$HOME/.local/share/tlon/cookie"
-    if [ ! -s "$f" ]; then
-      run mkdir -p "$(dirname "$f")"
-      run sh -c "umask 077; head -c 32 /dev/urandom | base64 | tr -d '/+=\n' > \"$f\""
-    fi
-  '';
-
-  # The always-up sovereign channel as a headless systemd --user service. A
-  # self-contained release (tlon's `server:release` task) means ExecStart is one
-  # absolute path with no toolchain on PATH. ExecStartPre migrates first —
-  # server never serves on a schema it can't repair. LOOPBACK-only. The store is
-  # Postgres `tlon` on the local socket. Node name + cookie come from the release's own env.sh, so
-  # `server:console`/`:restart` reach THIS node. Build the release before the first
-  # `home:switch` that starts it.
-  # The machine seed tlon's Server.Seed applies on every boot: this box's workspaces and
-  # the facts its coworkers must see (tlon's own repo holds only product knowledge).
-  xdg.configFile."tlon/seed.exs".source = ./tlon-seed.exs;
-
-  # The office's CPU yields to the desktop: CPU is split between cgroups before
-  # processes, so each coworker scope in app.slice was a full peer of the video player.
-  # tlon.service, its coworkers' tmux scopes and its redeploys all run here (tlon passes
-  # --slice=tlon.slice); the quota keeps 6 of 20 threads (and the fans) free regardless.
-  # keep-old on both: restarting a slice stops every scope in it, so a changed weight
-  # would end each coworker pane and Claude session at home:switch.
   systemd.user.slices = {
-    tlon = {
-      Unit.Description = "tlon — the office's coworkers, server and rebuilds";
-      Unit.X-SwitchMethod = "keep-old";
-      Slice = {
-        CPUWeight = 20;
-        IOWeight = 20;
-        CPUQuota = "1400%";
-      };
-    };
-
     # Claude sessions started by hand (the `claude` function in modules/os/zshrc) and the
-    # suites they run; apart from tlon.slice so `server:stop` never takes them down.
-    # At the default weight, and no quota: the session's own UI is typed into from
+    # suites they run, in one cgroup. At the default weight, and no quota: the session's own UI is typed into from
     # inside this cgroup, and a low share made it wait behind every suite in the slice.
     # The suites keep off the desktop by core instead (agent-work.sh pins them to the
     # E-cores): no weight or quota helped, as all-core load drags every core's clock down.
@@ -258,68 +201,6 @@ in
         IOWeight = 100;
       };
     };
-  };
-
-  # tlon's gate skips the house's checks where godot is missing; on this machine that is a failure.
-  # Set for babylon (a drop-in in babylon.nix; its gate runs tlon's), for tlon's own service below,
-  # for shells in ../os/zshrc, and for Claude Code's shells in claudeShellEnv (they take no export
-  # from the rc).
-
-  systemd.user.services.tlon = {
-    Unit = {
-      Description = "tlon — the always-up sovereign MCP channel (loopback)";
-      Documentation = [ "file://${tlonRepo}/server/AGENTS.md" ];
-      After = [ "network.target" ];
-    };
-    Service = {
-      Type = "exec";
-      Slice = "tlon.slice";
-      # Worklines: artifact checks run git in the repo checkout; the memory pass is
-      # on for the always-up node (the Maintain sweeps ride Oban's cron; both post/park,
-      # never act).
-      # The switchboard runs here too — delivery bookkeeping only until an arbiter
-      # exists.
-      Environment = [
-        # The service shells tmux/claude (both profile-owned) — a boot-time start
-        # inherits the manager's PATH before the session imports the profile, and the
-        # staffing pass died on `tmux: enoent` for 31 h.
-        "PATH=${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin"
-        "TLON_DATABASE=tlon"
-        # one-brain D + E: the web UI on loopback :4042 (tailscale-only beyond the box) and
-        # Oban on the store (the cron drain; the sweeps follow)
-        "TLON_START_WEB=1"
-        "TLON_WEB_PORT=4042"
-        "TLON_START_OBAN=1"
-        "TLON_START_MCP=1"
-        "TLON_START_SWITCHBOARD=1"
-        "TLON_START_ATTENTION=1"
-        "TLON_WHISPER_MODEL=${
-          pkgs.fetchurl {
-            url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin";
-            sha256 = "0p8yqkwvpl9lyy43yajk305bps0v5z1qgyg0jwh35j7cb1nqs4y6";
-          }
-        }"
-        "TLON_MCP_PORT=4040"
-        "TLON_WORKLINE_ROOT=${tlonRepo}"
-        "TLON_MEMORY_PASS=1"
-        # the office's small talk, on the cheap ollama tier, only while an office watches
-        "TLON_BANTER=1"
-        "TLON_HOUSE_GATE=required"
-      ];
-      # Seed + repair run at app boot (Server.Bootstrap); only the schema migration
-      # is a pre-step.
-      # A --user unit cannot order itself After= the system postgresql.service, so at
-      # boot it can start before the socket accepts; wait (up to 60 s) instead of
-      # failing the migration and leaning on Restart.
-      ExecStartPre = [
-        "/bin/sh -c 'for i in $(seq 60); do ${pgIsReady} -q -h /run/postgresql && exit 0; sleep 1; done; exit 1'"
-        "${serverRel}/bin/server eval Server.Release.migrate()"
-      ];
-      ExecStart = "${serverRel}/bin/server start";
-      Restart = "on-failure";
-      RestartSec = 2;
-    };
-    Install.WantedBy = [ "default.target" ];
   };
 
   systemd.user.services.sandbox-sweep = {

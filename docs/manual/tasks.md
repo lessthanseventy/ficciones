@@ -84,7 +84,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 
 | verb | does |
 |---|---|
-| `machine:update` | machine: apply the checkout to the live machine — home:switch, then restart the shell and the server |
+| `machine:update` | machine: apply the checkout to the live machine — home:switch, then restart the shell |
 
 ## manual
 

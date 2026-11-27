@@ -393,7 +393,7 @@ in
     ];
 
     xdg = {
-      # tlon's Asterion is a sibling repo's Godot project; `asterion` runs its installed build
+      # Asterion is a sibling repo's Godot project; `asterion` runs its installed build
       desktopEntries.asterion = {
         name = "Asterion";
         comment = "What you texted yourself: open things, what is coming, notes";
