@@ -17,7 +17,7 @@ is "exit status passes through" "$(
 is "stderr passes through" "$(bash "$wrap" 'echo e >&2' 2>&1)" "e"
 is "marked as an agent's" "$(AGENT_WORK='' bash "$wrap" 'echo "$AGENT_WORK"')" "1"
 is "niced to 10" "$(bash "$wrap" 'nice')" "10"
-is "work already lower stays there" "$(nice -n 15 bash "$wrap" 'nice')" "15"
+is "work already lower stays there" "$(nice -n 15 bash "$wrap" 'nice')" "$(nice -n 15 nice)"
 is "disk class idle" "$(bash "$wrap" 'ionice -p $$')" "idle"
 got=$(bash "$wrap" 'grep Cpus_allowed_list /proc/self/status' | awk '{print $2}')
 if [ -n "$ecores" ]; then
