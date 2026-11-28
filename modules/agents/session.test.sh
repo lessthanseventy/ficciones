@@ -18,6 +18,7 @@ rec() { jq -n --arg id "$1" --arg repo "$2" --arg state "$3" --arg pane "$4" --a
 rec aaaa1111 arena working %1
 rec bbbb2222 menard "done" %2
 rec cccc3333 menard idle %3
+rec dddd4444 tlon stalled %4
 rec eeee5555 gone "done" %9
 rec gggg7777 headless "done" ""
 jq --arg c "$work/vanished" '.cwd = $c' "$work/run/sessions/gggg7777.json" >"$work/g" && mv "$work/g" "$work/run/sessions/gggg7777.json"
@@ -54,7 +55,11 @@ bash "$cmd" set mood "x" 2>/dev/null
 claim "only goal and next are set" test $? = 1
 
 out=$(bash "$cmd" brief)
-want="your move
+want="stalled
+  tlon dddd4444  stalled 5m
+    said  the ask
+
+your move
   headlive hhhh8888  done 5m
     said  the ask
   menard bbbb2222  done 5m
@@ -69,7 +74,7 @@ running
 parked
   menard cccc3333  idle 5m
     said  the ask"
-claim "the brief groups them, your move first" test "$out" = "$want"
+claim "the brief groups them, the stalled first, then your move" test "$out" = "$want"
 [ "$out" = "$want" ] || diff <(echo "$want") <(echo "$out")
 claim "and leaves out the crashed" test -z "$(grep gone <<<"$out")"
 claim "and a paneless record whose cwd is gone, keeping one whose cwd exists" test -z "$(grep headless <<<"$out")"

@@ -3,7 +3,7 @@
 import type { Sfx } from "./sfx-core"
 import type { Card } from "./board-core"
 
-export type State = "working" | "done" | "waiting"
+export type State = "idle" | "working" | "done" | "waiting" | "stalled"
 export type Session = {
   id: string
   state: State
@@ -20,8 +20,8 @@ export type Session = {
   model?: string | null
 }
 
-const STATES: State[] = ["working", "done", "waiting"]
-const ORDER: Record<State, number> = { waiting: 0, done: 1, working: 2 }
+const ORDER: Record<State, number> = { stalled: 0, waiting: 1, done: 2, working: 3, idle: 4 }
+const STATES = Object.keys(ORDER)
 /** a turn this long that lands is worth a chime: you have likely looked away */
 const LONG_TURN_S = 120
 
@@ -51,10 +51,11 @@ export const mine = (all: Session[]) =>
 
 export const nextUp = (all: Session[]) => mine(all)[0] ?? null
 
-/** what waits on you, in words: babylon's open asks (`asks`), then the sessions waiting on an answer */
+/** what waits on you, in words: babylon's open asks (`asks`), then the sessions whose turn died, then those waiting on an answer */
 export const waiting = (all: Session[], asks: Card[]): string[] => [
   ...asks.flatMap((t) => (t.ask ? [`#${t.id} asks: ${t.ask.question}`] : [])),
-  ...mine(all).filter((s) => s.state === "waiting").map((s) => `${s.repo} waits${s.doing ? `: ${s.doing}` : ""}`),
+  ...mine(all).flatMap((s) =>
+    s.state === "stalled" ? [`${s.repo} stalled`] : s.state === "waiting" ? [`${s.repo} waits${s.doing ? `: ${s.doing}` : ""}`] : []),
 ]
 
 /** the sounds a change from `before` to `after` earns */

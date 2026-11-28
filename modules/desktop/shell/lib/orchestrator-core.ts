@@ -21,7 +21,7 @@ export type Cell = { text: string; held: string; paused: string; dim: boolean; a
 export function cell(b: Board | null, session: Session | null, told: Told = null, width = CELL_WIDTH): Cell {
   const n = b?.needsYou.length ?? 0
   const o = b?.orchestrator
-  const state = !o?.running ? (o?.on === false ? "off" : "restarting") : told ? (told.phase === "answered" ? "answered" : "on it") : session?.state === "working" ? "working" : session?.state === "waiting" ? "waits on you" : "idle"
+  const state = !o?.running ? (o?.on === false ? "off" : "restarting") : told ? (told.phase === "answered" ? "answered" : "on it") : session?.state === "working" ? "working" : session?.state === "waiting" ? "waits on you" : session?.state === "stalled" ? "stalled" : "idle"
   const lead = [`▲ ${n}`, ...(b ? [b.auto.on ? `${b.auto.working}/${b.auto.cap}` : "auto off"] : [])]
   const full = [...lead, `orchestrator: ${state}`].join(" · ")
   const held = b?.hold ? " · held" : ""
@@ -32,5 +32,5 @@ export function cell(b: Board | null, session: Session | null, told: Told = null
     fits(full + held + paused) ? { text: full, held, paused }
     : fits(full + held) ? { text: full, held, paused: "" }
     : { text: lead.join(" · "), held, paused: "" }
-  return { ...shown, dim: n === 0, attention: state === "waits on you" }
+  return { ...shown, dim: n === 0, attention: state === "waits on you" || state === "stalled" }
 }

@@ -12,6 +12,10 @@ test("a record parses, and anything else is dropped", () => {
   assert.equal(parse(JSON.stringify({ id: "x", state: "asleep" })), null)
 })
 
+test("every state arena's hook writes is kept", () => {
+  for (const state of ["idle", "working", "done", "waiting", "stalled"]) assert.equal(parse(JSON.stringify(s("a", state))).state, state)
+})
+
 test("the statusline's meter joins its record; a bad one is left out", () => {
   assert.deepEqual(metered(s("a", "working"), '{"ctx":41,"model":"Opus 5.5"}'), s("a", "working", { ctx: 41, model: "Opus 5.5" }))
   assert.deepEqual(metered(s("a", "working"), "{half"), s("a", "working"))
@@ -28,10 +32,10 @@ test("a record whose tmux pane is gone is stale; one outside tmux is, once a day
   assert.equal(alive(s("menard", "done"), live, 1000, () => false), true)
 })
 
-test("yours come most pressing first: waiting, done, then at work", () => {
-  const all = [s("b", "working"), s("c", "done"), s("a", "waiting")]
-  assert.deepEqual(mine(all).map((x) => x.id), ["a", "c", "b"])
-  assert.equal(nextUp(all).id, "a")
+test("yours come most pressing first: stalled, waiting, done, at work, then idle", () => {
+  const all = [s("e", "idle"), s("b", "working"), s("c", "done"), s("a", "waiting"), s("d", "stalled")]
+  assert.deepEqual(mine(all).map((x) => x.id), ["d", "a", "c", "b", "e"])
+  assert.equal(nextUp(all).id, "d")
   assert.equal(nextUp([]), null)
 })
 
@@ -61,6 +65,7 @@ const ask = { id: 1, question: "ship it?", options: ["yes", "no"] }
 test("what waits on you is the open asks, then the sessions waiting on an answer", () => {
   const all = [s("busy", "working"), s("stuck", "waiting", { doing: "Bash rm -rf" }), s("quiet", "waiting")]
   assert.deepEqual(waiting(all, [card(8, "%5", { ask })]), ["#8 asks: ship it?", "quiet waits", "stuck waits: Bash rm -rf"])
+  assert.deepEqual(waiting([s("quiet", "waiting"), s("parked", "idle"), s("dead", "stalled")], []), ["dead stalled", "quiet waits"])
   assert.deepEqual(waiting([s("busy", "working")], []), [])
 })
 

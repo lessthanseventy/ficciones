@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The Claude sessions' records that arena's plugin keeps in $XDG_RUNTIME_DIR/sessions.
 #   session set goal|next TEXT [WHO]  WHO is a repo or the start of an id; left out, this pane's session
-#   session brief                     your sessions, the ones that are your move first
+#   session brief                     your sessions: the stalled first, then the ones that are your move
 dir="${XDG_RUNTIME_DIR:-/tmp}/sessions"
 die() {
 	echo "session: $*" >&2
@@ -62,7 +62,7 @@ brief() {
 		def group($title; $states): map(select(.state as $s | $states | index($s))) | sort_by(.repo)
 			| if length == 0 then empty else "\($title)\n" + (map(row) | join("\n")) end;
 		if length == 0 then "no sessions" else
-		[group("your move"; ["waiting", "done"]), group("running"; ["working"]), group("parked"; ["idle"])]
+		[group("stalled"; ["stalled"]), group("your move"; ["waiting", "done"]), group("running"; ["working"]), group("parked"; ["idle"])]
 			| join("\n\n") end'
 }
 

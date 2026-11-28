@@ -25,6 +25,9 @@ test("the cell says each state the session record gives", () => {
   const waits = cell(b, session("waiting"))
   assert.equal(waits.text, "▲ 3 · 0/2 · orchestrator: waits on you")
   assert.equal(waits.attention, true)
+  const stalled = cell(b, session("stalled"))
+  assert.equal(stalled.text, "▲ 3 · 0/2 · orchestrator: stalled")
+  assert.equal(stalled.attention, true)
   assert.equal(cell(b, session("working")).attention, false)
 })
 
