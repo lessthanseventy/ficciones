@@ -11,14 +11,17 @@
 let
   cfg = config.ficciones.desktop.shell;
   # Off NixOS the nix gtk finds no GPU driver and falls back to software (GskCairoRenderer):
-  # `nix-gpu CMD` points it at the nix mesa, as nixGL does, and GTK renders on the iGPU with
-  # GL. The unit and `mise shell:dev` both launch through it. Not Vulkan: there every image GTK
-  # uploads costs the kernel a fixed toll, and the backdrop and cava upload one a frame (~20
-  # points of a core more than GL with an ambient up, nearly all system time).
+  # `nix-gpu CMD` points it at the compositor's mesa (/run/opengl-driver, modules/arch), as nixGL
+  # does, and GTK renders on the iGPU with GL: one userspace driver for the compositor and the
+  # shell, not a second from our nixpkgs. The unit and `mise shell:dev` both launch through it.
+  # Not Vulkan: there every image GTK uploads costs the kernel a fixed toll, and the backdrop and
+  # cava upload one a frame (~20 points of a core more than GL with an ambient up, nearly all
+  # system time).
   nixGpu = pkgs.writeShellScriptBin "nix-gpu" ''
-    export __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json
-    export GBM_BACKENDS_PATH=${pkgs.mesa}/lib/gbm LIBGL_DRIVERS_PATH=${pkgs.mesa}/lib/dri
-    export VK_DRIVER_FILES=${pkgs.mesa}/share/vulkan/icd.d/intel_icd.x86_64.json
+    gl=/run/opengl-driver
+    export __EGL_VENDOR_LIBRARY_FILENAMES=$gl/share/glvnd/egl_vendor.d/50_mesa.json
+    export GBM_BACKENDS_PATH=$gl/lib/gbm LIBGL_DRIVERS_PATH=$gl/lib/dri
+    export VK_DRIVER_FILES=$gl/share/vulkan/icd.d/intel_icd.x86_64.json
     export GSK_RENDERER=''${GSK_RENDERER:-gl}
     exec "$@"
   '';
