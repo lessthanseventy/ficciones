@@ -317,18 +317,21 @@ export default function Settings() {
     >
       <overlay>
         <box cssClasses={["clickaway-field"]} hexpand vexpand $={(self) => clickawayField(self, () => (win!.visible = false))} />
-        <box $type="overlay" halign={Gtk.Align.CENTER} valign={Gtk.Align.START} marginTop={60}>
+        <box $type="overlay" halign={Gtk.Align.CENTER} valign={Gtk.Align.START} marginTop={60} marginBottom={60}>
       <Panel title={`SETTINGS · ${PATH.replace(/^\/home\/[^/]+/, "~")}`} cssClasses={["settings-pane", "focused"]}>
         <box spacing={16}>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["set-nav"]} valign={Gtk.Align.START}>
             {SECTIONS.map((s) => <Chip label={s} on={section((c) => c === s)} onClicked={() => setSection(s)} />)}
           </box>
-          <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-            <Backdrop />
-            <Look />
-            <Notifications />
-            <Feel />
-          </box>
+          {/* the overlay gives the pane the monitor's height at most; past that the rows scroll */}
+          <scrolledwindow hexpand hscrollbarPolicy={Gtk.PolicyType.NEVER} overlayScrolling={false} propagateNaturalHeight propagateNaturalWidth>
+            <box orientation={Gtk.Orientation.VERTICAL}>
+              <Backdrop />
+              <Look />
+              <Notifications />
+              <Feel />
+            </box>
+          </scrolledwindow>
         </box>
       </Panel>
         </box>
