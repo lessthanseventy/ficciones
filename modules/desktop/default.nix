@@ -63,7 +63,16 @@ let
       exit 0
     fi
     # W×H is the size the hack draws at, not the monitor's (the shell scales it: backdrop.hackScale)
-    out=$1 d=$2 w=$3 h=$4 hack=$5
+    out=$1 d=$2 w=$3 h=$4 hack=$5 fps=''${6:-}
+    # Each frame is a repaint of the whole monitor and every window over it, so the hack's own
+    # frame delay (the "Frame rate" slider of its config, in µs) is raised to FPS at most. A hack
+    # without that slider runs as it is: --delay means something else there, or nothing.
+    cap=
+    conf=${xscreensaver}/share/xscreensaver/config/$hack.xml
+    if [ -n "$fps" ] && [ -r "$conf" ]; then
+      own=$(tr '\n' ' ' < "$conf" | grep -oE '<number[^>]*arg="--delay %"[^>]*>' | grep 'label="Frame rate"' | grep -oE ' default="[0-9]+"' | grep -oE '[0-9]+')
+      [ -n "$own" ] && [ "$own" -lt $((1000000 / fps)) ] && cap="--delay $((1000000 / fps))"
+    fi
     # stretched to the monitor by the compositor (rootful -fullscreen scales through the
     # viewporter): software GL is fill-bound, so half size is 2–3× the frames for no more CPU.
     # -shm: the X server hands the compositor plain memory instead of compositing with glamor on
@@ -80,7 +89,7 @@ let
     for _ in $(seq 50); do [ -S "/tmp/.X11-unix/X$d" ] && break; sleep 0.1; done
     # software GL spreads over every core by default — a spinning planet took three; one is plenty
     # for a wallpaper
-    DISPLAY=":$d" LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe LP_NUM_THREADS=1 nice -n 19 "$hacks/$hack" -root &
+    DISPLAY=":$d" LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe LP_NUM_THREADS=1 nice -n 19 "$hacks/$hack" -root $cap &
     run=$!
     wait $run
   '';

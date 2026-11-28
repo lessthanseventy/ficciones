@@ -18,6 +18,8 @@ const DEFAULTS = {
   "backdrop.hacksOff": [] as string[],
   /** hacks draw at this fraction of the monitor, stretched to fit: smaller is smoother and softer */
   "backdrop.hackScale": 0.5,
+  /** a hack draws this many frames a second at most; each one repaints the whole monitor */
+  "backdrop.hackHz": 10,
   /** how often the smooth ambients step; a multiple of 5 (the slow ones' rate) */
   "backdrop.smoothHz": 15,
   /** the sound's spectrum along the foot of the desktop, over the photo, the ambient or the hack, while sound plays */

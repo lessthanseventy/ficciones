@@ -161,8 +161,11 @@ function Backdrop() {
         <Stepper k="wallpaper.rotateMinutes" stops={[1, 2, 5, 10, 15, 30, 60, 120, 240]} fmt={(n) => (n < 60 ? `${n} min` : `${n / 60} h`)} />
       </Row>
       <Row label="ambients" hint="in the rotation; off ones can still be held">{flow(ambientChips)}</Row>
-      <Row label="hacks in the pile" hint="the xscreensaver hacks rotate beside the ambients">
+      <Row label="hacks in the pile" hint="the xscreensaver hacks rotate beside the ambients; software GL: about half a core, and the whole monitor repainted every frame">
         <OnOff k="backdrop.hacks" />
+      </Row>
+      <Row label="hack frame rate" hint="frames a second at most, from the next hack; fewer is fewer repaints, and a slower hack">
+        <Stepper k="backdrop.hackHz" stops={[5, 10, 15, 20, 30, 60]} fmt={(n) => `${n} Hz`} />
       </Row>
       <Row label="hack sharpness" hint="drawn at this size, stretched; smaller is smoother, softer">
         <Stepper k="backdrop.hackScale" stops={[0.25, 0.33, 0.5, 0.67, 0.75, 1]} fmt={(n) => `${Math.round(n * 100)} %`} />

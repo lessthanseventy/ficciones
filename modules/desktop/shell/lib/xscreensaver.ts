@@ -22,7 +22,8 @@ export async function loadHacks() {
 export const hackNames = () => hacks
 
 /** Start `hack` as `connector`'s background; the one already there stops first. `w`×`h` is the
- * monitor; the hack draws at backdrop.hackScale of it, stretched to fit. False when it won't start. */
+ * monitor; the hack draws at backdrop.hackScale of it, stretched to fit, backdrop.hackHz times a
+ * second at most. False when it won't start. */
 export function startHack(connector: string, w: number, h: number, hack: string): boolean {
   stopHack(connector)
   display = display >= 99 ? 40 : display + 1
@@ -31,7 +32,7 @@ export function startHack(connector: string, w: number, h: number, hack: string)
   try {
     // in backdrop.slice (default.nix): CPU is shared between cgroups before processes, so the
     // hack's nice only counts inside the shell's own; --scope execs, so the pid is xss-host's
-    const argv = ["systemd-run", "--user", "--scope", "--quiet", "--slice=backdrop.slice", "--", "xss-host", connector, String(display), size(w), size(h), hack]
+    const argv = ["systemd-run", "--user", "--scope", "--quiet", "--slice=backdrop.slice", "--", "xss-host", connector, String(display), size(w), size(h), hack, String(Math.max(1, Math.round(setting("backdrop.hackHz").peek())))]
     running.set(connector, { p: subprocess(argv, () => {}, () => {}), display })
     return true
   } catch (e) { console.error("xss-host:", String(e)); return false }
