@@ -11,7 +11,7 @@ import { execAsync } from "ags/process"
 import { Panel } from "../lib/tui"
 import GLib from "gi://GLib?version=2.0"
 import { createPoll, timeout } from "ags/time"
-import { createState, type Accessor } from "ags"
+import { With, createState, type Accessor } from "ags"
 import { Toggles } from "../panes/Toggles"
 import { toggleCheatsheet } from "./Cheatsheet"
 import { CalendarCard } from "../panes/Calendar"
@@ -28,6 +28,9 @@ import { tier } from "../lib/perf"
 import { meter, spark } from "../lib/format"
 
 let win: Astal.Window | null = null
+// the cards are built while the board is open and disposed when it closes: closed, they would
+// still follow perf, the clock and the log every tick
+const [shown, setShown] = createState(false)
 export const dashboardOpen = () => !!win?.visible
 export function hideDashboard() { if (win) win.visible = false }
 export function showDashboard() {
@@ -181,6 +184,7 @@ export default function Dashboard() {
       $={(self) => {
         win = self
         self.add_controller(closeKeys({ close: hideDashboard, q: true }))
+        self.connect("notify::visible", () => setShown(self.visible))
       }}
       cssClasses={["dashboard"]}
       namespace="astal-shell-dashboard"
@@ -203,7 +207,9 @@ export default function Dashboard() {
           vexpand
           $={(self) => clickawayField(self, hideDashboard)}
         />
-        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} spacing={16} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={36 + 8} marginBottom={36 + 8} marginStart={54 + 8} marginEnd={8}>
+        <box $type="overlay" cssClasses={["board"]} orientation={Gtk.Orientation.VERTICAL} halign={Gtk.Align.FILL} valign={Gtk.Align.FILL} marginTop={36 + 8} marginBottom={36 + 8} marginStart={54 + 8} marginEnd={8}>
+          <With value={shown}>{(s) => s && (
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={16} vexpand>
           {/* three rows, packed to fit 1920×1080 with the rail and bar; one 16px gap between every
               pair of outer frames and from the board's edge (the card margin equals its outline
               offset, so the box spacing IS the gap). No key hints under the cards: the even
@@ -239,6 +245,8 @@ export default function Dashboard() {
             <Panel title={"\u{f0425}  POWER"} cssClasses={["card", "card-power"]}><Power /></Panel>
             <Panel title={"\u2135  SHELL"} cssClasses={["card", "card-shell"]}><Shell /></Panel>
           </box>
+          </box>
+          )}</With>
         </box>
       </overlay>
     </window>
