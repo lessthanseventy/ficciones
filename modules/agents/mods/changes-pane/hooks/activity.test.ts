@@ -25,6 +25,8 @@ test('a call is said in a few words', async () => {
   expect(modelName('claude-fable-5-2')).toBe('fable 5.2')
   expect(duration(560)).toBe('600 ms')
   expect(duration(1500)).toBe('1.5 s')
+  expect(duration(970)).toBe('1.0 s')
+  expect(duration(59_970)).toBe('1m 0s')
 })
 
 test('a feed row keeps its duration when the text is cut', async () => {

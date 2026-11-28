@@ -69,7 +69,12 @@ export const describe = (e: Call): string => {
 
 export const modelName = (id: string) => id.replace(/^claude-/, '').replace(/-(\d+)-(\d+).*$/, ' $1.$2').replace(/-\d{8}$/, '')
 
-export const duration = (ms: number) => (ms < 1000 ? `${Math.round(ms / 100) * 100} ms` : ms < 60_000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`)
+export const duration = (ms: number) => {
+  // rounded before the unit is picked, so 970 ms is "1.0 s", never "1000 ms"
+  const tenths = Math.round(ms / 100)
+  const seconds = Math.round(ms / 1000)
+  return tenths < 10 ? `${tenths * 100} ms` : tenths < 600 ? `${(tenths / 10).toFixed(1)} s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+}
 
 const label = (node: NodeId) => NODES.find(([id]) => id === node)![1]
 
