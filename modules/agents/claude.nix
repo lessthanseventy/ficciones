@@ -44,8 +44,9 @@ in
   home.file.".claude/skills/brief/SKILL.md".source = ./skills/brief/SKILL.md;
 
   # arena and babylon are sibling checkouts; each switch (babylon's install runs one after a landing)
-  # loads a store snapshot of their plugin files, not the checkout, so a hook a landing removes
-  # cannot break a session that read hooks.json before it (./plugin-snapshot.sh keeps the last few).
+  # loads a store snapshot of their plugin files as main has them, not the checkout, so a hook a
+  # landing removes cannot break a session that read hooks.json before it, and a file not landed
+  # is never loaded (./plugin-snapshot.sh keeps the last few).
   # The routine board tools are allowed outright (auto mode's check otherwise stops a session on
   # them), and so is writing inside a ticket's own worktree (wt's, or babylon's under
   # ~/.cache/babylon/work). menard's edit and write are MCP tools, which the Write/Edit path rules
