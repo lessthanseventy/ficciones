@@ -35,6 +35,8 @@ const DEFAULTS = {
   "look.glass": true,
   /** both active and inactive windows: the background is not dimmer than the foreground */
   "look.glassOpacity": 0.9,
+  /** the focus gradient turns for ever, not once per focus: every window redraws every frame */
+  "look.borderLoop": false,
   /** "off" or "full": a screen shader over the whole output */
   "look.crt": "off",
   "look.nightKelvin": 4000,

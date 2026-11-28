@@ -267,6 +267,9 @@ function Look() {
       </Row>
       <Row label="night light" hint="warmer screen at sunset, back at sunrise"><OnOff k="look.nightFollowsSun" /></Row>
       <Advanced>
+        <Row label="border keeps turning" hint="off, the focus gradient turns once when a window takes focus; on, every frame is redrawn for ever: about a fifth of a core, more on battery or a weak GPU">
+          <OnOff k="look.borderLoop" />
+        </Row>
         <Row label="glass opacity" hint="how solid a glass window is">
           <Stepper k="look.glassOpacity" stops={range(0.5, 1, 0.05)} fmt={(n) => `${Math.round(n * 100)} %`} />
         </Row>
