@@ -332,6 +332,38 @@ hl.window_rule({ name = "fzf-picker", match = { class = "^(fzf-picker)$" }, floa
 -- float here; no_anim because the slide is the shell's, no_wobble because a wobble fights it.
 hl.window_rule({ name = "quake-term", match = { class = "^(com\\.ghostty\\.quake)$" }, float = true, no_anim = true, no_wobble = true })
 
+-- A nested Hyprland (scripts/hypr-nested.sh) is a test: its window opens on the hidden
+-- special:agents workspace and never takes focus.
+hl.window_rule({
+    name = "nested-hyprland",
+    match = { class = "^aquamarine$" },
+    workspace = "special:agents silent",
+    no_initial_focus = true,
+    no_focus = true,
+})
+
+-- So does any window a process of an agent opens. A rule cannot match on the process, so the
+-- window's environment is read as it opens: CLAUDECODE is Claude Code's own mark on all it runs,
+-- AGENT_WORK is agent-work.sh's. A window meant for the screen is started with both unset.
+local function from_agent(w)
+    local f = io.open("/proc/" .. w.pid .. "/environ", "rb")
+    if not f then return false end
+    local env = "\0" .. f:read("a")
+    f:close()
+    return env:find("\0CLAUDECODE=1\0", 1, true) ~= nil or env:find("\0AGENT_WORK=1\0", 1, true) ~= nil
+end
+-- open_early is before the focus is given, and too soon to move: the window is in no layout yet.
+hl.on("window.open_early", function(w)
+    if from_agent(w) then
+        hl.dispatch(hl.dsp.window.set_prop({ window = "address:" .. w.address, prop = "no_focus", value = "1" }))
+    end
+end)
+hl.on("window.open", function(w)
+    if from_agent(w) and w.workspace.name ~= "special:agents" then
+        hl.dispatch(hl.dsp.window.move({ window = "address:" .. w.address, workspace = "special:agents", follow = false }))
+    end
+end)
+
 
 -- Bitwarden popups
 hl.window_rule({

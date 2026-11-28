@@ -15,6 +15,7 @@ is "exit status passes through" "$(
 	echo $?
 )" "3"
 is "stderr passes through" "$(bash "$wrap" 'echo e >&2' 2>&1)" "e"
+is "marked as an agent's" "$(AGENT_WORK='' bash "$wrap" 'echo "$AGENT_WORK"')" "1"
 got=$(bash "$wrap" 'grep Cpus_allowed_list /proc/self/status' | awk '{print $2}')
 if [ -n "$ecores" ]; then
 	is "pinned to the E-cores" "$got" "$ecores"
