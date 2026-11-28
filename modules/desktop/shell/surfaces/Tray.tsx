@@ -21,7 +21,8 @@ import { volumeWheel } from "../lib/sound"
 import { hypr, focusedWorkspace } from "../lib/hypr"
 import Pango from "gi://Pango?version=1.0"
 import { vpn, mullvad, mullvadToggle, wgConfigs, wgToggle } from "../lib/vpn"
-import { createPoll, timeout } from "ags/time"
+import { timeout } from "ags/time"
+import { createPoll } from "../lib/poll"
 import { toggleLauncher } from "./Launcher"
 import { screenshot, annotate, startRecording, stopRecording, recording, lastRegion, type Target } from "../lib/capture"
 
@@ -279,12 +280,12 @@ async function refreshClips() {
     GLib.mkdir_with_parents(CLIP_DIR, 0o755)
     // decode each image once; the id is stable for the clip's life
     await Promise.all(clips.filter((c) => c.file && !GLib.file_test(c.file, GLib.FileTest.EXISTS))
-      .map((c) => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${c.id}\t' | cliphist decode > "$1"`, "_", c.file!]).catch(() => {})))
+      .map((c) => execAsync(["sh", "-c", 'cliphist decode "$1" > "$2"', "_", c.id, c.file!]).catch(() => {})))
     setRecentClips(clips)
     pruneClips(new Set(clips.map((c) => c.id)))
   } catch { setRecentClips([]) }
 }
-const copyClip = (c: Clip) => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${c.id}\t' | cliphist decode | wl-copy`]).then(refreshClips).catch(console.error)
+const copyClip = (c: Clip) => execAsync(["sh", "-c", 'cliphist decode "$1" | wl-copy', "_", c.id]).then(refreshClips).catch(console.error)
 function ClipItem() {
   let pop: HoverPop | null = null
   return (

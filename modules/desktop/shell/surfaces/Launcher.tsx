@@ -45,7 +45,7 @@ function verbs(): Promise<Verb[]> {
 }
 /** A verb runs in its own ghostty window from the repo, and the window stays until you dismiss it. */
 const runVerb = (name: string) =>
-  execAsync(["ghostty", `--title=mise ${name}`, "-e", "sh", "-c", `cd ${REPO} && mise run ${name}; printf '\n[done — enter to close] '; read _`]).then(() => void 0)
+  execAsync(["ghostty", `--title=mise ${name}`, "-e", "sh", "-c", `mise --cd "$1" run "$2"; printf '\n[done — enter to close] '; read _`, "_", REPO, name]).then(() => void 0)
 
 /** What the pointer reaches on the rail, the bar and the dashboard, by name. The two that end the
  * session stay on the dashboard, where they ask twice. */
@@ -154,7 +154,7 @@ async function search(q: string) {
         .slice(0, 14)
         .map((e) => ({
           glyph: "\u{f0cea}", title: e.text.replace(/\s+/g, " ").slice(0, 70), key: e.id,
-          run: () => execAsync(["sh", "-c", `cliphist list | grep -m1 '^${e.id}\t' | cliphist decode | wl-copy`]).then(() => void 0),
+          run: () => execAsync(["sh", "-c", 'cliphist decode "$1" | wl-copy', "_", e.id]).then(() => void 0),
         }))
     }
   } catch (e) {
