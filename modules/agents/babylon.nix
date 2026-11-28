@@ -29,9 +29,15 @@ in
       exec ${babylonBin} "$@"
     '')
   ]
-  # arena, in the profile's bin: a Claude session's PATH has that and not ~/.local/bin
+  # arena, in the profile's bin: a Claude session's PATH has that and not ~/.local/bin. It runs the
+  # binary arena's install task puts outside any checkout (babylon builds a landing in a tree of
+  # its own), and the checkout's build only on a machine where no install has run.
   ++ [
-    (pkgs.writeShellScriptBin "arena" ''exec ${arenaRepo}/zig-out/bin/arena "$@"'')
+    (pkgs.writeShellScriptBin "arena" ''
+      bin="''${XDG_DATA_HOME:-$HOME/.local/share}/arena/bin/arena"
+      [ -x "$bin" ] || bin=${arenaRepo}/zig-out/bin/arena
+      exec "$bin" "$@"
+    '')
   ];
 
   # After reloadSystemd, which stops a unit the new generation no longer links: install then starts
