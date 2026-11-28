@@ -5,7 +5,6 @@
   config,
   lib,
   pkgs,
-  repo,
   dbx,
   agentBrowser,
   agentDesktop,
@@ -183,9 +182,8 @@ in
   # the workflow every repo here keeps (linear history: rebase, fast-forward, stacks); git
   # reads this beside ~/.gitconfig, which stays the machine's (identity, credentials)
   home.file.".config/git/config".source = ../os/gitconfig;
-  # out of the store: `mise use -g` and `mise trust` write this file
-  home.file.".config/mise/config.toml".source =
-    config.lib.file.mkOutOfStoreSymlink "${repo}/modules/os/mise.toml";
+  # read-only, so `mise use -g` refuses: a global tool is added in modules/os/mise.toml
+  home.file.".config/mise/config.toml".source = ../os/mise.toml;
 
   systemd.user.slices = {
     # Claude sessions started by hand (the `claude` function in modules/os/zshrc) and the

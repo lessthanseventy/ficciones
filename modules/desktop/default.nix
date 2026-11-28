@@ -106,9 +106,7 @@ let
       ln -sf Discord $out/bin/discord
     '';
   };
-  linkTo = rel: {
-    source = config.lib.file.mkOutOfStoreSymlink "${repo}/modules/desktop/hypr/${rel}";
-  };
+  linkTo = rel: { source = ./hypr + "/${rel}"; };
   # Unity Hub's sandbox has its own /usr, so its xdg-open finds no host browser and sign-in opens
   # nothing; through the portal the link is opened outside
   unityhub = pkgs.symlinkJoin {
@@ -474,9 +472,8 @@ in
       };
     };
 
-    # scripts/git-hooks/ holds the hooks (post-checkout/-merge/-rewrite, all one script), so they
-    # are versioned rather than sitting untracked in .git/hooks — which core.hooksPath then stops
-    # git from reading at all. Only the samples live there, so nothing is lost.
+    # scripts/git-hooks/ holds the hooks, so they are versioned rather than sitting untracked in
+    # .git/hooks — which core.hooksPath then stops git from reading at all.
     # git is probed, not pulled from pkgs: it is a hard prerequisite for having this repo at all,
     # and a store git would add ~50MB of closure (perl included) for one `config` call.
     home.activation.hyprlandGitHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -636,33 +633,6 @@ in
         RestartSec = 5;
       };
       Install.WantedBy = [ "graphical-session.target" ];
-    };
-
-    # git rewrites hyprland.lua by unlinking it first (a checkout, a rebase's autostash). Hyprland
-    # reloads in that instant, finds no file and raises its error bar, and keeps the bar after
-    # the file is back. Once the file settles: reload if the errors are still listed, and take
-    # the bar down when none are.
-    systemd.user.paths.hyprland-config-settled = {
-      Unit.Description = "hyprland.lua was rewritten";
-      Path.PathChanged = "${repo}/modules/desktop/hypr/hyprland.lua";
-      Install.WantedBy = [ "graphical-session.target" ];
-    };
-    systemd.user.services.hyprland-config-settled = {
-      Unit.Description = "clear a config error Hyprland raised while hyprland.lua was mid-rewrite";
-      Service = {
-        Type = "oneshot";
-        ExecStart = pkgs.writeShellScript "hyprland-config-settled" ''
-          # the profile's hyprctl: a store path would name this nixpkgs', not the running compositor's
-          hyprctl=${config.home.profileDirectory}/bin/hyprctl
-          conf=${repo}/modules/desktop/hypr/hyprland.lua
-          clean() { [ -z "$("$hyprctl" -i 0 configerrors 2>/dev/null | tr -d '[:space:]')" ]; }
-          sleep 1
-          [ -x "$hyprctl" ] && [ -e "$conf" ] || exit 0
-          clean || "$hyprctl" -i 0 reload >/dev/null 2>&1
-          clean && "$hyprctl" -i 0 seterror disable >/dev/null 2>&1
-          exit 0
-        '';
-      };
     };
 
     # The defaults this machine picks, set in ~/.config/mimeapps.list. Not xdg.mimeApps: that makes

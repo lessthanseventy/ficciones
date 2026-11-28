@@ -62,8 +62,8 @@
         config.allowUnfree = true;
       };
 
-      # Hardcoded, not `self`: consumers load the REAL files so a dev edit is picked up,
-      # not a stale store snapshot. Single-user machine, fixed home dir.
+      # The human's checkout, for activation steps that configure it (its git hooks). Nothing
+      # installed may link into it: a switch applies one commit (check home-links).
       repo = "/home/andrew/projects/ficciones";
 
       # The desktop shell (modules/desktop/shell). Built here once and handed to home-manager
@@ -255,6 +255,22 @@
       # modules/desktop/theme/palette.nix renders — `mise theme:gen` rewrites them. Without this a
       # palette edit would ship to ghostty and GTK but leave the shell behind.
       checks.${system} = {
+        # a switch applies one commit: no installed file may resolve into the human's checkout
+        home-links = pkgs.runCommand "home-links" { } ''
+          bad=0
+          while IFS= read -r l; do
+            t=$(readlink "$l")
+            case $t in /nix/store/*) [ -L "$t" ] && t=$(readlink "$t") ;; esac
+            case $t in
+              ${repo} | ${repo}/*)
+                echo "home-links: ~/''${l#*/home-files/} links into the checkout: $t" >&2
+                bad=1
+                ;;
+            esac
+          done < <(find ${self.homeConfigurations.personalbox.activationPackage}/home-files/ -type l)
+          [ "$bad" = 0 ] && touch $out
+        '';
+
         palette-sync =
           let
             generated = import ./modules/desktop/theme/generated.nix { inherit (pkgs) lib; };
@@ -392,7 +408,6 @@
           expertPackages = inputs.expert.packages;
         };
         modules = [
-          # The Hyprland stack, symlinked back to the working tree so it stays live-editable.
           ./modules/desktop
           ./modules/arch
           ./modules/tmux.nix

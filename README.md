@@ -88,9 +88,9 @@ Two targets, one flake:
 - `homeConfigurations.anmoore`: the work Mac. The same palettes on terminals, prompt, TUIs,
   Floorp and Claude Code, and no desktop.
 
-home-manager places symlinks that point back into this working tree for the desktop's config, so
-an edit to `modules/desktop/hypr/hyprland.lua` is live on `hyprctl reload`. The price is that a
-checkout is a desktop change, which the hooks in `scripts/git-hooks` cover.
+A switch applies one commit: every file it installs is in the nix store, none links back into
+this working tree (the flake's `home-links` check holds it), so a checkout or an edit changes
+nothing live until the next `home:switch`.
 
 ### Bringing it up
 
