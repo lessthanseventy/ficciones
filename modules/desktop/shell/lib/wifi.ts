@@ -1,6 +1,6 @@
 // Wifi signal strength history, sampled from AstalNetwork every 2 s — the NET card's sparkline.
 import Network from "gi://AstalNetwork"
-import { createPoll } from "ags/time"
+import { createPoll } from "./poll"
 
 const HIST = 60
 const hist: number[] = []

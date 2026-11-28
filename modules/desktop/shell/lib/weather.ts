@@ -1,7 +1,7 @@
 // open-meteo, no key. Location from ~/.config/astal-shell/config.json ({"lat","lon"}); the last
 // good reading is cached to disk so a dead network shows stale weather rather than nothing.
 import GLib from "gi://GLib?version=2.0"
-import { createPoll } from "ags/time"
+import { createPoll } from "./poll"
 import { readFileAsync, writeFileAsync } from "ags/file"
 import { fetch } from "ags/fetch"
 import { localDay } from "./format"

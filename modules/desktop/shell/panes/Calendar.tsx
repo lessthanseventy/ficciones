@@ -1,7 +1,7 @@
 // The month, today chipped. The date line above it is the card's headline.
 import Gtk from "gi://Gtk?version=4.0"
 import GLib from "gi://GLib?version=2.0"
-import { createPoll } from "ags/time"
+import { createPoll } from "../lib/poll"
 import { execAsync } from "ags/process"
 import { For, With, createState, createComputed, onCleanup } from "ags"
 import { RuleH } from "../lib/tui"

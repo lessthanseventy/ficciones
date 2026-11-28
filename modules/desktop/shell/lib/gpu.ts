@@ -2,7 +2,7 @@
 // every 5s and never blocks the loop; when the card is off (EnvyControl integrated, a VM)
 // the poll fails and the cell hides itself. A failure waits 5 min before the next call: a driver
 // whose kernel module and userspace differ logs an NVRM line to the kernel journal on every call.
-import { createPoll } from "ags/time"
+import { createPoll } from "./poll"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib?version=2.0"
 

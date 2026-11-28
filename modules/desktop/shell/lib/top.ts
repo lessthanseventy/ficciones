@@ -3,7 +3,8 @@
 // poll ran `ps` twice every 3 s for nobody.
 import type Gtk from "gi://Gtk?version=4.0"
 import { createState } from "ags"
-import { createPoll, interval, type Timer } from "ags/time"
+import { interval, type Timer } from "ags/time"
+import { createPoll } from "./poll"
 import { execAsync } from "ags/process"
 
 export type Proc = { pid: number; cpu: number; mem: number; comm: string }

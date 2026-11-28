@@ -1,6 +1,6 @@
 // Filesystem usage per mount, from `df` every 30 s. Pseudo filesystems are excluded at the
 // source; snapper's .snapshots and the boot/efi partitions stay (they are the ones that fill).
-import { createPoll } from "ags/time"
+import { createPoll } from "./poll"
 import { execAsync } from "ags/process"
 
 export type Mount = { target: string; fstype: string; size: number; used: number; frac: number }

@@ -1,7 +1,7 @@
 // The keyboard's state for the bar's glyphs: caps lock and the active layout, only shown when
 // notable — caps on, or a layout other than the first. Hyprland has no event for caps, so it is
 // read from the keyboards' LEDs in sysfs (no process); the layout follows `activelayout`.
-import { createPoll } from "ags/time"
+import { createPoll } from "./poll"
 import { createComputed, createState } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib?version=2.0"

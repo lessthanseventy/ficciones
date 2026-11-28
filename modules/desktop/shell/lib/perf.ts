@@ -1,6 +1,6 @@
 // System load from /proc, polled once a second and shared by every consumer (bar cells, the
 // cat, later the PERF pane). One reader, many accessors: /proc is cheap but not free.
-import { createPoll } from "ags/time"
+import { createPoll } from "./poll"
 import { readFile } from "ags/file"
 
 export type Perf = {

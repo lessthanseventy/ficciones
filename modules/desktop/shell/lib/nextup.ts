@@ -1,7 +1,7 @@
 // The next calendar event and how long until it — the bar's centre cell. khal's --json output
 // (start as an ISO time, title); nothing when no calendar is configured or nothing is due
 // today. Polled every minute; the countdown ticks off the same accessor.
-import { createPoll } from "ags/time"
+import { createPoll } from "./poll"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib?version=2.0"
 import { localDay } from "./format"
