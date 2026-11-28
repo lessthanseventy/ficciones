@@ -54,7 +54,14 @@ export function SpectrumBars({ shown }: { shown: Accessor<boolean> }) {
   if (!c) return <box />
   const opacity = setting("backdrop.spectrumOpacity")
   let area: Gtk.DrawingArea | null = null
-  const id = c.connect("notify::values", () => { if (shown.peek()) area?.queue_draw() })
+  let last: number[] = []
+  const id = c.connect("notify::values", () => {
+    if (!shown.peek()) return
+    const vs = c.values
+    if (vs.length === last.length && vs.every((v, i) => v === last[i])) return
+    last = [...vs]
+    area?.queue_draw()
+  })
   onCleanup(() => c.disconnect(id))
   return (
     <Gtk.DrawingArea
@@ -97,7 +104,14 @@ export function Channel({ side, rows = 8 }: { side: "left" | "right"; rows?: num
   const W = 36
   let vals: number[] = []
   let area: Gtk.DrawingArea | null = null
-  const id = c.connect("notify::values", () => { vals = bands(c.values, side, rows); area?.queue_draw() })
+  // an open stream that is silent still ticks at the visualiser's rate: draw only what moved, on screen
+  const id = c.connect("notify::values", () => {
+    if (!area?.get_mapped()) return
+    const next = bands(c.values, side, rows)
+    if (next.length === vals.length && next.every((v, i) => v === vals[i])) return
+    vals = next
+    area.queue_draw()
+  })
   onCleanup(() => c.disconnect(id))
   return (
     <box cssClasses={["cava-col", side]} widthRequest={W} halign={Gtk.Align.START}>
