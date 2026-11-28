@@ -113,6 +113,11 @@ merging main in. Rewriting history that is already pushed or shared is the human
   end it with `tmux -L <name> kill-server`. `TMUX_TMPDIR` does not make one private inside a pane:
   `$TMUX` is set there and names the socket first, so the call lands on the server everyone is
   in. Never type `kill-server` without `-L`/`-S`.
+- **A GUI test never reaches the human's screen.** Run it headless: Xvfb, a headless compositor
+  (`mise run desktop:headless`), or a hidden special workspace. It opens no window on the screen
+  and takes no focus. A nested Hyprland starts only through `scripts/hypr-nested.sh`: started
+  bare, it imports its display into user systemd and takes the live shell down. What needs the
+  real screen goes on the try sheet, for the human to do.
 - **Subagents get an explicit model** matched to the work: sonnet for specified builds, reviews and
   triage, haiku for one-liners; the top model only when the task needs it.
 - **Report long runs as they go:** one line per milestone, not silence until the end.
