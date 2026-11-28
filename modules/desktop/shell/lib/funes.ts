@@ -4,8 +4,9 @@
 // (halves every four days). Funes, of course, forgot nothing, which was his trouble: entries
 // unused for ninety days are let go.
 import GLib from "gi://GLib?version=2.0"
+import { load, type Memory } from "./funes-core"
 
-export type Memory = { key: string; mode: string; title: string; sub?: string; count: number; last: number }
+export type { Memory }
 
 const FILE = `${GLib.get_user_state_dir()}/astal-shell/funes.json`
 const HALF_LIFE_MS = 4 * 86_400_000
@@ -14,7 +15,7 @@ let mem: Record<string, Memory> = {}
 
 try {
   const [ok, bytes] = GLib.file_get_contents(FILE)
-  if (ok) mem = JSON.parse(new TextDecoder().decode(bytes))
+  if (ok) mem = load(new TextDecoder().decode(bytes))
 } catch { /* first run */ }
 
 function save() {
