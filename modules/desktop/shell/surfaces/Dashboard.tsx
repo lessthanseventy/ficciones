@@ -124,7 +124,8 @@ function MarkCard() {
 }
 
 function ClockCard() {
-  const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
+  // a string, so the ticks within a minute redraw nothing
+  const now = createPoll("", 1000, () => GLib.DateTime.new_now_local().format("%H:%M|%A|%-d %B %Y") ?? "")
   const up = createPoll("", 30_000, () => {
     try {
       const [ok, bytes] = GLib.file_get_contents("/proc/uptime")
@@ -135,9 +136,9 @@ function ClockCard() {
   })
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2} valign={Gtk.Align.CENTER}>
-      <label cssClasses={["bigtime"]} label={now((d) => d.format("%H:%M")!)} xalign={0} />
-      <label cssClasses={["amber", "lg"]} label={now((d) => d.format("%A")!)} xalign={0} />
-      <label cssClasses={["dim"]} label={now((d) => d.format("%-d %B %Y")!)} xalign={0} />
+      <label cssClasses={["bigtime"]} label={now((k) => k.split("|")[0])} xalign={0} />
+      <label cssClasses={["amber", "lg"]} label={now((k) => k.split("|")[1] ?? "")} xalign={0} />
+      <label cssClasses={["dim"]} label={now((k) => k.split("|")[2] ?? "")} xalign={0} />
       <label cssClasses={["dim", "sm"]} label={up} xalign={0} />
     </box>
   )

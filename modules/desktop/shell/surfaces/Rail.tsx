@@ -128,15 +128,17 @@ export const toggleWeatherPop = () => onFocused(weatherPops)?.toggle()
 
 /** Stacked clock: the calendar and agenda hang off it, like every other popover. */
 function Clock({ connector }: { connector: string }) {
-  const now = createPoll(GLib.DateTime.new_now_local(), 1000, () => GLib.DateTime.new_now_local())
+  // a string, so a tick that leaves the face as it was redraws nothing
+  const now = createPoll("", 1000, () => [clockFace(new Date()), GLib.DateTime.new_now_local().format("%a|%d|%b") ?? ""].join("|"))
+  const part = (i: number) => now((k) => k.split("|")[i] ?? "")
   return (
     <menubutton cssClasses={["clock", "keep-open"]} direction={Gtk.ArrowType.RIGHT} $={(self) => clockPops.set(connector, hoverPopover(self, "rail"))}>
       <box orientation={Gtk.Orientation.VERTICAL}>
-        <label cssClasses={["hh"]} label={now((d) => railLines(clockFace(new Date(d.to_unix() * 1000)))[0])} />
-        <label cssClasses={["mm"]} label={now((d) => railLines(clockFace(new Date(d.to_unix() * 1000)))[1])} />
-        <label cssClasses={["dow"]} label={now((d) => d.format("%a")!)} />
-        <label cssClasses={["day"]} label={now((d) => d.format("%d")!)} />
-        <label cssClasses={["mon"]} label={now((d) => d.format("%b")!)} />
+        <label cssClasses={["hh"]} label={now((k) => railLines(k.split("|")[0])[0])} />
+        <label cssClasses={["mm"]} label={now((k) => railLines(k.split("|")[0])[1])} />
+        <label cssClasses={["dow"]} label={part(1)} />
+        <label cssClasses={["day"]} label={part(2)} />
+        <label cssClasses={["mon"]} label={part(3)} />
       </box>
       <popover cssClasses={["pop", "pop-calendar"]}>
         <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><box widthRequest={420}><CalendarCard /></box></Panel>
