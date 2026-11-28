@@ -59,7 +59,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 
 | verb | does |
 |---|---|
-| `hypr:check` | hypr: load hyprland.lua in a nested Hyprland and diff its binds, options and rules against the live one — saving the real file reloads the live compositor, so prove an edit here first. Opens a window, so it stays out of check |
+| `hypr:check` | hypr: load hyprland.lua in a nested Hyprland and diff its binds, options and rules against the live one — saving the real file reloads the live compositor, so prove an edit here first. Needs the live session, so it stays out of check |
 | `hypr:close-frames` | hypr: open and close a window in a nested Hyprland with HyprWindowShade loaded, and photograph the close shader as a contact sheet — the burn, seen without logging out |
 
 ## hyprland

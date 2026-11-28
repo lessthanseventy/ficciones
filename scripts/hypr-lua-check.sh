@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Load modules/desktop/hypr/hyprland.lua in a NESTED Hyprland (a window on the live desktop),
-# with autostart disabled, and diff its binds / options / rules against the live instance.
+# Load modules/desktop/hypr/hyprland.lua in a NESTED Hyprland, with autostart disabled, and diff
+# its binds / options / rules against the live instance.
 # Usage: scripts/hypr-lua-check.sh [host]   (default: ivysaur)
 set -euo pipefail
 cd "$(dirname "$0")/.."

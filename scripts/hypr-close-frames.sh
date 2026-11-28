@@ -19,7 +19,8 @@ so=~/.local/share/hypr/plugins/hyprwindowshade.so
 	exit 1
 }
 
-WAYLAND_DISPLAY="$nested_wl" kitty --class close-frames -o font_size=28 \
+# without an agent's marks: with them, hyprland.lua hides the window it is here to photograph
+env -u CLAUDECODE -u AGENT_WORK WAYLAND_DISPLAY="$nested_wl" kitty --class close-frames -o font_size=28 \
 	sh -c 'printf "\n   closing\n\n"; seq 1 40; sleep 60' >/dev/null 2>&1 &
 addr=""
 for _ in $(seq 1 30); do

@@ -36,7 +36,7 @@ description = "theme: photograph the generated hyprlock.conf in a nested Hyprlan
 run = "scripts/hyprlock-preview.sh"
 
 ["hypr:check"]
-description = "hypr: load hyprland.lua in a nested Hyprland and diff its binds, options and rules against the live one — saving the real file reloads the live compositor, so prove an edit here first. Opens a window, so it stays out of check"
+description = "hypr: load hyprland.lua in a nested Hyprland and diff its binds, options and rules against the live one — saving the real file reloads the live compositor, so prove an edit here first. Needs the live session, so it stays out of check"
 run = "scripts/hypr-lua-check.sh"
 
 ["hypr:close-frames"]

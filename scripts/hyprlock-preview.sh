@@ -61,6 +61,11 @@ up() {
 		return 1
 	}
 	sig="$(ls "$run/hypr")"
+	# The live hyprland.lua hides this instance's window, and a hidden window gets no frames:
+	# a headless output takes its place.
+	sleep 1
+	nested hyprctl output create headless >/dev/null
+	nested hyprctl output remove WAYLAND-1 >/dev/null
 }
 
 down() {

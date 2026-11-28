@@ -1,7 +1,8 @@
 # shellcheck shell=bash disable=SC2154,SC2034  # $scratch is the caller's; $nested_wl is for it
-# Sourced, from the repo root: start a nested Hyprland (a window on the live desktop) on the
-# repo's hyprland.lua with autostart off, and SIGKILL it whenever the sourcing script exits —
-# a failed step must not leave it running.
+# Sourced, from the repo root: start a nested Hyprland on the repo's hyprland.lua with autostart
+# off, and SIGKILL it whenever the sourcing script exits — a failed step must not leave it
+# running. It is never on the live screen: the live hyprland.lua opens its window on the hidden
+# special:agents workspace, and that window is closed once a headless output has taken its place.
 #   nested_start [host]   sets $nested (its instance signature) and $nested_wl (its WAYLAND_DISPLAY)
 #   n ARGS…               hyprctl into it
 # Needs $scratch: the theme.lua / host.lua the config reads are written there.
@@ -48,6 +49,9 @@ nested_start() {
 		return 1
 	fi
 	sleep 2
+	# The hidden window gets no frames from the live compositor, so nothing on it is ever drawn.
+	n output create headless >/dev/null
+	n output remove WAYLAND-1 >/dev/null
 	nested_wl="$(n instances -j | jq -r --arg i "$nested" '.[] | select(.instance == $i) | .wl_socket')"
 }
 
