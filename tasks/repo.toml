@@ -39,7 +39,7 @@ description = "the Claude Code mods' own tests, in Claude's harness (bare bun ca
 run = "scripts/check-menard-verbs.sh || exit 1; cmp modules/agents/mods/changes-pane/hooks/changes.ts modules/agents/mods/review-pane/hooks/changes.ts || { echo 'check:mods — review-pane/hooks/changes.ts is a copy of changes-pane/hooks/changes.ts: edit that one, then cp it over'; exit 1; }; command -v claude >/dev/null || { echo 'check:mods — no claude on PATH, not run'; exit 0; }; for m in modules/agents/mods/*/; do claude plugin test \"$m\" || exit 1; done"
 
 ["check:agent-work"]
-description = "the CLAUDE_CODE_SHELL_PREFIX wrapper runs a command intact, pinned to the E-cores"
+description = "the CLAUDE_CODE_SHELL_PREFIX wrapper runs a command intact, at nice 10, pinned to the E-cores"
 run = "modules/agents/agent-work.test.sh"
 
 ["check:menard-scope"]

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agent-work.sh runs Claude Code's command string, shell syntax intact, on the E-cores only
+# agent-work.sh runs Claude Code's command string, shell syntax intact, at nice 10, on the E-cores only
 wrap="$(cd "$(dirname "$0")" && pwd)/agent-work.sh"
 ecores=$(cat /sys/devices/cpu_atom/cpus 2>/dev/null)
 bad=0
@@ -16,6 +16,9 @@ is "exit status passes through" "$(
 )" "3"
 is "stderr passes through" "$(bash "$wrap" 'echo e >&2' 2>&1)" "e"
 is "marked as an agent's" "$(AGENT_WORK='' bash "$wrap" 'echo "$AGENT_WORK"')" "1"
+is "niced to 10" "$(bash "$wrap" 'nice')" "10"
+is "work already lower stays there" "$(nice -n 15 bash "$wrap" 'nice')" "15"
+is "disk class idle" "$(bash "$wrap" 'ionice -p $$')" "idle"
 got=$(bash "$wrap" 'grep Cpus_allowed_list /proc/self/status' | awk '{print $2}')
 if [ -n "$ecores" ]; then
 	is "pinned to the E-cores" "$got" "$ecores"

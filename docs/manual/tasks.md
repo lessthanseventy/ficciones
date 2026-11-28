@@ -14,7 +14,7 @@ Every verb is `mise run <name>`; the same loop for the human and the agents (AGE
 
 | verb | does |
 |---|---|
-| `check:agent-work` | the CLAUDE_CODE_SHELL_PREFIX wrapper runs a command intact, pinned to the E-cores |
+| `check:agent-work` | the CLAUDE_CODE_SHELL_PREFIX wrapper runs a command intact, at nice 10, pinned to the E-cores |
 | `check:allow-merge` | the install drops the allow rules it wrote before, keeps hand-added ones and adds the current set |
 | `check:asterion` | asterion, asterion dev/widget/demo and house reach house:app, house:run, house:widget and house:demo |
 | `check:asterion-seed` | Asterion's calendar feed and own bot token are seeded once from agenix, at 0600 |
