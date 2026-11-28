@@ -114,6 +114,7 @@ class Canvas {
     )
   }
   setPaused(p: boolean) {
+    if (this.paused === p) return
     this.paused = p
     if (this.hack && this.monitor?.connector) pauseHack(this.monitor.connector, p)
   }

@@ -34,7 +34,10 @@ const fullscreenOf = () => {
   return out
 }
 export const [fullscreenMonitors, setFullscreenMonitors] = createState<Set<string>>(fullscreenOf())
-const refresh = () => setFullscreenMonitors(fullscreenOf())
+const refresh = () => {
+  const now = fullscreenOf(), was = fullscreenMonitors.peek()
+  if (now.size !== was.size || [...now].some((m) => !was.has(m))) setFullscreenMonitors(now)
+}
 const FS_EVENTS = new Set(["fullscreen", "workspacev2", "focusedmon", "closewindow", "movewindowv2", "moveworkspacev2"])
 hypr.connect("event", (_, ev: string) => { if (FS_EVENTS.has(ev)) { refresh(); timeout(300, refresh) } })
 export const isFullscreen = (monitor: string | undefined) => !!monitor && fullscreenMonitors.peek().has(monitor)
