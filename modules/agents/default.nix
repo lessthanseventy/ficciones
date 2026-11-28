@@ -50,6 +50,8 @@ in
   # flake-managed so the next box gets them (Expert, the Elixir one, comes with
   # modules/menard-host.nix).
   home.packages = [
+    # babylon's bin/refresh-plugin runs this from PATH, the switch's copy, not a checkout's
+    (pkgs.writeScriptBin "plugin-snapshot" (builtins.readFile ./plugin-snapshot.sh))
     dbx
     pkgs.watchexec
     pkgs.worktrunk

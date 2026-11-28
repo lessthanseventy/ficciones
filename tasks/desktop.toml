@@ -144,13 +144,17 @@ run = "journalctl --user -u astal-shell.service -f"
 ["home:switch"]
 description = "machine: apply the home-manager profile"
 run = [
+  "git diff --quiet HEAD || echo \"applying uncommitted changes: $(git diff --name-only HEAD | tr '\\n' ' ')\"",
   "nix run --inputs-from . home-manager -- switch --flake .#personalbox -b backup",
   "scripts/worktrunk-plugin.sh",
 ]
 
 ["home:switch:mac"]
 description = "machine: apply the work Mac's home-manager profile (modules/mac)"
-run = "nix run --inputs-from . home-manager -- switch --flake .#anmoore -b pre-ficciones"
+run = [
+  "git diff --quiet HEAD || echo \"applying uncommitted changes: $(git diff --name-only HEAD | tr '\\n' ' ')\"",
+  "nix run --inputs-from . home-manager -- switch --flake .#anmoore -b pre-ficciones",
+]
 
 ["hyprland:install"]
 description = "machine (sudo): once on Arch — point /run/opengl-driver at the flake's mesa and give ly a session for the flake's Hyprland (modules/arch)"
