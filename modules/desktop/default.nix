@@ -602,6 +602,31 @@ in
       Install.WantedBy = [ "default.target" ];
     };
 
+    # An i915 hang leaves the programs it hit drawing stale frames until they are restarted.
+    # Arch's journalctl and systemctl, as they match the running systemd.
+    systemd.user.services.gpu-hang-watch = {
+      Unit = {
+        Description = "restart the shell, and name any other program, after a GPU hang";
+        PartOf = [ "graphical-session.target" ];
+        After = [ "graphical-session.target" ];
+      };
+      Service = {
+        ExecStart = pkgs.writeShellScript "gpu-hang-watch" ''
+          PATH=${
+            lib.makeBinPath [
+              pkgs.coreutils
+              pkgs.gnugrep
+              pkgs.libnotify
+            ]
+          }:/usr/bin
+          journalctl -k -f -n 0 -o cat | ${pkgs.bash}/bin/bash ${./scripts/gpu-hang-watch.sh} ${config.xdg.stateHome}/gpu-hang.log
+        '';
+        Restart = "always";
+        RestartSec = 5;
+      };
+      Install.WantedBy = [ "graphical-session.target" ];
+    };
+
     # git rewrites hyprland.lua by unlinking it first (a checkout, a rebase's autostash). Hyprland
     # reloads in that instant, finds no file and raises its error bar, and keeps the bar after
     # the file is back. Once the file settles: reload if the errors are still listed, and take

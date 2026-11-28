@@ -62,6 +62,10 @@ run = "modules/agents/asterion.test.sh"
 description = "screens-off is not a trap: no bind turns the screens off, and a key press or mouse move wakes them"
 run = "scripts/hypr-dpms.test.sh"
 
+["check:gpu-hang-watch"]
+description = "after a GPU hang the shell is restarted once per burst, and any other program is named in a notice, never killed"
+run = "modules/desktop/scripts/gpu-hang-watch.test.sh"
+
 ["check:statusline"]
 description = "the Claude statusline box fits the pane: unchanged at a full width, wrapped between whole segments and bordered at a narrow one"
 run = "modules/desktop/scripts/statusline-box.test.sh"
@@ -81,4 +85,4 @@ run = "command -v ags >/dev/null || { echo 'check:shell — no ags on PATH, not 
 
 ["check"]
 description = "Everything green: the names gate, the cap hook, the session hook and command, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "check:agent-work", "check:menard-scope", "check:allow-merge", "check:asterion-seed", "check:asterion", "check:session", "check:sandbox-sweep", "check:hypr-dpms", "check:statusline", "check:mods", "check:shell", "manual:check", "flake:check"]
+depends = ["check:names", "check:cap-hook", "check:agent-work", "check:menard-scope", "check:allow-merge", "check:asterion-seed", "check:asterion", "check:session", "check:sandbox-sweep", "check:hypr-dpms", "check:gpu-hang-watch", "check:statusline", "check:mods", "check:shell", "manual:check", "flake:check"]
