@@ -4,6 +4,7 @@
 // whose kernel module and userspace differ logs an NVRM line to the kernel journal on every call.
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
+import GLib from "gi://GLib?version=2.0"
 
 export type Gpu = {
   ok: boolean
@@ -20,12 +21,21 @@ const HIST = 120
 const hist: number[] = []
 const RETRY_MS = 300_000
 let failedAt = -Infinity
+// nvidia-smi wakes a runtime-suspended card and holds it awake for its autosuspend delay, so a
+// poll every 5 s would keep the dGPU on; a sleeping card is read as off, from sysfs alone
+const PM = "/sys/bus/pci/devices/0000:01:00.0/power/runtime_status"
+const asleep = () => {
+  try {
+    const [ok, bytes] = GLib.file_get_contents(PM)
+    return ok && new TextDecoder().decode(bytes).trim() === "suspended"
+  } catch { return false }
+}
 
 export const gpu = createPoll<Gpu>(
   { ok: false, util: 0, memUsed: 0, memTotal: 0, temp: 0, watts: 0, clock: 0, hist },
   5000,
   async () => {
-    if (Date.now() - failedAt < RETRY_MS) return { ok: false, util: 0, memUsed: 0, memTotal: 0, temp: 0, watts: 0, clock: 0, hist }
+    if (Date.now() - failedAt < RETRY_MS || asleep()) return { ok: false, util: 0, memUsed: 0, memTotal: 0, temp: 0, watts: 0, clock: 0, hist }
     try {
       const out = await execAsync([
         "nvidia-smi",
