@@ -91,20 +91,13 @@ export function setTheme(t: Theme | "toggle") {
     execAsync(["hyprctl", "reload"]).finally(applyDesktop),
     execAsync(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme]),
     // Claude Code reads `theme` from settings.json once at startup, then WATCHES the theme file
-    // for content changes. So the name is constant (custom:ficciones) and we rewrite the file it
+    // for content changes. So the name is constant (custom:ficciones, set at home:switch) and we rewrite the file it
     // is already reading — naming a different file per palette
     // could never reach a running session.
     Promise.resolve().then(() => {
       const home = GLib.get_home_dir()
       const [ok, bytes] = GLib.file_get_contents(`${home}/.config/ficciones/themes/${next}/claude-theme.json`)
       if (ok) GLib.file_set_contents(`${home}/.claude/themes/ficciones.json`, new TextDecoder().decode(bytes))
-      const f = `${home}/.claude/settings.json`
-      const [sok, sbytes] = GLib.file_get_contents(f)
-      if (!sok) return
-      const j = JSON.parse(new TextDecoder().decode(sbytes))
-      if (j.theme === "custom:ficciones") return
-      j.theme = "custom:ficciones"
-      GLib.file_set_contents(f, JSON.stringify(j, null, 2) + "\n")
     }),
     // ghostty re-reads its config on SIGUSR2 but leaves open surfaces alone (1.3), so they are
     // recoloured through OSC 10/11/4 on their ptys; every other app follows on its next launch
