@@ -212,11 +212,19 @@ hl.curve("easy", { type = "bezier", points = { { 0.05, 0.9 }, { 0.1, 1.05 } } })
 
 hl.animation({ leaf = "global", enabled = true, speed = 10, bezier = "default" })
 hl.animation({ leaf = "border", enabled = true, speed = 5.39, bezier = "easeOutQuint" })
--- spin the border, shadow and glow gradients together; a loop redraws every frame, so it keeps
--- the GPU awake
-hl.animation({ leaf = "borderangle", enabled = true, speed = 60, bezier = "linear", style = "loop" })
-hl.animation({ leaf = "shadowangle", enabled = true, speed = 60, bezier = "linear", style = "loop" })
-hl.animation({ leaf = "glowangle", enabled = true, speed = 60, bezier = "linear", style = "loop" })
+-- The border, shadow and glow gradients turn together: once when a window takes focus, then they
+-- rest. As a loop every window redraws every frame for ever, which keeps the GPU awake; the
+-- shell asks for it by name (look.borderLoop, lib/border.ts), so this stays a global.
+function border_turn(loop)
+    for _, leaf in ipairs({ "borderangle", "shadowangle", "glowangle" }) do
+        if loop then
+            hl.animation({ leaf = leaf, enabled = true, speed = 60, bezier = "linear", style = "loop" })
+        else
+            hl.animation({ leaf = leaf, enabled = true, speed = 20, bezier = "easeOutQuint", style = "once" })
+        end
+    end
+end
+border_turn(false)
 hl.animation({ leaf = "windows", enabled = true, speed = 4.79, bezier = "easy" })
 hl.animation({ leaf = "windowsIn", enabled = true, speed = 4.1, bezier = "easy", style = "popin 87%" })
 hl.animation({ leaf = "windowsOut", enabled = true, speed = 1.49, bezier = "linear", style = "popin 87%" })
