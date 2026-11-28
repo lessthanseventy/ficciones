@@ -329,6 +329,8 @@ in
       cloudflared
       sshfs
       strace
+      # loads the machine, to test a suite under it
+      stress-ng
       wtype
       wlrctl
       wev
