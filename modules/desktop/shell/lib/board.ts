@@ -21,7 +21,9 @@ function refresh() {
     if (stamp === seen) return
     seen = stamp
     const [ok, bytes] = GLib.file_get_contents(FILE)
-    setBoard(ok ? parse(new TextDecoder().decode(bytes)) : null)
+    // a read that does not parse (caught mid-write) keeps the board it had; only no file is no board
+    const next = ok ? parse(new TextDecoder().decode(bytes)) : null
+    if (next) setBoard(next)
   } catch { seen = ""; setBoard(null) }
 }
 

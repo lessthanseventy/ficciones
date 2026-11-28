@@ -52,7 +52,7 @@ export async function capture(ws: Hyprland.Workspace | null | undefined) {
       return id ? execAsync(["grim", "-t", "jpeg", "-q", "70", "-T", id, pathFor(c.address)]).then(() => geom.set(c.address, r)).catch(() => {}) : null
     }))
     setStamp((s) => s + 1)
-  } finally { busy.delete(ws.id) }
+  } catch (e) { console.error("thumbs:", e) } finally { busy.delete(ws.id) }
 }
 
 /** The thumb as a texture already scaled to `h` px tall — a Picture at natural size then IS the thumbnail. */
