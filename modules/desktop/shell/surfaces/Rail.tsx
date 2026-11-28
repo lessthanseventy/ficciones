@@ -10,7 +10,7 @@ import GLib from "gi://GLib?version=2.0"
 import { For, onCleanup, createComputed, type Accessor } from "ags"
 import { createPoll } from "ags/time"
 import { hypr, workspaces, focusedWorkspace, focusedClient, clients, superHeld, lastClientOn } from "../lib/hypr"
-import { RuleH, Panel } from "../lib/tui"
+import { RuleH, Panel, LazyPopover } from "../lib/tui"
 import { WeatherCard } from "../panes/Weather"
 import { CalendarCard } from "../panes/Calendar"
 import { hoverPopover } from "../lib/hover"
@@ -140,9 +140,9 @@ function Clock({ connector }: { connector: string }) {
         <label cssClasses={["day"]} label={part(2)} />
         <label cssClasses={["mon"]} label={part(3)} />
       </box>
-      <popover cssClasses={["pop", "pop-calendar"]}>
-        <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><box widthRequest={420}><CalendarCard /></box></Panel>
-      </popover>
+      <LazyPopover cssClasses={["pop", "pop-calendar"]}>
+        {() => <Panel title={"\u{f00ed}  CALENDAR"} cssClasses={["card", "card-calendar"]}><box widthRequest={420}><CalendarCard /></box></Panel>}
+      </LazyPopover>
     </menubutton>
   )
 }
@@ -158,9 +158,9 @@ function Weather({ connector }: { connector: string }) {
         <label cssClasses={["g"]} label={g} />
         <label cssClasses={["t"]} label={t} />
       </box>
-      <popover cssClasses={["pop", "pop-weather"]}>
-        <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]}><box widthRequest={460}><WeatherCard /></box></Panel>
-      </popover>
+      <LazyPopover cssClasses={["pop", "pop-weather"]}>
+        {() => <Panel title={"\u{f0590}  WEATHER"} cssClasses={["card", "card-weather"]}><box widthRequest={460}><WeatherCard /></box></Panel>}
+      </LazyPopover>
     </menubutton>
   )
 }

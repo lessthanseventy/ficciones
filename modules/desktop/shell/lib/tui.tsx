@@ -1,13 +1,26 @@
 // The TUI primitives every surface is built from. Presentation lives in style/; these only fix
 // the widget tree so one SCSS rule styles every instance the same way (design §3).
 import Gtk from "gi://Gtk?version=4.0"
-import type { Accessor } from "ags"
+import { With, createState, type Accessor } from "ags"
 
 type Text = string | Accessor<string>
 type Classes = string[] | Accessor<string[]>
 
 // a mapped array among sibling children is an array inside the children array; gnim flattens
 type Children = JSX.Element | Children[]
+
+/** A popover whose body is built when it opens and disposed when it closes: popovers are built
+ *  with their bar at startup, and a closed body bound to a 1 Hz source still updates every tick. */
+export function LazyPopover({ cssClasses, children }: { cssClasses: string[]; children: () => JSX.Element }) {
+  const [open, setOpen] = createState(false)
+  return (
+    <popover cssClasses={cssClasses} onShow={() => setOpen(true)} onClosed={() => setOpen(false)}>
+      <box>
+        <With value={open}>{(o) => o && children()}</With>
+      </box>
+    </popover>
+  )
+}
 
 /** fieldset/legend: a 1px border with the title inset into the top edge. */
 export function Panel({

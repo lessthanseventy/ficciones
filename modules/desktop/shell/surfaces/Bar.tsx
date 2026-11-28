@@ -21,7 +21,7 @@ import { hoverPopover } from "../lib/hover"
 import PowerProfiles from "gi://AstalPowerProfiles"
 import { external, brightness, setBrightness, stepBrightness } from "../lib/brightness"
 import { METRICS, MetricDetail } from "../panes/Perf"
-import { Panel } from "../lib/tui"
+import { Panel, LazyPopover } from "../lib/tui"
 import { iconFor } from "../lib/icons"
 import { RuleV, RuleH } from "../lib/tui"
 import { pct, spark, hhmm } from "../lib/format"
@@ -130,9 +130,9 @@ function PerfCell({ m, icon }: { m: (typeof METRICS)[number]; icon: string }) {
         <label cssClasses={["icon"]} label={icon} xalign={0.5} />
         <label cssClasses={["spark"]} label={m.hist((h) => spark(m.toSpark ? h.map(m.toSpark) : h, SPARK_CELLS))} widthChars={SPARK_CELLS} maxWidthChars={SPARK_CELLS} xalign={0} />
       </box>
-      <popover cssClasses={["pop", "pop-perf"]}>
-        <Panel title={`\u{f0e4a}  ${m.key.toUpperCase()}`} cssClasses={["card", "card-perf"]}><MetricDetail m={m} /></Panel>
-      </popover>
+      <LazyPopover cssClasses={["pop", "pop-perf"]}>
+        {() => <Panel title={`\u{f0e4a}  ${m.key.toUpperCase()}`} cssClasses={["card", "card-perf"]}><MetricDetail m={m} /></Panel>}
+      </LazyPopover>
     </menubutton>
   )
 }
