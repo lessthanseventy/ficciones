@@ -8,6 +8,7 @@ import { PALETTE } from "../lib/palette"
 import { hhmm } from "../lib/format"
 import { theme } from "../lib/theme"
 import { interval } from "ags/time"
+import { onCleanup } from "ags"
 
 const hh = (ms: number) => String(new Date(ms).getHours()).padStart(2, "0")
 const dow = (ms: number, i: number) => (i === 0 ? "today" : new Date(ms).toLocaleDateString([], { weekday: "short" }).toLowerCase())
@@ -118,9 +119,10 @@ function Chart() {
     cr.moveTo(2, top + 4); cr.showText(`${Math.round(hi)}°`); cr.moveTo(2, top + tempH); cr.showText(`${Math.round(lo)}°`)
   }
   // the palette is swapped in place on a theme change, and the "now" upright moves with the clock
-  weather.subscribe(() => area?.queue_draw())
-  theme.subscribe(() => area?.queue_draw())
-  interval(60_000, () => area?.queue_draw())
+  onCleanup(weather.subscribe(() => area?.queue_draw()))
+  onCleanup(theme.subscribe(() => area?.queue_draw()))
+  const tick = interval(60_000, () => area?.queue_draw())
+  onCleanup(() => tick.cancel())
   return <Gtk.DrawingArea heightRequest={130} hexpand $={(self) => { area = self; self.set_draw_func(draw) }} />
 }
 

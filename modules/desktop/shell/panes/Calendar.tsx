@@ -3,7 +3,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import GLib from "gi://GLib?version=2.0"
 import { createPoll } from "ags/time"
 import { execAsync } from "ags/process"
-import { For, With, createState, createComputed } from "ags"
+import { For, With, createState, createComputed, onCleanup } from "ags"
 import { RuleH } from "../lib/tui"
 
 /**
@@ -58,7 +58,7 @@ export function CalendarCard() {
   const home = () => { const t = GLib.DateTime.new_now_local(); setView({ year: t.get_year(), month: t.get_month() }) }
   // the card is built once and lives for days: a new day moves the chip, and the month with it
   const day = createPoll("", 60_000, () => GLib.DateTime.new_now_local().format("%F")!)
-  day.subscribe(home)
+  onCleanup(day.subscribe(home))
   const shown = createComputed(() => { day(); return view() })
   const clock = createPoll("", 1000, () => GLib.DateTime.new_now_local().format("%A %d %B · %H:%M:%S")!)
   return (
