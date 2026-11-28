@@ -30,7 +30,7 @@ let
   # The old xscreensaver hacks as the desktop's background, unported: each runs on a rootful
   # Xwayland whose window windowtolayer turns into OUTPUT's background layer (the shell's backdrop
   # rotation starts and stops them, shell/lib/xscreensaver.ts). GL needs a driver the nix mesa
-  # can find off NixOS, so both the X server and the hack are pointed at it, as nixGL does. The hacks
+  # can find off NixOS, so the hack is pointed at it, as nixGL does. The hacks
   # draw in SOFTWARE (llvmpipe), niced: one GL hack on the GPU the desktop draws with hung it, and the
   # reset took Hyprland down with it.
   # `xss-host --list` names the hacks; the ones that distort a grab of the screen are left out —
@@ -65,9 +65,11 @@ let
     # W×H is the size the hack draws at, not the monitor's (the shell scales it: backdrop.hackScale)
     out=$1 d=$2 w=$3 h=$4 hack=$5
     # stretched to the monitor by the compositor (rootful -fullscreen scales through the
-    # viewporter): software GL is fill-bound, so half size is 2–3× the frames for no more CPU
+    # viewporter): software GL is fill-bound, so half size is 2–3× the frames for no more CPU.
+    # -shm: the X server hands the compositor plain memory instead of compositing with glamor on
+    # the Intel GPU, where its contexts hung i915 and the reset damaged every GL client beside it
     ${pkgs.windowtolayer}/bin/windowtolayer -l background --output-name "$out" -m -- \
-      ${pkgs.xwayland}/bin/Xwayland ":$d" -fullscreen -geometry "''${w}x''${h}" -nolisten tcp &
+      ${pkgs.xwayland}/bin/Xwayland ":$d" -fullscreen -geometry "''${w}x''${h}" -shm -nolisten tcp &
     host=$!
     # the X server by its display too: windowtolayer can go first, orphaning it, and an orphan comes
     # back as a plain window
