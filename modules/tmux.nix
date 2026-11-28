@@ -164,6 +164,19 @@ in
     '';
   };
 
+  # a running server reads tmux.conf only at start: a switch that changes it sources it there
+  home.activation.tmuxReload = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    tmux=${config.programs.tmux.package}/bin/tmux
+    conf="$newGenPath/home-files/.config/tmux/tmux.conf"
+    if ! cmp -s "''${oldGenPath:-/nonexistent}/home-files/.config/tmux/tmux.conf" "$conf" && "$tmux" has-session 2>/dev/null; then
+      if run "$tmux" source-file "$HOME/.config/tmux/tmux.conf"; then
+        echo "tmux: the running server has the new tmux.conf"
+      else
+        echo "tmux: the running server did not take the new tmux.conf; prefix r reloads it" >&2
+      fi
+    fi
+  '';
+
   # continuum saves from a hook in status-right, which is emptied above and which arena, a
   # control client, never draws: the save runs on a timer instead. Continuum still restores.
   # The first save waits ten minutes, so a fresh server's restore lands before it.
