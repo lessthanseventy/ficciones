@@ -74,6 +74,10 @@ run = "modules/desktop/scripts/statusline-box.test.sh"
 description = "the sweep removes the placeholders a killed Claude sandbox leaves, and nothing live, tracked or real"
 run = "modules/agents/sandbox-sweep.test.sh"
 
+["check:tmux-save"]
+description = "the tmux save filter keeps hand-made sessions and windows and drops babylon's"
+run = "modules/tmux-save-filter.test.sh"
+
 ["check:session"]
 description = "the session command sets a session's goal and next, and briefs them"
 run = "modules/agents/session.test.sh"
@@ -85,4 +89,4 @@ run = "command -v ags >/dev/null || { echo 'check:shell — no ags on PATH, not 
 
 ["check"]
 description = "Everything green: the names gate, the cap hook, the session hook and command, the mods' tests, the desktop shell's gate, the manual's drift check, and the flake"
-depends = ["check:names", "check:cap-hook", "check:agent-work", "check:menard-scope", "check:allow-merge", "check:asterion-seed", "check:asterion", "check:session", "check:sandbox-sweep", "check:hypr-dpms", "check:gpu-hang-watch", "check:statusline", "check:mods", "check:shell", "manual:check", "flake:check"]
+depends = ["check:names", "check:cap-hook", "check:agent-work", "check:menard-scope", "check:allow-merge", "check:asterion-seed", "check:asterion", "check:session", "check:tmux-save", "check:sandbox-sweep", "check:hypr-dpms", "check:gpu-hang-watch", "check:statusline", "check:mods", "check:shell", "manual:check", "flake:check"]

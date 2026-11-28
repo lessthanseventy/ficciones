@@ -47,6 +47,10 @@ in
         extraConfig = ''
           set -g @resurrect-capture-pane-contents 'on'
           set -g @resurrect-processes 'iex mix nvim vim'
+          # babylon starts its own sessions and windows; restored, they are empty shells, and
+          # a restored `orchestrator` makes babylon's start of it fail as a duplicate. This
+          # hook gets the save file before resurrect links it as `last`.
+          set -g @resurrect-hook-post-save-layout '${pkgs.bash}/bin/bash ${./tmux-save-filter.sh}'
         '';
       }
       {
